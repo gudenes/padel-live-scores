@@ -48,7 +48,6 @@ export default function HomePage() {
   const [pastExpanded, setPastExpanded] = useState(false)
   const [liveCount, setLiveCount] = useState(0)
 
-  // Fetch all matches in one query
   const fetchAll = useCallback(async () => {
     const { data, error } = await supabase
       .from('matches')
@@ -99,13 +98,11 @@ export default function HomePage() {
     return () => { supabase.removeChannel(channel) }
   }, [fetchAll])
 
-  // All unique match days
   const matchDays = useMemo(() => {
     const days = new Set(allMatches.filter(m => m.status === 'finished').map(matchDay))
-    return [...days].sort((a, b) => a.localeCompare(b)) // oldest left, newest right
+    return [...days].sort((a, b) => a.localeCompare(b))
   }, [allMatches])
 
-  // Filtered matches
   const filtered = useMemo(() => {
     return allMatches
       .filter(m => activeTournament === 'all' || (m as any).tournament?.id === activeTournament)
@@ -118,7 +115,6 @@ export default function HomePage() {
   const scheduledMatches = filtered.filter(m => m.status === 'scheduled').sort((a: any, b: any) => (a.court_order ?? 99) - (b.court_order ?? 99))
   const finishedMatches = filtered.filter(m => m.status === 'finished')
 
-  // Group finished by day
   const finishedByDay = useMemo(() => {
     const map: Record<string, Match[]> = {}
     finishedMatches.forEach(m => {
@@ -134,23 +130,21 @@ export default function HomePage() {
   const activeTz = tournaments.find(t => t.id === activeTournament)?.timezone
   const localTime = activeTz ? new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: activeTz }).format(new Date()) : null
 
-  const activeFiltersCount = [statusFilter !== 'all', dateFilter !== null].filter(Boolean).length
-
   const TournamentPill = ({ t, isActive }: { t: typeof tournaments[0]; isActive: boolean }) => {
     const live = isLiveTournament(t.starts_at, t.ends_at)
     return (
       <button onClick={() => setActiveTournament(t.id)} style={{
         flexShrink: 0, display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8,
         fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 20,
-        background: isActive ? 'rgba(16,185,129,0.1)' : 'transparent',
-        border: isActive ? '0.5px solid rgba(16,185,129,0.3)' : '0.5px solid #2a2a2a',
-        color: isActive ? '#10b981' : '#555', cursor: 'pointer', whiteSpace: 'nowrap',
+        background: isActive ? 'var(--color-success-bg)' : 'transparent',
+        border: isActive ? '0.5px solid var(--color-success-border)' : '0.5px solid var(--border-strong)',
+        color: isActive ? 'var(--color-success)' : 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap',
       }}>
-        {live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', display: 'inline-block', flexShrink: 0 }} />}
+        {live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', flexShrink: 0 }} />}
         {t.country && <span style={{ fontSize: 14 }}>{countryFlag(t.country)}</span>}
         {t.name}
         {t.starts_at && t.ends_at && (
-          <span style={{ fontSize: 10, fontWeight: 400, color: isActive ? 'rgba(16,185,129,0.6)' : '#3a3a3a', marginTop: 1 }}>
+          <span style={{ fontSize: 10, fontWeight: 400, color: isActive ? 'rgba(16,185,129,0.6)' : 'var(--text-faint)', marginTop: 1 }}>
             {new Date(t.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – {new Date(t.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
           </span>
         )}
@@ -159,175 +153,180 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ background: '#111', minHeight: '100vh' }}>
-    <main style={{ background: '#111', minHeight: '100vh', maxWidth: 500, margin: '0 auto', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', borderLeft: '0.5px solid #1e1e1e', borderRight: '0.5px solid #1e1e1e' }}>
+    <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
+      <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto', fontFamily: 'var(--font-sans)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
 
-      <div style={{ background: '#111', borderBottom: '0.5px solid #1e1e1e', padding: '6px 14px 0', position: 'sticky', top: 0, zIndex: 10 }}>
+        {/* ── Sticky header ── */}
+        <div style={{ background: 'var(--bg-base)', borderBottom: '0.5px solid var(--border-base)', padding: '6px 14px 0', position: 'sticky', top: 0, zIndex: 10 }}>
 
-        {/* Logo + live badge */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
-          {liveCount > 0 && (
-            <div style={{ background: 'rgba(239,68,68,0.12)', border: '0.5px solid rgba(239,68,68,0.3)', borderRadius: 20, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
-              <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 600 }}>{liveCount} live</span>
+          {/* Logo + live badge */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
+            {liveCount > 0 && (
+              <div style={{ background: 'var(--color-live-bg)', border: '0.5px solid var(--color-live-border)', borderRadius: 20, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
+                <span style={{ fontSize: 11, color: 'var(--color-live)', fontWeight: 600 }}>{liveCount} live</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tournament pills */}
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' } as any}>
+            {liveTournaments.map(t => <TournamentPill key={t.id} t={t} isActive={activeTournament === t.id} />)}
+            {pastTournaments.length > 0 && (
+              <>
+                <button onClick={() => setPastExpanded(p => !p)} style={{ flexShrink: 0, fontSize: 11, color: 'var(--text-dim)', background: 'transparent', border: '0.5px solid var(--border-strong)', borderRadius: 20, padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  Completed <span style={{ fontSize: 10 }}>{pastExpanded ? '‹' : '›'}</span>
+                </button>
+                {pastExpanded && pastTournaments.map(t => <TournamentPill key={t.id} t={t} isActive={activeTournament === t.id} />)}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Sticky filter strip ── */}
+        <div style={{ background: 'var(--bg-base)', borderBottom: '0.5px solid var(--border-base)', position: 'sticky', top: 72, zIndex: 9 }}>
+
+          {/* Row 1 — Gender */}
+          <div style={{ display: 'flex', gap: 6, padding: '6px 14px 4px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', background: 'var(--bg-card)', borderRadius: 20, border: '0.5px solid var(--border-strong)', overflow: 'hidden' }}>
+              {(['all', 'men', 'women'] as Gender[]).map(g => (
+                <button key={g} onClick={() => setActiveGender(g)} style={{
+                  fontSize: 11, padding: '3px 12px',
+                  background: activeGender === g ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  border: 'none', borderLeft: g !== 'all' ? '0.5px solid var(--border-strong)' : 'none',
+                  color: activeGender === g ? (g === 'men' ? 'var(--color-men)' : g === 'women' ? 'var(--color-women)' : '#aaa') : 'var(--text-dim)',
+                  cursor: 'pointer', fontWeight: activeGender === g ? 600 : 400, fontFamily: 'var(--font-sans)',
+                }}>
+                  {g === 'all' ? 'All' : g === 'men' ? 'Men' : 'Women'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 2 — Status + Date */}
+          <div style={{ display: 'flex', gap: 6, padding: '2px 14px 6px', alignItems: 'center' }}>
+            {(['live', 'scheduled', 'finished'] as StatusFilter[]).map(s => {
+              const isActive = statusFilter === s
+              const colors: Record<string, string> = { live: 'var(--color-live)', scheduled: 'var(--color-success)', finished: 'var(--text-secondary)' }
+              const bgs: Record<string, string> = { live: 'var(--color-live-bg)', scheduled: 'var(--color-success-bg)', finished: 'rgba(255,255,255,0.06)' }
+              const borders: Record<string, string> = { live: 'var(--color-live-border)', scheduled: 'var(--color-success-border)', finished: 'rgba(255,255,255,0.15)' }
+              return (
+                <button key={s} onClick={() => setStatusFilter(isActive ? 'all' : s)} style={{
+                  fontSize: 11, padding: '3px 10px', borderRadius: 20, flexShrink: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                  border: isActive ? `0.5px solid ${borders[s]}` : '0.5px solid var(--border-strong)',
+                  background: isActive ? bgs[s] : 'transparent',
+                  color: isActive ? colors[s] : 'var(--text-dim)',
+                  fontWeight: isActive ? 600 : 400,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                  {s === 'live' && <span style={{ width: 5, height: 5, borderRadius: '50%', background: isActive ? 'var(--color-live)' : 'var(--text-dim)', display: 'inline-block' }} />}
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {isActive && <span style={{ opacity: 0.7 }}>✕</span>}
+                </button>
+              )
+            })}
+            <div style={{ width: 4 }} />
+            <button onClick={() => setShowDateStrip(p => !p)} style={{
+              fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+              border: dateFilter ? '0.5px solid var(--color-success-border)' : '0.5px solid var(--border-strong)',
+              background: dateFilter ? 'var(--color-success-bg)' : 'transparent',
+              color: dateFilter ? 'var(--color-success)' : 'var(--text-dim)', fontWeight: dateFilter ? 600 : 400,
+              display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
+            }}>
+              {dateFilter ? (
+                <>{dayLabel(dateFilter)} <span onClick={(e) => { e.stopPropagation(); setDateFilter(null) }} style={{ opacity: 0.7 }}>✕</span></>
+              ) : 'By date'}
+            </button>
+          </div>
+
+          {/* Date strip */}
+          {showDateStrip && (
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 14px 8px', scrollbarWidth: 'none' } as any}>
+              {matchDays.map(day => {
+                const isSelected = dateFilter === day
+                const count = allMatches.filter(m => m.status === 'finished' && matchDay(m) === day).length
+                const d = new Date(day)
+                return (
+                  <button key={day} onClick={() => { setDateFilter(isSelected ? null : day); setShowDateStrip(false) }} style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0,
+                    padding: '6px 10px', borderRadius: 10, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+                    background: isSelected ? 'var(--color-success-bg)' : 'var(--bg-card)',
+                    border: isSelected ? '0.5px solid var(--color-success-border)' : '0.5px solid var(--border-card)',
+                  }}>
+                    <span style={{ fontSize: 9, color: isSelected ? 'var(--color-success)' : 'var(--text-muted)', fontWeight: 700 }}>
+                      {d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase()}
+                    </span>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: isSelected ? 'var(--color-success)' : 'var(--text-muted)' }}>
+                      {d.getDate()}
+                    </span>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: isSelected ? 'var(--color-success)' : count > 4 ? 'var(--text-dim)' : 'var(--border-strong)' }} />
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
 
-        {/* Tournament pills */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6, scrollbarWidth: 'none' } as any}>
-          {liveTournaments.map(t => <TournamentPill key={t.id} t={t} isActive={activeTournament === t.id} />)}
-          {pastTournaments.length > 0 && (
-            <>
-              <button onClick={() => setPastExpanded(p => !p)} style={{ flexShrink: 0, fontSize: 11, color: '#444', background: 'transparent', border: '0.5px solid #2a2a2a', borderRadius: 20, padding: '5px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                Completed <span style={{ fontSize: 10 }}>{pastExpanded ? '‹' : '›'}</span>
-              </button>
-              {pastExpanded && pastTournaments.map(t => <TournamentPill key={t.id} t={t} isActive={activeTournament === t.id} />)}
-            </>
-          )}
-        </div>
-      </div>
+        {/* ── Feed ── */}
+        <div style={{ padding: '6px 10px 40px' }}>
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 12, height: 88, marginBottom: 6, opacity: 0.4 }} />
+            ))
+          ) : (
+            <div style={{ display: 'block' }}>
 
-      <div style={{ background: '#111', borderBottom: '0.5px solid #1e1e1e', position: 'sticky', top: 72, zIndex: 9 }}>
-        {/* Row 1 — Gender */}
-        <div style={{ display: 'flex', gap: 6, padding: '6px 14px 4px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: '#1a1a1a', borderRadius: 20, border: '0.5px solid #2a2a2a', overflow: 'hidden' }}>
-            {(['all', 'men', 'women'] as Gender[]).map(g => (
-              <button key={g} onClick={() => setActiveGender(g)} style={{
-                fontSize: 11, padding: '3px 12px', background: activeGender === g ? 'rgba(255,255,255,0.08)' : 'transparent',
-                border: 'none', borderLeft: g !== 'all' ? '0.5px solid #2a2a2a' : 'none',
-                color: activeGender === g ? (g === 'men' ? '#60a5fa' : g === 'women' ? '#f87171' : '#aaa') : '#444',
-                cursor: 'pointer', fontWeight: activeGender === g ? 600 : 400, fontFamily: 'inherit',
-              }}>
-                {g === 'all' ? 'All' : g === 'men' ? 'Men' : 'Women'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2 — Status + Date */}
-        <div style={{ display: 'flex', gap: 6, padding: '2px 14px 6px', alignItems: 'center' }}>
-          {(['live', 'scheduled', 'finished'] as StatusFilter[]).map(s => {
-            const isActive = statusFilter === s
-            const colors: Record<string, string> = { live: '#ef4444', scheduled: '#10b981', finished: '#888' }
-            const bgs: Record<string, string> = { live: 'rgba(239,68,68,0.08)', scheduled: 'rgba(16,185,129,0.08)', finished: 'rgba(255,255,255,0.06)' }
-            const borders: Record<string, string> = { live: 'rgba(239,68,68,0.3)', scheduled: 'rgba(16,185,129,0.3)', finished: 'rgba(255,255,255,0.15)' }
-            return (
-              <button key={s} onClick={() => setStatusFilter(isActive ? 'all' : s)} style={{
-                fontSize: 11, padding: '3px 10px', borderRadius: 20, flexShrink: 0, cursor: 'pointer', fontFamily: 'inherit',
-                border: isActive ? `0.5px solid ${borders[s]}` : '0.5px solid #2a2a2a',
-                background: isActive ? bgs[s] : 'transparent',
-                color: isActive ? colors[s] : '#444',
-                fontWeight: isActive ? 600 : 400,
-                display: 'flex', alignItems: 'center', gap: 4,
-              }}>
-                {s === 'live' && <span style={{ width: 5, height: 5, borderRadius: '50%', background: isActive ? '#ef4444' : '#444', display: 'inline-block' }} />}
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-                {isActive && <span style={{ opacity: 0.7 }}>✕</span>}
-              </button>
-            )
-          })}
-          <div style={{ width: 4 }} />
-          <button onClick={() => setShowDateStrip(p => !p)} style={{
-            fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer', fontFamily: 'inherit',
-            border: dateFilter ? '0.5px solid rgba(16,185,129,0.4)' : '0.5px solid #2a2a2a',
-            background: dateFilter ? 'rgba(16,185,129,0.1)' : 'transparent',
-            color: dateFilter ? '#10b981' : '#444', fontWeight: dateFilter ? 600 : 400,
-            display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
-          }}>
-            {dateFilter ? (
-              <>{dayLabel(dateFilter)} <span onClick={(e) => { e.stopPropagation(); setDateFilter(null) }} style={{ opacity: 0.7 }}>✕</span></>
-            ) : 'By date'}
-          </button>
-        </div>
-
-        {/* Date strip */}
-        {showDateStrip && (
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 14px 8px', scrollbarWidth: 'none' } as any}>
-            {matchDays.map(day => {
-              const isSelected = dateFilter === day
-              const count = allMatches.filter(m => m.status === 'finished' && matchDay(m) === day).length
-              const d = new Date(day)
-              return (
-                <button key={day} onClick={() => { setDateFilter(isSelected ? null : day); setShowDateStrip(false) }} style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0,
-                  padding: '6px 10px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-                  background: isSelected ? 'rgba(16,185,129,0.12)' : '#1a1a1a',
-                  border: isSelected ? '0.5px solid rgba(16,185,129,0.4)' : '0.5px solid #272727',
-                }}>
-                  <span style={{ fontSize: 9, color: isSelected ? '#10b981' : '#555', fontWeight: 700 }}>
-                    {d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase()}
-                  </span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: isSelected ? '#10b981' : '#666' }}>
-                    {d.getDate()}
-                  </span>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: isSelected ? '#10b981' : count > 4 ? '#444' : '#2a2a2a' }} />
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── Feed ── */}
-      <div style={{ padding: '6px 10px 40px' }}>
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} style={{ background: '#1a1a1a', borderRadius: 12, height: 88, marginBottom: 6, opacity: 0.4 }} />
-          ))
-        ) : (
-          <div style={{ display: 'block' }}>
-            {/* ── LIVE SECTION ── */}
-            {liveMatches.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <SectionHeader
-                  color="#ef4444"
-                  dot
-                  label="Live now"
-                  badge={liveMatches[0] ? (liveMatches[0] as any).round ?? '' : ''}
-                  right={localTime ? `Local ${localTime}` : undefined}
-                />
-                <div style={{ display: 'block' }}>
-                  {liveMatches.length <= 4 ? (
-                    liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)
-                  ) : (
-                    ['men', 'women'].map(gender => {
-                      const gMatches = liveMatches.filter((m: any) => m.category === gender)
-                      if (!gMatches.length) return null
-                      return (
-                        <div key={gender} style={{ marginBottom: 10 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                            <span style={{ fontSize: 9, color: gender === 'men' ? '#60a5fa' : '#f87171', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                              {gender === 'men' ? 'Men' : 'Women'} · {gMatches.length} live
-                            </span>
-                            <div style={{ flex: 1, height: '0.5px', background: gender === 'men' ? 'rgba(96,165,250,0.15)' : 'rgba(248,113,113,0.15)' }} />
+              {/* ── LIVE SECTION ── */}
+              {liveMatches.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <SectionHeader
+                    color="var(--color-live)"
+                    dot
+                    label="Live now"
+                    badge={liveMatches[0] ? (liveMatches[0] as any).round ?? '' : ''}
+                    right={localTime ? `Local ${localTime}` : undefined}
+                  />
+                  <div style={{ display: 'block' }}>
+                    {liveMatches.length <= 4 ? (
+                      liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)
+                    ) : (
+                      ['men', 'women'].map(gender => {
+                        const gMatches = liveMatches.filter((m: any) => m.category === gender)
+                        if (!gMatches.length) return null
+                        return (
+                          <div key={gender} style={{ marginBottom: 10 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                              <span style={{ fontSize: 9, color: gender === 'men' ? 'var(--color-men)' : 'var(--color-women)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                                {gender === 'men' ? 'Men' : 'Women'} · {gMatches.length} live
+                              </span>
+                              <div style={{ flex: 1, height: '0.5px', background: gender === 'men' ? 'rgba(96,165,250,0.2)' : 'rgba(248,113,113,0.2)' }} />
+                            </div>
+                            {gMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
                           </div>
-                          {gMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                        </div>
-                      )
-                    })
-                  )}
+                        )
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ── UP NEXT SECTION ── */}
-            {scheduledMatches.length > 0 && (statusFilter === 'all' || statusFilter === 'scheduled') && (
-              <div style={{ marginBottom: 16 }}>
-                <SectionHeader label="Up next" />
-                <div style={{ display: 'block' }}>
-                  {scheduledMatches.map(m => (
-                    <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
-                  ))}
+              {/* ── UP NEXT SECTION ── */}
+              {scheduledMatches.length > 0 && (statusFilter === 'all' || statusFilter === 'scheduled') && (
+                <div style={{ marginBottom: 16 }}>
+                  <SectionHeader label="Up next" />
+                  <div style={{ display: 'block' }}>
+                    {scheduledMatches.map(m => (
+                      <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ── RESULTS SECTION ── */}
-            {finishedMatches.length > 0 && (statusFilter === 'all' || statusFilter === 'finished') && (
-              <div>
-                {finishedByDay.map(([day, dayMatches]) => (
+              {/* ── RESULTS SECTION ── */}
+              {finishedMatches.length > 0 && (statusFilter === 'all' || statusFilter === 'finished') && (
+                <div>
+                  {finishedByDay.map(([day, dayMatches]) => (
                     <div key={day} style={{ marginBottom: 12 }}>
                       <SectionHeader
                         label={dayLabel(day)}
@@ -336,27 +335,21 @@ export default function HomePage() {
                       {dayMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
                     </div>
                   ))}
-              </div>
-            )}
+                </div>
+              )}
 
-            {/* Empty state */}
-            {liveMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
-              <div style={{ textAlign: 'center', paddingTop: 80 }}>
-                <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
-                <p style={{ color: '#555', fontWeight: 500 }}>No matches found</p>
-                <p style={{ color: '#444', fontSize: 14, marginTop: 4 }}>Try changing your filters</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <style>{`
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        button:focus { outline: none; }
-        ::-webkit-scrollbar { display: none; }
-      `}</style>
-    </main>
+              {/* Empty state */}
+              {liveMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
+                <div style={{ textAlign: 'center', paddingTop: 80 }}>
+                  <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
+                  <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches found</p>
+                  <p style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 4 }}>Try changing your filters</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   )
 }
@@ -364,11 +357,11 @@ export default function HomePage() {
 function SectionHeader({ label, color, dot, badge, right }: { label: string; color?: string; dot?: boolean; badge?: string; right?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 2px 6px' }}>
-      {dot && <span style={{ width: 6, height: 6, borderRadius: '50%', background: color ?? '#555', flexShrink: 0 }} />}
-      <span style={{ fontSize: 11, color: color ?? '#555', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</span>
-      {badge && <span style={{ fontSize: 9, color: '#444', background: '#1e1e1e', borderRadius: 8, padding: '1px 6px' }}>{badge}</span>}
-      <div style={{ flex: 1, height: '0.5px', background: color ? `${color}25` : '#1e1e1e' }} />
-      {right && <span style={{ fontSize: 10, color: '#3a3a3a', whiteSpace: 'nowrap' }}>{right}</span>}
+      {dot && <span style={{ width: 6, height: 6, borderRadius: '50%', background: color ?? '#aaa', flexShrink: 0 }} />}
+      <span style={{ fontSize: 11, color: color ?? '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</span>
+      {badge && <span style={{ fontSize: 9, color: 'var(--text-dim)', background: 'var(--bg-input)', borderRadius: 8, padding: '1px 6px' }}>{badge}</span>}
+      <div style={{ flex: 1, height: '0.5px', background: color ? `${color}25` : '#272727' }} />
+      {right && <span style={{ fontSize: 10, color: '#666', whiteSpace: 'nowrap' }}>{right}</span>}
     </div>
   )
 }
