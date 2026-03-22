@@ -82,7 +82,7 @@ export default function MatchCard({ match }: MatchCardProps) {
         ) : (
           /* Live / Finished layout */
           <>
-            {/* Status + set headers */}
+            {/* Status row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {isFinished && <span style={{ fontSize: 9, color: '#666', fontWeight: 600, letterSpacing: '0.3px' }}>FINISHED</span>}
@@ -90,12 +90,15 @@ export default function MatchCard({ match }: MatchCardProps) {
                 {isLive && <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block' }} /><span style={{ fontSize: 8, color: 'var(--color-live)', fontWeight: 700 }}>Live</span></div>}
                 {isLive && match.round && <span style={{ fontSize: 9, color: '#888', background: '#2a2a2a', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid #333' }}>{match.round}</span>}
               </div>
-              <div style={{ display: 'flex', gap: 2 }}>
-                {(match.sets ?? []).map((set) => (
-                  <span key={set.set_number} style={{ fontSize: 8, width: 20, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : '#555', fontWeight: 700 }}>S{set.set_number}</span>
-                ))}
-                <span style={{ width: 3 }} />
-                {isLive && <span style={{ fontSize: 8, width: 20, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 700 }}>Pts</span>}
+              {/* Set headers aligned above set scores, total header above total */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                <div style={{ display: 'flex', gap: 2, opacity: 0.7 }}>
+                  {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => (
+                    <span key={set.set_number} style={{ fontSize: 8, width: 16, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : '#555', fontWeight: 600 }}>S{set.set_number}</span>
+                  ))}
+                  {isLive && <span style={{ fontSize: 8, width: 20, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, marginLeft: 2 }}>Pts</span>}
+                </div>
+                {isFinished && <span style={{ fontSize: 8, width: 28, textAlign: 'center', color: '#555', fontWeight: 600, marginLeft: 6, borderLeft: '0.5px solid #2a2a2a', paddingLeft: 6 }}>Sets</span>}
               </div>
             </div>
 
@@ -111,19 +114,27 @@ export default function MatchCard({ match }: MatchCardProps) {
                   {pairName(match.pair1_player2, null)}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-                {(match.sets ?? []).map((set) => {
-                  const parsed = parseSetScore(set.set_score)
-                  const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
-                  return (
-                    <span key={set.set_number} style={{ fontSize: 16, fontWeight: 800, width: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.2, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p1WonSet ? 'var(--text-primary)' : '#555') : 'var(--text-muted)' }}>
-                      {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
-                      {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 1, right: -1 }}>{parsed.tb}</sup>}
-                    </span>
-                  )
-                })}
-                <span style={{ width: 3 }} />
-                {isLive && <span style={{ fontSize: 16, fontWeight: 800, width: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.2, color: 'var(--color-success)' }}>{p1Point ?? pair1Sets}</span>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+                {/* Set scores small */}
+                <div style={{ display: 'flex', gap: 2, opacity: isFinished ? 0.7 : 1 }}>
+                  {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => {
+                    const parsed = parseSetScore(set.set_score)
+                    const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
+                    return (
+                      <span key={set.set_number} style={{ fontSize: isFinished ? 13 : 16, fontWeight: 800, width: isFinished ? 16 : 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.3, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p1WonSet ? 'var(--text-primary)' : '#555') : 'var(--text-muted)' }}>
+                        {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
+                        {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
+                      </span>
+                    )
+                  })}
+                  {isLive && <span style={{ fontSize: 16, fontWeight: 800, width: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.2, color: 'var(--color-success)', marginLeft: 2 }}>{p1Point ?? pair1Sets}</span>}
+                </div>
+                {/* Total sets won — big number */}
+                {isFinished && (
+                  <span style={{ fontSize: 20, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: p1Won ? 'var(--text-primary)' : '#333', borderLeft: '0.5px solid #2a2a2a', marginLeft: 6, paddingLeft: 6 }}>
+                    {pair1Sets}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -139,19 +150,27 @@ export default function MatchCard({ match }: MatchCardProps) {
                   {pairName(match.pair2_player2, null)}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-                {(match.sets ?? []).map((set) => {
-                  const parsed = parseSetScore(set.set_score)
-                  const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
-                  return (
-                    <span key={set.set_number} style={{ fontSize: 16, fontWeight: 800, width: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.2, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p2WonSet ? 'var(--text-primary)' : '#555') : 'var(--text-muted)' }}>
-                      {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
-                      {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 1, right: -1 }}>{parsed.tb}</sup>}
-                    </span>
-                  )
-                })}
-                <span style={{ width: 3 }} />
-                {isLive && <span style={{ fontSize: 16, fontWeight: 800, width: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.2, color: 'var(--color-success)', opacity: 0.3 }}>{p2Point ?? pair2Sets}</span>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
+                {/* Set scores small */}
+                <div style={{ display: 'flex', gap: 2, opacity: isFinished ? 0.7 : 1 }}>
+                  {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => {
+                    const parsed = parseSetScore(set.set_score)
+                    const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
+                    return (
+                      <span key={set.set_number} style={{ fontSize: isFinished ? 13 : 16, fontWeight: 800, width: isFinished ? 16 : 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.3, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p2WonSet ? 'var(--text-primary)' : '#555') : 'var(--text-muted)' }}>
+                        {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
+                        {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
+                      </span>
+                    )
+                  })}
+                  {isLive && <span style={{ fontSize: 16, fontWeight: 800, width: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.2, color: 'var(--color-success)', opacity: 0.3, marginLeft: 2 }}>{p2Point ?? pair2Sets}</span>}
+                </div>
+                {/* Total sets won — big number */}
+                {isFinished && (
+                  <span style={{ fontSize: 20, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: p2Won ? 'var(--text-primary)' : '#333', borderLeft: '0.5px solid #2a2a2a', marginLeft: 6, paddingLeft: 6 }}>
+                    {pair2Sets}
+                  </span>
+                )}
               </div>
             </div>
           </>
