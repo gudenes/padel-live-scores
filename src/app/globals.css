@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+:root {
+  --bg-base: #111111; --bg-card: #1a1a1a; --bg-card-alt: #141414;
+  --bg-input: #1e1e1e; --bg-subtle: #161616;
+  --border-base: #1e1e1e; --border-card: #272727;
+  --border-strong: #2a2a2a; --border-inner: #252525;
+  --text-primary: #e8e8e8; --text-secondary: #888888;
+  --text-muted: #555555; --text-dim: #444444;
+  --text-faint: #3a3a3a; --text-ghost: #333333; --text-invisible: #2a2a2a;
+  --color-live: #ef4444; --color-live-bg: rgba(239,68,68,0.08); --color-live-border: rgba(239,68,68,0.3);
+  --color-success: #10b981; --color-success-bg: rgba(16,185,129,0.08); --color-success-border: rgba(16,185,129,0.3);
+  --color-men: #60a5fa; --color-men-bg: rgba(96,165,250,0.12); --color-men-border: rgba(96,165,250,0.3);
+  --color-women: #f87171; --color-women-bg: rgba(248,113,113,0.12); --color-women-border: rgba(248,113,113,0.3);
+  --color-p1: #10b981; --color-p2: #818cf8; --color-star: #f59e0b; --color-rank: #f59e0b; --color-side: #c084fc;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg-base); color: var(--text-primary); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+button { font-family: var(--font-sans); cursor: pointer; }
+button:focus { outline: none; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { display: none; }
