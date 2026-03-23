@@ -47,6 +47,20 @@ export default function HomePage() {
   const [showDateStrip, setShowDateStrip] = useState(false)
   const [pastExpanded, setPastExpanded] = useState(false)
   const [liveCount, setLiveCount] = useState(0)
+  const [lastSynced, setLastSynced] = useState<Date | null>(null)
+  const [syncAgo, setSyncAgo] = useState<string>('')
+  const [justUpdated, setJustUpdated] = useState(false)
+  const [localClock, setLocalClock] = useState('')
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date()
+      setLocalClock(now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }))
+    }
+    tick()
+    const t = setInterval(tick, 1000)
+    return () => clearInterval(t)
+  }, [])
 
   const fetchAll = useCallback(async () => {
     const { data, error } = await supabase
@@ -58,9 +72,9 @@ export default function HomePage() {
         pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
         pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
         pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        sets(*)
+        sets(*, games(*))
       `)
-      .in('status', ['live', 'scheduled', 'finished'])
+      .in('status', ['live', 'scheduled', 'finished', 'retired'])
       .order('court_order', { ascending: true, nullsFirst: false })
       .order('started_at', { ascending: false })
 
@@ -72,6 +86,9 @@ export default function HomePage() {
     }))
     setAllMatches(sorted)
     setLiveCount(sorted.filter((m: any) => m.status === 'live').length)
+    setLastSynced(new Date())
+    setJustUpdated(true)
+    setTimeout(() => setJustUpdated(false), 1500)
     setLoading(false)
   }, [])
 
@@ -99,9 +116,23 @@ export default function HomePage() {
   }, [fetchAll])
 
   const matchDays = useMemo(() => {
-    const days = new Set(allMatches.filter(m => m.status === 'finished').map(matchDay))
+    const days = new Set(allMatches.filter(m => m.status === 'finished' || m.status === 'retired').map(matchDay))
     return [...days].sort((a, b) => a.localeCompare(b))
   }, [allMatches])
+
+  // Update "updated X ago" every 5 seconds
+  useEffect(() => {
+    if (!lastSynced) return
+    const update = () => {
+      const secs = Math.floor((Date.now() - lastSynced.getTime()) / 1000)
+      if (secs < 5) setSyncAgo('just updated')
+      else if (secs < 60) setSyncAgo(`${secs}s ago`)
+      else setSyncAgo(`${Math.floor(secs / 60)}m ago`)
+    }
+    update()
+    const t = setInterval(update, 5000)
+    return () => clearInterval(t)
+  }, [lastSynced])
 
   const filtered = useMemo(() => {
     return allMatches
@@ -113,7 +144,7 @@ export default function HomePage() {
 
   const liveMatches = filtered.filter(m => m.status === 'live')
   const scheduledMatches = filtered.filter(m => m.status === 'scheduled').sort((a: any, b: any) => (a.court_order ?? 99) - (b.court_order ?? 99))
-  const finishedMatches = filtered.filter(m => m.status === 'finished')
+  const finishedMatches = filtered.filter(m => m.status === 'finished' || m.status === 'retired')
 
   const finishedByDay = useMemo(() => {
     const map: Record<string, Match[]> = {}
@@ -140,7 +171,7 @@ export default function HomePage() {
         border: isActive ? '0.5px solid var(--color-success-border)' : '0.5px solid var(--border-strong)',
         color: isActive ? 'var(--color-success)' : 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap',
       }}>
-        {live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', flexShrink: 0 }} />}
+        {live && <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', flexShrink: 0, animation: 'blink 1.4s ease-in-out infinite' }} />}
         {t.country && <span style={{ fontSize: 14 }}>{countryFlag(t.country)}</span>}
         {t.name}
         {t.starts_at && t.ends_at && (
@@ -159,15 +190,26 @@ export default function HomePage() {
         {/* ── Sticky header ── */}
         <div style={{ background: 'var(--bg-base)', borderBottom: '0.5px solid var(--border-base)', padding: '6px 14px 0', position: 'sticky', top: 0, zIndex: 10 }}>
 
-          {/* Logo + live badge */}
+          {/* Logo + clock + live badge */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
-            {liveCount > 0 && (
-              <div style={{ background: 'var(--color-live-bg)', border: '0.5px solid var(--color-live-border)', borderRadius: 20, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
-                <span style={{ fontSize: 11, color: 'var(--color-live)', fontWeight: 600 }}>{liveCount} live</span>
-              </div>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Live clock — pill style matching tournament pill */}
+              {localClock && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'transparent', border: '0.5px solid var(--border-strong)', borderRadius: 20, padding: '4px 12px', gap: 1 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', lineHeight: 1, letterSpacing: '0.5px' }}>{localClock}</span>
+                  <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.2px' }}>
+                    {Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, ' ').split('/').pop()}
+                  </span>
+                </div>
+              )}
+              {liveCount > 0 && (
+                <div style={{ background: 'var(--color-live-bg)', border: '0.5px solid var(--color-live-border)', borderRadius: 20, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
+                  <span style={{ fontSize: 11, color: 'var(--color-live)', fontWeight: 600 }}>{liveCount} live</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Tournament pills */}
@@ -226,46 +268,7 @@ export default function HomePage() {
                 </button>
               )
             })}
-            <div style={{ width: 4 }} />
-            <button onClick={() => setShowDateStrip(p => !p)} style={{
-              fontSize: 11, padding: '3px 10px', borderRadius: 20, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-              border: dateFilter ? '0.5px solid var(--color-success-border)' : '0.5px solid var(--border-strong)',
-              background: dateFilter ? 'var(--color-success-bg)' : 'transparent',
-              color: dateFilter ? 'var(--color-success)' : 'var(--text-dim)', fontWeight: dateFilter ? 600 : 400,
-              display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap',
-            }}>
-              {dateFilter ? (
-                <>{dayLabel(dateFilter)} <span onClick={(e) => { e.stopPropagation(); setDateFilter(null) }} style={{ opacity: 0.7 }}>✕</span></>
-              ) : 'By date'}
-            </button>
           </div>
-
-          {/* Date strip */}
-          {showDateStrip && (
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '0 14px 8px', scrollbarWidth: 'none' } as any}>
-              {matchDays.map(day => {
-                const isSelected = dateFilter === day
-                const count = allMatches.filter(m => m.status === 'finished' && matchDay(m) === day).length
-                const d = new Date(day)
-                return (
-                  <button key={day} onClick={() => { setDateFilter(isSelected ? null : day); setShowDateStrip(false) }} style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0,
-                    padding: '6px 10px', borderRadius: 10, cursor: 'pointer', fontFamily: 'var(--font-sans)',
-                    background: isSelected ? 'var(--color-success-bg)' : 'var(--bg-card)',
-                    border: isSelected ? '0.5px solid var(--color-success-border)' : '0.5px solid var(--border-card)',
-                  }}>
-                    <span style={{ fontSize: 9, color: isSelected ? 'var(--color-success)' : 'var(--text-muted)', fontWeight: 700 }}>
-                      {d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase()}
-                    </span>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: isSelected ? 'var(--color-success)' : 'var(--text-muted)' }}>
-                      {d.getDate()}
-                    </span>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: isSelected ? 'var(--color-success)' : count > 4 ? 'var(--text-dim)' : 'var(--border-strong)' }} />
-                  </button>
-                )
-              })}
-            </div>
-          )}
         </div>
 
         {/* ── Feed ── */}
@@ -285,7 +288,8 @@ export default function HomePage() {
                     dot
                     label="Live now"
                     badge={liveMatches[0] ? (liveMatches[0] as any).round ?? '' : ''}
-                    right={localTime ? `Local ${localTime}` : undefined}
+                    right={syncAgo || (localTime ? `Local ${localTime}` : undefined)}
+                    rightColor={justUpdated ? 'var(--color-success)' : undefined}
                   />
                   <div style={{ display: 'block' }}>
                     {liveMatches.length <= 4 ? (
@@ -354,14 +358,14 @@ export default function HomePage() {
   )
 }
 
-function SectionHeader({ label, color, dot, badge, right }: { label: string; color?: string; dot?: boolean; badge?: string; right?: string }) {
+function SectionHeader({ label, color, dot, badge, right, rightColor }: { label: string; color?: string; dot?: boolean; badge?: string; right?: string; rightColor?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 2px 6px' }}>
       {dot && <span style={{ width: 6, height: 6, borderRadius: '50%', background: color ?? '#aaa', flexShrink: 0 }} />}
       <span style={{ fontSize: 11, color: color ?? '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</span>
       {badge && <span style={{ fontSize: 9, color: 'var(--text-dim)', background: 'var(--bg-input)', borderRadius: 8, padding: '1px 6px' }}>{badge}</span>}
       <div style={{ flex: 1, height: '0.5px', background: color ? `${color}25` : '#272727' }} />
-      {right && <span style={{ fontSize: 10, color: '#666', whiteSpace: 'nowrap' }}>{right}</span>}
+      {right && <span style={{ fontSize: 10, color: rightColor ?? '#666', whiteSpace: 'nowrap', transition: 'color 0.4s ease' }}>{right}</span>}
     </div>
   )
 }

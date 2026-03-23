@@ -1,6 +1,6 @@
 // src/types/match.ts
 
-export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'cancelled'
+export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'cancelled' | 'retired'
 export type Coverage = 'full' | 'partial' | 'tracking' | null
 
 export interface Player {
@@ -91,18 +91,42 @@ export function parseSetScore(score: string | null): { p1: number; p2: number; t
   if (!score) return null
   const parts = score.split('-')
   if (parts.length !== 2) return null
-  const p1 = parseInt(parts[0])
+  const p1str = parts[0]
   const p2str = parts[1]
-  // Format: "6(1)" — tiebreak points in brackets
-  const bracketMatch = p2str.match(/^(\d+)\((\d+)\)$/)
-  if (bracketMatch) {
-    return { p1, p2: parseInt(bracketMatch[1]), tb: parseInt(bracketMatch[2]) }
+
+  // Format: "6(1)-7" or "7-6(1)" — tiebreak in brackets on either side
+  const p1BracketMatch = p1str.match(/^(\d+)\((\d+)\)$/)
+  if (p1BracketMatch) {
+    return { p1: parseInt(p1BracketMatch[1]), p2: parseInt(p2str), tb: parseInt(p1BracketMatch[2]) }
   }
-  // Format: "61" concatenated (from /live endpoint)
-  if (p2str.length > 1 && p1 >= 6) {
-    return { p1, p2: parseInt(p2str[0]), tb: parseInt(p2str.slice(1)) }
+  const p2BracketMatch = p2str.match(/^(\d+)\((\d+)\)$/)
+  if (p2BracketMatch) {
+    return { p1: parseInt(p1str), p2: parseInt(p2BracketMatch[1]), tb: parseInt(p2BracketMatch[2]) }
   }
-  return { p1, p2: parseInt(p2str), tb: null }
+
+  const p1 = parseInt(p1str)
+  const p2 = parseInt(p2str)
+
+  // Format: "65-7" — tiebreak concatenated to p1 (e.g. p1 lost 6-7 with tb=5)
+  // p1str has 2 digits and real score would be 6-7
+  if (p1str.length >= 2 && p2 <= 7 && p1str.length > String(p2 - 1 > 0 ? p2 - 1 : 0).length) {
+    const realP1 = parseInt(p1str[0])
+    const tb = parseInt(p1str.slice(1))
+    if (realP1 >= 6 && realP1 <= 7 && tb >= 0) {
+      return { p1: realP1, p2, tb }
+    }
+  }
+
+  // Format: "7-61" — tiebreak concatenated to p2 (e.g. p2 lost 6-7 with tb=1)
+  if (p2str.length >= 2 && p1 <= 7) {
+    const realP2 = parseInt(p2str[0])
+    const tb = parseInt(p2str.slice(1))
+    if (realP2 >= 6 && realP2 <= 7 && tb >= 0) {
+      return { p1, p2: realP2, tb }
+    }
+  }
+
+  return { p1, p2, tb: null }
 }
 function toShortName(name: string): string {
   const parts = name.trim().split(' ')

@@ -10,46 +10,11 @@ const supabase = createClient(
 
 const PADELAPI = 'https://padelapi.org/api'
 
-// ── Rate limit state (in-memory across requests in same instance) ────────────
-let _rateLimitRemaining: number = 100
-let _rateLimitResetAt: number = 0
-
 function apiHeaders() {
   return {
     Authorization: `Bearer ${process.env.PADELAPI_TOKEN}`,
     'Content-Type': 'application/json',
   }
-}
-
-function updateRateLimitState(res: Response) {
-  const remaining = res.headers.get('X-RateLimit-Remaining')
-  const reset = res.headers.get('X-RateLimit-Reset')
-  if (remaining !== null) _rateLimitRemaining = parseInt(remaining)
-  if (reset !== null) _rateLimitResetAt = parseInt(reset) * 1000
-  if (_rateLimitRemaining < 5) {
-    console.warn(`[Score Agent] Rate limit low — ${_rateLimitRemaining} remaining, resets at ${new Date(_rateLimitResetAt).toISOString()}`)
-  }
-}
-
-function isRateLimited(): boolean {
-  if (_rateLimitRemaining <= 2 && Date.now() < _rateLimitResetAt) {
-    console.warn(`[Score Agent] Skipping — rate limit exhausted until ${new Date(_rateLimitResetAt).toISOString()}`)
-    return true
-  }
-  return false
-}
-
-async function fetchWithRateLimit(url: string, options: RequestInit & { next?: any }): Promise<Response> {
-  const res = await fetch(url, options)
-  updateRateLimitState(res)
-  if (res.status === 429) {
-    const retryAfter = res.headers.get('Retry-After') ?? '60'
-    console.warn(`[Score Agent] 429 received — backing off ${retryAfter}s`)
-    _rateLimitRemaining = 0
-    _rateLimitResetAt = Date.now() + parseInt(retryAfter) * 1000
-    throw new Error(`Rate limited — retry after ${retryAfter}s`)
-  }
-  return res
 }
 
 // ── Types ────────────────────────────────────────────────────
@@ -116,7 +81,7 @@ interface ApiPlayerDetail {
 // ── Fetch helpers ────────────────────────────────────────────
 
 async function fetchLiveMatches(): Promise<ApiMatch[]> {
-  const res = await fetchWithRateLimit(`${PADELAPI}/live`, {
+  const res = await fetch(`${PADELAPI}/live`, {
     headers: apiHeaders(),
     next: { revalidate: 0 },
   })
@@ -126,7 +91,7 @@ async function fetchLiveMatches(): Promise<ApiMatch[]> {
 }
 
 async function fetchMatchDetail(matchId: number): Promise<ApiMatch> {
-  const res = await fetchWithRateLimit(`${PADELAPI}/matches/${matchId}`, {
+  const res = await fetch(`${PADELAPI}/matches/${matchId}`, {
     headers: apiHeaders(),
     next: { revalidate: 0 },
   })
@@ -135,7 +100,7 @@ async function fetchMatchDetail(matchId: number): Promise<ApiMatch> {
 }
 
 async function fetchLiveDetail(matchId: number): Promise<ApiLiveMatch> {
-  const res = await fetchWithRateLimit(`${PADELAPI}/matches/${matchId}/live`, {
+  const res = await fetch(`${PADELAPI}/matches/${matchId}/live`, {
     headers: apiHeaders(),
     next: { revalidate: 0 },
   })
@@ -403,16 +368,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Bail early if we know we're rate limited
-    if (isRateLimited()) {
-      return Response.json({
-        skipped: true,
-        message: `Rate limited — backing off until ${new Date(_rateLimitResetAt).toISOString()}`,
-        remainingMs: _rateLimitResetAt - Date.now(),
-      })
-    }
-
-    console.log(`[Score Agent] Starting sync — ${_rateLimitRemaining} API calls remaining`)
+    console.log('[Score Agent] Starting real data sync...')
 
     const liveMatches = await fetchLiveMatches()
     console.log(`[Score Agent] Found ${liveMatches.length} live matches`)
@@ -443,20 +399,41 @@ export async function GET(request: Request) {
             })
             .eq('id', m.id)
 
+          // Clear all is_current flags on games for this match
+          await supabase
+            .from('games')
+            .update({ is_current: false })
+            .eq('match_id', m.id)
+
           // Update set scores from final score array
           if (finalDetail.score && finalDetail.score.length > 0) {
+            // Delete orphan null sets beyond the final score count
+            const { data: existingSets } = await supabase
+              .from('sets')
+              .select('id, set_number')
+              .eq('match_id', m.id)
+
+            if (existingSets && finalDetail.score) {
+              const orphans = existingSets.filter((s: any) => s.set_number > finalDetail.score!.length)
+              if (orphans.length > 0) {
+                await supabase.from('sets').delete().in('id', orphans.map((s: any) => s.id))
+                console.log(`[Score Agent] Deleted ${orphans.length} orphan set(s) for match ${m.external_id}`)
+              }
+            }
+
             for (let i = 0; i < finalDetail.score.length; i++) {
               const s = finalDetail.score[i]
               const setScore = `${s.team_1}-${s.team_2}`
               const p1 = parseInt(s.team_1) || 0
-              // Handle bracket format e.g. "6(1)"
               const p2match = s.team_2.match(/^(\d+)/)
               const p2 = p2match ? parseInt(p2match[1]) : 0
+              // Upsert — handles both existing sets and missing ones
               await supabase
                 .from('sets')
-                .update({ set_score: setScore, pair1_games: p1, pair2_games: p2, is_current: false })
-                .eq('match_id', m.id)
-                .eq('set_number', i + 1)
+                .upsert(
+                  { match_id: m.id, set_number: i + 1, set_score: setScore, pair1_games: p1, pair2_games: p2, is_current: false },
+                  { onConflict: 'match_id, set_number', ignoreDuplicates: false }
+                )
             }
           }
           console.log(`[Score Agent] ✓ Match ${m.external_id} marked finished`)
@@ -497,12 +474,7 @@ export async function GET(request: Request) {
         .or('ends_at.is.null,ends_at.gte.' + new Date().toISOString().slice(0, 10))
 
       for (const tournament of activeTournaments ?? []) {
-        // Skip scheduled sync if rate limit is low
-        if (isRateLimited()) {
-          console.warn('[Score Agent] Skipping scheduled sync — rate limit low')
-          break
-        }
-        const res = await fetchWithRateLimit(`${PADELAPI}/tournaments/${tournament.external_id}/matches?per_page=100`, {
+        const res = await fetch(`${PADELAPI}/tournaments/${tournament.external_id}/matches?per_page=100`, {
           headers: apiHeaders(),
           next: { revalidate: 0 },
         })

@@ -6,8 +6,8 @@
   --border-base: #1e1e1e; --border-card: #272727;
   --border-strong: #2a2a2a; --border-inner: #252525;
   --text-primary: #e8e8e8; --text-secondary: #888888;
-  --text-muted: #555555; --text-dim: #444444;
-  --text-faint: #3a3a3a; --text-ghost: #333333; --text-invisible: #2a2a2a;
+  --text-muted: #777777; --text-dim: #666666;
+  --text-faint: #555555; --text-ghost: #444444; --text-invisible: #333333;
   --color-live: #ef4444; --color-live-bg: rgba(239,68,68,0.08); --color-live-border: rgba(239,68,68,0.3);
   --color-success: #10b981; --color-success-bg: rgba(16,185,129,0.08); --color-success-border: rgba(16,185,129,0.3);
   --color-men: #60a5fa; --color-men-bg: rgba(96,165,250,0.12); --color-men-border: rgba(96,165,250,0.3);

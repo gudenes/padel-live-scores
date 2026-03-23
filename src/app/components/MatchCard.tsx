@@ -1,7 +1,21 @@
 'use client'
+
+function getTimezoneOffset(tz: string, date: Date): number {
+  try {
+    const utcStr = date.toLocaleString('en-US', { timeZone: 'UTC', hour: '2-digit', minute: '2-digit', hour12: false })
+    const tzStr = date.toLocaleString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false })
+    const [utcH, utcM] = utcStr.split(':').map(Number)
+    const [tzH, tzM] = tzStr.split(':').map(Number)
+    return (tzH * 60 + tzM) - (utcH * 60 + utcM)
+  } catch {
+    return 0
+  }
+}
+
 // src/app/components/MatchCard.tsx
 
 import { useRouter } from 'next/navigation'
+import { useRef, useEffect, useState } from 'react'
 import { Match, pairName, countryFlag, parseSetScore, getCurrentScore } from '@/types/match'
 
 interface MatchCardProps {
@@ -18,25 +32,98 @@ export default function MatchCard({ match }: MatchCardProps) {
   const currentPoint = currentGame?.points?.slice(-1)[0] ?? null
   const [p1Point, p2Point] = currentPoint ? currentPoint.split(':') : [null, null]
 
-  const isFinished = match.status === 'finished'
+  const isFinished = match.status === 'finished' || match.status === 'retired'
   const isUpcoming = match.status === 'scheduled'
   const isLive = match.status === 'live'
+  const isRetired = match.status === 'retired'
   const winnerPair = (match as any).winner_pair
+
+  // Pop animation on point change for live matches
+  const prevP1Point = useRef<string | null>(null)
+  const prevP2Point = useRef<string | null>(null)
+  const [p1Popping, setP1Popping] = useState(false)
+  const [p2Popping, setP2Popping] = useState(false)
+
+  useEffect(() => {
+    if (!isLive) return
+    if (prevP1Point.current !== null && prevP1Point.current !== p1Point) {
+      setP1Popping(true)
+      setTimeout(() => setP1Popping(false), 450)
+    }
+    prevP1Point.current = p1Point ?? null
+  }, [p1Point])
+
+  useEffect(() => {
+    if (!isLive) return
+    if (prevP2Point.current !== null && prevP2Point.current !== p2Point) {
+      setP2Popping(true)
+      setTimeout(() => setP2Popping(false), 450)
+    }
+    prevP2Point.current = p2Point ?? null
+  }, [p2Point])
+
   const p1Won = isFinished && winnerPair === 1
   const p2Won = isFinished && winnerPair === 2
+
+  // For finished matches, count sets from set_score (ignore null sets leftover from live tracking)
+  const completedSets = (match.sets ?? []).filter((s: any) => s.set_score !== null)
+  const p1SetsWon = completedSets.filter((s: any) => {
+    const parsed = parseSetScore(s.set_score)
+    return parsed ? parsed.p1 > parsed.p2 : false
+  }).length
+  const p2SetsWon = completedSets.filter((s: any) => {
+    const parsed = parseSetScore(s.set_score)
+    return parsed ? parsed.p2 > parsed.p1 : false
+  }).length
 
   const category = (match as any).category as string | null
   const genderAccent = category === 'men' ? 'var(--color-men)' : category === 'women' ? 'var(--color-women)' : 'transparent'
   const scheduleLabel = (match as any).schedule_label as string | null
 
   const scheduledTime = (() => {
-    if (scheduleLabel) return scheduleLabel
+    // Try to extract a real time from schedule_label (e.g. "Starting at 5:00 PM", "Not before 7:00 PM")
+    if (scheduleLabel) {
+      const timeMatch = scheduleLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+      if (timeMatch) {
+        try {
+          // schedule_label times are in the tournament's local timezone (stored in tournament.timezone)
+          // We convert to the user's local timezone for display
+          const tournamentTz = (match as any).tournament?.timezone ?? 'Europe/Madrid'
+          const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+          // Parse the time from the label
+          let hours = parseInt(timeMatch[1])
+          const minutes = parseInt(timeMatch[2])
+          const ampm = timeMatch[3].toUpperCase()
+          if (ampm === 'PM' && hours < 12) hours += 12
+          if (ampm === 'AM' && hours === 12) hours = 0
+
+          // Build a naive UTC date (treat parsed time as UTC initially)
+          const today = new Date().toLocaleDateString('en-CA', { timeZone: tournamentTz }) // YYYY-MM-DD
+          const naiveUTC = new Date(`${today}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00Z`)
+
+          // Get tournament timezone offset at that moment (e.g. -300 for Cancun = UTC-5)
+          const tournamentOffset = getTimezoneOffset(tournamentTz, naiveUTC)
+
+          // Subtract tournament offset to get real UTC
+          // e.g. naiveUTC=17:00Z, tournamentOffset=-300 → realUTC = 17:00 - (-300min) = 22:00Z = 17:00 Cancun
+          const realUTC = new Date(naiveUTC.getTime() - tournamentOffset * 60000)
+
+          return realUTC.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz })
+        } catch {
+          return scheduleLabel
+        }
+      }
+      return scheduleLabel
+    }
+
+    // Fallback to scheduled_at timestamp
     const src = match.scheduled_at ?? match.started_at
     if (!src) return null
     try {
       const d = new Date(src)
       if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null
-      return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }).format(d)
+      return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
     } catch { return null }
   })()
 
@@ -48,6 +135,12 @@ export default function MatchCard({ match }: MatchCardProps) {
       <div style={{ padding: '5px 10px 6px' }}>
         {isUpcoming ? (
           /* Upcoming layout */
+          <>
+            {match.round && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>
+              </div>
+            )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
@@ -71,106 +164,143 @@ export default function MatchCard({ match }: MatchCardProps) {
                 </div>
               </div>
             </div>
-            <div style={{ flexShrink: 0, width: 110, textAlign: 'right' }}>
+            <div style={{ flexShrink: 0, width: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               {scheduledTime ? (
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-success)', lineHeight: 1.3 }}>{scheduledTime}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f5a623', lineHeight: 1.3 }}>{scheduledTime}</span>
+                  <span style={{ fontSize: 9, fontWeight: 500, color: '#f5a623', background: 'rgba(245,166,35,0.1)', borderRadius: 4, padding: '1px 6px', border: '0.5px solid rgba(245,166,35,0.3)' }}>
+                    {(() => {
+                      try {
+                        const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+                        const tournamentTz = (match as any).tournament?.timezone ?? 'Europe/Madrid'
+                        const label = (match as any).schedule_label ?? ''
+                        const timeMatch = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+                        if (timeMatch) {
+                          let hours = parseInt(timeMatch[1])
+                          const minutes = parseInt(timeMatch[2])
+                          const ampm = timeMatch[3].toUpperCase()
+                          if (ampm === 'PM' && hours < 12) hours += 12
+                          if (ampm === 'AM' && hours === 12) hours = 0
+                          const today = new Date().toLocaleDateString('en-CA', { timeZone: tournamentTz })
+                          const naiveUTC = new Date(`${today}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00Z`)
+                          const tournamentOffset = getTimezoneOffset(tournamentTz, naiveUTC)
+                          const realUTC = new Date(naiveUTC.getTime() - tournamentOffset * 60000)
+                          return realUTC.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: userTz })
+                        }
+                        // Fallback to scheduled_at
+                        const src = match.scheduled_at ?? match.started_at
+                        if (!src) return null
+                        return new Date(src).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: userTz })
+                      } catch { return null }
+                    })()}
+                  </span>
+                </div>
               ) : (
                 <span style={{ fontSize: 10, fontWeight: 500, color: '#555' }}>After previous</span>
               )}
             </div>
           </div>
+          </>
         ) : (
           /* Live / Finished layout */
           <>
             {/* Status row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {isFinished && <span style={{ fontSize: 9, color: '#666', fontWeight: 600, letterSpacing: '0.3px' }}>FINISHED</span>}
-                {isFinished && match.round && <span style={{ fontSize: 9, color: '#888', background: '#2a2a2a', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid #333' }}>{match.round}</span>}
-                {isLive && <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block' }} /><span style={{ fontSize: 8, color: 'var(--color-live)', fontWeight: 700 }}>Live</span></div>}
-                {isLive && match.round && <span style={{ fontSize: 9, color: '#888', background: '#2a2a2a', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid #333' }}>{match.round}</span>}
+                {isFinished && !isRetired && <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.3px' }}>FINISHED</span>}
+                {isRetired && <span style={{ fontSize: 9, color: '#f87171', fontWeight: 600, letterSpacing: '0.3px' }}>RETIRED</span>}
+                {isFinished && match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
+                {isLive && <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.3px' }}>LIVE</span>}
+                {isLive && match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
               </div>
               {/* Set headers aligned above set scores, total header above total */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
                 <div style={{ display: 'flex', gap: 2, opacity: 0.7 }}>
                   {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => (
-                    <span key={set.set_number} style={{ fontSize: 8, width: 16, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : '#555', fontWeight: 600 }}>S{set.set_number}</span>
+                    <span key={set.set_number} style={{ fontSize: 8, width: isLive ? 24 : 16, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : 'var(--text-muted)', fontWeight: 600 }}>S{set.set_number}</span>
                   ))}
-                  {isLive && <span style={{ fontSize: 8, width: 20, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, marginLeft: 2 }}>Pts</span>}
+                  {isLive && <><span style={{ width: 4 }} /><span style={{ fontSize: 8, width: 32, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, marginLeft: 8 }}>Pts</span></>}
                 </div>
-                {isFinished && <span style={{ fontSize: 8, width: 28, textAlign: 'center', color: '#555', fontWeight: 600, marginLeft: 6, borderLeft: '0.5px solid #2a2a2a', paddingLeft: 6 }}>Sets</span>}
+                {isFinished && <span style={{ fontSize: 8, width: 28, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, marginLeft: 6 }}>Sets</span>}
               </div>
             </div>
 
-            {/* Pair 1 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
+            {/* Pairs + optional RET pill */}
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
+              {/* Pairs column */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? '#777' : 'var(--text-primary)' }}>
-                  {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
-                  {pairName(match.pair1_player1, null)}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? '#777' : 'var(--text-primary)', marginTop: 1 }}>
-                  {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
-                  {pairName(match.pair1_player2, null)}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
-                {/* Set scores small */}
-                <div style={{ display: 'flex', gap: 2, opacity: isFinished ? 0.7 : 1 }}>
-                  {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => {
-                    const parsed = parseSetScore(set.set_score)
-                    const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
-                    return (
-                      <span key={set.set_number} style={{ fontSize: isFinished ? 13 : 16, fontWeight: 800, width: isFinished ? 16 : 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.3, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p1WonSet ? 'var(--text-primary)' : '#555') : 'var(--text-muted)' }}>
-                        {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
-                        {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
+                {/* Pair 1 */}
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                        {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
+                        {pairName(match.pair1_player1, null)}
                       </span>
-                    )
-                  })}
-                  {isLive && <span style={{ fontSize: 16, fontWeight: 800, width: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.2, color: 'var(--color-success)', marginLeft: 2 }}>{p1Point ?? pair1Sets}</span>}
-                </div>
-                {/* Total sets won — big number */}
-                {isFinished && (
-                  <span style={{ fontSize: 20, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: p1Won ? 'var(--text-primary)' : '#333', borderLeft: '0.5px solid #2a2a2a', marginLeft: 6, paddingLeft: 6 }}>
-                    {pair1Sets}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Pair 2 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? '#777' : 'var(--text-primary)' }}>
-                  {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
-                  {pairName(match.pair2_player1, null)}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? '#777' : 'var(--text-primary)', marginTop: 1 }}>
-                  {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
-                  {pairName(match.pair2_player2, null)}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexShrink: 0 }}>
-                {/* Set scores small */}
-                <div style={{ display: 'flex', gap: 2, opacity: isFinished ? 0.7 : 1 }}>
-                  {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => {
-                    const parsed = parseSetScore(set.set_score)
-                    const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
-                    return (
-                      <span key={set.set_number} style={{ fontSize: isFinished ? 13 : 16, fontWeight: 800, width: isFinished ? 16 : 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.3, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p2WonSet ? 'var(--text-primary)' : '#555') : 'var(--text-muted)' }}>
-                        {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
-                        {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
+                      {isRetired && p2Won && <span style={{ fontSize: 8, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '0.5px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '1px 5px', fontWeight: 600, flexShrink: 0 }}>RET</span>}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? 'var(--text-secondary)' : 'var(--text-primary)', marginTop: 1 }}>
+                      {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
+                      {pairName(match.pair1_player2, null)}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p2Won ? 0.6 : 0.85) : 1 }}>
+                      {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => {
+                        const parsed = parseSetScore(set.set_score)
+                        const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
+                        return (
+                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p1WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
+                            {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
+                            {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
+                          </span>
+                        )
+                      })}
+                      {isLive && <><div style={{ width: '0.5px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', marginLeft: 4, display: 'inline-block', transform: p1Popping ? 'scale(1.5)' : 'scale(1)', transition: p1Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p1Point ?? pair1Sets}</span></>}
+                    </div>
+                    {isFinished && (
+                      <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p1Won ? '#10b981' : 'var(--text-muted)', border: p1Won ? '1.5px solid rgba(16,185,129,0.5)' : '0.5px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
+                        {p1SetsWon}
                       </span>
-                    )
-                  })}
-                  {isLive && <span style={{ fontSize: 16, fontWeight: 800, width: 20, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1.2, color: 'var(--color-success)', opacity: 0.3, marginLeft: 2 }}>{p2Point ?? pair2Sets}</span>}
+                    )}
+                  </div>
                 </div>
-                {/* Total sets won — big number */}
-                {isFinished && (
-                  <span style={{ fontSize: 20, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: p2Won ? 'var(--text-primary)' : '#333', borderLeft: '0.5px solid #2a2a2a', marginLeft: 6, paddingLeft: 6 }}>
-                    {pair2Sets}
-                  </span>
-                )}
+                {/* Pair 2 */}
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <span style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                        {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
+                        {pairName(match.pair2_player1, null)}
+                      </span>
+                      {isRetired && p1Won && <span style={{ fontSize: 8, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '0.5px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '1px 5px', fontWeight: 600, flexShrink: 0 }}>RET</span>}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? 'var(--text-secondary)' : 'var(--text-primary)', marginTop: 1 }}>
+                      {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
+                      {pairName(match.pair2_player2, null)}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p1Won ? 0.6 : 0.85) : 1 }}>
+                      {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => {
+                        const parsed = parseSetScore(set.set_score)
+                        const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
+                        return (
+                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p2WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
+                            {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
+                            {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
+                          </span>
+                        )
+                      })}
+                      {isLive && <><div style={{ width: '0.5px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', opacity: 0.3, marginLeft: 4, display: 'inline-block', transform: p2Popping ? 'scale(1.5)' : 'scale(1)', transition: p2Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p2Point ?? pair2Sets}</span></>}
+                    </div>
+                    {isFinished && (
+                      <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p2Won ? '#10b981' : 'var(--text-muted)', border: p2Won ? '1.5px solid rgba(16,185,129,0.5)' : '0.5px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
+                        {p2SetsWon}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </>
