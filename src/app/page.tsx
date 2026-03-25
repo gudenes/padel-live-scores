@@ -143,7 +143,7 @@ export default function HomePage() {
   }, [allMatches, activeTournament, activeGender, statusFilter, dateFilter])
 
   const liveMatches = filtered.filter(m => m.status === 'live')
-  const scheduledMatches = filtered.filter(m => m.status === 'scheduled').sort((a: any, b: any) => (a.court_order ?? 99) - (b.court_order ?? 99))
+  const scheduledMatches = filtered.filter(m => m.status === 'scheduled' && ((m as any).pair1_player1 || (m as any).pair2_player1)).sort((a: any, b: any) => (a.court_order ?? 99) - (b.court_order ?? 99))
   const finishedMatches = filtered.filter(m => m.status === 'finished' || m.status === 'retired')
 
   const finishedByDay = useMemo(() => {
@@ -292,10 +292,12 @@ export default function HomePage() {
                     rightColor={justUpdated ? 'var(--color-success)' : undefined}
                   />
                   <div style={{ display: 'block' }}>
-                    {liveMatches.length <= 4 ? (
-                      liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)
-                    ) : (
-                      ['men', 'women'].map(gender => {
+                    {(() => {
+                      const hasCategories = liveMatches.some((m: any) => m.category === 'men' || m.category === 'women')
+                      if (!hasCategories || liveMatches.length <= 4) {
+                        return liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)
+                      }
+                      return ['men', 'women'].map(gender => {
                         const gMatches = liveMatches.filter((m: any) => m.category === gender)
                         if (!gMatches.length) return null
                         return (
@@ -310,7 +312,7 @@ export default function HomePage() {
                           </div>
                         )
                       })
-                    )}
+                    })()}
                   </div>
                 </div>
               )}
