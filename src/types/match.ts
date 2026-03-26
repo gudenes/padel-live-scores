@@ -69,9 +69,12 @@ export function isWarmingUp(match: Match): boolean {
   const allGames = sets.flatMap((s) => s.games ?? [])
   if (allGames.length === 0) return true
   const allPoints = allGames.flatMap((g) => g.points ?? [])
+  if (allPoints.length === 0) return true
   const realPoints = allPoints.filter((p) => p !== '0:0')
   return realPoints.length === 0
 }
+
+
 
 // ── Current score state for a match ──────────────────────────
 export function getCurrentScore(match: Match): {

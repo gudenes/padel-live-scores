@@ -29,9 +29,12 @@ export default function MatchCard({ match }: MatchCardProps) {
   const router = useRouter()
 
   const { pair1Sets, pair2Sets, currentSet, currentGame } = getCurrentScore(match)
-  const currentPoint = currentGame?.points?.slice(-1)[0] ?? null
+  // Get last point — exclude '0:0' serve marker (it is not a scored point)
+  const pointsWithoutServeMarker = (currentGame?.points ?? []).filter(p => p !== '0:0')
+  const currentPoint = pointsWithoutServeMarker.slice(-1)[0] ?? null
   const [p1Point, p2Point] = currentPoint ? currentPoint.split(':') : [null, null]
 
+  // Serving pair — shown as ball icon next to player name in live matches
   const isFinished = match.status === 'finished' || match.status === 'retired'
   const isUpcoming = match.status === 'scheduled'
   const isLive = match.status === 'live'
@@ -311,7 +314,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                           </span>
                         )
                       })}
-                      {isLive && <><div style={{ width: '0.5px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', marginLeft: 4, display: 'inline-block', transform: p1Popping ? 'scale(1.5)' : 'scale(1)', transition: p1Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p1Point ?? pair1Sets}</span></>}
+                      {isLive && <><div style={{ width: '0.5px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', marginLeft: 4, display: 'inline-block', transform: p1Popping ? 'scale(1.5)' : 'scale(1)', transition: p1Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p1Point ?? (currentSet ? '0' : pair1Sets)}</span></>}
                     </div>
                     {isFinished && (
                       <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p1Won ? '#10b981' : 'var(--text-muted)', border: p1Won ? '1.5px solid rgba(16,185,129,0.5)' : '0.5px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
@@ -347,7 +350,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                           </span>
                         )
                       })}
-                      {isLive && <><div style={{ width: '0.5px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', opacity: 0.3, marginLeft: 4, display: 'inline-block', transform: p2Popping ? 'scale(1.5)' : 'scale(1)', transition: p2Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p2Point ?? pair2Sets}</span></>}
+                      {isLive && <><div style={{ width: '0.5px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', opacity: 0.3, marginLeft: 4, display: 'inline-block', transform: p2Popping ? 'scale(1.5)' : 'scale(1)', transition: p2Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p2Point ?? (currentSet ? '0' : pair2Sets)}</span></>}
                     </div>
                     {isFinished && (
                       <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p2Won ? '#10b981' : 'var(--text-muted)', border: p2Won ? '1.5px solid rgba(16,185,129,0.5)' : '0.5px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
