@@ -353,6 +353,11 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
   }))
 
   // Update match with authoritative final data
+  // started_time from detail endpoint fills the gap when match was never tracked as live
+  const startedAt = detail.started_time 
+    ? new Date(detail.started_time).toISOString() 
+    : null
+
   await supabase
     .from('matches')
     .update({
@@ -360,6 +365,7 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
       status: 'finished',
       finished_at: new Date().toISOString(),
       duration: detail.duration ?? null,
+      started_at: startedAt,
       updated_at: new Date().toISOString(),
     })
     .eq('id', matchDbId)

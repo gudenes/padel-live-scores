@@ -201,6 +201,11 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
     }))
 
     // Update match with final authoritative data
+    // started_time fills the gap when match was never tracked as live
+    const startedAt = match.started_time
+      ? new Date(match.started_time).toISOString()
+      : null
+
     await supabase
       .from('matches')
       .update({
@@ -208,6 +213,7 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
         status: 'finished',
         finished_at: new Date().toISOString(),
         duration: match.duration ?? null,
+        started_at: startedAt,
         updated_at: new Date().toISOString(),
       })
       .eq('id', matchDbId)

@@ -23,7 +23,12 @@ function isLiveTournament(starts?: string | null, ends?: string | null) {
 }
 
 function matchDay(m: Match): string {
-  const src = (m as any).started_at ?? (m as any).scheduled_at ?? (m as any).played_at
+  // Fallback chain: started_at → scheduled_at → played_at → finished_at
+  // finished_at fallback handles matches that were never tracked as live
+  const src = (m as any).started_at 
+    ?? (m as any).scheduled_at 
+    ?? (m as any).played_at
+    ?? (m as any).finished_at
   if (!src) return 'Unknown'
   return src.slice(0, 10)
 }
