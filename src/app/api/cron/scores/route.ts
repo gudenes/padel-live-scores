@@ -64,21 +64,14 @@ async function fetchFromApi(path: string): Promise<Response | null> {
 
 // ── Types ──────────────────────────────────────────────────────
 
-// Shape from GET /api/live and GET /api/matches/{id}/live
+// Shape from GET /api/live — only basic fields, NO player data
+// Players must be fetched separately from GET /api/matches/{id}
 interface ApiMatch {
   id: number
   status: string
   coverage: string | null
   channel: string
-  tournament?: { id: number; name: string; level?: string }
-  tournament_name?: string
-  round?: string
-  court?: string
-  court_order?: number
-  scheduled_at?: string
-  category?: string
-  pair1?: { player1: { id: number; name: string }; player2: { id: number; name: string } }
-  pair2?: { player1: { id: number; name: string }; player2: { id: number; name: string } }
+  connections?: { match?: string }
 }
 
 interface ApiMatchLive {
@@ -105,11 +98,13 @@ interface ApiGame {
 interface ApiMatchDetail {
   id: number
   status: string
-  winner: 'team_1' | 'team_2' | null  // string, not int
-  score: Array<{ team_1: string; team_2: string }> // set scores as array
+  winner: 'team_1' | 'team_2' | null
+  score: Array<{ team_1: string; team_2: string }>
   duration: string | null
   category: string | null
+  round: number | null
   round_name: string | null
+  index: number | null
   court: string | null
   court_order: number | null
   schedule_label: string | null
@@ -119,6 +114,7 @@ interface ApiMatchDetail {
     team_1: Array<{ id: number; name: string; side: string | null }>
     team_2: Array<{ id: number; name: string; side: string | null }>
   }
+  connections?: Record<string, string>
 }
 
 // ── Set score normalization ────────────────────────────────────
@@ -236,25 +232,6 @@ async function upsertPlayer(name: string, externalNumericId?: number): Promise<s
 
   if (error || !data) {
     console.error(`[Score Agent] Failed to upsert player ${name}:`, error)
-    return null
-  }
-  return data.id
-}
-
-async function upsertTournament(match: ApiMatch): Promise<string | null> {
-  const tournament = match.tournament
-  const name = tournament?.name ?? match.tournament_name ?? 'Unknown Tournament'
-  const externalId = tournament?.id ? String(tournament.id) : normalizePlayerName(name)
-  const level = tournament?.level ?? 'unknown'
-
-  const { data, error } = await supabase
-    .from('tournaments')
-    .upsert({ external_id: externalId, name, level }, { onConflict: 'external_id' })
-    .select('id')
-    .single()
-
-  if (error || !data) {
-    console.error(`[Score Agent] Failed to upsert tournament ${name}:`, error)
     return null
   }
   return data.id
@@ -396,24 +373,58 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
 
 async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<void> {
   const externalId = String(match.id)
-  // ended = match over but score not yet confirmed (transitions to finished within minutes)
-  // bye = no match played (no opponent)
   const isFinished = ['finished', 'retired', 'ended', 'bye'].includes(liveState.status as string)
 
-  const tournamentId = await upsertTournament(match)
+  // Check if match already has player data in DB
+  const { data: existing } = await supabase
+    .from('matches')
+    .select('id, pair1_player1_id, tournament_id, round, court, category')
+    .eq('external_id', externalId)
+    .single()
 
-  const p1p1 = match.pair1?.player1
-  const p1p2 = match.pair1?.player2
-  const p2p1 = match.pair2?.player1
-  const p2p2 = match.pair2?.player2
+  // Only fetch detail if we're missing players, tournament, or match metadata
+  // GET /api/matches/{id} has players, round, court, category, tournament
+  // GET /api/live does NOT have any of this
+  let detail: ApiMatchDetail | null = null
+  const needsDetail = !existing?.pair1_player1_id || !existing?.tournament_id || !existing?.round
+
+  if (needsDetail && !isRateLimited()) {
+    detail = await fetchMatchDetail(externalId)
+  }
+
+  // Get tournament ID from DB — prefer existing, otherwise look up from detail
+  let tournamentId: string | null = existing?.tournament_id ?? null
+  if (!tournamentId && detail) {
+    const detailAny = detail as any
+    const tournamentPath: string | null = detailAny?.connections?.tournament ?? null
+    const tournamentExtId = tournamentPath?.replace('/api/tournaments/', '') ?? null
+    if (tournamentExtId) {
+      const { data: tRow } = await supabase
+        .from('tournaments')
+        .select('id')
+        .eq('external_id', tournamentExtId)
+        .single()
+      if (tRow) tournamentId = tRow.id
+    }
+  }
+
+  // Get player IDs from detail endpoint
+  const team1 = detail?.players?.team_1 ?? []
+  const team2 = detail?.players?.team_2 ?? []
 
   const [pair1Player1Id, pair1Player2Id, pair2Player1Id, pair2Player2Id] =
-    await Promise.all([
-      p1p1 ? upsertPlayer(p1p1.name, p1p1.id) : Promise.resolve(null),
-      p1p2 ? upsertPlayer(p1p2.name, p1p2.id) : Promise.resolve(null),
-      p2p1 ? upsertPlayer(p2p1.name, p2p1.id) : Promise.resolve(null),
-      p2p2 ? upsertPlayer(p2p2.name, p2p2.id) : Promise.resolve(null),
-    ])
+    existing?.pair1_player1_id
+      ? [null, null, null, null] // already have players, skip
+      : await Promise.all([
+          team1[0] ? upsertPlayer(team1[0].name, team1[0].id) : Promise.resolve(null),
+          team1[1] ? upsertPlayer(team1[1].name, team1[1].id) : Promise.resolve(null),
+          team2[0] ? upsertPlayer(team2[0].name, team2[0].id) : Promise.resolve(null),
+          team2[1] ? upsertPlayer(team2[1].name, team2[1].id) : Promise.resolve(null),
+        ])
+
+  const startedAt = detail?.started_time
+    ? new Date(detail.started_time).toISOString()
+    : (liveState.status === 'live' ? new Date().toISOString() : null)
 
   const { data: matchRow, error: matchError } = await supabase
     .from('matches')
@@ -424,16 +435,15 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
         status: liveState.status,
         coverage: liveState.coverage,
         pusher_channel: liveState.channel,
-        round: match.round ?? null,
-        court: match.court ?? null,
-        court_order: match.court_order ?? null,
-        scheduled_at: match.scheduled_at ?? null,
-        category: match.category ?? null,
-        pair1_player1_id: pair1Player1Id,
-        pair1_player2_id: pair1Player2Id,
-        pair2_player1_id: pair2Player1Id,
-        pair2_player2_id: pair2Player2Id,
-        started_at: liveState.status === 'live' ? new Date().toISOString() : null,
+        round: detail?.round ?? existing?.round ?? null,
+        court: detail?.court ?? existing?.court ?? null,
+        court_order: detail?.court_order ?? null,
+        category: detail?.category ?? existing?.category ?? null,
+        ...(pair1Player1Id ? { pair1_player1_id: pair1Player1Id } : {}),
+        ...(pair1Player2Id ? { pair1_player2_id: pair1Player2Id } : {}),
+        ...(pair2Player1Id ? { pair2_player1_id: pair2Player1Id } : {}),
+        ...(pair2Player2Id ? { pair2_player2_id: pair2Player2Id } : {}),
+        started_at: startedAt,
         finished_at: isFinished ? new Date().toISOString() : null,
         raw_payload: liveState,
         updated_at: new Date().toISOString(),

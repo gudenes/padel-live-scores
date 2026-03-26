@@ -155,7 +155,20 @@ export default function HomePage() {
   // ── Warming up: shown separately below live if any ──
   const warmingUpMatches = filtered.filter(m => m.status === 'live' && isWarmingUp(m))
 
-  const scheduledMatches = filtered.filter(m => m.status === 'scheduled' && ((m as any).pair1_player1 || (m as any).pair2_player1)).sort((a: any, b: any) => (a.court_order ?? 99) - (b.court_order ?? 99))
+  const scheduledMatches = filtered
+    .filter(m => m.status === 'scheduled')
+    .sort((a: any, b: any) => {
+      // Sort by played_at first (soonest first)
+      const dateA = a.played_at ?? a.scheduled_at ?? ''
+      const dateB = b.played_at ?? b.scheduled_at ?? ''
+      if (dateA !== dateB) return dateA.localeCompare(dateB)
+      // Then by round (lower round number = later stage = more important)
+      const roundA = a.round ?? 99
+      const roundB = b.round ?? 99
+      if (roundA !== roundB) return roundA - roundB
+      // Then by index within round
+      return (a.index ?? 0) - (b.index ?? 0)
+    })
 
   // ── Finished: includes retired and walkover ──
   // ended = transitional (score being confirmed) — show in results with CONFIRMING badge
