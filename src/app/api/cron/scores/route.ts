@@ -1,5 +1,6 @@
 // src/app/api/cron/scores/route.ts
-// Score Agent — REAL DATA from padelapi.org
+// Score Agent — LIVE version
+// Replaces stub data with real padelapi.org API calls
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -8,252 +9,201 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 )
 
-const PADELAPI = 'https://padelapi.org/api'
+const PADELAPI_BASE = 'https://padelapi.org/api'
+const PADELAPI_TOKEN = process.env.PADELAPI_TOKEN!
 
-function apiHeaders() {
-  return {
-    Authorization: `Bearer ${process.env.PADELAPI_TOKEN}`,
-    'Content-Type': 'application/json',
+// ── Rate limit state (in-memory, resets on cold start) ────────
+let _rateLimitRemaining = 60  // Pro tier: 60 req/min
+let _rateLimitResetAt = 0
+let _retryAfter = 0
+
+function isRateLimited(): boolean {
+  if (_retryAfter > Date.now()) {
+    console.warn(`[Score Agent] Rate limit backoff active. Retry after ${new Date(_retryAfter).toISOString()}`)
+    return true
+  }
+  if (_rateLimitRemaining <= 2) {
+    console.warn(`[Score Agent] Rate limit nearly exhausted (${_rateLimitRemaining} remaining). Skipping run.`)
+    return true
+  }
+  return false
+}
+
+// ── Fetch wrapper with rate limit tracking ────────────────────
+async function fetchFromApi(path: string): Promise<Response | null> {
+  if (isRateLimited()) return null
+
+  const res = await fetch(`${PADELAPI_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${PADELAPI_TOKEN}` },
+  })
+
+  // Track rate limit headers on every response
+  const remaining = res.headers.get('X-RateLimit-Remaining')
+  const limit = res.headers.get('X-RateLimit-Limit')
+  if (remaining !== null) _rateLimitRemaining = parseInt(remaining, 10)
+  if (limit) console.log(`[Score Agent] Rate limit: ${remaining}/${limit} remaining`)
+
+  // Handle 429 — back off for the duration specified
+  if (res.status === 429) {
+    const retryAfter = res.headers.get('Retry-After')
+    const backoffSeconds = retryAfter ? parseInt(retryAfter, 10) : 60
+    _retryAfter = Date.now() + backoffSeconds * 1000
+    console.error(`[Score Agent] 429 received. Backing off for ${backoffSeconds}s.`)
+    return null
+  }
+
+  if (!res.ok) {
+    console.error(`[Score Agent] API error ${res.status} for ${path}`)
+    return null
+  }
+
+  return res
+}
+
+// ── Step 1: Fetch all live matches ────────────────────────────
+async function fetchLiveMatches(): Promise<ApiMatch[]> {
+  const res = await fetchFromApi('/live')
+  if (!res) return []
+
+  try {
+    const data = await res.json()
+    // API returns array directly or wrapped in { data: [...] }
+    return Array.isArray(data) ? data : (data.data ?? [])
+  } catch (e) {
+    console.error('[Score Agent] Failed to parse /live response:', e)
+    return []
   }
 }
 
-// ── Types ────────────────────────────────────────────────────
+// ── Step 2: Fetch full point-by-point state for one match ─────
+async function fetchMatchLiveState(matchId: number): Promise<ApiMatchLive | null> {
+  const res = await fetchFromApi(`/matches/${matchId}/live`)
+  if (!res) return null
 
-interface ApiPlayer {
-  id: number
-  name: string
-  side: string | null
+  try {
+    return await res.json()
+  } catch (e) {
+    console.error(`[Score Agent] Failed to parse /matches/${matchId}/live:`, e)
+    return null
+  }
 }
 
+// ── Type definitions (mirrors padelapi.org response shape) ────
 interface ApiMatch {
   id: number
-  name: string | null
-  category: string
-  round: number
-  round_name: string
-  played_at: string
-  court: string | null
-  court_order: number | null
   status: string
-  score: { team_1: string; team_2: string }[] | null
-  winner: string | null
-  started_time: string | null
-  duration: string | null
-  players: {
-    team_1: ApiPlayer[]
-    team_2: ApiPlayer[]
-  }
-  connections: {
-    tournament: string
-    live: string
-  }
+  coverage: string | null
+  channel: string
+  tournament?: { id: number; name: string; level?: string }
+  tournament_name?: string
+  round?: string
+  court?: string
+  court_order?: number
+  scheduled_at?: string
+  category?: string
+  pair1?: { player1: { id: number; name: string }; player2: { id: number; name: string } }
+  pair2?: { player1: { id: number; name: string }; player2: { id: number; name: string } }
 }
 
-interface ApiLiveGame {
+interface ApiMatchLive {
+  id: number
+  status: string
+  coverage: string | null
+  channel: string
+  sets: ApiSet[]
+  connections?: { match: string }
+}
+
+interface ApiSet {
+  set_number: number
+  set_score: string | null
+  games: ApiGame[]
+}
+
+interface ApiGame {
   game_number: number
   game_score: string
   points: string[]
 }
 
-interface ApiLiveSet {
-  set_number: number
-  set_score: string | null
-  games: ApiLiveGame[]
+// ── Normalize player names to handle accent variants ──────────
+function normalizePlayerName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')    // spaces/punctuation → hyphens
+    .replace(/^-|-$/g, '')           // trim leading/trailing hyphens
 }
 
-interface ApiLiveMatch {
-  id: number
-  status: string
-  coverage: string | null
-  channel: string
-  sets: ApiLiveSet[]
-}
-
-interface ApiPlayerDetail {
-  id: number
-  name: string
-  short_name: string
-  photo_url: string | null
-  ranking: string
-  nationality: string
-}
-
-// ── Fetch helpers ────────────────────────────────────────────
-
-async function fetchLiveMatches(): Promise<ApiMatch[]> {
-  const res = await fetch(`${PADELAPI}/live`, {
-    headers: apiHeaders(),
-    next: { revalidate: 0 },
-  })
-  if (!res.ok) throw new Error(`/live failed: ${res.status} ${res.statusText}`)
-  const data = await res.json()
-  return data.data ?? []
-}
-
-async function fetchMatchDetail(matchId: number): Promise<ApiMatch> {
-  const res = await fetch(`${PADELAPI}/matches/${matchId}`, {
-    headers: apiHeaders(),
-    next: { revalidate: 0 },
-  })
-  if (!res.ok) throw new Error(`/matches/${matchId} failed: ${res.status}`)
-  return res.json()
-}
-
-async function fetchLiveDetail(matchId: number): Promise<ApiLiveMatch> {
-  const res = await fetch(`${PADELAPI}/matches/${matchId}/live`, {
-    headers: apiHeaders(),
-    next: { revalidate: 0 },
-  })
-  if (!res.ok) throw new Error(`/matches/${matchId}/live failed: ${res.status}`)
-  return res.json()
-}
-
-async function fetchPlayerDetail(playerId: number): Promise<ApiPlayerDetail | null> {
-  const res = await fetch(`${PADELAPI}/players/${playerId}`, {
-    headers: apiHeaders(),
-    next: { revalidate: 3600 },
-  })
-  if (!res.ok) return null
-  return res.json()
-}
-
-interface ApiPlayerStats {
-  matches_played: number
-  matches_won: number
-  win_percentage: string
-}
-
-async function fetchPlayerStats(playerId: number): Promise<ApiPlayerStats | null> {
-  const res = await fetch(`${PADELAPI}/players/${playerId}/stats`, {
-    headers: apiHeaders(),
-    next: { revalidate: 3600 },
-  })
-  if (!res.ok) return null
-  return res.json()
-}
-
-// ── Tournament ID from connection string ─────────────────────
-function extractTournamentId(connectionUrl: string): string {
-  return connectionUrl.split('/').pop() ?? connectionUrl
-}
-
-// ── Upsert helpers ───────────────────────────────────────────
-
-async function upsertTournamentFromApi(tournamentExternalId: string): Promise<string | null> {
-  // Fetch tournament details
-  const res = await fetch(`${PADELAPI}/tournaments/${tournamentExternalId}`, {
-    headers: apiHeaders(),
-    next: { revalidate: 3600 },
-  })
-
-  let name = `Tournament ${tournamentExternalId}`
-  let level = null
-
-  if (res.ok) {
-    const t = await res.json()
-    name = t.name ?? name
-    level = t.category ?? null
-  }
-
-  const { data, error } = await supabase
-    .from('tournaments')
-    .upsert(
-      { external_id: tournamentExternalId, name, level },
-      { onConflict: 'external_id' }
-    )
-    .select('id')
-    .single()
-
-  if (error || !data) {
-    console.error(`Failed to upsert tournament ${tournamentExternalId}:`, error)
-    return null
-  }
-  return data.id
-}
-
-async function upsertPlayer(apiPlayer: ApiPlayer): Promise<string | null> {
-  const externalId = String(apiPlayer.id)
-
-  // Fetch player detail + stats in parallel
-  const [detail, stats] = await Promise.all([
-    fetchPlayerDetail(apiPlayer.id),
-    fetchPlayerStats(apiPlayer.id),
-  ])
-
-  const winRate = stats?.win_percentage
-    ? Math.round(parseFloat(stats.win_percentage))
-    : null
+// ── Upsert helpers ────────────────────────────────────────────
+async function upsertPlayer(name: string, externalNumericId?: number): Promise<string | null> {
+  const externalId = externalNumericId
+    ? String(externalNumericId)
+    : normalizePlayerName(name)
 
   const { data, error } = await supabase
     .from('players')
     .upsert(
-      {
-        external_id: externalId,
-        name: apiPlayer.name,
-        country: detail?.nationality ?? null,
-        ranking: detail?.ranking ? parseInt(detail.ranking) : null,
-        avatar_url: detail?.photo_url ?? null,
-        win_rate: winRate,
-        total_matches: stats?.matches_played ?? null,
-      },
+      { external_id: externalId, name },
       { onConflict: 'external_id' }
     )
     .select('id')
     .single()
 
   if (error || !data) {
-    console.error(`Failed to upsert player ${apiPlayer.name}:`, error)
+    console.error(`[Score Agent] Failed to upsert player ${name}:`, error)
     return null
   }
   return data.id
 }
 
-// ── Map round number to label ────────────────────────────────
-function roundLabel(round: number, roundName: string): string {
-  if (roundName) return roundName
-  const map: Record<number, string> = {
-    1: 'F', 2: 'SF', 4: 'QF', 8: 'R16', 16: 'R32', 32: 'R64',
+async function upsertTournament(
+  match: ApiMatch
+): Promise<string | null> {
+  const tournament = match.tournament
+  const name = tournament?.name ?? match.tournament_name ?? 'Unknown Tournament'
+  const externalId = tournament?.id ? String(tournament.id) : normalizePlayerName(name)
+  const level = tournament?.level ?? 'unknown'
+
+  const { data, error } = await supabase
+    .from('tournaments')
+    .upsert(
+      { external_id: externalId, name, level },
+      { onConflict: 'external_id' }
+    )
+    .select('id')
+    .single()
+
+  if (error || !data) {
+    console.error(`[Score Agent] Failed to upsert tournament ${name}:`, error)
+    return null
   }
-  return map[round] ?? `R${round}`
+  return data.id
 }
 
-// ── Main upsert ──────────────────────────────────────────────
-
-async function upsertMatch(liveMatch: ApiMatch) {
-  const matchId = liveMatch.id
-  const externalId = String(matchId)
-
-  // The match came from /api/live so it IS live — use that status
-  const apiStatus = 'live'
-
-  // Fetch full match detail and live point data in parallel
-  const [matchDetail, liveDetail] = await Promise.all([
-    fetchMatchDetail(matchId),
-    fetchLiveDetail(matchId),
-  ])
+async function upsertMatch(
+  match: ApiMatch,
+  liveState: ApiMatchLive
+): Promise<void> {
+  const externalId = String(match.id)
 
   // Upsert tournament
-  const tournamentExternalId = extractTournamentId(matchDetail.connections.tournament)
-  const tournamentId = await upsertTournamentFromApi(tournamentExternalId)
+  const tournamentId = await upsertTournament(match)
 
   // Upsert all 4 players
-  const t1 = matchDetail.players.team_1
-  const t2 = matchDetail.players.team_2
+  const p1p1 = match.pair1?.player1
+  const p1p2 = match.pair1?.player2
+  const p2p1 = match.pair2?.player1
+  const p2p2 = match.pair2?.player2
 
-  const [p1p1Id, p1p2Id, p2p1Id, p2p2Id] = await Promise.all([
-    t1[0] ? upsertPlayer(t1[0]) : Promise.resolve(null),
-    t1[1] ? upsertPlayer(t1[1]) : Promise.resolve(null),
-    t2[0] ? upsertPlayer(t2[0]) : Promise.resolve(null),
-    t2[1] ? upsertPlayer(t2[1]) : Promise.resolve(null),
-  ])
-
-  // Map status — matches from /api/live are always live
-  const statusMap: Record<string, string> = {
-    finished: 'finished',
-    scheduled: 'scheduled',
-    live: 'live',
-    retired: 'finished',
-  }
+  const [pair1Player1Id, pair1Player2Id, pair2Player1Id, pair2Player2Id] =
+    await Promise.all([
+      p1p1 ? upsertPlayer(p1p1.name, p1p1.id) : Promise.resolve(null),
+      p1p2 ? upsertPlayer(p1p2.name, p1p2.id) : Promise.resolve(null),
+      p2p1 ? upsertPlayer(p2p1.name, p2p1.id) : Promise.resolve(null),
+      p2p2 ? upsertPlayer(p2p2.name, p2p2.id) : Promise.resolve(null),
+    ])
 
   // Upsert match row
   const { data: matchRow, error: matchError } = await supabase
@@ -262,19 +212,22 @@ async function upsertMatch(liveMatch: ApiMatch) {
       {
         external_id: externalId,
         tournament_id: tournamentId,
-        status: apiStatus,
-        coverage: liveDetail.coverage,
-        pusher_channel: liveDetail.channel,
-        round: roundLabel(matchDetail.round, matchDetail.round_name),
-        court: matchDetail.court,
-        court_order: (matchDetail as any).court_order ?? null,
-        pair1_player1_id: p1p1Id,
-        pair1_player2_id: p1p2Id,
-        pair2_player1_id: p2p1Id,
-        pair2_player2_id: p2p2Id,
-        started_at: matchDetail.started_time,
-        finished_at: liveDetail.status === 'finished' ? new Date().toISOString() : null,
-        raw_payload: liveDetail,
+        status: liveState.status,
+        coverage: liveState.coverage,
+        pusher_channel: liveState.channel,
+        round: match.round ?? null,
+        court: match.court ?? null,
+        court_order: match.court_order ?? null,
+        scheduled_at: match.scheduled_at ?? null,
+        category: match.category ?? null,
+        pair1_player1_id: pair1Player1Id,
+        pair1_player2_id: pair1Player2Id,
+        pair2_player1_id: pair2Player1Id,
+        pair2_player2_id: pair2Player2Id,
+        started_at: liveState.status === 'live' ? new Date().toISOString() : null,
+        finished_at: liveState.status === 'finished' ? new Date().toISOString() : null,
+        raw_payload: liveState,
+        updated_at: new Date().toISOString(),
       },
       { onConflict: 'external_id' }
     )
@@ -282,18 +235,17 @@ async function upsertMatch(liveMatch: ApiMatch) {
     .single()
 
   if (matchError || !matchRow) {
-    console.error(`Failed to upsert match ${externalId}:`, matchError)
+    console.error(`[Score Agent] Failed to upsert match ${externalId}:`, matchError)
     return
   }
 
   const matchDbId = matchRow.id
 
-  // Upsert sets and games
-  const sets = liveDetail.sets ?? []
-  const maxSetNumber = Math.max(...sets.map((s) => s.set_number))
-
-  for (const set of sets) {
-    const isCurrentSet = set.set_score === null && set.set_number === maxSetNumber
+  // Upsert sets and games from live state
+  for (const set of liveState.sets) {
+    const isCurrentSet =
+      set.set_score === null &&
+      set.set_number === Math.max(...liveState.sets.map((s) => s.set_number))
 
     const { data: setRow, error: setError } = await supabase
       .from('sets')
@@ -303,63 +255,52 @@ async function upsertMatch(liveMatch: ApiMatch) {
           set_number: set.set_number,
           set_score: set.set_score,
           is_current: isCurrentSet,
+          updated_at: new Date().toISOString(),
         },
-        { onConflict: 'match_id, set_number', ignoreDuplicates: false }
+        { onConflict: 'match_id, set_number' }
       )
       .select('id')
       .single()
 
     if (setError || !setRow) {
-      console.error(`Failed to upsert set ${set.set_number}:`, setError)
+      console.error(`[Score Agent] Failed to upsert set ${set.set_number} for match ${externalId}:`, setError)
       continue
     }
 
-    const games = set.games ?? []
-    const maxGameNumber = games.length > 0 ? Math.max(...games.map((g) => g.game_number)) : 0
+    const setDbId = setRow.id
 
-    for (const game of games) {
-      const isCurrentGame = isCurrentSet && game.game_number === maxGameNumber
-      const cleanPoints = game.points.filter((p) => p !== '0:0')
+    for (const game of set.games) {
+      const isCurrentGame =
+        isCurrentSet &&
+        game.game_number === Math.max(...set.games.map((g) => g.game_number))
 
       const { error: gameError } = await supabase
         .from('games')
         .upsert(
           {
-            set_id: setRow.id,
+            set_id: setDbId,
             match_id: matchDbId,
             game_number: game.game_number,
             game_score: game.game_score,
-            points: cleanPoints,
+            points: game.points,
             is_current: isCurrentGame,
+            updated_at: new Date().toISOString(),
           },
-          { onConflict: 'set_id, game_number', ignoreDuplicates: false }
+          { onConflict: 'set_id, game_number' }
         )
 
       if (gameError) {
-        console.error(`Failed to upsert game ${game.game_number}:`, gameError)
+        console.error(`[Score Agent] Failed to upsert game ${game.game_number}:`, gameError)
       }
-    }
-
-    // game_score is cumulative e.g. "0-3" — sort and take the last non-zero game
-    const scoredGames = games
-      .filter(g => g.game_score && g.game_score !== '0-0')
-      .sort((a, b) => a.game_number - b.game_number)
-    const lastScoredGame = scoredGames[scoredGames.length - 1]
-    if (lastScoredGame?.game_score) {
-      const [p1, p2] = lastScoredGame.game_score.split('-').map(Number)
-      await supabase
-        .from('sets')
-        .update({ pair1_games: p1 ?? 0, pair2_games: p2 ?? 0 })
-        .eq('id', setRow.id)
     }
   }
 
-  console.log(`[Score Agent] ✓ Match ${externalId} — ${t1.map(p => p.name).join('/')} vs ${t2.map(p => p.name).join('/')}`)
+  console.log(`[Score Agent] ✓ Synced match ${externalId} (${liveState.status})`)
 }
 
-// ── Main handler ─────────────────────────────────────────────
-
+// ── Main handler ──────────────────────────────────────────────
 export async function GET(request: Request) {
+  // Auth check in production
   if (process.env.NODE_ENV === 'production') {
     const authHeader = request.headers.get('authorization')
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -367,169 +308,64 @@ export async function GET(request: Request) {
     }
   }
 
+  // Bail early if rate limited
+  if (isRateLimited()) {
+    return Response.json(
+      { skipped: true, reason: 'rate_limited', retryAfter: new Date(_retryAfter).toISOString() },
+      { status: 200 }
+    )
+  }
+
   try {
-    console.log('[Score Agent] Starting real data sync...')
+    console.log('[Score Agent] Starting live sync...')
 
+    // Step 1: Get all live matches
     const liveMatches = await fetchLiveMatches()
-    console.log(`[Score Agent] Found ${liveMatches.length} live matches`)
-
-    // Mark any DB-live matches that are no longer in /api/live as finished
-    const liveIds = liveMatches.map(m => String(m.id))
-    const { data: dbLiveMatches } = await supabase
-      .from('matches')
-      .select('id, external_id')
-      .eq('status', 'live')
-
-    if (dbLiveMatches) {
-      const toFinish = dbLiveMatches.filter(m => !liveIds.includes(m.external_id))
-      for (const m of toFinish) {
-        console.log(`[Score Agent] Match ${m.external_id} no longer live — fetching final result`)
-        try {
-          // Fetch final match detail to get correct set scores
-          const finalDetail = await fetchMatchDetail(parseInt(m.external_id))
-          const winnerPair = finalDetail.winner === 'team_1' ? 1 : finalDetail.winner === 'team_2' ? 2 : null
-
-          await supabase
-            .from('matches')
-            .update({
-              status: 'finished',
-              finished_at: new Date().toISOString(),
-              winner_pair: winnerPair,
-              duration: finalDetail.duration ?? null,
-            })
-            .eq('id', m.id)
-
-          // Clear all is_current flags on games for this match
-          await supabase
-            .from('games')
-            .update({ is_current: false })
-            .eq('match_id', m.id)
-
-          // Update set scores from final score array
-          if (finalDetail.score && finalDetail.score.length > 0) {
-            // Delete orphan null sets beyond the final score count
-            const { data: existingSets } = await supabase
-              .from('sets')
-              .select('id, set_number')
-              .eq('match_id', m.id)
-
-            if (existingSets && finalDetail.score) {
-              const orphans = existingSets.filter((s: any) => s.set_number > finalDetail.score!.length)
-              if (orphans.length > 0) {
-                await supabase.from('sets').delete().in('id', orphans.map((s: any) => s.id))
-                console.log(`[Score Agent] Deleted ${orphans.length} orphan set(s) for match ${m.external_id}`)
-              }
-            }
-
-            for (let i = 0; i < finalDetail.score.length; i++) {
-              const s = finalDetail.score[i]
-              const setScore = `${s.team_1}-${s.team_2}`
-              const p1 = parseInt(s.team_1) || 0
-              const p2match = s.team_2.match(/^(\d+)/)
-              const p2 = p2match ? parseInt(p2match[1]) : 0
-              // Upsert — handles both existing sets and missing ones
-              await supabase
-                .from('sets')
-                .upsert(
-                  { match_id: m.id, set_number: i + 1, set_score: setScore, pair1_games: p1, pair2_games: p2, is_current: false },
-                  { onConflict: 'match_id, set_number', ignoreDuplicates: false }
-                )
-            }
-          }
-          console.log(`[Score Agent] ✓ Match ${m.external_id} marked finished`)
-        } catch (err) {
-          console.error(`[Score Agent] Failed to finalize match ${m.external_id}:`, err)
-          // Still mark as finished even if detail fetch fails
-          await supabase
-            .from('matches')
-            .update({ status: 'finished', finished_at: new Date().toISOString() })
-            .eq('id', m.id)
-        }
-      }
-    }
 
     if (liveMatches.length === 0) {
-      return Response.json({ synced: 0, message: 'No live matches at this time' })
+      console.log('[Score Agent] No live matches found.')
+      return Response.json({ synced: 0, failed: 0, total: 0, mode: 'live' })
     }
 
-    const results = await Promise.allSettled(
-      liveMatches.map((match) => upsertMatch(match))
-    )
+    console.log(`[Score Agent] Found ${liveMatches.length} live match(es). Fetching live states...`)
 
-    const succeeded = results.filter((r) => r.status === 'fulfilled').length
-    const failed = results.filter((r) => r.status === 'rejected').length
+    // Step 2: For each match, fetch full point-by-point state then upsert
+    // Process sequentially to be kind to rate limits
+    let succeeded = 0
+    let failed = 0
 
-    results.forEach((r, i) => {
-      if (r.status === 'rejected') {
-        console.error(`[Score Agent] Match ${liveMatches[i].id} failed:`, r.reason)
+    for (const match of liveMatches) {
+      // Bail if we've hit rate limits mid-loop
+      if (isRateLimited()) {
+        console.warn(`[Score Agent] Rate limit hit mid-loop. Processed ${succeeded + failed}/${liveMatches.length} matches.`)
+        break
       }
-    })
 
-    // Sync scheduled matches for active tournaments — picks up new matches like finals
-    try {
-      const { data: activeTournaments } = await supabase
-        .from('tournaments')
-        .select('id, external_id')
-        .not('external_id', 'is', null)
-        .or('ends_at.is.null,ends_at.gte.' + new Date().toISOString().slice(0, 10))
+      const liveState = await fetchMatchLiveState(match.id)
 
-      for (const tournament of activeTournaments ?? []) {
-        const res = await fetch(`${PADELAPI}/tournaments/${tournament.external_id}/matches?per_page=100`, {
-          headers: apiHeaders(),
-          next: { revalidate: 0 },
-        })
-        if (!res.ok) continue
-        const data = await res.json()
-        const matches: any[] = data.data ?? []
-
-        for (const match of matches.filter((m: any) => m.status === 'scheduled')) {
-          const externalId = String(match.id)
-          // Only insert if not already in DB
-          const { data: existing } = await supabase
-            .from('matches')
-            .select('id')
-            .eq('external_id', externalId)
-            .single()
-
-          if (!existing) {
-            console.log(`[Score Agent] New scheduled match found: ${externalId} — ${match.name}`)
-            // Upsert players
-            const t1 = match.players?.team_1 ?? []
-            const t2 = match.players?.team_2 ?? []
-            const [p1p1Id, p1p2Id, p2p1Id, p2p2Id] = await Promise.all([
-              t1[0] ? upsertPlayer(t1[0]) : Promise.resolve(null),
-              t1[1] ? upsertPlayer(t1[1]) : Promise.resolve(null),
-              t2[0] ? upsertPlayer(t2[0]) : Promise.resolve(null),
-              t2[1] ? upsertPlayer(t2[1]) : Promise.resolve(null),
-            ])
-            await supabase.from('matches').upsert({
-              external_id: externalId,
-              tournament_id: tournament.id,
-              status: 'scheduled',
-              round: match.round_name ?? null,
-              court: match.court ?? null,
-              court_order: match.court_order ?? null,
-              category: match.category ?? null,
-              schedule_label: match.schedule_label ?? null,
-              pair1_player1_id: p1p1Id,
-              pair1_player2_id: p1p2Id,
-              pair2_player1_id: p2p1Id,
-              pair2_player2_id: p2p2Id,
-            }, { onConflict: 'external_id' })
-          }
-        }
+      if (!liveState) {
+        console.warn(`[Score Agent] Skipping match ${match.id} — could not fetch live state.`)
+        failed++
+        continue
       }
-    } catch (err) {
-      console.error('[Score Agent] Scheduled sync error:', err)
+
+      try {
+        await upsertMatch(match, liveState)
+        succeeded++
+      } catch (e) {
+        console.error(`[Score Agent] Failed to upsert match ${match.id}:`, e)
+        failed++
+      }
     }
 
-    console.log(`[Score Agent] Done. Synced: ${succeeded}, Failed: ${failed}`)
+    console.log(`[Score Agent] Done. Synced: ${succeeded}, Failed: ${failed}, Total: ${liveMatches.length}`)
 
     return Response.json({
       synced: succeeded,
       failed,
       total: liveMatches.length,
       mode: 'live',
+      rateLimitRemaining: _rateLimitRemaining,
     })
   } catch (error) {
     console.error('[Score Agent] Fatal error:', error)
