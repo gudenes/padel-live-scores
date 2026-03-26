@@ -106,8 +106,8 @@ async function handleLiveUpdate(data) {
 
     // 3. Upsert sets and games
     for (const set of data.sets ?? []) {
-      // Skip null sets on finished matches
-      if (data.status === 'finished' && !set.set_score) continue
+      // Skip null sets on finished/ended/bye matches
+      if ((data.status === 'finished' || data.status === 'ended' || data.status === 'bye') && !set.set_score) continue
 
       const isCurrentSet =
         set.set_score === null &&
@@ -152,11 +152,14 @@ async function handleLiveUpdate(data) {
       }
     }
 
-    // 4. If match finished — trigger final state fetch
-    if (data.status === 'finished') {
-      console.log(`[Relay] Match ${externalId} finished — triggering final state fetch`)
+    // 4. If match finished or ended — trigger final state fetch
+    // 'ended' = match over, score being confirmed (transitions to 'finished' within minutes)
+    // 'bye' = no match played
+    if (data.status === 'finished' || data.status === 'ended' || data.status === 'bye') {
+      console.log(`[Relay] Match ${externalId} ${data.status} — triggering final state fetch`)
       await fetchAndWriteFinalState(externalId, matchDbId)
-      unsubscribeChannel(data.channel)
+      // Only unsubscribe on finished/bye — keep listening during ended in case it updates
+      if (data.status === 'finished' || data.status === 'bye') unsubscribeChannel(data.channel)
     } else {
       console.log(`[Relay] ✓ Updated match ${externalId} (${data.status}) sets: ${data.sets?.length ?? 0}`)
     }
@@ -313,7 +316,7 @@ async function syncChannels() {
     const { data: liveMatches, error } = await supabase
       .from('matches')
       .select('external_id, pusher_channel')
-      .eq('status', 'live')
+      .in('status', ['live', 'ended'])  // ended = still receiving updates
       .not('pusher_channel', 'is', null)
 
     if (error) {

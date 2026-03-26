@@ -75,7 +75,7 @@ export default function HomePage() {
         sets(*, games(*))
       `)
       // ── Added 'walkover' to the status filter ──
-      .in('status', ['live', 'scheduled', 'finished', 'retired', 'walkover'])
+      .in('status', ['live', 'scheduled', 'finished', 'retired', 'walkover', 'ended', 'bye'])
       .order('court_order', { ascending: true, nullsFirst: false })
       .order('started_at', { ascending: false })
 
@@ -153,7 +153,9 @@ export default function HomePage() {
   const scheduledMatches = filtered.filter(m => m.status === 'scheduled' && ((m as any).pair1_player1 || (m as any).pair2_player1)).sort((a: any, b: any) => (a.court_order ?? 99) - (b.court_order ?? 99))
 
   // ── Finished: includes retired and walkover ──
-  const finishedMatches = filtered.filter(m => m.status === 'finished' || m.status === 'retired' || m.status === 'walkover')
+  // ended = transitional (score being confirmed) — show in results with CONFIRMING badge
+  // bye = no match played — hide from feed
+  const finishedMatches = filtered.filter(m => m.status === 'finished' || m.status === 'retired' || m.status === 'walkover' || m.status === 'ended')
 
   const finishedByDay = useMemo(() => {
     const map: Record<string, Match[]> = {}

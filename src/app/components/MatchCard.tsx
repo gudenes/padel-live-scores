@@ -35,11 +35,13 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [p1Point, p2Point] = currentPoint ? currentPoint.split(':') : [null, null]
 
   // Serving pair — shown as ball icon next to player name in live matches
-  const isFinished = match.status === 'finished' || match.status === 'retired'
+  const isFinished = match.status === 'finished' || match.status === 'retired' || match.status === 'ended'
   const isUpcoming = match.status === 'scheduled'
   const isLive = match.status === 'live'
+  const isEnded = match.status === 'ended'  // transitional — score being confirmed
   const isRetired = match.status === 'retired'
   const isWalkover = match.status === 'walkover'
+  const isBye = match.status === 'bye'
   const isWarming = isWarmingUp(match)
   const winnerPair = (match as any).winner_pair
 
@@ -268,8 +270,10 @@ export default function MatchCard({ match }: MatchCardProps) {
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {isFinished && !isRetired && <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.3px' }}>FINISHED</span>}
+                {isFinished && !isRetired && !isEnded && !isBye && <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.3px' }}>FINISHED</span>}
+                {isEnded && <span style={{ fontSize: 9, color: 'var(--color-live)', fontWeight: 600, letterSpacing: '0.3px' }}>CONFIRMING</span>}
                 {isRetired && <span style={{ fontSize: 9, color: '#f87171', fontWeight: 600, letterSpacing: '0.3px' }}>RETIRED</span>}
+                {isBye && <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.3px' }}>BYE</span>}
                 {isFinished && match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
                 {isLive && <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.3px' }}>LIVE</span>}
                 {isLive && match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}

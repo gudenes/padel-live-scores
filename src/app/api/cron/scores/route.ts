@@ -390,7 +390,9 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
 
 async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<void> {
   const externalId = String(match.id)
-  const isFinished = liveState.status === 'finished' || liveState.status === 'retired'
+  // ended = match over but score not yet confirmed (transitions to finished within minutes)
+  // bye = no match played (no opponent)
+  const isFinished = liveState.status === 'finished' || liveState.status === 'retired' || liveState.status === 'ended' || liveState.status === 'bye'
 
   const tournamentId = await upsertTournament(match)
 
@@ -443,7 +445,8 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
   if (isFinished) {
     // ── Finish transition: immediately fetch authoritative final state ──
     // GET /api/matches/{id} returns correct winner + clean set scores
-    // This fixes the race condition where /live data is incomplete at finish
+    // Triggered on: finished, retired, ended (transitional), bye
+    // 'ended' = match over but not yet confirmed — writeFinalState handles gracefully
     const written = await writeFinalState(matchRow.id, externalId)
     if (!written) {
       // Fallback: write what we have from /live
@@ -468,7 +471,7 @@ async function reconcileIncompleteMatches(): Promise<{
   const { data: incompleteMatches, error } = await supabase
     .from('matches')
     .select('id, external_id, finished_at')
-    .eq('status', 'finished')
+    .in('status', ['finished', 'ended'])  // ended = transitional state before finished
     .is('winner_pair', null)
     .gte(
       'finished_at',
