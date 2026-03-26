@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag } from '@/types/match'
+import { Match, countryFlag, isWarmingUp } from '@/types/match'
 import MatchCard from './components/MatchCard'
 
 type Gender = 'all' | 'men' | 'women'
@@ -74,7 +74,8 @@ export default function HomePage() {
         pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
         sets(*, games(*))
       `)
-      .in('status', ['live', 'scheduled', 'finished', 'retired'])
+      // ── Added 'walkover' to the status filter ──
+      .in('status', ['live', 'scheduled', 'finished', 'retired', 'walkover'])
       .order('court_order', { ascending: true, nullsFirst: false })
       .order('started_at', { ascending: false })
 
@@ -85,7 +86,8 @@ export default function HomePage() {
       sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number),
     }))
     setAllMatches(sorted)
-    setLiveCount(sorted.filter((m: any) => m.status === 'live').length)
+    // ── Live count: only count matches that are truly live (not warming up) ──
+    setLiveCount(sorted.filter((m: any) => m.status === 'live' && !isWarmingUp(m as Match)).length)
     setLastSynced(new Date())
     setJustUpdated(true)
     setTimeout(() => setJustUpdated(false), 1500)
@@ -142,9 +144,16 @@ export default function HomePage() {
       .filter(m => !dateFilter || matchDay(m) === dateFilter)
   }, [allMatches, activeTournament, activeGender, statusFilter, dateFilter])
 
-  const liveMatches = filtered.filter(m => m.status === 'live')
+  // ── Live: exclude warming up matches from the live feed ──
+  const liveMatches = filtered.filter(m => m.status === 'live' && !isWarmingUp(m))
+
+  // ── Warming up: shown separately below live if any ──
+  const warmingUpMatches = filtered.filter(m => m.status === 'live' && isWarmingUp(m))
+
   const scheduledMatches = filtered.filter(m => m.status === 'scheduled' && ((m as any).pair1_player1 || (m as any).pair2_player1)).sort((a: any, b: any) => (a.court_order ?? 99) - (b.court_order ?? 99))
-  const finishedMatches = filtered.filter(m => m.status === 'finished' || m.status === 'retired')
+
+  // ── Finished: includes retired and walkover ──
+  const finishedMatches = filtered.filter(m => m.status === 'finished' || m.status === 'retired' || m.status === 'walkover')
 
   const finishedByDay = useMemo(() => {
     const map: Record<string, Match[]> = {}
@@ -194,7 +203,6 @@ export default function HomePage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
             <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {/* Live clock — pill style matching tournament pill */}
               {localClock && (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'transparent', border: '0.5px solid var(--border-strong)', borderRadius: 20, padding: '4px 12px', gap: 1 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', lineHeight: 1, letterSpacing: '0.5px' }}>{localClock}</span>
@@ -317,6 +325,21 @@ export default function HomePage() {
                 </div>
               )}
 
+              {/* ── WARMING UP SECTION ── */}
+              {warmingUpMatches.length > 0 && (statusFilter === 'all' || statusFilter === 'live') && (
+                <div style={{ marginBottom: 16 }}>
+                  <SectionHeader
+                    color="var(--color-live)"
+                    label="Warming up"
+                  />
+                  <div style={{ display: 'block' }}>
+                    {warmingUpMatches.map(m => (
+                      <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ── UP NEXT SECTION ── */}
               {scheduledMatches.length > 0 && (statusFilter === 'all' || statusFilter === 'scheduled') && (
                 <div style={{ marginBottom: 16 }}>
@@ -345,7 +368,7 @@ export default function HomePage() {
               )}
 
               {/* Empty state */}
-              {liveMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
+              {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
                 <div style={{ textAlign: 'center', paddingTop: 80 }}>
                   <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
                   <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches found</p>

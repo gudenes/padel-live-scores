@@ -1,6 +1,6 @@
 // src/types/match.ts
 
-export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'cancelled' | 'retired'
+export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'cancelled' | 'retired' | 'walkover' | 'suspended'
 export type Coverage = 'full' | 'partial' | 'tracking' | null
 
 export interface Player {
@@ -58,7 +58,22 @@ export interface Match {
   viewer_count?: number
 }
 
-// Current score state for a match
+// ── Warmup detection ──────────────────────────────────────────
+// A match is "warming up" when the API reports it as live
+// but no real points have been scored yet.
+// Used to hide matches from the live feed until play starts.
+export function isWarmingUp(match: Match): boolean {
+  if (match.status !== 'live') return false
+  const sets = match.sets ?? []
+  if (sets.length === 0) return true
+  const allGames = sets.flatMap((s) => s.games ?? [])
+  if (allGames.length === 0) return true
+  const allPoints = allGames.flatMap((g) => g.points ?? [])
+  const realPoints = allPoints.filter((p) => p !== '0:0')
+  return realPoints.length === 0
+}
+
+// ── Current score state for a match ──────────────────────────
 export function getCurrentScore(match: Match): {
   pair1Sets: number
   pair2Sets: number
@@ -84,7 +99,8 @@ export function getCurrentScore(match: Match): {
   return { pair1Sets, pair2Sets, currentSet, currentGame }
 }
 
-// Parse set score — handles multiple formats:
+// ── Parse set score ───────────────────────────────────────────
+// Handles multiple formats:
 // "7-61" (from /live endpoint) → {p1: 7, p2: 6, tb: 1}
 // "6(1)" style handled at match level via score array
 export function parseSetScore(score: string | null): { p1: number; p2: number; tb: number | null } | null {
@@ -108,7 +124,6 @@ export function parseSetScore(score: string | null): { p1: number; p2: number; t
   const p2 = parseInt(p2str)
 
   // Format: "65-7" — tiebreak concatenated to p1 (e.g. p1 lost 6-7 with tb=5)
-  // p1str has 2 digits and real score would be 6-7
   if (p1str.length >= 2 && p2 <= 7 && p1str.length > String(p2 - 1 > 0 ? p2 - 1 : 0).length) {
     const realP1 = parseInt(p1str[0])
     const tb = parseInt(p1str.slice(1))
@@ -128,6 +143,7 @@ export function parseSetScore(score: string | null): { p1: number; p2: number; t
 
   return { p1, p2, tb: null }
 }
+
 function toShortName(name: string): string {
   const parts = name.trim().split(' ')
   if (parts.length <= 1) return name
@@ -142,13 +158,10 @@ export function pairName(p1: Player | null, p2: Player | null): string {
 }
 
 // Detects star point — 40:40 that follows at least one advantage point
-// Real data: "40:40" → "40:A" → "40:40" → "A:40"
-// The second 40:40 onward is the star point
 export function isStarPoint(points: string[]): boolean {
   if (!points.length) return false
   const last = points[points.length - 1]
   if (last !== '40:40') return false
-  // Check if there was an advantage point earlier in this game
   const hadAdvantage = points.slice(0, -1).some(
     (p) => p === 'A:40' || p === '40:A'
   )
@@ -156,8 +169,6 @@ export function isStarPoint(points: string[]): boolean {
 }
 
 // Compute last N points won across all games in current set
-// Points array from API: ["0:0", "15:0", "30:0"...] — "0:0" is filtered out
-// We determine who won each point by comparing consecutive entries
 export function getLastNPoints(
   currentSet: Set | null,
   n: number = 10
@@ -186,8 +197,6 @@ export function getLastNPoints(
       else if (p2Curr > p2Prev) allPoints.push({ winner: 2 })
     }
 
-    // Infer game-winning point from game_score if not already captured
-    // e.g. last point "40:15" means pair 1 won but no "Win:15" entry exists
     if (pts.length > 0 && game.game_score && game.game_score !== '0-0' && !game.is_current) {
       const lastPt = pts[pts.length - 1]
       const parts = lastPt.split(':')

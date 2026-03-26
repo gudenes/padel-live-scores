@@ -16,7 +16,7 @@ function getTimezoneOffset(tz: string, date: Date): number {
 
 import { useRouter } from 'next/navigation'
 import { useRef, useEffect, useState } from 'react'
-import { Match, pairName, countryFlag, parseSetScore, getCurrentScore } from '@/types/match'
+import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarmingUp } from '@/types/match'
 
 interface MatchCardProps {
   match: Match
@@ -36,6 +36,8 @@ export default function MatchCard({ match }: MatchCardProps) {
   const isUpcoming = match.status === 'scheduled'
   const isLive = match.status === 'live'
   const isRetired = match.status === 'retired'
+  const isWalkover = match.status === 'walkover'
+  const isWarming = isWarmingUp(match)
   const winnerPair = (match as any).winner_pair
 
   // Pop animation on point change for live matches
@@ -65,7 +67,7 @@ export default function MatchCard({ match }: MatchCardProps) {
   const p1Won = isFinished && winnerPair === 1
   const p2Won = isFinished && winnerPair === 2
 
-  // For finished matches, count sets from set_score (ignore null sets leftover from live tracking)
+  // Only count sets with a real score (filter orphan null sets)
   const completedSets = (match.sets ?? []).filter((s: any) => s.set_score !== null)
   const p1SetsWon = completedSets.filter((s: any) => {
     const parsed = parseSetScore(s.set_score)
@@ -76,39 +78,31 @@ export default function MatchCard({ match }: MatchCardProps) {
     return parsed ? parsed.p2 > parsed.p1 : false
   }).length
 
+  // Only display sets with a real score OR the current in-progress set
+  const displaySets = (match.sets ?? []).filter(
+    (s: any) => s.set_score !== null || s.is_current
+  )
+
   const category = (match as any).category as string | null
   const genderAccent = category === 'men' ? 'var(--color-men)' : category === 'women' ? 'var(--color-women)' : 'transparent'
   const scheduleLabel = (match as any).schedule_label as string | null
 
   const scheduledTime = (() => {
-    // Try to extract a real time from schedule_label (e.g. "Starting at 5:00 PM", "Not before 7:00 PM")
     if (scheduleLabel) {
       const timeMatch = scheduleLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
       if (timeMatch) {
         try {
-          // schedule_label times are in the tournament's local timezone (stored in tournament.timezone)
-          // We convert to the user's local timezone for display
           const tournamentTz = (match as any).tournament?.timezone ?? 'Europe/Madrid'
           const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-
-          // Parse the time from the label
           let hours = parseInt(timeMatch[1])
           const minutes = parseInt(timeMatch[2])
           const ampm = timeMatch[3].toUpperCase()
           if (ampm === 'PM' && hours < 12) hours += 12
           if (ampm === 'AM' && hours === 12) hours = 0
-
-          // Build a naive UTC date (treat parsed time as UTC initially)
-          const today = new Date().toLocaleDateString('en-CA', { timeZone: tournamentTz }) // YYYY-MM-DD
+          const today = new Date().toLocaleDateString('en-CA', { timeZone: tournamentTz })
           const naiveUTC = new Date(`${today}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00Z`)
-
-          // Get tournament timezone offset at that moment (e.g. -300 for Cancun = UTC-5)
           const tournamentOffset = getTimezoneOffset(tournamentTz, naiveUTC)
-
-          // Subtract tournament offset to get real UTC
-          // e.g. naiveUTC=17:00Z, tournamentOffset=-300 → realUTC = 17:00 - (-300min) = 22:00Z = 17:00 Cancun
           const realUTC = new Date(naiveUTC.getTime() - tournamentOffset * 60000)
-
           return realUTC.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz })
         } catch {
           return scheduleLabel
@@ -116,8 +110,6 @@ export default function MatchCard({ match }: MatchCardProps) {
       }
       return scheduleLabel
     }
-
-    // Fallback to scheduled_at timestamp
     const src = match.scheduled_at ?? match.started_at
     if (!src) return null
     try {
@@ -127,6 +119,76 @@ export default function MatchCard({ match }: MatchCardProps) {
     } catch { return null }
   })()
 
+  // ── Walkover card ─────────────────────────────────────────────
+  if (isWalkover) {
+    const woWinner = winnerPair === 1
+      ? pairName(match.pair1_player1, match.pair1_player2)
+      : winnerPair === 2
+      ? pairName(match.pair2_player1, match.pair2_player2)
+      : 'TBD'
+
+    return (
+      <div
+        onClick={() => router.push(`/match/${match.id}`)}
+        style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border-card)', borderLeft: `3px solid ${genderAccent}`, borderRadius: 10, marginBottom: 5, overflow: 'hidden', cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
+      >
+        <div style={{ padding: '5px 10px 6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <span style={{ fontSize: 9, color: '#888', fontWeight: 600, letterSpacing: '0.3px' }}>W/O</span>
+            {match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
+            {woWinner} <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>wins by walkover</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Warming up card ───────────────────────────────────────────
+  if (isWarming) {
+    return (
+      <div
+        onClick={() => router.push(`/match/${match.id}`)}
+        style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border-card)', borderLeft: `3px solid ${genderAccent}`, borderRadius: 10, marginBottom: 5, overflow: 'hidden', cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
+      >
+        <div style={{ padding: '5px 10px 6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+            <span style={{ fontSize: 9, color: 'var(--color-live)', fontWeight: 600, letterSpacing: '0.3px' }}>⚬ WARMING UP</span>
+            {match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
+                  {pairName(match.pair1_player1, null)}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                  {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
+                  {pairName(match.pair1_player2, null)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
+                  {pairName(match.pair2_player1, null)}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
+                  {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
+                  {pairName(match.pair2_player2, null)}
+                </div>
+              </div>
+            </div>
+            {match.court && (
+              <div style={{ flexShrink: 0, fontSize: 10, color: 'var(--text-secondary)' }}>{match.court}</div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       onClick={() => router.push(`/match/${match.id}`)}
@@ -134,7 +196,6 @@ export default function MatchCard({ match }: MatchCardProps) {
     >
       <div style={{ padding: '5px 10px 6px' }}>
         {isUpcoming ? (
-          /* Upcoming layout */
           <>
             {match.round && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
@@ -187,7 +248,6 @@ export default function MatchCard({ match }: MatchCardProps) {
                           const realUTC = new Date(naiveUTC.getTime() - tournamentOffset * 60000)
                           return realUTC.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: userTz })
                         }
-                        // Fallback to scheduled_at
                         const src = match.scheduled_at ?? match.started_at
                         if (!src) return null
                         return new Date(src).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: userTz })
@@ -202,9 +262,7 @@ export default function MatchCard({ match }: MatchCardProps) {
           </div>
           </>
         ) : (
-          /* Live / Finished layout */
           <>
-            {/* Status row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 {isFinished && !isRetired && <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.3px' }}>FINISHED</span>}
@@ -213,10 +271,9 @@ export default function MatchCard({ match }: MatchCardProps) {
                 {isLive && <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.3px' }}>LIVE</span>}
                 {isLive && match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
               </div>
-              {/* Set headers aligned above set scores, total header above total */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
                 <div style={{ display: 'flex', gap: 2, opacity: 0.7 }}>
-                  {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => (
+                  {displaySets.map((set) => (
                     <span key={set.set_number} style={{ fontSize: 8, width: isLive ? 24 : 16, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : 'var(--text-muted)', fontWeight: 600 }}>S{set.set_number}</span>
                   ))}
                   {isLive && <><span style={{ width: 4 }} /><span style={{ fontSize: 8, width: 32, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, marginLeft: 8 }}>Pts</span></>}
@@ -225,9 +282,7 @@ export default function MatchCard({ match }: MatchCardProps) {
               </div>
             </div>
 
-            {/* Pairs + optional RET pill */}
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
-              {/* Pairs column */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Pair 1 */}
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
@@ -246,7 +301,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, flexShrink: 0 }}>
                     <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p2Won ? 0.6 : 0.85) : 1 }}>
-                      {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => {
+                      {displaySets.map((set) => {
                         const parsed = parseSetScore(set.set_score)
                         const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                         return (
@@ -282,7 +337,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, flexShrink: 0 }}>
                     <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p1Won ? 0.6 : 0.85) : 1 }}>
-                      {(match.sets ?? []).filter(s => s.set_score !== null || s.is_current).map((set) => {
+                      {displaySets.map((set) => {
                         const parsed = parseSetScore(set.set_score)
                         const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                         return (
