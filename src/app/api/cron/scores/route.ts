@@ -392,7 +392,7 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
   const externalId = String(match.id)
   // ended = match over but score not yet confirmed (transitions to finished within minutes)
   // bye = no match played (no opponent)
-  const isFinished = liveState.status === 'finished' || liveState.status === 'retired' || liveState.status === 'ended' || liveState.status === 'bye'
+  const isFinished = ['finished', 'retired', 'ended', 'bye'].includes(liveState.status as string)
 
   const tournamentId = await upsertTournament(match)
 
@@ -471,7 +471,7 @@ async function reconcileIncompleteMatches(): Promise<{
   const { data: incompleteMatches, error } = await supabase
     .from('matches')
     .select('id, external_id, finished_at')
-    .in('status', ['finished', 'ended'])  // ended = transitional state before finished
+    .in('status', ['finished', 'ended'])
     .is('winner_pair', null)
     .gte(
       'finished_at',

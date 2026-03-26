@@ -355,7 +355,7 @@ export async function GET(request: Request) {
 
   // Optional query params to scope the sync
   const url = new URL(request.url)
-  const scope = url.searchParams.get('scope') ?? 'all'
+  const scope: string = url.searchParams.get('scope') ?? 'all'
   // ?scope=tournaments → only sync tournaments
   // ?scope=players     → only sync players
   // ?scope=matches     → only sync tournament matches
@@ -381,43 +381,41 @@ export async function GET(request: Request) {
     }
 
     // ── Tournaments ──
-    if (scope === 'all' || scope === 'tournaments') {
-      // Get all active seasons (Premier Padel 2026 + Cupra FIP Tour 2026 etc.)
+    const syncScopes = scope.split(',') // allows comma-separated scopes
+    if (syncScopes.includes('all') || syncScopes.includes('tournaments')) {
       const seasonIds = await getActiveSeasonIds()
       let totalTournamentsSynced = 0
-
       for (const seasonId of seasonIds) {
         if (isRateLimited()) break
         const synced = await syncTournaments(seasonId)
         totalTournamentsSynced += synced.length
       }
-
       result.tournaments = { synced: totalTournamentsSynced, seasons: seasonIds }
+    }
 
-      // ── Matches for recently completed tournaments ──
-      if (scope === 'all' || scope === 'matches') {
-        const { data: recentTournaments } = await supabase
-          .from('tournaments')
-          .select('external_id, name, ends_at')
-          .gte(
-            'ends_at',
-            new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-          )
-          .lte('ends_at', new Date().toISOString().slice(0, 10))
-          .limit(5)
+    // ── Matches for recently completed tournaments ──
+    if (syncScopes.includes('all') || syncScopes.includes('matches')) {
+      const { data: recentTournaments } = await supabase
+        .from('tournaments')
+        .select('external_id, name, ends_at')
+        .gte(
+          'ends_at',
+          new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        )
+        .lte('ends_at', new Date().toISOString().slice(0, 10))
+        .limit(5)
 
-        let totalMatchesSynced = 0
-        for (const t of recentTournaments ?? []) {
-          if (isRateLimited()) break
-          const count = await syncTournamentMatches(t.external_id)
-          totalMatchesSynced += count
-        }
-        result.matches = { synced: totalMatchesSynced }
+      let totalMatchesSynced = 0
+      for (const t of recentTournaments ?? []) {
+        if (isRateLimited()) break
+        const count = await syncTournamentMatches(t.external_id)
+        totalMatchesSynced += count
       }
+      result.matches = { synced: totalMatchesSynced }
     }
 
     // ── Players ──
-    if (scope === 'all' || scope === 'players') {
+    if (syncScopes.includes('all') || syncScopes.includes('players')) {
       const playerResult = await syncPlayers()
       result.players = playerResult
     }

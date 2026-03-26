@@ -35,13 +35,14 @@ export default function MatchCard({ match }: MatchCardProps) {
   const [p1Point, p2Point] = currentPoint ? currentPoint.split(':') : [null, null]
 
   // Serving pair — shown as ball icon next to player name in live matches
-  const isFinished = match.status === 'finished' || match.status === 'retired' || match.status === 'ended'
-  const isUpcoming = match.status === 'scheduled'
-  const isLive = match.status === 'live'
-  const isEnded = match.status === 'ended'  // transitional — score being confirmed
-  const isRetired = match.status === 'retired'
-  const isWalkover = match.status === 'walkover'
-  const isBye = match.status === 'bye'
+  const status = match.status as string  // cast to string to avoid TS union narrowing
+  const isFinished = status === 'finished' || status === 'retired' || status === 'ended'
+  const isUpcoming = status === 'scheduled'
+  const isLive = status === 'live'
+  const isEnded = status === 'ended'  // transitional — score being confirmed
+  const isRetired = status === 'retired'
+  const isWalkover = status === 'walkover'
+  const isBye = status === 'bye'
   const isWarming = isWarmingUp(match)
   const winnerPair = (match as any).winner_pair
 

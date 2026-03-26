@@ -118,7 +118,7 @@ export default function HomePage() {
   }, [fetchAll])
 
   const matchDays = useMemo(() => {
-    const days = new Set(allMatches.filter(m => m.status === 'finished' || m.status === 'retired').map(matchDay))
+    const days = new Set(allMatches.filter(m => ['finished', 'retired', 'ended'].includes(m.status as string)).map(matchDay))
     return [...days].sort((a, b) => a.localeCompare(b))
   }, [allMatches])
 
@@ -155,7 +155,7 @@ export default function HomePage() {
   // ── Finished: includes retired and walkover ──
   // ended = transitional (score being confirmed) — show in results with CONFIRMING badge
   // bye = no match played — hide from feed
-  const finishedMatches = filtered.filter(m => m.status === 'finished' || m.status === 'retired' || m.status === 'walkover' || m.status === 'ended')
+  const finishedMatches = filtered.filter(m => ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string))
 
   const finishedByDay = useMemo(() => {
     const map: Record<string, Match[]> = {}
