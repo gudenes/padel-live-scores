@@ -1,6 +1,10 @@
 // src/app/api/cron/scores/route.ts
-// Score Agent — LIVE version with reconciliation
-// Fetches live matches from padelapi.org and repairs incomplete finished matches
+// Score Agent — LIVE version with fixed reconciliation
+// Key fixes:
+// 1. Reconciliation now correctly parses GET /api/matches/{id} response format
+// 2. Set scores normalized at write time (7-6(7) not 7-67)
+// 3. Finish transition immediately fetches authoritative final state
+// 4. ApiMatchDetail type correctly models the match detail endpoint
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -12,8 +16,8 @@ const supabase = createClient(
 const PADELAPI_BASE = 'https://padelapi.org/api'
 const PADELAPI_TOKEN = process.env.PADELAPI_TOKEN!
 
-// ── Rate limit state (in-memory, resets on cold start) ────────
-let _rateLimitRemaining = 60  // Pro tier: 60 req/min
+// ── Rate limit state ───────────────────────────────────────────
+let _rateLimitRemaining = 60
 let _rateLimitResetAt = 0
 let _retryAfter = 0
 
@@ -29,7 +33,7 @@ function isRateLimited(): boolean {
   return false
 }
 
-// ── Fetch wrapper with rate limit tracking ────────────────────
+// ── Fetch wrapper ──────────────────────────────────────────────
 async function fetchFromApi(path: string): Promise<Response | null> {
   if (isRateLimited()) return null
 
@@ -58,7 +62,9 @@ async function fetchFromApi(path: string): Promise<Response | null> {
   return res
 }
 
-// ── Types ─────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────
+
+// Shape from GET /api/live and GET /api/matches/{id}/live
 interface ApiMatch {
   id: number
   status: string
@@ -71,10 +77,8 @@ interface ApiMatch {
   court_order?: number
   scheduled_at?: string
   category?: string
-  winner_pair?: number | null
   pair1?: { player1: { id: number; name: string }; player2: { id: number; name: string } }
   pair2?: { player1: { id: number; name: string }; player2: { id: number; name: string } }
-  sets?: ApiSet[]
 }
 
 interface ApiMatchLive {
@@ -97,7 +101,80 @@ interface ApiGame {
   points: string[]
 }
 
-// ── Normalize player names (strip accents) ────────────────────
+// Shape from GET /api/matches/{id} — DIFFERENT from /live
+interface ApiMatchDetail {
+  id: number
+  status: string
+  winner: 'team_1' | 'team_2' | null  // string, not int
+  score: Array<{ team_1: string; team_2: string }> // set scores as array
+  duration: string | null
+  category: string | null
+  round_name: string | null
+  court: string | null
+  court_order: number | null
+  schedule_label: string | null
+  played_at: string | null
+  started_time: string | null
+  players: {
+    team_1: Array<{ id: number; name: string; side: string | null }>
+    team_2: Array<{ id: number; name: string; side: string | null }>
+  }
+}
+
+// ── Set score normalization ────────────────────────────────────
+// Converts raw API formats to clean DB format
+// Input from /live: "7-67" (tiebreak concatenated) → "7-6(7)"
+// Input from /matches/{id}: team_1="7", team_2="6(7)" → "7-6(7)"
+// Input from /live: "6-3" → "6-3" (unchanged)
+function normalizeSetScoreFromLive(rawScore: string | null): string | null {
+  if (!rawScore) return null
+
+  const parts = rawScore.split('-')
+  if (parts.length !== 2) return rawScore
+
+  const p1str = parts[0]
+  const p2str = parts[1]
+
+  // Already clean format: "7-6(7)" or "6-3"
+  if (p2str.includes('(') || p1str.includes('(')) return rawScore
+
+  const p1 = parseInt(p1str)
+  const p2 = parseInt(p2str)
+
+  // Format: "7-67" — tiebreak appended to p2 (p1 won 7-6, tb=7)
+  if (p2str.length >= 2 && p1 <= 7) {
+    const realP2 = parseInt(p2str[0])
+    const tb = parseInt(p2str.slice(1))
+    if (realP2 >= 6 && realP2 <= 7 && !isNaN(tb)) {
+      return `${p1}-${realP2}(${tb})`
+    }
+  }
+
+  // Format: "67-7" — tiebreak appended to p1 (p2 won 6-7, tb=7)
+  if (p1str.length >= 2 && p2 <= 7) {
+    const realP1 = parseInt(p1str[0])
+    const tb = parseInt(p1str.slice(1))
+    if (realP1 >= 6 && realP1 <= 7 && !isNaN(tb)) {
+      return `${realP1}(${tb})-${p2}`
+    }
+  }
+
+  return rawScore
+}
+
+// Normalize from detail endpoint: team_1="7", team_2="6(7)" → "7-6(7)"
+function normalizeSetScoreFromDetail(team1: string, team2: string): string {
+  return `${team1}-${team2}`
+}
+
+// Parse winner string to int
+function parseWinner(winner: string | null): number | null {
+  if (winner === 'team_1') return 1
+  if (winner === 'team_2') return 2
+  return null
+}
+
+// ── Normalize player names ─────────────────────────────────────
 function normalizePlayerName(name: string): string {
   return name
     .normalize('NFD')
@@ -107,7 +184,7 @@ function normalizePlayerName(name: string): string {
     .replace(/^-|-$/g, '')
 }
 
-// ── Fetch all live matches ────────────────────────────────────
+// ── Fetch live matches ─────────────────────────────────────────
 async function fetchLiveMatches(): Promise<ApiMatch[]> {
   const res = await fetchFromApi('/live')
   if (!res) return []
@@ -120,7 +197,7 @@ async function fetchLiveMatches(): Promise<ApiMatch[]> {
   }
 }
 
-// ── Fetch full point-by-point state for one match ─────────────
+// ── Fetch live match state ─────────────────────────────────────
 async function fetchMatchLiveState(matchId: number): Promise<ApiMatchLive | null> {
   const res = await fetchFromApi(`/matches/${matchId}/live`)
   if (!res) return null
@@ -132,8 +209,9 @@ async function fetchMatchLiveState(matchId: number): Promise<ApiMatchLive | null
   }
 }
 
-// ── Fetch full match detail (for reconciliation) ──────────────
-async function fetchMatchDetail(matchId: string): Promise<ApiMatch | null> {
+// ── Fetch match detail (authoritative final state) ─────────────
+// Uses GET /api/matches/{id} — different shape from /live
+async function fetchMatchDetail(matchId: string): Promise<ApiMatchDetail | null> {
   const res = await fetchFromApi(`/matches/${matchId}`)
   if (!res) return null
   try {
@@ -144,7 +222,7 @@ async function fetchMatchDetail(matchId: string): Promise<ApiMatch | null> {
   }
 }
 
-// ── Upsert helpers ────────────────────────────────────────────
+// ── Upsert helpers ─────────────────────────────────────────────
 async function upsertPlayer(name: string, externalNumericId?: number): Promise<string | null> {
   const externalId = externalNumericId
     ? String(externalNumericId)
@@ -188,7 +266,6 @@ async function upsertSetsAndGames(
   isMatchFinished: boolean
 ): Promise<void> {
   for (const set of sets) {
-    // For finished matches skip sets with no score — orphan tracking artifacts
     if (isMatchFinished && !set.set_score) continue
 
     const isCurrentSet =
@@ -196,13 +273,16 @@ async function upsertSetsAndGames(
       set.set_score === null &&
       set.set_number === Math.max(...sets.map((s) => s.set_number))
 
+    // ── Normalize set score at write time ──
+    const normalizedScore = normalizeSetScoreFromLive(set.set_score)
+
     const { data: setRow, error: setError } = await supabase
       .from('sets')
       .upsert(
         {
           match_id: matchDbId,
           set_number: set.set_number,
-          set_score: set.set_score,
+          set_score: normalizedScore,
           is_current: isCurrentSet,
           updated_at: new Date().toISOString(),
         },
@@ -244,7 +324,6 @@ async function upsertSetsAndGames(
     }
   }
 
-  // Clean up any orphan null sets if match is finished
   if (isMatchFinished) {
     await supabase
       .from('sets')
@@ -252,6 +331,61 @@ async function upsertSetsAndGames(
       .eq('match_id', matchDbId)
       .is('set_score', null)
   }
+}
+
+// ── Write final authoritative state from detail endpoint ───────
+// Called when a match finishes — uses GET /api/matches/{id} which
+// returns the correct winner and clean set scores
+async function writeFinalState(matchDbId: string, externalId: string): Promise<boolean> {
+  const detail = await fetchMatchDetail(externalId)
+  if (!detail) {
+    console.warn(`[Score Agent] Could not fetch final state for match ${externalId}`)
+    return false
+  }
+
+  // Parse winner: "team_1" → 1, "team_2" → 2
+  const winnerPair = parseWinner(detail.winner)
+
+  // Parse score array → normalized set scores
+  const sets = (detail.score ?? []).map((s, idx) => ({
+    set_number: idx + 1,
+    set_score: normalizeSetScoreFromDetail(s.team_1, s.team_2),
+  }))
+
+  // Update match with authoritative final data
+  await supabase
+    .from('matches')
+    .update({
+      winner_pair: winnerPair,
+      status: 'finished',
+      finished_at: new Date().toISOString(),
+      duration: detail.duration ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', matchDbId)
+
+  // Update set scores with clean normalized values
+  for (const set of sets) {
+    await supabase
+      .from('sets')
+      .update({
+        set_score: set.set_score,
+        is_current: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('match_id', matchDbId)
+      .eq('set_number', set.set_number)
+  }
+
+  // Delete any orphan null sets
+  await supabase
+    .from('sets')
+    .delete()
+    .eq('match_id', matchDbId)
+    .is('set_score', null)
+
+  console.log(`[Score Agent] ✓ Final state written for match ${externalId} — winner: pair ${winnerPair}, sets: ${sets.length}`)
+  return true
 }
 
 async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<void> {
@@ -287,7 +421,6 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
         court_order: match.court_order ?? null,
         scheduled_at: match.scheduled_at ?? null,
         category: match.category ?? null,
-        winner_pair: match.winner_pair ?? null,
         pair1_player1_id: pair1Player1Id,
         pair1_player2_id: pair1Player2Id,
         pair2_player1_id: pair2Player1Id,
@@ -307,17 +440,31 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
     return
   }
 
-  await upsertSetsAndGames(matchRow.id, liveState.sets, isFinished)
+  if (isFinished) {
+    // ── Finish transition: immediately fetch authoritative final state ──
+    // GET /api/matches/{id} returns correct winner + clean set scores
+    // This fixes the race condition where /live data is incomplete at finish
+    const written = await writeFinalState(matchRow.id, externalId)
+    if (!written) {
+      // Fallback: write what we have from /live
+      await upsertSetsAndGames(matchRow.id, liveState.sets, true)
+    }
+  } else {
+    await upsertSetsAndGames(matchRow.id, liveState.sets, false)
+  }
+
   console.log(`[Score Agent] ✓ Synced match ${externalId} (${liveState.status})`)
 }
 
-// ── Reconciliation: repair incomplete finished matches ─────────
+// ── Reconciliation ─────────────────────────────────────────────
+// Fixed: correctly parses GET /api/matches/{id} response format
+// - winner: "team_1" → winner_pair: 1
+// - score: [{team_1, team_2}] → normalized set scores
 async function reconcileIncompleteMatches(): Promise<{
   checked: number
   repaired: number
   skipped: number
 }> {
-  // Find finished matches with no winner_pair in the last 7 days
   const { data: incompleteMatches, error } = await supabase
     .from('matches')
     .select('id, external_id, finished_at')
@@ -328,7 +475,7 @@ async function reconcileIncompleteMatches(): Promise<{
       new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     )
     .order('finished_at', { ascending: false })
-    .limit(10) // Max 10 per cron run to preserve rate limit budget
+    .limit(10)
 
   if (error || !incompleteMatches || incompleteMatches.length === 0) {
     if (error) console.error('[Reconciliation] Query failed:', error)
@@ -347,39 +494,22 @@ async function reconcileIncompleteMatches(): Promise<{
       break
     }
 
-    const detail = await fetchMatchDetail(match.external_id)
+    // ── Fixed: use writeFinalState which correctly parses the detail endpoint ──
+    const written = await writeFinalState(match.id, match.external_id)
 
-    if (!detail) {
-      console.warn(`[Reconciliation] No API data for match ${match.external_id} — skipping`)
+    if (written) {
+      console.log(`[Reconciliation] ✓ Repaired match ${match.external_id}`)
+      repaired++
+    } else {
+      console.warn(`[Reconciliation] Could not repair match ${match.external_id} — no API data`)
       skipped++
-      continue
     }
-
-    // Update match with winner and final status
-    await supabase
-      .from('matches')
-      .update({
-        status: detail.status ?? 'finished',
-        winner_pair: detail.winner_pair ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', match.id)
-
-    // Upsert sets if available
-    if (detail.sets && detail.sets.length > 0) {
-      await upsertSetsAndGames(match.id, detail.sets, true)
-    }
-
-    console.log(
-      `[Reconciliation] ✓ Repaired match ${match.external_id} (winner=${detail.winner_pair}, sets=${detail.sets?.filter((s) => s.set_score).length ?? 0})`
-    )
-    repaired++
   }
 
   return { checked: incompleteMatches.length, repaired, skipped }
 }
 
-// ── Main handler ──────────────────────────────────────────────
+// ── Main handler ───────────────────────────────────────────────
 export async function GET(request: Request) {
   if (process.env.NODE_ENV === 'production') {
     const authHeader = request.headers.get('authorization')
@@ -427,11 +557,14 @@ export async function GET(request: Request) {
     // ── Step 2: Reconcile incomplete finished matches ──────────
     const reconciliation = await reconcileIncompleteMatches()
 
-    // ── Step 3: Ping Pusher relay to pick up new channels ─────
+    // ── Step 3: Ping Railway relay ────────────────────────────
     try {
       await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/pusher-relay?action=sync`,
-        { headers: { Authorization: `Bearer ${process.env.RELAY_SECRET}` } }
+        `${process.env.RELAY_URL}/sync`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.RELAY_SECRET}` },
+        }
       )
       console.log('[Score Agent] Relay pinged successfully')
     } catch (e) {
