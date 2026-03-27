@@ -228,7 +228,9 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
           ? new Date(match.started_time).toISOString()
           : null
 
-        // Upsert match
+        // Upsert match — only columns that exist in DB schema
+        // Removed: played_at (does not exist), round_name (does not exist)
+        // scheduled_at uses played_at as the date the match is scheduled to be played
         const { data: matchRow, error: matchError } = await supabase
           .from('matches')
           .upsert(
@@ -237,15 +239,13 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
               tournament_id: tournamentRow?.id ?? null,
               status: status,
               winner_pair: winnerPair,
-              round: match.round ?? null,
-              round_name: match.round_name ?? null,
+              round: match.round_name ?? match.round ?? null,
               court: match.court ?? null,
               court_order: match.court_order ?? null,
               schedule_label: match.schedule_label ?? null,
               category: match.category ?? null,
-              played_at: match.played_at ?? null,
-              started_at: startedAt,
               scheduled_at: match.played_at ?? null,
+              started_at: startedAt,
               duration: match.duration ?? null,
               updated_at: new Date().toISOString(),
             },
