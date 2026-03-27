@@ -290,6 +290,7 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
 
         // Count how many scored sets this match has
         let scoredSets = 0
+        let apiConfirmedSets = 0
         if (existing?.id) {
           const { count } = await supabase
             .from('sets')
@@ -297,6 +298,15 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
             .eq('match_id', existing.id)
             .not('set_score', 'is', null)
           scoredSets = count ?? 0
+
+          // NEW: count only API-confirmed sets — inferred sets should be overwritten
+          const { count: apiCount } = await supabase
+            .from('sets')
+            .select('id', { count: 'exact', head: true })
+            .eq('match_id', existing.id)
+            .not('set_score', 'is', null)
+            .eq('score_source', 'api')
+          apiConfirmedSets = apiCount ?? 0
         }
 
         // How many sets does the API say this match has?
@@ -306,10 +316,12 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
         // - has winner
         // - is finished
         // - scored sets in DB matches what API reports (handles 2-set AND 3-set matches)
+        // - ALL scored sets are API-confirmed (not just 'inferred' from point data)
         const isComplete = existing?.winner_pair !== null
           && (existing?.status as string) === 'finished'
           && expectedSets > 0
           && scoredSets >= expectedSets
+          && apiConfirmedSets >= expectedSets  // ← NEW: only skip if all sets are from API
 
         // Always patch metadata fields even on complete matches
         // category, court, round can be missing from early-synced matches
@@ -409,6 +421,7 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
                   set_number: i + 1,
                   set_score: setScore,
                   is_current: false,
+                  score_source: 'api' as const,  // ← NEW: authoritative data, overwrites 'inferred'
                   updated_at: new Date().toISOString(),
                 },
                 { onConflict: 'match_id, set_number' }

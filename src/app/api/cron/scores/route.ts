@@ -1,12 +1,14 @@
 // src/app/api/cron/scores/route.ts
-// Score Agent — LIVE version with fixed reconciliation
-// Key fixes:
-// 1. Reconciliation now correctly parses GET /api/matches/{id} response format
+// Score Agent — LIVE version with inference layer
+// Key features:
+// 1. Reconciliation correctly parses GET /api/matches/{id} response format
 // 2. Set scores normalized at write time (7-6(7) not 7-67)
 // 3. Finish transition immediately fetches authoritative final state
-// 4. ApiMatchDetail type correctly models the match detail endpoint
+// 4. NEW: Final Score Inference — infers last set from point data when API returns null
+// 5. score_source tracking on all set writes (api/inferred/live)
 
 import { createClient } from '@supabase/supabase-js'
+import { inferFinalScore, inferBatch } from '@/lib/score-inference'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -261,6 +263,7 @@ async function upsertSetsAndGames(
           set_number: set.set_number,
           set_score: normalizedScore,
           is_current: isCurrentSet,
+          score_source: 'live' as const,  // ← NEW: tag source
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'match_id, set_number' }
@@ -331,8 +334,8 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
 
   // Update match with authoritative final data
   // started_time from detail endpoint fills the gap when match was never tracked as live
-  const startedAt = detail.started_time 
-    ? new Date(detail.started_time).toISOString() 
+  const startedAt = detail.started_time
+    ? new Date(detail.started_time).toISOString()
     : null
 
   await supabase
@@ -359,6 +362,7 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
           set_number: set.set_number,
           set_score: set.set_score,
           is_current: false,
+          score_source: 'api' as const,  // ← NEW: authoritative data
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'match_id, set_number' }
@@ -468,10 +472,29 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
 
   if (isFinished) {
     // ── Finish transition: immediately fetch authoritative final state ──
-    // GET /api/matches/{id} returns correct winner + clean set scores
-    // Triggered on: finished, retired, ended (transitional), bye
-    // 'ended' = match over but not yet confirmed — writeFinalState handles gracefully
     const written = await writeFinalState(matchRow.id, externalId)
+
+    // ── NEW: Inference fallback ──
+    // If writeFinalState couldn't get the score (e.g. API returned null during
+    // ended→finished transition), try to infer the last set from point data
+    if (liveState.status === 'finished') {
+      const { data: nullSet } = await supabase
+        .from('sets')
+        .select('id, set_score, score_source')
+        .eq('match_id', matchRow.id)
+        .is('set_score', null)
+        .limit(1)
+        .maybeSingle()
+
+      if (nullSet && nullSet.score_source !== 'api') {
+        const result = await inferFinalScore(supabase, matchRow.id)
+        if (result.action === 'inferred') {
+          console.log(`[Score Agent] Inference filled gap for match ${externalId}: ${result.detail}`)
+        }
+      }
+    }
+    // ── END inference fallback ──
+
     if (!written) {
       // Fallback: write what we have from /live
       await upsertSetsAndGames(matchRow.id, liveState.sets, true)
@@ -491,6 +514,7 @@ async function reconcileIncompleteMatches(): Promise<{
   checked: number
   repaired: number
   skipped: number
+  inferred: number
 }> {
   // Find matches that need repair:
   // 1. winner_pair is null (no winner recorded)
@@ -539,7 +563,7 @@ async function reconcileIncompleteMatches(): Promise<{
   if (error || !incompleteMatches || incompleteMatches.length === 0) {
     if (error) console.error('[Reconciliation] Query failed:', error)
     else console.log('[Reconciliation] No incomplete matches found ✓')
-    return { checked: 0, repaired: 0, skipped: 0 }
+    return { checked: 0, repaired: 0, skipped: 0, inferred: 0 }
   }
 
   console.log(`[Reconciliation] Found ${incompleteMatches.length} incomplete match(es)`)
@@ -565,7 +589,17 @@ async function reconcileIncompleteMatches(): Promise<{
     }
   }
 
-  return { checked: incompleteMatches.length, repaired, skipped }
+  // ── NEW: Inference-based reconciliation ──
+  // Catches finished matches where writeFinalState also failed (API returned null)
+  // but point data exists in DB to derive the score
+  const inferenceResults = await inferBatch(supabase, 7, 20)
+  const inferredCount = inferenceResults.filter(r => r.action === 'inferred').length
+  if (inferredCount > 0) {
+    console.log(`[Reconciliation] Inference: fixed ${inferredCount} additional match(es)`)
+  }
+  // ── END inference reconciliation ──
+
+  return { checked: incompleteMatches.length, repaired, skipped, inferred: inferredCount }
 }
 
 // ── Main handler ───────────────────────────────────────────────

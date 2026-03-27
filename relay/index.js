@@ -3,6 +3,9 @@
 // Always-on Node.js service deployed on Railway
 // Holds open WebSocket connections to padelapi.org Pusher channels
 // and writes every point update directly to Supabase
+//
+// NEW: Final Score Inference — when a match finishes, if the last set
+// score is still null, infers it from the last recorded point data
 
 'use strict'
 
@@ -73,6 +76,131 @@ function getPusherClient() {
   return pusherClient
 }
 
+// ── Score Inference — pure functions ──────────────────────────
+// Duplicated from src/lib/score-inference.ts since the relay
+// is a standalone Node.js service that can't import from Next.js
+
+const STANDARD_POINTS = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4 }
+
+function determineGameWinner(points, isTiebreak) {
+  const realPoints = points.filter((p) => p !== '0:0')
+  if (realPoints.length === 0) return null
+
+  const lastPoint = realPoints[realPoints.length - 1]
+  const parts = lastPoint.split(':')
+  if (parts.length !== 2) return null
+
+  const [raw1, raw2] = parts
+
+  if (isTiebreak) {
+    const val1 = parseInt(raw1, 10)
+    const val2 = parseInt(raw2, 10)
+    if (isNaN(val1) || isNaN(val2) || val1 === val2) return null
+    return val1 > val2 ? 1 : 2
+  }
+
+  const val1 = STANDARD_POINTS[raw1]
+  const val2 = STANDARD_POINTS[raw2]
+
+  if (val1 === undefined || val2 === undefined) {
+    const num1 = parseInt(raw1, 10)
+    const num2 = parseInt(raw2, 10)
+    if (!isNaN(num1) && !isNaN(num2) && num1 !== num2) {
+      return num1 > num2 ? 1 : 2
+    }
+    return null
+  }
+
+  if (val1 === val2) return null
+  return val1 > val2 ? 1 : 2
+}
+
+function parseGameScoreStr(gameScore) {
+  if (!gameScore) return null
+  const cleaned = gameScore.replace(/\s/g, '')
+  const parts = cleaned.split('-')
+  if (parts.length !== 2) return null
+  const team1 = parseInt(parts[0], 10)
+  const team2 = parseInt(parts[1], 10)
+  if (isNaN(team1) || isNaN(team2)) return null
+  return { team1, team2 }
+}
+
+function calculateSetScore(team1Games, team2Games, gameWinner) {
+  const newTeam1 = gameWinner === 1 ? team1Games + 1 : team1Games
+  const newTeam2 = gameWinner === 2 ? team2Games + 1 : team2Games
+  const winnerGames = Math.max(newTeam1, newTeam2)
+  const loserGames = Math.min(newTeam1, newTeam2)
+  if (winnerGames < 6 || winnerGames > 7) return null
+  if (winnerGames === 6 && loserGames > 4) return null
+  if (winnerGames === 7 && loserGames !== 5 && loserGames !== 6) return null
+  return `${newTeam1}-${newTeam2}`
+}
+
+/**
+ * Try to infer the final set score for a finished match.
+ * Only updates existing rows — never creates new ones.
+ */
+async function tryInferFinalScore(matchDbId) {
+  try {
+    // Find the incomplete set
+    const { data: incompleteSet } = await supabase
+      .from('sets')
+      .select('id, set_number, set_score, score_source')
+      .eq('match_id', matchDbId)
+      .is('set_score', null)
+      .order('set_number', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!incompleteSet || incompleteSet.score_source === 'api') return
+
+    // Get the last game in that set
+    const { data: lastGame } = await supabase
+      .from('games')
+      .select('id, game_number, game_score, points')
+      .eq('set_id', incompleteSet.id)
+      .order('game_number', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!lastGame || !lastGame.points || lastGame.points.length === 0) return
+
+    const parsed = parseGameScoreStr(lastGame.game_score)
+    if (!parsed) return
+
+    const isTiebreak = parsed.team1 === 6 && parsed.team2 === 6
+    const gameWinner = determineGameWinner(lastGame.points, isTiebreak)
+    if (!gameWinner) return
+
+    const newScore = calculateSetScore(parsed.team1, parsed.team2, gameWinner)
+    if (!newScore) return
+
+    // Write inferred score — UPDATE only, never INSERT
+    await supabase
+      .from('sets')
+      .update({
+        set_score: newScore,
+        is_current: false,
+        score_source: 'inferred',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', incompleteSet.id)
+      .eq('match_id', matchDbId)
+
+    await supabase
+      .from('games')
+      .update({ is_current: false })
+      .eq('id', lastGame.id)
+
+    console.log(
+      `[Relay-Inference] Match ${matchDbId}: inferred set ${incompleteSet.set_number} = ${newScore}`
+    )
+  } catch (err) {
+    console.error(`[Relay-Inference] Error for match ${matchDbId}:`, err.message)
+  }
+}
+
 // ── Write live state to Supabase ──────────────────────────────
 async function handleLiveUpdate(data) {
   const externalId = String(data.id)
@@ -121,6 +249,7 @@ async function handleLiveUpdate(data) {
             set_number: set.set_number,
             set_score: set.set_score,
             is_current: isCurrentSet,
+            score_source: 'live',  // ← NEW: tag source
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'match_id, set_number' }
@@ -153,11 +282,19 @@ async function handleLiveUpdate(data) {
     }
 
     // 4. If match finished or ended — trigger final state fetch
-    // 'ended' = match over, score being confirmed (transitions to 'finished' within minutes)
-    // 'bye' = no match played
     if (data.status === 'finished' || data.status === 'ended' || data.status === 'bye') {
       console.log(`[Relay] Match ${externalId} ${data.status} — triggering final state fetch`)
       await fetchAndWriteFinalState(externalId, matchDbId)
+
+      // ── NEW: Inference fallback ──
+      // After writing final state, check if a set is still incomplete
+      // Give a small delay for the writes to commit
+      if (data.status === 'finished') {
+        await new Promise((resolve) => setTimeout(resolve, 500))
+        await tryInferFinalScore(matchDbId)
+      }
+      // ── END inference fallback ──
+
       // Only unsubscribe on finished/bye — keep listening during ended in case it updates
       if (data.status === 'finished' || data.status === 'bye') unsubscribeChannel(data.channel)
     } else {
@@ -201,7 +338,6 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
     }))
 
     // Update match with final authoritative data
-    // started_time fills the gap when match was never tracked as live
     const startedAt = match.started_time
       ? new Date(match.started_time).toISOString()
       : null
@@ -228,6 +364,7 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
             set_number: set.set_number,
             set_score: set.set_score,
             is_current: false,
+            score_source: 'api',  // ← NEW: authoritative data
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'match_id, set_number' }
@@ -248,10 +385,6 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
 }
 
 // ── Normalize set score to clean format ───────────────────────
-// Input: team_1 = "7", team_2 = "6(7)"
-// Output: "7-6(7)"
-// Input: team_1 = "6", team_2 = "0"
-// Output: "6-0"
 function normalizeSetScore(team1, team2) {
   if (!team1 || !team2) return null
   return `${team1}-${team2}`
@@ -295,7 +428,6 @@ function unsubscribeChannel(channelName) {
 }
 
 // ── Re-seed all channels after reconnect ──────────────────────
-// Re-fetches the live state for all active matches to fill any gaps
 async function reseedAllChannels() {
   for (const [channelName, externalId] of channelMatchIds.entries()) {
     try {
@@ -318,14 +450,12 @@ async function reseedAllChannels() {
 }
 
 // ── Sync channels from DB ─────────────────────────────────────
-// Called by the Vercel cron every 2 minutes
 async function syncChannels() {
   try {
-    // Get all currently live matches from DB
     const { data: liveMatches, error } = await supabase
       .from('matches')
       .select('external_id, pusher_channel')
-      .in('status', ['live', 'ended'])  // ended = still receiving updates
+      .in('status', ['live', 'ended'])
       .not('pusher_channel', 'is', null)
 
     if (error) {
@@ -335,7 +465,6 @@ async function syncChannels() {
 
     const liveChannels = new Set((liveMatches ?? []).map((m) => m.pusher_channel))
 
-    // Subscribe to new channels
     let added = 0
     for (const match of liveMatches ?? []) {
       if (!activeChannels.has(match.pusher_channel)) {
@@ -344,7 +473,6 @@ async function syncChannels() {
       }
     }
 
-    // Unsubscribe from channels no longer live
     let removed = 0
     for (const channelName of activeChannels.keys()) {
       if (!liveChannels.has(channelName)) {
@@ -365,7 +493,6 @@ async function syncChannels() {
 const app = express()
 app.use(express.json())
 
-// Auth middleware
 function requireSecret(req, res, next) {
   const auth = req.headers['authorization']
   if (RELAY_SECRET && auth !== `Bearer ${RELAY_SECRET}`) {
@@ -374,7 +501,6 @@ function requireSecret(req, res, next) {
   next()
 }
 
-// GET /health — health check (no auth required)
 app.get('/health', (req, res) => {
   res.json({
     ok: true,
@@ -385,19 +511,16 @@ app.get('/health', (req, res) => {
   })
 })
 
-// POST /sync — called by Vercel cron to sync channel subscriptions
 app.post('/sync', requireSecret, async (req, res) => {
   const result = await syncChannels()
   res.json({ ok: true, ...result })
 })
 
-// GET /sync — also accept GET for easier manual testing
 app.get('/sync', requireSecret, async (req, res) => {
   const result = await syncChannels()
   res.json({ ok: true, ...result })
 })
 
-// POST /subscribe — manually subscribe to a specific channel
 app.post('/subscribe', requireSecret, (req, res) => {
   const { channel, externalId } = req.body
   if (!channel) return res.status(400).json({ error: 'channel required' })
@@ -405,22 +528,18 @@ app.post('/subscribe', requireSecret, (req, res) => {
   res.json({ ok: true, subscribed: channel })
 })
 
-// Start server
 app.listen(PORT, () => {
   console.log(`[Relay] 🚀 PadelNacho Pusher Relay started on port ${PORT}`)
   console.log(`[Relay] Pusher: ${PUSHER_APP_KEY} (${PUSHER_CLUSTER})`)
 
-  // Initialize Pusher connection immediately
   getPusherClient()
 
-  // Initial sync on startup
   setTimeout(() => {
     console.log('[Relay] Running initial channel sync...')
     syncChannels().catch(console.error)
   }, 3000)
 })
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('[Relay] SIGTERM received — shutting down gracefully')
   if (pusherClient) pusherClient.disconnect()
