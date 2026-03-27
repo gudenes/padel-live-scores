@@ -492,17 +492,49 @@ async function reconcileIncompleteMatches(): Promise<{
   repaired: number
   skipped: number
 }> {
-  const { data: incompleteMatches, error } = await supabase
+  // Find matches that need repair:
+  // 1. winner_pair is null (no winner recorded)
+  // 2. OR: has winner but fewer scored sets than expected
+  //    (catches 3-set matches missing their third set)
+  // Use a raw SQL approach via RPC or two separate queries
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  // Query 1: missing winner
+  const { data: missingWinner } = await supabase
     .from('matches')
     .select('id, external_id, finished_at')
     .in('status', ['finished', 'ended'])
     .is('winner_pair', null)
-    .gte(
-      'finished_at',
-      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-    )
+    .gte('finished_at', sevenDaysAgo)
     .order('finished_at', { ascending: false })
-    .limit(10)
+    .limit(8)
+
+  // Query 2: has winner but incomplete sets (< 2 scored sets)
+  // We can't easily join in PostgREST so we use a subquery approach:
+  // find finished matches where sets with null set_score still exist
+  const { data: incompleteSets } = await supabase
+    .from('matches')
+    .select('id, external_id, finished_at, sets!inner(set_score)')
+    .in('status', ['finished'])
+    .not('winner_pair', 'is', null)
+    .gte('finished_at', sevenDaysAgo)
+    .is('sets.set_score', null)
+    .order('finished_at', { ascending: false })
+    .limit(5)
+
+  // Merge and deduplicate
+  const seen = new Set<string>()
+  const allMatches = [
+    ...(missingWinner ?? []),
+    ...(incompleteSets ?? []),
+  ].filter(m => {
+    if (seen.has(m.id)) return false
+    seen.add(m.id)
+    return true
+  })
+
+  const incompleteMatches = allMatches
+  const error = null
 
   if (error || !incompleteMatches || incompleteMatches.length === 0) {
     if (error) console.error('[Reconciliation] Query failed:', error)
