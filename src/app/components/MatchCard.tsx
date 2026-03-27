@@ -91,6 +91,26 @@ export default function MatchCard({ match }: MatchCardProps) {
 
   const category = (match as any).category as string | null
   const genderAccent = category === 'men' ? 'var(--color-men)' : category === 'women' ? 'var(--color-women)' : 'transparent'
+  const court = (match as any).court as string | null
+
+  // Normalize abbreviated stage names from API to full standard names
+  const normalizeRound = (r: string | null): string | null => {
+    if (!r) return null
+    const map: Record<string, string> = {
+      'Quarter': 'Quarterfinals',
+      'Quarters': 'Quarterfinals',
+      'QF': 'Quarterfinals',
+      'SF': 'Semifinals',
+      'Semi': 'Semifinals',
+      'Final': 'Finals',
+      'F': 'Finals',
+      'R16': 'Round of 16',
+      'R32': 'Round of 32',
+      'R64': 'Round of 64',
+    }
+    return map[r] ?? r
+  }
+  const roundLabel = normalizeRound(match.round as string | null)
   const scheduleLabel = (match as any).schedule_label as string | null
 
   const scheduledTime = (() => {
@@ -98,7 +118,9 @@ export default function MatchCard({ match }: MatchCardProps) {
       const timeMatch = scheduleLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
       if (timeMatch) {
         try {
-          const tournamentTz = (match as any).tournament?.timezone ?? 'Europe/Madrid'
+          const tournamentTz = (match as any).tournament?.timezone
+          // If tournament timezone is unknown, show the raw schedule_label rather than converting incorrectly
+          if (!tournamentTz) return scheduleLabel
           const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
           let hours = parseInt(timeMatch[1])
           const minutes = parseInt(timeMatch[2])
@@ -142,7 +164,8 @@ export default function MatchCard({ match }: MatchCardProps) {
         <div style={{ padding: '5px 10px 6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
             <span style={{ fontSize: 9, color: '#888', fontWeight: 600, letterSpacing: '0.3px' }}>W/O</span>
-            {match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
+            {roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
+            {court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
             {woWinner} <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>wins by walkover</span>
@@ -162,7 +185,8 @@ export default function MatchCard({ match }: MatchCardProps) {
         <div style={{ padding: '5px 10px 6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
             <span style={{ fontSize: 9, color: 'var(--color-live)', fontWeight: 600, letterSpacing: '0.3px' }}>⚬ WARMING UP</span>
-            {match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
+            {roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
+            {court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -240,7 +264,9 @@ export default function MatchCard({ match }: MatchCardProps) {
                     {(() => {
                       try {
                         const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-                        const tournamentTz = (match as any).tournament?.timezone ?? 'Europe/Madrid'
+                        const tournamentTz = (match as any).tournament?.timezone
+          // If tournament timezone is unknown, show the raw schedule_label rather than converting incorrectly
+          if (!tournamentTz) return scheduleLabel
                         const label = (match as any).schedule_label ?? ''
                         const timeMatch = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
                         if (timeMatch) {
@@ -276,9 +302,11 @@ export default function MatchCard({ match }: MatchCardProps) {
                 {isEnded && <span style={{ fontSize: 9, color: 'var(--color-live)', fontWeight: 600, letterSpacing: '0.3px' }}>CONFIRMING</span>}
                 {isRetired && <span style={{ fontSize: 9, color: '#f87171', fontWeight: 600, letterSpacing: '0.3px' }}>RETIRED</span>}
                 {isBye && <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.3px' }}>BYE</span>}
-                {isFinished && match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
+                {isFinished && roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
+                {isFinished && court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
                 {isLive && <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.3px' }}>LIVE</span>}
-                {isLive && match.round && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>}
+                {isLive && roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
+                {isLive && court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
                 <div style={{ display: 'flex', gap: 2, opacity: 0.7 }}>
