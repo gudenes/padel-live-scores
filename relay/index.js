@@ -218,17 +218,20 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
       })
       .eq('id', matchDbId)
 
-    // Update set scores with clean normalized values
+    // Upsert set scores — use upsert not update so missing sets get created
     for (const set of sets) {
       await supabase
         .from('sets')
-        .update({
-          set_score: set.set_score,
-          is_current: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('match_id', matchDbId)
-        .eq('set_number', set.set_number)
+        .upsert(
+          {
+            match_id: matchDbId,
+            set_number: set.set_number,
+            set_score: set.set_score,
+            is_current: false,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'match_id, set_number' }
+        )
     }
 
     // Delete orphan null sets
