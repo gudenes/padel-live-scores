@@ -209,14 +209,30 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
         const externalId = String(match.id)
         const status = match.status as string
 
-        // Skip already complete finished matches to save writes
+        // Check existing match state
         const { data: existing } = await supabase
           .from('matches')
           .select('id, winner_pair, status')
           .eq('external_id', externalId)
           .single()
 
-        if (existing?.winner_pair !== null && (existing?.status as string) === 'finished') continue
+        // Count how many scored sets this match has
+        let scoredSets = 0
+        if (existing?.id) {
+          const { count } = await supabase
+            .from('sets')
+            .select('id', { count: 'exact', head: true })
+            .eq('match_id', existing.id)
+            .not('set_score', 'is', null)
+          scoredSets = count ?? 0
+        }
+
+        // Skip only if truly complete: has winner, is finished, AND has at least 2 scored sets
+        const isComplete = existing?.winner_pair !== null
+          && (existing?.status as string) === 'finished'
+          && scoredSets >= 2
+
+        if (isComplete) continue
 
         // Parse winner from API format: "team_1" → 1, "team_2" → 2
         const winnerPair = match.winner === 'team_1' ? 1
@@ -254,7 +270,10 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
           .select('id')
           .single()
 
-        if (matchError || !matchRow) continue
+        if (matchError || !matchRow) {
+          console.error(`[Sync] Upsert failed for match ${externalId}:`, matchError?.message ?? 'no row returned')
+          continue
+        }
 
         // Upsert players for this match (team_1 = pair1, team_2 = pair2)
         const team1 = match.players?.team_1 ?? []
