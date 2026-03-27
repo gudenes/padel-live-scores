@@ -78,6 +78,77 @@ async function fetchFromApi(
   return { res, redirectedTo: null }
 }
 
+// ── Timezone inference from country + location ────────────────
+// Automatically assigns timezone to tournaments based on country code
+// and location name. Priority: location override → country fallback.
+// Documented in Notion: Tournament Timezone Mapping
+const COUNTRY_TIMEZONES: Record<string, string> = {
+  ES: 'Europe/Madrid',
+  FR: 'Europe/Paris',
+  IT: 'Europe/Rome',
+  DE: 'Europe/Berlin',
+  PT: 'Europe/Lisbon',
+  GB: 'Europe/London',
+  US: 'America/New_York',
+  MX: 'America/Mexico_City',
+  AR: 'America/Argentina/Buenos_Aires',
+  BR: 'America/Sao_Paulo',
+  SA: 'Asia/Riyadh',
+  AE: 'Asia/Dubai',
+  QA: 'Asia/Qatar',
+  HK: 'Asia/Hong_Kong',
+  SG: 'Asia/Singapore',
+  JP: 'Asia/Tokyo',
+  AU: 'Australia/Sydney',
+  ZA: 'Africa/Johannesburg',
+  MA: 'Africa/Casablanca',
+  EG: 'Africa/Cairo',
+  SE: 'Europe/Stockholm',
+  NL: 'Europe/Amsterdam',
+  BE: 'Europe/Brussels',
+  AT: 'Europe/Vienna',
+  CH: 'Europe/Zurich',
+  PL: 'Europe/Warsaw',
+  CZ: 'Europe/Prague',
+  RO: 'Europe/Bucharest',
+  GR: 'Europe/Athens',
+  TR: 'Europe/Istanbul',
+  IL: 'Asia/Jerusalem',
+}
+
+// Location overrides — cities that differ from country default
+const LOCATION_OVERRIDES: Array<{ pattern: RegExp; timezone: string }> = [
+  { pattern: /canc[uú]n/i,        timezone: 'America/Cancun' },
+  { pattern: /miami/i,            timezone: 'America/New_York' },
+  { pattern: /new york/i,         timezone: 'America/New_York' },
+  { pattern: /los angeles|la/i, timezone: 'America/Los_Angeles' },
+  { pattern: /las vegas/i,        timezone: 'America/Los_Angeles' },
+  { pattern: /chicago/i,          timezone: 'America/Chicago' },
+  { pattern: /houston/i,          timezone: 'America/Chicago' },
+  { pattern: /denver/i,           timezone: 'America/Denver' },
+  { pattern: /riyadh/i,           timezone: 'Asia/Riyadh' },
+  { pattern: /dubai/i,            timezone: 'Asia/Dubai' },
+  { pattern: /abu dhabi/i,        timezone: 'Asia/Dubai' },
+  { pattern: /doha/i,             timezone: 'Asia/Qatar' },
+  { pattern: /hong kong/i,        timezone: 'Asia/Hong_Kong' },
+]
+
+function inferTimezone(country: string | null, location: string | null): string | null {
+  // Check location overrides first
+  if (location) {
+    for (const override of LOCATION_OVERRIDES) {
+      if (override.pattern.test(location)) {
+        return override.timezone
+      }
+    }
+  }
+  // Fall back to country
+  if (country && COUNTRY_TIMEZONES[country.toUpperCase()]) {
+    return COUNTRY_TIMEZONES[country.toUpperCase()]
+  }
+  return null
+}
+
 // ── Normalize player names ────────────────────────────────────
 function normalizePlayerName(name: string): string {
   return name
@@ -147,6 +218,7 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
             starts_at: t.start_date ?? null,
             ends_at: t.end_date ?? null,
             country: t.country ?? null,
+            timezone: t.timezone ?? inferTimezone(t.country, t.location) ?? null,
             status: t.status ?? null,
             season_id: seasonId,
             url: t.url ?? null,
