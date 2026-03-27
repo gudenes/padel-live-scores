@@ -373,7 +373,10 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
 
 async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<void> {
   const externalId = String(match.id)
-  const isFinished = ['finished', 'retired', 'ended', 'bye'].includes(liveState.status as string)
+  // Restored to pre-regression behaviour (commit 78532f1)
+  // 'ended' stays in DB as-is — reconciliation catches it when API confirms 'finished'
+  // 'bye' never appears in /api/live, handled by tournament sync only
+  const isFinished = liveState.status === 'finished' || liveState.status === 'retired'
 
   // Check if match already has player data in DB
   const { data: existing } = await supabase
@@ -382,11 +385,11 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
     .eq('external_id', externalId)
     .single()
 
-  // Only fetch detail if we're missing players, tournament, or match metadata
-  // GET /api/matches/{id} has players, round, court, category, tournament
-  // GET /api/live does NOT have any of this
+  // Only fetch detail for brand new matches (row doesn't exist yet)
+  // For existing matches, tournament sync backfills players/metadata — skip detail to save rate limits
+  // GET /api/matches/{id} costs 1 extra API call per match — too expensive for every 2-min cron
   let detail: ApiMatchDetail | null = null
-  const needsDetail = !existing?.pair1_player1_id || !existing?.tournament_id || !existing?.round
+  const needsDetail = !existing  // only fetch when match is brand new
 
   if (needsDetail && !isRateLimited()) {
     detail = await fetchMatchDetail(externalId)
