@@ -211,9 +211,7 @@ export default function MatchCard({ match }: MatchCardProps) {
                 </div>
               </div>
             </div>
-            {match.court && (
-              <div style={{ flexShrink: 0, fontSize: 10, color: 'var(--text-secondary)' }}>{match.court}</div>
-            )}
+
           </div>
         </div>
       </div>
@@ -228,9 +226,10 @@ export default function MatchCard({ match }: MatchCardProps) {
       <div style={{ padding: '5px 10px 6px' }}>
         {isUpcoming ? (
           <>
-            {match.round && (
+            {(roundLabel || court) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{match.round}</span>
+                {roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
+                {court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
               </div>
             )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
