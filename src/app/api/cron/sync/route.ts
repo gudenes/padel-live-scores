@@ -212,7 +212,7 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
         // Check existing match state
         const { data: existing } = await supabase
           .from('matches')
-          .select('id, winner_pair, status')
+          .select('id, winner_pair, status, category, round')
           .eq('external_id', externalId)
           .single()
 
@@ -239,7 +239,24 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
           && expectedSets > 0
           && scoredSets >= expectedSets
 
-        if (isComplete) continue
+        // Always patch metadata fields even on complete matches
+        // category, court, round can be missing from early-synced matches
+        if (isComplete) {
+          const needsMetadata = !existing?.category || !existing?.round
+          if (needsMetadata && existing?.id) {
+            await supabase
+              .from('matches')
+              .update({
+                category: match.category ?? null,
+                round: match.round_name ?? match.round ?? null,
+                court: match.court ?? null,
+                court_order: match.court_order ?? null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existing.id)
+          }
+          continue
+        }
 
         // Parse winner from API format: "team_1" → 1, "team_2" → 2
         const winnerPair = match.winner === 'team_1' ? 1
