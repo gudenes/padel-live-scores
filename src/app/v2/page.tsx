@@ -375,10 +375,10 @@ export default function V2Page() {
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
                     gap: 8, padding: '8px 10px 7px',
                     borderBottom: isActive ? '2px solid var(--color-live)' : '2px solid transparent',
-                    background: 'transparent', border: 'none',
-                    borderBottom: isActive ? '2px solid var(--color-live)' : '2px solid transparent',
-                    cursor: 'pointer',
+                    background: 'transparent',
+                    borderTop: 'none', borderLeft: 'none',
                     borderRight: league.id === 'premier' ? '0.5px solid var(--border-base)' : 'none',
+                    cursor: 'pointer',
                   } as React.CSSProperties}
                 >
                   {/* League logo — SVG icon */}
