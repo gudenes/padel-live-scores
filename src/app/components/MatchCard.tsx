@@ -121,7 +121,8 @@ export default function MatchCard({ match }: MatchCardProps) {
     try {
       const d = new Date(src)
       if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null
-      return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
+      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz }).format(d)
     } catch { return null }
   })()
 
