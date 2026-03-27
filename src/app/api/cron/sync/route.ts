@@ -227,10 +227,17 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
           scoredSets = count ?? 0
         }
 
-        // Skip only if truly complete: has winner, is finished, AND has at least 2 scored sets
+        // How many sets does the API say this match has?
+        const expectedSets = match.score?.length ?? 0
+
+        // Skip only if truly complete:
+        // - has winner
+        // - is finished
+        // - scored sets in DB matches what API reports (handles 2-set AND 3-set matches)
         const isComplete = existing?.winner_pair !== null
           && (existing?.status as string) === 'finished'
-          && scoredSets >= 2
+          && expectedSets > 0
+          && scoredSets >= expectedSets
 
         if (isComplete) continue
 
