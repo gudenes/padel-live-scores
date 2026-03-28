@@ -52,12 +52,11 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   const isWarming = isWarmingUp(match)
   const winnerPair = (match as any).winner_pair
 
-  // Sweep Flash — row highlight when a point is scored
+  // Sweep Flash — row highlight when a point is scored (transient, no hold state)
   const prevP1Point = useRef<string | null>(null)
   const prevP2Point = useRef<string | null>(null)
   const [p1RowSweeping, setP1RowSweeping] = useState(false)
   const [p2RowSweeping, setP2RowSweeping] = useState(false)
-  const [lastScoredPair, setLastScoredPair] = useState<1 | 2 | null>(null)
 
   // Game Score Slide — slide-up on the game number when a game is won
   const p1Games = currentSet?.pair1_games ?? 0
@@ -71,7 +70,6 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     if (!isLive) return
     if (prevP1Point.current !== null && prevP1Point.current !== p1Point) {
       setP1RowSweeping(true)
-      setLastScoredPair(1)
       setTimeout(() => setP1RowSweeping(false), 1650)
     }
     prevP1Point.current = p1Point ?? null
@@ -81,7 +79,6 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     if (!isLive) return
     if (prevP2Point.current !== null && prevP2Point.current !== p2Point) {
       setP2RowSweeping(true)
-      setLastScoredPair(2)
       setTimeout(() => setP2RowSweeping(false), 1650)
     }
     prevP2Point.current = p2Point ?? null
@@ -375,7 +372,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Pair 1 */}
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderBottom: '1px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3, borderRadius: 4, ...(p1RowSweeping ? { animation: 'sweepFlash 1.6s ease-out forwards' } : lastScoredPair === 1 ? { background: 'rgba(255,70,85,0.09)' } : {}) }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderBottom: '1px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3, borderRadius: 4, ...(p1RowSweeping ? { animation: 'sweepFlash 1.6s ease-out forwards' } : {}) }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? 'var(--text-muted)' : 'var(--text-primary)' }}>
@@ -401,7 +398,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                           </span>
                         )
                       })}
-                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-live)', opacity: lastScoredPair === 2 ? 0.3 : 1, marginLeft: 4, display: 'inline-block' }}>{p1Point ?? (currentSet ? '0' : pair1Sets)}</span></>}
+                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-live)', marginLeft: 4, display: 'inline-block' }}>{p1Point ?? (currentSet ? '0' : pair1Sets)}</span></>}
                     </div>
                     {isFinished && (
                       <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p1Won ? 'var(--color-success)' : 'var(--text-faint)', border: p1Won ? '1.5px solid var(--color-success-border)' : '1px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
@@ -411,7 +408,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                   </div>
                 </div>
                 {/* Pair 2 */}
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderRadius: 4, ...(p2RowSweeping ? { animation: 'sweepFlash 1.6s ease-out forwards' } : lastScoredPair === 2 ? { background: 'rgba(255,70,85,0.09)' } : {}) }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderRadius: 4, ...(p2RowSweeping ? { animation: 'sweepFlash 1.6s ease-out forwards' } : {}) }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? 'var(--text-muted)' : 'var(--text-primary)' }}>
@@ -437,7 +434,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                           </span>
                         )
                       })}
-                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-live)', opacity: lastScoredPair === 1 ? 0.3 : 1, marginLeft: 4, display: 'inline-block' }}>{p2Point ?? (currentSet ? '0' : pair2Sets)}</span></>}
+                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-live)', marginLeft: 4, display: 'inline-block' }}>{p2Point ?? (currentSet ? '0' : pair2Sets)}</span></>}
                     </div>
                     {isFinished && (
                       <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p2Won ? 'var(--color-success)' : 'var(--text-faint)', border: p2Won ? '1.5px solid var(--color-success-border)' : '1px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
