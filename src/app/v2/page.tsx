@@ -149,7 +149,7 @@ export default function V2Page() {
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
 
-  // ── Available rounds for active tournament (ordered Finals → R64) ─────
+  // ── Available rounds for active tournament (ordered R64 → Finals) ─────
   const availableRounds = useMemo(() => {
     const seen = new Set<string>()
     for (const m of allMatches) {
@@ -157,8 +157,28 @@ export default function V2Page() {
       const r = m.round as string | null
       if (r) seen.add(normalizeRoundFull(r))
     }
-    return [...seen].sort((a, b) => (ROUND_ORDER[a] ?? 99) - (ROUND_ORDER[b] ?? 99))
+    // Sort ascending by round number: early rounds first (R64, R32 … Finals)
+    return [...seen].sort((a, b) => (ROUND_ORDER[b] ?? 0) - (ROUND_ORDER[a] ?? 0))
   }, [allMatches, activeTournament]) // eslint-disable-line
+
+  // ── Dates per round (for stage pill sub-label) ────────────────────────
+  const roundDates = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const round of availableRounds) {
+      const dates = new Set<string>()
+      for (const m of allMatches) {
+        if (activeTournament && (m as any).tournament?.id !== activeTournament) continue
+        if (normalizeRoundFull(m.round as string) !== round) continue
+        const src = (m as any).scheduled_at ?? (m as any).started_at
+        if (src) dates.add(src.slice(0, 10))
+      }
+      const sorted = [...dates].sort()
+      if (sorted.length === 0) continue
+      const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      map[round] = sorted.length === 1 ? fmt(sorted[0]) : `${fmt(sorted[0])} – ${fmt(sorted[sorted.length - 1])}`
+    }
+    return map
+  }, [allMatches, availableRounds, activeTournament]) // eslint-disable-line
 
   // Auto-select the current round: prefer live > today's scheduled > most advanced
   useEffect(() => {
@@ -368,19 +388,19 @@ export default function V2Page() {
 
               {/* Name · venue · dates · status */}
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {activeTournamentObj.name}
                 </div>
 
                 {/* Venue — location pin icon + name */}
                 {activeTournamentObj.venue && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                    <svg width="9" height="11" viewBox="0 0 24 28" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                    <svg width="10" height="12" viewBox="0 0 24 28" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
                       <path d="M12 2C7.58 2 4 5.58 4 10c0 6.63 8 16 8 16s8-9.37 8-16c0-4.42-3.58-8-8-8z"/>
                       <circle cx="12" cy="10" r="2.5" fill="var(--text-muted)" stroke="none"/>
                     </svg>
                     <span style={{
-                      fontSize: 8, fontWeight: 600, color: 'var(--text-muted)',
+                      fontSize: 10, fontWeight: 600, color: 'var(--text-muted)',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       letterSpacing: '0.2px',
                     }}>
@@ -392,14 +412,14 @@ export default function V2Page() {
                 {/* Dates + prize money + status */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
                   {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
-                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                       {new Date(activeTournamentObj.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                       {' – '}
                       {new Date(activeTournamentObj.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                     </span>
                   )}
                   {activeTournamentObj.prize_money && (
-                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>· {activeTournamentObj.prize_money}</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>· {activeTournamentObj.prize_money}</span>
                   )}
                   {activeTournamentObj.status && (() => {
                     const s = activeTournamentObj.status as string
@@ -441,23 +461,35 @@ export default function V2Page() {
                     onClick={() => setSelectedRound(round)}
                     style={{
                       flexShrink: 0,
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '7px 16px',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                      padding: '6px 14px',
                       borderRadius: 20,
                       border: `1px solid ${active ? 'var(--color-accent)' : 'var(--border-base)'}`,
                       background: active ? 'var(--color-accent-bg)' : 'var(--bg-card)',
                       cursor: 'pointer',
                     }}
                   >
-                    {hasLive && (
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-live)', flexShrink: 0, animation: 'blink 1.4s ease-in-out infinite' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {hasLive && (
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-live)', flexShrink: 0, animation: 'blink 1.4s ease-in-out infinite' }} />
+                      )}
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, letterSpacing: '0.4px',
+                        color: active ? 'var(--color-accent)' : 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                      }}>
+                        {round}
+                      </span>
+                    </div>
+                    {roundDates[round] && (
+                      <span style={{
+                        fontSize: 8, letterSpacing: '0.2px',
+                        color: active ? 'var(--color-accent)' : 'var(--text-faint)',
+                        textTransform: 'uppercase',
+                      }}>
+                        {roundDates[round]}
+                      </span>
                     )}
-                    <span style={{
-                      fontSize: 12, fontWeight: 700, letterSpacing: '0.2px',
-                      color: active ? 'var(--color-accent)' : 'var(--text-muted)',
-                    }}>
-                      {round}
-                    </span>
                   </button>
                 )
               })}
