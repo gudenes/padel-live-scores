@@ -220,19 +220,9 @@ async function handleLiveUpdate(data) {
 
     const matchDbId = matchRow.id
 
-    // 2. Update match status, coverage and raw payload
-    await supabase
-      .from('matches')
-      .update({
-        status: data.status,
-        coverage: data.coverage,
-        raw_payload: data,
-        updated_at: new Date().toISOString(),
-        ...(data.status === 'finished' ? { finished_at: new Date().toISOString() } : {}),
-      })
-      .eq('id', matchDbId)
-
-    // 3. Upsert sets and games
+    // 2. Upsert sets and games FIRST — so the DB is fully consistent before
+    //    we touch the matches row.  The client watches the matches table; by
+    //    writing matches LAST we guarantee fetchAll always sees a complete snapshot.
     for (const set of data.sets ?? []) {
       // Skip null sets on finished/ended/bye matches
       if ((data.status === 'finished' || data.status === 'ended' || data.status === 'bye') && !set.set_score) continue
@@ -284,6 +274,20 @@ async function handleLiveUpdate(data) {
           )
       }
     }
+
+    // 3. Update match status, coverage and raw payload LAST — all sets/games
+    //    are now fully written so clients that react to this event get a
+    //    consistent snapshot in their next fetchAll.
+    await supabase
+      .from('matches')
+      .update({
+        status: data.status,
+        coverage: data.coverage,
+        raw_payload: data,
+        updated_at: new Date().toISOString(),
+        ...(data.status === 'finished' ? { finished_at: new Date().toISOString() } : {}),
+      })
+      .eq('id', matchDbId)
 
     // 4. If match finished or ended — trigger final state fetch
     if (data.status === 'finished' || data.status === 'ended' || data.status === 'bye') {
