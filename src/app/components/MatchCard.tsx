@@ -23,9 +23,12 @@ interface MatchCardProps {
   viewerCount: number
   expanded: boolean
   onToggle: () => void
+  // Bookmark — only shown on scheduled matches
+  bookmarked?: boolean
+  onBookmark?: () => void
 }
 
-export default function MatchCard({ match }: MatchCardProps) {
+export default function MatchCard({ match, bookmarked, onBookmark }: MatchCardProps) {
   const router = useRouter()
 
   const { pair1Sets, pair2Sets, currentSet, currentGame } = getCurrentScore(match)
@@ -233,27 +236,59 @@ export default function MatchCard({ match }: MatchCardProps) {
               </div>
             )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
-                  {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
-                  {pairName(match.pair1_player1, null)}
+            {/* Players column + bookmark bell */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
+                    {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
+                    {pairName(match.pair1_player1, null)}
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', marginTop: 1 }}>
+                    {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
+                    {pairName(match.pair1_player2, null)}
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', marginTop: 1 }}>
-                  {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
-                  {pairName(match.pair1_player2, null)}
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
+                    {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
+                    {pairName(match.pair2_player1, null)}
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', marginTop: 1 }}>
+                    {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
+                    {pairName(match.pair2_player2, null)}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
-                  {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
-                  {pairName(match.pair2_player1, null)}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', marginTop: 1 }}>
-                  {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
-                  {pairName(match.pair2_player2, null)}
-                </div>
-              </div>
+              {/* Bell bookmark — vertically centred alongside the player names */}
+              {onBookmark && (
+                <button
+                  onClick={e => { e.stopPropagation(); onBookmark() }}
+                  style={{
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    padding: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    position: 'relative',
+                  }}
+                  aria-label={bookmarked ? 'Remove notification' : 'Notify me when this starts'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24"
+                    fill={bookmarked ? 'var(--color-bookmark)' : 'none'}
+                    stroke={bookmarked ? 'var(--color-bookmark)' : 'var(--text-ghost)'}
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  >
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  </svg>
+                  {bookmarked && (
+                    <span style={{
+                      position: 'absolute', top: 2, right: 2,
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: 'var(--color-live)',
+                      border: '1px solid var(--bg-card)',
+                    }} />
+                  )}
+                </button>
+              )}
             </div>
             <div style={{ flexShrink: 0, width: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               {scheduledTime ? (

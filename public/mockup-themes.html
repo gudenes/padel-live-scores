@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PadelNacho — Option B Iteration</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #080c14; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 32px 20px 80px; }
+  h1 { color: #60a5fa; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+  .subtitle { color: #2a3d60; font-size: 11px; margin-bottom: 36px; }
+  .section-title { color: #2a3d60; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin: 32px 0 16px; text-align: center; }
+  .variants { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; }
+  .variant-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .variant-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #60a5fa; }
+  .app { width: 310px; border-radius: 18px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.7); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* reusable header shell */
+  .hdr { background:#0c1220; border-bottom:1px solid #1a2540; padding:8px 14px 0; }
+  .top-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:6px; }
+  .wordmark { font-size:15px;font-weight:900;letter-spacing:-0.5px;color:#e2eaf8; }
+  .wordmark span { color:#3b82f6; }
+  .clock { border:1px solid #1e2d50;border-radius:20px;padding:3px 10px;text-align:center; }
+  .clock-time { font-size:12px;font-weight:700;color:#e2eaf8;font-family:monospace; }
+  .clock-city { font-size:8px;color:#4a6080; }
+  .live-pill { background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.35);border-radius:20px;padding:3px 9px;display:flex;align-items:center;gap:4px; }
+  .live-dot { width:5px;height:5px;border-radius:50%;background:#ef4444;display:inline-block;animation:blink 1.4s infinite; }
+  .live-count { font-size:10px;color:#ef4444;font-weight:700; }
+  .tournament-row { display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #1a2540;border-bottom:1px solid #1a2540; }
+  .t-logo { width:44px;height:44px;object-fit:contain;border-radius:10px;background:#1a2d50;padding:4px;flex-shrink:0;box-shadow:0 0 0 1px rgba(59,130,246,0.25),0 4px 12px rgba(0,0,0,0.5); }
+  .t-name { font-size:13px;font-weight:700;color:#e2eaf8; }
+  .t-sub { font-size:8px;color:#4a6080;margin-top:2px; }
+  .chevron { font-size:14px;color:#2a3d60;flex-shrink:0; }
+  .date-strip { display:flex;align-items:center;padding:0 12px; }
+  .date-strip span { font-size:13px;color:#1e2d50;padding:0 2px;flex-shrink:0; }
+  .date-btn { flex:1;text-align:center;padding:11px 2px 9px;background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer; }
+  .date-btn.active { border-bottom-color:#3b82f6; }
+  .date-dow { font-size:8px;color:#1e2d50;font-weight:500; }
+  .date-num { font-size:14px;font-weight:800;color:#2a3d60;margin-top:3px; }
+  .date-btn.active .date-dow { color:#3b82f6; }
+  .date-btn.active .date-num { color:#e2eaf8; }
+
+  /* bottom tab bar */
+  .bottom-nav { background:#0c1220;border-top:1px solid #1a2540;display:flex; }
+  .tab { flex:1;background:transparent;border:none;cursor:pointer;padding:10px 4px 12px;display:flex;flex-direction:column;align-items:center;gap:3px;border-top:2px solid transparent; }
+  .tab.active { border-top-color:#3b82f6; }
+  .tab span { font-size:9px;font-weight:700; }
+  .tab.active span { color:#3b82f6; }
+  .tab:not(.active) span { color:#2a3d60; }
+
+  /* match cards */
+  .feed { padding:8px 10px;background:#0c1220; }
+  .section-hdr { display:flex;align-items:center;gap:5px;padding:4px 0 7px; }
+  .card { background:#131c2e;border:1px solid #1e2d50;border-radius:10px;padding:7px 10px 8px;margin-bottom:6px; }
+  .card-live { border-left:3px solid #3b82f6; }
+  .card-next { border-left:3px solid #f87171;border:1px solid #1e2d50;border-left:3px solid #f87171; }
+  .pill { font-size:8px;color:#4a6080;background:#0e1628;border-radius:4px;padding:1px 5px;border:1px solid #1e2d50; }
+</style>
+</head>
+<body>
+
+<h1>Option B — Bottom Nav · Bookmark</h1>
+<p class="subtitle">Bell icon inline with player names · ghost = unset · amber = notified</p>
+<p class="section-title">Unset vs Bookmarked</p>
+
+<div class="variants">
+
+  <!-- B: bookmark unset -->
+  <div class="variant-wrap">
+    <span class="variant-label">Unset</span>
+    <div class="app" style="background:#0c1220;border:1px solid #1a2540;">
+      <div class="hdr">
+        <div class="top-row">
+          <div class="wordmark">PADEL<span>NACHO</span></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="clock"><div class="clock-time">04:29</div><div class="clock-city">Madrid</div></div>
+            <div class="live-pill"><span class="live-dot"></span><span class="live-count">1 live</span></div>
+          </div>
+        </div>
+        <div class="tournament-row">
+          <img class="t-logo" src="https://cdn.janto.es/pro/web5/viva_usa/195/files/20260216213313_17712739936865miami_p1.png" onerror="this.style.display='none';" />
+          <div style="flex:1;min-width:0;"><div class="t-name">Miami P1 2026</div><div class="t-sub">23 Mar – 29 Mar · Semifinals</div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="date-strip">
+          <span>‹</span>
+          <button class="date-btn"><div class="date-dow">Thu</div><div class="date-num">26</div></button>
+          <button class="date-btn"><div class="date-dow">Yest</div><div class="date-num">27</div></button>
+          <button class="date-btn active"><div class="date-dow">Today</div><div class="date-num">28</div></button>
+          <button class="date-btn"><div class="date-dow">Sun</div><div class="date-num">29</div></button>
+          <button class="date-btn"><div class="date-dow">Mon</div><div class="date-num">30</div></button>
+          <span>›</span>
+        </div>
+      </div>
+      <div class="feed">
+        <!-- live section -->
+        <div class="section-hdr">
+          <span style="width:5px;height:5px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:blink 1.4s infinite;"></span>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#ef4444;">Live now</span>
+          <div style="flex:1;height:0.5px;background:rgba(239,68,68,0.15);"></div>
+          <span style="font-size:9px;color:#2a3d60;">20s ago</span>
+        </div>
+        <div class="card card-live" style="margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="display:flex;gap:4px;"><span class="pill">Quarterfinals</span><span class="pill">Court J&B</span></div>
+            <div style="display:flex;gap:2px;opacity:0.7;">
+              <span style="font-size:7px;width:22px;text-align:center;color:#4a6080;font-weight:600;">S1</span>
+              <span style="font-size:7px;width:22px;text-align:center;color:#4a6080;font-weight:600;">S2</span>
+              <div style="width:0.5px;height:12px;background:#1e2d50;margin:0 3px;"></div>
+              <span style="font-size:7px;width:34px;text-align:center;color:#4a6080;font-weight:600;">Pts</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;padding-bottom:4px;margin-bottom:4px;border-bottom:0.5px solid #1a2540;">
+            <div style="flex:1;font-size:12px;font-weight:600;color:#e2eaf8;">🇦🇷 F. Stupaczuk<br><span style="font-size:11px;">🇦🇷 M. Di Nenno</span></div>
+            <div style="display:flex;align-items:center;gap:2px;">
+              <span style="font-size:18px;font-weight:900;width:22px;text-align:center;color:#e2eaf8;font-family:monospace;">7</span>
+              <span style="font-size:18px;font-weight:900;width:22px;text-align:center;color:#4a6080;font-family:monospace;">6</span>
+              <div style="width:0.5px;height:26px;background:#1e2d50;margin:0 3px;"></div>
+              <div style="width:34px;text-align:center;background:rgba(239,68,68,0.18);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:2px 0;animation:pulse 1.4s infinite;">
+                <span style="font-size:20px;font-weight:900;color:#ef4444;font-family:monospace;line-height:1;">0</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="flex:1;font-size:12px;font-weight:600;color:#4a6080;">🇪🇸 M. Yanguas<br><span style="font-size:11px;">🇪🇸 M. Gonzalez</span></div>
+            <div style="display:flex;align-items:center;gap:2px;">
+              <span style="font-size:18px;font-weight:900;width:22px;text-align:center;color:#4a6080;font-family:monospace;">6</span>
+              <span style="font-size:18px;font-weight:900;width:22px;text-align:center;color:#e2eaf8;font-family:monospace;">4</span>
+              <div style="width:0.5px;height:26px;background:#1e2d50;margin:0 3px;"></div>
+              <div style="width:34px;text-align:center;background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:6px;padding:2px 0;">
+                <span style="font-size:20px;font-weight:900;color:#ef4444;font-family:monospace;line-height:1;opacity:0.4;">3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- up next -->
+        <div class="section-hdr" style="padding:6px 0;">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#4a6080;">Up next</span>
+          <div style="flex:1;height:0.5px;background:#1a2540;"></div>
+        </div>
+
+        <!-- Scheduled card — bookmark UNSET (ghost bell) -->
+        <div style="background:#131c2e;border:1px solid #1e2d50;border-left:3px solid #f87171;border-radius:10px;padding:7px 10px 8px;margin-bottom:4px;">
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;">
+            <span class="pill">Semifinals</span>
+            <span style="font-size:10px;color:#f5a623;font-weight:700;">After previous</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <!-- Player names -->
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:600;color:#e2eaf8;">🇪🇸 A. Sanchez Fallada</div>
+              <div style="font-size:11px;font-weight:600;color:#e2eaf8;margin-top:1px;">🇪🇸 A. Ustero Prieto</div>
+              <div style="height:0.5px;background:#1a2540;margin:5px 0;"></div>
+              <div style="font-size:12px;font-weight:600;color:#e2eaf8;">🇪🇸 P. Josemaria Martin</div>
+              <div style="font-size:11px;font-weight:600;color:#e2eaf8;margin-top:1px;">🇧🇷 B. Gonzalez Fernandez</div>
+            </div>
+            <!-- Bell — right column, vertically centered -->
+            <button style="background:transparent;border:none;cursor:pointer;padding:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <button class="tab active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a10 10 0 0 1 0 20"/></svg>
+          <span>Matches</span>
+        </button>
+        <button class="tab">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <span>Ranking</span>
+        </button>
+        <button class="tab">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          <span>Tournaments</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- B: bookmark SET -->
+  <div class="variant-wrap">
+    <span class="variant-label">Bookmarked ✓</span>
+    <div class="app" style="background:#0c1220;border:1px solid #1a2540;">
+      <div class="hdr">
+        <div class="top-row">
+          <div class="wordmark">PADEL<span>NACHO</span></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="clock"><div class="clock-time">04:29</div><div class="clock-city">Madrid</div></div>
+            <div class="live-pill"><span class="live-dot"></span><span class="live-count">1 live</span></div>
+          </div>
+        </div>
+        <div class="tournament-row">
+          <img class="t-logo" src="https://cdn.janto.es/pro/web5/viva_usa/195/files/20260216213313_17712739936865miami_p1.png" onerror="this.style.display='none';" />
+          <div style="flex:1;min-width:0;"><div class="t-name">Miami P1 2026</div><div class="t-sub">23 Mar – 29 Mar · Semifinals</div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="date-strip">
+          <span>‹</span>
+          <button class="date-btn"><div class="date-dow">Thu</div><div class="date-num">26</div></button>
+          <button class="date-btn"><div class="date-dow">Yest</div><div class="date-num">27</div></button>
+          <button class="date-btn active"><div class="date-dow">Today</div><div class="date-num">28</div></button>
+          <button class="date-btn"><div class="date-dow">Sun</div><div class="date-num">29</div></button>
+          <button class="date-btn"><div class="date-dow">Mon</div><div class="date-num">30</div></button>
+          <span>›</span>
+        </div>
+      </div>
+      <div class="feed">
+        <div class="section-hdr">
+          <span style="width:5px;height:5px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:blink 1.4s infinite;"></span>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#ef4444;">Live now</span>
+          <div style="flex:1;height:0.5px;background:rgba(239,68,68,0.15);"></div>
+          <span style="font-size:9px;color:#2a3d60;">20s ago</span>
+        </div>
+        <!-- abbreviated live card -->
+        <div class="card card-live" style="margin-bottom:6px;padding:7px 10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:#e2eaf8;">🇦🇷 Stupaczuk / Di Nenno</div>
+              <div style="font-size:11px;font-weight:600;color:#4a6080;margin-top:2px;">🇪🇸 Yanguas / Gonzalez</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="text-align:center;">
+                <div style="font-size:9px;color:#4a6080;margin-bottom:1px;">7&nbsp;&nbsp;6</div>
+                <div style="font-size:9px;color:#4a6080;">6&nbsp;&nbsp;4</div>
+              </div>
+              <div style="width:34px;text-align:center;background:rgba(239,68,68,0.18);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:3px 0;animation:pulse 1.4s infinite;">
+                <div style="font-size:9px;color:#ef4444;font-weight:900;font-family:monospace;">0</div>
+                <div style="font-size:9px;color:#ef4444;font-family:monospace;opacity:0.4;">3</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-hdr" style="padding:4px 0 7px;">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#4a6080;">Up next</span>
+          <div style="flex:1;height:0.5px;background:#1a2540;"></div>
+        </div>
+
+        <!-- Scheduled card — bookmark SET -->
+        <div style="background:#131c2e;border:1px solid #1e2d50;border-left:3px solid #f87171;border-radius:10px;padding:7px 10px 8px;margin-bottom:4px;box-shadow:0 0 0 1px rgba(245,166,35,0.12);">
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px;">
+            <span class="pill">Semifinals</span>
+            <span style="font-size:10px;color:#f5a623;font-weight:700;">After previous</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <!-- Player names -->
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:600;color:#e2eaf8;">🇪🇸 A. Sanchez Fallada</div>
+              <div style="font-size:11px;font-weight:600;color:#e2eaf8;margin-top:1px;">🇪🇸 A. Ustero Prieto</div>
+              <div style="height:0.5px;background:#1a2540;margin:5px 0;"></div>
+              <div style="font-size:12px;font-weight:600;color:#e2eaf8;">🇪🇸 P. Josemaria Martin</div>
+              <div style="font-size:11px;font-weight:600;color:#e2eaf8;margin-top:1px;">🇧🇷 B. Gonzalez Fernandez</div>
+            </div>
+            <!-- Filled bell with red dot — same position as ghost bell -->
+            <button style="background:transparent;border:none;cursor:pointer;padding:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#f5a623" stroke="#f5a623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:#ef4444;border:1px solid #131c2e;"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <button class="tab active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a10 10 0 0 1 0 20"/></svg>
+          <span>Matches</span>
+        </button>
+        <button class="tab">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <span>Ranking</span>
+        </button>
+        <button class="tab">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          <span>Tournaments</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
+  <div class="variant-wrap">
+    <span class="variant-label" style="color:#a78bfa;">S1 — Search as 4th tab</span>
+    <div class="app" style="background:#0c1220;border:1px solid #1a2540;">
+      <div class="hdr" style="padding-bottom:0;">
+        <div class="top-row">
+          <div class="wordmark">PADEL<span>NACHO</span></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="clock"><div class="clock-time">04:29</div><div class="clock-city">Madrid</div></div>
+            <div class="live-pill"><span class="live-dot"></span><span class="live-count">1 live</span></div>
+          </div>
+        </div>
+        <div class="tournament-row">
+          <img class="t-logo" src="https://cdn.janto.es/pro/web5/viva_usa/195/files/20260216213313_17712739936865miami_p1.png" onerror="this.style.display='none';" />
+          <div style="flex:1;min-width:0;"><div class="t-name">Miami P1 2026</div><div class="t-sub">23 Mar – 29 Mar · Semifinals</div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="date-strip">
+          <span>‹</span>
+          <button class="date-btn"><div class="date-dow">Thu</div><div class="date-num">26</div></button>
+          <button class="date-btn"><div class="date-dow">Yest</div><div class="date-num">27</div></button>
+          <button class="date-btn active"><div class="date-dow">Today</div><div class="date-num">28</div></button>
+          <button class="date-btn"><div class="date-dow">Sun</div><div class="date-num">29</div></button>
+          <button class="date-btn"><div class="date-dow">Mon</div><div class="date-num">30</div></button>
+          <span>›</span>
+        </div>
+      </div>
+      <div class="feed" style="padding-bottom:6px;">
+        <div class="section-hdr">
+          <span style="width:5px;height:5px;border-radius:50%;background:#ef4444;flex-shrink:0;animation:blink 1.4s infinite;"></span>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:#ef4444;">Live now</span>
+          <div style="flex:1;height:0.5px;background:rgba(239,68,68,0.15);"></div>
+        </div>
+        <div class="card card-live">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div><div style="font-size:11px;font-weight:600;color:#e2eaf8;">🇦🇷 Stupaczuk / Di Nenno</div><div style="font-size:11px;font-weight:600;color:#4a6080;margin-top:2px;">🇪🇸 Yanguas / Gonzalez</div></div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="text-align:right;"><div style="font-size:9px;color:#4a6080;margin-bottom:1px;">7&nbsp;&nbsp;6</div><div style="font-size:9px;color:#4a6080;">6&nbsp;&nbsp;4</div></div>
+              <div style="width:30px;text-align:center;background:rgba(239,68,68,0.18);border:1px solid rgba(239,68,68,0.4);border-radius:6px;padding:2px 0;animation:pulse 1.4s infinite;"><div style="font-size:9px;color:#ef4444;font-weight:900;font-family:monospace;">0</div><div style="font-size:9px;color:#ef4444;font-family:monospace;opacity:0.4;">3</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 4-tab bottom nav with Search -->
+      <div class="bottom-nav">
+        <button class="tab active" style="padding:8px 2px 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a10 10 0 0 1 0 20"/></svg>
+          <span style="font-size:8px;">Matches</span>
+        </button>
+        <button class="tab" style="padding:8px 2px 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <span style="font-size:8px;">Ranking</span>
+        </button>
+        <button class="tab" style="padding:8px 2px 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          <span style="font-size:8px;">Tournaments</span>
+        </button>
+        <button class="tab" style="padding:8px 2px 10px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <span style="font-size:8px;">Search</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- S2: Search icon in header expands -->
+  <div class="variant-wrap">
+    <span class="variant-label" style="color:#a78bfa;">S2 — Search icon in header</span>
+    <div class="app" style="background:#0c1220;border:1px solid #1a2540;">
+      <div class="hdr" style="padding-bottom:0;">
+        <div class="top-row">
+          <div class="wordmark">PADEL<span>NACHO</span></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <!-- Search icon in header -->
+            <button style="background:transparent;border:1px solid #1e2d50;border-radius:20px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a6080" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </button>
+            <div class="clock"><div class="clock-time">04:29</div><div class="clock-city">Madrid</div></div>
+            <div class="live-pill"><span class="live-dot"></span><span class="live-count">1 live</span></div>
+          </div>
+        </div>
+        <div class="tournament-row">
+          <img class="t-logo" src="https://cdn.janto.es/pro/web5/viva_usa/195/files/20260216213313_17712739936865miami_p1.png" onerror="this.style.display='none';" />
+          <div style="flex:1;min-width:0;"><div class="t-name">Miami P1 2026</div><div class="t-sub">23 Mar – 29 Mar · Semifinals</div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="date-strip">
+          <span>‹</span>
+          <button class="date-btn"><div class="date-dow">Thu</div><div class="date-num">26</div></button>
+          <button class="date-btn"><div class="date-dow">Yest</div><div class="date-num">27</div></button>
+          <button class="date-btn active"><div class="date-dow">Today</div><div class="date-num">28</div></button>
+          <button class="date-btn"><div class="date-dow">Sun</div><div class="date-num">29</div></button>
+          <button class="date-btn"><div class="date-dow">Mon</div><div class="date-num">30</div></button>
+          <span>›</span>
+        </div>
+      </div>
+      <!-- Expanded search overlay state -->
+      <div style="background:#0c1220;border-bottom:1px solid #1a2540;padding:8px 14px;">
+        <div style="display:flex;align-items:center;gap:8px;background:#131c2e;border:1px solid #3b82f6;border-radius:10px;padding:8px 12px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <span style="font-size:12px;color:#4a6080;flex:1;">Players, tournaments…</span>
+          <span style="font-size:10px;color:#2a3d60;">Cancel</span>
+        </div>
+        <!-- Quick results -->
+        <div style="margin-top:8px;">
+          <div style="font-size:8px;font-weight:700;color:#2a3d60;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:5px;">Recent</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid #1a2540;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <span style="font-size:11px;color:#4a6080;">Galan</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 0;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <span style="font-size:11px;color:#4a6080;">Miami P1 2026</span>
+          </div>
+        </div>
+      </div>
+      <div class="feed" style="padding-bottom:6px;">
+        <div style="font-size:9px;color:#2a3d60;text-align:center;padding:12px 0;">← Content dimmed while searching</div>
+      </div>
+      <div class="bottom-nav">
+        <button class="tab active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a10 10 0 0 1 0 20"/></svg>
+          <span>Matches</span>
+        </button>
+        <button class="tab">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+          <span>Ranking</span>
+        </button>
+        <button class="tab">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2a3d60" stroke-width="2" stroke-linecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          <span>Tournaments</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
