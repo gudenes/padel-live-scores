@@ -107,10 +107,12 @@ export default function V2Page() {
       if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
       realtimeDebounceRef.current = setTimeout(fetchAll, 500)
     }
+    // Only watch the matches table — the relay writes sets/games first and
+    // updates the match row last, so this event fires only when the full
+    // snapshot is already consistent in the DB.
     const ch = supabase
       .channel('v2-feed')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, handleChange)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sets' }, handleChange)
       .subscribe()
     return () => {
       supabase.removeChannel(ch)
@@ -260,18 +262,29 @@ export default function V2Page() {
     const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h)
     return `Starting at ${h12}:${String(m).padStart(2, '0')} ${ap}`
   }
+  // Stable court key: prefer court_order, fall back to court name string.
+  // This handles matches where court_order is null (e.g. matches 7507/7508).
+  function courtKey(m: any): string | null {
+    const co = m.court_order as string | number | null
+    if (co != null) return `order:${co}`
+    const c = m.court as string | null
+    if (c) return `name:${c}`
+    return null
+  }
   const estimatedLabels = useMemo(() => {
     const map: Record<string, string> = {}
 
-    // Build per-court "estimated next start" from currently live matches.
-    // When match A (court X) went live at T, the next match on court X starts ≈ T+90min.
-    // This keeps the followed-by estimate alive after match A leaves scheduledMatches.
-    const liveFloorByCourt: Record<string | number, string> = {}
+    // Build per-court "estimated next start" floor from live AND recently-finished
+    // matches.  When match A (court X) started at T, the next match on court X
+    // starts ≈ T+90min.  We key by courtKey() so courts with null court_order
+    // (identified only by their name string) are handled correctly.
+    const floorByCourt: Record<string, string> = {}
     const tz = activeTournamentObj?.timezone ?? 'UTC'
     for (const m of allMatches) {
-      if (m.status !== 'live') continue
-      const co = (m as any).court_order as string | number | null
-      if (co == null) continue
+      const status = m.status as string
+      if (status !== 'live' && status !== 'finished') continue
+      const ck = courtKey(m as any)
+      if (!ck) continue
       const startedAt = (m as any).started_at as string | null
       if (!startedAt) continue
       try {
@@ -283,21 +296,25 @@ export default function V2Page() {
         if (ap === 'PM' && h < 12) h += 12
         if (ap === 'AM' && h === 12) h = 0
         const totalMins = h * 60 + min + 90
-        liveFloorByCourt[co] = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
+        const candidate = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
+        // Keep the latest floor per court (prefer live over finished)
+        if (!floorByCourt[ck] || status === 'live') {
+          floorByCourt[ck] = candidate
+        }
       } catch { /* ignore */ }
     }
 
     for (let i = 0; i < scheduledMatches.length; i++) {
       const m = scheduledMatches[i] as any
       const sl = m.schedule_label as string | null
-      const co = m.court_order as string | number | null
+      const mKey = courtKey(m)
 
       // Hard start time — exact, no estimation needed
       if (sl && /starting at/i.test(sl)) continue
 
       // Only look at the previous match if it's on the SAME court
       const rawPrev = scheduledMatches[i - 1] as any | undefined
-      const prev = rawPrev?.court_order === co ? rawPrev : undefined
+      const prev = (rawPrev && mKey && courtKey(rawPrev) === mKey) ? rawPrev : undefined
 
       // "Not before X:XX" — minimum time constraint
       if (sl && /not before/i.test(sl)) {
@@ -318,10 +335,10 @@ export default function V2Page() {
       }
 
       // null / "Followed by" — estimate from previous same-court match + 90 min,
-      // or from live match floor if no prior scheduled match on this court
+      // or from live/finished match floor if no prior scheduled match on this court
       if (!prev) {
-        if (co != null && liveFloorByCourt[co]) {
-          map[m.id] = liveFloorByCourt[co]
+        if (mKey && floorByCourt[mKey]) {
+          map[m.id] = floorByCourt[mKey]
         }
         continue
       }
@@ -379,15 +396,6 @@ export default function V2Page() {
           {/* ROW 1: Wordmark + live count */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
-            {liveCount > 0 && (
-              <div style={{
-                background: 'var(--color-live-bg)', border: '1px solid var(--color-live-border)',
-                borderRadius: 8, padding: '3px 9px', display: 'flex', alignItems: 'center', gap: 5,
-              }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
-                <span style={{ fontSize: 10, color: 'var(--color-live)', fontWeight: 800, letterSpacing: '0.3px', textTransform: 'uppercase' }}>{liveCount} live</span>
-              </div>
-            )}
           </div>
 
           {/* ROW 2: Tournament row — logo + name + stage + chevron to switch */}
