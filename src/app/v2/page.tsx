@@ -215,14 +215,14 @@ export default function V2Page() {
     return rounds.sort((a, b) => (ROUND_ORDER[a] ?? 99) - (ROUND_ORDER[b] ?? 99))[0] ?? selectedRound ?? null
   }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
 
-  // ── Filtered matches — by selected round ─────────────────────────────
+  // ── Filtered matches — by round ──────────────────────────────────────
   const filtered = useMemo(() => {
     return allMatches.filter(m => {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
-      if (!selectedRound) return true
-      return normalizeRoundFull(m.round as string) === selectedRound
+      if (selectedRound && normalizeRoundFull(m.round as string) !== selectedRound) return false
+      return true
     })
-  }, [allMatches, activeTournament, selectedRound])
+  }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
 
   const liveMatches      = filtered.filter(m => m.status === 'live' && !isWarmingUp(m))
   const warmingUpMatches = filtered.filter(m => m.status === 'live' && isWarmingUp(m))
@@ -379,10 +379,10 @@ export default function V2Page() {
                 <img
                   src={activeTournamentObj.logo_url}
                   alt=""
-                  style={{ width: 58, height: 58, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, boxShadow: '0 0 0 1px rgba(200,155,60,0.35), 0 0 16px rgba(200,155,60,0.12), 0 4px 14px rgba(0,0,0,0.6)' }}
+                  style={{ width: 68, height: 68, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }}
                 />
               ) : activeTournamentObj.country ? (
-                <div style={{ width: 58, height: 58, borderRadius: 12, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, boxShadow: '0 0 0 1px rgba(200,155,60,0.25)' }}>
+                <div style={{ width: 68, height: 68, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, flexShrink: 0 }}>
                   {countryFlag(activeTournamentObj.country)}
                 </div>
               ) : null}
@@ -465,8 +465,8 @@ export default function V2Page() {
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                       padding: '6px 14px',
                       borderRadius: 8,
-                      border: active ? '1px solid rgba(200,155,60,0.50)' : '1px solid var(--border-strong)',
-                      background: active ? 'rgba(200,155,60,0.10)' : 'var(--bg-card)',
+                      border: active ? '1px solid rgba(56,200,255,0.45)' : '1px solid var(--border-strong)',
+                      background: active ? 'rgba(56,200,255,0.08)' : 'var(--bg-card)',
                       cursor: 'pointer',
                     }}
                   >

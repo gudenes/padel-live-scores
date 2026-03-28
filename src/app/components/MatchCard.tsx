@@ -159,7 +159,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   })()
 
   // ── Shared pill styles ────────────────────────────────────────
-  const pillRound = { fontSize: 9, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase' as const, color: 'var(--color-accent)', background: 'rgba(200,155,60,0.08)', borderRadius: 5, padding: '2px 7px', border: '1px solid rgba(200,155,60,0.22)' }
+  const pillRound = { fontSize: 9, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase' as const, color: 'var(--color-accent)', background: 'rgba(56,200,255,0.08)', borderRadius: 5, padding: '2px 7px', border: '1px solid rgba(56,200,255,0.20)' }
   const pillCourt = { fontSize: 9, fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 5, padding: '2px 7px', border: '1px solid var(--border-strong)', maxWidth: 130, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }
 
   // ── Card wrapper style ─────────────────────────────────────────
