@@ -44,13 +44,21 @@ const LEAGUES: { id: LeagueId; label1: string; label2: string; tiers: TierDef[] 
 ]
 
 // ── Date helpers ──────────────────────────────────────────────────────────
+// Returns YYYY-MM-DD in the user's *local* timezone (not UTC)
+function localDateKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function getDateStrip(): { date: Date; label: string; key: string }[] {
   const today = new Date()
   const days = []
   for (let i = -2; i <= 2; i++) {
     const d = new Date(today)
     d.setDate(today.getDate() + i)
-    const key = d.toISOString().slice(0, 10)
+    const key = localDateKey(d)
     const label = i === 0 ? 'Today'
       : i === -1 ? 'Yesterday'
       : d.toLocaleDateString('en-GB', { weekday: 'short' })
@@ -62,7 +70,7 @@ function getDateStrip(): { date: Date; label: string; key: string }[] {
 function matchDay(m: Match): string {
   const src = (m as any).started_at ?? (m as any).scheduled_at ?? (m as any).finished_at
   if (!src) return 'Unknown'
-  return src.slice(0, 10)
+  try { return localDateKey(new Date(src)) } catch { return src.slice(0, 10) }
 }
 
 type StatusFilter = 'all' | 'live' | 'scheduled' | 'finished'
@@ -184,7 +192,7 @@ export default function V2Page() {
   const currentTierDef  = currentLeague.tiers.find(t => t.id === activeTier) ?? currentLeague.tiers[0]
   const activeLevels    = currentTierDef.levels
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateKey(new Date())
   const dateStrip = useMemo(() => getDateStrip(), [])
 
   // Tournaments belonging to current tier
@@ -207,6 +215,24 @@ export default function V2Page() {
 
   const liveTierTournaments     = tierTournaments.filter(isLiveTournament)
   const upcomingTierTournaments = tierTournaments.filter(isUpcomingTournament)
+
+  // Auto-select live tier when league changes or tournaments load
+  useEffect(() => {
+    if (tournaments.length === 0) return
+    const league = LEAGUES.find(l => l.id === activeLeague)!
+    const now = new Date()
+    const liveTier = league.tiers.find(tier =>
+      tournaments.some(t => {
+        if (!t.starts_at || !t.ends_at || !tier.levels.includes(t.level ?? '')) return false
+        const end = new Date(t.ends_at); end.setHours(23, 59, 59)
+        return now >= new Date(t.starts_at) && now <= end
+      })
+    )
+    const upcomingTier = league.tiers.find(tier =>
+      tournaments.some(t => t.starts_at && tier.levels.includes(t.level ?? '') && new Date(t.starts_at) > now)
+    )
+    setActiveTier(liveTier?.id ?? upcomingTier?.id ?? league.tiers[0].id)
+  }, [activeLeague, tournaments]) // eslint-disable-line
 
   // Auto-select active tournament when tier changes
   useEffect(() => {
@@ -276,7 +302,13 @@ export default function V2Page() {
       if (da !== db) return da.localeCompare(db)
       return (a.round ?? 99) - (b.round ?? 99)
     })
-  const finishedMatches = filtered.filter(m => ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string))
+  const finishedMatches = filtered
+    .filter(m => ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string))
+    .sort((a: any, b: any) => {
+      const ta = a.started_at ?? a.updated_at ?? ''
+      const tb = b.started_at ?? b.updated_at ?? ''
+      return tb.localeCompare(ta) // newest first
+    })
 
   // Stage label for tournament row
   const stageOrder: Record<string, number> = { 'Finals': 1, 'Semifinals': 2, 'Quarterfinals': 3, 'Round of 16': 4, 'Round of 32': 5 }
@@ -416,34 +448,7 @@ export default function V2Page() {
             })}
           </div>
 
-          {/* ── ROW 3: Sub-tier tabs ── */}
-          <div style={{ display: 'flex', gap: 0, padding: '0 2px', borderBottom: '0.5px solid var(--border-base)' }}>
-            {currentLeague.tiers.map(tier => {
-              const isActive = activeTier === tier.id
-              const cnt = liveCountForLevels(tier.levels)
-              return (
-                <button
-                  key={tier.id}
-                  onClick={() => setActiveTier(tier.id)}
-                  style={{
-                    padding: '6px 10px 5px', background: 'transparent', border: 'none',
-                    borderBottom: isActive ? '2px solid var(--color-live)' : '2px solid transparent',
-                    cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  <span style={{ fontSize: 10, fontWeight: 700, color: isActive ? '#fff' : '#444', whiteSpace: 'nowrap' }}>
-                    {tier.label}
-                  </span>
-                  <span style={{ fontSize: 8, color: cnt > 0 ? '#ef4444' : '#2a2a2a' }}>
-                    {cnt > 0 ? `${cnt} live` : '—'}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* ── ROW 4: Tournament row ── */}
+          {/* ── ROW 3: Tournament row ── */}
           {activeTournamentObj && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
@@ -498,29 +503,36 @@ export default function V2Page() {
           )}
 
           {/* ── Date strip ── */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px', borderBottom: '0.5px solid var(--border-base)' }}>
-            <span style={{ fontSize: 14, color: '#333', padding: '5px 2px', flexShrink: 0 }}>‹</span>
-            {dateStrip.map(({ key, label, date }) => {
-              const isActive = key === selectedDate
-              return (
-                <button
-                  key={key}
-                  onClick={() => setSelectedDate(key)}
-                  style={{
-                    flex: 1, textAlign: 'center', padding: '5px 2px',
-                    background: 'transparent', border: 'none',
-                    borderBottom: isActive ? '2px solid var(--color-live)' : '2px solid transparent',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontSize: 8, color: isActive ? 'var(--color-live)' : '#333', fontWeight: 500 }}>{label}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#fff' : '#444' }}>
-                    {date.getDate()}
-                  </div>
-                </button>
-              )
-            })}
-            <span style={{ fontSize: 14, color: '#333', padding: '5px 2px', flexShrink: 0 }}>›</span>
+          <div style={{ borderBottom: '0.5px solid var(--border-base)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 14px' }}>
+              <span style={{ fontSize: 14, color: '#333', padding: '5px 2px', flexShrink: 0 }}>‹</span>
+              {dateStrip.map(({ key, label, date }) => {
+                const isActive = key === selectedDate
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedDate(key)}
+                    style={{
+                      flex: 1, textAlign: 'center', padding: '5px 2px',
+                      background: 'transparent', border: 'none',
+                      borderBottom: isActive ? '2px solid var(--color-live)' : '2px solid transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ fontSize: 8, color: isActive ? 'var(--color-live)' : '#333', fontWeight: 500 }}>{label}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#fff' : '#444' }}>
+                      {date.getDate()}
+                    </div>
+                  </button>
+                )
+              })}
+              <span style={{ fontSize: 14, color: '#333', padding: '5px 2px', flexShrink: 0 }}>›</span>
+            </div>
+            <div style={{ textAlign: 'right', padding: '0 16px 3px' }}>
+              <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>
+                Local time · {Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, ' ').split('/').pop()}
+              </span>
+            </div>
           </div>
 
           {/* ── Status + gender filters ── */}
