@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Animation Mockup — Padel Nacho</title>
+<style>
+  :root {
+    --bg-base:     #020C18;
+    --bg-card:     #061422;
+    --border-card: #132C46;
+    --border-strong:#1C3D5C;
+    --text-primary:#EEE4CE;
+    --text-secondary:#9AAEC4;
+    --text-muted:  #4E6E8A;
+    --text-dim:    #2D4E6A;
+    --color-live:  #FF4655;
+    --color-accent:#38C8FF;
+    --color-success:#FFFFFF;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+
+  h1 { font-size: 13px; font-weight: 700; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin: 0 0 4px; }
+  .subtitle { font-size: 11px; color: var(--text-dim); margin: 0 0 40px; }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .option { display: flex; flex-direction: column; gap: 12px; }
+  .option-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--color-accent);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-card);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .option-label span { font-weight: 400; color: var(--text-muted); letter-spacing: 0.3px; text-transform: none; font-size: 10px; }
+  .option-desc {
+    font-size: 10px; color: var(--text-muted); line-height: 1.6;
+    min-height: 48px;
+  }
+
+  /* ── Base match card ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-left: 3px solid #F472B6;
+    border-radius: 8px;
+    overflow: hidden;
+    padding: 10px 10px 10px 12px;
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .card-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .live-badge {
+    font-size: 8px; font-weight: 800; color: var(--color-live);
+    letter-spacing: 0.5px; text-transform: uppercase;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .live-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--color-live);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  .set-scores {
+    display: flex; gap: 6px;
+  }
+  .set-score {
+    font-size: 9px; font-weight: 700; color: var(--text-dim);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-card);
+    border-radius: 4px; padding: 1px 5px;
+  }
+  .set-score.winner { color: var(--color-success); border-color: rgba(255,255,255,0.22); }
+
+  .pair-row {
+    display: flex; align-items: center; padding: 4px 0;
+    border-radius: 5px;
+    transition: background 0.3s ease;
+  }
+  .players { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+  .player-name { font-size: 11px; font-weight: 600; color: var(--text-primary); }
+  .player-country { font-size: 9px; color: var(--text-muted); }
+  .live-score {
+    font-size: 20px; font-weight: 800; color: var(--color-live);
+    min-width: 28px; text-align: center; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .divider { height: 1px; background: var(--border-card); margin: 3px 0; }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase; cursor: pointer;
+    padding: 6px 0; border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-muted);
+    transition: all 0.15s ease;
+  }
+  .btn:hover { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+  .btn.point { border-color: rgba(255,70,85,0.4); color: var(--color-live); background: rgba(255,70,85,0.06); }
+  .btn.game  { border-color: rgba(56,200,255,0.35); color: var(--color-accent); background: rgba(56,200,255,0.05); }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ════════════════════════════════════════════
+     OPTION A — Row Pulse Glow
+     Scoring row: breathing red bg glow
+     Game scored: score number scale bounce
+  ════════════════════════════════════════════ */
+  @keyframes rowPulse {
+    0%   { background: rgba(255,70,85,0.18); }
+    50%  { background: rgba(255,70,85,0.08); }
+    100% { background: rgba(255,70,85,0.18); }
+  }
+  @keyframes scoreBounce {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.35); }
+    60%  { transform: scale(0.92); }
+    100% { transform: scale(1); }
+  }
+  .a-scoring {
+    animation: rowPulse 1.8s ease-in-out infinite;
+    border-radius: 5px;
+  }
+  .a-dimmed .live-score { opacity: 0.2; }
+  .a-game-flash { animation: scoreBounce 0.45s cubic-bezier(.36,.07,.19,.97) forwards; }
+
+  /* ════════════════════════════════════════════
+     OPTION B — Left Sweep Flash
+     Scoring row: light bar sweeps L→R then settles
+     Game scored: score number slides up/fades in
+  ════════════════════════════════════════════ */
+  @keyframes sweepIn {
+    0%   { background: linear-gradient(90deg, rgba(255,70,85,0.55) 0%, rgba(255,70,85,0.0) 0%); }
+    35%  { background: linear-gradient(90deg, rgba(255,70,85,0.55) 0%, rgba(255,70,85,0.28) 100%); }
+    65%  { background: linear-gradient(90deg, rgba(255,70,85,0.38) 0%, rgba(255,70,85,0.18) 100%); }
+    100% { background: rgba(255,70,85,0.09); }
+  }
+  @keyframes scoreSlideUp {
+    0%   { transform: translateY(8px); opacity: 0; }
+    40%  { transform: translateY(-2px); opacity: 1; }
+    100% { transform: translateY(0);   opacity: 1; }
+  }
+  .b-scoring {
+    animation: sweepIn 1.6s ease-out forwards;
+    border-radius: 5px;
+  }
+  .b-scoring-hold {
+    background: rgba(255,70,85,0.09);
+    border-radius: 5px;
+  }
+  .b-dimmed .live-score { opacity: 0.2; }
+  .b-game-flash .live-score { animation: scoreSlideUp 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+
+  /* ════════════════════════════════════════════
+     OPTION C — Ignite + Dim
+     Scoring row: full row flares then glows; non-scorer dims heavily
+     Game scored: "+1" badge pops up then fades beside game score
+  ════════════════════════════════════════════ */
+  @keyframes rowIgnite {
+    0%   { background: rgba(255,70,85,0.42); box-shadow: 0 0 12px rgba(255,70,85,0.5) inset; }
+    35%  { background: rgba(255,70,85,0.18); box-shadow: 0 0 6px  rgba(255,70,85,0.25) inset; }
+    100% { background: rgba(255,70,85,0.10); box-shadow: 0 0 4px  rgba(255,70,85,0.15) inset; }
+  }
+  @keyframes dimOut {
+    0%   { opacity: 1; }
+    100% { opacity: 0.28; }
+  }
+  @keyframes plusPop {
+    0%   { transform: translateY(0)   scale(0.6); opacity: 0; }
+    40%  { transform: translateY(-8px) scale(1.1); opacity: 1; }
+    80%  { transform: translateY(-14px) scale(0.9); opacity: 0.7; }
+    100% { transform: translateY(-18px) scale(0.8); opacity: 0; }
+  }
+  .c-scoring {
+    animation: rowIgnite 0.7s ease-out forwards;
+    border-radius: 5px;
+  }
+  .c-scoring-hold {
+    background: rgba(255,70,85,0.10);
+    box-shadow: 0 0 4px rgba(255,70,85,0.15) inset;
+    border-radius: 5px;
+  }
+  .c-dimmed {
+    animation: dimOut 0.4s ease-out forwards;
+  }
+  .c-dimmed-hold { opacity: 0.28; }
+  .plus-badge {
+    position: absolute;
+    font-size: 10px; font-weight: 800; color: var(--color-accent);
+    pointer-events: none;
+    animation: plusPop 0.9s ease-out forwards;
+  }
+  .score-wrap { position: relative; min-width: 28px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Animation Concepts</h1>
+  <p class="subtitle">Point scored → pair row highlight &nbsp;·&nbsp; Game scored → subtle score nudge &nbsp;·&nbsp; Click buttons to preview</p>
+
+  <div class="options-grid">
+
+    <!-- ══════════════ OPTION A ══════════════ -->
+    <div class="option">
+      <div class="option-label">Option A &mdash; Pulse Glow <span>calm · continuous</span></div>
+      <p class="option-desc">Scoring row breathes with a soft red background that pulses in/out while the pair holds the last point. Non-scorer's point fades to near-invisible. Game scored: score number bounces with a quick elastic scale.</p>
+
+      <div class="card" id="card-a">
+        <div class="card-top">
+          <div class="live-badge"><div class="live-dot"></div> Live · Set 2</div>
+          <div class="set-scores">
+            <div class="set-score winner">6-4</div>
+            <div class="set-score">3-2</div>
+          </div>
+        </div>
+
+        <div class="pair-row a-scoring" id="a-row1">
+          <div class="players">
+            <div class="player-name">Lebrón / Galán</div>
+            <div class="player-country">🇪🇸 · 🇪🇸</div>
+          </div>
+          <div class="live-score" id="a-score1">40</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="pair-row a-dimmed" id="a-row2">
+          <div class="players">
+            <div class="player-name">Coello / Tapia</div>
+            <div class="player-country">🇪🇸 · 🇦🇷</div>
+          </div>
+          <div class="live-score" id="a-score2">15</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn point" onclick="triggerA('pair1')">● Pair 1 scores</button>
+        <button class="btn point" onclick="triggerA('pair2')">● Pair 2 scores</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn game" onclick="triggerAGame()">▲ Game scored</button>
+      </div>
+    </div>
+
+    <!-- ══════════════ OPTION B ══════════════ -->
+    <div class="option">
+      <div class="option-label">Option B &mdash; Sweep Flash <span>dynamic · directional</span></div>
+      <p class="option-desc">A bright flash sweeps left-to-right across the scoring pair's row then settles into a subtle red tint. Score number slides up into place when a game is scored — communicates momentum.</p>
+
+      <div class="card" id="card-b">
+        <div class="card-top">
+          <div class="live-badge"><div class="live-dot"></div> Live · Set 2</div>
+          <div class="set-scores">
+            <div class="set-score winner">6-4</div>
+            <div class="set-score">3-2</div>
+          </div>
+        </div>
+
+        <div class="pair-row b-scoring-hold" id="b-row1">
+          <div class="players">
+            <div class="player-name">Lebrón / Galán</div>
+            <div class="player-country">🇪🇸 · 🇪🇸</div>
+          </div>
+          <div class="live-score" id="b-score1">40</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="pair-row b-dimmed" id="b-row2">
+          <div class="players">
+            <div class="player-name">Coello / Tapia</div>
+            <div class="player-country">🇦🇷 · 🇪🇸</div>
+          </div>
+          <div class="live-score" id="b-score2">15</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn point" onclick="triggerB('pair1')">● Pair 1 scores</button>
+        <button class="btn point" onclick="triggerB('pair2')">● Pair 2 scores</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn game" onclick="triggerBGame()">▲ Game scored</button>
+      </div>
+    </div>
+
+    <!-- ══════════════ OPTION C ══════════════ -->
+    <div class="option">
+      <div class="option-label">Option C &mdash; Ignite + Dim <span>dramatic · high-contrast</span></div>
+      <p class="option-desc">Scoring row ignites with a full bright flare then holds a warm glow. The other pair dims heavily — max contrast on who's winning. Game scored: a floating "+1" badge pops up and drifts away.</p>
+
+      <div class="card" id="card-c">
+        <div class="card-top">
+          <div class="live-badge"><div class="live-dot"></div> Live · Set 2</div>
+          <div class="set-scores">
+            <div class="set-score winner">6-4</div>
+            <div class="set-score">3-2</div>
+          </div>
+        </div>
+
+        <div class="pair-row c-scoring-hold" id="c-row1">
+          <div class="players">
+            <div class="player-name">Lebrón / Galán</div>
+            <div class="player-country">🇪🇸 · 🇪🇸</div>
+          </div>
+          <div class="score-wrap">
+            <div class="live-score" id="c-score1">40</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="pair-row c-dimmed-hold" id="c-row2">
+          <div class="players">
+            <div class="player-name">Coello / Tapia</div>
+            <div class="player-country">🇦🇷 · 🇪🇸</div>
+          </div>
+          <div class="score-wrap">
+            <div class="live-score" id="c-score2">15</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn point" onclick="triggerC('pair1')">● Pair 1 scores</button>
+        <button class="btn point" onclick="triggerC('pair2')">● Pair 2 scores</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn game" onclick="triggerCGame()">▲ Game scored</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Option A ─────────────────────────────────────────────────
+function triggerA(scorer) {
+  const row1 = document.getElementById('a-row1')
+  const row2 = document.getElementById('a-row2')
+  row1.className = 'pair-row ' + (scorer === 'pair1' ? 'a-scoring' : 'a-dimmed')
+  row2.className = 'pair-row ' + (scorer === 'pair2' ? 'a-scoring' : 'a-dimmed')
+}
+function triggerAGame() {
+  const s1 = document.getElementById('a-score1')
+  const s2 = document.getElementById('a-score2')
+  // Determine which row is currently scoring
+  const row1 = document.getElementById('a-row1')
+  const target = row1.classList.contains('a-scoring') ? s1 : s2
+  target.classList.remove('a-game-flash')
+  void target.offsetWidth
+  target.classList.add('a-game-flash')
+  setTimeout(() => target.classList.remove('a-game-flash'), 500)
+}
+
+// ── Option B ─────────────────────────────────────────────────
+function triggerB(scorer) {
+  const row1 = document.getElementById('b-row1')
+  const row2 = document.getElementById('b-row2')
+
+  // Reset both
+  row1.className = 'pair-row'
+  row2.className = 'pair-row'
+  void row1.offsetWidth
+
+  if (scorer === 'pair1') {
+    row1.classList.add('b-scoring')
+    row2.classList.add('b-dimmed')
+    setTimeout(() => { row1.classList.remove('b-scoring'); row1.classList.add('b-scoring-hold') }, 1650)
+  } else {
+    row2.classList.add('b-scoring')
+    row1.classList.add('b-dimmed')
+    setTimeout(() => { row2.classList.remove('b-scoring'); row2.classList.add('b-scoring-hold') }, 1650)
+  }
+}
+function triggerBGame() {
+  const row1 = document.getElementById('b-row1')
+  const isRow1 = row1.classList.contains('b-scoring') || row1.classList.contains('b-scoring-hold')
+  const targetRow = isRow1 ? row1 : document.getElementById('b-row2')
+  targetRow.classList.remove('b-game-flash')
+  void targetRow.offsetWidth
+  targetRow.classList.add('b-game-flash')
+  setTimeout(() => targetRow.classList.remove('b-game-flash'), 900)
+}
+
+// ── Option C ─────────────────────────────────────────────────
+function triggerC(scorer) {
+  const row1 = document.getElementById('c-row1')
+  const row2 = document.getElementById('c-row2')
+
+  row1.className = 'pair-row'
+  row2.className = 'pair-row'
+  void row1.offsetWidth
+
+  if (scorer === 'pair1') {
+    row1.classList.add('c-scoring')
+    row2.classList.add('c-dimmed')
+    setTimeout(() => { row1.classList.remove('c-scoring'); row1.classList.add('c-scoring-hold') }, 750)
+    setTimeout(() => { row2.classList.remove('c-dimmed'); row2.classList.add('c-dimmed-hold') }, 450)
+  } else {
+    row2.classList.add('c-scoring')
+    row1.classList.add('c-dimmed')
+    setTimeout(() => { row2.classList.remove('c-scoring'); row2.classList.add('c-scoring-hold') }, 750)
+    setTimeout(() => { row1.classList.remove('c-dimmed'); row1.classList.add('c-dimmed-hold') }, 450)
+  }
+}
+function triggerCGame() {
+  const row1 = document.getElementById('c-row1')
+  const isRow1 = row1.classList.contains('c-scoring') || row1.classList.contains('c-scoring-hold')
+  const wrap = (isRow1 ? row1 : document.getElementById('c-row2')).querySelector('.score-wrap')
+
+  // Remove existing badge
+  wrap.querySelectorAll('.plus-badge').forEach(b => b.remove())
+  const badge = document.createElement('span')
+  badge.className = 'plus-badge'
+  badge.textContent = '+1'
+  badge.style.top = '0'
+  badge.style.right = '-2px'
+  wrap.appendChild(badge)
+  setTimeout(() => badge.remove(), 950)
+}
+</script>
+</body>
+</html>
