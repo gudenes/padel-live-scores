@@ -96,14 +96,26 @@ export default function V2Page() {
 
   useEffect(() => { fetchAll(); fetchTournaments() }, [fetchAll, fetchTournaments])
 
-  // ── Realtime ──────────────────────────────────────────────────────────
+  // ── Realtime — debounced to avoid partial-state renders ───────────────
+  // The relay writes match → sets → games in a sequential loop; each individual
+  // DB write fires a Supabase realtime event.  Without debouncing, the client
+  // fetches 5-10 times per live update and renders intermediate partial states
+  // (jumping points, stuck scores).  500 ms captures the whole write burst.
+  const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
+    const handleChange = () => {
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
+      realtimeDebounceRef.current = setTimeout(fetchAll, 500)
+    }
     const ch = supabase
       .channel('v2-feed')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sets' }, fetchAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, handleChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sets' }, handleChange)
       .subscribe()
-    return () => { supabase.removeChannel(ch) }
+    return () => {
+      supabase.removeChannel(ch)
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
+    }
   }, [fetchAll])
 
   // ── Sync ago ──────────────────────────────────────────────────────────
@@ -220,8 +232,8 @@ export default function V2Page() {
     })
   }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
 
-  const liveMatches      = filtered.filter(m => m.status === 'live' && !isWarmingUp(m))
-  const warmingUpMatches = filtered.filter(m => m.status === 'live' && isWarmingUp(m))
+  // Warming-up matches are included in liveMatches — they render "About to start"
+  const liveMatches = filtered.filter(m => m.status === 'live')
   const scheduledMatches = filtered
     .filter(m => m.status === 'scheduled')
     .sort((a: any, b: any) => {
@@ -250,22 +262,48 @@ export default function V2Page() {
   }
   const estimatedLabels = useMemo(() => {
     const map: Record<string, string> = {}
+
+    // Build per-court "estimated next start" from currently live matches.
+    // When match A (court X) went live at T, the next match on court X starts ≈ T+90min.
+    // This keeps the followed-by estimate alive after match A leaves scheduledMatches.
+    const liveFloorByCourt: Record<string | number, string> = {}
+    const tz = activeTournamentObj?.timezone ?? 'UTC'
+    for (const m of allMatches) {
+      if (m.status !== 'live') continue
+      const co = (m as any).court_order as string | number | null
+      if (co == null) continue
+      const startedAt = (m as any).started_at as string | null
+      if (!startedAt) continue
+      try {
+        const d = new Date(startedAt)
+        const localStr = d.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true })
+        const tm = localStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+        if (!tm) continue
+        let h = parseInt(tm[1]); const min = parseInt(tm[2]); const ap = tm[3].toUpperCase()
+        if (ap === 'PM' && h < 12) h += 12
+        if (ap === 'AM' && h === 12) h = 0
+        const totalMins = h * 60 + min + 90
+        liveFloorByCourt[co] = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
+      } catch { /* ignore */ }
+    }
+
     for (let i = 0; i < scheduledMatches.length; i++) {
       const m = scheduledMatches[i] as any
       const sl = m.schedule_label as string | null
+      const co = m.court_order as string | number | null
 
       // Hard start time — exact, no estimation needed
       if (sl && /starting at/i.test(sl)) continue
 
-      // "Not before X:XX" — a minimum time constraint, not a guaranteed start.
-      // If the previous match was also "Not before", apply the +90min rule to keep
-      // consistent spacing (the second "Not before" just raised the floor arbitrarily).
-      // Otherwise use the own label as the floor for the start of a new time block.
+      // Only look at the previous match if it's on the SAME court
+      const rawPrev = scheduledMatches[i - 1] as any | undefined
+      const prev = rawPrev?.court_order === co ? rawPrev : undefined
+
+      // "Not before X:XX" — minimum time constraint
       if (sl && /not before/i.test(sl)) {
-        const prev = scheduledMatches[i - 1] as any | undefined
         const prevSl = prev?.schedule_label as string | null
         if (prev && prevSl && /not before/i.test(prevSl)) {
-          // Chain: previous was also "Not before" — estimate +90 from it
+          // Chain: prev was also "Not before" on same court — +90 from it
           const prevLabel = map[prev.id] ?? prevSl
           const parsed = parseAmPm(prevLabel)
           if (parsed) {
@@ -274,16 +312,19 @@ export default function V2Page() {
             continue
           }
         }
-        // First "Not before" in the block — use own label as the time floor
+        // First "Not before" on this court — use own label as floor
         map[m.id] = sl
         continue
       }
 
-      // null / "Followed by" / other — estimate from previous match + 90 min
-      const prev = scheduledMatches[i - 1] as any | undefined
-      if (!prev) continue
-
-      // Use prev's hard label or whatever estimate we already computed for it
+      // null / "Followed by" — estimate from previous same-court match + 90 min,
+      // or from live match floor if no prior scheduled match on this court
+      if (!prev) {
+        if (co != null && liveFloorByCourt[co]) {
+          map[m.id] = liveFloorByCourt[co]
+        }
+        continue
+      }
       const prevLabel = (prev.schedule_label && /starting at/i.test(prev.schedule_label))
         ? prev.schedule_label
         : map[prev.id] ?? null
@@ -294,7 +335,7 @@ export default function V2Page() {
       map[m.id] = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
     }
     return map
-  }, [scheduledMatches]) // eslint-disable-line
+  }, [scheduledMatches, allMatches, activeTournamentObj]) // eslint-disable-line
   const finishedMatches = filtered
     .filter(m => ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string))
     .sort((a: any, b: any) => {
@@ -500,13 +541,6 @@ export default function V2Page() {
                 </div>
               )}
 
-              {warmingUpMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader dot color="var(--color-live)" label="Warming up" />
-                  {warmingUpMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                </div>
-              )}
-
               {scheduledMatches.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
                   <SectionHeader label="Up next" />
@@ -528,7 +562,7 @@ export default function V2Page() {
                 </div>
               )}
 
-              {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
+              {liveMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
                 <div style={{ textAlign: 'center', paddingTop: 80 }}>
                   <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
                   <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>
