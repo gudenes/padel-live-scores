@@ -197,7 +197,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const p2Leading = !isFinished && (p2Point === 'A' || (p1Point && p2Point && p1Point !== 'A' && p2Point !== 'A' && parseInt(p2Point) > parseInt(p1Point)))
 
   const category = (match as any).category as string | null
-  const genderAccent = category === 'men' ? 'var(--color-men)' : category === 'women' ? 'var(--color-women)' : 'var(--text-dim)'
   const duration = (match as any).duration as string | null
   const matchDate = match.started_at ? new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(match.started_at)) : null
 
@@ -239,7 +238,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       <div style={{
         position: 'sticky', top: 49, zIndex: 8,
         background: 'var(--bg-card)',
-        borderBottom: `2px solid ${genderAccent}`,
+        borderBottom: '0.5px solid var(--border-card)',
         overflow: 'hidden',
         maxHeight: heroHidden ? 62 : 0,
         opacity: heroHidden ? 1 : 0,
@@ -294,7 +293,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* ── Hero score ────────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--bg-card)', borderTop: `3px solid ${genderAccent}`, padding: '14px 16px 0', borderBottom: '0.5px solid var(--border-card)' }}>
+      <div style={{ background: 'var(--bg-card)', padding: '14px 16px 0', borderBottom: '0.5px solid var(--border-card)' }}>
 
         {/* Court + round + date */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
