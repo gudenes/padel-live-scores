@@ -220,6 +220,40 @@ async function fetchMatchDetail(matchId: string): Promise<ApiMatchDetail | null>
   }
 }
 
+// ── Compute pair game counts from a set ───────────────────────
+// For a completed set: parse pair games from the normalized set_score
+// For the current set (set_score null): the last game's game_score holds
+// the games tally at the start of that game — e.g. "1-2" → pair1=1, pair2=2
+function computePairGames(set: ApiSet): { pair1_games: number; pair2_games: number } {
+  if (set.set_score !== null) {
+    const normalized = normalizeSetScoreFromLive(set.set_score)
+    if (normalized) {
+      const parts = normalized.split('-')
+      if (parts.length === 2) {
+        const p1 = parseInt(parts[0])
+        const p2 = parseInt(parts[1]) // parseInt stops at '(' so "6(6)" → 6
+        if (!isNaN(p1) && !isNaN(p2)) return { pair1_games: p1, pair2_games: p2 }
+      }
+    }
+  }
+  // Current set: last game's game_score is the live games tally
+  if (set.games && set.games.length > 0) {
+    const lastGame = set.games.reduce(
+      (max, g) => g.game_number > max.game_number ? g : max,
+      set.games[0]
+    )
+    if (lastGame.game_score) {
+      const parts = lastGame.game_score.split('-')
+      if (parts.length === 2) {
+        const p1 = parseInt(parts[0])
+        const p2 = parseInt(parts[1])
+        if (!isNaN(p1) && !isNaN(p2)) return { pair1_games: p1, pair2_games: p2 }
+      }
+    }
+  }
+  return { pair1_games: 0, pair2_games: 0 }
+}
+
 // ── Upsert helpers ─────────────────────────────────────────────
 async function upsertPlayer(name: string, externalNumericId?: number): Promise<string | null> {
   const externalId = externalNumericId
@@ -254,6 +288,7 @@ async function upsertSetsAndGames(
 
     // ── Normalize set score at write time ──
     const normalizedScore = normalizeSetScoreFromLive(set.set_score)
+    const { pair1_games, pair2_games } = computePairGames(set)
 
     const { data: setRow, error: setError } = await supabase
       .from('sets')
@@ -262,6 +297,8 @@ async function upsertSetsAndGames(
           match_id: matchDbId,
           set_number: set.set_number,
           set_score: normalizedScore,
+          pair1_games,
+          pair2_games,
           is_current: isCurrentSet,
           score_source: 'live' as const,  // ← NEW: tag source
           updated_at: new Date().toISOString(),
@@ -354,6 +391,12 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
   // Critical: if a set was never tracked during the match (e.g. relay was down),
   // the row won't exist and .update() would silently write nothing
   for (const set of sets) {
+    const parts = set.set_score ? set.set_score.split('-') : []
+    const p1 = parts.length === 2 ? parseInt(parts[0]) : NaN
+    const p2 = parts.length === 2 ? parseInt(parts[1]) : NaN // parseInt stops at '('
+    const pair1_games = !isNaN(p1) ? p1 : 0
+    const pair2_games = !isNaN(p2) ? p2 : 0
+
     await supabase
       .from('sets')
       .upsert(
@@ -361,6 +404,8 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
           match_id: matchDbId,
           set_number: set.set_number,
           set_score: set.set_score,
+          pair1_games,
+          pair2_games,
           is_current: false,
           score_source: 'api' as const,  // ← NEW: authoritative data
           updated_at: new Date().toISOString(),
