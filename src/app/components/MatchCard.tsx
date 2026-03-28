@@ -58,13 +58,6 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   const [p1RowSweeping, setP1RowSweeping] = useState(false)
   const [p2RowSweeping, setP2RowSweeping] = useState(false)
 
-  // Game Score Slide — slide-up on the game number when a game is won
-  const p1Games = currentSet?.pair1_games ?? 0
-  const p2Games = currentSet?.pair2_games ?? 0
-  const prevP1Games = useRef<number | null>(null)
-  const prevP2Games = useRef<number | null>(null)
-  const [p1GameSliding, setP1GameSliding] = useState(false)
-  const [p2GameSliding, setP2GameSliding] = useState(false)
 
   useEffect(() => {
     if (!isLive) return
@@ -84,23 +77,6 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     prevP2Point.current = p2Point ?? null
   }, [p2Point]) // eslint-disable-line
 
-  useEffect(() => {
-    if (!isLive) return
-    if (prevP1Games.current !== null && prevP1Games.current !== p1Games) {
-      setP1GameSliding(true)
-      setTimeout(() => setP1GameSliding(false), 900)
-    }
-    prevP1Games.current = p1Games
-  }, [p1Games]) // eslint-disable-line
-
-  useEffect(() => {
-    if (!isLive) return
-    if (prevP2Games.current !== null && prevP2Games.current !== p2Games) {
-      setP2GameSliding(true)
-      setTimeout(() => setP2GameSliding(false), 900)
-    }
-    prevP2Games.current = p2Games
-  }, [p2Games]) // eslint-disable-line
 
   const p1Won = isFinished && winnerPair === 1
   const p2Won = isFinished && winnerPair === 2
@@ -392,7 +368,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                         const parsed = parseSetScore(set.set_score)
                         const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                         return (
-                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-secondary)' : parsed ? (p1WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)', ...(set.is_current && p1GameSliding ? { animation: 'gameScoreSlide 0.8s cubic-bezier(0.22,0.61,0.36,1) forwards' } : {}) }}>
+                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-secondary)' : parsed ? (p1WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
                             {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
                             {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
                           </span>
@@ -428,7 +404,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                         const parsed = parseSetScore(set.set_score)
                         const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                         return (
-                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-secondary)' : parsed ? (p2WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)', ...(set.is_current && p2GameSliding ? { animation: 'gameScoreSlide 0.8s cubic-bezier(0.22,0.61,0.36,1) forwards' } : {}) }}>
+                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-secondary)' : parsed ? (p2WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
                             {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
                             {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
                           </span>
