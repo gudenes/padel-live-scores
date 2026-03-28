@@ -51,7 +51,6 @@ export default function V2Page() {
 
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'men' | 'women'>('all')
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
 
@@ -216,18 +215,14 @@ export default function V2Page() {
     return rounds.sort((a, b) => (ROUND_ORDER[a] ?? 99) - (ROUND_ORDER[b] ?? 99))[0] ?? selectedRound ?? null
   }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
 
-  // ── Filtered matches — by round + category ───────────────────────────
+  // ── Filtered matches — by round ──────────────────────────────────────
   const filtered = useMemo(() => {
     return allMatches.filter(m => {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
       if (selectedRound && normalizeRoundFull(m.round as string) !== selectedRound) return false
-      if (selectedCategory !== 'all') {
-        const cat = (m as any).category as string | null
-        if (!cat || cat !== selectedCategory) return false
-      }
       return true
     })
-  }, [allMatches, activeTournament, selectedRound, selectedCategory]) // eslint-disable-line
+  }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
 
   const liveMatches      = filtered.filter(m => m.status === 'live' && !isWarmingUp(m))
   const warmingUpMatches = filtered.filter(m => m.status === 'live' && isWarmingUp(m))
@@ -448,37 +443,7 @@ export default function V2Page() {
             </div>
           )}
 
-          {/* ROW 3: Gender segmented control */}
-          <div style={{ display: 'flex', padding: '8px 0 0', gap: 0 }}>
-            {(['all', 'men', 'women'] as const).map((cat, i) => {
-              const active = selectedCategory === cat
-              const catColor = cat === 'men' ? 'var(--color-men)' : cat === 'women' ? 'var(--color-women)' : 'var(--text-secondary)'
-              const catBg = cat === 'men' ? 'var(--color-men-bg)' : cat === 'women' ? 'var(--color-women-bg)' : 'rgba(255,255,255,0.05)'
-              const catBorder = cat === 'men' ? 'var(--color-men-border)' : cat === 'women' ? 'var(--color-women-border)' : 'var(--border-strong)'
-              const label = cat === 'all' ? 'All' : cat === 'men' ? '♂ Men' : '♀ Women'
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  style={{
-                    flex: 1, padding: '6px 0',
-                    border: `1px solid ${active ? catBorder : 'var(--border-strong)'}`,
-                    borderRadius: i === 0 ? '7px 0 0 7px' : i === 2 ? '0 7px 7px 0' : '0',
-                    borderLeft: i > 0 ? 'none' : undefined,
-                    background: active ? catBg : 'var(--bg-card)',
-                    cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase',
-                    color: active ? catColor : 'var(--text-muted)',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* ROW 4: Stage selector strip */}
+          {/* ROW 3: Stage selector strip */}
           {availableRounds.length > 0 && (
             <div style={{
               display: 'flex', gap: 6, padding: '8px 0 10px',
