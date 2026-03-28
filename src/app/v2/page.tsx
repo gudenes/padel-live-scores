@@ -4,7 +4,7 @@
 // Shows all leagues by default; auto-selects the live tournament.
 // Feed is organised by section headers: Live Now → Up Next → Finished
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, isWarmingUp } from '@/types/match'
 import MatchCard from '../components/MatchCard'
@@ -47,23 +47,12 @@ export default function V2Page() {
   const [syncAgo, setSyncAgo]         = useState('')
   const [lastSynced, setLastSynced]   = useState<Date | null>(null)
   const [justUpdated, setJustUpdated] = useState(false)
-  const [localClock, setLocalClock]   = useState('')
 
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
+  const stageStripRef = useRef<HTMLDivElement>(null)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
-
-  // ── Clock ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date()
-      setLocalClock(now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }))
-    }
-    tick()
-    const t = setInterval(tick, 1000)
-    return () => clearInterval(t)
-  }, [])
 
   // ── Fetch ─────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -206,6 +195,13 @@ export default function V2Page() {
     })
   }, [availableRounds, activeTournament]) // eslint-disable-line
 
+  // Auto-scroll stage strip so the active pill is centred in view
+  useEffect(() => {
+    if (!selectedRound || !stageStripRef.current) return
+    const btn = stageStripRef.current.querySelector<HTMLElement>('[data-active="true"]')
+    if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [selectedRound])
+
   // Active stage label for header (live matches stage)
   const activeTournamentStage = useMemo(() => {
     const rounds = allMatches
@@ -339,32 +335,18 @@ export default function V2Page() {
           padding: '8px 14px 0', position: 'sticky', top: 0, zIndex: 10,
         }}>
 
-          {/* ROW 1: Wordmark + clock + live count */}
+          {/* ROW 1: Wordmark + live count */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {localClock && (
-                <div style={{
-                  border: '1px solid var(--border-strong)', borderRadius: 8,
-                  padding: '3px 10px', textAlign: 'center',
-                  background: 'var(--bg-card)',
-                }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', lineHeight: 1.2, letterSpacing: '-0.3px' }}>{localClock}</div>
-                  <div style={{ fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
-                    {Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, ' ').split('/').pop()}
-                  </div>
-                </div>
-              )}
-              {liveCount > 0 && (
-                <div style={{
-                  background: 'var(--color-live-bg)', border: '1px solid var(--color-live-border)',
-                  borderRadius: 8, padding: '3px 9px', display: 'flex', alignItems: 'center', gap: 5,
-                }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
-                  <span style={{ fontSize: 10, color: 'var(--color-live)', fontWeight: 800, letterSpacing: '0.3px', textTransform: 'uppercase' }}>{liveCount} live</span>
-                </div>
-              )}
-            </div>
+            {liveCount > 0 && (
+              <div style={{
+                background: 'var(--color-live-bg)', border: '1px solid var(--color-live-border)',
+                borderRadius: 8, padding: '3px 9px', display: 'flex', alignItems: 'center', gap: 5,
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
+                <span style={{ fontSize: 10, color: 'var(--color-live)', fontWeight: 800, letterSpacing: '0.3px', textTransform: 'uppercase' }}>{liveCount} live</span>
+              </div>
+            )}
           </div>
 
           {/* ROW 2: Tournament row — logo + name + stage + chevron to switch */}
@@ -445,7 +427,7 @@ export default function V2Page() {
 
           {/* ROW 3: Stage selector strip */}
           {availableRounds.length > 0 && (
-            <div style={{
+            <div ref={stageStripRef} style={{
               display: 'flex', gap: 6, padding: '8px 0 10px',
               overflowX: 'auto', scrollbarWidth: 'none',
             }}>
@@ -459,6 +441,7 @@ export default function V2Page() {
                 return (
                   <button
                     key={round}
+                    data-active={active ? 'true' : undefined}
                     onClick={() => setSelectedRound(round)}
                     style={{
                       flexShrink: 0,
