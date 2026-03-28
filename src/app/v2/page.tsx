@@ -262,13 +262,15 @@ export default function V2Page() {
     const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h)
     return `Starting at ${h12}:${String(m).padStart(2, '0')} ${ap}`
   }
-  // Stable court key: prefer court_order, fall back to court name string.
-  // This handles matches where court_order is null (e.g. matches 7507/7508).
+  // Stable court key: prefer court NAME (physical court identity) over
+  // court_order (which is a global sequence number, not a per-court id).
+  // Two sequential matches on the same court get consecutive court_order
+  // values but the same court name — we need the name to chain them.
   function courtKey(m: any): string | null {
-    const co = m.court_order as string | number | null
-    if (co != null) return `order:${co}`
     const c = m.court as string | null
     if (c) return `name:${c}`
+    const co = m.court_order as string | number | null
+    if (co != null) return `order:${co}`
     return null
   }
   const estimatedLabels = useMemo(() => {
