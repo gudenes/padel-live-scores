@@ -285,7 +285,7 @@ export default function V2Page() {
         if (m.status === 'scheduled') {
           const src = (m as any).scheduled_at ?? (m as any).started_at
           if (!src) return selectedDate === today
-          return src.slice(0, 10) === selectedDate
+          try { return localDateKey(new Date(src)) === selectedDate } catch { return src.slice(0, 10) === selectedDate }
         }
         // live: always show on today
         return selectedDate === today
@@ -305,9 +305,14 @@ export default function V2Page() {
   const finishedMatches = filtered
     .filter(m => ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string))
     .sort((a: any, b: any) => {
+      // Primary: court_order ascending (court 1 = main court = top)
+      const ca = a.court_order ?? 999
+      const cb = b.court_order ?? 999
+      if (ca !== cb) return ca - cb
+      // Fallback: started_at descending (most recent first)
       const ta = a.started_at ?? a.updated_at ?? ''
       const tb = b.started_at ?? b.updated_at ?? ''
-      return tb.localeCompare(ta) // newest first
+      return tb.localeCompare(ta)
     })
 
   // Stage label for tournament row
