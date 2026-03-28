@@ -101,7 +101,7 @@ export default function V2Page() {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -154,7 +154,7 @@ export default function V2Page() {
   const today = localDateKey(new Date())
   const dateStrip = useMemo(() => getDateStrip(), [])
 
-  // ── Stage label ───────────────────────────────────────────────────────
+  // ── Stage label (for header) ──────────────────────────────────────────
   const stageOrder: Record<string, number> = { Finals: 1, Semifinals: 2, Quarterfinals: 3, 'Round of 16': 4, 'Round of 32': 5 }
   const activeTournamentStage = useMemo(() => {
     const norm: Record<string, string> = { Quarter: 'Quarterfinals', Semi: 'Semifinals', Final: 'Finals' }
@@ -163,6 +163,34 @@ export default function V2Page() {
       .map(m => norm[m.round as string] ?? m.round as string)
       .filter(Boolean)
     return rounds.sort((a, b) => (stageOrder[a] ?? 99) - (stageOrder[b] ?? 99))[0] ?? null
+  }, [allMatches, activeTournament]) // eslint-disable-line
+
+  // ── Stage abbreviation per date (for date strip) ──────────────────────
+  const ROUND_ABBR: Record<string, string> = {
+    'Finals': 'F', 'Final': 'F', 'F': 'F',
+    'Semifinals': 'SF', 'Semifinal': 'SF', 'Semi': 'SF', 'SF': 'SF',
+    'Quarterfinals': 'QF', 'Quarter': 'QF', 'Quarters': 'QF', 'QF': 'QF',
+    'Round of 16': 'R16', 'R16': 'R16',
+    'Round of 32': 'R32', 'R32': 'R32',
+    'Round of 64': 'R64',
+  }
+  const ABBR_ORDER: Record<string, number> = { F: 1, SF: 2, QF: 3, R16: 4, R32: 5, R64: 6 }
+  const stageForDate = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const m of allMatches) {
+      if (!activeTournament || (m as any).tournament?.id !== activeTournament) continue
+      const src = (m as any).started_at ?? (m as any).scheduled_at
+      if (!src) continue
+      const dateKey = typeof src === 'string' ? src.slice(0, 10) : localDateKey(new Date(src))
+      const round = m.round as string | null
+      if (!round) continue
+      const abbr = ROUND_ABBR[round]
+      if (!abbr) continue
+      if (!map[dateKey] || (ABBR_ORDER[abbr] ?? 99) < (ABBR_ORDER[map[dateKey]] ?? 99)) {
+        map[dateKey] = abbr
+      }
+    }
+    return map
   }, [allMatches, activeTournament]) // eslint-disable-line
 
   // ── Filtered matches ──────────────────────────────────────────────────
@@ -192,11 +220,50 @@ export default function V2Page() {
   const scheduledMatches = filtered
     .filter(m => m.status === 'scheduled')
     .sort((a: any, b: any) => {
+      const ca = a.court_order ?? 999
+      const cb = b.court_order ?? 999
+      if (ca !== cb) return ca - cb
       const da = a.scheduled_at ?? a.started_at ?? ''
       const db = b.scheduled_at ?? b.started_at ?? ''
-      if (da !== db) return da.localeCompare(db)
-      return (a.round ?? 99) - (b.round ?? 99)
+      return da.localeCompare(db)
     })
+
+  // ── Estimated times for "Followed by" matches ─────────────────────────
+  // Parse an AM/PM time label and return {h, m} in tournament local time
+  function parseAmPm(label: string): { h: number; m: number } | null {
+    const tm = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+    if (!tm) return null
+    let h = parseInt(tm[1]); const m = parseInt(tm[2]); const ap = tm[3].toUpperCase()
+    if (ap === 'PM' && h < 12) h += 12
+    if (ap === 'AM' && h === 12) h = 0
+    return { h, m }
+  }
+  function toAmPmLabel(h: number, m: number): string {
+    const ap = h >= 12 ? 'PM' : 'AM'
+    const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h)
+    return `Starting at ${h12}:${String(m).padStart(2, '0')} ${ap}`
+  }
+  const estimatedLabels = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (let i = 0; i < scheduledMatches.length; i++) {
+      const m = scheduledMatches[i] as any
+      const sl = m.schedule_label as string | null
+      if (sl && /starting at|not before/i.test(sl)) continue // has own explicit time
+      // "Followed by" or null schedule_label — estimate from previous
+      const prev = scheduledMatches[i - 1] as any | undefined
+      if (!prev) continue
+      // Get prev's explicit label or our estimated label
+      const prevLabel = (prev.schedule_label && /starting at|not before/i.test(prev.schedule_label))
+        ? prev.schedule_label
+        : map[prev.id] ?? null
+      if (!prevLabel) continue
+      const parsed = parseAmPm(prevLabel)
+      if (!parsed) continue
+      const totalMins = parsed.h * 60 + parsed.m + 90
+      map[m.id] = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
+    }
+    return map
+  }, [scheduledMatches]) // eslint-disable-line
   const finishedMatches = filtered
     .filter(m => ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string))
     .sort((a: any, b: any) => {
@@ -284,16 +351,36 @@ export default function V2Page() {
                 </div>
               ) : null}
 
-              {/* Name + dates + stage */}
+              {/* Name + dates + stage + status */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {activeTournamentObj.name}
                 </div>
-                <div style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
                   {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
-                    `${new Date(activeTournamentObj.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(activeTournamentObj.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                      {new Date(activeTournamentObj.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      {' – '}
+                      {new Date(activeTournamentObj.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
                   )}
-                  {activeTournamentStage && ` · ${activeTournamentStage}`}
+                  {activeTournamentStage && (
+                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>· {activeTournamentStage}</span>
+                  )}
+                  {activeTournamentObj.status && (() => {
+                    const s = activeTournamentObj.status as string
+                    const isActive = s === 'active' || s === 'live' || s === 'ongoing'
+                    const isUpcoming = s === 'upcoming' || s === 'scheduled'
+                    const isFinished = s === 'finished' || s === 'completed' || s === 'ended'
+                    const color = isActive ? 'var(--color-live)' : isUpcoming ? 'var(--color-accent)' : 'var(--text-faint)'
+                    const bg = isActive ? 'var(--color-live-bg)' : isUpcoming ? 'var(--color-accent-bg)' : 'transparent'
+                    const border = isActive ? 'var(--color-live-border)' : isUpcoming ? 'var(--color-accent-border)' : 'var(--border-base)'
+                    return (
+                      <span style={{ fontSize: 8, fontWeight: 700, color, background: bg, border: `0.5px solid ${border}`, borderRadius: 4, padding: '1px 5px', letterSpacing: '0.4px' }}>
+                        {isActive ? '● ' : ''}{s.toUpperCase()}
+                      </span>
+                    )
+                  })()}
                 </div>
               </div>
 
@@ -319,8 +406,8 @@ export default function V2Page() {
                   }}
                 >
                   <div style={{ fontSize: 8, color: active ? 'var(--color-accent)' : 'var(--text-faint)', fontWeight: 500 }}>{label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: active ? 'var(--text-primary)' : 'var(--text-ghost)', marginTop: 3 }}>
-                    {date.getDate()}
+                  <div style={{ fontSize: stageForDate[key] ? 10 : 12, fontWeight: 800, color: active ? 'var(--text-primary)' : 'var(--text-ghost)', marginTop: 3, letterSpacing: stageForDate[key] ? '0.4px' : 0 }}>
+                    {stageForDate[key] ?? '·'}
                   </div>
                 </button>
               )
@@ -364,6 +451,7 @@ export default function V2Page() {
                       key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}}
                       bookmarked={isBookmarked(m.id)}
                       onBookmark={() => toggleBookmark(m.id)}
+                      estimatedScheduleLabel={estimatedLabels[m.id]}
                     />
                   ))}
                 </div>
