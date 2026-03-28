@@ -75,5 +75,20 @@ html, body {
 button { font-family: var(--font-sans); cursor: pointer; }
 button:focus { outline: none; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Live match animations ─────────────────────────────────────────────── */
+/* Sweep Flash — pair row highlight when a point is scored */
+@keyframes sweepFlash {
+  0%   { background: linear-gradient(90deg, rgba(255,70,85,0.60) 0%, rgba(255,70,85,0.00) 0%); }
+  35%  { background: linear-gradient(90deg, rgba(255,70,85,0.60) 0%, rgba(255,70,85,0.30) 100%); }
+  70%  { background: linear-gradient(90deg, rgba(255,70,85,0.35) 0%, rgba(255,70,85,0.18) 100%); }
+  100% { background: rgba(255,70,85,0.00); }
+}
+/* Slide Up — game score number when a game is won */
+@keyframes gameScoreSlide {
+  0%   { transform: translateY(8px); opacity: 0; }
+  40%  { transform: translateY(-2px); opacity: 1; }
+  100% { transform: translateY(0px);  opacity: 1; }
+}
 * { scrollbar-width: none; -ms-overflow-style: none; }
 *::-webkit-scrollbar { display: none; }
