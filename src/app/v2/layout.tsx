@@ -9,7 +9,7 @@ import Link from 'next/link'
 function MatchesIcon({ active }: { active: boolean }) {
   const c = active ? 'var(--color-accent)' : 'var(--text-faint)'
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round">
       <circle cx="12" cy="12" r="10"/>
       <path d="M2 12h20"/>
       <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
@@ -20,7 +20,7 @@ function MatchesIcon({ active }: { active: boolean }) {
 function RankingIcon({ active }: { active: boolean }) {
   const c = active ? 'var(--color-accent)' : 'var(--text-faint)'
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round">
       <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
     </svg>
   )
@@ -29,7 +29,7 @@ function RankingIcon({ active }: { active: boolean }) {
 function TournamentsIcon({ active }: { active: boolean }) {
   const c = active ? 'var(--color-accent)' : 'var(--text-faint)'
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round">
       <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
       <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
       <path d="M4 22h16"/>
@@ -52,7 +52,7 @@ export default function V2Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       {/* Content — padded at bottom so feed is never hidden behind the nav */}
-      <div style={{ paddingBottom: 68 }}>
+      <div style={{ paddingBottom: 80 }}>
         {children}
       </div>
 
@@ -71,13 +71,13 @@ export default function V2Layout({ children }: { children: React.ReactNode }) {
               href={href}
               style={{
                 flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 3, padding: '10px 4px 12px', textDecoration: 'none',
+                gap: 4, padding: '12px 4px 14px', textDecoration: 'none',
                 borderTop: `2px solid ${active ? 'var(--color-accent)' : 'transparent'}`,
               }}
             >
               <Icon active={active} />
               <span style={{
-                fontSize: 9, fontWeight: 700,
+                fontSize: 10, fontWeight: 700,
                 color: active ? 'var(--color-accent)' : 'var(--text-faint)',
               }}>
                 {label}

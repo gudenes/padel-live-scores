@@ -26,9 +26,12 @@ interface MatchCardProps {
   // Bookmark — only shown on scheduled matches
   bookmarked?: boolean
   onBookmark?: () => void
+  // For "Followed by" matches — page.tsx injects an estimated label (prev time + 90 min)
+  // formatted as "Starting at H:MM AM/PM" so the existing time parser can handle it
+  estimatedScheduleLabel?: string
 }
 
-export default function MatchCard({ match, bookmarked, onBookmark }: MatchCardProps) {
+export default function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel }: MatchCardProps) {
   const router = useRouter()
 
   const { pair1Sets, pair2Sets, currentSet, currentGame } = getCurrentScore(match)
@@ -115,15 +118,17 @@ export default function MatchCard({ match, bookmarked, onBookmark }: MatchCardPr
   }
   const roundLabel = normalizeRound(match.round as string | null)
   const scheduleLabel = (match as any).schedule_label as string | null
+  // Use estimated label (from page.tsx "Followed by" + 90min logic) when present
+  const effectiveLabel = estimatedScheduleLabel ?? scheduleLabel
+  const isEstimatedTime = !!estimatedScheduleLabel
 
   const scheduledTime = (() => {
-    if (scheduleLabel) {
-      const timeMatch = scheduleLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+    if (effectiveLabel) {
+      const timeMatch = effectiveLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
       if (timeMatch) {
         try {
           const tournamentTz = (match as any).tournament?.timezone
-          // If tournament timezone is unknown, show the raw schedule_label rather than converting incorrectly
-          if (!tournamentTz) return scheduleLabel
+          if (!tournamentTz) return effectiveLabel
           const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
           let hours = parseInt(timeMatch[1])
           const minutes = parseInt(timeMatch[2])
@@ -136,10 +141,10 @@ export default function MatchCard({ match, bookmarked, onBookmark }: MatchCardPr
           const realUTC = new Date(naiveUTC.getTime() - tournamentOffset * 60000)
           return realUTC.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz })
         } catch {
-          return scheduleLabel
+          return effectiveLabel
         }
       }
-      return scheduleLabel
+      return effectiveLabel
     }
     const src = match.scheduled_at ?? match.started_at
     if (!src) return null
@@ -293,37 +298,15 @@ export default function MatchCard({ match, bookmarked, onBookmark }: MatchCardPr
             <div style={{ flexShrink: 0, width: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
               {scheduledTime ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f5a623', lineHeight: 1.3 }}>{scheduledTime}</span>
-                  <span style={{ fontSize: 9, fontWeight: 500, color: '#f5a623', background: 'rgba(245,166,35,0.1)', borderRadius: 4, padding: '1px 6px', border: '0.5px solid rgba(245,166,35,0.3)' }}>
-                    {(() => {
-                      try {
-                        const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-                        const tournamentTz = (match as any).tournament?.timezone
-          // If tournament timezone is unknown, show the raw schedule_label rather than converting incorrectly
-          if (!tournamentTz) return scheduleLabel
-                        const label = (match as any).schedule_label ?? ''
-                        const timeMatch = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-                        if (timeMatch) {
-                          let hours = parseInt(timeMatch[1])
-                          const minutes = parseInt(timeMatch[2])
-                          const ampm = timeMatch[3].toUpperCase()
-                          if (ampm === 'PM' && hours < 12) hours += 12
-                          if (ampm === 'AM' && hours === 12) hours = 0
-                          const today = new Date().toLocaleDateString('en-CA', { timeZone: tournamentTz })
-                          const naiveUTC = new Date(`${today}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00Z`)
-                          const tournamentOffset = getTimezoneOffset(tournamentTz, naiveUTC)
-                          const realUTC = new Date(naiveUTC.getTime() - tournamentOffset * 60000)
-                          return realUTC.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: userTz })
-                        }
-                        const src = match.scheduled_at ?? match.started_at
-                        if (!src) return null
-                        return new Date(src).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: userTz })
-                      } catch { return null }
-                    })()}
+                  <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-bookmark)', lineHeight: 1.2, letterSpacing: '-0.3px', fontFamily: 'var(--font-mono)' }}>
+                    {scheduledTime}{isEstimatedTime && <span style={{ fontSize: 11, verticalAlign: 'super', marginLeft: 1 }}>*</span>}
                   </span>
+                  {isEstimatedTime && (
+                    <span style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>est.</span>
+                  )}
                 </div>
               ) : (
-                <span style={{ fontSize: 10, fontWeight: 500, color: '#555' }}>After previous</span>
+                <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-faint)' }}>TBD</span>
               )}
             </div>
           </div>
