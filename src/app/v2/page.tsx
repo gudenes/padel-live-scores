@@ -10,33 +10,32 @@ import { Match, countryFlag, isWarmingUp } from '@/types/match'
 import MatchCard from '../components/MatchCard'
 import { useBookmarks } from '@/hooks/useBookmarks'
 
-// ── Date helpers ──────────────────────────────────────────────────────────
+// ── Stage ordering ────────────────────────────────────────────────────────
+const ROUND_ORDER: Record<string, number> = {
+  'Finals': 1, 'Final': 1,
+  'Semifinals': 2, 'Semifinal': 2, 'Semi': 2,
+  'Quarterfinals': 3, 'Quarter': 3, 'Quarters': 3,
+  'Round of 16': 4,
+  'Round of 32': 5,
+  'Round of 64': 6,
+}
+
+// Normalize API round names to full display names
+function normalizeRoundFull(r: string): string {
+  const map: Record<string, string> = {
+    'Quarter': 'Quarterfinals', 'Quarters': 'Quarterfinals',
+    'Semi': 'Semifinals', 'Semifinal': 'Semifinals',
+    'Final': 'Finals',
+  }
+  return map[r] ?? r
+}
+
+// Local date key — kept for scheduled_at date comparison
 function localDateKey(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
-}
-
-function getDateStrip(): { date: Date; label: string; key: string }[] {
-  const today = new Date()
-  return Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(today.getDate() + i - 2)
-    const key = localDateKey(d)
-    const label = i === 2 ? 'Today'
-      : i === 1 ? 'Yesterday'
-      : d.toLocaleDateString('en-GB', { weekday: 'short' })
-    return { date: d, label, key }
-  })
-}
-
-function matchDay(m: Match): string {
-  const src = (m as any).started_at ?? (m as any).scheduled_at ?? (m as any).finished_at
-  if (!src) return 'unknown'
-  // For pure date strings (YYYY-MM-DD) skip the Date constructor to avoid UTC→local shift
-  if (typeof src === 'string' && src.length === 10) return src
-  try { return localDateKey(new Date(src)) } catch { return src.slice(0, 10) }
 }
 
 export default function V2Page() {
@@ -51,7 +50,7 @@ export default function V2Page() {
   const [localClock, setLocalClock]   = useState('')
 
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
-  const [selectedDate, setSelectedDate] = useState<string>(localDateKey(new Date()))
+  const [selectedRound, setSelectedRound] = useState<string | null>(null)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
 
@@ -101,7 +100,7 @@ export default function V2Page() {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -150,70 +149,60 @@ export default function V2Page() {
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
 
-  // ── Date strip ────────────────────────────────────────────────────────
-  const today = localDateKey(new Date())
-  const dateStrip = useMemo(() => getDateStrip(), [])
+  // ── Available rounds for active tournament (ordered Finals → R64) ─────
+  const availableRounds = useMemo(() => {
+    const seen = new Set<string>()
+    for (const m of allMatches) {
+      if (activeTournament && (m as any).tournament?.id !== activeTournament) continue
+      const r = m.round as string | null
+      if (r) seen.add(normalizeRoundFull(r))
+    }
+    return [...seen].sort((a, b) => (ROUND_ORDER[a] ?? 99) - (ROUND_ORDER[b] ?? 99))
+  }, [allMatches, activeTournament]) // eslint-disable-line
 
-  // ── Stage label (for header) ──────────────────────────────────────────
-  const stageOrder: Record<string, number> = { Finals: 1, Semifinals: 2, Quarterfinals: 3, 'Round of 16': 4, 'Round of 32': 5 }
+  // Auto-select the current round: prefer live > today's scheduled > most advanced
+  useEffect(() => {
+    if (availableRounds.length === 0) return
+    const todayKey = localDateKey(new Date())
+    const hasLive = availableRounds.find(r =>
+      allMatches.some(m =>
+        m.status === 'live' &&
+        normalizeRoundFull(m.round as string) === r &&
+        (!activeTournament || (m as any).tournament?.id === activeTournament)
+      )
+    )
+    const hasToday = availableRounds.find(r =>
+      allMatches.some(m => {
+        if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
+        if (normalizeRoundFull(m.round as string) !== r) return false
+        const src = (m as any).scheduled_at ?? (m as any).started_at
+        return src && src.slice(0, 10) === todayKey
+      })
+    )
+    setSelectedRound(prev => {
+      // Don't override a user selection that's still valid
+      if (prev && availableRounds.includes(prev)) return prev
+      return hasLive ?? hasToday ?? availableRounds[0] ?? null
+    })
+  }, [availableRounds, activeTournament]) // eslint-disable-line
+
+  // Active stage label for header (live matches stage)
   const activeTournamentStage = useMemo(() => {
-    const norm: Record<string, string> = { Quarter: 'Quarterfinals', Semi: 'Semifinals', Final: 'Finals' }
     const rounds = allMatches
       .filter(m => m.status === 'live' && (m as any).tournament?.id === activeTournament)
-      .map(m => norm[m.round as string] ?? m.round as string)
+      .map(m => normalizeRoundFull(m.round as string))
       .filter(Boolean)
-    return rounds.sort((a, b) => (stageOrder[a] ?? 99) - (stageOrder[b] ?? 99))[0] ?? null
-  }, [allMatches, activeTournament]) // eslint-disable-line
+    return rounds.sort((a, b) => (ROUND_ORDER[a] ?? 99) - (ROUND_ORDER[b] ?? 99))[0] ?? selectedRound ?? null
+  }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
 
-  // ── Stage abbreviation per date (for date strip) ──────────────────────
-  const ROUND_ABBR: Record<string, string> = {
-    'Finals': 'F', 'Final': 'F', 'F': 'F',
-    'Semifinals': 'SF', 'Semifinal': 'SF', 'Semi': 'SF', 'SF': 'SF',
-    'Quarterfinals': 'QF', 'Quarter': 'QF', 'Quarters': 'QF', 'QF': 'QF',
-    'Round of 16': 'R16', 'R16': 'R16',
-    'Round of 32': 'R32', 'R32': 'R32',
-    'Round of 64': 'R64',
-  }
-  const ABBR_ORDER: Record<string, number> = { F: 1, SF: 2, QF: 3, R16: 4, R32: 5, R64: 6 }
-  const stageForDate = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const m of allMatches) {
-      if (!activeTournament || (m as any).tournament?.id !== activeTournament) continue
-      const src = (m as any).started_at ?? (m as any).scheduled_at
-      if (!src) continue
-      const dateKey = typeof src === 'string' ? src.slice(0, 10) : localDateKey(new Date(src))
-      const round = m.round as string | null
-      if (!round) continue
-      const abbr = ROUND_ABBR[round]
-      if (!abbr) continue
-      if (!map[dateKey] || (ABBR_ORDER[abbr] ?? 99) < (ABBR_ORDER[map[dateKey]] ?? 99)) {
-        map[dateKey] = abbr
-      }
-    }
-    return map
-  }, [allMatches, activeTournament]) // eslint-disable-line
-
-  // ── Filtered matches ──────────────────────────────────────────────────
+  // ── Filtered matches — by selected round ─────────────────────────────
   const filtered = useMemo(() => {
-    return allMatches
-      .filter(m => !activeTournament || (m as any).tournament?.id === activeTournament)
-      .filter(m => {
-        if (['finished', 'retired', 'ended', 'walkover'].includes(m.status as string)) {
-          return matchDay(m) === selectedDate
-        }
-        if (m.status === 'scheduled') {
-          const src = (m as any).scheduled_at ?? (m as any).started_at
-          if (!src) return selectedDate === today
-          // scheduled_at is stored as UTC midnight ("2026-03-28T00:00:00+00:00").
-          // Running it through the Date constructor + localDateKey() shifts it back one day
-          // in any UTC− timezone (e.g. Miami UTC-4 → March 27).
-          // Take the ISO date prefix directly — it always equals the intended match day.
-          if (typeof src === 'string') return src.slice(0, 10) === selectedDate
-          try { return localDateKey(new Date(src)) === selectedDate } catch { return src.slice(0, 10) === selectedDate }
-        }
-        return selectedDate === today // live always on today
-      })
-  }, [allMatches, activeTournament, selectedDate, today])
+    return allMatches.filter(m => {
+      if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
+      if (!selectedRound) return true
+      return normalizeRoundFull(m.round as string) === selectedRound
+    })
+  }, [allMatches, activeTournament, selectedRound])
 
   const liveMatches      = filtered.filter(m => m.status === 'live' && !isWarmingUp(m))
   const warmingUpMatches = filtered.filter(m => m.status === 'live' && isWarmingUp(m))
@@ -389,32 +378,47 @@ export default function V2Page() {
             </div>
           )}
 
-          {/* ROW 3: Date strip */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px' }}>
-            <span style={{ fontSize: 13, color: 'var(--text-ghost)', padding: '0 2px', flexShrink: 0 }}>‹</span>
-            {dateStrip.map(({ key, label, date }) => {
-              const active = key === selectedDate
-              return (
-                <button
-                  key={key}
-                  onClick={() => setSelectedDate(key)}
-                  style={{
-                    flex: 1, textAlign: 'center', padding: '10px 2px 9px',
-                    background: 'transparent', border: 'none',
-                    borderBottom: active ? '2px solid var(--color-accent)' : '2px solid transparent',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ fontSize: 8, color: active ? 'var(--color-accent)' : 'var(--text-faint)', fontWeight: 500 }}>{label}</div>
-                  <div style={{ fontSize: stageForDate[key] ? 10 : 12, fontWeight: 800, color: active ? 'var(--text-primary)' : 'var(--text-ghost)', marginTop: 3, letterSpacing: stageForDate[key] ? '0.4px' : 0 }}>
-                    {stageForDate[key] ?? '·'}
-                  </div>
-                </button>
-              )
-            })}
-            <span style={{ fontSize: 13, color: 'var(--text-ghost)', padding: '0 2px', flexShrink: 0 }}>›</span>
-          </div>
-          {/* No "Local time" label — clock in header already shows the timezone */}
+          {/* ROW 3: Stage selector strip */}
+          {availableRounds.length > 0 && (
+            <div style={{
+              display: 'flex', gap: 6, padding: '8px 0 10px',
+              overflowX: 'auto', scrollbarWidth: 'none',
+            }}>
+              {availableRounds.map(round => {
+                const active = round === selectedRound
+                const hasLive = allMatches.some(m =>
+                  m.status === 'live' &&
+                  normalizeRoundFull(m.round as string) === round &&
+                  (!activeTournament || (m as any).tournament?.id === activeTournament)
+                )
+                return (
+                  <button
+                    key={round}
+                    onClick={() => setSelectedRound(round)}
+                    style={{
+                      flexShrink: 0,
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '7px 16px',
+                      borderRadius: 20,
+                      border: `1px solid ${active ? 'var(--color-accent)' : 'var(--border-base)'}`,
+                      background: active ? 'var(--color-accent-bg)' : 'var(--bg-card)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {hasLive && (
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-live)', flexShrink: 0, animation: 'blink 1.4s ease-in-out infinite' }} />
+                    )}
+                    <span style={{
+                      fontSize: 12, fontWeight: 700, letterSpacing: '0.2px',
+                      color: active ? 'var(--color-accent)' : 'var(--text-muted)',
+                    }}>
+                      {round}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* ── Feed ── */}
@@ -459,10 +463,7 @@ export default function V2Page() {
 
               {finishedMatches.length > 0 && (
                 <div>
-                  <SectionHeader label={selectedDate === today
-                    ? 'Results · Today'
-                    : `Results · ${new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}`
-                  } />
+                  <SectionHeader label={`Results · ${selectedRound ?? ''}`} />
                   {finishedMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
                 </div>
               )}
@@ -470,8 +471,8 @@ export default function V2Page() {
               {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
                 <div style={{ textAlign: 'center', paddingTop: 80 }}>
                   <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
-                  <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches on this day</p>
-                  <p style={{ color: 'var(--text-faint)', fontSize: 13, marginTop: 4 }}>Try selecting a different date</p>
+                  <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>
+                  <p style={{ color: 'var(--text-faint)', fontSize: 13, marginTop: 4 }}>Try selecting a different round</p>
                 </div>
               )}
             </>
