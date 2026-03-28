@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Match Page — Concept B v2</title>
+<style>
+  :root {
+    --bg-base: #020C18;
+    --bg-card: #061422;
+    --bg-card-alt: #040E1C;
+    --border-card: #132C46;
+    --border-strong: #1C3D5C;
+    --text-primary: #EEE4CE;
+    --text-secondary: #9BA8B8;
+    --text-dim: #5A6A7A;
+    --color-live: #FF4655;
+    --color-accent: #38C8FF;
+    --color-p1: #5BA8FF;
+    --color-p2: #F472B6;
+    --color-star: #F5A623;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #010810;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    color: var(--text-primary);
+    padding: 24px 16px 60px;
+  }
+
+  .page-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); text-align: center; margin-bottom: 6px; }
+  .page-sub { font-size: 13px; color: var(--text-secondary); text-align: center; margin-bottom: 28px; line-height: 1.5; }
+
+  .phones-row { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+  .phone-frame {
+    width: 320px; flex-shrink: 0; border-radius: 32px;
+    background: #0A1A2A; border: 1.5px solid #1C3D5C; overflow: hidden;
+    scroll-snap-align: start;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+  }
+  .phone-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); text-align: center; padding: 10px; border-bottom: 0.5px solid var(--border-card); }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  .dot-live { width: 5px; height: 5px; border-radius: 50%; background: var(--color-live); animation: blink 1.4s ease-in-out infinite; display: inline-block; }
+
+  /* ── Nav ── */
+  .nav-bar {
+    background: var(--bg-base); padding: 10px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 0.5px solid var(--border-card);
+  }
+  .back-btn { font-size: 11px; font-weight: 600; color: #aaa; background: #0D1F30; border: 0.5px solid var(--border-strong); border-radius: 20px; padding: 4px 10px; }
+  .live-pill { display: flex; align-items: center; gap: 4px; background: rgba(255,70,85,0.12); border: 0.5px solid rgba(255,70,85,0.35); border-radius: 20px; padding: 3px 8px; font-size: 10px; font-weight: 700; color: var(--color-live); }
+
+  /* ── Hero ── */
+  .hero {
+    background: var(--bg-card);
+    border-top: 3px solid var(--color-p1);
+    padding: 12px 14px 0;
+  }
+
+  .hero-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+  .hero-court { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.4px; }
+  .hero-dot { width: 3px; height: 3px; border-radius: 50%; background: #444; }
+  .hero-round-pill { font-size: 9px; font-weight: 700; color: var(--color-accent); background: rgba(56,200,255,0.08); border: 0.5px solid rgba(56,200,255,0.2); border-radius: 4px; padding: 2px 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+  /* set column headers */
+  .set-headers { display: flex; justify-content: flex-end; gap: 0; margin-bottom: 4px; padding-right: 2px; }
+  .set-header-cell { font-size: 9px; font-weight: 700; width: 28px; text-align: center; color: #555; }
+  .set-header-cell.current { color: var(--color-accent); }
+  .pts-header-cell { font-size: 9px; font-weight: 700; width: 36px; text-align: center; color: var(--text-dim); }
+
+  /* pair row */
+  .pair-row {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 12px;
+  }
+  .pair-photos { display: flex; gap: 5px; flex-shrink: 0; }
+  .player-photo {
+    width: 48px; height: 48px; border-radius: 10px;
+    background: #0D2540; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: var(--text-secondary);
+    overflow: hidden; flex-shrink: 0; position: relative;
+  }
+  .player-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .player-photo.p1-border { border: 1.5px solid rgba(91,168,255,0.5); }
+  .player-photo.p2-border { border: 1.5px solid rgba(244,114,182,0.4); }
+  .player-photo.winner-border { border: 1.5px solid rgba(255,255,255,0.5); }
+  .player-photo.dim-border { border: 1.5px solid #1A2E3E; }
+
+  /* flag overlay on photo */
+  .photo-flag { position: absolute; bottom: 2px; right: 2px; font-size: 9px; line-height: 1; }
+
+  .pair-names { flex: 1; min-width: 0; }
+  .player-name {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.65;
+  }
+  .player-name.dim { color: #555; font-weight: 600; }
+
+  .pair-scores { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+  .set-score-cell {
+    width: 28px; text-align: center;
+    font-size: 28px; font-weight: 900; font-family: 'SF Mono', monospace; line-height: 1;
+  }
+  .set-score-cell.won { color: var(--text-primary); }
+  .set-score-cell.lost { color: #444; }
+  .set-score-cell.current { color: #555; }
+  .pts-cell {
+    width: 36px; text-align: center;
+    font-size: 28px; font-weight: 900; font-family: 'SF Mono', monospace; line-height: 1;
+    color: var(--color-live);
+  }
+  .pts-cell.dim { color: #333; }
+
+  /* game divider */
+  .game-divider {
+    display: flex; align-items: center; gap: 8px; padding: 7px 0;
+  }
+  .gd-line { flex: 1; height: 0.5px; background: var(--border-card); }
+  .gd-label { font-size: 10px; font-weight: 600; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
+  .sp-pill { font-size: 9px; font-weight: 700; color: var(--color-star); background: rgba(245,166,35,0.12); border: 0.5px solid rgba(245,166,35,0.3); border-radius: 4px; padding: 1px 5px; }
+
+  /* ── Fan support ── */
+  .support-section {
+    background: var(--bg-card);
+    border-top: 0.5px solid var(--border-card);
+    padding: 12px 14px;
+  }
+  .support-heading { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); text-align: center; margin-bottom: 10px; }
+  .support-sides { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 0.5px solid var(--border-card); }
+  .support-side {
+    flex: 1; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .support-side.p1s { background: rgba(91,168,255,0.06); border-right: 0.5px solid var(--border-card); }
+  .support-side.p2s { background: rgba(244,114,182,0.06); }
+  .support-pct { font-size: 26px; font-weight: 900; font-family: 'SF Mono', monospace; line-height: 1; }
+  .support-pct.p1c { color: var(--color-p1); }
+  .support-pct.p2c { color: var(--color-p2); }
+  .support-name { font-size: 10px; font-weight: 600; color: var(--text-secondary); text-align: center; line-height: 1.3; }
+  .support-track { height: 4px; border-radius: 2px; overflow: hidden; background: var(--border-card); display: flex; margin-top: 8px; }
+  .support-fill-p1 { background: linear-gradient(90deg, var(--color-p1), rgba(91,168,255,0.5)); }
+  .support-fill-p2 { flex: 1; background: linear-gradient(90deg, rgba(244,114,182,0.5), var(--color-p2)); }
+  .support-voters { font-size: 9px; color: var(--text-dim); text-align: center; margin-top: 6px; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; background: var(--bg-card-alt); border-top: 0.5px solid var(--border-card); border-bottom: 0.5px solid var(--border-card); }
+  .tab-btn { flex: 1; padding: 10px 4px; font-size: 11px; font-weight: 500; color: var(--text-dim); border-bottom: 2px solid transparent; text-align: center; }
+  .tab-btn.active { color: var(--color-accent); border-bottom: 2px solid var(--color-accent); font-weight: 700; }
+
+  /* ── Live Feed tab ── */
+  .live-feed { background: var(--bg-card-alt); }
+  .lf-feed-hdr { display: flex; align-items: center; gap: 6px; padding: 10px 14px 4px; }
+  .lf-feed-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+
+  .lf-game-block { border-top: 0.5px solid var(--border-card); }
+  .lf-game-hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 14px 4px; background: rgba(0,0,0,0.15);
+  }
+  .lf-game-left { display: flex; align-items: center; gap: 6px; }
+  .lf-game-num { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); }
+  .lf-game-result { font-size: 10px; font-weight: 700; }
+  .lf-game-result.live { color: var(--color-live); }
+  .lf-game-result.p1 { color: var(--color-p1); }
+  .lf-game-result.p2 { color: var(--color-p2); }
+  .lf-game-set-score { font-size: 10px; font-weight: 700; font-family: 'SF Mono', monospace; color: var(--text-dim); }
+
+  .lf-point {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 14px 5px 24px;
+    border-left: 2px solid transparent;
+  }
+  .lf-point.pt-p1 { border-left-color: rgba(91,168,255,0.3); }
+  .lf-point.pt-p2 { border-left-color: rgba(244,114,182,0.3); }
+  .lf-point.pt-sp { background: rgba(245,166,35,0.04); }
+  .lf-point.pt-latest { background: rgba(255,70,85,0.06); border-left-color: var(--color-live); }
+
+  .lf-pt-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .lf-pt-dot.p1 { background: var(--color-p1); }
+  .lf-pt-dot.p2 { background: var(--color-p2); }
+  .lf-pt-score { font-size: 11px; font-weight: 700; font-family: 'SF Mono', monospace; width: 54px; flex-shrink: 0; }
+  .lf-pt-score.p1c { color: var(--color-p1); }
+  .lf-pt-score.p2c { color: var(--color-p2); }
+  .lf-pt-who { flex: 1; font-size: 10px; color: var(--text-dim); }
+  .lf-now { font-size: 8px; font-weight: 700; color: var(--color-live); letter-spacing: 0.5px; }
+  .lf-sp { font-size: 8px; font-weight: 700; color: var(--color-star); background: rgba(245,166,35,0.12); border: 0.5px solid rgba(245,166,35,0.25); border-radius: 3px; padding: 1px 4px; }
+
+  /* ── Players tab ── */
+  .players-tab { background: var(--bg-card-alt); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .player-card {
+    background: var(--bg-card); border-radius: 10px; overflow: hidden;
+    border: 0.5px solid var(--border-card);
+  }
+  .player-card-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-bottom: 0.5px solid var(--border-card);
+  }
+  .player-card-photo {
+    width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+    background: #0D2540; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--text-secondary); overflow: hidden;
+  }
+  .player-card-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  .player-card-stats { display: flex; }
+  .player-stat { flex: 1; text-align: center; padding: 7px 0; border-right: 0.5px solid var(--border-card); }
+  .player-stat:last-child { border-right: none; }
+  .player-stat-val { font-size: 13px; font-weight: 700; }
+  .player-stat-label { font-size: 9px; color: #666; margin-top: 1px; }
+  .vs-divider { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .vs-line { flex: 1; height: 0.5px; background: #1A2E3A; }
+  .vs-label { font-size: 10px; font-weight: 800; color: var(--text-dim); letter-spacing: 2px; }
+
+  /* ── H2H tab ── */
+  .h2h-tab { background: var(--bg-card-alt); padding: 10px 14px; }
+  .h2h-summary { display: flex; align-items: center; gap: 0; margin-bottom: 14px; }
+  .h2h-side { flex: 1; text-align: center; }
+  .h2h-wins { font-size: 40px; font-weight: 900; font-family: 'SF Mono', monospace; line-height: 1; }
+  .h2h-wins.p1c { color: var(--color-p1); }
+  .h2h-wins.p2c { color: var(--color-p2); }
+  .h2h-label { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+  .h2h-sep { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 10px; }
+  .h2h-sep-label { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .h2h-match-list { display: flex; flex-direction: column; gap: 6px; }
+  .h2h-match { background: var(--bg-card); border-radius: 8px; overflow: hidden; border: 0.5px solid var(--border-card); }
+  .h2h-match-header { display: flex; justify-content: space-between; padding: 6px 10px; border-bottom: 0.5px solid var(--border-card); }
+  .h2h-match-event { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
+  .h2h-match-date { font-size: 9px; color: var(--text-dim); }
+  .h2h-match-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; }
+  .h2h-match-name { font-size: 11px; font-weight: 600; }
+  .h2h-match-name.won { color: var(--text-primary); }
+  .h2h-match-name.lost { color: #555; }
+  .h2h-match-score { font-size: 11px; font-weight: 700; font-family: 'SF Mono', monospace; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="page-title">Concept B · v2</div>
+<p class="page-sub">Stacked pairs · Score on the right · Support poll · Tabs</p>
+
+<div class="phones-row">
+
+  <!-- ══════════════════════════════ -->
+  <!--  PHONE 1 — Hero + Live Feed   -->
+  <!-- ══════════════════════════════ -->
+  <div class="phone-frame">
+    <div class="phone-label">Above the fold — Live Feed tab</div>
+    <div>
+      <!-- Nav -->
+      <div class="nav-bar">
+        <div class="back-btn">← Back</div>
+        <div class="live-pill"><div class="dot-live"></div> Live · 1h 12m</div>
+      </div>
+
+      <!-- Hero -->
+      <div class="hero">
+        <div class="hero-meta">
+          <span class="hero-court">Court Juan &amp; Bela</span>
+          <div class="hero-dot"></div>
+          <span class="hero-round-pill">Semifinals</span>
+          <span style="flex:1"></span>
+          <span style="font-size:10px;color:#666">Sat 28 Mar</span>
+        </div>
+
+        <!-- Set column labels -->
+        <div class="set-headers">
+          <div class="set-header-cell current">S1</div>
+          <div style="width:8px"></div>
+          <div class="pts-header-cell">Pts</div>
+        </div>
+
+        <!-- Pair 1 -->
+        <div class="pair-row">
+          <div class="pair-photos">
+            <div class="player-photo p1-border" style="background:linear-gradient(135deg,#0a2040,#0d2a4a)">
+              AC
+              <div class="photo-flag">🇧🇷</div>
+            </div>
+            <div class="player-photo p1-border" style="background:linear-gradient(135deg,#0a2040,#0d2a4a)">
+              AS
+              <div class="photo-flag">🇪🇸</div>
+            </div>
+          </div>
+          <div class="pair-names">
+            <div class="player-name">A. Coello</div>
+            <div class="player-name">A. Sanchez</div>
+          </div>
+          <div class="pair-scores">
+            <div class="set-score-cell won">4</div>
+            <div style="width:8px"></div>
+            <div class="pts-cell">40</div>
+          </div>
+        </div>
+
+        <!-- Game divider -->
+        <div class="game-divider">
+          <div class="gd-line"></div>
+          <div class="gd-label">
+            Game 9
+            <span class="sp-pill">★ Set point</span>
+          </div>
+          <div class="gd-line"></div>
+        </div>
+
+        <!-- Pair 2 -->
+        <div class="pair-row">
+          <div class="pair-photos">
+            <div class="player-photo dim-border" style="background:linear-gradient(135deg,#150D1A,#1A1025)">
+              AB
+              <div class="photo-flag">🇦🇷</div>
+            </div>
+            <div class="player-photo dim-border" style="background:linear-gradient(135deg,#150D1A,#1A1025)">
+              PJ
+              <div class="photo-flag">🇪🇸</div>
+            </div>
+          </div>
+          <div class="pair-names">
+            <div class="player-name dim">A. Brea</div>
+            <div class="player-name dim">P. Josemaria</div>
+          </div>
+          <div class="pair-scores">
+            <div class="set-score-cell lost">3</div>
+            <div style="width:8px"></div>
+            <div class="pts-cell dim">15</div>
+          </div>
+        </div>
+      </div><!-- /hero -->
+
+      <!-- Fan support -->
+      <div class="support-section">
+        <div class="support-heading">Who are you rooting for?</div>
+        <div class="support-sides">
+          <div class="support-side p1s">
+            <div class="support-pct p1c">62%</div>
+            <div class="support-name">Coello<br>Sanchez</div>
+          </div>
+          <div class="support-side p2s">
+            <div class="support-pct p2c">38%</div>
+            <div class="support-name">Brea<br>Josemaria</div>
+          </div>
+        </div>
+        <div class="support-track">
+          <div class="support-fill-p1" style="width:62%"></div>
+          <div class="support-fill-p2"></div>
+        </div>
+        <div class="support-voters">3,779 fans voted</div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab-btn active">Live Feed</div>
+        <div class="tab-btn">Players</div>
+        <div class="tab-btn">H2H</div>
+      </div>
+
+      <!-- Live Feed tab content -->
+      <div class="live-feed">
+        <div class="lf-feed-hdr">
+          <div class="dot-live"></div>
+          <div class="lf-feed-label">Point history</div>
+        </div>
+
+        <!-- Game 9 — live -->
+        <div class="lf-game-block">
+          <div class="lf-game-hdr">
+            <div class="lf-game-left">
+              <span class="lf-game-num">Game 9</span>
+              <span class="lf-game-result live">● In progress</span>
+            </div>
+            <span class="lf-game-set-score">4 – 3</span>
+          </div>
+          <div class="lf-point pt-latest pt-p1">
+            <div class="lf-pt-dot p1"></div>
+            <div class="lf-pt-score p1c">40 – 15</div>
+            <div class="lf-pt-who">Coello / Sanchez</div>
+            <div class="lf-now">● now</div>
+          </div>
+          <div class="lf-point pt-p2">
+            <div class="lf-pt-dot p2"></div>
+            <div class="lf-pt-score p2c">30 – 15</div>
+            <div class="lf-pt-who">Brea / Josemaria</div>
+          </div>
+          <div class="lf-point pt-p1">
+            <div class="lf-pt-dot p1"></div>
+            <div class="lf-pt-score p1c">30 – 0</div>
+            <div class="lf-pt-who">Coello / Sanchez</div>
+          </div>
+          <div class="lf-point pt-p1">
+            <div class="lf-pt-dot p1"></div>
+            <div class="lf-pt-score p1c">15 – 0</div>
+            <div class="lf-pt-who">Coello / Sanchez</div>
+          </div>
+        </div>
+
+        <!-- Game 8 -->
+        <div class="lf-game-block">
+          <div class="lf-game-hdr">
+            <div class="lf-game-left">
+              <span class="lf-game-num">Game 8</span>
+              <span class="lf-game-result p2">Brea / JM won</span>
+            </div>
+            <span class="lf-game-set-score">3 – 3</span>
+          </div>
+          <div class="lf-point pt-p2 pt-sp">
+            <div class="lf-pt-dot p2"></div>
+            <div class="lf-pt-score p2c">Adv – 40</div>
+            <div class="lf-pt-who">Brea / Josemaria</div>
+            <div class="lf-sp">★ SP</div>
+          </div>
+          <div class="lf-point pt-p1">
+            <div class="lf-pt-dot p1"></div>
+            <div class="lf-pt-score p1c">40 – 40</div>
+            <div class="lf-pt-who">Coello / Sanchez</div>
+          </div>
+          <div class="lf-point pt-p2">
+            <div class="lf-pt-dot p2"></div>
+            <div class="lf-pt-score p2c">40 – 40</div>
+            <div class="lf-pt-who">Brea / Josemaria</div>
+          </div>
+          <div class="lf-point pt-p1">
+            <div class="lf-pt-dot p1"></div>
+            <div class="lf-pt-score p1c">40 – 30</div>
+            <div class="lf-pt-who">Coello / Sanchez</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /phone 1 -->
+
+
+  <!-- ══════════════════════════════ -->
+  <!--  PHONE 2 — Players tab        -->
+  <!-- ══════════════════════════════ -->
+  <div class="phone-frame">
+    <div class="phone-label">Players tab</div>
+    <div>
+      <div class="nav-bar">
+        <div class="back-btn">← Back</div>
+        <div class="live-pill"><div class="dot-live"></div> Live</div>
+      </div>
+
+      <div class="hero">
+        <div class="hero-meta">
+          <span class="hero-court">Court Juan &amp; Bela</span>
+          <div class="hero-dot"></div>
+          <span class="hero-round-pill">Semifinals</span>
+          <span style="flex:1"></span>
+          <span style="font-size:10px;color:#666">Sat 28 Mar</span>
+        </div>
+        <div class="set-headers">
+          <div class="set-header-cell current">S1</div>
+          <div style="width:8px"></div>
+          <div class="pts-header-cell">Pts</div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-photos">
+            <div class="player-photo p1-border" style="background:linear-gradient(135deg,#0a2040,#0d2a4a)">AC<div class="photo-flag">🇧🇷</div></div>
+            <div class="player-photo p1-border" style="background:linear-gradient(135deg,#0a2040,#0d2a4a)">AS<div class="photo-flag">🇪🇸</div></div>
+          </div>
+          <div class="pair-names">
+            <div class="player-name">A. Coello</div>
+            <div class="player-name">A. Sanchez</div>
+          </div>
+          <div class="pair-scores">
+            <div class="set-score-cell won">4</div>
+            <div style="width:8px"></div>
+            <div class="pts-cell">40</div>
+          </div>
+        </div>
+        <div class="game-divider">
+          <div class="gd-line"></div>
+          <div class="gd-label">Game 9 <span class="sp-pill">★ Set point</span></div>
+          <div class="gd-line"></div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-photos">
+            <div class="player-photo dim-border" style="background:linear-gradient(135deg,#150D1A,#1A1025)">AB<div class="photo-flag">🇦🇷</div></div>
+            <div class="player-photo dim-border" style="background:linear-gradient(135deg,#150D1A,#1A1025)">PJ<div class="photo-flag">🇪🇸</div></div>
+          </div>
+          <div class="pair-names">
+            <div class="player-name dim">A. Brea</div>
+            <div class="player-name dim">P. Josemaria</div>
+          </div>
+          <div class="pair-scores">
+            <div class="set-score-cell lost">3</div>
+            <div style="width:8px"></div>
+            <div class="pts-cell dim">15</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="support-section">
+        <div class="support-heading">Who are you rooting for?</div>
+        <div class="support-sides">
+          <div class="support-side p1s">
+            <div class="support-pct p1c">62%</div>
+            <div class="support-name">Coello<br>Sanchez</div>
+          </div>
+          <div class="support-side p2s">
+            <div class="support-pct p2c">38%</div>
+            <div class="support-name">Brea<br>Josemaria</div>
+          </div>
+        </div>
+        <div class="support-track">
+          <div class="support-fill-p1" style="width:62%"></div>
+          <div class="support-fill-p2"></div>
+        </div>
+        <div class="support-voters">3,779 fans voted</div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab-btn">Live Feed</div>
+        <div class="tab-btn active">Players</div>
+        <div class="tab-btn">H2H</div>
+      </div>
+
+      <!-- Players tab -->
+      <div class="players-tab">
+        <div class="player-card">
+          <div class="player-card-header">
+            <div class="player-card-photo p1-border" style="background:linear-gradient(135deg,#0a2040,#0d2a4a);border:1.5px solid rgba(91,168,255,0.4)">AC</div>
+            <div>
+              <div class="player-card-name">🇧🇷 Ariana Coello</div>
+              <div style="font-size:10px;color:var(--color-p1)">Drive · Pair 1</div>
+            </div>
+          </div>
+          <div class="player-card-stats">
+            <div class="player-stat"><div class="player-stat-val" style="color:var(--color-accent)">#3</div><div class="player-stat-label">Rank</div></div>
+            <div class="player-stat"><div class="player-stat-val" style="color:#fff">78%</div><div class="player-stat-label">Win rate</div></div>
+            <div class="player-stat"><div class="player-stat-val" style="color:#aaa">142</div><div class="player-stat-label">Matches</div></div>
+          </div>
+        </div>
+
+        <div class="player-card">
+          <div class="player-card-header">
+            <div class="player-card-photo" style="background:linear-gradient(135deg,#0a2040,#0d2a4a);border:1.5px solid rgba(91,168,255,0.3)">AS</div>
+            <div>
+              <div class="player-card-name">🇪🇸 Alejandra Sanchez</div>
+              <div style="font-size:10px;color:var(--color-p1)">Backhand · Pair 1</div>
+            </div>
+          </div>
+          <div class="player-card-stats">
+            <div class="player-stat"><div class="player-stat-val" style="color:var(--color-accent)">#8</div><div class="player-stat-label">Rank</div></div>
+            <div class="player-stat"><div class="player-stat-val" style="color:#fff">71%</div><div class="player-stat-label">Win rate</div></div>
+            <div class="player-stat"><div class="player-stat-val" style="color:#aaa">118</div><div class="player-stat-label">Matches</div></div>
+          </div>
+        </div>
+
+        <div class="vs-divider">
+          <div class="vs-line"></div>
+          <div class="vs-label">VS</div>
+          <div class="vs-line"></div>
+        </div>
+
+        <div class="player-card">
+          <div class="player-card-header">
+            <div class="player-card-photo" style="background:linear-gradient(135deg,#150D1A,#1A1025);border:1.5px solid rgba(244,114,182,0.3)">AB</div>
+            <div>
+              <div class="player-card-name">🇦🇷 Ari Brea</div>
+              <div style="font-size:10px;color:var(--color-p2)">Drive · Pair 2</div>
+            </div>
+          </div>
+          <div class="player-card-stats">
+            <div class="player-stat"><div class="player-stat-val" style="color:var(--color-accent)">#5</div><div class="player-stat-label">Rank</div></div>
+            <div class="player-stat"><div class="player-stat-val" style="color:#fff">74%</div><div class="player-stat-label">Win rate</div></div>
+            <div class="player-stat"><div class="player-stat-val" style="color:#aaa">156</div><div class="player-stat-label">Matches</div></div>
+          </div>
+        </div>
+
+        <div class="player-card">
+          <div class="player-card-header">
+            <div class="player-card-photo" style="background:linear-gradient(135deg,#150D1A,#1A1025);border:1.5px solid rgba(244,114,182,0.25)">PJ</div>
+            <div>
+              <div class="player-card-name">🇪🇸 Paula Josemaria</div>
+              <div style="font-size:10px;color:var(--color-p2)">Backhand · Pair 2</div>
+            </div>
+          </div>
+          <div class="player-card-stats">
+            <div class="player-stat"><div class="player-stat-val" style="color:var(--color-accent)">#2</div><div class="player-stat-label">Rank</div></div>
+            <div class="player-stat"><div class="player-stat-val" style="color:#fff">81%</div><div class="player-stat-label">Win rate</div></div>
+            <div class="player-stat"><div class="player-stat-val" style="color:#aaa">189</div><div class="player-stat-label">Matches</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /phone 2 -->
+
+
+  <!-- ══════════════════════════════ -->
+  <!--  PHONE 3 — H2H tab            -->
+  <!-- ══════════════════════════════ -->
+  <div class="phone-frame">
+    <div class="phone-label">H2H tab</div>
+    <div>
+      <div class="nav-bar">
+        <div class="back-btn">← Back</div>
+        <div class="live-pill"><div class="dot-live"></div> Live</div>
+      </div>
+
+      <div class="hero">
+        <div class="hero-meta">
+          <span class="hero-court">Court Juan &amp; Bela</span>
+          <div class="hero-dot"></div>
+          <span class="hero-round-pill">Semifinals</span>
+          <span style="flex:1"></span>
+          <span style="font-size:10px;color:#666">Sat 28 Mar</span>
+        </div>
+        <div class="set-headers">
+          <div class="set-header-cell current">S1</div>
+          <div style="width:8px"></div>
+          <div class="pts-header-cell">Pts</div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-photos">
+            <div class="player-photo p1-border" style="background:linear-gradient(135deg,#0a2040,#0d2a4a)">AC<div class="photo-flag">🇧🇷</div></div>
+            <div class="player-photo p1-border" style="background:linear-gradient(135deg,#0a2040,#0d2a4a)">AS<div class="photo-flag">🇪🇸</div></div>
+          </div>
+          <div class="pair-names">
+            <div class="player-name">A. Coello</div>
+            <div class="player-name">A. Sanchez</div>
+          </div>
+          <div class="pair-scores">
+            <div class="set-score-cell won">4</div>
+            <div style="width:8px"></div>
+            <div class="pts-cell">40</div>
+          </div>
+        </div>
+        <div class="game-divider">
+          <div class="gd-line"></div>
+          <div class="gd-label">Game 9 <span class="sp-pill">★ Set point</span></div>
+          <div class="gd-line"></div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-photos">
+            <div class="player-photo dim-border" style="background:linear-gradient(135deg,#150D1A,#1A1025)">AB<div class="photo-flag">🇦🇷</div></div>
+            <div class="player-photo dim-border" style="background:linear-gradient(135deg,#150D1A,#1A1025)">PJ<div class="photo-flag">🇪🇸</div></div>
+          </div>
+          <div class="pair-names">
+            <div class="player-name dim">A. Brea</div>
+            <div class="player-name dim">P. Josemaria</div>
+          </div>
+          <div class="pair-scores">
+            <div class="set-score-cell lost">3</div>
+            <div style="width:8px"></div>
+            <div class="pts-cell dim">15</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="support-section">
+        <div class="support-heading">Who are you rooting for?</div>
+        <div class="support-sides">
+          <div class="support-side p1s">
+            <div class="support-pct p1c">62%</div>
+            <div class="support-name">Coello<br>Sanchez</div>
+          </div>
+          <div class="support-side p2s">
+            <div class="support-pct p2c">38%</div>
+            <div class="support-name">Brea<br>Josemaria</div>
+          </div>
+        </div>
+        <div class="support-track">
+          <div class="support-fill-p1" style="width:62%"></div>
+          <div class="support-fill-p2"></div>
+        </div>
+        <div class="support-voters">3,779 fans voted</div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab-btn">Live Feed</div>
+        <div class="tab-btn">Players</div>
+        <div class="tab-btn active">H2H</div>
+      </div>
+
+      <!-- H2H tab -->
+      <div class="h2h-tab">
+        <!-- Overall record -->
+        <div class="h2h-summary">
+          <div class="h2h-side">
+            <div class="h2h-wins p1c">7</div>
+            <div class="h2h-label" style="color:var(--color-p1)">Coello / San.</div>
+          </div>
+          <div class="h2h-sep">
+            <div class="h2h-sep-label">H2H</div>
+            <div style="font-size:9px;color:var(--text-dim)">11 matches</div>
+          </div>
+          <div class="h2h-side">
+            <div class="h2h-wins p2c">4</div>
+            <div class="h2h-label" style="color:var(--color-p2)">Brea / Jose.</div>
+          </div>
+        </div>
+
+        <!-- Match history -->
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);margin-bottom:8px">Recent meetings</div>
+        <div class="h2h-match-list">
+
+          <div class="h2h-match">
+            <div class="h2h-match-header">
+              <span class="h2h-match-event">Miami P1 2026 · Semifinals</span>
+              <span class="h2h-match-date">Today</span>
+            </div>
+            <div class="h2h-match-row">
+              <span class="h2h-match-name won">Coello / Sanchez</span>
+              <span class="h2h-match-score" style="color:var(--color-live)">● Live</span>
+            </div>
+            <div class="h2h-match-row">
+              <span class="h2h-match-name lost">Brea / Josemaria</span>
+              <span class="h2h-match-score"></span>
+            </div>
+          </div>
+
+          <div class="h2h-match">
+            <div class="h2h-match-header">
+              <span class="h2h-match-event">Qatar P1 2026 · Final</span>
+              <span class="h2h-match-date">Feb 2026</span>
+            </div>
+            <div class="h2h-match-row">
+              <span class="h2h-match-name won">Coello / Sanchez</span>
+              <span class="h2h-match-score">6–4  7–5</span>
+            </div>
+            <div class="h2h-match-row">
+              <span class="h2h-match-name lost">Brea / Josemaria</span>
+              <span class="h2h-match-score"></span>
+            </div>
+          </div>
+
+          <div class="h2h-match">
+            <div class="h2h-match-header">
+              <span class="h2h-match-event">World Finals 2025 · SF</span>
+              <span class="h2h-match-date">Dec 2025</span>
+            </div>
+            <div class="h2h-match-row">
+              <span class="h2h-match-name lost">Coello / Sanchez</span>
+              <span class="h2h-match-score">4–6  6–7</span>
+            </div>
+            <div class="h2h-match-row">
+              <span class="h2h-match-name won">Brea / Josemaria</span>
+              <span class="h2h-match-score"></span>
+            </div>
+          </div>
+
+          <div class="h2h-match">
+            <div class="h2h-match-header">
+              <span class="h2h-match-event">Madrid P1 2025 · QF</span>
+              <span class="h2h-match-date">Oct 2025</span>
+            </div>
+            <div class="h2h-match-row">
+              <span class="h2h-match-name won">Coello / Sanchez</span>
+              <span class="h2h-match-score">7–6  6–4</span>
+            </div>
+            <div class="h2h-match-row">
+              <span class="h2h-match-name lost">Brea / Josemaria</span>
+              <span class="h2h-match-score"></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div><!-- /phone 3 -->
+
+</div><!-- /phones-row -->
+
+<div style="text-align:center;padding-top:10px">
+  <p style="font-size:11px;color:var(--text-dim);line-height:1.8">
+    Phone 1: Hero + Fan support + Live Feed tab &nbsp;|&nbsp;
+    Phone 2: Players tab &nbsp;|&nbsp;
+    Phone 3: H2H tab
+  </p>
+</div>
+
+</body>
+</html>
