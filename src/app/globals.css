@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  /* ── Forge Dark — LoL-inspired ──────────────────────────────────── */
+  /* ── Forge Dark v2 ───────────────────────────────────────────────── */
 
-  /* Backgrounds — deep void with blue-black tint */
+  /* Backgrounds */
   --bg-base:     #020C18;
   --bg-card:     #061422;
   --bg-card-alt: #040E1C;
@@ -11,15 +11,15 @@
   --bg-subtle:   #050F20;
 
   /* Borders — metallic navy */
-  --border-base:  #0E2438;
-  --border-card:  #132C46;
+  --border-base:   #0E2438;
+  --border-card:   #132C46;
   --border-strong: #1C3D5C;
-  --border-inner: #0B1E30;
+  --border-inner:  #0B1E30;
 
   /* Text — warm parchment hierarchy */
-  --text-primary:   #EEE4CE;   /* warm off-white, LoL's "parchment" */
-  --text-secondary: #9AAEC4;   /* cool mid tone */
-  --text-muted:     #4E6E8A;   /* clearly muted */
+  --text-primary:   #EEE4CE;
+  --text-secondary: #9AAEC4;
+  --text-muted:     #4E6E8A;
   --text-dim:       #2D4E6A;
   --text-faint:     #1A3450;
   --text-ghost:     #0E2438;
@@ -30,35 +30,35 @@
   --color-live-bg:     rgba(255,70,85,0.10);
   --color-live-border: rgba(255,70,85,0.35);
 
-  /* Accent — LoL gold (primary brand) */
-  --color-accent:        #C89B3C;
-  --color-accent-bg:     rgba(200,155,60,0.10);
-  --color-accent-border: rgba(200,155,60,0.30);
+  /* Accent — Electric sky blue (replaces gold) */
+  --color-accent:        #38C8FF;
+  --color-accent-bg:     rgba(56,200,255,0.08);
+  --color-accent-border: rgba(56,200,255,0.25);
 
-  /* Success — Hextech teal (scores, winners) */
-  --color-success:        #0AC8B9;
-  --color-success-bg:     rgba(10,200,185,0.08);
-  --color-success-border: rgba(10,200,185,0.28);
+  /* Success — crisp white (replaces teal for scores/winners) */
+  --color-success:        #FFFFFF;
+  --color-success-bg:     rgba(255,255,255,0.06);
+  --color-success-border: rgba(255,255,255,0.22);
 
-  /* Bookmark — gold (same as accent) */
-  --color-bookmark:        #C89B3C;
-  --color-bookmark-bg:     rgba(200,155,60,0.12);
-  --color-bookmark-border: rgba(200,155,60,0.30);
+  /* Bookmark — electric blue (same as accent) */
+  --color-bookmark:        #38C8FF;
+  --color-bookmark-bg:     rgba(56,200,255,0.10);
+  --color-bookmark-border: rgba(56,200,255,0.25);
 
   /* Category accents */
-  --color-men:         #4FC3F7;
-  --color-men-bg:      rgba(79,195,247,0.10);
-  --color-men-border:  rgba(79,195,247,0.28);
-  --color-women:       #F48FB1;
-  --color-women-bg:    rgba(244,143,177,0.10);
-  --color-women-border:rgba(244,143,177,0.28);
+  --color-men:         #5BA8FF;
+  --color-men-bg:      rgba(91,168,255,0.10);
+  --color-men-border:  rgba(91,168,255,0.28);
+  --color-women:       #F472B6;
+  --color-women-bg:    rgba(244,114,182,0.10);
+  --color-women-border:rgba(244,114,182,0.28);
 
   /* Misc */
-  --color-p1:   #C89B3C;
+  --color-p1:   #38C8FF;
   --color-p2:   #818CF8;
-  --color-star: #C89B3C;
-  --color-rank: #C89B3C;
-  --color-side: #C89B3C;
+  --color-star: #38C8FF;
+  --color-rank: #38C8FF;
+  --color-side: #F472B6;
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
