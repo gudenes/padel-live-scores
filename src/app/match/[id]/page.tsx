@@ -1,7 +1,7 @@
 'use client'
 // src/app/match/[id]/page.tsx
 
-import { useState, useEffect, useCallback, use } from 'react'
+import { useState, useEffect, useCallback, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, Game, getCurrentScore, pairName, isStarPoint, countryFlag, parseSetScore } from '@/types/match'
@@ -65,6 +65,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [subTab, setSubTab] = useState<SubTab>('live')
   const [h2hMatches, setH2hMatches] = useState<any[]>([])
   const [h2hLoading, setH2hLoading] = useState(false)
+  const [heroHidden, setHeroHidden] = useState(false)
+  const heroSentinelRef = useRef<HTMLDivElement>(null)
 
   const fetchMatch = useCallback(async () => {
     const { data, error } = await supabase
@@ -146,6 +148,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     return () => { supabase.removeChannel(channel) }
   }, [fetchMatch, id])
 
+  useEffect(() => {
+    const el = heroSentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => setHeroHidden(!entry.isIntersecting),
+      { threshold: 0 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [match])
+
   const handleSubTab = (tab: SubTab) => {
     setSubTab(tab)
     if (tab === 'h2h' && h2hMatches.length === 0 && !h2hLoading && match) {
@@ -222,6 +235,64 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         )}
       </div>
 
+      {/* ── Compact sticky score (appears when hero scrolls away) ────── */}
+      <div style={{
+        position: 'sticky', top: 49, zIndex: 8,
+        background: 'var(--bg-card)',
+        borderBottom: `2px solid ${genderAccent}`,
+        overflow: 'hidden',
+        maxHeight: heroHidden ? 62 : 0,
+        opacity: heroHidden ? 1 : 0,
+        transition: 'max-height 0.25s ease, opacity 0.2s ease',
+      }}>
+        <div style={{ padding: '7px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {/* Pair 1 compact row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: p2Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {pair1Label}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+              {(match.sets ?? []).map(set => {
+                const parsed = parseSetScore(set.set_score)
+                const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
+                return (
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'var(--font-mono)', color: p1WonSet && !set.is_current ? 'var(--text-primary)' : '#555' }}>
+                    {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
+                  </span>
+                )
+              })}
+              {!isFinished && (
+                <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', color: starPoint ? 'var(--color-star)' : 'var(--color-live)', marginLeft: 4 }}>
+                  {p1Point ?? '0'}
+                </span>
+              )}
+            </div>
+          </div>
+          {/* Pair 2 compact row */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: p1Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {pair2Label}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+              {(match.sets ?? []).map(set => {
+                const parsed = parseSetScore(set.set_score)
+                const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
+                return (
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'var(--font-mono)', color: p2WonSet && !set.is_current ? 'var(--text-primary)' : '#555' }}>
+                    {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
+                  </span>
+                )
+              })}
+              {!isFinished && (
+                <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', color: '#333', marginLeft: 4 }}>
+                  {p2Point ?? '0'}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── Hero score ────────────────────────────────────────────────── */}
       <div style={{ background: 'var(--bg-card)', borderTop: `3px solid ${genderAccent}`, padding: '14px 16px 0', borderBottom: '0.5px solid var(--border-card)' }}>
 
@@ -285,7 +356,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <div style={{ flex: 1, height: '0.5px', background: 'var(--border-card)' }} />
             <span style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
               {starPoint && <span style={{ color: 'var(--color-star)', fontSize: 9, fontWeight: 700, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.3)', borderRadius: 4, padding: '1px 5px' }}>★ Star point</span>}
-              Game {currentGame.game_number}
             </span>
             <div style={{ flex: 1, height: '0.5px', background: 'var(--border-card)' }} />
           </div>
@@ -327,6 +397,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             )}
           </div>
         </div>
+        {/* Sentinel: compact bar appears when this scrolls out of view */}
+        <div ref={heroSentinelRef} style={{ height: 0 }} />
       </div>
 
       {/* ── Fan support ───────────────────────────────────────────────── */}
@@ -352,7 +424,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* ── Sub-tabs ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border-card)', background: 'var(--bg-card-alt)', position: 'sticky', top: 49, zIndex: 9 }}>
+      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border-card)', background: 'var(--bg-card-alt)', position: 'sticky', top: heroHidden ? 49 + 62 : 49, zIndex: 7, transition: 'top 0.25s ease' }}>
         {(['live', 'players', 'h2h'] as SubTab[]).map(tab => (
           <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? 'var(--color-accent)' : 'var(--text-dim)', borderBottom: subTab === tab ? '2px solid var(--color-accent)' : '2px solid transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
             {tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
