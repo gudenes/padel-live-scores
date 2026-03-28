@@ -350,6 +350,63 @@ async function upsertSetsAndGames(
   }
 }
 
+// ── Refresh tournament draw after a match finishes ─────────────
+// Called once per tournament per cron run when a match transitions to finished.
+// Fetches the tournament matches list and updates player assignments on all
+// scheduled matches — keeps the draw current without waiting for the 6h sync.
+const _refreshedTournaments = new Set<string>()
+
+async function refreshTournamentDraw(tournamentDbId: string): Promise<void> {
+  if (_refreshedTournaments.has(tournamentDbId)) return // once per cron run
+  _refreshedTournaments.add(tournamentDbId)
+
+  const { data: tournament } = await supabase
+    .from('tournaments')
+    .select('external_id')
+    .eq('id', tournamentDbId)
+    .single()
+  if (!tournament) return
+
+  const res = await fetch(`${PADELAPI_BASE}/tournaments/${tournament.external_id}/matches?per_page=50`, {
+    headers: { Authorization: `Bearer ${PADELAPI_TOKEN}` },
+  })
+  if (!res.ok) return
+
+  const data = await res.json()
+  const matches: any[] = Array.isArray(data) ? data : (data.data ?? [])
+
+  let updated = 0
+  for (const match of matches) {
+    if (match.status !== 'scheduled' || !match.id) continue
+    const team1: any[] = match.players?.team_1 ?? []
+    const team2: any[] = match.players?.team_2 ?? []
+    if (!team1.length && !team2.length) continue
+
+    const [p1p1, p1p2, p2p1, p2p2] = await Promise.all([
+      team1[0] ? upsertPlayer(team1[0].name, team1[0].id) : Promise.resolve(null),
+      team1[1] ? upsertPlayer(team1[1].name, team1[1].id) : Promise.resolve(null),
+      team2[0] ? upsertPlayer(team2[0].name, team2[0].id) : Promise.resolve(null),
+      team2[1] ? upsertPlayer(team2[1].name, team2[1].id) : Promise.resolve(null),
+    ])
+
+    const patch: Record<string, any> = {
+      schedule_label: match.schedule_label ?? null,
+      court: match.court ?? null,
+      court_order: match.court_order ?? null,
+      updated_at: new Date().toISOString(),
+    }
+    if (p1p1) patch.pair1_player1_id = p1p1
+    if (p1p2) patch.pair1_player2_id = p1p2
+    if (p2p1) patch.pair2_player1_id = p2p1
+    if (p2p2) patch.pair2_player2_id = p2p2
+
+    await supabase.from('matches').update(patch).eq('external_id', String(match.id))
+    updated++
+  }
+
+  console.log(`[Score Agent] ✓ Draw refreshed for tournament ${tournament.external_id} — ${updated} scheduled matches updated`)
+}
+
 // ── Write final authoritative state from detail endpoint ───────
 // Called when a match finishes — uses GET /api/matches/{id} which
 // returns the correct winner and clean set scores
@@ -518,6 +575,11 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
   if (isFinished) {
     // ── Finish transition: immediately fetch authoritative final state ──
     const written = await writeFinalState(matchRow.id, externalId)
+
+    // ── Refresh draw: update scheduled matches in this tournament ──
+    if (written && existing?.tournament_id && !isRateLimited()) {
+      await refreshTournamentDraw(existing.tournament_id)
+    }
 
     // ── NEW: Inference fallback ──
     // If writeFinalState couldn't get the score (e.g. API returned null during
