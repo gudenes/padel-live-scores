@@ -70,7 +70,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     if (!isLive) return
     if (prevP1Point.current !== null && prevP1Point.current !== p1Point) {
       setP1RowSweeping(true)
-      setTimeout(() => setP1RowSweeping(false), 1650)
+      setTimeout(() => setP1RowSweeping(false), 2100)
     }
     prevP1Point.current = p1Point ?? null
   }, [p1Point]) // eslint-disable-line
@@ -79,7 +79,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     if (!isLive) return
     if (prevP2Point.current !== null && prevP2Point.current !== p2Point) {
       setP2RowSweeping(true)
-      setTimeout(() => setP2RowSweeping(false), 1650)
+      setTimeout(() => setP2RowSweeping(false), 2100)
     }
     prevP2Point.current = p2Point ?? null
   }, [p2Point]) // eslint-disable-line
@@ -372,7 +372,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Pair 1 */}
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderBottom: '1px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3, borderRadius: 4, ...(p1RowSweeping ? { animation: 'sweepFlash 1.6s ease-out forwards' } : {}) }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderBottom: '1px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3, borderRadius: 4, ...(p1RowSweeping ? { animation: 'sweepFlash 2s ease-out forwards' } : {}) }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? 'var(--text-muted)' : 'var(--text-primary)' }}>
@@ -408,7 +408,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                   </div>
                 </div>
                 {/* Pair 2 */}
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderRadius: 4, ...(p2RowSweeping ? { animation: 'sweepFlash 1.6s ease-out forwards' } : {}) }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderRadius: 4, ...(p2RowSweeping ? { animation: 'sweepFlash 2s ease-out forwards' } : {}) }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? 'var(--text-muted)' : 'var(--text-primary)' }}>

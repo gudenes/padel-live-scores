@@ -79,10 +79,10 @@ button:focus { outline: none; }
 /* ── Live match animations ─────────────────────────────────────────────── */
 /* Sweep Flash — pair row highlight when a point is scored */
 @keyframes sweepFlash {
-  0%   { background: linear-gradient(90deg, rgba(255,70,85,0.55) 0%, rgba(255,70,85,0.00) 0%); }
-  35%  { background: linear-gradient(90deg, rgba(255,70,85,0.55) 0%, rgba(255,70,85,0.28) 100%); }
-  65%  { background: linear-gradient(90deg, rgba(255,70,85,0.30) 0%, rgba(255,70,85,0.15) 100%); }
-  100% { background: rgba(255,70,85,0.09); }
+  0%   { background: linear-gradient(90deg, rgba(255,70,85,0.60) 0%, rgba(255,70,85,0.00) 0%); }
+  35%  { background: linear-gradient(90deg, rgba(255,70,85,0.60) 0%, rgba(255,70,85,0.30) 100%); }
+  70%  { background: linear-gradient(90deg, rgba(255,70,85,0.35) 0%, rgba(255,70,85,0.18) 100%); }
+  100% { background: rgba(255,70,85,0.00); }
 }
 /* Slide Up — game score number when a game is won */
 @keyframes gameScoreSlide {

@@ -143,15 +143,15 @@
   .a-game-flash { animation: scoreBounce 0.45s cubic-bezier(.36,.07,.19,.97) forwards; }
 
   /* ════════════════════════════════════════════
-     OPTION B — Left Sweep Flash
-     Scoring row: light bar sweeps L→R then settles
+     OPTION B — Sweep Flash + Persistent Highlight
+     Scoring row: 2s sweep L→R, then holds subtle tint
      Game scored: score number slides up/fades in
   ════════════════════════════════════════════ */
   @keyframes sweepIn {
-    0%   { background: linear-gradient(90deg, rgba(255,70,85,0.55) 0%, rgba(255,70,85,0.0) 0%); }
-    35%  { background: linear-gradient(90deg, rgba(255,70,85,0.55) 0%, rgba(255,70,85,0.28) 100%); }
-    65%  { background: linear-gradient(90deg, rgba(255,70,85,0.38) 0%, rgba(255,70,85,0.18) 100%); }
-    100% { background: rgba(255,70,85,0.09); }
+    0%   { background: linear-gradient(90deg, rgba(255,70,85,0.60) 0%, rgba(255,70,85,0.00) 0%); }
+    35%  { background: linear-gradient(90deg, rgba(255,70,85,0.60) 0%, rgba(255,70,85,0.30) 100%); }
+    70%  { background: linear-gradient(90deg, rgba(255,70,85,0.35) 0%, rgba(255,70,85,0.18) 100%); }
+    100% { background: rgba(255,70,85,0.10); }
   }
   @keyframes scoreSlideUp {
     0%   { transform: translateY(8px); opacity: 0; }
@@ -159,14 +159,13 @@
     100% { transform: translateY(0);   opacity: 1; }
   }
   .b-scoring {
-    animation: sweepIn 1.6s ease-out forwards;
+    animation: sweepIn 2s ease-out forwards;
     border-radius: 5px;
   }
   .b-scoring-hold {
-    background: rgba(255,70,85,0.09);
+    background: rgba(255,70,85,0.10);
     border-radius: 5px;
   }
-  .b-dimmed .live-score { opacity: 0.2; }
   .b-game-flash .live-score { animation: scoreSlideUp 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
 
   /* ════════════════════════════════════════════
@@ -262,8 +261,8 @@
 
     <!-- ══════════════ OPTION B ══════════════ -->
     <div class="option">
-      <div class="option-label">Option B &mdash; Sweep Flash <span>dynamic · directional</span></div>
-      <p class="option-desc">A bright flash sweeps left-to-right across the scoring pair's row then settles into a subtle red tint. Score number slides up into place when a game is scored — communicates momentum.</p>
+      <div class="option-label">Option B &mdash; Sweep Flash <span>dynamic · persistent</span></div>
+      <p class="option-desc">A bright flash sweeps left-to-right across the scoring pair's row over 2s, then fully disappears — no persistent background. Game scored: score number slides up into place.</p>
 
       <div class="card" id="card-b">
         <div class="card-top">
@@ -376,19 +375,17 @@ function triggerB(scorer) {
   const row1 = document.getElementById('b-row1')
   const row2 = document.getElementById('b-row2')
 
-  // Reset both
+  // Reset both rows to default before re-triggering
   row1.className = 'pair-row'
   row2.className = 'pair-row'
-  void row1.offsetWidth
+  void row1.offsetWidth // force reflow to restart animation
 
   if (scorer === 'pair1') {
     row1.classList.add('b-scoring')
-    row2.classList.add('b-dimmed')
-    setTimeout(() => { row1.classList.remove('b-scoring'); row1.classList.add('b-scoring-hold') }, 1650)
+    setTimeout(() => { row1.classList.remove('b-scoring') }, 2000)
   } else {
     row2.classList.add('b-scoring')
-    row1.classList.add('b-dimmed')
-    setTimeout(() => { row2.classList.remove('b-scoring'); row2.classList.add('b-scoring-hold') }, 1650)
+    setTimeout(() => { row2.classList.remove('b-scoring') }, 2000)
   }
 }
 function triggerBGame() {
