@@ -34,6 +34,8 @@ function getDateStrip(): { date: Date; label: string; key: string }[] {
 function matchDay(m: Match): string {
   const src = (m as any).started_at ?? (m as any).scheduled_at ?? (m as any).finished_at
   if (!src) return 'unknown'
+  // For pure date strings (YYYY-MM-DD) skip the Date constructor to avoid UTC→local shift
+  if (typeof src === 'string' && src.length === 10) return src
   try { return localDateKey(new Date(src)) } catch { return src.slice(0, 10) }
 }
 
@@ -174,6 +176,11 @@ export default function V2Page() {
         if (m.status === 'scheduled') {
           const src = (m as any).scheduled_at ?? (m as any).started_at
           if (!src) return selectedDate === today
+          // scheduled_at is stored as UTC midnight ("2026-03-28T00:00:00+00:00").
+          // Running it through the Date constructor + localDateKey() shifts it back one day
+          // in any UTC− timezone (e.g. Miami UTC-4 → March 27).
+          // Take the ISO date prefix directly — it always equals the intended match day.
+          if (typeof src === 'string') return src.slice(0, 10) === selectedDate
           try { return localDateKey(new Date(src)) === selectedDate } catch { return src.slice(0, 10) === selectedDate }
         }
         return selectedDate === today // live always on today
@@ -269,10 +276,10 @@ export default function V2Page() {
                 <img
                   src={activeTournamentObj.logo_url}
                   alt=""
-                  style={{ width: 44, height: 44, objectFit: 'contain', borderRadius: 10, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border), 0 4px 12px rgba(0,0,0,0.4)' }}
+                  style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border), 0 4px 12px rgba(0,0,0,0.4)' }}
                 />
               ) : activeTournamentObj.country ? (
-                <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border)' }}>
+                <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border)' }}>
                   {countryFlag(activeTournamentObj.country)}
                 </div>
               ) : null}
