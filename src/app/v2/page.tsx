@@ -314,10 +314,10 @@ export default function V2Page() {
   const SectionHeader = ({ label, color, dot, right, rightColor }: {
     label: string; color?: string; dot?: boolean; right?: string; rightColor?: string
   }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 2px 7px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px 8px' }}>
       {dot && <span style={{ width: 5, height: 5, borderRadius: '50%', background: color ?? 'var(--text-muted)', flexShrink: 0, animation: 'blink 1.4s ease-in-out infinite' }} />}
-      <span style={{ fontSize: 10, color: color ?? 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>{label}</span>
-      <div style={{ flex: 1, height: '0.5px', background: color ? `${color}22` : 'var(--border-base)' }} />
+      <span style={{ fontSize: 9, color: color ?? 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</span>
+      <div style={{ flex: 1, height: '1px', background: color ? `${color}18` : 'var(--border-base)' }} />
       {right && <span style={{ fontSize: 9, color: rightColor ?? 'var(--text-faint)', whiteSpace: 'nowrap', transition: 'color 0.4s ease' }}>{right}</span>}
     </div>
   )
@@ -345,22 +345,23 @@ export default function V2Page() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {localClock && (
                 <div style={{
-                  border: '0.5px solid var(--border-strong)', borderRadius: 20,
+                  border: '1px solid var(--border-strong)', borderRadius: 8,
                   padding: '3px 10px', textAlign: 'center',
+                  background: 'var(--bg-card)',
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', lineHeight: 1.2 }}>{localClock}</div>
-                  <div style={{ fontSize: 8, color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', lineHeight: 1.2, letterSpacing: '-0.3px' }}>{localClock}</div>
+                  <div style={{ fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.3px', textTransform: 'uppercase' }}>
                     {Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, ' ').split('/').pop()}
                   </div>
                 </div>
               )}
               {liveCount > 0 && (
                 <div style={{
-                  background: 'var(--color-live-bg)', border: '0.5px solid var(--color-live-border)',
-                  borderRadius: 20, padding: '3px 9px', display: 'flex', alignItems: 'center', gap: 4,
+                  background: 'var(--color-live-bg)', border: '1px solid var(--color-live-border)',
+                  borderRadius: 8, padding: '3px 9px', display: 'flex', alignItems: 'center', gap: 5,
                 }}>
                   <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
-                  <span style={{ fontSize: 10, color: 'var(--color-live)', fontWeight: 700 }}>{liveCount} live</span>
+                  <span style={{ fontSize: 10, color: 'var(--color-live)', fontWeight: 800, letterSpacing: '0.3px', textTransform: 'uppercase' }}>{liveCount} live</span>
                 </div>
               )}
             </div>
@@ -378,10 +379,10 @@ export default function V2Page() {
                 <img
                   src={activeTournamentObj.logo_url}
                   alt=""
-                  style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border), 0 4px 12px rgba(0,0,0,0.4)' }}
+                  style={{ width: 58, height: 58, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, boxShadow: '0 0 0 1px rgba(200,155,60,0.35), 0 0 16px rgba(200,155,60,0.12), 0 4px 14px rgba(0,0,0,0.6)' }}
                 />
               ) : activeTournamentObj.country ? (
-                <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border)' }}>
+                <div style={{ width: 58, height: 58, borderRadius: 12, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, boxShadow: '0 0 0 1px rgba(200,155,60,0.25)' }}>
                   {countryFlag(activeTournamentObj.country)}
                 </div>
               ) : null}
@@ -463,9 +464,9 @@ export default function V2Page() {
                       flexShrink: 0,
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                       padding: '6px 14px',
-                      borderRadius: 20,
-                      border: `1px solid ${active ? 'var(--color-accent)' : 'var(--border-base)'}`,
-                      background: active ? 'var(--color-accent-bg)' : 'var(--bg-card)',
+                      borderRadius: 8,
+                      border: active ? '1px solid rgba(200,155,60,0.50)' : '1px solid var(--border-strong)',
+                      background: active ? 'rgba(200,155,60,0.10)' : 'var(--bg-card)',
                       cursor: 'pointer',
                     }}
                   >

@@ -158,6 +158,23 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     } catch { return null }
   })()
 
+  // ── Shared pill styles ────────────────────────────────────────
+  const pillRound = { fontSize: 9, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase' as const, color: 'var(--color-accent)', background: 'rgba(200,155,60,0.08)', borderRadius: 5, padding: '2px 7px', border: '1px solid rgba(200,155,60,0.22)' }
+  const pillCourt = { fontSize: 9, fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 5, padding: '2px 7px', border: '1px solid var(--border-strong)', maxWidth: 130, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }
+
+  // ── Card wrapper style ─────────────────────────────────────────
+  const cardStyle = {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border-card)',
+    borderLeft: `3px solid ${genderAccent}`,
+    borderRadius: 8,
+    marginBottom: 5,
+    overflow: 'hidden' as const,
+    cursor: 'pointer' as const,
+    width: '100%',
+    boxSizing: 'border-box' as const,
+  }
+
   // ── Walkover card ─────────────────────────────────────────────
   if (isWalkover) {
     const woWinner = winnerPair === 1
@@ -167,18 +184,15 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
       : 'TBD'
 
     return (
-      <div
-        onClick={() => router.push(`/match/${match.id}`)}
-        style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border-card)', borderLeft: `3px solid ${genderAccent}`, borderRadius: 10, marginBottom: 5, overflow: 'hidden', cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
-      >
-        <div style={{ padding: '5px 10px 6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            <span style={{ fontSize: 9, color: '#888', fontWeight: 600, letterSpacing: '0.3px' }}>W/O</span>
-            {roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
-            {court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
+      <div onClick={() => router.push(`/match/${match.id}`)} style={cardStyle}>
+        <div style={{ padding: '6px 10px 7px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.4px' }}>W/O</span>
+            {roundLabel && <span style={pillRound}>{roundLabel}</span>}
+            {court && <span style={pillCourt}>{court}</span>}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
-            {woWinner} <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>wins by walkover</span>
+            {woWinner} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>wins by walkover</span>
           </div>
         </div>
       </div>
@@ -188,19 +202,16 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   // ── Warming up card ───────────────────────────────────────────
   if (isWarming) {
     return (
-      <div
-        onClick={() => router.push(`/match/${match.id}`)}
-        style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border-card)', borderLeft: `3px solid ${genderAccent}`, borderRadius: 10, marginBottom: 5, overflow: 'hidden', cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
-      >
-        <div style={{ padding: '5px 10px 6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-            <span style={{ fontSize: 9, color: 'var(--color-live)', fontWeight: 600, letterSpacing: '0.3px' }}>⚬ WARMING UP</span>
-            {roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
-            {court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
+      <div onClick={() => router.push(`/match/${match.id}`)} style={cardStyle}>
+        <div style={{ padding: '6px 10px 7px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+            <span style={{ fontSize: 9, color: 'var(--color-live)', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase' }}>● Warming up</span>
+            {roundLabel && <span style={pillRound}>{roundLabel}</span>}
+            {court && <span style={pillCourt}>{court}</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
+              <div style={{ borderBottom: '1px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
                   {pairName(match.pair1_player1, null)}
@@ -221,7 +232,6 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
@@ -229,149 +239,137 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   }
 
   return (
-    <div
-      onClick={() => router.push(`/match/${match.id}`)}
-      style={{ background: 'var(--bg-card)', border: '0.5px solid var(--border-card)', borderLeft: `3px solid ${genderAccent}`, borderRadius: 10, marginBottom: 5, overflow: 'hidden', cursor: 'pointer', width: '100%', boxSizing: 'border-box' }}
-    >
-      <div style={{ padding: '5px 10px 6px' }}>
+    <div onClick={() => router.push(`/match/${match.id}`)} style={cardStyle}>
+      <div style={{ padding: '6px 10px 7px' }}>
         {isUpcoming ? (
           <>
             {(roundLabel || court) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                {roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
-                {court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+                {roundLabel && <span style={pillRound}>{roundLabel}</span>}
+                {court && <span style={pillCourt}>{court}</span>}
               </div>
             )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {/* Players column + bookmark bell */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
-                    {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
-                    {pairName(match.pair1_player1, null)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Players column + bookmark bell */}
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ borderBottom: '1px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
+                      {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
+                      {pairName(match.pair1_player1, null)}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', marginTop: 1 }}>
+                      {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
+                      {pairName(match.pair1_player2, null)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', marginTop: 1 }}>
-                    {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
-                    {pairName(match.pair1_player2, null)}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
+                      {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
+                      {pairName(match.pair2_player1, null)}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', marginTop: 1 }}>
+                      {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
+                      {pairName(match.pair2_player2, null)}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>
-                    {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
-                    {pairName(match.pair2_player1, null)}
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)', marginTop: 1 }}>
-                    {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
-                    {pairName(match.pair2_player2, null)}
-                  </div>
-                </div>
-              </div>
-              {/* Bell bookmark — vertically centred alongside the player names */}
-              {onBookmark && (
-                <button
-                  onClick={e => { e.stopPropagation(); onBookmark() }}
-                  style={{
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    padding: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    position: 'relative',
-                  }}
-                  aria-label={bookmarked ? 'Remove notification' : 'Notify me when this starts'}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24"
-                    fill={bookmarked ? 'var(--color-bookmark)' : 'none'}
-                    stroke={bookmarked ? 'var(--color-bookmark)' : 'var(--text-ghost)'}
-                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                {/* Bell bookmark */}
+                {onBookmark && (
+                  <button
+                    onClick={e => { e.stopPropagation(); onBookmark() }}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+                    aria-label={bookmarked ? 'Remove notification' : 'Notify me when this starts'}
                   >
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                  </svg>
-                  {bookmarked && (
-                    <span style={{
-                      position: 'absolute', top: 2, right: 2,
-                      width: 6, height: 6, borderRadius: '50%',
-                      background: 'var(--color-live)',
-                      border: '1px solid var(--bg-card)',
-                    }} />
-                  )}
-                </button>
-              )}
-            </div>
-            <div style={{ flexShrink: 0, width: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              {scheduledTime ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-bookmark)', lineHeight: 1.2, letterSpacing: '-0.3px', fontFamily: 'var(--font-mono)' }}>
-                    {scheduledTime}{isEstimatedTime && <span style={{ fontSize: 11, verticalAlign: 'super', marginLeft: 1 }}>*</span>}
-                  </span>
-                  {isEstimatedTime && (
-                    <span style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>
-                      {isNotBefore ? 'min.' : 'est.'}
+                    <svg width="18" height="18" viewBox="0 0 24 24"
+                      fill={bookmarked ? 'var(--color-bookmark)' : 'none'}
+                      stroke={bookmarked ? 'var(--color-bookmark)' : 'var(--text-faint)'}
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    >
+                      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                    {bookmarked && (
+                      <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, borderRadius: '50%', background: 'var(--color-live)', border: '1px solid var(--bg-card)' }} />
+                    )}
+                  </button>
+                )}
+              </div>
+              {/* Time column */}
+              <div style={{ flexShrink: 0, width: 110, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                {scheduledTime ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--color-accent)', lineHeight: 1.1, letterSpacing: '-0.3px', fontFamily: 'var(--font-mono)' }}>
+                      {scheduledTime}{isEstimatedTime && <span style={{ fontSize: 11, verticalAlign: 'super', marginLeft: 1 }}>*</span>}
                     </span>
-                  )}
-                </div>
-              ) : (
-                <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-faint)' }}>TBD</span>
-              )}
+                    {isEstimatedTime && (
+                      <span style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2, letterSpacing: '0.3px', textTransform: 'uppercase' }}>
+                        {isNotBefore ? 'min.' : 'est.'}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.3px' }}>TBD</span>
+                )}
+              </div>
             </div>
-          </div>
           </>
         ) : (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                {isFinished && !isRetired && !isBye && <span style={{ fontSize: 9, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.3px' }}>FINISHED</span>}
-                {isRetired && <span style={{ fontSize: 9, color: '#f87171', fontWeight: 600, letterSpacing: '0.3px' }}>RETIRED</span>}
-                {isBye && <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.3px' }}>BYE</span>}
-                {isFinished && roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
-                {isFinished && court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
-                {isLive && <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.3px' }}>LIVE</span>}
-                {isLive && roundLabel && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)' }}>{roundLabel}</span>}
-                {isLive && court && <span style={{ fontSize: 9, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 4, padding: '1px 6px', fontWeight: 500, border: '0.5px solid var(--border-strong)', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{court}</span>}
+            {/* Header row: status + round + court | set headers */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                {isFinished && !isRetired && !isBye && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Finished</span>}
+                {isRetired && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--color-women)', textTransform: 'uppercase' }}>Retired</span>}
+                {isBye && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bye</span>}
+                {isLive && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--color-live)', textTransform: 'uppercase' }}>● Live</span>}
+                {roundLabel && <span style={pillRound}>{roundLabel}</span>}
+                {court && <span style={pillCourt}>{court}</span>}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
-                <div style={{ display: 'flex', gap: 2, opacity: 0.7 }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 2 }}>
                   {displaySets.map((set) => (
-                    <span key={set.set_number} style={{ fontSize: 8, width: isLive ? 24 : 16, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : 'var(--text-muted)', fontWeight: 600 }}>S{set.set_number}</span>
+                    <span key={set.set_number} style={{ fontSize: 8, width: isLive ? 24 : 16, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : 'var(--text-faint)', fontWeight: 700, letterSpacing: '0.2px' }}>S{set.set_number}</span>
                   ))}
-                  {isLive && <><span style={{ width: 4 }} /><span style={{ fontSize: 8, width: 32, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, marginLeft: 8 }}>Pts</span></>}
+                  {isLive && <><span style={{ width: 4 }} /><span style={{ fontSize: 8, width: 32, textAlign: 'center', color: 'var(--text-faint)', fontWeight: 700, marginLeft: 8 }}>Pts</span></>}
                 </div>
-                {isFinished && <span style={{ fontSize: 8, width: 28, textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600, marginLeft: 6 }}>Sets</span>}
+                {isFinished && <span style={{ fontSize: 8, width: 28, textAlign: 'center', color: 'var(--text-faint)', fontWeight: 700, marginLeft: 6, letterSpacing: '0.2px' }}>Sets</span>}
               </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Pair 1 */}
-                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderBottom: '0.5px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
+                <div style={{ display: 'flex', alignItems: 'stretch', gap: 6, borderBottom: '1px solid var(--border-inner)', paddingBottom: 3, marginBottom: 3 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                      <span style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? 'var(--text-muted)' : 'var(--text-primary)' }}>
                         {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
                         {pairName(match.pair1_player1, null)}
                       </span>
-                      {isRetired && p2Won && <span style={{ fontSize: 8, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '0.5px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '1px 5px', fontWeight: 600, flexShrink: 0 }}>RET</span>}
+                      {isRetired && p2Won && <span style={{ fontSize: 8, color: 'var(--color-women)', background: 'var(--color-women-bg)', border: '1px solid var(--color-women-border)', borderRadius: 4, padding: '1px 5px', fontWeight: 700, flexShrink: 0 }}>RET</span>}
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? 'var(--text-secondary)' : 'var(--text-primary)', marginTop: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: p1Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p2Won ? 'var(--text-muted)' : 'var(--text-primary)', marginTop: 1 }}>
                       {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
                       {pairName(match.pair1_player2, null)}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, flexShrink: 0 }}>
-                    <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p2Won ? 0.6 : 0.85) : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p2Won ? 0.5 : 0.9) : 1 }}>
                       {displaySets.map((set) => {
                         const parsed = parseSetScore(set.set_score)
                         const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                         return (
-                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p1WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
+                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-secondary)' : parsed ? (p1WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
                             {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
                             {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
                           </span>
                         )
                       })}
-                      {isLive && <><div style={{ width: '0.5px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', marginLeft: 4, display: 'inline-block', transform: p1Popping ? 'scale(1.5)' : 'scale(1)', transition: p1Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p1Point ?? (currentSet ? '0' : pair1Sets)}</span></>}
+                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', marginLeft: 4, display: 'inline-block', transform: p1Popping ? 'scale(1.5)' : 'scale(1)', transition: p1Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p1Point ?? (currentSet ? '0' : pair1Sets)}</span></>}
                     </div>
                     {isFinished && (
-                      <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p1Won ? '#10b981' : 'var(--text-muted)', border: p1Won ? '1.5px solid rgba(16,185,129,0.5)' : '0.5px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
+                      <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p1Won ? 'var(--color-success)' : 'var(--text-faint)', border: p1Won ? '1.5px solid var(--color-success-border)' : '1px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
                         {p1SetsWon}
                       </span>
                     )}
@@ -381,33 +379,33 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                 <div style={{ display: 'flex', alignItems: 'stretch', gap: 6 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+                      <span style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? 'var(--text-muted)' : 'var(--text-primary)' }}>
                         {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
                         {pairName(match.pair2_player1, null)}
                       </span>
-                      {isRetired && p1Won && <span style={{ fontSize: 8, color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '0.5px solid rgba(248,113,113,0.3)', borderRadius: 4, padding: '1px 5px', fontWeight: 600, flexShrink: 0 }}>RET</span>}
+                      {isRetired && p1Won && <span style={{ fontSize: 8, color: 'var(--color-women)', background: 'var(--color-women-bg)', border: '1px solid var(--color-women-border)', borderRadius: 4, padding: '1px 5px', fontWeight: 700, flexShrink: 0 }}>RET</span>}
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? 'var(--text-secondary)' : 'var(--text-primary)', marginTop: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: p2Won ? 700 : 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: p1Won ? 'var(--text-muted)' : 'var(--text-primary)', marginTop: 1 }}>
                       {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
                       {pairName(match.pair2_player2, null)}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0, flexShrink: 0 }}>
-                    <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p1Won ? 0.6 : 0.85) : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p1Won ? 0.5 : 0.9) : 1 }}>
                       {displaySets.map((set) => {
                         const parsed = parseSetScore(set.set_score)
                         const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                         return (
-                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-muted)' : parsed ? (p2WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
+                          <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-secondary)' : parsed ? (p2WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
                             {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
                             {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 7, color: 'var(--text-muted)', position: 'absolute', top: 0, right: -1 }}>{parsed.tb}</sup>}
                           </span>
                         )
                       })}
-                      {isLive && <><div style={{ width: '0.5px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', opacity: 0.3, marginLeft: 4, display: 'inline-block', transform: p2Popping ? 'scale(1.5)' : 'scale(1)', transition: p2Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p2Point ?? (currentSet ? '0' : pair2Sets)}</span></>}
+                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', opacity: 0.3, marginLeft: 4, display: 'inline-block', transform: p2Popping ? 'scale(1.5)' : 'scale(1)', transition: p2Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p2Point ?? (currentSet ? '0' : pair2Sets)}</span></>}
                     </div>
                     {isFinished && (
-                      <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p2Won ? '#10b981' : 'var(--text-muted)', border: p2Won ? '1.5px solid rgba(16,185,129,0.5)' : '0.5px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
+                      <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p2Won ? 'var(--color-success)' : 'var(--text-faint)', border: p2Won ? '1.5px solid var(--color-success-border)' : '1px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
                         {p2SetsWon}
                       </span>
                     )}

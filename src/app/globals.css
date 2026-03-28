@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
 :root {
-  /* ── B1 Cobalt theme ── */
-  --bg-base: #0c1220; --bg-card: #131c2e; --bg-card-alt: #0e1628;
-  --bg-input: #0e1628; --bg-subtle: #0f1525;
-  --border-base: #1a2540; --border-card: #1e2d50;
-  --border-strong: #1e2d50; --border-inner: #1a2540;
-  --text-primary: #e2eaf8; --text-secondary: #8090b0;
-  --text-muted: #4a6080; --text-dim: #3a5070;
-  --text-faint: #2a3d60; --text-ghost: #1e2d50; --text-invisible: #1a2540;
-  --color-live: #ef4444; --color-live-bg: rgba(239,68,68,0.10); --color-live-border: rgba(239,68,68,0.35);
-  --color-accent: #3b82f6; --color-accent-bg: rgba(59,130,246,0.12); --color-accent-border: rgba(59,130,246,0.25);
-  --color-success: #10b981; --color-success-bg: rgba(16,185,129,0.08); --color-success-border: rgba(16,185,129,0.3);
-  --color-bookmark: #f5a623; --color-bookmark-bg: rgba(245,166,35,0.12); --color-bookmark-border: rgba(245,166,35,0.3);
-  --color-men: #60a5fa; --color-men-bg: rgba(96,165,250,0.12); --color-men-border: rgba(96,165,250,0.3);
-  --color-women: #f87171; --color-women-bg: rgba(248,113,113,0.12); --color-women-border: rgba(248,113,113,0.3);
-  --color-p1: #10b981; --color-p2: #818cf8; --color-star: #f59e0b; --color-rank: #f59e0b; --color-side: #c084fc;
+  /* ── Forge Dark — LoL-inspired ──────────────────────────────────── */
+
+  /* Backgrounds — deep void with blue-black tint */
+  --bg-base:     #020C18;
+  --bg-card:     #061422;
+  --bg-card-alt: #040E1C;
+  --bg-input:    #040E1C;
+  --bg-subtle:   #050F20;
+
+  /* Borders — metallic navy */
+  --border-base:  #0E2438;
+  --border-card:  #132C46;
+  --border-strong: #1C3D5C;
+  --border-inner: #0B1E30;
+
+  /* Text — warm parchment hierarchy */
+  --text-primary:   #EEE4CE;   /* warm off-white, LoL's "parchment" */
+  --text-secondary: #9AAEC4;   /* cool mid tone */
+  --text-muted:     #4E6E8A;   /* clearly muted */
+  --text-dim:       #2D4E6A;
+  --text-faint:     #1A3450;
+  --text-ghost:     #0E2438;
+  --text-invisible: #091C2E;
+
+  /* Live — punchy red-rose */
+  --color-live:        #FF4655;
+  --color-live-bg:     rgba(255,70,85,0.10);
+  --color-live-border: rgba(255,70,85,0.35);
+
+  /* Accent — LoL gold (primary brand) */
+  --color-accent:        #C89B3C;
+  --color-accent-bg:     rgba(200,155,60,0.10);
+  --color-accent-border: rgba(200,155,60,0.30);
+
+  /* Success — Hextech teal (scores, winners) */
+  --color-success:        #0AC8B9;
+  --color-success-bg:     rgba(10,200,185,0.08);
+  --color-success-border: rgba(10,200,185,0.28);
+
+  /* Bookmark — gold (same as accent) */
+  --color-bookmark:        #C89B3C;
+  --color-bookmark-bg:     rgba(200,155,60,0.12);
+  --color-bookmark-border: rgba(200,155,60,0.30);
+
+  /* Category accents */
+  --color-men:         #4FC3F7;
+  --color-men-bg:      rgba(79,195,247,0.10);
+  --color-men-border:  rgba(79,195,247,0.28);
+  --color-women:       #F48FB1;
+  --color-women-bg:    rgba(244,143,177,0.10);
+  --color-women-border:rgba(244,143,177,0.28);
+
+  /* Misc */
+  --color-p1:   #C89B3C;
+  --color-p2:   #818CF8;
+  --color-star: #C89B3C;
+  --color-rank: #C89B3C;
+  --color-side: #C89B3C;
+
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
 }
+
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: var(--bg-base); color: var(--text-primary); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
 button { font-family: var(--font-sans); cursor: pointer; }
 button:focus { outline: none; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
