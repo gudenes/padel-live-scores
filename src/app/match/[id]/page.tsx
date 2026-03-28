@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, Game, getCurrentScore, pairName, isStarPoint, countryFlag, parseSetScore } from '@/types/match'
+import { Match, Game, getCurrentScore, pairName, isStarPoint, countryFlag, parseSetScore, toShortName } from '@/types/match'
 
 type SubTab = 'live' | 'players' | 'h2h'
 
@@ -322,11 +322,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: p1Won ? 700 : 600, color: p2Won ? '#666' : p2Leading ? '#aaa' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
-              {match.pair1_player1?.name ?? 'TBD'}
+              {toShortName(match.pair1_player1?.name ?? 'TBD')}
             </div>
             <div style={{ fontSize: 13, fontWeight: p1Won ? 700 : 600, color: p2Won ? '#666' : p2Leading ? '#aaa' : 'var(--text-primary)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
-              {match.pair1_player2?.name ?? 'TBD'}
+              {toShortName(match.pair1_player2?.name ?? 'TBD')}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -370,11 +370,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: p2Won ? 700 : 600, color: p1Won ? '#666' : p1Leading ? '#aaa' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
-              {match.pair2_player1?.name ?? 'TBD'}
+              {toShortName(match.pair2_player1?.name ?? 'TBD')}
             </div>
             <div style={{ fontSize: 13, fontWeight: p2Won ? 700 : 600, color: p1Won ? '#666' : p1Leading ? '#aaa' : 'var(--text-primary)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
-              {match.pair2_player2?.name ?? 'TBD'}
+              {toShortName(match.pair2_player2?.name ?? 'TBD')}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -696,7 +696,7 @@ function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean;
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: winner ? 'var(--text-primary)' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {player.country && <span style={{ marginRight: 4 }}>{countryFlag(player.country)}</span>}
-            {player.name}
+            {toShortName(player.name)}
           </div>
           {player.side && <div style={{ fontSize: 10, color: accent ?? 'var(--text-dim)', marginTop: 1 }}>{player.side === 'drive' ? 'Drive' : 'Backhand'}</div>}
         </div>

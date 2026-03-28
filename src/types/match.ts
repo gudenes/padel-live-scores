@@ -147,7 +147,7 @@ export function parseSetScore(score: string | null): { p1: number; p2: number; t
   return { p1, p2, tb: null }
 }
 
-function toShortName(name: string): string {
+export function toShortName(name: string): string {
   const parts = name.trim().split(' ')
   if (parts.length <= 1) return name
   return parts[0][0] + '. ' + parts.slice(1).join(' ')
