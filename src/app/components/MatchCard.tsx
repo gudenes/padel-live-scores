@@ -202,13 +202,13 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     )
   }
 
-  // ── Warming up card ───────────────────────────────────────────
+  // ── Warming up card — same layout as live, "About to start" instead of score ──
   if (isWarming) {
     return (
       <div onClick={() => router.push(`/match/${match.id}`)} style={cardStyle}>
         <div style={{ padding: '6px 10px 7px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5 }}>
-            <span style={{ fontSize: 9, color: 'var(--color-live)', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase' }}>● Warming up</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+            <span style={{ fontSize: 9, color: 'var(--color-live)', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase' }}>● Live</span>
             {roundLabel && <span style={pillRound}>{roundLabel}</span>}
             {court && <span style={pillCourt}>{court}</span>}
           </div>
@@ -234,6 +234,12 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                   {pairName(match.pair2_player2, null)}
                 </div>
               </div>
+            </div>
+            {/* About to start — replaces the score column */}
+            <div style={{ flexShrink: 0, width: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-live)', letterSpacing: '0.5px', textTransform: 'uppercase', textAlign: 'center', lineHeight: 1.4, opacity: 0.85 }}>
+                About to<br />start
+              </span>
             </div>
           </div>
         </div>
