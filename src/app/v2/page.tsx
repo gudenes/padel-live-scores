@@ -349,7 +349,7 @@ export default function V2Page() {
           {/* ROW 2: Tournament row — logo + name + stage + chevron to switch */}
           {activeTournamentObj && (
             <div style={{
-              display: 'flex', alignItems: 'stretch', gap: 10,
+              display: 'flex', alignItems: 'center', gap: 10,
               padding: '8px 0', borderTop: '0.5px solid var(--border-base)',
               borderBottom: '0.5px solid var(--border-base)',
             }}>
@@ -358,10 +358,10 @@ export default function V2Page() {
                 <img
                   src={activeTournamentObj.logo_url}
                   alt=""
-                  style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, alignSelf: 'center', boxShadow: '0 0 0 1px var(--color-accent-border), 0 4px 12px rgba(0,0,0,0.4)' }}
+                  style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border), 0 4px 12px rgba(0,0,0,0.4)' }}
                 />
               ) : activeTournamentObj.country ? (
-                <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, alignSelf: 'center', boxShadow: '0 0 0 1px var(--color-accent-border)' }}>
+                <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border)' }}>
                   {countryFlag(activeTournamentObj.country)}
                 </div>
               ) : null}
@@ -389,7 +389,7 @@ export default function V2Page() {
                   </div>
                 )}
 
-                {/* Dates + stage + status */}
+                {/* Dates + prize money + status */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
                   {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
                     <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
@@ -398,8 +398,8 @@ export default function V2Page() {
                       {new Date(activeTournamentObj.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                     </span>
                   )}
-                  {activeTournamentStage && (
-                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>· {activeTournamentStage}</span>
+                  {activeTournamentObj.prize_money && (
+                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>· {activeTournamentObj.prize_money}</span>
                   )}
                   {activeTournamentObj.status && (() => {
                     const s = activeTournamentObj.status as string
@@ -417,25 +417,8 @@ export default function V2Page() {
                 </div>
               </div>
 
-              {/* Prize pool pill — full card height, 2-row label+value */}
-              {activeTournamentObj.prize_money && (
-                <div style={{
-                  flexShrink: 0, textAlign: 'center',
-                  background: 'var(--bg-card-alt)', border: '0.5px solid var(--border-base)',
-                  borderRadius: 8, padding: '0 10px', minWidth: 72,
-                  display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2,
-                }}>
-                  <div style={{ fontSize: 7, fontWeight: 700, color: 'var(--text-faint)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    Prize pool
-                  </div>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', lineHeight: 1.1, whiteSpace: 'nowrap' }}>
-                    {activeTournamentObj.prize_money}
-                  </div>
-                </div>
-              )}
-
               {/* Chevron */}
-              <span style={{ fontSize: 16, color: 'var(--text-faint)', flexShrink: 0, lineHeight: 1, alignSelf: 'center' }}>›</span>
+              <span style={{ fontSize: 16, color: 'var(--text-faint)', flexShrink: 0, lineHeight: 1 }}>›</span>
             </div>
           )}
 
