@@ -113,13 +113,17 @@ async function handleLiveUpdate(data) {
         set.set_score === null &&
         set.set_number === Math.max(...(data.sets ?? []).map((s) => s.set_number))
 
+      const { pair1_games, pair2_games } = computePairGames(set)
+
       const { data: setRow, error: setError } = await supabase
         .from('sets')
         .upsert(
           {
             match_id: matchDbId,
             set_number: set.set_number,
-            set_score: set.set_score,
+            set_score: normalizeSetScoreFromLive(set.set_score),
+            pair1_games,
+            pair2_games,
             is_current: isCurrentSet,
             updated_at: new Date().toISOString(),
           },
@@ -220,6 +224,12 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
 
     // Upsert set scores — use upsert not update so missing sets get created
     for (const set of sets) {
+      const parts = set.set_score ? set.set_score.split('-') : []
+      const p1 = parts.length === 2 ? parseInt(parts[0]) : NaN
+      const p2 = parts.length === 2 ? parseInt(parts[1]) : NaN // parseInt stops at '('
+      const pair1_games = !isNaN(p1) ? p1 : 0
+      const pair2_games = !isNaN(p2) ? p2 : 0
+
       await supabase
         .from('sets')
         .upsert(
@@ -227,6 +237,8 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
             match_id: matchDbId,
             set_number: set.set_number,
             set_score: set.set_score,
+            pair1_games,
+            pair2_games,
             is_current: false,
             updated_at: new Date().toISOString(),
           },
@@ -255,6 +267,70 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
 function normalizeSetScore(team1, team2) {
   if (!team1 || !team2) return null
   return `${team1}-${team2}`
+}
+
+// ── Normalize live set score (from /live endpoint) ────────────
+// "7-66" → "7-6(6)", "67-7" → "6(7)-7", "6-3" → "6-3" (unchanged)
+function normalizeSetScoreFromLive(rawScore) {
+  if (!rawScore) return null
+  const parts = rawScore.split('-')
+  if (parts.length !== 2) return rawScore
+  const p1str = parts[0]
+  const p2str = parts[1]
+  if (p2str.includes('(') || p1str.includes('(')) return rawScore
+  const p1 = parseInt(p1str)
+  // Tiebreak appended to p2: "7-66" → "7-6(6)"
+  if (p2str.length >= 2 && p1 <= 7) {
+    const realP2 = parseInt(p2str[0])
+    const tb = parseInt(p2str.slice(1))
+    if (realP2 >= 6 && realP2 <= 7 && !isNaN(tb)) {
+      return `${p1}-${realP2}(${tb})`
+    }
+  }
+  // Tiebreak appended to p1: "67-7" → "6(7)-7"
+  const p2 = parseInt(p2str)
+  if (p1str.length >= 2 && p2 <= 7) {
+    const realP1 = parseInt(p1str[0])
+    const tb = parseInt(p1str.slice(1))
+    if (realP1 >= 6 && realP1 <= 7 && !isNaN(tb)) {
+      return `${realP1}(${tb})-${p2}`
+    }
+  }
+  return rawScore
+}
+
+// ── Compute pair game counts from a set ───────────────────────
+// For a completed set: parse from set_score
+// For the current set (set_score null): last game's game_score holds
+// the games tally at the start of that game — e.g. "1-2" → pair1=1, pair2=2
+function computePairGames(set) {
+  if (set.set_score !== null && set.set_score !== undefined) {
+    const normalized = normalizeSetScoreFromLive(set.set_score)
+    if (normalized) {
+      const parts = normalized.split('-')
+      if (parts.length === 2) {
+        const p1 = parseInt(parts[0])
+        const p2 = parseInt(parts[1]) // parseInt stops at '(' so "6(6)" → 6
+        if (!isNaN(p1) && !isNaN(p2)) return { pair1_games: p1, pair2_games: p2 }
+      }
+    }
+  }
+  // Current set: last game's game_score is the live games tally
+  if (set.games && set.games.length > 0) {
+    const lastGame = set.games.reduce(
+      (max, g) => g.game_number > max.game_number ? g : max,
+      set.games[0]
+    )
+    if (lastGame.game_score) {
+      const parts = lastGame.game_score.split('-')
+      if (parts.length === 2) {
+        const p1 = parseInt(parts[0])
+        const p2 = parseInt(parts[1])
+        if (!isNaN(p1) && !isNaN(p2)) return { pair1_games: p1, pair2_games: p2 }
+      }
+    }
+  }
+  return { pair1_games: 0, pair2_games: 0 }
 }
 
 // ── Subscribe to a Pusher channel ────────────────────────────
