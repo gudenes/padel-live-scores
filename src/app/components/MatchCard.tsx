@@ -121,6 +121,8 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   // Use estimated label (from page.tsx "Followed by" + 90min logic) when present
   const effectiveLabel = estimatedScheduleLabel ?? scheduleLabel
   const isEstimatedTime = !!estimatedScheduleLabel
+  // "Not before X:XX" labels are minimum-time constraints, not guaranteed start times
+  const isNotBefore = !!(effectiveLabel && /not before/i.test(effectiveLabel))
 
   const scheduledTime = (() => {
     if (effectiveLabel) {
@@ -302,7 +304,9 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                     {scheduledTime}{isEstimatedTime && <span style={{ fontSize: 11, verticalAlign: 'super', marginLeft: 1 }}>*</span>}
                   </span>
                   {isEstimatedTime && (
-                    <span style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>est.</span>
+                    <span style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>
+                      {isNotBefore ? 'min.' : 'est.'}
+                    </span>
                   )}
                 </div>
               ) : (

@@ -188,42 +188,148 @@ async function getActiveSeasonIds(): Promise<string[]> {
   }
 }
 
-// ── FIP logo lookup ────────────────────────────────────────────
+// ── FIP event info lookup ──────────────────────────────────────
 // Searches padelfip.com WordPress API by tournament name.
-// Returns the thumbnail URL (150×150) of the featured image, or null.
-// Only called when logo_url is not yet set — no extra calls on subsequent syncs.
-async function fetchFipLogoUrl(tournamentName: string): Promise<string | null> {
+// Returns the logo URL + slug used for overview scraping.
+// Only called when logo_url or venue is not yet set.
+interface FipEventInfo {
+  logoUrl: string | null
+  slug: string | null  // e.g. "miami-p1-2026" — used to build the overview URL
+}
+
+async function fetchFipEventInfo(tournamentName: string): Promise<FipEventInfo> {
   try {
     // Strip year suffix for better matching ("Miami P1 2026" → "Miami P1")
     const searchTerm = tournamentName.replace(/\s+\d{4}$/, '').trim()
-    const url = `https://www.padelfip.com/wp-json/wp/v2/events?search=${encodeURIComponent(searchTerm)}&per_page=3&_fields=id,title,featured_media`
+    const url = `https://www.padelfip.com/wp-json/wp/v2/events?search=${encodeURIComponent(searchTerm)}&per_page=3&_fields=id,title,featured_media,link`
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) return { logoUrl: null, slug: null }
     const events = await res.json()
-    if (!Array.isArray(events) || events.length === 0) return null
+    if (!Array.isArray(events) || events.length === 0) return { logoUrl: null, slug: null }
 
-    // Pick the best match — prefer exact (case-insensitive) title match
-    const nameLower = tournamentName.toLowerCase()
+    // Pick the best match — prefer title containing the search term
     const best = events.find((e: any) =>
       e.title?.rendered?.toLowerCase().includes(searchTerm.toLowerCase())
     ) ?? events[0]
 
-    if (!best?.featured_media) return null
+    // Extract slug from link: ".../es/events/miami-p1-2026/" → "miami-p1-2026"
+    let slug: string | null = null
+    if (best?.link) {
+      const m = (best.link as string).match(/\/events\/([^/?#]+)\/?(?:\?|$)/)
+      if (m) slug = m[1]
+    }
 
-    // Fetch the media record for the thumbnail URL
-    const mediaRes = await fetch(
-      `https://www.padelfip.com/wp-json/wp/v2/media/${best.featured_media}?_fields=source_url,media_details`
-    )
-    if (!mediaRes.ok) return null
-    const media = await mediaRes.json()
+    // Fetch the logo media record
+    let logoUrl: string | null = null
+    if (best?.featured_media) {
+      const mediaRes = await fetch(
+        `https://www.padelfip.com/wp-json/wp/v2/media/${best.featured_media}?_fields=source_url,media_details`
+      )
+      if (mediaRes.ok) {
+        const media = await mediaRes.json()
+        // Prefer medium size (212×300) — good balance of quality and size
+        logoUrl = media.media_details?.sizes?.medium?.source_url
+          ?? media.media_details?.sizes?.thumbnail?.source_url
+          ?? media.source_url
+          ?? null
+      }
+    }
 
-    // Prefer medium size (212×300) — good balance of quality and size
-    return media.media_details?.sizes?.medium?.source_url
-      ?? media.media_details?.sizes?.thumbnail?.source_url
-      ?? media.source_url
-      ?? null
+    return { logoUrl, slug }
   } catch (e) {
-    console.warn(`[Sync] FIP logo lookup failed for "${tournamentName}":`, e)
+    console.warn(`[Sync] FIP event info lookup failed for "${tournamentName}":`, e)
+    return { logoUrl: null, slug: null }
+  }
+}
+
+// ── FIP overview scraper ───────────────────────────────────────
+// Fetches and parses the FIP event overview page (/es/events/{slug}/?tab=Overview)
+// Extracts: prize money, venue name, venue address, venue type, n_courts, surface.
+// Uses regex on raw HTML — no DOM parser needed in edge/Node runtime.
+interface FipOverviewData {
+  prize_money: string | null
+  venue: string | null
+  venue_address: string | null
+  venue_type: string | null
+  n_courts: number | null
+  surface: string | null
+}
+
+function cleanHtmlText(s: string): string {
+  return s
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&euro;/gi, '€').replace(/&amp;/gi, '&').replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&[a-z]+;/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ').trim()
+}
+
+async function fetchFipOverview(slug: string): Promise<FipOverviewData | null> {
+  try {
+    const url = `https://www.padelfip.com/es/events/${slug}/?tab=Overview`
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; padel-app/1.0)' },
+    })
+    if (!res.ok) return null
+    const html = await res.text()
+    // Guard against empty/redirect responses
+    if (html.length < 2000 || !html.includes('overview__title')) return null
+
+    // ── Parse span.overview__title + p.overview__text — block-based ──────
+    // Split into blocks by each overview__title span so values can't cross to
+    // a different label (avoids the cross-pairing problem with greedy .*?).
+    const pairs: Record<string, string> = {}
+    const blockRe = /<span[^>]*class="overview__title"[^>]*>([\s\S]*?)<\/span>([\s\S]*?)(?=<span[^>]*class="overview__title"|$)/gi
+    let m: RegExpExecArray | null
+    while ((m = blockRe.exec(html)) !== null) {
+      const label = cleanHtmlText(m[1]).toLowerCase()
+      const block = m[2]
+      // Find the first p.overview__text within THIS block only
+      const vMatch = block.match(/<p[^>]*class="overview__text"[^>]*>([\s\S]*?)<\/p>/i)
+      if (vMatch) {
+        const value = cleanHtmlText(vMatch[1])
+        if (label && value) pairs[label] = value
+      }
+    }
+
+    // ── Parse INFORMACIÓN GENERAL block ──────────────────────────────────
+    const generalInfo: Record<string, string> = {}
+    const genMatch = html.match(/INFORMACI[ÓO]N GENERAL([\s\S]*?)<\/div>\s*<\/div>/i)
+    if (genMatch) {
+      const block = genMatch[1].replace(/<[^>]+>/g, '\n')
+      const lines = block.split('\n').map(l => l.trim()).filter(Boolean)
+      for (let i = 0; i + 1 < lines.length; i += 2) {
+        generalInfo[lines[i].toLowerCase()] = lines[i + 1]
+      }
+    }
+
+    // Helper — find first matching value by partial key
+    const find = (src: Record<string, string>, keys: string[]): string | null => {
+      for (const key of keys) {
+        const entry = Object.entries(src).find(([k]) => k.includes(key))
+        if (entry) return entry[1]
+      }
+      return null
+    }
+
+    const prize      = find(pairs, ['prize', 'premio', 'inscripci'])
+    const venue      = find(pairs, ['venue', 'recinto', 'pabellón', 'pabellon'])
+    const address    = find(pairs, ['direcci', 'address'])
+
+    const venueType  = find(generalInfo, ['venue type', 'tipo de pista', 'type', 'tipo'])
+    const courtsStr  = find(generalInfo, ['competition court', 'nº court', 'pistas', 'courts'])
+    const surface    = find(generalInfo, ['superficie', 'surface'])
+
+    return {
+      prize_money:   prize,
+      venue:         venue,
+      venue_address: address,
+      venue_type:    venueType,
+      n_courts:      courtsStr ? (parseInt(courtsStr, 10) || null) : null,
+      surface:       surface,
+    }
+  } catch (e) {
+    console.warn(`[Sync] FIP overview fetch failed for slug "${slug}":`, e)
     return null
   }
 }
@@ -240,30 +346,45 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
     const tournaments = Array.isArray(data) ? data : (data.data ?? [])
     const syncedIds: string[] = []
 
-    // Fetch existing logo_urls so we only call FIP for tournaments that still need one
+    // Fetch existing FIP-enriched fields so we avoid redundant scraping on re-runs
     const externalIds = tournaments.map((t: any) => String(t.id)).filter(Boolean)
     const { data: existing } = await supabase
       .from('tournaments')
-      .select('external_id, logo_url')
+      .select('external_id, logo_url, venue, prize_money, venue_type, venue_address, n_courts, surface')
       .in('external_id', externalIds)
-    const existingLogoMap = Object.fromEntries(
-      (existing ?? []).map((r: any) => [r.external_id, r.logo_url])
+    const existingMap = Object.fromEntries(
+      (existing ?? []).map((r: any) => [r.external_id, r])
     )
 
     for (const t of tournaments) {
       if (!t.id) continue
       const externalId = String(t.id)
+      const prev = existingMap[externalId] ?? {}
 
-      // Fetch logo from FIP only if not already stored
-      let logoUrl = existingLogoMap[externalId] ?? null
-      if (!logoUrl && t.name) {
-        logoUrl = await fetchFipLogoUrl(t.name)
-        if (logoUrl) console.log(`[Sync] Logo found for ${t.name}: ${logoUrl}`)
+      const needsLogo     = !prev.logo_url
+      const needsOverview = !prev.venue  // Scrape overview if venue not yet captured
+
+      let logoUrl = prev.logo_url ?? null
+      let overviewData: FipOverviewData | null = null
+
+      if ((needsLogo || needsOverview) && t.name) {
+        const info = await fetchFipEventInfo(t.name)
+        if (info.logoUrl && needsLogo) {
+          logoUrl = info.logoUrl
+          console.log(`[Sync] Logo found for ${t.name}: ${info.logoUrl}`)
+        }
+        if (info.slug && needsOverview) {
+          overviewData = await fetchFipOverview(info.slug)
+          if (overviewData?.venue) {
+            console.log(`[Sync] Overview captured for ${t.name}: prize=${overviewData.prize_money}, venue=${overviewData.venue}`)
+          }
+        }
       }
 
       // Upsert directly from list data — no extra API call needed
       // Schema: id, external_id, name, level, location, starts_at, ends_at,
-      //         created_at, updated_at, country, timezone, status, season_id, url, logo_url
+      //         created_at, updated_at, country, timezone, status, season_id, url,
+      //         logo_url, venue, venue_address, venue_type, prize_money, n_courts, surface
       const { error } = await supabase
         .from('tournaments')
         .upsert(
@@ -280,6 +401,13 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
             season_id: seasonId,
             url: t.url ?? null,
             logo_url: logoUrl,
+            // Overview fields — preserve existing values if we didn't scrape this run
+            venue:         overviewData?.venue         ?? prev.venue         ?? null,
+            venue_address: overviewData?.venue_address ?? prev.venue_address ?? null,
+            venue_type:    overviewData?.venue_type    ?? prev.venue_type    ?? null,
+            prize_money:   overviewData?.prize_money   ?? prev.prize_money   ?? null,
+            n_courts:      overviewData?.n_courts      ?? prev.n_courts      ?? null,
+            surface:       overviewData?.surface       ?? prev.surface       ?? null,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'external_id' }

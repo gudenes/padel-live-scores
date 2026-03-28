@@ -100,7 +100,7 @@ export default function V2Page() {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -237,12 +237,38 @@ export default function V2Page() {
     for (let i = 0; i < scheduledMatches.length; i++) {
       const m = scheduledMatches[i] as any
       const sl = m.schedule_label as string | null
-      if (sl && /starting at|not before/i.test(sl)) continue // has own explicit time
-      // "Followed by" or null schedule_label — estimate from previous
+
+      // Hard start time — exact, no estimation needed
+      if (sl && /starting at/i.test(sl)) continue
+
+      // "Not before X:XX" — a minimum time constraint, not a guaranteed start.
+      // If the previous match was also "Not before", apply the +90min rule to keep
+      // consistent spacing (the second "Not before" just raised the floor arbitrarily).
+      // Otherwise use the own label as the floor for the start of a new time block.
+      if (sl && /not before/i.test(sl)) {
+        const prev = scheduledMatches[i - 1] as any | undefined
+        const prevSl = prev?.schedule_label as string | null
+        if (prev && prevSl && /not before/i.test(prevSl)) {
+          // Chain: previous was also "Not before" — estimate +90 from it
+          const prevLabel = map[prev.id] ?? prevSl
+          const parsed = parseAmPm(prevLabel)
+          if (parsed) {
+            const totalMins = parsed.h * 60 + parsed.m + 90
+            map[m.id] = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
+            continue
+          }
+        }
+        // First "Not before" in the block — use own label as the time floor
+        map[m.id] = sl
+        continue
+      }
+
+      // null / "Followed by" / other — estimate from previous match + 90 min
       const prev = scheduledMatches[i - 1] as any | undefined
       if (!prev) continue
-      // Get prev's explicit label or our estimated label
-      const prevLabel = (prev.schedule_label && /starting at|not before/i.test(prev.schedule_label))
+
+      // Use prev's hard label or whatever estimate we already computed for it
+      const prevLabel = (prev.schedule_label && /starting at/i.test(prev.schedule_label))
         ? prev.schedule_label
         : map[prev.id] ?? null
       if (!prevLabel) continue
@@ -323,7 +349,7 @@ export default function V2Page() {
           {/* ROW 2: Tournament row — logo + name + stage + chevron to switch */}
           {activeTournamentObj && (
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
+              display: 'flex', alignItems: 'stretch', gap: 10,
               padding: '8px 0', borderTop: '0.5px solid var(--border-base)',
               borderBottom: '0.5px solid var(--border-base)',
             }}>
@@ -332,19 +358,38 @@ export default function V2Page() {
                 <img
                   src={activeTournamentObj.logo_url}
                   alt=""
-                  style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border), 0 4px 12px rgba(0,0,0,0.4)' }}
+                  style={{ width: 56, height: 56, objectFit: 'contain', borderRadius: 12, background: 'var(--bg-card-alt)', padding: 4, flexShrink: 0, alignSelf: 'center', boxShadow: '0 0 0 1px var(--color-accent-border), 0 4px 12px rgba(0,0,0,0.4)' }}
                 />
               ) : activeTournamentObj.country ? (
-                <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, boxShadow: '0 0 0 1px var(--color-accent-border)' }}>
+                <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--bg-card-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0, alignSelf: 'center', boxShadow: '0 0 0 1px var(--color-accent-border)' }}>
                   {countryFlag(activeTournamentObj.country)}
                 </div>
               ) : null}
 
-              {/* Name + dates + stage + status */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Name · venue · dates · status */}
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {activeTournamentObj.name}
                 </div>
+
+                {/* Venue — location pin icon + name */}
+                {activeTournamentObj.venue && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                    <svg width="9" height="11" viewBox="0 0 24 28" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                      <path d="M12 2C7.58 2 4 5.58 4 10c0 6.63 8 16 8 16s8-9.37 8-16c0-4.42-3.58-8-8-8z"/>
+                      <circle cx="12" cy="10" r="2.5" fill="var(--text-muted)" stroke="none"/>
+                    </svg>
+                    <span style={{
+                      fontSize: 8, fontWeight: 600, color: 'var(--text-muted)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      letterSpacing: '0.2px',
+                    }}>
+                      {activeTournamentObj.venue}
+                    </span>
+                  </div>
+                )}
+
+                {/* Dates + stage + status */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
                   {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
                     <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
@@ -360,7 +405,6 @@ export default function V2Page() {
                     const s = activeTournamentObj.status as string
                     const isActive = s === 'active' || s === 'live' || s === 'ongoing'
                     const isUpcoming = s === 'upcoming' || s === 'scheduled'
-                    const isFinished = s === 'finished' || s === 'completed' || s === 'ended'
                     const color = isActive ? 'var(--color-live)' : isUpcoming ? 'var(--color-accent)' : 'var(--text-faint)'
                     const bg = isActive ? 'var(--color-live-bg)' : isUpcoming ? 'var(--color-accent-bg)' : 'transparent'
                     const border = isActive ? 'var(--color-live-border)' : isUpcoming ? 'var(--color-accent-border)' : 'var(--border-base)'
@@ -373,8 +417,25 @@ export default function V2Page() {
                 </div>
               </div>
 
-              {/* Chevron — tapping it will navigate to Tournaments tab in future */}
-              <span style={{ fontSize: 16, color: 'var(--text-faint)', flexShrink: 0, lineHeight: 1 }}>›</span>
+              {/* Prize pool pill — full card height, 2-row label+value */}
+              {activeTournamentObj.prize_money && (
+                <div style={{
+                  flexShrink: 0, textAlign: 'center',
+                  background: 'var(--bg-card-alt)', border: '0.5px solid var(--border-base)',
+                  borderRadius: 8, padding: '0 10px', minWidth: 72,
+                  display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2,
+                }}>
+                  <div style={{ fontSize: 7, fontWeight: 700, color: 'var(--text-faint)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    Prize pool
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', lineHeight: 1.1, whiteSpace: 'nowrap' }}>
+                    {activeTournamentObj.prize_money}
+                  </div>
+                </div>
+              )}
+
+              {/* Chevron */}
+              <span style={{ fontSize: 16, color: 'var(--text-faint)', flexShrink: 0, lineHeight: 1, alignSelf: 'center' }}>›</span>
             </div>
           )}
 
