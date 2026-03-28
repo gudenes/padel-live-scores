@@ -188,6 +188,46 @@ async function getActiveSeasonIds(): Promise<string[]> {
   }
 }
 
+// ── FIP logo lookup ────────────────────────────────────────────
+// Searches padelfip.com WordPress API by tournament name.
+// Returns the thumbnail URL (150×150) of the featured image, or null.
+// Only called when logo_url is not yet set — no extra calls on subsequent syncs.
+async function fetchFipLogoUrl(tournamentName: string): Promise<string | null> {
+  try {
+    // Strip year suffix for better matching ("Miami P1 2026" → "Miami P1")
+    const searchTerm = tournamentName.replace(/\s+\d{4}$/, '').trim()
+    const url = `https://www.padelfip.com/wp-json/wp/v2/events?search=${encodeURIComponent(searchTerm)}&per_page=3&_fields=id,title,featured_media`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const events = await res.json()
+    if (!Array.isArray(events) || events.length === 0) return null
+
+    // Pick the best match — prefer exact (case-insensitive) title match
+    const nameLower = tournamentName.toLowerCase()
+    const best = events.find((e: any) =>
+      e.title?.rendered?.toLowerCase().includes(searchTerm.toLowerCase())
+    ) ?? events[0]
+
+    if (!best?.featured_media) return null
+
+    // Fetch the media record for the thumbnail URL
+    const mediaRes = await fetch(
+      `https://www.padelfip.com/wp-json/wp/v2/media/${best.featured_media}?_fields=source_url,media_details`
+    )
+    if (!mediaRes.ok) return null
+    const media = await mediaRes.json()
+
+    // Prefer medium size (212×300) — good balance of quality and size
+    return media.media_details?.sizes?.medium?.source_url
+      ?? media.media_details?.sizes?.thumbnail?.source_url
+      ?? media.source_url
+      ?? null
+  } catch (e) {
+    console.warn(`[Sync] FIP logo lookup failed for "${tournamentName}":`, e)
+    return null
+  }
+}
+
 // ── Step 2: Sync tournaments for a season ─────────────────────
 // Uses list endpoint only — no per-tournament detail calls
 // Redirect checks are deferred to reconciliation to save rate limits
@@ -200,13 +240,30 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
     const tournaments = Array.isArray(data) ? data : (data.data ?? [])
     const syncedIds: string[] = []
 
+    // Fetch existing logo_urls so we only call FIP for tournaments that still need one
+    const externalIds = tournaments.map((t: any) => String(t.id)).filter(Boolean)
+    const { data: existing } = await supabase
+      .from('tournaments')
+      .select('external_id, logo_url')
+      .in('external_id', externalIds)
+    const existingLogoMap = Object.fromEntries(
+      (existing ?? []).map((r: any) => [r.external_id, r.logo_url])
+    )
+
     for (const t of tournaments) {
       if (!t.id) continue
       const externalId = String(t.id)
 
+      // Fetch logo from FIP only if not already stored
+      let logoUrl = existingLogoMap[externalId] ?? null
+      if (!logoUrl && t.name) {
+        logoUrl = await fetchFipLogoUrl(t.name)
+        if (logoUrl) console.log(`[Sync] Logo found for ${t.name}: ${logoUrl}`)
+      }
+
       // Upsert directly from list data — no extra API call needed
       // Schema: id, external_id, name, level, location, starts_at, ends_at,
-      //         created_at, updated_at, country, timezone, status, season_id, url
+      //         created_at, updated_at, country, timezone, status, season_id, url, logo_url
       const { error } = await supabase
         .from('tournaments')
         .upsert(
@@ -222,6 +279,7 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
             status: t.status ?? null,
             season_id: seasonId,
             url: t.url ?? null,
+            logo_url: logoUrl,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'external_id' }
