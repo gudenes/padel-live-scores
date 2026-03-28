@@ -52,29 +52,32 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   const isWarming = isWarmingUp(match)
   const winnerPair = (match as any).winner_pair
 
-  // Pop animation on point change for live matches
+  // Pop animation + last-scorer tracking for live matches
   const prevP1Point = useRef<string | null>(null)
   const prevP2Point = useRef<string | null>(null)
   const [p1Popping, setP1Popping] = useState(false)
   const [p2Popping, setP2Popping] = useState(false)
+  const [lastScoredPair, setLastScoredPair] = useState<1 | 2 | null>(null)
 
   useEffect(() => {
     if (!isLive) return
     if (prevP1Point.current !== null && prevP1Point.current !== p1Point) {
       setP1Popping(true)
+      setLastScoredPair(1)
       setTimeout(() => setP1Popping(false), 450)
     }
     prevP1Point.current = p1Point ?? null
-  }, [p1Point])
+  }, [p1Point]) // eslint-disable-line
 
   useEffect(() => {
     if (!isLive) return
     if (prevP2Point.current !== null && prevP2Point.current !== p2Point) {
       setP2Popping(true)
+      setLastScoredPair(2)
       setTimeout(() => setP2Popping(false), 450)
     }
     prevP2Point.current = p2Point ?? null
-  }, [p2Point])
+  }, [p2Point]) // eslint-disable-line
 
   const p1Won = isFinished && winnerPair === 1
   const p2Won = isFinished && winnerPair === 2
@@ -366,7 +369,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                           </span>
                         )
                       })}
-                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', marginLeft: 4, display: 'inline-block', transform: p1Popping ? 'scale(1.5)' : 'scale(1)', transition: p1Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p1Point ?? (currentSet ? '0' : pair1Sets)}</span></>}
+                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-live)', opacity: lastScoredPair === 2 ? 0.3 : 1, marginLeft: 4, display: 'inline-block', transform: p1Popping ? 'scale(1.5)' : 'scale(1)', transition: p1Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p1Point ?? (currentSet ? '0' : pair1Sets)}</span></>}
                     </div>
                     {isFinished && (
                       <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p1Won ? 'var(--color-success)' : 'var(--text-faint)', border: p1Won ? '1.5px solid var(--color-success-border)' : '1px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
@@ -402,7 +405,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                           </span>
                         )
                       })}
-                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-success)', opacity: 0.3, marginLeft: 4, display: 'inline-block', transform: p2Popping ? 'scale(1.5)' : 'scale(1)', transition: p2Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p2Point ?? (currentSet ? '0' : pair2Sets)}</span></>}
+                      {isLive && <><div style={{ width: '1px', height: 28, background: 'var(--border-strong)', marginLeft: 4 }} /><span style={{ fontSize: 24, fontWeight: 900, width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: 'var(--color-live)', opacity: lastScoredPair === 1 ? 0.3 : 1, marginLeft: 4, display: 'inline-block', transform: p2Popping ? 'scale(1.5)' : 'scale(1)', transition: p2Popping ? 'transform 0.15s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.3s ease-out' }}>{p2Point ?? (currentSet ? '0' : pair2Sets)}</span></>}
                     </div>
                     {isFinished && (
                       <span style={{ fontSize: 18, fontWeight: 900, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 'normal', color: p2Won ? 'var(--color-success)' : 'var(--text-faint)', border: p2Won ? '1.5px solid var(--color-success-border)' : '1px solid var(--border-strong)', borderRadius: 6, marginLeft: 6 }}>
