@@ -155,6 +155,7 @@ export async function GET(req: NextRequest) {
               ranking: p.rank,
               points: p.points,
               ranking_move: p.move,
+              updated_at: new Date().toISOString(),
             })
             .eq('id', playerId)
 
@@ -182,6 +183,7 @@ export async function GET(req: NextRequest) {
               race_ranking: p.race_rank,
               race_points: p.race_points,
               race_move: p.race_move,
+              updated_at: new Date().toISOString(),
             })
             .eq('id', playerId)
 
