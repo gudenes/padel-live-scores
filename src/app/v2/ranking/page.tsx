@@ -2,7 +2,7 @@
 // src/app/v2/ranking/page.tsx
 // FIP player rankings — Men & Women tabs with search
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { countryFlag } from '@/types/match'
@@ -175,6 +175,21 @@ export default function RankingPage() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery]       = useState('')
+  const inputRef                = useRef<HTMLInputElement>(null)
+  const searchBoxRef            = useRef<HTMLDivElement>(null)
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setQuery('')
+  }, [])
+
+  // Close on Escape
+  useEffect(() => {
+    if (!searchOpen) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeSearch() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [searchOpen, closeSearch])
 
   const load = useCallback(async (category: 'men' | 'women') => {
     setLoading(true)
@@ -246,13 +261,12 @@ export default function RankingPage() {
 
         {/* Search icon */}
         <button
-          onClick={() => { setSearchOpen(o => !o); if (searchOpen) setQuery('') }}
+          onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
           style={{
             width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: searchOpen ? 'var(--color-accent-bg)' : 'transparent',
+            background: 'transparent',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: searchOpen ? 'var(--color-accent)' : 'var(--text-muted)',
-            transition: 'all 0.15s',
+            color: 'var(--text-muted)', transition: 'all 0.15s',
           }}
           aria-label="Search players"
         >
@@ -263,20 +277,39 @@ export default function RankingPage() {
         </button>
       </div>
 
-      {/* Search input — slides in when open */}
+      {/* Search overlay — backdrop + floating pill */}
       {searchOpen && (
-        <div style={{ padding: '8px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', background: 'var(--bg-base)' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            background: 'var(--bg-card-alt)',
-            borderRadius: 10, padding: '8px 12px',
-            border: '1px solid rgba(56,200,255,0.2)',
-          }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round">
+        <>
+          {/* Backdrop — click outside to close */}
+          <div
+            onClick={closeSearch}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 40,
+              background: 'rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(2px)',
+            }}
+          />
+
+          {/* Floating search box */}
+          <div
+            ref={searchBoxRef}
+            style={{
+              position: 'fixed', top: 56, left: '50%', transform: 'translateX(-50%)',
+              width: 'calc(100% - 32px)', maxWidth: 468,
+              zIndex: 50,
+              background: 'var(--bg-card)',
+              borderRadius: 14,
+              border: '1px solid rgba(56,200,255,0.3)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              padding: '10px 14px',
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2.5" strokeLinecap="round">
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
             <input
-              autoFocus
+              ref={inputRef}
               type="text"
               placeholder="Search by player or country…"
               value={query}
@@ -285,19 +318,31 @@ export default function RankingPage() {
                 flex: 1, border: 'none', outline: 'none',
                 background: 'transparent',
                 color: 'var(--text-primary, #E2E8F0)',
-                fontSize: 14, fontFamily: 'inherit',
+                fontSize: 15, fontFamily: 'inherit',
               }}
             />
-            {query && (
+            {query ? (
               <button
                 onClick={() => setQuery('')}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 16, lineHeight: 1, padding: 0 }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 20, lineHeight: 1, padding: 0 }}
               >
                 ×
               </button>
+            ) : (
+              <button
+                onClick={closeSearch}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-muted)', fontSize: 12, fontWeight: 600,
+                  fontFamily: 'inherit', padding: '2px 6px',
+                  borderRadius: 6, backgroundColor: 'var(--bg-card-alt)',
+                }}
+              >
+                Cancel
+              </button>
             )}
           </div>
-        </div>
+        </>
       )}
 
       {/* Title + updated date */}
