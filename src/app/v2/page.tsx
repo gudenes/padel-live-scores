@@ -53,6 +53,18 @@ interface Tournament {
 }
 
 
+interface Highlight {
+  id: string
+  youtube_id: string
+  title: string
+  channel_name: string
+  thumbnail_url: string
+  duration: string | null
+  view_count: number
+  published_at: string
+  category: string | null
+}
+
 interface RankedPlayer {
   id: string
   name: string
@@ -373,6 +385,96 @@ function RecentResultsWidget({ matches }: { matches: Match[] }) {
   )
 }
 
+function HighlightsCarousel({ highlights }: { highlights: Highlight[] }) {
+  if (highlights.length === 0) return null
+
+  function formatViews(count: number): string {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
+    if (count >= 1000) return `${Math.round(count / 1000)}K`
+    return String(count)
+  }
+
+  return (
+    <div style={{
+      display: 'flex', gap: 12, padding: '0 16px 4px',
+      overflowX: 'auto', scrollSnapType: 'x mandatory',
+      WebkitOverflowScrolling: 'touch',
+      msOverflowStyle: 'none', scrollbarWidth: 'none',
+    }}>
+      {highlights.map(v => (
+        <a
+          key={v.id}
+          href={`https://www.youtube.com/watch?v=${v.youtube_id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 220, scrollSnapAlign: 'start' }}
+        >
+          <div style={{
+            borderRadius: 12, overflow: 'hidden',
+            background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+          }}>
+            {/* Thumbnail with play button + duration */}
+            <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#1a1a2e' }}>
+              <img
+                src={v.thumbnail_url}
+                alt={v.title}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              {/* Play button overlay */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'rgba(0,0,0,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.9)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none">
+                    <polygon points="6,3 20,12 6,21" />
+                  </svg>
+                </div>
+              </div>
+              {/* Duration badge */}
+              {v.duration && (
+                <div style={{
+                  position: 'absolute', bottom: 6, right: 6,
+                  background: 'rgba(0,0,0,0.8)', borderRadius: 4,
+                  padding: '2px 6px', fontSize: 10, fontWeight: 700,
+                  color: '#fff', fontFamily: 'var(--font-mono)',
+                }}>
+                  {v.duration}
+                </div>
+              )}
+            </div>
+            {/* Info */}
+            <div style={{ padding: '10px 12px' }}>
+              <div style={{
+                fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
+                lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+              }}>
+                {v.title}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
+                {v.view_count > 0 && (
+                  <>
+                    <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  )
+}
+
 function NoLiveBanner() {
   return (
     <div style={{
@@ -396,11 +498,12 @@ export default function HomePage() {
   const [topMen, setTopMen] = useState<RankedPlayer[]>([])
   const [topWomen, setTopWomen] = useState<RankedPlayer[]>([])
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
+  const [highlights, setHighlights] = useState<Highlight[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
     // Run all queries in parallel
-    const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes] = await Promise.all([
+    const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes, highlightsRes] = await Promise.all([
       // Live matches
       supabase
         .from('matches')
@@ -479,6 +582,14 @@ export default function HomePage() {
         .in('status', ['finished', 'retired', 'walkover'])
         .order('finished_at', { ascending: false })
         .limit(20),
+
+      // Video highlights
+      supabase
+        .from('highlights')
+        .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category')
+        .eq('status', 'active')
+        .order('published_at', { ascending: false })
+        .limit(10),
     ])
 
     setLiveMatches((liveRes.data as any) ?? [])
@@ -487,6 +598,7 @@ export default function HomePage() {
     setTopMen((menRes.data as any) ?? [])
     setTopWomen((womenRes.data as any) ?? [])
     setRecentMatches((recentRes.data as any) ?? [])
+    setHighlights((highlightsRes.data as any) ?? [])
     setLoading(false)
   }, [])
 
@@ -580,6 +692,13 @@ export default function HomePage() {
           <div style={{ height: 12 }} />
           <NoLiveBanner />
         </>
+      )}
+
+      {/* Video Highlights */}
+      {highlights.length > 0 && (
+        <CollapsibleSection title="Highlights" action="See all" href="/v2">
+          <HighlightsCarousel highlights={highlights} />
+        </CollapsibleSection>
       )}
 
       {/* Upcoming tournaments */}

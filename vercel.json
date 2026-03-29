@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/sync-fip-rankings",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/sync-highlights",
+      "schedule": "0 */6 * * *"
     }
   ]
 }
