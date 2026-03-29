@@ -42,6 +42,15 @@ function formatDuration(iso: string): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+// Get total seconds from ISO 8601 duration
+function durationSeconds(iso: string): number {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+  if (!match) return 0
+  return parseInt(match[1] || '0') * 3600 + parseInt(match[2] || '0') * 60 + parseInt(match[3] || '0')
+}
+
+const MIN_DURATION_SECONDS = 300 // 5 minutes
+
 // Infer category from video title
 function inferCategory(title: string): string | null {
   const lower = title.toLowerCase()
@@ -131,6 +140,7 @@ export async function GET(req: NextRequest) {
         const existing = videoMap[item.id]
         if (existing) {
           (existing as any).duration = formatDuration(item.contentDetails.duration)
+          ;(existing as any).durationSecs = durationSeconds(item.contentDetails.duration)
           ;(existing as any).viewCount = parseInt(item.statistics.viewCount || '0')
         }
       }
@@ -139,11 +149,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Step 3: Upsert into highlights table
+  // Step 3: Filter out short videos (< 5 min) and upsert
   let upserted = 0
   const errors: string[] = []
 
-  const rows = Object.entries(videoMap).map(([youtubeId, info]) => ({
+  const filtered = Object.entries(videoMap).filter(
+    ([, info]) => ((info as any).durationSecs ?? 0) >= MIN_DURATION_SECONDS
+  )
+
+  const rows = filtered.map(([youtubeId, info]) => ({
     youtube_id: youtubeId,
     title: info.title,
     channel_name: info.channelName,
@@ -170,6 +184,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     message: errors.length > 0 ? 'Highlights sync had errors' : 'Highlights sync complete',
     found: allVideoIds.size,
+    filteredOut: allVideoIds.size - filtered.length,
     upserted,
     errors,
   })

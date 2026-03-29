@@ -308,6 +308,8 @@ function RecentResultsWidget({ matches }: { matches: Match[] }) {
 }
 
 function HighlightsCarousel({ highlights }: { highlights: Highlight[] }) {
+  const [playing, setPlaying] = useState<Highlight | null>(null)
+
   if (highlights.length === 0) return null
 
   function formatViews(count: number): string {
@@ -317,83 +319,133 @@ function HighlightsCarousel({ highlights }: { highlights: Highlight[] }) {
   }
 
   return (
-    <div style={{
-      display: 'flex', gap: 12, padding: '0 16px 4px',
-      overflowX: 'auto', scrollSnapType: 'x mandatory',
-      WebkitOverflowScrolling: 'touch',
-      msOverflowStyle: 'none', scrollbarWidth: 'none',
-    }}>
-      {highlights.map(v => (
-        <a
-          key={v.id}
-          href={`https://www.youtube.com/watch?v=${v.youtube_id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 220, scrollSnapAlign: 'start' }}
-        >
-          <div style={{
-            borderRadius: 12, overflow: 'hidden',
-            background: 'var(--bg-card)', border: '1px solid var(--border-card)',
-          }}>
-            {/* Thumbnail with play button + duration */}
-            <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#1a1a2e' }}>
-              <img
-                src={v.thumbnail_url}
-                alt={v.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-              {/* Play button overlay */}
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: 'rgba(0,0,0,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
+    <>
+      <div style={{
+        display: 'flex', gap: 12, padding: '0 16px 4px',
+        overflowX: 'auto', scrollSnapType: 'x mandatory',
+        WebkitOverflowScrolling: 'touch',
+        msOverflowStyle: 'none', scrollbarWidth: 'none',
+      }}>
+        {highlights.map(v => (
+          <button
+            key={v.id}
+            onClick={() => setPlaying(v)}
+            style={{
+              textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 220,
+              scrollSnapAlign: 'start', background: 'none', border: 'none',
+              padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+            }}
+          >
+            <div style={{
+              borderRadius: 12, overflow: 'hidden',
+              background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+            }}>
+              <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#1a1a2e' }}>
+                <img
+                  src={v.thumbnail_url}
+                  alt={v.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
                 <div style={{
-                  width: 40, height: 40, borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.9)',
+                  position: 'absolute', inset: 0,
+                  background: 'rgba(0,0,0,0.2)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
                 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none">
-                    <polygon points="6,3 20,12 6,21" />
-                  </svg>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%',
+                    background: 'rgba(255,255,255,0.9)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none">
+                      <polygon points="6,3 20,12 6,21" />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-              {/* Duration badge */}
-              {v.duration && (
-                <div style={{
-                  position: 'absolute', bottom: 6, right: 6,
-                  background: 'rgba(0,0,0,0.8)', borderRadius: 4,
-                  padding: '2px 6px', fontSize: 10, fontWeight: 700,
-                  color: '#fff', fontFamily: 'var(--font-mono)',
-                }}>
-                  {v.duration}
-                </div>
-              )}
-            </div>
-            {/* Info */}
-            <div style={{ padding: '10px 12px' }}>
-              <div style={{
-                fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
-                lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
-              }}>
-                {v.title}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
-                {v.view_count > 0 && (
-                  <>
-                    <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
-                    <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
-                  </>
+                {v.duration && (
+                  <div style={{
+                    position: 'absolute', bottom: 6, right: 6,
+                    background: 'rgba(0,0,0,0.8)', borderRadius: 4,
+                    padding: '2px 6px', fontSize: 10, fontWeight: 700,
+                    color: '#fff', fontFamily: 'var(--font-mono)',
+                  }}>
+                    {v.duration}
+                  </div>
                 )}
               </div>
+              <div style={{ padding: '10px 12px' }}>
+                <div style={{
+                  fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
+                  lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+                }}>
+                  {v.title}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
+                  {v.view_count > 0 && (
+                    <>
+                      <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Inline YouTube player modal */}
+      {playing && (
+        <div
+          onClick={() => setPlaying(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.92)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setPlaying(null)}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.15)', border: 'none',
+              color: '#fff', fontSize: 20, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            ✕
+          </button>
+
+          {/* Video player */}
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 500, aspectRatio: '16/9', borderRadius: 12, overflow: 'hidden' }}
+          >
+            <iframe
+              src={`https://www.youtube.com/embed/${playing.youtube_id}?autoplay=1&rel=0`}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          </div>
+
+          {/* Title below player */}
+          <div style={{ maxWidth: 500, width: '100%', marginTop: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.3 }}>
+              {playing.title}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+              {playing.channel_name}{playing.view_count > 0 ? ` · ${formatViews(playing.view_count)} views` : ''}
             </div>
           </div>
-        </a>
-      ))}
-    </div>
+        </div>
+      )}
+    </>
   )
 }
 
