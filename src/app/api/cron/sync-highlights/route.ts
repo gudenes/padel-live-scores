@@ -86,6 +86,7 @@ export async function GET(req: NextRequest) {
 
   const supabase = createServerClient()
   const allVideoIds: Set<string> = new Set()
+  const priorityVideoIds: Set<string> = new Set()
   const videoMap: Record<string, { title: string; channelName: string; thumbnailUrl: string; publishedAt: string }> = {}
 
   // Step 0: Resolve priority channel handles → channel IDs, then fetch their recent videos
@@ -115,6 +116,7 @@ export async function GET(req: NextRequest) {
       for (const item of (data.items ?? []) as YouTubeSearchItem[]) {
         const vid = item.id.videoId
         allVideoIds.add(vid)
+        priorityVideoIds.add(vid)
         videoMap[vid] = {
           title: item.snippet.title,
           channelName: item.snippet.channelTitle,
@@ -205,8 +207,9 @@ export async function GET(req: NextRequest) {
   let upserted = 0
   const errors: string[] = []
 
+  // Priority channel videos skip the duration filter
   const filtered = Object.entries(videoMap).filter(
-    ([, info]) => ((info as any).durationSecs ?? 0) >= MIN_DURATION_SECONDS
+    ([id, info]) => priorityVideoIds.has(id) || ((info as any).durationSecs ?? 0) >= MIN_DURATION_SECONDS
   )
 
   const rows = filtered.map(([youtubeId, info]) => ({
