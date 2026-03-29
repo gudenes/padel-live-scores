@@ -7,12 +7,16 @@ import { createServerClient } from '@/lib/supabase'
 
 export const maxDuration = 60
 
-// Broad search queries — finds highlights from Premier Padel official,
-// Daily Padel, broadcasters, and other quality sources
+// Broad search queries — finds highlights from broadcasters and other sources
 const SEARCH_QUERIES = [
   'premier padel highlights',
   'premier padel best points',
   'premier padel match highlights 2026',
+]
+
+// Priority YouTube handles — always fetch their latest videos
+const PRIORITY_CHANNELS = [
+  'PremierPadelOfficial',
 ]
 
 interface YouTubeSearchItem {
@@ -83,6 +87,45 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient()
   const allVideoIds: Set<string> = new Set()
   const videoMap: Record<string, { title: string; channelName: string; thumbnailUrl: string; publishedAt: string }> = {}
+
+  // Step 0: Resolve priority channel handles → channel IDs, then fetch their recent videos
+  for (const handle of PRIORITY_CHANNELS) {
+    try {
+      // Resolve handle to channel ID
+      const chParams = new URLSearchParams({ part: 'id', forHandle: handle, key: apiKey })
+      const chRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?${chParams}`)
+      if (!chRes.ok) { console.error(`Channel lookup failed for @${handle}:`, await chRes.text()); continue }
+      const chData = await chRes.json()
+      const channelId = chData.items?.[0]?.id
+      if (!channelId) { console.error(`No channel found for @${handle}`); continue }
+
+      // Search this channel's recent videos
+      const params = new URLSearchParams({
+        part: 'snippet',
+        channelId,
+        type: 'video',
+        order: 'date',
+        maxResults: '15',
+        publishedAfter: new Date(Date.now() - 30 * 86400000).toISOString(),
+        key: apiKey,
+      })
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`)
+      if (!res.ok) { console.error(`Channel search failed for @${handle}:`, await res.text()); continue }
+      const data = await res.json()
+      for (const item of (data.items ?? []) as YouTubeSearchItem[]) {
+        const vid = item.id.videoId
+        allVideoIds.add(vid)
+        videoMap[vid] = {
+          title: item.snippet.title,
+          channelName: item.snippet.channelTitle,
+          thumbnailUrl: item.snippet.thumbnails.high?.url ?? item.snippet.thumbnails.medium?.url,
+          publishedAt: item.snippet.publishedAt,
+        }
+      }
+    } catch (err) {
+      console.error(`Priority channel fetch failed for @${handle}:`, err)
+    }
+  }
 
   // Step 1: Search for videos across queries (broad search, no channel filter)
   for (const query of SEARCH_QUERIES) {
