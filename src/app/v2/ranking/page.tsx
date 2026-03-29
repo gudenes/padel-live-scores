@@ -184,6 +184,7 @@ export default function RankingPage() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery]       = useState('')
+  const [visibleCount, setVisibleCount] = useState(50)
   const inputRef                = useRef<HTMLInputElement>(null)
   const searchBoxRef            = useRef<HTMLDivElement>(null)
 
@@ -221,7 +222,7 @@ export default function RankingPage() {
       .eq('category', g)
       .not(rankCol, 'is', null)
       .order(rankCol, { ascending: true })
-      .limit(200)
+      .limit(1000)
 
     setPlayers(data ?? [])
 
@@ -364,10 +365,10 @@ export default function RankingPage() {
         borderBottom: '1px solid rgba(255,255,255,0.08)',
         padding: '0 16px',
       }}>
-        <button style={mainTabStyle(rankType === 'official')} onClick={() => { setRankType('official'); setQuery('') }}>
+        <button style={mainTabStyle(rankType === 'official')} onClick={() => { setRankType('official'); setQuery(''); setVisibleCount(50) }}>
           Official
         </button>
-        <button style={mainTabStyle(rankType === 'race')} onClick={() => { setRankType('race'); setQuery('') }}>
+        <button style={mainTabStyle(rankType === 'race')} onClick={() => { setRankType('race'); setQuery(''); setVisibleCount(50) }}>
           Race
         </button>
       </div>
@@ -378,8 +379,8 @@ export default function RankingPage() {
         gap: 8, padding: '10px 16px',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <button style={genderPillStyle(gender === 'men')}   onClick={() => { setGender('men');   setQuery('') }}>Men</button>
-        <button style={genderPillStyle(gender === 'women')} onClick={() => { setGender('women'); setQuery('') }}>Women</button>
+        <button style={genderPillStyle(gender === 'men')}   onClick={() => { setGender('men');   setQuery(''); setVisibleCount(50) }}>Men</button>
+        <button style={genderPillStyle(gender === 'women')} onClick={() => { setGender('women'); setQuery(''); setVisibleCount(50) }}>Women</button>
       </div>
 
       {/* Column labels */}
@@ -412,14 +413,35 @@ export default function RankingPage() {
           )}
         </div>
       ) : (
-        filtered.map(player => (
-          <PlayerRow
-            key={player.id}
-            player={player}
-            rankType={rankType}
-            onClick={() => router.push(`/player/${player.id}`)}
-          />
-        ))
+        <>
+          {(query ? filtered : filtered.slice(0, visibleCount)).map(player => (
+            <PlayerRow
+              key={player.id}
+              player={player}
+              rankType={rankType}
+              onClick={() => router.push(`/player/${player.id}`)}
+            />
+          ))}
+
+          {/* Load more button — hidden when searching or all shown */}
+          {!query && visibleCount < filtered.length && (
+            <div style={{ padding: '16px', textAlign: 'center' }}>
+              <button
+                onClick={() => setVisibleCount(v => v + 50)}
+                style={{
+                  background: 'var(--bg-card-alt)',
+                  border: '1px solid rgba(56,200,255,0.2)',
+                  borderRadius: 10, padding: '10px 24px',
+                  color: 'var(--color-accent)', fontWeight: 700,
+                  fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all 0.15s',
+                }}
+              >
+                Load more ({filtered.length - visibleCount} remaining)
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
