@@ -1,588 +1,613 @@
 'use client'
 // src/app/v2/page.tsx
-// V2 Matches page — B1 Cobalt theme, bottom nav shell (see layout.tsx)
-// Shows all leagues by default; auto-selects the live tournament.
-// Feed is organised by section headers: Live Now → Up Next → Finished
+// Home / landing page — always has content regardless of live match state.
+// Sections: Live Now (conditional) → Upcoming Tournament → Rankings → Recent Results
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useState, useCallback, ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, isWarmingUp } from '@/types/match'
+import { Match, countryFlag } from '@/types/match'
 import MatchCard from '../components/MatchCard'
-import { useBookmarks } from '@/hooks/useBookmarks'
+import Link from 'next/link'
 
-// ── Stage ordering ────────────────────────────────────────────────────────
-const ROUND_ORDER: Record<string, number> = {
-  'Finals': 1, 'Final': 1,
-  'Semifinals': 2, 'Semifinal': 2, 'Semi': 2,
-  'Quarterfinals': 3, 'Quarter': 3, 'Quarters': 3,
-  'Round of 16': 4,
-  'Round of 32': 5,
-  'Round of 64': 6,
+// ── Country names ──────────────────────────────────────────────────────────
+
+const COUNTRY_NAMES: Record<string, string> = {
+  ES: 'Spain', AR: 'Argentina', BR: 'Brazil', PT: 'Portugal',
+  FR: 'France', IT: 'Italy', BE: 'Belgium', NL: 'Netherlands',
+  DE: 'Germany', GB: 'Great Britain', DK: 'Denmark', SE: 'Sweden',
+  UY: 'Uruguay', PY: 'Paraguay', CL: 'Chile', MX: 'Mexico',
+  US: 'United States', AU: 'Australia', QA: 'Qatar', AE: 'UAE',
 }
 
-// Normalize API round names to full display names
-function normalizeRoundFull(r: string): string {
+function countryName(code: string | null): string {
+  if (!code) return ''
+  return COUNTRY_NAMES[code.toUpperCase()] ?? code
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface LiveMatch {
+  id: string
+  round: string | null
+  court: string | null
+  category: string | null
+  serving_player_id: string | null
+  pair1_player1: { id: string; name: string; country: string | null } | null
+  pair1_player2: { id: string; name: string; country: string | null } | null
+  pair2_player1: { id: string; name: string; country: string | null } | null
+  pair2_player2: { id: string; name: string; country: string | null } | null
+  sets: { set_number: number; pair1_games: number; pair2_games: number; is_current: boolean }[]
+  tournament: { name: string; country: string | null } | null
+}
+
+interface Tournament {
+  id: string
+  name: string
+  starts_at: string
+  ends_at: string
+  country: string | null
+  level: string | null
+  location: string | null
+  prize_money: string | null
+}
+
+
+interface RankedPlayer {
+  id: string
+  name: string
+  country: string | null
+  ranking: number | null
+  points: number | null
+  avatar_url: string | null
+  category: string | null
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function pairLabel(p1: { name: string } | null, p2: { name: string } | null): string {
+  const n1 = p1?.name?.split(' ').pop() ?? '?'
+  const n2 = p2?.name?.split(' ').pop() ?? '?'
+  return `${n1} / ${n2}`
+}
+
+function scoreString(sets: { pair1_games: number; pair2_games: number }[], pair: 1 | 2): string {
+  return sets
+    .sort((a: any, b: any) => a.set_number - b.set_number)
+    .map(s => pair === 1 ? `${s.pair1_games}-${s.pair2_games}` : `${s.pair2_games}-${s.pair1_games}`)
+    .join(' ')
+}
+
+function daysUntil(dateStr: string): number {
+  const now = new Date()
+  const target = new Date(dateStr)
+  const diff = target.getTime() - now.getTime()
+  return Math.max(0, Math.ceil(diff / 86400000))
+}
+
+function formatDateRange(start: string, end: string): string {
+  const s = new Date(start)
+  const e = new Date(end)
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+  return `${s.toLocaleDateString('en-US', opts)} - ${e.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
+}
+
+function levelLabel(level: string | null): string {
   const map: Record<string, string> = {
-    'Quarter': 'Quarterfinals', 'Quarters': 'Quarterfinals',
-    'Semi': 'Semifinals', 'Semifinal': 'Semifinals',
-    'Final': 'Finals',
+    finals: 'Finals', major: 'Major', p1: 'P1', p2: 'P2',
+    fip_platinum: 'FIP Platinum', fip_gold: 'FIP Gold', fip_other: 'FIP Tour',
   }
-  return map[r] ?? r
+  return level ? (map[level] ?? level) : ''
 }
 
-// Local date key — kept for scheduled_at date comparison
-function localDateKey(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+// ── Sub-components ─────────────────────────────────────────────────────────
+
+function CollapsibleSection({ title, action, href, children, defaultOpen = true }: {
+  title: string; action?: string; href?: string; children: ReactNode; defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
+        <button
+          onClick={() => setOpen(o => !o)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
+            padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            {title}
+          </span>
+        </button>
+        {action && href && (
+          <Link href={href} style={{ color: 'var(--color-accent)', fontSize: 12, fontWeight: 600, textDecoration: 'none', fontFamily: 'var(--font-sans)' }}>
+            {action} ›
+          </Link>
+        )}
+      </div>
+      {open && children}
+    </div>
+  )
 }
 
-export default function V2Page() {
-  // ── State ─────────────────────────────────────────────────────────────
-  const [allMatches, setAllMatches]   = useState<Match[]>([])
-  const [tournaments, setTournaments] = useState<any[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [liveCount, setLiveCount]     = useState(0)
-  const [syncAgo, setSyncAgo]         = useState('')
-  const [lastSynced, setLastSynced]   = useState<Date | null>(null)
-  const [justUpdated, setJustUpdated] = useState(false)
+function LiveMatchCard({ match }: { match: LiveMatch }) {
+  const catColor = match.category === 'women' ? 'var(--color-women)' : 'var(--color-men)'
+  const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
+  const pairs = [
+    { label: pairLabel(match.pair1_player1, match.pair1_player2), serving: !!(match.serving_player_id && (match.serving_player_id === match.pair1_player1?.id || match.serving_player_id === match.pair1_player2?.id)) },
+    { label: pairLabel(match.pair2_player1, match.pair2_player2), serving: !!(match.serving_player_id && (match.serving_player_id === match.pair2_player1?.id || match.serving_player_id === match.pair2_player2?.id)) },
+  ]
 
-  const [activeTournament, setActiveTournament] = useState<string | null>(null)
-  const [selectedRound, setSelectedRound] = useState<string | null>(null)
-  const stageStripRef = useRef<HTMLDivElement>(null)
+  return (
+    <Link href={`/v2/matches`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <div style={{
+        background: 'var(--bg-card)', borderRadius: 12,
+        border: '1px solid var(--color-live-border)',
+        padding: '12px 14px', minWidth: 280, flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-live)', animation: 'blink 1.4s ease-in-out infinite' }} />
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-live)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Live</span>
+            {match.court && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{match.court}</span>}
+          </div>
+          <span style={{ fontSize: 10, fontWeight: 600, color: catColor, letterSpacing: '0.04em' }}>
+            {match.round}
+          </span>
+        </div>
 
-  const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
+        {pairs.map((pair, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
+            borderTop: i === 1 ? '1px solid var(--border-inner)' : 'none',
+          }}>
+            {pair.serving ? <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--color-accent)', flexShrink: 0 }} /> : <div style={{ width: 4, flexShrink: 0 }} />}
+            <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{pair.label}</span>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {sets.map((s, si) => (
+                <span key={si} style={{
+                  fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  color: si === sets.length - 1 ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  width: 16, textAlign: 'center',
+                }}>
+                  {i === 0 ? s.pair1_games : s.pair2_games}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Link>
+  )
+}
 
-  // ── Fetch ─────────────────────────────────────────────────────────────
-  const fetchAll = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('matches')
-      .select(`
-        *,
-        tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
-        pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        sets(*, games(*))
-      `)
-      .in('status', ['live', 'scheduled', 'finished', 'retired', 'walkover', 'ended', 'bye'])
-      .order('court_order', { ascending: true, nullsFirst: false })
-      .order('started_at', { ascending: false })
+function UpcomingTournamentCard({ tournament }: { tournament: Tournament }) {
+  const days = daysUntil(tournament.starts_at)
+  const isLive = days === 0
+  return (
+    <div style={{
+      margin: '0 16px', borderRadius: 14,
+      background: isLive
+        ? 'linear-gradient(135deg, var(--bg-card) 0%, rgba(255,70,85,0.06) 100%)'
+        : 'linear-gradient(135deg, var(--bg-card) 0%, rgba(56,200,255,0.06) 100%)',
+      border: `1px solid ${isLive ? 'var(--color-live-border)' : 'var(--color-accent-border)'}`,
+      padding: '16px 18px', position: 'relative', overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'absolute', top: -30, right: -30, width: 100, height: 100,
+        borderRadius: '50%', background: isLive ? 'rgba(255,70,85,0.06)' : 'rgba(56,200,255,0.06)', filter: 'blur(30px)',
+      }} />
 
-    if (error) { console.error('v2 fetchAll error:', error); return }
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
+        <div>
+          <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px' }}>
+            {tournament.name}
+          </h3>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>{countryFlag(tournament.country)}</span>
+            <span>{tournament.location ?? countryName(tournament.country)}</span>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>{formatDateRange(tournament.starts_at, tournament.ends_at)}</span>
+            {tournament.prize_money && tournament.prize_money !== 'EUR 0' && (
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>· {tournament.prize_money}</span>
+            )}
+          </div>
+        </div>
 
-    const sorted = (data as any[]).map(m => ({
-      ...m,
-      sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number),
-    }))
+        {!isLive && (
+          <div style={{
+            background: 'var(--bg-card-alt)', borderRadius: 10,
+            padding: '8px 12px', textAlign: 'center',
+            border: '1px solid var(--border-card)',
+          }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-accent)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>
+              {days}
+            </div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em', marginTop: 3 }}>
+              {days === 1 ? 'DAY' : 'DAYS'}
+            </div>
+          </div>
+        )}
+      </div>
 
-    setAllMatches(sorted)
-    setLiveCount(sorted.filter((m: any) => m.status === 'live' && !isWarmingUp(m as Match)).length)
-    setLastSynced(new Date())
-    setJustUpdated(true)
-    setTimeout(() => setJustUpdated(false), 1500)
+      {tournament.level && (
+        <div style={{
+          display: 'inline-block', marginTop: 10,
+          padding: '3px 10px', borderRadius: 6,
+          background: isLive ? 'var(--color-live-bg)' : 'var(--color-accent-bg)',
+          fontSize: 10, fontWeight: 700, color: isLive ? 'var(--color-live)' : 'var(--color-accent)',
+          letterSpacing: '0.04em', textTransform: 'uppercase',
+        }}>
+          {levelLabel(tournament.level)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RankingsWidget({ men, women }: { men: RankedPlayer[]; women: RankedPlayer[] }) {
+  const [tab, setTab] = useState<'men' | 'women'>('men')
+  const players = tab === 'men' ? men : women
+  const medalColors = ['#F59E0B', '#94A3B8', '#CD7F32']
+
+  return (
+    <div style={{ margin: '0 16px', borderRadius: 14, background: 'var(--bg-card)', border: '1px solid var(--border-card)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>FIP Ranking</span>
+        <div style={{ display: 'flex', gap: 0, background: 'var(--bg-card-alt)', borderRadius: 8, padding: 2 }}>
+          {(['men', 'women'] as const).map(g => (
+            <button key={g} onClick={() => setTab(g)} style={{
+              padding: '4px 12px', borderRadius: 6, border: 'none',
+              fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
+              background: tab === g ? (g === 'women' ? 'var(--color-women)' : 'var(--color-accent)') : 'transparent',
+              color: tab === g ? '#000' : 'var(--text-muted)',
+              transition: 'all 0.15s',
+            }}>
+              {g === 'men' ? 'M' : 'F'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {players.map((p, i) => {
+        const initials = p.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+        const borderColor = tab === 'women' ? 'var(--color-women-border)' : 'var(--color-men-border)'
+        const textColor = tab === 'women' ? 'var(--color-women)' : 'var(--color-men)'
+        return (
+          <div key={p.id} style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 14px', borderTop: '1px solid var(--border-inner)',
+          }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: medalColors[i] ?? 'var(--color-accent)', width: 24, textAlign: 'right' }}>
+              {p.ranking}
+            </span>
+            {p.avatar_url ? (
+              <img src={p.avatar_url} alt={p.name} style={{
+                width: 34, height: 34, borderRadius: '50%', objectFit: 'cover',
+                border: `2px solid ${borderColor}`, flexShrink: 0,
+              }} />
+            ) : (
+              <div style={{
+                width: 34, height: 34, borderRadius: '50%', background: 'var(--bg-card-alt)',
+                border: `2px solid ${borderColor}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, fontWeight: 700, color: textColor, flexShrink: 0,
+              }}>
+                {initials}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {p.name}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                {countryFlag(p.country)} {countryName(p.country)}
+              </div>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-accent)', fontFamily: 'var(--font-mono)' }}>
+              {(p.points ?? 0).toLocaleString()}
+            </span>
+          </div>
+        )
+      })}
+
+      <Link href="/v2/ranking" style={{ display: 'block', padding: '10px 14px', borderTop: '1px solid var(--border-inner)', textAlign: 'center', textDecoration: 'none' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-accent)' }}>See full ranking ›</span>
+      </Link>
+    </div>
+  )
+}
+
+
+
+function RecentResultsWidget({ matches }: { matches: Match[] }) {
+  const [tab, setTab] = useState<'men' | 'women'>('men')
+  const filtered = matches
+    .filter(m => (m as any).category === tab)
+    .sort((a, b) => {
+      const aDate = a.finished_at ? new Date(a.finished_at).getTime() : 0
+      const bDate = b.finished_at ? new Date(b.finished_at).getTime() : 0
+      return bDate - aDate
+    })
+    .slice(0, 10)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 8px' }}>
+        <div style={{ display: 'flex', gap: 0, background: 'var(--bg-card-alt)', borderRadius: 8, padding: 2 }}>
+          {(['men', 'women'] as const).map(g => (
+            <button key={g} onClick={() => setTab(g)} style={{
+              padding: '4px 12px', borderRadius: 6, border: 'none',
+              fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+              background: tab === g
+                ? (g === 'women' ? 'var(--color-women)' : 'var(--color-accent)')
+                : 'transparent',
+              color: tab === g ? '#000' : 'var(--text-muted)',
+              transition: 'all 0.15s',
+            }}>
+              {g === 'men' ? 'M' : 'F'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: '0 16px' }}>
+        {filtered.map(m => (
+          <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
+        ))}
+        {filtered.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+            No recent results
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function NoLiveBanner() {
+  return (
+    <div style={{
+      margin: '0 16px', borderRadius: 14, background: 'var(--bg-card)',
+      border: '1px solid var(--border-card)', padding: '20px 18px', textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 28, marginBottom: 8 }}>&#127934;</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>No live matches right now</div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Check back during tournament days for live scores</div>
+    </div>
+  )
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────
+
+export default function HomePage() {
+  const router = useRouter()
+  const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([])
+  const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
+  const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([])
+  const [topMen, setTopMen] = useState<RankedPlayer[]>([])
+  const [topWomen, setTopWomen] = useState<RankedPlayer[]>([])
+  const [recentMatches, setRecentMatches] = useState<Match[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchData = useCallback(async () => {
+    // Run all queries in parallel
+    const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes] = await Promise.all([
+      // Live matches
+      supabase
+        .from('matches')
+        .select(`
+          id, round, court, category, serving_player_id,
+          pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country),
+          pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country),
+          pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country),
+          pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country),
+          sets(set_number, pair1_games, pair2_games, is_current),
+          tournament:tournaments(name, country)
+        `)
+        .eq('status', 'live')
+        .order('court_order', { ascending: true }),
+
+      // Next scheduled matches (for when tournament is live but no matches are)
+      (() => {
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        return supabase
+          .from('matches')
+          .select(`
+            *,
+            tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
+            pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            sets(*, games(*))
+          `)
+          .eq('status', 'scheduled')
+          .gte('scheduled_at', todayStart.toISOString())
+          .order('scheduled_at', { ascending: true })
+          .limit(4)
+      })(),
+
+      // Upcoming or current Premier Padel tournament
+      supabase
+        .from('tournaments')
+        .select('id, name, starts_at, ends_at, country, level, location, prize_money')
+        .in('level', ['finals', 'major', 'p1', 'p2'])
+        .gte('ends_at', new Date().toISOString())
+        .order('starts_at', { ascending: true })
+        .limit(2),
+
+      // Top 10 men
+      supabase
+        .from('players')
+        .select('id, name, country, ranking, points, avatar_url, category')
+        .eq('category', 'men')
+        .not('ranking', 'is', null)
+        .order('ranking', { ascending: true })
+        .limit(10),
+
+      // Top 10 women
+      supabase
+        .from('players')
+        .select('id, name, country, ranking, points, avatar_url, category')
+        .eq('category', 'women')
+        .not('ranking', 'is', null)
+        .order('ranking', { ascending: true })
+        .limit(10),
+
+      // Recent finished matches
+      supabase
+        .from('matches')
+        .select(`
+          *,
+          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
+          pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          sets(*, games(*))
+        `)
+        .in('status', ['finished', 'retired', 'walkover'])
+        .order('finished_at', { ascending: false })
+        .limit(20),
+    ])
+
+    setLiveMatches((liveRes.data as any) ?? [])
+    setScheduledMatches((scheduledRes.data as any) ?? [])
+    setUpcomingTournaments((tournamentRes.data as any) ?? [])
+    setTopMen((menRes.data as any) ?? [])
+    setTopWomen((womenRes.data as any) ?? [])
+    setRecentMatches((recentRes.data as any) ?? [])
     setLoading(false)
   }, [])
 
-  const fetchTournaments = useCallback(async () => {
-    const { data } = await supabase
-      .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money')
-      .order('starts_at', { ascending: false })
-    if (data) setTournaments(data)
-  }, [])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  useEffect(() => { fetchAll(); fetchTournaments() }, [fetchAll, fetchTournaments])
-
-  // ── Realtime — debounced to avoid partial-state renders ───────────────
-  // The relay writes match → sets → games in a sequential loop; each individual
-  // DB write fires a Supabase realtime event.  Without debouncing, the client
-  // fetches 5-10 times per live update and renders intermediate partial states
-  // (jumping points, stuck scores).  500 ms captures the whole write burst.
-  const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Subscribe to live match changes
   useEffect(() => {
-    const handleChange = () => {
-      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
-      realtimeDebounceRef.current = setTimeout(fetchAll, 500)
-    }
-    // Only watch the matches table — the relay writes sets/games first and
-    // updates the match row last, so this event fires only when the full
-    // snapshot is already consistent in the DB.
-    const ch = supabase
-      .channel('v2-feed')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, handleChange)
-      .subscribe()
-    return () => {
-      supabase.removeChannel(ch)
-      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
-    }
-  }, [fetchAll])
-
-  // ── Sync ago ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!lastSynced) return
-    const update = () => {
-      const secs = Math.floor((Date.now() - lastSynced.getTime()) / 1000)
-      if (secs < 5) setSyncAgo('just updated')
-      else if (secs < 60) setSyncAgo(`${secs}s ago`)
-      else setSyncAgo(`${Math.floor(secs / 60)}m ago`)
-    }
-    update()
-    const t = setInterval(update, 5000)
-    return () => clearInterval(t)
-  }, [lastSynced])
-
-  // ── Tournament helpers ────────────────────────────────────────────────
-  const isLiveTournament = (t: any) => {
-    if (!t.starts_at || !t.ends_at) return false
-    const now = new Date()
-    const end = new Date(t.ends_at); end.setHours(23, 59, 59)
-    return now >= new Date(t.starts_at) && now <= end
-  }
-
-  // Auto-select live tournament on load
-  useEffect(() => {
-    if (tournaments.length === 0) return
-    const live = tournaments.find(isLiveTournament)
-    const upcoming = tournaments.find(t => t.starts_at && new Date(t.starts_at) > new Date())
-    setActiveTournament(live?.id ?? upcoming?.id ?? tournaments[0]?.id ?? null)
-  }, [tournaments]) // eslint-disable-line
-
-  const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
-
-  // ── Available rounds for active tournament (ordered R64 → Finals) ─────
-  const availableRounds = useMemo(() => {
-    const seen = new Set<string>()
-    for (const m of allMatches) {
-      if (activeTournament && (m as any).tournament?.id !== activeTournament) continue
-      const r = m.round as string | null
-      if (r) seen.add(normalizeRoundFull(r))
-    }
-    // Sort ascending by round number: early rounds first (R64, R32 … Finals)
-    return [...seen].sort((a, b) => (ROUND_ORDER[b] ?? 0) - (ROUND_ORDER[a] ?? 0))
-  }, [allMatches, activeTournament]) // eslint-disable-line
-
-  // ── Dates per round (for stage pill sub-label) ────────────────────────
-  const roundDates = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const round of availableRounds) {
-      const dates = new Set<string>()
-      for (const m of allMatches) {
-        if (activeTournament && (m as any).tournament?.id !== activeTournament) continue
-        if (normalizeRoundFull(m.round as string) !== round) continue
-        const src = (m as any).scheduled_at ?? (m as any).started_at
-        if (src) dates.add(src.slice(0, 10))
-      }
-      const sorted = [...dates].sort()
-      if (sorted.length === 0) continue
-      const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-      map[round] = sorted.length === 1 ? fmt(sorted[0]) : `${fmt(sorted[0])} – ${fmt(sorted[sorted.length - 1])}`
-    }
-    return map
-  }, [allMatches, availableRounds, activeTournament]) // eslint-disable-line
-
-  // Auto-select the current round: prefer live > today's scheduled > most advanced
-  useEffect(() => {
-    if (availableRounds.length === 0) return
-    const todayKey = localDateKey(new Date())
-    const hasLive = availableRounds.find(r =>
-      allMatches.some(m =>
-        m.status === 'live' &&
-        normalizeRoundFull(m.round as string) === r &&
-        (!activeTournament || (m as any).tournament?.id === activeTournament)
-      )
-    )
-    const hasToday = availableRounds.find(r =>
-      allMatches.some(m => {
-        if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
-        if (normalizeRoundFull(m.round as string) !== r) return false
-        const src = (m as any).scheduled_at ?? (m as any).started_at
-        return src && src.slice(0, 10) === todayKey
+    const channel = supabase
+      .channel('home-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: 'status=eq.live' }, () => {
+        fetchData()
       })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchData])
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 500, margin: '0 auto', padding: '60px 20px', textAlign: 'center', color: 'var(--text-faint)', fontSize: 14 }}>
+        Loading...
+      </div>
     )
-    setSelectedRound(prev => {
-      // Don't override a user selection that's still valid
-      if (prev && availableRounds.includes(prev)) return prev
-      return hasLive ?? hasToday ?? availableRounds[0] ?? null
-    })
-  }, [availableRounds, activeTournament]) // eslint-disable-line
-
-  // Auto-scroll stage strip so the active pill is centred in view
-  useEffect(() => {
-    if (!selectedRound || !stageStripRef.current) return
-    const btn = stageStripRef.current.querySelector<HTMLElement>('[data-active="true"]')
-    if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
-  }, [selectedRound])
-
-  // Active stage label for header (live matches stage)
-  const activeTournamentStage = useMemo(() => {
-    const rounds = allMatches
-      .filter(m => m.status === 'live' && (m as any).tournament?.id === activeTournament)
-      .map(m => normalizeRoundFull(m.round as string))
-      .filter(Boolean)
-    return rounds.sort((a, b) => (ROUND_ORDER[a] ?? 99) - (ROUND_ORDER[b] ?? 99))[0] ?? selectedRound ?? null
-  }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
-
-  // ── Filtered matches — by round ──────────────────────────────────────
-  const filtered = useMemo(() => {
-    return allMatches.filter(m => {
-      if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
-      if (selectedRound && normalizeRoundFull(m.round as string) !== selectedRound) return false
-      return true
-    })
-  }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
-
-  // Warming-up matches are included in liveMatches — they render "About to start"
-  const liveMatches = filtered.filter(m => m.status === 'live')
-  const scheduledMatches = filtered
-    .filter(m => m.status === 'scheduled')
-    .sort((a: any, b: any) => {
-      const ca = a.court_order ?? 999
-      const cb = b.court_order ?? 999
-      if (ca !== cb) return ca - cb
-      const da = a.scheduled_at ?? a.started_at ?? ''
-      const db = b.scheduled_at ?? b.started_at ?? ''
-      return da.localeCompare(db)
-    })
-
-  // ── Estimated times for "Followed by" matches ─────────────────────────
-  // Parse an AM/PM time label and return {h, m} in tournament local time
-  function parseAmPm(label: string): { h: number; m: number } | null {
-    const tm = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-    if (!tm) return null
-    let h = parseInt(tm[1]); const m = parseInt(tm[2]); const ap = tm[3].toUpperCase()
-    if (ap === 'PM' && h < 12) h += 12
-    if (ap === 'AM' && h === 12) h = 0
-    return { h, m }
   }
-  function toAmPmLabel(h: number, m: number): string {
-    const ap = h >= 12 ? 'PM' : 'AM'
-    const h12 = h > 12 ? h - 12 : (h === 0 ? 12 : h)
-    return `Starting at ${h12}:${String(m).padStart(2, '0')} ${ap}`
-  }
-  // Stable court key: prefer court NAME (physical court identity) over
-  // court_order (which is a global sequence number, not a per-court id).
-  // Two sequential matches on the same court get consecutive court_order
-  // values but the same court name — we need the name to chain them.
-  function courtKey(m: any): string | null {
-    const c = m.court as string | null
-    if (c) return `name:${c}`
-    const co = m.court_order as string | number | null
-    if (co != null) return `order:${co}`
-    return null
-  }
-  const estimatedLabels = useMemo(() => {
-    const map: Record<string, string> = {}
 
-    // Build per-court "estimated next start" floor from live AND recently-finished
-    // matches.  When match A (court X) started at T, the next match on court X
-    // starts ≈ T+90min.  We key by courtKey() so courts with null court_order
-    // (identified only by their name string) are handled correctly.
-    const floorByCourt: Record<string, string> = {}
-    const tz = activeTournamentObj?.timezone ?? 'UTC'
-    for (const m of allMatches) {
-      const status = m.status as string
-      if (status !== 'live' && status !== 'finished') continue
-      const ck = courtKey(m as any)
-      if (!ck) continue
-      const startedAt = (m as any).started_at as string | null
-      if (!startedAt) continue
-      try {
-        const d = new Date(startedAt)
-        const localStr = d.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true })
-        const tm = localStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-        if (!tm) continue
-        let h = parseInt(tm[1]); const min = parseInt(tm[2]); const ap = tm[3].toUpperCase()
-        if (ap === 'PM' && h < 12) h += 12
-        if (ap === 'AM' && h === 12) h = 0
-        const totalMins = h * 60 + min + 90
-        const candidate = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
-        // Keep the latest floor per court (prefer live over finished)
-        if (!floorByCourt[ck] || status === 'live') {
-          floorByCourt[ck] = candidate
-        }
-      } catch { /* ignore */ }
-    }
+  const liveCount = liveMatches.length
 
-    for (let i = 0; i < scheduledMatches.length; i++) {
-      const m = scheduledMatches[i] as any
-      const sl = m.schedule_label as string | null
-      const mKey = courtKey(m)
-
-      // Hard start time — exact, no estimation needed
-      if (sl && /starting at/i.test(sl)) continue
-
-      // Only look at the previous match if it's on the SAME court
-      const rawPrev = scheduledMatches[i - 1] as any | undefined
-      const prev = (rawPrev && mKey && courtKey(rawPrev) === mKey) ? rawPrev : undefined
-
-      // "Not before X:XX" — minimum time constraint
-      if (sl && /not before/i.test(sl)) {
-        const prevSl = prev?.schedule_label as string | null
-        if (prev && prevSl && /not before/i.test(prevSl)) {
-          // Chain: prev was also "Not before" on same court — +90 from it
-          const prevLabel = map[prev.id] ?? prevSl
-          const parsed = parseAmPm(prevLabel)
-          if (parsed) {
-            const totalMins = parsed.h * 60 + parsed.m + 90
-            map[m.id] = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
-            continue
-          }
-        }
-        // First "Not before" on this court — use own label as floor
-        map[m.id] = sl
-        continue
-      }
-
-      // null / "Followed by" — estimate from previous same-court match + 90 min,
-      // or from live/finished match floor if no prior scheduled match on this court
-      if (!prev) {
-        if (mKey && floorByCourt[mKey]) {
-          map[m.id] = floorByCourt[mKey]
-        }
-        continue
-      }
-      const prevLabel = (prev.schedule_label && /starting at/i.test(prev.schedule_label))
-        ? prev.schedule_label
-        : map[prev.id] ?? null
-      if (!prevLabel) continue
-      const parsed = parseAmPm(prevLabel)
-      if (!parsed) continue
-      const totalMins = parsed.h * 60 + parsed.m + 90
-      map[m.id] = toAmPmLabel(Math.floor(totalMins / 60) % 24, totalMins % 60)
-    }
-    return map
-  }, [scheduledMatches, allMatches, activeTournamentObj]) // eslint-disable-line
-  const finishedMatches = filtered
-    .filter(m => ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string))
-    .sort((a: any, b: any) => {
-      const ca = (a as any).court_order ?? 999
-      const cb = (b as any).court_order ?? 999
-      if (ca !== cb) return ca - cb
-      const ta = (a as any).started_at ?? (a as any).updated_at ?? ''
-      const tb = (b as any).started_at ?? (b as any).updated_at ?? ''
-      return tb.localeCompare(ta)
-    })
-
-  // ── Section header ────────────────────────────────────────────────────
-  const SectionHeader = ({ label, color, dot, right, rightColor }: {
-    label: string; color?: string; dot?: boolean; right?: string; rightColor?: string
-  }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px 8px' }}>
-      {dot && <span style={{ width: 5, height: 5, borderRadius: '50%', background: color ?? 'var(--text-muted)', flexShrink: 0, animation: 'blink 1.4s ease-in-out infinite' }} />}
-      <span style={{ fontSize: 9, color: color ?? 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</span>
-      <div style={{ flex: 1, height: '1px', background: color ? `${color}18` : 'var(--border-base)' }} />
-      {right && <span style={{ fontSize: 9, color: rightColor ?? 'var(--text-faint)', whiteSpace: 'nowrap', transition: 'color 0.4s ease' }}>{right}</span>}
-    </div>
-  )
-
-  // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
-      <main style={{
-        background: 'var(--bg-base)', minHeight: '100vh',
-        maxWidth: 500, margin: '0 auto',
-        fontFamily: 'var(--font-sans)',
-        borderLeft: '0.5px solid var(--border-base)',
-        borderRight: '0.5px solid var(--border-base)',
+    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 20 }}>
+
+      {/* Header — logo left, search center, profile right */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--bg-base)',
       }}>
+        <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 26, width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
 
-        {/* ── Sticky header ── */}
         <div style={{
-          background: 'var(--bg-base)', borderBottom: '0.5px solid var(--border-base)',
-          padding: '8px 14px 0', position: 'sticky', top: 0, zIndex: 10,
+          flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+          background: 'var(--bg-input)', borderRadius: 10,
+          border: '1px solid var(--border-card)',
+          padding: '7px 12px', cursor: 'pointer',
         }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Search players, tournaments...</span>
+        </div>
 
-          {/* ROW 1: Wordmark + live count */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
-          </div>
+        <button style={{
+          width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',
+          cursor: 'pointer', background: 'var(--bg-card-alt)', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
+      </div>
 
-          {/* ROW 2: Tournament row — logo + name + stage + chevron to switch */}
-          {activeTournamentObj && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 0', borderTop: '0.5px solid var(--border-base)',
-              borderBottom: '0.5px solid var(--border-base)',
-            }}>
-              {/* Logo — prefer logo_url, fall back to flag emoji */}
-              {activeTournamentObj.logo_url ? (
-                <img
-                  src={activeTournamentObj.logo_url}
-                  alt=""
-                  style={{ width: 68, height: 68, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }}
-                />
-              ) : activeTournamentObj.country ? (
-                <div style={{ width: 68, height: 68, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36, flexShrink: 0 }}>
-                  {countryFlag(activeTournamentObj.country)}
-                </div>
-              ) : null}
-
-              {/* Name · venue · dates · status */}
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {activeTournamentObj.name}
-                </div>
-
-                {/* Venue — location pin icon + name */}
-                {activeTournamentObj.venue && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                    <svg width="10" height="12" viewBox="0 0 24 28" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
-                      <path d="M12 2C7.58 2 4 5.58 4 10c0 6.63 8 16 8 16s8-9.37 8-16c0-4.42-3.58-8-8-8z"/>
-                      <circle cx="12" cy="10" r="2.5" fill="var(--text-muted)" stroke="none"/>
-                    </svg>
-                    <span style={{
-                      fontSize: 10, fontWeight: 600, color: 'var(--text-muted)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      letterSpacing: '0.2px',
-                    }}>
-                      {activeTournamentObj.venue}
-                    </span>
-                  </div>
-                )}
-
-                {/* Dates + prize money + status */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
-                  {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                      {new Date(activeTournamentObj.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                      {' – '}
-                      {new Date(activeTournamentObj.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                    </span>
-                  )}
-                  {activeTournamentObj.prize_money && (
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>· {activeTournamentObj.prize_money}</span>
-                  )}
-                  {activeTournamentObj.status && (() => {
-                    const s = activeTournamentObj.status as string
-                    const isActive = s === 'active' || s === 'live' || s === 'ongoing'
-                    const isUpcoming = s === 'upcoming' || s === 'scheduled'
-                    const color = isActive ? 'var(--color-live)' : isUpcoming ? 'var(--color-accent)' : 'var(--text-faint)'
-                    const bg = isActive ? 'var(--color-live-bg)' : isUpcoming ? 'var(--color-accent-bg)' : 'transparent'
-                    const border = isActive ? 'var(--color-live-border)' : isUpcoming ? 'var(--color-accent-border)' : 'var(--border-base)'
-                    return (
-                      <span style={{ fontSize: 8, fontWeight: 700, color, background: bg, border: `0.5px solid ${border}`, borderRadius: 4, padding: '1px 5px', letterSpacing: '0.4px' }}>
-                        {isActive ? '● ' : ''}{s.toUpperCase()}
-                      </span>
-                    )
-                  })()}
-                </div>
+      {/* Live matches */}
+      {liveCount > 0 ? (
+        <CollapsibleSection title="Live Now" action={`See all ${liveCount} live`} href="/v2/matches">
+          <div style={{
+            display: 'flex', gap: 12, padding: '0 16px 4px',
+            overflowX: 'auto', scrollSnapType: 'x mandatory',
+            WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: 'none', scrollbarWidth: 'none',
+          }}>
+            {liveMatches.slice(0, 6).map(m => (
+              <div key={m.id} style={{ scrollSnapAlign: 'start' }}>
+                <LiveMatchCard match={m} />
               </div>
+            ))}
+          </div>
+        </CollapsibleSection>
+      ) : scheduledMatches.length > 0 ? (
+        <CollapsibleSection title="Coming Up" action="All matches" href="/v2/matches">
+          <div style={{ padding: '0 16px' }}>
+            {scheduledMatches.map(m => (
+              <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
+            ))}
+          </div>
+        </CollapsibleSection>
+      ) : (
+        <>
+          <div style={{ height: 12 }} />
+          <NoLiveBanner />
+        </>
+      )}
 
-              {/* Chevron */}
-              <span style={{ fontSize: 16, color: 'var(--text-faint)', flexShrink: 0, lineHeight: 1 }}>›</span>
-            </div>
-          )}
+      {/* Upcoming tournaments */}
+      {upcomingTournaments.length > 0 && (
+        <CollapsibleSection title="Upcoming Tournaments" action="See all" href="/v2/tournaments">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {upcomingTournaments.map(t => (
+              <UpcomingTournamentCard key={t.id} tournament={t} />
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
 
-          {/* ROW 3: Stage selector strip */}
-          {availableRounds.length > 0 && (
-            <div ref={stageStripRef} style={{
-              display: 'flex', gap: 6, padding: '8px 0 10px',
-              overflowX: 'auto', scrollbarWidth: 'none',
-            }}>
-              {availableRounds.map(round => {
-                const active = round === selectedRound
-                const hasLive = allMatches.some(m =>
-                  m.status === 'live' &&
-                  normalizeRoundFull(m.round as string) === round &&
-                  (!activeTournament || (m as any).tournament?.id === activeTournament)
-                )
-                return (
-                  <button
-                    key={round}
-                    data-active={active ? 'true' : undefined}
-                    onClick={() => setSelectedRound(round)}
-                    style={{
-                      flexShrink: 0,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                      padding: '6px 14px',
-                      borderRadius: 8,
-                      border: active ? '1px solid rgba(56,200,255,0.45)' : '1px solid var(--border-strong)',
-                      background: active ? 'rgba(56,200,255,0.08)' : 'var(--bg-card)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {hasLive && (
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-live)', flexShrink: 0, animation: 'blink 1.4s ease-in-out infinite' }} />
-                      )}
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, letterSpacing: '0.4px',
-                        color: active ? 'var(--color-accent)' : 'var(--text-muted)',
-                        textTransform: 'uppercase',
-                      }}>
-                        {round}
-                      </span>
-                    </div>
-                    {roundDates[round] && (
-                      <span style={{
-                        fontSize: 8, letterSpacing: '0.2px',
-                        color: active ? 'var(--color-accent)' : 'var(--text-faint)',
-                        textTransform: 'uppercase',
-                      }}>
-                        {roundDates[round]}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
+      {/* Rankings */}
+      {(topMen.length > 0 || topWomen.length > 0) && (
+        <CollapsibleSection title="Rankings" action="Full ranking" href="/v2/ranking">
+          <RankingsWidget men={topMen} women={topWomen} />
+        </CollapsibleSection>
+      )}
 
-        {/* ── Feed ── */}
-        <div style={{ padding: '6px 10px 16px' }}>
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 10, height: 88, marginBottom: 6, opacity: 0.3 }} />
-            ))
-          ) : (
-            <>
-              {liveMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader
-                    dot color="var(--color-live)" label="Live now"
-                    right={syncAgo}
-                    rightColor={justUpdated ? 'var(--color-success)' : undefined}
-                  />
-                  {liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                </div>
-              )}
+      {/* Recent results */}
+      {recentMatches.length > 0 && (
+        <CollapsibleSection title="Recent Results" action="All results" href="/v2/matches">
+          <RecentResultsWidget matches={recentMatches} />
+        </CollapsibleSection>
+      )}
 
-              {scheduledMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader label="Up next" />
-                  {scheduledMatches.map(m => (
-                    <MatchCard
-                      key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}}
-                      bookmarked={isBookmarked(m.id)}
-                      onBookmark={() => toggleBookmark(m.id)}
-                      estimatedScheduleLabel={estimatedLabels[m.id]}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {finishedMatches.length > 0 && (
-                <div>
-                  <SectionHeader label={`Results · ${selectedRound ?? ''}`} />
-                  {finishedMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                </div>
-              )}
-
-              {liveMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
-                <div style={{ textAlign: 'center', paddingTop: 80 }}>
-                  <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
-                  <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>
-                  <p style={{ color: 'var(--text-faint)', fontSize: 13, marginTop: 4 }}>Try selecting a different round</p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </main>
+      <div style={{ height: 20 }} />
     </div>
   )
 }
