@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pair Color Concepts</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0f14;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #e2e8f0;
+    padding: 32px 16px 64px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 11px;
+    color: #444;
+    margin-bottom: 36px;
+  }
+
+  .concepts {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .concept {
+    width: 320px;
+    flex-shrink: 0;
+  }
+
+  .concept-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #555;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  .concept-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ccc;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .concept-desc {
+    font-size: 11px;
+    color: #555;
+    text-align: center;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* ── Phone frame ──────────────────────────────────────────── */
+  .phone {
+    background: #111820;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid #1e2a35;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  /* Nav bar */
+  .nav {
+    background: #0d1520;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    border-bottom: 0.5px solid #1e2a35;
+  }
+  .nav-back {
+    font-size: 11px;
+    color: #888;
+    background: #1a2535;
+    border: 0.5px solid #2a3545;
+    border-radius: 20px;
+    padding: 4px 10px;
+  }
+  .nav-logo {
+    flex: 1;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+  .nav-live {
+    font-size: 10px;
+    font-weight: 700;
+    color: #ff4455;
+    background: rgba(255,68,85,0.1);
+    border: 0.5px solid rgba(255,68,85,0.25);
+    border-radius: 20px;
+    padding: 3px 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .live-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #ff4455;
+  }
+
+  /* Hero card */
+  .hero {
+    background: #0d1520;
+    padding: 12px 14px 0;
+    border-bottom: 0.5px solid #1e2a35;
+  }
+  .court-row {
+    font-size: 9px;
+    font-weight: 700;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .court-row span { color: #555; font-weight: 400; }
+
+  .set-labels {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-bottom: 3px;
+    padding-right: 2px;
+  }
+  .set-label {
+    font-size: 8px;
+    font-weight: 700;
+    width: 24px;
+    text-align: center;
+    color: #555;
+  }
+  .set-label.current { color: #4a9eff; }
+  .pts-label {
+    font-size: 8px;
+    font-weight: 700;
+    width: 30px;
+    text-align: center;
+    color: #555;
+    margin-left: 6px;
+  }
+
+  .pair-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 11px;
+  }
+  .pair-row.divider { border-bottom: 0.5px solid #1e2a35; margin-bottom: 0; }
+
+  .photos {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+  .photo {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: #1e2a35;
+    border: 1.5px solid #2a3a4a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #555;
+    overflow: hidden;
+  }
+  .photo.p1 { border-color: var(--c1); }
+  .photo.p2 { border-color: var(--c2); }
+
+  .names {
+    flex: 1;
+    min-width: 0;
+  }
+  .player-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .player-name + .player-name { margin-top: 3px; }
+  .player-name.dim { color: #555; }
+
+  .flag { font-size: 11px; }
+
+  .scores {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+  .set-score {
+    font-size: 22px;
+    font-weight: 900;
+    width: 24px;
+    text-align: center;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    line-height: 1;
+  }
+  .set-score.won { color: #e2e8f0; }
+  .set-score.lost { color: #333; }
+  .set-score.active { color: #555; }
+  .pts-score {
+    font-size: 22px;
+    font-weight: 900;
+    width: 30px;
+    text-align: center;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    line-height: 1;
+    margin-left: 6px;
+  }
+
+  .divider-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+  }
+  .divider-line hr {
+    flex: 1;
+    border: none;
+    border-top: 0.5px solid #1e2a35;
+  }
+
+  /* Fan poll */
+  .poll {
+    background: #0d1520;
+    border-bottom: 0.5px solid #1e2a35;
+    padding: 10px 14px;
+  }
+  .poll-title {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #444;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .poll-bars {
+    display: flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 0.5px solid #1e2a35;
+  }
+  .poll-side {
+    flex: 1;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .poll-pct {
+    font-size: 20px;
+    font-weight: 900;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    line-height: 1;
+  }
+  .poll-name {
+    font-size: 9px;
+    font-weight: 600;
+    color: #666;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .poll-progress {
+    height: 3px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: #1e2a35;
+    display: flex;
+    margin-top: 6px;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: #111820;
+    border-bottom: 0.5px solid #1e2a35;
+  }
+  .tab {
+    flex: 1;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 9px 4px;
+    text-align: center;
+    color: #555;
+  }
+  .tab.active {
+    color: #4a9eff;
+    border-bottom: 2px solid #4a9eff;
+  }
+
+  /* Live feed preview */
+  .feed {
+    padding: 8px 14px;
+    background: #111820;
+  }
+  .feed-header {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #555;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .feed-dot { width: 4px; height: 4px; border-radius: 50%; background: #ff4455; }
+  .feed-game {
+    font-size: 9px;
+    font-weight: 700;
+    margin: 5px 0 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .feed-game hr { flex: 1; border: none; border-top: 0.5px solid #1e2a35; }
+  .feed-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    border-left: 2px solid transparent;
+    padding-left: 6px;
+    margin-left: -2px;
+  }
+  .feed-score {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    width: 52px;
+  }
+  .feed-scorer {
+    font-size: 10px;
+    color: #555;
+    flex: 1;
+  }
+  .now-badge {
+    font-size: 8px;
+    font-weight: 700;
+    color: #ff4455;
+  }
+
+  /* ── Colour theme variables ─────── */
+  .theme-a { --c1: #F59E0B; --c2: #14B8A6; }  /* Amber + Teal */
+  .theme-b { --c1: #F97316; --c2: #8B5CF6; }  /* Orange + Violet */
+  .theme-c { --c1: #84CC16; --c2: #F43F5E; }  /* Lime + Crimson */
+</style>
+</head>
+<body>
+
+<h1>Pair Color Concepts</h1>
+<p class="subtitle">Blue &amp; pink reserved for gender — three alternatives for pair identification</p>
+
+<div class="concepts">
+
+  <!-- ═══════════════════════════════ OPTION A ══════════════════════════════ -->
+  <div class="concept theme-a">
+    <div class="concept-label">Option A</div>
+    <div class="concept-name">Amber &amp; Teal</div>
+    <div class="concept-desc">Warm gold vs cool teal — high contrast,<br>feels sporty &amp; energetic without gender bias</div>
+    <div class="phone">
+      <!-- Nav -->
+      <div class="nav">
+        <div class="nav-back">← Back</div>
+        <div class="nav-logo">PADELNACHO</div>
+        <div class="nav-live"><span class="live-dot"></span>Live</div>
+      </div>
+      <!-- Hero -->
+      <div class="hero">
+        <div class="court-row">COURT JUAN &amp; BELA <span>• Semifinals</span></div>
+        <div class="set-labels">
+          <div class="set-label">S1</div>
+          <div class="set-label">S2</div>
+          <div class="set-label current">S3</div>
+          <div class="pts-label">Pts</div>
+        </div>
+        <!-- Pair 1 -->
+        <div class="pair-row divider">
+          <div class="photos">
+            <div class="photo p1">👩</div>
+            <div class="photo p1">👩</div>
+          </div>
+          <div class="names">
+            <div class="player-name"><span class="flag">🇪🇸</span> A. Sanchez Fallada</div>
+            <div class="player-name"><span class="flag">🇪🇸</span> A. Ustero Prieto</div>
+          </div>
+          <div class="scores">
+            <span class="set-score won">6</span>
+            <span class="set-score lost">4</span>
+            <span class="set-score active">1</span>
+            <span class="pts-score" style="color: var(--c1);">30</span>
+          </div>
+        </div>
+        <div class="divider-line"><hr /><hr /></div>
+        <!-- Pair 2 -->
+        <div class="pair-row">
+          <div class="photos">
+            <div class="photo p2">👩</div>
+            <div class="photo p2">👩</div>
+          </div>
+          <div class="names">
+            <div class="player-name dim"><span class="flag">🇪🇸</span> P. Josemaria Martin</div>
+            <div class="player-name dim"><span class="flag">🇪🇸</span> B. Gonzalez Fern.</div>
+          </div>
+          <div class="scores">
+            <span class="set-score lost">4</span>
+            <span class="set-score won">6</span>
+            <span class="set-score active">5</span>
+            <span class="pts-score" style="color: #2a3a4a;">0</span>
+          </div>
+        </div>
+      </div>
+      <!-- Poll -->
+      <div class="poll">
+        <div class="poll-title">Who are you rooting for?</div>
+        <div class="poll-bars">
+          <div class="poll-side" style="background: rgba(245,158,11,0.06); border-right: 0.5px solid #1e2a35;">
+            <div class="poll-pct" style="color: var(--c1);">62%</div>
+            <div class="poll-name">A. Sanchez / A. Ustero</div>
+          </div>
+          <div class="poll-side" style="background: rgba(20,184,166,0.06);">
+            <div class="poll-pct" style="color: var(--c2);">38%</div>
+            <div class="poll-name">P. Josemaria / B. Gonzalez</div>
+          </div>
+        </div>
+        <div class="poll-progress">
+          <div style="width:62%; background: var(--c1); opacity: 0.7;"></div>
+          <div style="flex:1; background: var(--c2); opacity: 0.7;"></div>
+        </div>
+      </div>
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active">Live Feed</div>
+        <div class="tab">Players</div>
+        <div class="tab">H2H</div>
+      </div>
+      <!-- Feed -->
+      <div class="feed">
+        <div class="feed-header"><span class="feed-dot"></span> Live · Point history</div>
+        <div class="feed-game"><hr /><span style="color:#4a9eff;">Set 3 · In progress</span><hr /></div>
+        <div class="feed-game"><hr /><span style="color:#555;">Game 7 · In progress</span><hr /></div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">30 — 0</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+          <span class="now-badge">● now</span>
+        </div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">15 — 0</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+        </div>
+        <div class="feed-game"><hr /><span style="color:#555;">Game 6 · Josemaria won</span><hr /></div>
+        <div class="feed-row" style="border-left-color: var(--c2);">
+          <span class="feed-score" style="color: var(--c2);">15 — 40</span>
+          <span class="feed-scorer">P. Josemaria / B. Gonzalez</span>
+        </div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">15 — 30</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ OPTION B ══════════════════════════════ -->
+  <div class="concept theme-b">
+    <div class="concept-label">Option B</div>
+    <div class="concept-name">Orange &amp; Violet</div>
+    <div class="concept-desc">Complementary hues on opposite ends<br>of the spectrum — bold &amp; unmistakable</div>
+    <div class="phone">
+      <div class="nav">
+        <div class="nav-back">← Back</div>
+        <div class="nav-logo">PADELNACHO</div>
+        <div class="nav-live"><span class="live-dot"></span>Live</div>
+      </div>
+      <div class="hero">
+        <div class="court-row">COURT JUAN &amp; BELA <span>• Semifinals</span></div>
+        <div class="set-labels">
+          <div class="set-label">S1</div>
+          <div class="set-label">S2</div>
+          <div class="set-label current">S3</div>
+          <div class="pts-label">Pts</div>
+        </div>
+        <div class="pair-row divider">
+          <div class="photos">
+            <div class="photo p1">👩</div>
+            <div class="photo p1">👩</div>
+          </div>
+          <div class="names">
+            <div class="player-name"><span class="flag">🇪🇸</span> A. Sanchez Fallada</div>
+            <div class="player-name"><span class="flag">🇪🇸</span> A. Ustero Prieto</div>
+          </div>
+          <div class="scores">
+            <span class="set-score won">6</span>
+            <span class="set-score lost">4</span>
+            <span class="set-score active">1</span>
+            <span class="pts-score" style="color: var(--c1);">30</span>
+          </div>
+        </div>
+        <div class="divider-line"><hr /><hr /></div>
+        <div class="pair-row">
+          <div class="photos">
+            <div class="photo p2">👩</div>
+            <div class="photo p2">👩</div>
+          </div>
+          <div class="names">
+            <div class="player-name dim"><span class="flag">🇪🇸</span> P. Josemaria Martin</div>
+            <div class="player-name dim"><span class="flag">🇪🇸</span> B. Gonzalez Fern.</div>
+          </div>
+          <div class="scores">
+            <span class="set-score lost">4</span>
+            <span class="set-score won">6</span>
+            <span class="set-score active">5</span>
+            <span class="pts-score" style="color: #2a3a4a;">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="poll">
+        <div class="poll-title">Who are you rooting for?</div>
+        <div class="poll-bars">
+          <div class="poll-side" style="background: rgba(249,115,22,0.06); border-right: 0.5px solid #1e2a35;">
+            <div class="poll-pct" style="color: var(--c1);">62%</div>
+            <div class="poll-name">A. Sanchez / A. Ustero</div>
+          </div>
+          <div class="poll-side" style="background: rgba(139,92,246,0.06);">
+            <div class="poll-pct" style="color: var(--c2);">38%</div>
+            <div class="poll-name">P. Josemaria / B. Gonzalez</div>
+          </div>
+        </div>
+        <div class="poll-progress">
+          <div style="width:62%; background: var(--c1); opacity:0.7;"></div>
+          <div style="flex:1; background: var(--c2); opacity:0.7;"></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active">Live Feed</div>
+        <div class="tab">Players</div>
+        <div class="tab">H2H</div>
+      </div>
+      <div class="feed">
+        <div class="feed-header"><span class="feed-dot"></span> Live · Point history</div>
+        <div class="feed-game"><hr /><span style="color:#4a9eff;">Set 3 · In progress</span><hr /></div>
+        <div class="feed-game"><hr /><span style="color:#555;">Game 7 · In progress</span><hr /></div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">30 — 0</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+          <span class="now-badge">● now</span>
+        </div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">15 — 0</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+        </div>
+        <div class="feed-game"><hr /><span style="color:#555;">Game 6 · Josemaria won</span><hr /></div>
+        <div class="feed-row" style="border-left-color: var(--c2);">
+          <span class="feed-score" style="color: var(--c2);">15 — 40</span>
+          <span class="feed-scorer">P. Josemaria / B. Gonzalez</span>
+        </div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">15 — 30</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════ OPTION C ══════════════════════════════ -->
+  <div class="concept theme-c">
+    <div class="concept-label">Option C</div>
+    <div class="concept-name">Lime &amp; Crimson</div>
+    <div class="concept-desc">Neon lime vs deep red — electric contrast,<br>high visibility &amp; very easy to tell apart</div>
+    <div class="phone">
+      <div class="nav">
+        <div class="nav-back">← Back</div>
+        <div class="nav-logo">PADELNACHO</div>
+        <div class="nav-live"><span class="live-dot"></span>Live</div>
+      </div>
+      <div class="hero">
+        <div class="court-row">COURT JUAN &amp; BELA <span>• Semifinals</span></div>
+        <div class="set-labels">
+          <div class="set-label">S1</div>
+          <div class="set-label">S2</div>
+          <div class="set-label current">S3</div>
+          <div class="pts-label">Pts</div>
+        </div>
+        <div class="pair-row divider">
+          <div class="photos">
+            <div class="photo p1">👩</div>
+            <div class="photo p1">👩</div>
+          </div>
+          <div class="names">
+            <div class="player-name"><span class="flag">🇪🇸</span> A. Sanchez Fallada</div>
+            <div class="player-name"><span class="flag">🇪🇸</span> A. Ustero Prieto</div>
+          </div>
+          <div class="scores">
+            <span class="set-score won">6</span>
+            <span class="set-score lost">4</span>
+            <span class="set-score active">1</span>
+            <span class="pts-score" style="color: var(--c1);">30</span>
+          </div>
+        </div>
+        <div class="divider-line"><hr /><hr /></div>
+        <div class="pair-row">
+          <div class="photos">
+            <div class="photo p2">👩</div>
+            <div class="photo p2">👩</div>
+          </div>
+          <div class="names">
+            <div class="player-name dim"><span class="flag">🇪🇸</span> P. Josemaria Martin</div>
+            <div class="player-name dim"><span class="flag">🇪🇸</span> B. Gonzalez Fern.</div>
+          </div>
+          <div class="scores">
+            <span class="set-score lost">4</span>
+            <span class="set-score won">6</span>
+            <span class="set-score active">5</span>
+            <span class="pts-score" style="color: #2a3a4a;">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="poll">
+        <div class="poll-title">Who are you rooting for?</div>
+        <div class="poll-bars">
+          <div class="poll-side" style="background: rgba(132,204,22,0.06); border-right: 0.5px solid #1e2a35;">
+            <div class="poll-pct" style="color: var(--c1);">62%</div>
+            <div class="poll-name">A. Sanchez / A. Ustero</div>
+          </div>
+          <div class="poll-side" style="background: rgba(244,63,94,0.06);">
+            <div class="poll-pct" style="color: var(--c2);">38%</div>
+            <div class="poll-name">P. Josemaria / B. Gonzalez</div>
+          </div>
+        </div>
+        <div class="poll-progress">
+          <div style="width:62%; background: var(--c1); opacity:0.7;"></div>
+          <div style="flex:1; background: var(--c2); opacity:0.7;"></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active">Live Feed</div>
+        <div class="tab">Players</div>
+        <div class="tab">H2H</div>
+      </div>
+      <div class="feed">
+        <div class="feed-header"><span class="feed-dot"></span> Live · Point history</div>
+        <div class="feed-game"><hr /><span style="color:#4a9eff;">Set 3 · In progress</span><hr /></div>
+        <div class="feed-game"><hr /><span style="color:#555;">Game 7 · In progress</span><hr /></div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">30 — 0</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+          <span class="now-badge">● now</span>
+        </div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">15 — 0</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+        </div>
+        <div class="feed-game"><hr /><span style="color:#555;">Game 6 · Josemaria won</span><hr /></div>
+        <div class="feed-row" style="border-left-color: var(--c2);">
+          <span class="feed-score" style="color: var(--c2);">15 — 40</span>
+          <span class="feed-scorer">P. Josemaria / B. Gonzalez</span>
+        </div>
+        <div class="feed-row" style="border-left-color: var(--c1);">
+          <span class="feed-score" style="color: var(--c1);">15 — 30</span>
+          <span class="feed-scorer">A. Sanchez / A. Ustero</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /concepts -->
+
+</body>
+</html>
