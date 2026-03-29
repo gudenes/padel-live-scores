@@ -1,6 +1,6 @@
 'use client'
 // src/app/v2/feed/page.tsx
-// Feed Center — videos + articles in a unified, chronological feed.
+// Feed Center — videos + news in a unified, chronological feed.
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
@@ -22,7 +22,7 @@ interface Highlight {
   blocked_countries: string[] | null
 }
 
-interface Article {
+interface NewsItem {
   id: string
   title: string
   source_name: string
@@ -40,7 +40,7 @@ interface Article {
 
 type FeedItem =
   | { type: 'video'; data: Highlight }
-  | { type: 'article'; data: Article }
+  | { type: 'news'; data: NewsItem }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -164,7 +164,7 @@ function VideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highlight) =
 
 const LANG_LABELS: Record<string, string> = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR' }
 
-function ArticleCard({ item }: { item: Article }) {
+function NewsCard({ item }: { item: NewsItem }) {
   return (
     <a
       href={item.url}
@@ -205,7 +205,7 @@ function ArticleCard({ item }: { item: Article }) {
             background: 'rgba(255,193,7,0.1)', borderRadius: 3,
             padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.3px',
           }}>
-            Article
+            News
           </span>
         </div>
         <div style={{
@@ -316,15 +316,15 @@ function FeedSkeleton() {
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export default function FeedPage() {
-  const [filter, setFilter] = useState<'all' | 'video' | 'article'>('all')
+  const [filter, setFilter] = useState<'all' | 'video' | 'news'>('all')
   const [playing, setPlaying] = useState<Highlight | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
-  const [articles, setArticles] = useState<Article[]>([])
+  const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
 
   const fetchData = useCallback(async () => {
-    const [highlightsRes, articlesRes] = await Promise.all([
+    const [highlightsRes, newsRes] = await Promise.all([
       supabase
         .from('highlights')
         .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries')
@@ -340,7 +340,7 @@ export default function FeedPage() {
     ])
 
     setHighlights((highlightsRes.data as any) ?? [])
-    setArticles((articlesRes.data as any) ?? [])
+    setNews((newsRes.data as any) ?? [])
     setLoading(false)
   }, [])
 
@@ -354,7 +354,7 @@ export default function FeedPage() {
   const feed: FeedItem[] = (() => {
     const items: { item: FeedItem; score: number }[] = []
 
-    if (filter !== 'article') {
+    if (filter !== 'news') {
       for (const h of highlights) {
         if (isAvailableInCountry(h, userCountry)) {
           // Videos use view_count for popularity, weight 1.0
@@ -365,9 +365,9 @@ export default function FeedPage() {
     }
 
     if (filter !== 'video') {
-      for (const a of articles) {
+      for (const a of news) {
         const score = feedScore(a.published_at, a.click_count, a.source_weight)
-        items.push({ item: { type: 'article', data: a }, score })
+        items.push({ item: { type: 'news', data: a }, score })
       }
     }
 
@@ -378,7 +378,7 @@ export default function FeedPage() {
   const filterButtons: { key: typeof filter; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: feed.length },
     { key: 'video', label: 'Videos', count: highlights.filter(h => isAvailableInCountry(h, userCountry)).length },
-    { key: 'article', label: 'Articles', count: articles.length },
+    { key: 'news', label: 'News', count: news.length },
   ]
 
   return (
@@ -408,7 +408,7 @@ export default function FeedPage() {
               Feed
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
-              Highlights, news & stories
+              Videos, news & stories
             </div>
           </div>
         </div>
@@ -459,8 +459,8 @@ export default function FeedPage() {
           textAlign: 'center', padding: '60px 20px',
           fontSize: 13, color: 'var(--text-muted)',
         }}>
-          {filter === 'article'
-            ? 'No articles yet — coming soon!'
+          {filter === 'news'
+            ? 'No news yet — coming soon!'
             : 'No content available'}
         </div>
       ) : (
@@ -469,7 +469,7 @@ export default function FeedPage() {
             if (item.type === 'video') {
               return <VideoCard key={`v-${item.data.id}`} item={item.data} onPlay={setPlaying} />
             }
-            return <ArticleCard key={`a-${item.data.id}`} item={item.data} />
+            return <NewsCard key={`n-${item.data.id}`} item={item.data} />
           })}
 
           <div style={{
