@@ -140,38 +140,37 @@ export async function GET(req: NextRequest) {
   }
 
   // Step 3: Upsert into highlights table
-  let inserted = 0
-  let updated = 0
+  let upserted = 0
+  const errors: string[] = []
 
-  for (const [youtubeId, info] of Object.entries(videoMap)) {
-    const row = {
-      youtube_id: youtubeId,
-      title: info.title,
-      channel_name: info.channelName,
-      thumbnail_url: info.thumbnailUrl,
-      duration: (info as any).duration ?? null,
-      view_count: (info as any).viewCount ?? 0,
-      published_at: info.publishedAt,
-      category: inferCategory(info.title),
-      updated_at: new Date().toISOString(),
-    }
+  const rows = Object.entries(videoMap).map(([youtubeId, info]) => ({
+    youtube_id: youtubeId,
+    title: info.title,
+    channel_name: info.channelName,
+    thumbnail_url: info.thumbnailUrl,
+    duration: (info as any).duration ?? null,
+    view_count: (info as any).viewCount ?? 0,
+    published_at: info.publishedAt,
+    category: inferCategory(info.title),
+    updated_at: new Date().toISOString(),
+  }))
 
-    const { error, status } = await supabase
-      .from('highlights')
-      .upsert(row, { onConflict: 'youtube_id' })
+  // Batch upsert all at once
+  const { error, data: upsertData } = await supabase
+    .from('highlights')
+    .upsert(rows, { onConflict: 'youtube_id' })
+    .select('id')
 
-    if (error) {
-      console.error(`Failed to upsert ${youtubeId}:`, error.message)
-    } else {
-      if (status === 201) inserted++
-      else updated++
-    }
+  if (error) {
+    errors.push(error.message)
+  } else {
+    upserted = upsertData?.length ?? 0
   }
 
   return NextResponse.json({
-    message: 'Highlights sync complete',
+    message: errors.length > 0 ? 'Highlights sync had errors' : 'Highlights sync complete',
     found: allVideoIds.size,
-    inserted,
-    updated,
+    upserted,
+    errors,
   })
 }

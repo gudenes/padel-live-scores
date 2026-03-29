@@ -27,20 +27,6 @@ function countryName(code: string | null): string {
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-interface LiveMatch {
-  id: string
-  round: string | null
-  court: string | null
-  category: string | null
-  serving_player_id: string | null
-  pair1_player1: { id: string; name: string; country: string | null } | null
-  pair1_player2: { id: string; name: string; country: string | null } | null
-  pair2_player1: { id: string; name: string; country: string | null } | null
-  pair2_player2: { id: string; name: string; country: string | null } | null
-  sets: { set_number: number; pair1_games: number; pair2_games: number; is_current: boolean }[]
-  tournament: { name: string; country: string | null } | null
-}
-
 interface Tournament {
   id: string
   name: string
@@ -76,19 +62,6 @@ interface RankedPlayer {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-function pairLabel(p1: { name: string } | null, p2: { name: string } | null): string {
-  const n1 = p1?.name?.split(' ').pop() ?? '?'
-  const n2 = p2?.name?.split(' ').pop() ?? '?'
-  return `${n1} / ${n2}`
-}
-
-function scoreString(sets: { pair1_games: number; pair2_games: number }[], pair: 1 | 2): string {
-  return sets
-    .sort((a: any, b: any) => a.set_number - b.set_number)
-    .map(s => pair === 1 ? `${s.pair1_games}-${s.pair2_games}` : `${s.pair2_games}-${s.pair1_games}`)
-    .join(' ')
-}
 
 function daysUntil(dateStr: string): number {
   const now = new Date()
@@ -147,57 +120,6 @@ function CollapsibleSection({ title, action, href, children, defaultOpen = true 
       </div>
       {open && children}
     </div>
-  )
-}
-
-function LiveMatchCard({ match }: { match: LiveMatch }) {
-  const catColor = match.category === 'women' ? 'var(--color-women)' : 'var(--color-men)'
-  const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
-  const pairs = [
-    { label: pairLabel(match.pair1_player1, match.pair1_player2), serving: !!(match.serving_player_id && (match.serving_player_id === match.pair1_player1?.id || match.serving_player_id === match.pair1_player2?.id)) },
-    { label: pairLabel(match.pair2_player1, match.pair2_player2), serving: !!(match.serving_player_id && (match.serving_player_id === match.pair2_player1?.id || match.serving_player_id === match.pair2_player2?.id)) },
-  ]
-
-  return (
-    <Link href={`/v2/matches`} style={{ textDecoration: 'none', color: 'inherit' }}>
-      <div style={{
-        background: 'var(--bg-card)', borderRadius: 12,
-        border: '1px solid var(--color-live-border)',
-        padding: '12px 14px', minWidth: 280, flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-live)', animation: 'blink 1.4s ease-in-out infinite' }} />
-            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-live)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Live</span>
-            {match.court && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{match.court}</span>}
-          </div>
-          <span style={{ fontSize: 10, fontWeight: 600, color: catColor, letterSpacing: '0.04em' }}>
-            {match.round}
-          </span>
-        </div>
-
-        {pairs.map((pair, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0',
-            borderTop: i === 1 ? '1px solid var(--border-inner)' : 'none',
-          }}>
-            {pair.serving ? <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--color-accent)', flexShrink: 0 }} /> : <div style={{ width: 4, flexShrink: 0 }} />}
-            <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{pair.label}</span>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {sets.map((s, si) => (
-                <span key={si} style={{
-                  fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                  color: si === sets.length - 1 ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  width: 16, textAlign: 'center',
-                }}>
-                  {i === 0 ? s.pair1_games : s.pair2_games}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Link>
   )
 }
 
@@ -492,7 +414,7 @@ function NoLiveBanner() {
 
 export default function HomePage() {
   const router = useRouter()
-  const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([])
+  const [liveMatches, setLiveMatches] = useState<Match[]>([])
   const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([])
   const [topMen, setTopMen] = useState<RankedPlayer[]>([])
@@ -504,17 +426,17 @@ export default function HomePage() {
   const fetchData = useCallback(async () => {
     // Run all queries in parallel
     const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes, highlightsRes] = await Promise.all([
-      // Live matches
+      // Live matches (full data for MatchCard)
       supabase
         .from('matches')
         .select(`
-          id, round, court, category, serving_player_id,
-          pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country),
-          pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country),
-          pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country),
-          pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country),
-          sets(set_number, pair1_games, pair2_games, is_current),
-          tournament:tournaments(name, country)
+          *,
+          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
+          pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          sets(*, games(*))
         `)
         .eq('status', 'live')
         .order('court_order', { ascending: true }),
@@ -666,16 +588,9 @@ export default function HomePage() {
       {/* Live matches */}
       {liveCount > 0 ? (
         <CollapsibleSection title="Live Now" action={`See all ${liveCount} live`} href="/v2/matches">
-          <div style={{
-            display: 'flex', gap: 12, padding: '0 16px 4px',
-            overflowX: 'auto', scrollSnapType: 'x mandatory',
-            WebkitOverflowScrolling: 'touch',
-            msOverflowStyle: 'none', scrollbarWidth: 'none',
-          }}>
+          <div style={{ padding: '0 16px' }}>
             {liveMatches.slice(0, 6).map(m => (
-              <div key={m.id} style={{ scrollSnapAlign: 'start' }}>
-                <LiveMatchCard match={m} />
-              </div>
+              <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
             ))}
           </div>
         </CollapsibleSection>
