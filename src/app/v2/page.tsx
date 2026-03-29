@@ -3,7 +3,7 @@
 // Home / landing page — always has content regardless of live match state.
 // Sections: Live Now (conditional) → Upcoming Tournament → Rankings → Recent Results
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag } from '@/types/match'
@@ -102,17 +102,38 @@ function levelLabel(level: string | null): string {
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function SectionHeader({ title, action, href }: { title: string; action?: string; href?: string }) {
+function CollapsibleSection({ title, action, href, children, defaultOpen = true }: {
+  title: string; action?: string; href?: string; children: ReactNode; defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
-      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-        {title}
-      </span>
-      {action && href && (
-        <Link href={href} style={{ color: 'var(--color-accent)', fontSize: 12, fontWeight: 600, textDecoration: 'none', fontFamily: 'var(--font-sans)' }}>
-          {action} ›
-        </Link>
-      )}
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 16px 8px' }}>
+        <button
+          onClick={() => setOpen(o => !o)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
+            padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+          >
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            {title}
+          </span>
+        </button>
+        {action && href && (
+          <Link href={href} style={{ color: 'var(--color-accent)', fontSize: 12, fontWeight: 600, textDecoration: 'none', fontFamily: 'var(--font-sans)' }}>
+            {action} ›
+          </Link>
+        )}
+      </div>
+      {open && children}
     </div>
   )
 }
@@ -308,6 +329,50 @@ function RankingsWidget({ men, women }: { men: RankedPlayer[]; women: RankedPlay
 
 
 
+function RecentResultsWidget({ matches }: { matches: Match[] }) {
+  const [tab, setTab] = useState<'men' | 'women'>('men')
+  const filtered = matches
+    .filter(m => (m as any).category === tab)
+    .sort((a, b) => {
+      const aDate = a.finished_at ? new Date(a.finished_at).getTime() : 0
+      const bDate = b.finished_at ? new Date(b.finished_at).getTime() : 0
+      return bDate - aDate
+    })
+    .slice(0, 10)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 16px 8px' }}>
+        <div style={{ display: 'flex', gap: 0, background: 'var(--bg-card-alt)', borderRadius: 8, padding: 2 }}>
+          {(['men', 'women'] as const).map(g => (
+            <button key={g} onClick={() => setTab(g)} style={{
+              padding: '4px 12px', borderRadius: 6, border: 'none',
+              fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+              background: tab === g
+                ? (g === 'women' ? 'var(--color-women)' : 'var(--color-accent)')
+                : 'transparent',
+              color: tab === g ? '#000' : 'var(--text-muted)',
+              transition: 'all 0.15s',
+            }}>
+              {g === 'men' ? 'M' : 'F'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: '0 16px' }}>
+        {filtered.map(m => (
+          <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
+        ))}
+        {filtered.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+            No recent results
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function NoLiveBanner() {
   return (
     <div style={{
@@ -381,23 +446,23 @@ export default function HomePage() {
         .order('starts_at', { ascending: true })
         .limit(2),
 
-      // Top 3 men
+      // Top 10 men
       supabase
         .from('players')
         .select('id, name, country, ranking, points, avatar_url, category')
         .eq('category', 'men')
         .not('ranking', 'is', null)
         .order('ranking', { ascending: true })
-        .limit(3),
+        .limit(10),
 
-      // Top 3 women
+      // Top 10 women
       supabase
         .from('players')
         .select('id, name, country, ranking, points, avatar_url, category')
         .eq('category', 'women')
         .not('ranking', 'is', null)
         .order('ranking', { ascending: true })
-        .limit(3),
+        .limit(10),
 
       // Recent finished matches
       supabase
@@ -413,7 +478,7 @@ export default function HomePage() {
         `)
         .in('status', ['finished', 'retired', 'walkover'])
         .order('finished_at', { ascending: false })
-        .limit(5),
+        .limit(20),
     ])
 
     setLiveMatches((liveRes.data as any) ?? [])
@@ -488,8 +553,7 @@ export default function HomePage() {
 
       {/* Live matches */}
       {liveCount > 0 ? (
-        <>
-          <SectionHeader title="Live Now" action={`See all ${liveCount} live`} href="/v2/matches" />
+        <CollapsibleSection title="Live Now" action={`See all ${liveCount} live`} href="/v2/matches">
           <div style={{
             display: 'flex', gap: 12, padding: '0 16px 4px',
             overflowX: 'auto', scrollSnapType: 'x mandatory',
@@ -502,16 +566,15 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </>
+        </CollapsibleSection>
       ) : scheduledMatches.length > 0 ? (
-        <>
-          <SectionHeader title="Coming Up" action="All matches" href="/v2/matches" />
+        <CollapsibleSection title="Coming Up" action="All matches" href="/v2/matches">
           <div style={{ padding: '0 16px' }}>
             {scheduledMatches.map(m => (
               <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
             ))}
           </div>
-        </>
+        </CollapsibleSection>
       ) : (
         <>
           <div style={{ height: 12 }} />
@@ -521,34 +584,27 @@ export default function HomePage() {
 
       {/* Upcoming tournaments */}
       {upcomingTournaments.length > 0 && (
-        <>
-          <SectionHeader title="Upcoming Tournaments" action="See all" href="/v2/tournaments" />
+        <CollapsibleSection title="Upcoming Tournaments" action="See all" href="/v2/tournaments">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {upcomingTournaments.map(t => (
               <UpcomingTournamentCard key={t.id} tournament={t} />
             ))}
           </div>
-        </>
+        </CollapsibleSection>
       )}
 
       {/* Rankings */}
       {(topMen.length > 0 || topWomen.length > 0) && (
-        <>
-          <SectionHeader title="Rankings" action="Full ranking" href="/v2/ranking" />
+        <CollapsibleSection title="Rankings" action="Full ranking" href="/v2/ranking">
           <RankingsWidget men={topMen} women={topWomen} />
-        </>
+        </CollapsibleSection>
       )}
 
       {/* Recent results */}
       {recentMatches.length > 0 && (
-        <>
-          <SectionHeader title="Recent Results" action="All results" href="/v2/matches" />
-          <div style={{ padding: '0 16px' }}>
-            {recentMatches.map(m => (
-              <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
-            ))}
-          </div>
-        </>
+        <CollapsibleSection title="Recent Results" action="All results" href="/v2/matches">
+          <RecentResultsWidget matches={recentMatches} />
+        </CollapsibleSection>
       )}
 
       <div style={{ height: 20 }} />

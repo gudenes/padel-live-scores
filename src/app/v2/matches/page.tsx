@@ -50,6 +50,7 @@ export default function V2Page() {
 
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
+  const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all')
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
@@ -230,9 +231,10 @@ export default function V2Page() {
     return allMatches.filter(m => {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
       if (selectedRound && normalizeRoundFull(m.round as string) !== selectedRound) return false
+      if (genderFilter !== 'all' && (m as any).category !== genderFilter) return false
       return true
     })
-  }, [allMatches, activeTournament, selectedRound]) // eslint-disable-line
+  }, [allMatches, activeTournament, selectedRound, genderFilter]) // eslint-disable-line
 
   // Warming-up matches are included in liveMatches — they render "About to start"
   const liveMatches = filtered.filter(m => m.status === 'live')
@@ -395,9 +397,24 @@ export default function V2Page() {
           padding: '8px 14px 0', position: 'sticky', top: 0, zIndex: 10,
         }}>
 
-          {/* ROW 1: Wordmark + live count */}
+          {/* ROW 1: Wordmark + gender toggle */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
             <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
+            <div style={{ display: 'flex', gap: 0, background: 'var(--bg-card-alt)', borderRadius: 8, padding: 2 }}>
+              {(['all', 'men', 'women'] as const).map(g => (
+                <button key={g} onClick={() => setGenderFilter(g)} style={{
+                  padding: '4px 10px', borderRadius: 6, border: 'none',
+                  fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
+                  background: genderFilter === g
+                    ? (g === 'women' ? 'var(--color-women)' : g === 'men' ? 'var(--color-accent)' : 'var(--color-accent)')
+                    : 'transparent',
+                  color: genderFilter === g ? '#000' : 'var(--text-muted)',
+                  transition: 'all 0.15s',
+                }}>
+                  {g === 'all' ? 'All' : g === 'men' ? 'M' : 'F'}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* ROW 2: Tournament row — logo + name + stage + chevron to switch */}
