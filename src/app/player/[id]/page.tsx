@@ -13,6 +13,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const [player, setPlayer] = useState<any>(null)
   const [matches, setMatches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [imgError, setImgError] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -64,7 +65,6 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     </main>
   )
 
-  const [imgError, setImgError] = useState(false)
   const categoryColor = player.category === 'men' ? 'var(--color-men)' : player.category === 'women' ? 'var(--color-women)' : 'var(--text-dim)'
 
   const statItems = [
