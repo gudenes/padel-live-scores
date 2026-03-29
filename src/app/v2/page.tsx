@@ -49,6 +49,8 @@ interface Highlight {
   view_count: number
   published_at: string
   category: string | null
+  allowed_countries: string[] | null
+  blocked_countries: string[] | null
 }
 
 interface RankedPlayer {
@@ -473,6 +475,7 @@ export default function HomePage() {
   const [topWomen, setTopWomen] = useState<RankedPlayer[]>([])
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [highlights, setHighlights] = useState<Highlight[]>([])
+  const [userCountry, setUserCountry] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
@@ -560,7 +563,7 @@ export default function HomePage() {
       // Video highlights
       supabase
         .from('highlights')
-        .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category')
+        .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries')
         .eq('status', 'active')
         .order('published_at', { ascending: false })
         .limit(10),
@@ -577,6 +580,12 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Read geo-country cookie set by middleware (Vercel x-vercel-ip-country)
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|; )geo-country=([A-Z]{2})/)
+    if (match) setUserCountry(match[1])
+  }, [])
 
   // Subscribe to live match changes
   useEffect(() => {
@@ -661,10 +670,15 @@ export default function HomePage() {
         </>
       )}
 
-      {/* Video Highlights */}
+      {/* Video Highlights — filtered by user's country */}
       {highlights.length > 0 && (
         <CollapsibleSection title="Highlights" action="See all" href="/v2">
-          <HighlightsCarousel highlights={highlights} />
+          <HighlightsCarousel highlights={highlights.filter(h => {
+            if (!userCountry) return true // no geo info → show all
+            if (h.allowed_countries && h.allowed_countries.length > 0) return h.allowed_countries.includes(userCountry)
+            if (h.blocked_countries && h.blocked_countries.length > 0) return !h.blocked_countries.includes(userCountry)
+            return true
+          })} />
         </CollapsibleSection>
       )}
 

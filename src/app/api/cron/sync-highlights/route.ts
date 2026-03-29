@@ -27,7 +27,13 @@ interface YouTubeSearchItem {
 
 interface YouTubeVideoItem {
   id: string
-  contentDetails: { duration: string }
+  contentDetails: {
+    duration: string
+    regionRestriction?: {
+      allowed?: string[]
+      blocked?: string[]
+    }
+  }
   statistics: { viewCount: string }
 }
 
@@ -142,6 +148,9 @@ export async function GET(req: NextRequest) {
           (existing as any).duration = formatDuration(item.contentDetails.duration)
           ;(existing as any).durationSecs = durationSeconds(item.contentDetails.duration)
           ;(existing as any).viewCount = parseInt(item.statistics.viewCount || '0')
+          const rr = item.contentDetails.regionRestriction
+          if (rr?.allowed) (existing as any).allowedCountries = rr.allowed
+          if (rr?.blocked) (existing as any).blockedCountries = rr.blocked
         }
       }
     } catch (err) {
@@ -166,6 +175,8 @@ export async function GET(req: NextRequest) {
     view_count: (info as any).viewCount ?? 0,
     published_at: info.publishedAt,
     category: inferCategory(info.title),
+    allowed_countries: (info as any).allowedCountries ?? null,
+    blocked_countries: (info as any).blockedCountries ?? null,
     updated_at: new Date().toISOString(),
   }))
 
