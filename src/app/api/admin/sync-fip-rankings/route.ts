@@ -91,24 +91,33 @@ interface FipRacePlayer {
 
 async function fetchOfficialRankings(gender: 'male' | 'female', top: number): Promise<FipRankingPlayer[]> {
   const { year, week } = currentYearWeek()
-  const all: FipRankingPlayer[] = []
-  let offset = 0
-  const limit = Math.min(top, 500) // fetch in chunks of 500 max
 
-  while (all.length < top) {
-    const remaining = top - all.length
-    const fetchLimit = Math.min(limit, remaining)
-    const url = `${FIP_BASE}/ranking/load-more/?gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&year=${year}&week=${week}&lang=es`
-    const res = await fetch(url)
-    if (!res.ok) { console.error(`[sync-fip] official ${gender} ${res.status}`); break }
-    const data: FipRankingPlayer[] = await res.json()
-    if (!data || data.length === 0) break
-    all.push(...data)
-    if (data.length < fetchLimit) break
-    offset += data.length
+  // FIP may not have data for the current week yet — try current, then fall back up to 3 weeks
+  for (let w = week; w >= week - 3 && w >= 1; w--) {
+    const all: FipRankingPlayer[] = []
+    let offset = 0
+    const limit = Math.min(top, 500)
+
+    while (all.length < top) {
+      const remaining = top - all.length
+      const fetchLimit = Math.min(limit, remaining)
+      const url = `${FIP_BASE}/ranking/load-more/?gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&year=${year}&week=${w}&lang=es`
+      const res = await fetch(url)
+      if (!res.ok) { console.error(`[sync-fip] official ${gender} week ${w} ${res.status}`); break }
+      const data: FipRankingPlayer[] = await res.json()
+      if (!data || data.length === 0) break
+      all.push(...data)
+      if (data.length < fetchLimit) break
+      offset += data.length
+    }
+
+    if (all.length > 0) {
+      console.log(`[sync-fip] official ${gender}: found data at week ${w}`)
+      return all
+    }
   }
 
-  return all
+  return []
 }
 
 async function fetchRaceRankings(gender: 'male' | 'female', top: number): Promise<FipRacePlayer[]> {
