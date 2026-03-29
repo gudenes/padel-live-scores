@@ -369,14 +369,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <PlayerSquare player={match.pair1_player2} winner={p1Won} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: p1Won ? 700 : 600, color: p2Won ? '#666' : p2Leading ? '#aaa' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {match.pair1_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player1.country)}</span>}
-              {toShortName(match.pair1_player1?.name ?? 'TBD')}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: p1Won ? 700 : 600, color: p2Won ? '#666' : p2Leading ? '#aaa' : 'var(--text-primary)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {match.pair1_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair1_player2.country)}</span>}
-              {toShortName(match.pair1_player2?.name ?? 'TBD')}
-            </div>
+            <PlayerNameLink player={match.pair1_player1} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
+            <PlayerNameLink player={match.pair1_player2} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} style={{ marginTop: 4 }} />
           </div>
           {!isScheduled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -426,14 +420,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <PlayerSquare player={match.pair2_player2} winner={p2Won} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: p2Won ? 700 : 600, color: p1Won ? '#666' : p1Leading ? '#aaa' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {match.pair2_player1?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player1.country)}</span>}
-              {toShortName(match.pair2_player1?.name ?? 'TBD')}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: p2Won ? 700 : 600, color: p1Won ? '#666' : p1Leading ? '#aaa' : 'var(--text-primary)', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {match.pair2_player2?.country && <span style={{ marginRight: 3 }}>{countryFlag(match.pair2_player2.country)}</span>}
-              {toShortName(match.pair2_player2?.name ?? 'TBD')}
-            </div>
+            <PlayerNameLink player={match.pair2_player1} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
+            <PlayerNameLink player={match.pair2_player2} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} style={{ marginTop: 4 }} />
           </div>
           {!isScheduled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -527,6 +515,24 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         </>
       )}
     </main>
+  )
+}
+
+// ── Clickable player name in hero ─────────────────────────────────────────────
+function PlayerNameLink({ player, dim, muted, bold, router, style }: {
+  player: any; dim?: boolean; muted?: boolean; bold?: boolean
+  router: ReturnType<typeof import('next/navigation').useRouter>
+  style?: React.CSSProperties
+}) {
+  const color = dim ? '#555' : muted ? '#aaa' : 'var(--text-primary)'
+  return (
+    <div
+      onClick={player?.id ? () => router.push(`/player/${player.id}`) : undefined}
+      style={{ fontSize: 13, fontWeight: bold ? 700 : 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: player?.id ? 'pointer' : 'default', ...style }}
+    >
+      {player?.country && <span style={{ marginRight: 3 }}>{countryFlag(player.country)}</span>}
+      {toShortName(player?.name ?? 'TBD')}
+    </div>
   )
 }
 
