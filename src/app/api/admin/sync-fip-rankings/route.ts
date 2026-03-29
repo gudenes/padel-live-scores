@@ -57,7 +57,8 @@ const COUNTRY_3_TO_2: Record<string, string> = {
   MNE: 'ME', WAL: 'WA', SCO: 'SC', NIR: 'NI', ENG: 'EN',
 }
 
-function fipCountryToIso2(code3: string): string {
+function fipCountryToIso2(code3: string | null | undefined): string | null {
+  if (!code3) return null
   return COUNTRY_3_TO_2[code3.toUpperCase()] ?? code3.slice(0, 2).toUpperCase()
 }
 
@@ -208,6 +209,7 @@ export async function GET(req: NextRequest) {
           const { data: inserted, error } = await supabase
             .from('players')
             .insert({
+              external_id: `fip-${p.player_id}`,
               name: fullName,
               country: country2,
               category: db,

@@ -263,15 +263,6 @@ export default function RankingPage() {
     borderBottom: `2px solid ${active ? 'var(--color-accent)' : 'transparent'}`,
   })
 
-  const genderPillStyle = (active: boolean): React.CSSProperties => ({
-    padding: '5px 16px', border: 'none', cursor: 'pointer',
-    fontWeight: 700, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase',
-    transition: 'all 0.15s', fontFamily: 'inherit',
-    borderRadius: 20,
-    background: active ? 'var(--color-accent)' : 'var(--bg-card-alt)',
-    color: active ? '#000' : 'var(--text-faint)',
-  })
-
   return (
     <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 20 }}>
 
@@ -347,7 +338,7 @@ export default function RankingPage() {
 
       {/* Title row: "Ranking FIP" + updated date */}
       <div style={{ padding: '16px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary, #E2E8F0)', margin: 0 }}>
             Ranking FIP
           </h1>
@@ -356,6 +347,41 @@ export default function RankingPage() {
               Updated {formattedDate}
             </span>
           )}
+        </div>
+
+        {/* Updated date + gender toggle on same line */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          {/* Gender toggle — compact M/F slider */}
+          <div
+            onClick={() => { setGender(g => g === 'men' ? 'women' : 'men'); setQuery(''); setVisibleCount(50) }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
+              background: 'var(--bg-card-alt)', borderRadius: 14,
+              padding: 2, position: 'relative', width: 52, height: 26,
+              border: `1px solid ${gender === 'women' ? 'rgba(244,114,182,0.3)' : 'rgba(255,255,255,0.08)'}`,
+              transition: 'border-color 0.2s',
+            }}
+          >
+            {/* Sliding pill */}
+            <div style={{
+              position: 'absolute', top: 2, left: gender === 'men' ? 2 : 26,
+              width: 22, height: 22, borderRadius: 11,
+              background: gender === 'women' ? 'var(--color-women)' : 'var(--color-accent)',
+              transition: 'left 0.2s ease, background 0.2s ease',
+            }} />
+            <span style={{
+              flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700,
+              position: 'relative', zIndex: 1,
+              color: gender === 'men' ? '#000' : 'var(--text-faint)',
+              transition: 'color 0.2s',
+            }}>M</span>
+            <span style={{
+              flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700,
+              position: 'relative', zIndex: 1,
+              color: gender === 'women' ? '#000' : 'var(--text-faint)',
+              transition: 'color 0.2s',
+            }}>F</span>
+          </div>
         </div>
       </div>
 
@@ -371,16 +397,6 @@ export default function RankingPage() {
         <button style={mainTabStyle(rankType === 'race')} onClick={() => { setRankType('race'); setQuery(''); setVisibleCount(50) }}>
           Race
         </button>
-      </div>
-
-      {/* Gender toggle — small pill switcher */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        gap: 8, padding: '10px 16px',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-      }}>
-        <button style={genderPillStyle(gender === 'men')}   onClick={() => { setGender('men');   setQuery(''); setVisibleCount(50) }}>Men</button>
-        <button style={genderPillStyle(gender === 'women')} onClick={() => { setGender('women'); setQuery(''); setVisibleCount(50) }}>Women</button>
       </div>
 
       {/* Column labels */}
