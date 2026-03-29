@@ -143,12 +143,21 @@ export default function V2Page() {
     return now >= new Date(t.starts_at) && now <= end
   }
 
-  // Auto-select live tournament on load
+  // Auto-select: live tournament → most recently ended → next upcoming → first
   useEffect(() => {
     if (tournaments.length === 0) return
+    const now = new Date()
     const live = tournaments.find(isLiveTournament)
-    const upcoming = tournaments.find(t => t.starts_at && new Date(t.starts_at) > new Date())
-    setActiveTournament(live?.id ?? upcoming?.id ?? tournaments[0]?.id ?? null)
+    if (live) { setActiveTournament(live.id); return }
+
+    // Most recently ended tournament (sorted desc by starts_at, so first past one)
+    const recentlyEnded = tournaments.find(t => {
+      if (!t.ends_at) return false
+      const end = new Date(t.ends_at); end.setHours(23, 59, 59)
+      return end < now
+    })
+    const upcoming = tournaments.find(t => t.starts_at && new Date(t.starts_at) > now)
+    setActiveTournament(recentlyEnded?.id ?? upcoming?.id ?? tournaments[0]?.id ?? null)
   }, [tournaments]) // eslint-disable-line
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null

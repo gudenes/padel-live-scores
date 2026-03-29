@@ -2,8 +2,8 @@
 // src/app/v2/feed/page.tsx
 // Feed Center — videos + news in a single unified stream, ranked by score.
 
-import { useEffect, useState, useCallback } from 'react'
-import Link from 'next/link'
+import { Suspense, useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -89,6 +89,14 @@ function trackClick(articleId: string) {
 }
 
 const LANG_LABELS: Record<string, string> = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR' }
+
+type ContentFilter = 'all' | 'videos' | 'news'
+
+const FILTER_OPTIONS: { key: ContentFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'videos', label: 'Videos' },
+  { key: 'news', label: 'News' },
+]
 
 // ── Hero card — top-scoring item gets big treatment ─────────────────────────
 
@@ -463,12 +471,26 @@ function FeedSkeleton() {
 
 // ── Main page ───────────────────────────────────────────────────────────────
 
-export default function FeedPage() {
+export default function FeedPageWrapper() {
+  return (
+    <Suspense fallback={<FeedSkeleton />}>
+      <FeedPage />
+    </Suspense>
+  )
+}
+
+function FeedPage() {
+  const searchParams = useSearchParams()
+  const initialFilter = (['all', 'videos', 'news'] as const).includes(searchParams.get('filter') as any)
+    ? (searchParams.get('filter') as ContentFilter)
+    : 'all'
+
   const [playing, setPlaying] = useState<Highlight | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
+  const [filter, setFilter] = useState<ContentFilter>(initialFilter)
 
   const fetchData = useCallback(async () => {
     const [highlightsRes, newsRes] = await Promise.all([
@@ -494,20 +516,26 @@ export default function FeedPage() {
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { setUserCountry(getUserCountry()) }, [])
 
-  // Merge everything into a single scored feed
+  // Merge everything into a single scored feed, with filter boosting
   const feed: FeedItem[] = (() => {
     const items: { item: FeedItem; score: number }[] = []
 
-    for (const h of highlights) {
-      if (isAvailableInCountry(h, userCountry)) {
-        const score = feedScore(h.published_at, Math.floor(h.view_count / 100), 1.0)
-        items.push({ item: { type: 'video', data: h }, score })
+    if (filter !== 'news') {
+      for (const h of highlights) {
+        if (isAvailableInCountry(h, userCountry)) {
+          const base = feedScore(h.published_at, Math.floor(h.view_count / 100), 1.0)
+          const boost = filter === 'videos' ? 10 : 1
+          items.push({ item: { type: 'video', data: h }, score: base * boost })
+        }
       }
     }
 
-    for (const a of news) {
-      const score = feedScore(a.published_at, a.click_count, a.source_weight)
-      items.push({ item: { type: 'news', data: a }, score })
+    if (filter !== 'videos') {
+      for (const a of news) {
+        const base = feedScore(a.published_at, a.click_count, a.source_weight)
+        const boost = filter === 'news' ? 10 : 1
+        items.push({ item: { type: 'news', data: a }, score: base * boost })
+      }
     }
 
     items.sort((a, b) => b.score - a.score)
@@ -519,37 +547,73 @@ export default function FeedPage() {
 
   return (
     <div style={{ minHeight: '100vh' }}>
-      {/* Header */}
+      {/* App header — same as home page */}
       <div style={{
-        padding: '16px 16px 12px',
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
         position: 'sticky', top: 0, zIndex: 10,
         background: 'var(--bg-base)',
-        borderBottom: '1px solid var(--border-card)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link
-            href="/v2"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 32, height: 32, borderRadius: 8,
-              background: 'var(--bg-card)', border: '1px solid var(--border-card)',
-              textDecoration: 'none',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-          </Link>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-              Feed
-            </div>
-          </div>
-          {!loading && (
-            <div style={{ fontSize: 11, color: 'var(--text-faint)', fontWeight: 600 }}>
-              {feed.length} items
-            </div>
-          )}
+        <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 26, width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+        <div style={{
+          flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+          background: 'var(--bg-input)', borderRadius: 10,
+          border: '1px solid var(--border-card)',
+          padding: '7px 12px', cursor: 'pointer',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Search players, tournaments...</span>
+        </div>
+        <button style={{
+          width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',
+          cursor: 'pointer', background: 'var(--bg-card-alt)', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Title + slogan + content filter */}
+      <div style={{ padding: '14px 16px 0' }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+          Feed
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>
+          Your daily dose of padel — highlights, news & more
+        </div>
+
+        {/* Content type selector — segmented control matching other v2 pages */}
+        <div style={{
+          display: 'flex', gap: 0, marginTop: 14,
+          background: 'var(--bg-card-alt)', borderRadius: 8, padding: 2,
+          width: 'fit-content',
+        }}>
+          {FILTER_OPTIONS.map(opt => {
+            const active = filter === opt.key
+            return (
+              <button
+                key={opt.key}
+                onClick={() => setFilter(opt.key)}
+                style={{
+                  padding: '5px 14px', borderRadius: 6, border: 'none',
+                  fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: active ? 'var(--color-accent)' : 'transparent',
+                  color: active ? '#000' : 'var(--text-muted)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 

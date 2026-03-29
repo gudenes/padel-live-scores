@@ -50,9 +50,21 @@ function TournamentsIcon({ active }: { active: boolean }) {
   )
 }
 
+function FeedIcon({ active }: { active: boolean }) {
+  const c = active ? 'var(--color-accent)' : 'var(--text-faint)'
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 11a9 9 0 0 1 9 9"/>
+      <path d="M4 4a16 16 0 0 1 16 16"/>
+      <circle cx="5" cy="19" r="1" fill={c}/>
+    </svg>
+  )
+}
+
 const TABS = [
   { href: '/v2',             label: 'Home',        Icon: HomeIcon },
   { href: '/v2/matches',     label: 'Matches',     Icon: MatchesIcon },
+  { href: '/v2/feed',        label: 'Feed',        Icon: FeedIcon },
   { href: '/v2/ranking',     label: 'Ranking',     Icon: RankingIcon },
   { href: '/v2/tournaments', label: 'Tournaments', Icon: TournamentsIcon },
 ] as const
