@@ -9,7 +9,7 @@ export const maxDuration = 60
 
 // YouTube channels to pull from — add more channel IDs as needed
 const CHANNELS = [
-  { id: 'UCod9rBwKfbBbdSGOccblUqA', name: 'Premier Padel' },
+  { id: 'UCy5E3iDS8MMapnFUGqKF8jA', name: 'Premier Padel' },
 ]
 
 // Keywords to search within each channel
