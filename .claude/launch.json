@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Next.js (frontend)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "3002"],
+      "port": 3002
+    },
+    {
+      "name": "Relay (Pusher bridge)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "relay/index.js"],
+      "port": 3001
+    }
+  ]
+}

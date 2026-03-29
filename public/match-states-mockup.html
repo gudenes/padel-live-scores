@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Match Page States</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #06090d;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #e2e8f0;
+    padding: 32px 16px 64px;
+  }
+  h1 { text-align: center; font-size: 11px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: #444; margin-bottom: 6px; }
+  .subtitle { text-align: center; font-size: 11px; color: #333; margin-bottom: 36px; }
+
+  .row { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+
+  .col { width: 320px; flex-shrink: 0; }
+  .col-label { font-size: 9px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #444; text-align: center; margin-bottom: 8px; }
+  .col-name { font-size: 15px; font-weight: 800; color: #bbb; text-align: center; margin-bottom: 4px; }
+  .col-desc { font-size: 11px; color: #444; text-align: center; margin-bottom: 16px; line-height: 1.5; }
+
+  /* phone */
+  .phone { background: #0d1520; border-radius: 22px; overflow: hidden; border: 1px solid #1a2535; box-shadow: 0 12px 48px rgba(0,0,0,0.6); }
+
+  /* nav */
+  .nav { background: #0a101a; padding: 10px 14px; display: flex; align-items: center; border-bottom: 0.5px solid #1a2535; gap: 10px; }
+  .nav-back { font-size: 11px; color: #888; background: #141e2e; border: 0.5px solid #222f42; border-radius: 20px; padding: 4px 11px; flex-shrink: 0; }
+  .nav-logo { flex: 1; text-align: center; }
+  .nav-logo img { height: 24px; }
+  .nav-logo span { font-size: 14px; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
+  .nav-badge { font-size: 10px; font-weight: 700; border-radius: 20px; padding: 3px 9px; flex-shrink: 0; }
+  .badge-scheduled { color: #64748b; background: rgba(100,116,139,0.1); border: 0.5px solid rgba(100,116,139,0.2); }
+  .badge-finished { color: #777; background: #1a1a1a; border: 0.5px solid #2a2a2a; }
+
+  /* ── SCHEDULED STATE ─────────────────────────── */
+  .sched-banner {
+    background: linear-gradient(135deg, #0d2040 0%, #081428 100%);
+    border-bottom: 0.5px solid #1a3050;
+    padding: 18px 16px 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .sched-banner::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(74,158,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .sched-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #4a9eff; margin-bottom: 8px; }
+  .sched-time { font-size: 48px; font-weight: 900; letter-spacing: -2px; color: #fff; font-family: 'SF Mono', 'Fira Mono', monospace; line-height: 1; }
+  .sched-date { font-size: 11px; color: #556; margin-top: 4px; }
+  .sched-court { font-size: 10px; color: #4a9eff; font-weight: 600; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+
+  .sched-hero { background: #0d1520; padding: 14px 16px; border-bottom: 0.5px solid #1a2535; }
+  .pair-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .pair-row + .pair-row { border-top: 0.5px solid #1a2535; }
+  .photos { display: flex; gap: 4px; flex-shrink: 0; }
+  .photo { width: 48px; height: 48px; border-radius: 9px; background: #0f1e30; border: 1.5px solid #1a2e44; display: flex; align-items: center; justify-content: center; font-size: 18px; overflow: hidden; flex-shrink: 0; }
+  .photo img { width: 100%; height: 100%; object-fit: cover; }
+  .names { flex: 1; min-width: 0; }
+  .pname { font-size: 12px; font-weight: 600; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pname + .pname { margin-top: 3px; }
+  .pname .flag { font-size: 11px; margin-right: 3px; }
+  .vs-divider { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .vs-divider hr { flex: 1; border: none; border-top: 0.5px solid #1a2535; }
+  .vs-divider span { font-size: 10px; font-weight: 900; color: #2a3a4a; letter-spacing: 2px; }
+
+  /* notify CTA */
+  .notify-section { padding: 14px 16px; background: #0d1520; border-bottom: 0.5px solid #1a2535; }
+  .notify-title { font-size: 10px; font-weight: 700; color: #556; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .notify-btns { display: flex; gap: 8px; }
+  .btn-notify { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .btn-bell { background: rgba(74,158,255,0.1); border: 0.5px solid rgba(74,158,255,0.3); color: #4a9eff; }
+  .btn-bookmark { background: rgba(245,166,35,0.08); border: 0.5px solid rgba(245,166,35,0.25); color: #f5a623; }
+  .btn-share { background: #141e2e; border: 0.5px solid #1a2e44; color: #667; flex: 0 0 40px; border-radius: 10px; }
+
+  /* tournament info */
+  .info-section { padding: 10px 16px; background: #0a101a; }
+  .info-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 0.5px solid #111e2c; }
+  .info-row:last-child { border-bottom: none; }
+  .info-key { font-size: 10px; color: #445; font-weight: 600; }
+  .info-val { font-size: 10px; color: #778; font-weight: 600; }
+
+  /* countdown */
+  .countdown { padding: 10px 16px 14px; background: #0d1520; border-top: 0.5px solid #1a2535; text-align: center; }
+  .countdown-label { font-size: 9px; color: #445; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 8px; }
+  .countdown-digits { display: flex; justify-content: center; gap: 8px; }
+  .cd-unit { text-align: center; }
+  .cd-num { font-size: 22px; font-weight: 900; font-family: 'SF Mono', monospace; color: #4a9eff; line-height: 1; }
+  .cd-label { font-size: 8px; color: #445; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .cd-sep { font-size: 20px; font-weight: 900; color: #2a3a4a; padding-top: 2px; }
+
+  /* ── LIVE STATE ──────────────────────────────── */
+  .live-banner {
+    background: linear-gradient(135deg, #1a0a08 0%, #2a0f0a 50%, #1a0a08 100%);
+    border-bottom: 0.5px solid rgba(255,68,85,0.3);
+    padding: 10px 16px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .live-banner::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,68,85,0.06), transparent);
+    animation: liveShimmer 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes liveShimmer {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+  }
+  .live-pill {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(255,68,85,0.15);
+    border: 1px solid rgba(255,68,85,0.4);
+    border-radius: 20px;
+    padding: 4px 10px;
+    flex-shrink: 0;
+  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff4455; animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .live-pill span { font-size: 11px; font-weight: 800; color: #ff4455; letter-spacing: 0.5px; }
+  .live-info { flex: 1; }
+  .live-info-top { font-size: 10px; font-weight: 700; color: #ff6677; }
+  .live-info-sub { font-size: 9px; color: #664; margin-top: 1px; }
+  .live-set-progress { display: flex; gap: 3px; flex-shrink: 0; }
+  .set-pip { width: 8px; height: 8px; border-radius: 2px; background: rgba(255,68,85,0.15); border: 0.5px solid rgba(255,68,85,0.2); }
+  .set-pip.done { background: rgba(255,68,85,0.4); border-color: rgba(255,68,85,0.6); }
+  .set-pip.current { background: #ff4455; border-color: #ff4455; animation: blink 1.2s ease-in-out infinite; }
+
+  .live-hero { background: #0d1520; padding: 12px 16px 0; border-bottom: 0.5px solid #1a2535; }
+  .score-labels { display: flex; justify-content: flex-end; gap: 3px; margin-bottom: 3px; }
+  .sc-label { font-size: 8px; width: 28px; text-align: center; color: #445; font-weight: 700; }
+  .sc-label.cur { color: #4a9eff; }
+  .pts-label { font-size: 8px; width: 36px; text-align: center; color: #445; font-weight: 700; margin-left: 6px; }
+  .sc-row { display: flex; align-items: center; gap: 10px; padding-bottom: 11px; }
+  .sc-row.border-b { border-bottom: 0.5px solid #1a2535; }
+  .scores { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .s { font-size: 28px; font-weight: 900; width: 28px; text-align: center; font-family: 'SF Mono', monospace; line-height: 1; color: #333; }
+  .s.won { color: #e2e8f0; }
+  .s.cur { color: #446; }
+  .pts { font-size: 28px; font-weight: 900; width: 36px; text-align: center; font-family: 'SF Mono', monospace; line-height: 1; margin-left: 6px; }
+  .game-divider { display: flex; align-items: center; gap: 8px; padding: 7px 0; }
+  .game-divider hr { flex: 1; border: none; border-top: 0.5px solid #1a2535; }
+  .sp-badge { font-size: 9px; font-weight: 700; color: #f5a623; background: rgba(245,166,35,0.1); border: 0.5px solid rgba(245,166,35,0.3); border-radius: 4px; padding: 2px 6px; }
+
+  /* sweep animation preview */
+  .sweep-row { position: relative; overflow: hidden; }
+  .sweep-row::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(245,158,11,0.12), transparent);
+    animation: sweep 2.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes sweep {
+    0% { transform: translateX(-100%); opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
+  }
+
+  .live-poll { padding: 10px 16px; background: #0d1520; border-bottom: 0.5px solid #1a2535; }
+  .poll-title { font-size: 8px; font-weight: 700; color: #445; text-transform: uppercase; letter-spacing: 1px; text-align: center; margin-bottom: 8px; }
+  .poll-row { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 0.5px solid #1a2535; }
+  .poll-side { flex: 1; padding: 8px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .poll-pct { font-size: 20px; font-weight: 900; font-family: 'SF Mono', monospace; line-height: 1; }
+  .poll-name { font-size: 9px; color: #556; text-align: center; line-height: 1.3; }
+  .poll-bar { height: 3px; border-radius: 2px; overflow: hidden; background: #1a2535; display: flex; margin-top: 6px; }
+
+  .live-tabs { display: flex; background: #0a101a; border-bottom: 0.5px solid #1a2535; }
+  .tab { flex: 1; font-size: 10px; font-weight: 700; padding: 9px 4px; text-align: center; color: #445; border-bottom: 2px solid transparent; }
+  .tab.active { color: #4a9eff; border-bottom-color: #4a9eff; }
+
+  .live-feed { padding: 6px 14px 14px; }
+  .feed-hdr { font-size: 8px; font-weight: 700; color: #ff4455; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; padding: 6px 0 4px; }
+  .feed-dot-sm { width: 4px; height: 4px; border-radius: 50%; background: #ff4455; animation: blink 1.2s ease-in-out infinite; }
+  .game-hdr { font-size: 9px; color: #445; font-weight: 700; padding: 5px 0 3px; display: flex; align-items: center; gap: 6px; }
+  .game-hdr hr { flex: 1; border: none; border-top: 0.5px solid #1a2535; }
+  .feed-pt { display: flex; align-items: center; gap: 7px; padding: 4px 0 4px 7px; border-left: 2px solid transparent; }
+  .feed-pt.p1 { border-left-color: rgba(245,158,11,0.4); }
+  .feed-pt.p2 { border-left-color: rgba(20,184,166,0.4); }
+  .feed-pt.now { border-left-color: #ff4455; background: rgba(255,68,85,0.04); }
+  .feed-dot2 { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .feed-sc { font-size: 11px; font-weight: 700; font-family: 'SF Mono', monospace; width: 56px; }
+  .feed-who { font-size: 10px; color: #445; flex: 1; }
+  .feed-now { font-size: 8px; font-weight: 700; color: #ff4455; }
+
+  /* ── FINISHED STATE ──────────────────────────── */
+  .winner-banner {
+    padding: 16px 16px 14px;
+    background: linear-gradient(135deg, #0a1a10 0%, #081510 100%);
+    border-bottom: 0.5px solid rgba(52,211,153,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .winner-banner::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% -10%, rgba(52,211,153,0.1) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .winner-row { display: flex; align-items: center; gap: 10px; position: relative; }
+  .trophy { font-size: 22px; flex-shrink: 0; }
+  .winner-info { flex: 1; }
+  .winner-label { font-size: 9px; font-weight: 700; color: rgba(52,211,153,0.7); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px; }
+  .winner-name { font-size: 16px; font-weight: 900; color: #34d399; line-height: 1.2; }
+  .advance-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(52,211,153,0.08);
+    border: 0.5px solid rgba(52,211,153,0.25);
+    border-radius: 20px;
+    padding: 4px 10px;
+    flex-shrink: 0;
+  }
+  .advance-badge span { font-size: 9px; font-weight: 700; color: #34d399; }
+
+  .result-hero { background: #0d1520; padding: 12px 16px; border-bottom: 0.5px solid #1a2535; }
+  .res-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+  .res-row + .res-row { border-top: 0.5px solid #1a2535; }
+  .res-names { flex: 1; min-width: 0; }
+  .res-pname { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res-pname.winner-text { color: #e2e8f0; font-weight: 700; }
+  .res-pname.loser-text { color: #333; }
+  .res-pname + .res-pname { margin-top: 3px; }
+  .res-scores { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+  .rs { font-size: 26px; font-weight: 900; width: 28px; text-align: center; font-family: 'SF Mono', monospace; line-height: 1; }
+  .rs.w { color: #e2e8f0; }
+  .rs.l { color: #2a3a4a; }
+  .checkmark { font-size: 14px; margin-left: 4px; }
+
+  .match-stats { padding: 12px 16px; background: #0a101a; border-bottom: 0.5px solid #1a2535; }
+  .stats-title { font-size: 9px; font-weight: 700; color: #445; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .stat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .stat-row:last-child { margin-bottom: 0; }
+  .stat-val { font-size: 11px; font-weight: 700; width: 36px; font-family: 'SF Mono', monospace; }
+  .stat-val.left { text-align: right; color: #F59E0B; }
+  .stat-val.right { text-align: left; color: #14B8A6; }
+  .stat-bar-wrap { flex: 1; height: 4px; background: #111e2c; border-radius: 4px; overflow: hidden; display: flex; }
+  .stat-bar { height: 100%; }
+  .stat-bar.left { background: #F59E0B; border-radius: 4px 0 0 4px; margin-left: auto; }
+  .stat-bar.right { background: #14B8A6; border-radius: 0 4px 4px 0; }
+  .stat-label { font-size: 9px; color: #445; text-align: center; width: 64px; flex-shrink: 0; }
+
+  .next-match { padding: 10px 16px; background: #0d1520; border-bottom: 0.5px solid #1a2535; }
+  .next-title { font-size: 9px; font-weight: 700; color: #445; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .next-card { background: #0a101a; border: 0.5px solid #1a2535; border-radius: 8px; padding: 9px 12px; display: flex; align-items: center; gap: 10px; }
+  .next-vs { font-size: 11px; color: #ccc; flex: 1; line-height: 1.5; }
+  .next-time { font-size: 13px; font-weight: 900; color: #4a9eff; font-family: 'SF Mono', monospace; flex-shrink: 0; }
+
+  .fin-tabs { display: flex; background: #0a101a; border-bottom: 0.5px solid #1a2535; }
+  .fin-feed { padding: 8px 14px 14px; }
+  .set-hdr { font-size: 9px; font-weight: 700; color: #4a9eff; display: flex; align-items: center; gap: 6px; padding: 7px 0 3px; }
+  .set-hdr hr { flex: 1; border: none; border-top: 0.5px solid #1a2535; }
+  .fin-game-hdr { font-size: 9px; color: #334; font-weight: 700; padding: 4px 0 2px; display: flex; align-items: center; gap: 6px; }
+  .fin-game-hdr hr { flex: 1; border: none; border-top: 0.5px solid #1a2535; }
+</style>
+</head>
+<body>
+
+<h1>Match Page — 3 States</h1>
+<p class="subtitle">Scheduled · Live · Finished</p>
+
+<div class="row">
+
+  <!-- ══════════════════ SCHEDULED ══════════════════ -->
+  <div class="col">
+    <div class="col-label">State 1</div>
+    <div class="col-name">Scheduled</div>
+    <div class="col-desc">Countdown, bookmark &amp; notification CTAs,<br>tournament context</div>
+    <div class="phone">
+
+      <!-- nav -->
+      <div class="nav">
+        <div class="nav-back">← Back</div>
+        <div class="nav-logo"><span>PADELNACHO</span></div>
+        <div class="nav-badge badge-scheduled">Tomorrow</div>
+      </div>
+
+      <!-- time banner -->
+      <div class="sched-banner">
+        <div class="sched-label">Match starts at</div>
+        <div class="sched-time">22:30</div>
+        <div class="sched-date">Sun 29 Mar · Madrid time</div>
+        <div class="sched-court">📍 Court Juan &amp; Bela</div>
+      </div>
+
+      <!-- pairs -->
+      <div class="sched-hero">
+        <div class="pair-row">
+          <div class="photos">
+            <div class="photo">👩</div>
+            <div class="photo">👩</div>
+          </div>
+          <div class="names">
+            <div class="pname"><span class="flag">🇪🇸</span> A. Sanchez Fallada</div>
+            <div class="pname"><span class="flag">🇪🇸</span> A. Ustero Prieto</div>
+          </div>
+        </div>
+        <div class="vs-divider"><hr/><span>VS</span><hr/></div>
+        <div class="pair-row">
+          <div class="photos">
+            <div class="photo">👩</div>
+            <div class="photo">👩</div>
+          </div>
+          <div class="names">
+            <div class="pname"><span class="flag">🇪🇸</span> P. Josemaria Martin</div>
+            <div class="pname"><span class="flag">🇪🇸</span> B. Gonzalez Fern.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- notify CTA -->
+      <div class="notify-section">
+        <div class="notify-title">Don't miss it</div>
+        <div class="notify-btns">
+          <div class="btn-notify btn-bell">🔔 Notify me</div>
+          <div class="btn-notify btn-bookmark">★ Save match</div>
+          <div class="btn-notify btn-share">↗</div>
+        </div>
+      </div>
+
+      <!-- countdown -->
+      <div class="countdown">
+        <div class="countdown-label">Starts in</div>
+        <div class="countdown-digits">
+          <div class="cd-unit"><div class="cd-num">04</div><div class="cd-label">hrs</div></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-unit"><div class="cd-num">28</div><div class="cd-label">min</div></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-unit"><div class="cd-num">14</div><div class="cd-label">sec</div></div>
+        </div>
+      </div>
+
+      <!-- tournament info -->
+      <div class="info-section">
+        <div class="info-row"><span class="info-key">Tournament</span><span class="info-val">Miami P1 2026</span></div>
+        <div class="info-row"><span class="info-key">Round</span><span class="info-val">Finals</span></div>
+        <div class="info-row"><span class="info-key">Court</span><span class="info-val">Court Juan &amp; Bela</span></div>
+        <div class="info-row"><span class="info-key">Category</span><span class="info-val">Women</span></div>
+        <div class="info-row"><span class="info-key">Est. duration</span><span class="info-val">~90 min</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════ LIVE ══════════════════════ -->
+  <div class="col">
+    <div class="col-label">State 2</div>
+    <div class="col-name">Live Match</div>
+    <div class="col-desc">Wide live nudge, real-time score,<br>sweep animation on scorer, live feed</div>
+    <div class="phone">
+
+      <!-- nav -->
+      <div class="nav">
+        <div class="nav-back">← Back</div>
+        <div class="nav-logo"><span>PADELNACHO</span></div>
+        <!-- no badge, live banner replaces it -->
+        <div style="width:50px;"></div>
+      </div>
+
+      <!-- LIVE BANNER — wide nudge -->
+      <div class="live-banner">
+        <div class="live-pill">
+          <span class="live-dot"></span>
+          <span>LIVE</span>
+        </div>
+        <div class="live-info">
+          <div class="live-info-top">Set 3 in progress — Game 7</div>
+          <div class="live-info-sub">Court Juan &amp; Bela · Finals</div>
+        </div>
+        <div class="live-set-progress">
+          <div class="set-pip done"></div>
+          <div class="set-pip done"></div>
+          <div class="set-pip current"></div>
+        </div>
+      </div>
+
+      <!-- hero score -->
+      <div class="live-hero">
+        <div class="score-labels">
+          <span class="sc-label">S1</span>
+          <span class="sc-label">S2</span>
+          <span class="sc-label cur">S3</span>
+          <span class="pts-label">Pts</span>
+        </div>
+
+        <!-- Pair 1 row — currently scoring (sweep) -->
+        <div class="sc-row border-b sweep-row">
+          <div class="photos">
+            <div class="photo">👩</div>
+            <div class="photo">👩</div>
+          </div>
+          <div class="names">
+            <div class="pname"><span class="flag">🇪🇸</span> A. Sanchez Fallada</div>
+            <div class="pname"><span class="flag">🇪🇸</span> A. Ustero Prieto</div>
+          </div>
+          <div class="scores">
+            <span class="s won">6</span>
+            <span class="s won">4</span>
+            <span class="s cur">1</span>
+            <span class="pts" style="color:#F59E0B;">30</span>
+          </div>
+        </div>
+
+        <!-- divider with star point -->
+        <div class="game-divider">
+          <hr/>
+          <span class="sp-badge">★ Star point</span>
+          <hr/>
+        </div>
+
+        <!-- Pair 2 row -->
+        <div class="sc-row" style="padding-bottom:12px;">
+          <div class="photos">
+            <div class="photo">👩</div>
+            <div class="photo">👩</div>
+          </div>
+          <div class="names">
+            <div class="pname" style="color:#3a4a5a;"><span class="flag">🇪🇸</span> P. Josemaria Martin</div>
+            <div class="pname" style="color:#3a4a5a;"><span class="flag">🇪🇸</span> B. Gonzalez Fern.</div>
+          </div>
+          <div class="scores">
+            <span class="s l" style="color:#2a3a4a;">4</span>
+            <span class="s won">6</span>
+            <span class="s cur">5</span>
+            <span class="pts" style="color:#1e2a38;">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- fan poll -->
+      <div class="live-poll">
+        <div class="poll-title">Who are you rooting for?</div>
+        <div class="poll-row">
+          <div class="poll-side" style="background: rgba(245,158,11,0.06); border-right: 0.5px solid #1a2535;">
+            <div class="poll-pct" style="color:#F59E0B;">62%</div>
+            <div class="poll-name">A. Sanchez / A. Ustero</div>
+          </div>
+          <div class="poll-side" style="background: rgba(20,184,166,0.06);">
+            <div class="poll-pct" style="color:#14B8A6;">38%</div>
+            <div class="poll-name">P. Josemaria / B. Gonzalez</div>
+          </div>
+        </div>
+        <div class="poll-bar">
+          <div style="width:62%;background:#F59E0B;opacity:0.7;"></div>
+          <div style="flex:1;background:#14B8A6;opacity:0.7;"></div>
+        </div>
+      </div>
+
+      <!-- tabs -->
+      <div class="live-tabs">
+        <div class="tab active">Live Feed</div>
+        <div class="tab">Players</div>
+        <div class="tab">H2H</div>
+      </div>
+
+      <!-- live feed preview -->
+      <div class="live-feed">
+        <div class="feed-hdr"><span class="feed-dot-sm"></span> Live · Set 3</div>
+        <div class="game-hdr"><hr/><span>Game 7 · In progress</span><hr/></div>
+        <div class="feed-pt p1 now">
+          <div class="feed-dot2" style="background:#F59E0B;"></div>
+          <span class="feed-sc" style="color:#F59E0B;">30 — 0</span>
+          <span class="feed-who">A. Sanchez / A. Ustero</span>
+          <span class="feed-now">● now</span>
+        </div>
+        <div class="feed-pt p1">
+          <div class="feed-dot2" style="background:#F59E0B;"></div>
+          <span class="feed-sc" style="color:#F59E0B;">15 — 0</span>
+          <span class="feed-who">A. Sanchez / A. Ustero</span>
+        </div>
+        <div class="game-hdr"><hr/><span>Game 6 · Josemaria won</span><hr/></div>
+        <div class="feed-pt p2">
+          <div class="feed-dot2" style="background:#14B8A6;"></div>
+          <span class="feed-sc" style="color:#14B8A6;">30 — 40</span>
+          <span class="feed-who">P. Josemaria / B. Gonzalez</span>
+        </div>
+        <div class="feed-pt p1">
+          <div class="feed-dot2" style="background:#F59E0B;"></div>
+          <span class="feed-sc" style="color:#F59E0B;">30 — 30</span>
+          <span class="feed-who">A. Sanchez / A. Ustero</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════ FINISHED ══════════════════ -->
+  <div class="col">
+    <div class="col-label">State 3</div>
+    <div class="col-name">Finished</div>
+    <div class="col-desc">Winner highlighted, advancement notice,<br>match stats &amp; next match preview</div>
+    <div class="phone">
+
+      <!-- nav -->
+      <div class="nav">
+        <div class="nav-back">← Back</div>
+        <div class="nav-logo"><span>PADELNACHO</span></div>
+        <div class="nav-badge badge-finished">Finished · 1h 24m</div>
+      </div>
+
+      <!-- winner banner -->
+      <div class="winner-banner">
+        <div class="winner-row">
+          <div class="trophy">🏆</div>
+          <div class="winner-info">
+            <div class="winner-label">Winner</div>
+            <div class="winner-name">A. Tapia / A. Coello</div>
+          </div>
+          <div class="advance-badge">
+            <span>→ Finals</span>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:rgba(52,211,153,0.5);padding-left:32px;">
+          Advances to the Women's Final
+        </div>
+      </div>
+
+      <!-- result score -->
+      <div class="result-hero">
+        <div style="display:flex;justify-content:flex-end;gap:3px;margin-bottom:3px;">
+          <span class="sc-label">S1</span><span class="sc-label">S2</span><span class="sc-label">S3</span>
+        </div>
+        <div class="res-row" style="padding-bottom:10px;border-bottom:0.5px solid #1a2535;">
+          <div class="photos">
+            <div class="photo" style="border-color:rgba(52,211,153,0.4);">👩</div>
+            <div class="photo" style="border-color:rgba(52,211,153,0.4);">👩</div>
+          </div>
+          <div class="res-names">
+            <div class="res-pname winner-text">🇦🇷 A. Tapia</div>
+            <div class="res-pname winner-text">🇪🇸 A. Coello</div>
+          </div>
+          <div class="res-scores">
+            <span class="rs w">5</span>
+            <span class="rs w">6</span>
+            <span class="rs w">6</span>
+            <span class="checkmark">✓</span>
+          </div>
+        </div>
+        <div class="res-row" style="padding-top:10px;">
+          <div class="photos">
+            <div class="photo" style="opacity:0.5;">👨</div>
+            <div class="photo" style="opacity:0.5;">👨</div>
+          </div>
+          <div class="res-names">
+            <div class="res-pname loser-text">🇪🇸 J. Lebron</div>
+            <div class="res-pname loser-text">🇩🇪 L. Augsburger</div>
+          </div>
+          <div class="res-scores">
+            <span class="rs l">7</span>
+            <span class="rs l">3</span>
+            <span class="rs l">2</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- match stats -->
+      <div class="match-stats">
+        <div class="stats-title">Match stats</div>
+
+        <div class="stat-row">
+          <span class="stat-val left">68%</span>
+          <div style="flex:1;display:flex;gap:2px;">
+            <div class="stat-bar-wrap"><div class="stat-bar left" style="width:68%;"></div></div>
+            <div class="stat-bar-wrap"><div class="stat-bar right" style="width:32%;"></div></div>
+          </div>
+          <span class="stat-val right">32%</span>
+          <span class="stat-label">Winners %</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-val left">18</span>
+          <div style="flex:1;display:flex;gap:2px;">
+            <div class="stat-bar-wrap"><div class="stat-bar left" style="width:69%;"></div></div>
+            <div class="stat-bar-wrap"><div class="stat-bar right" style="width:31%;"></div></div>
+          </div>
+          <span class="stat-val right">8</span>
+          <span class="stat-label">Winners</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-val left">6</span>
+          <div style="flex:1;display:flex;gap:2px;">
+            <div class="stat-bar-wrap"><div class="stat-bar left" style="width:43%;"></div></div>
+            <div class="stat-bar-wrap"><div class="stat-bar right" style="width:57%;"></div></div>
+          </div>
+          <span class="stat-val right">8</span>
+          <span class="stat-label">Unforced err</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-val left">74%</span>
+          <div style="flex:1;display:flex;gap:2px;">
+            <div class="stat-bar-wrap"><div class="stat-bar left" style="width:60%;"></div></div>
+            <div class="stat-bar-wrap"><div class="stat-bar right" style="width:40%;"></div></div>
+          </div>
+          <span class="stat-val right">64%</span>
+          <span class="stat-label">Break pts saved</span>
+        </div>
+      </div>
+
+      <!-- next match preview -->
+      <div class="next-match">
+        <div class="next-title">Next up for A. Tapia / A. Coello</div>
+        <div class="next-card">
+          <div style="font-size:18px;">⚔️</div>
+          <div class="next-vs">
+            vs <strong style="color:#ccc;">P. Josemaria / B. Gonzalez</strong>
+            <br/><span style="font-size:9px;color:#445;">Women's Final · Court Juan &amp; Bela</span>
+          </div>
+          <div class="next-time">22:30</div>
+        </div>
+      </div>
+
+      <!-- tabs -->
+      <div class="fin-tabs">
+        <div class="tab active">Live Feed</div>
+        <div class="tab">Players</div>
+        <div class="tab">H2H</div>
+      </div>
+
+      <!-- feed preview for finished -->
+      <div class="fin-feed">
+        <div class="set-hdr"><hr/><span>Set 3 · 6-2</span><hr/></div>
+        <div class="fin-game-hdr"><hr/><span style="color:#F59E0B;">Game 8 · Tapia/Coello won</span><hr/></div>
+        <div class="feed-pt p1">
+          <div class="feed-dot2" style="background:#F59E0B;"></div>
+          <span class="feed-sc" style="color:#F59E0B;">40 — 0</span>
+          <span class="feed-who">A. Tapia / A. Coello</span>
+        </div>
+        <div class="feed-pt p1">
+          <div class="feed-dot2" style="background:#F59E0B;"></div>
+          <span class="feed-sc" style="color:#F59E0B;">15 — 0</span>
+          <span class="feed-who">A. Tapia / A. Coello</span>
+        </div>
+        <div class="fin-game-hdr"><hr/><span style="color:#14B8A6;">Game 7 · Lebron/Augsburger won</span><hr/></div>
+        <div class="feed-pt p2">
+          <div class="feed-dot2" style="background:#14B8A6;"></div>
+          <span class="feed-sc" style="color:#14B8A6;">15 — 40</span>
+          <span class="feed-who">J. Lebron / L. Augsburger</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /row -->
+</body>
+</html>
