@@ -27,7 +27,13 @@ interface YouTubeSearchItem {
 
 interface YouTubeVideoItem {
   id: string
-  contentDetails: { duration: string }
+  contentDetails: {
+    duration: string
+    regionRestriction?: {
+      allowed?: string[]
+      blocked?: string[]
+    }
+  }
   statistics: { viewCount: string }
 }
 
@@ -41,6 +47,15 @@ function formatDuration(iso: string): string {
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   return `${m}:${String(s).padStart(2, '0')}`
 }
+
+// Get total seconds from ISO 8601 duration
+function durationSeconds(iso: string): number {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+  if (!match) return 0
+  return parseInt(match[1] || '0') * 3600 + parseInt(match[2] || '0') * 60 + parseInt(match[3] || '0')
+}
+
+const MIN_DURATION_SECONDS = 300 // 5 minutes
 
 // Infer category from video title
 function inferCategory(title: string): string | null {
@@ -131,7 +146,11 @@ export async function GET(req: NextRequest) {
         const existing = videoMap[item.id]
         if (existing) {
           (existing as any).duration = formatDuration(item.contentDetails.duration)
+          ;(existing as any).durationSecs = durationSeconds(item.contentDetails.duration)
           ;(existing as any).viewCount = parseInt(item.statistics.viewCount || '0')
+          const rr = item.contentDetails.regionRestriction
+          if (rr?.allowed) (existing as any).allowedCountries = rr.allowed
+          if (rr?.blocked) (existing as any).blockedCountries = rr.blocked
         }
       }
     } catch (err) {
@@ -139,11 +158,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Step 3: Upsert into highlights table
+  // Step 3: Filter out short videos (< 5 min) and upsert
   let upserted = 0
   const errors: string[] = []
 
-  const rows = Object.entries(videoMap).map(([youtubeId, info]) => ({
+  const filtered = Object.entries(videoMap).filter(
+    ([, info]) => ((info as any).durationSecs ?? 0) >= MIN_DURATION_SECONDS
+  )
+
+  const rows = filtered.map(([youtubeId, info]) => ({
     youtube_id: youtubeId,
     title: info.title,
     channel_name: info.channelName,
@@ -152,6 +175,8 @@ export async function GET(req: NextRequest) {
     view_count: (info as any).viewCount ?? 0,
     published_at: info.publishedAt,
     category: inferCategory(info.title),
+    allowed_countries: (info as any).allowedCountries ?? null,
+    blocked_countries: (info as any).blockedCountries ?? null,
     updated_at: new Date().toISOString(),
   }))
 
@@ -170,6 +195,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     message: errors.length > 0 ? 'Highlights sync had errors' : 'Highlights sync complete',
     found: allVideoIds.size,
+    filteredOut: allVideoIds.size - filtered.length,
     upserted,
     errors,
   })
