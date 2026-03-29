@@ -341,7 +341,7 @@ export default function TournamentsPage() {
                   LIVE
                 </div>
 
-                <Link href="/v2/matches" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Link href={`/v2/matches?tournament=${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div style={{
                     borderRadius: 14, padding: '16px 18px',
                     background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(255,70,85,0.06) 100%)',
@@ -392,7 +392,7 @@ export default function TournamentsPage() {
             )
           })}
 
-          {/* Upcoming */}
+          {/* Upcoming — grouped by month */}
           {upcoming.length > 0 && (
             <>
               <SectionHeader
@@ -400,30 +400,79 @@ export default function TournamentsPage() {
                 title="Upcoming"
                 count={`${upcoming.length} events`}
               />
-              <div style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr',
-                gap: 10, padding: '0 16px',
-              }}>
-                {upcoming.map(t => (
-                  <UpcomingCard key={t.id} tournament={t} />
-                ))}
-              </div>
+              {(() => {
+                const byMonth: Record<string, TournamentWithWinners[]> = {}
+                for (const t of upcoming) {
+                  const d = new Date(t.starts_at)
+                  const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`
+                  const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                  if (!byMonth[key]) byMonth[key] = []
+                  byMonth[key].push({ ...t, _monthLabel: label } as any)
+                }
+                return Object.entries(byMonth).map(([key, items]) => (
+                  <div key={key}>
+                    <div style={{
+                      padding: '10px 16px 6px', fontSize: 10, fontWeight: 700,
+                      color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em',
+                    }}>
+                      {(items[0] as any)._monthLabel}
+                    </div>
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: '1fr 1fr',
+                      gap: 10, padding: '0 16px',
+                    }}>
+                      {items.map(t => (
+                        <UpcomingCard key={t.id} tournament={t} />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              })()}
             </>
           )}
 
-          {/* Completed */}
+          {/* Completed — current season + collapsible previous seasons */}
           {completed.length > 0 && (
             <>
-              <SectionHeader
-                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
-                title="Completed"
-                count="2026 Season"
-              />
-              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {completed.map(t => (
-                  <CompletedCard key={t.id} tournament={t} />
-                ))}
-              </div>
+              {(() => {
+                const currentYear = new Date().getFullYear()
+                const currentSeason = completed.filter(t => new Date(t.starts_at).getFullYear() === currentYear)
+                const previousSeasons = completed.filter(t => new Date(t.starts_at).getFullYear() < currentYear)
+
+                // Group previous by year
+                const prevByYear: Record<number, TournamentWithWinners[]> = {}
+                for (const t of previousSeasons) {
+                  const yr = new Date(t.starts_at).getFullYear()
+                  if (!prevByYear[yr]) prevByYear[yr] = []
+                  prevByYear[yr].push(t)
+                }
+
+                return (
+                  <>
+                    {currentSeason.length > 0 && (
+                      <>
+                        <SectionHeader
+                          icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
+                          title="Completed"
+                          count={`${currentYear} Season`}
+                        />
+                        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {currentSeason.map(t => (
+                            <CompletedCard key={t.id} tournament={t} />
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {Object.entries(prevByYear)
+                      .sort(([a], [b]) => Number(b) - Number(a))
+                      .map(([year, items]) => (
+                        <CollapsibleSeason key={year} year={Number(year)} tournaments={items} />
+                      ))
+                    }
+                  </>
+                )
+              })()}
             </>
           )}
 
@@ -465,24 +514,15 @@ function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: s
 
 function UpcomingCard({ tournament: t }: { tournament: Tournament }) {
   const days = daysUntil(t.starts_at)
-  const levelColors: Record<string, { bg: string; color: string }> = {
-    finals: { bg: 'rgba(245,158,11,0.12)', color: '#F59E0B' },
-    major: { bg: 'rgba(168,85,247,0.12)', color: '#A855F7' },
-    p1: { bg: 'var(--color-accent-bg)', color: 'var(--color-accent)' },
-    p2: { bg: 'rgba(129,140,248,0.12)', color: '#818CF8' },
-    fip_platinum: { bg: 'rgba(34,197,94,0.12)', color: '#22c55e' },
-    fip_gold: { bg: 'rgba(34,197,94,0.12)', color: '#22c55e' },
-    fip_other: { bg: 'rgba(34,197,94,0.12)', color: '#22c55e' },
-  }
-  const lc = levelColors[t.level ?? ''] ?? { bg: 'var(--color-accent-bg)', color: 'var(--color-accent)' }
 
   return (
-    <Link href="/v2/matches" style={{ textDecoration: 'none', color: 'inherit' }}>
+    <Link href={`/v2/matches?tournament=${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div style={{
         borderRadius: 12, padding: 14,
         background: 'var(--bg-card)', border: '1px solid var(--border-card)',
         cursor: 'pointer', overflow: 'hidden',
         height: '100%', display: 'flex', flexDirection: 'column',
+        minWidth: 0,
       }}>
         <span style={{ fontSize: 20, marginBottom: 8, display: 'block' }}>
           {countryFlag(t.country)}
@@ -503,14 +543,7 @@ function UpcomingCard({ tournament: t }: { tournament: Tournament }) {
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 500, marginBottom: 8 }}>
           {formatDateShort(t.starts_at, t.ends_at)}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-          <span style={{
-            display: 'inline-block', padding: '2px 8px', borderRadius: 5,
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase',
-            background: lc.bg, color: lc.color,
-          }}>
-            {levelLabel(t.level)}
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 'auto' }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-accent)', fontFamily: 'var(--font-mono)' }}>
             {days}d
           </span>
@@ -531,7 +564,7 @@ function CompletedCard({ tournament: t }: { tournament: TournamentWithWinners })
   }
 
   return (
-    <Link href="/v2/matches" style={{ textDecoration: 'none', color: 'inherit' }}>
+    <Link href={`/v2/matches?tournament=${t.id}&round=Finals`} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div style={{
         padding: 14, background: 'var(--bg-card)',
         border: '1px solid var(--border-card)', borderRadius: 12, cursor: 'pointer',
@@ -576,6 +609,46 @@ function CompletedCard({ tournament: t }: { tournament: TournamentWithWinners })
         )}
       </div>
     </Link>
+  )
+}
+
+function CollapsibleSeason({ year, tournaments }: { year: number; tournaments: TournamentWithWinners[] }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          width: '100%', padding: '14px 16px 10px',
+          background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+        }}
+      >
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round"
+          style={{ transition: 'transform 0.2s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        >
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          {year} Season
+        </span>
+        <span style={{
+          fontSize: 10, fontWeight: 600, color: 'var(--text-faint)',
+          background: 'var(--bg-card-alt)', borderRadius: 10, padding: '2px 8px',
+        }}>
+          {tournaments.length} events
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {tournaments.map(t => (
+            <CompletedCard key={t.id} tournament={t} />
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

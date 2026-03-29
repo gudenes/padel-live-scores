@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, pairName } from '@/types/match'
+import { Match, countryFlag, pairName, isWarmingUp } from '@/types/match'
 import MatchCard from '../components/MatchCard'
 import Link from 'next/link'
 
@@ -945,26 +945,21 @@ export default function HomePage() {
         .eq('status', 'live')
         .order('court_order', { ascending: true }),
 
-      // Next scheduled matches (for when tournament is live but no matches are)
-      (() => {
-        const todayStart = new Date()
-        todayStart.setHours(0, 0, 0, 0)
-        return supabase
-          .from('matches')
-          .select(`
-            *,
-            tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
-            pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            sets(*, games(*))
-          `)
-          .eq('status', 'scheduled')
-          .gte('scheduled_at', todayStart.toISOString())
-          .order('scheduled_at', { ascending: true })
-          .limit(4)
-      })(),
+      // Next scheduled matches — status=scheduled means not played yet, no date filter needed
+      supabase
+        .from('matches')
+        .select(`
+          *,
+          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
+          pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+          sets(*, games(*))
+        `)
+        .eq('status', 'scheduled')
+        .order('scheduled_at', { ascending: true })
+        .limit(4),
 
       // Upcoming or current Premier Padel tournament
       supabase
@@ -1064,7 +1059,9 @@ export default function HomePage() {
     )
   }
 
-  const liveCount = liveMatches.length
+  const trulyLive = liveMatches.filter(m => !isWarmingUp(m))
+  const warmingUp = liveMatches.filter(m => isWarmingUp(m))
+  const liveCount = trulyLive.length
 
   return (
     <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 20 }}>
@@ -1112,7 +1109,7 @@ export default function HomePage() {
         <CollapsibleSection title="Live Now" action={`See all ${liveCount} live`} href="/v2/matches">
           <div style={{ padding: '0 16px' }}>
             {(() => {
-              const t = (liveMatches[0] as any)?.tournament
+              const t = (trulyLive[0] as any)?.tournament
               return (
                 <div style={{
                   borderRadius: 12, overflow: 'hidden',
@@ -1144,7 +1141,7 @@ export default function HomePage() {
                   )}
                   {/* Matches inside the card — no outer border on MatchCard */}
                   <div style={{ padding: '4px 10px 6px' }}>
-                    {liveMatches.slice(0, 6).map(m => (
+                    {trulyLive.slice(0, 6).map(m => (
                       <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} embedded />
                     ))}
                   </div>
@@ -1153,20 +1150,63 @@ export default function HomePage() {
             })()}
           </div>
         </CollapsibleSection>
-      ) : scheduledMatches.length > 0 ? (
-        <CollapsibleSection title="Coming Up" action="All matches" href="/v2/matches">
+      ) : null}
+
+      {/* Warming up + Scheduled — shown when no truly live matches, or warming up below live */}
+      {warmingUp.length > 0 || (liveCount === 0 && scheduledMatches.length > 0) ? (
+        <CollapsibleSection
+          title={warmingUp.length > 0 ? 'Warming Up' : 'Coming Up'}
+          action="All matches"
+          href="/v2/matches"
+        >
           <div style={{ padding: '0 16px' }}>
-            {scheduledMatches.map(m => (
-              <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
-            ))}
+            {(() => {
+              const allUpcoming = [...warmingUp, ...scheduledMatches]
+              const t = (allUpcoming[0] as any)?.tournament
+              return (
+                <div style={{
+                  borderRadius: 12, overflow: 'hidden',
+                  border: '1px solid var(--border-card)',
+                  background: 'var(--bg-card)',
+                }}>
+                  {t && (
+                    <Link
+                      href="/v2/matches"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 12px',
+                        background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(56,200,255,0.06) 100%)',
+                        borderBottom: '1px solid var(--border-card)',
+                        textDecoration: 'none', color: 'inherit',
+                      }}
+                    >
+                      {t.country && (
+                        <span style={{ fontSize: 16, lineHeight: 1 }}>{countryFlag(t.country)}</span>
+                      )}
+                      <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {t.name}
+                      </span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </Link>
+                  )}
+                  <div style={{ padding: '4px 10px 6px' }}>
+                    {allUpcoming.map(m => (
+                      <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} embedded />
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </CollapsibleSection>
-      ) : (
+      ) : liveCount === 0 ? (
         <>
           <div style={{ height: 12 }} />
           <NoLiveBanner />
         </>
-      )}
+      ) : null}
 
       {/* Video Highlights — filtered by user's country */}
       {highlights.length > 0 && (

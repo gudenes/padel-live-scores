@@ -4,7 +4,8 @@
 // Shows all leagues by default; auto-selects the live tournament.
 // Feed is organised by section headers: Live Now → Up Next → Finished
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, isWarmingUp } from '@/types/match'
 import MatchCard from '../../components/MatchCard'
@@ -38,7 +39,19 @@ function localDateKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-export default function V2Page() {
+export default function V2PageWrapper() {
+  return (
+    <Suspense fallback={<div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading matches...</div>}>
+      <V2Page />
+    </Suspense>
+  )
+}
+
+function V2Page() {
+  const searchParams = useSearchParams()
+  const paramTournament = searchParams.get('tournament')
+  const paramRound = searchParams.get('round')
+
   // ── State ─────────────────────────────────────────────────────────────
   const [allMatches, setAllMatches]   = useState<Match[]>([])
   const [tournaments, setTournaments] = useState<any[]>([])
@@ -52,6 +65,7 @@ export default function V2Page() {
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all')
   const stageStripRef = useRef<HTMLDivElement>(null)
+  const paramAppliedRef = useRef(false)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
 
@@ -143,9 +157,25 @@ export default function V2Page() {
     return now >= new Date(t.starts_at) && now <= end
   }
 
-  // Auto-select: live tournament → most recently ended → next upcoming → first
+  // Auto-select: URL param → live tournament → most recently ended → next upcoming → first
   useEffect(() => {
     if (tournaments.length === 0) return
+
+    // If URL has a tournament param, use it (once)
+    if (paramTournament && !paramAppliedRef.current) {
+      const match = tournaments.find(t => t.id === paramTournament)
+      if (match) {
+        paramAppliedRef.current = true
+        setActiveTournament(match.id)
+        // Reset round so auto-select picks the right one for this tournament
+        setSelectedRound(null)
+        return
+      }
+    }
+
+    // Don't override if user already picked one via URL param
+    if (paramAppliedRef.current) return
+
     const now = new Date()
     const live = tournaments.find(isLiveTournament)
     if (live) { setActiveTournament(live.id); return }
@@ -158,7 +188,7 @@ export default function V2Page() {
     })
     const upcoming = tournaments.find(t => t.starts_at && new Date(t.starts_at) > now)
     setActiveTournament(recentlyEnded?.id ?? upcoming?.id ?? tournaments[0]?.id ?? null)
-  }, [tournaments]) // eslint-disable-line
+  }, [tournaments, paramTournament]) // eslint-disable-line
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
 
@@ -213,11 +243,16 @@ export default function V2Page() {
       })
     )
     setSelectedRound(prev => {
+      // If URL has a round param, use it (once)
+      if (paramRound && !prev) {
+        const normalized = normalizeRoundFull(paramRound)
+        if (availableRounds.includes(normalized)) return normalized
+      }
       // Don't override a user selection that's still valid
       if (prev && availableRounds.includes(prev)) return prev
       return hasLive ?? hasToday ?? availableRounds[0] ?? null
     })
-  }, [availableRounds, activeTournament]) // eslint-disable-line
+  }, [availableRounds, activeTournament, paramRound]) // eslint-disable-line
 
   // Auto-scroll stage strip so the active pill is centred in view
   useEffect(() => {
@@ -245,8 +280,8 @@ export default function V2Page() {
     })
   }, [allMatches, activeTournament, selectedRound, genderFilter]) // eslint-disable-line
 
-  // Warming-up matches are included in liveMatches — they render "About to start"
-  const liveMatches = filtered.filter(m => m.status === 'live')
+  const liveMatches = filtered.filter(m => m.status === 'live' && !isWarmingUp(m as Match))
+  const warmingUpMatches = filtered.filter(m => m.status === 'live' && isWarmingUp(m as Match))
   const scheduledMatches = filtered
     .filter(m => m.status === 'scheduled')
     .sort((a: any, b: any) => {
@@ -577,6 +612,13 @@ export default function V2Page() {
                 </div>
               )}
 
+              {warmingUpMatches.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <SectionHeader dot color="var(--color-live)" label="Warming up" />
+                  {warmingUpMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
+                </div>
+              )}
+
               {scheduledMatches.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
                   <SectionHeader label="Up next" />
@@ -598,7 +640,7 @@ export default function V2Page() {
                 </div>
               )}
 
-              {liveMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
+              {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
                 <div style={{ textAlign: 'center', paddingTop: 80 }}>
                   <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
                   <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>

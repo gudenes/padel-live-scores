@@ -363,10 +363,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         )}
 
         {/* Pair 1 row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, borderBottom: '0.5px solid var(--border-card)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, ...(!isLive && !isScheduled ? { borderBottom: '0.5px solid var(--border-card)' } : {}) }}>
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-            <PlayerSquare player={match.pair1_player1} winner={p1Won} />
-            <PlayerSquare player={match.pair1_player2} winner={p1Won} />
+            <PlayerSquare player={match.pair1_player1} winner={p1Won} router={router} />
+            <PlayerSquare player={match.pair1_player2} winner={p1Won} router={router} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <PlayerNameLink player={match.pair1_player1} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
@@ -416,8 +416,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {/* Pair 2 row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 14 }}>
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-            <PlayerSquare player={match.pair2_player1} winner={p2Won} />
-            <PlayerSquare player={match.pair2_player2} winner={p2Won} />
+            <PlayerSquare player={match.pair2_player1} winner={p2Won} router={router} />
+            <PlayerSquare player={match.pair2_player2} winner={p2Won} router={router} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <PlayerNameLink player={match.pair2_player1} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
@@ -484,7 +484,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* ── LIVE / FINISHED: sub-tabs ─────────────────────────────────── */}
       {!isScheduled && (
         <>
-          <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border-card)', background: 'var(--bg-card-alt)', position: 'sticky', top: heroHidden ? 49 + 62 : 49, zIndex: 7, transition: 'top 0.25s ease' }}>
+          <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border-card)', background: 'var(--bg-card-alt)' }}>
             {(['live', 'players', 'h2h'] as SubTab[]).map(tab => (
               <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? 'var(--color-accent)' : 'var(--text-dim)', borderBottom: subTab === tab ? '2px solid var(--color-accent)' : '2px solid transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                 {tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
@@ -545,15 +545,10 @@ function LiveBanner({ match, currentSet, currentGame }: { match: Match; currentS
         <span style={{ fontSize: 11, fontWeight: 800, color: '#ff4455', letterSpacing: '0.5px' }}>LIVE</span>
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#ff7788' }}>
-          {currentSet ? `Set ${currentSet.set_number} in progress` : 'Match in progress'}
-          {currentGame ? ` — Game ${currentGame.game_number}` : ''}
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#ff7788', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+          {currentSet ? `SET ${currentSet.set_number} IN PROGRESS` : 'MATCH IN PROGRESS'}
+          {currentGame ? ` — GAME ${currentGame.game_number}` : ''}
         </div>
-        {(match.court || match.round) && (
-          <div style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 1 }}>
-            {[match.court, match.round].filter(Boolean).join(' · ')}
-          </div>
-        )}
       </div>
       <div style={{ display: 'flex', gap: 3 }}>
         {[1, 2, 3].map(n => {
@@ -963,16 +958,18 @@ function PlayerAvatar({ player, size, winner, accent }: { player: any; size: num
 }
 
 // ── PlayerSquare (hero photos) ────────────────────────────────────────────────
-function PlayerSquare({ player, winner }: { player: any; winner?: boolean }) {
+function PlayerSquare({ player, winner, router }: { player: any; winner?: boolean; router: ReturnType<typeof import('next/navigation').useRouter> }) {
   const [imgError, setImgError] = useState(false)
   const initials = player?.name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') ?? '?'
   const border = winner ? '2px solid rgba(255,255,255,0.5)' : '1.5px solid var(--border-strong)'
   const bg = winner ? 'rgba(255,255,255,0.05)' : '#0A1A2A'
+  const handleClick = player?.id ? (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/player/${player.id}`) } : undefined
+  const cursor = player?.id ? 'pointer' : 'default'
   if (!player) return <div style={{ width: 56, height: 56, borderRadius: 10, background: bg, border, flexShrink: 0 }} />
   return player.avatar_url && !imgError ? (
-    <img src={`/api/img?src=${encodeURIComponent(player.avatar_url)}`} alt={player.name} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border }} onError={() => setImgError(true)} />
+    <img onClick={handleClick} src={`/api/img?src=${encodeURIComponent(player.avatar_url)}`} alt={player.name} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border, cursor }} onError={() => setImgError(true)} />
   ) : (
-    <div style={{ width: 56, height: 56, borderRadius: 10, background: bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: winner ? 'rgba(255,255,255,0.7)' : '#4A6A8A', fontWeight: 700, border }}>
+    <div onClick={handleClick} style={{ width: 56, height: 56, borderRadius: 10, background: bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: winner ? 'rgba(255,255,255,0.7)' : '#4A6A8A', fontWeight: 700, border, cursor }}>
       {initials}
     </div>
   )
