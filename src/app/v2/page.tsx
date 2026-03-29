@@ -672,7 +672,7 @@ export default function HomePage() {
 
       {/* Video Highlights — filtered by user's country */}
       {highlights.length > 0 && (
-        <CollapsibleSection title="Highlights" action="See all" href="/v2">
+        <CollapsibleSection title="Highlights" action="See all" href="/v2/feed">
           <HighlightsCarousel highlights={highlights.filter(h => {
             if (!userCountry) return true // no geo info → show all
             if (h.allowed_countries && h.allowed_countries.length > 0) return h.allowed_countries.includes(userCountry)
