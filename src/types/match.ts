@@ -223,7 +223,13 @@ export function countryFlag(country: string | null): string {
     FR: '🇫🇷', IT: '🇮🇹', BE: '🇧🇪', NL: '🇳🇱',
     DE: '🇩🇪', GB: '🇬🇧', DK: '🇩🇰', SE: '🇸🇪',
     UY: '🇺🇾', PY: '🇵🇾', CL: '🇨🇱', MX: '🇲🇽',
-    US: '🇺🇸', AU: '🇦🇺', QA: '🇶🇦',
+    US: '🇺🇸', AU: '🇦🇺', QA: '🇶🇦', AE: '🇦🇪',
+    EG: '🇪🇬', CO: '🇨🇴', PE: '🇵🇪', CR: '🇨🇷',
+    FI: '🇫🇮', NO: '🇳🇴', PL: '🇵🇱', AT: '🇦🇹',
+    CH: '🇨🇭', GR: '🇬🇷', SA: '🇸🇦', JP: '🇯🇵',
+    KR: '🇰🇷', CN: '🇨🇳', IN: '🇮🇳', MA: '🇲🇦',
+    ZA: '🇿🇦', IE: '🇮🇪', CZ: '🇨🇿', HR: '🇭🇷',
+    BH: '🇧🇭', KW: '🇰🇼', EC: '🇪🇨', RO: '🇷🇴',
   }
   return flags[country.toUpperCase()] ?? ''
 }
