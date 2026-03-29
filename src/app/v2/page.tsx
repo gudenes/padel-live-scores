@@ -3,10 +3,10 @@
 // Home / landing page — always has content regardless of live match state.
 // Sections: Live Now (conditional) → Upcoming Tournament → Rankings → Recent Results
 
-import { useEffect, useState, useCallback, ReactNode } from 'react'
+import { useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag } from '@/types/match'
+import { Match, countryFlag, pairName } from '@/types/match'
 import MatchCard from '../components/MatchCard'
 import Link from 'next/link'
 
@@ -265,6 +265,55 @@ function RankingsWidget({ men, women }: { men: RankedPlayer[]; women: RankedPlay
 
 
 
+function TournamentGroup({ tournament, matches, defaultOpen = true }: { tournament: any; matches: Match[]; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div style={{
+      borderRadius: 12, overflow: 'hidden',
+      border: '1px solid var(--border-card)',
+      background: 'var(--bg-card)',
+    }}>
+      {tournament && (
+        <button
+          onClick={() => setOpen(o => !o)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+            padding: '8px 12px',
+            borderBottom: open ? '1px solid var(--border-card)' : 'none',
+            background: 'transparent', border: 'none', borderBottomStyle: open ? 'solid' : 'none',
+            borderBottomWidth: open ? 1 : 0, borderBottomColor: 'var(--border-card)',
+            cursor: 'pointer', fontFamily: 'inherit', color: 'inherit', textAlign: 'left',
+          }}
+        >
+          {tournament.country && (
+            <span style={{ fontSize: 16, lineHeight: 1 }}>{countryFlag(tournament.country)}</span>
+          )}
+          <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {tournament.name}
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--text-faint)', fontWeight: 600 }}>
+            {matches.length}
+          </span>
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+          >
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      )}
+      {open && (
+        <div style={{ padding: '4px 10px 6px' }}>
+          {matches.map(m => (
+            <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} embedded />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function RecentResultsWidget({ matches }: { matches: Match[] }) {
   const [tab, setTab] = useState<'men' | 'women'>('men')
   const filtered = matches
@@ -275,6 +324,19 @@ function RecentResultsWidget({ matches }: { matches: Match[] }) {
       return bDate - aDate
     })
     .slice(0, 10)
+
+  // Group by tournament
+  const grouped: { tournament: any; matches: Match[] }[] = []
+  for (const m of filtered) {
+    const t = (m as any).tournament
+    const tid = t?.id ?? 'unknown'
+    let group = grouped.find(g => (g.tournament?.id ?? 'unknown') === tid)
+    if (!group) {
+      group = { tournament: t, matches: [] }
+      grouped.push(group)
+    }
+    group.matches.push(m)
+  }
 
   return (
     <div>
@@ -295,9 +357,9 @@ function RecentResultsWidget({ matches }: { matches: Match[] }) {
           ))}
         </div>
       </div>
-      <div style={{ padding: '0 16px' }}>
-        {filtered.map(m => (
-          <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
+      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {grouped.map((group, idx) => (
+          <TournamentGroup key={group.tournament?.id ?? 'unknown'} tournament={group.tournament} matches={group.matches} defaultOpen={idx === 0} />
         ))}
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -464,6 +526,391 @@ function NoLiveBanner() {
   )
 }
 
+function NewsTickerWidget({ items }: { items: { id: string; title: string; source_icon: string; source_name: string; url: string; published_at: string; language: string | null }[] }) {
+  if (items.length === 0) return null
+
+  const LANG_FLAGS: Record<string, string> = { en: '🇬🇧', es: '🇪🇸', pt: '🇵🇹', fr: '🇫🇷' }
+
+  function ago(dateStr: string): string {
+    const h = Math.floor((Date.now() - new Date(dateStr).getTime()) / 3600000)
+    if (h < 1) return 'Now'
+    if (h < 24) return `${h}h`
+    const d = Math.floor(h / 24)
+    return d === 1 ? '1d' : `${d}d`
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {items.map((n, i) => (
+        <a
+          key={n.id}
+          href={n.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => {
+            fetch('/api/feed/click', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: n.id }),
+            }).catch(() => {})
+          }}
+          style={{
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            padding: '10px 16px',
+            borderBottom: i < items.length - 1 ? '0.5px solid var(--border-base)' : 'none',
+            textDecoration: 'none', color: 'inherit',
+          }}
+        >
+          <span style={{ fontSize: 14, flexShrink: 0, lineHeight: 1.2 }}>
+            {n.language ? (LANG_FLAGS[n.language] ?? '🌐') : '🌐'}
+          </span>
+          <span style={{
+            flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
+            lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+          }}>
+            {n.title}
+          </span>
+          <span style={{
+            fontSize: 10, color: 'var(--text-faint)', flexShrink: 0,
+            fontWeight: 500, marginTop: 2,
+          }}>
+            {ago(n.published_at)}
+          </span>
+        </a>
+      ))}
+    </div>
+  )
+}
+
+// ── Search overlay ─────────────────────────────────────────────────────────
+
+interface SearchResult {
+  type: 'player' | 'tournament' | 'match'
+  id: string
+  title: string
+  subtitle: string | null
+  icon: string | null // emoji flag
+  imageUrl: string | null // player photo
+  href: string
+  badge?: string | null // e.g. ranking move arrow
+}
+
+function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [popular, setPopular] = useState<SearchResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Focus input when overlay opens
+  useEffect(() => {
+    if (open) {
+      setQuery('')
+      setResults([])
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [open])
+
+  // Load popular items once
+  useEffect(() => {
+    if (!open || popular.length > 0) return
+    ;(async () => {
+      const [playersRes, tournamentsRes, moversRes] = await Promise.all([
+        supabase
+          .from('players')
+          .select('id, name, country, ranking, category, avatar_url')
+          .not('ranking', 'is', null)
+          .order('ranking', { ascending: true })
+          .limit(6),
+        supabase
+          .from('tournaments')
+          .select('id, name, country, level, starts_at, ends_at')
+          .gte('ends_at', new Date(Date.now() - 14 * 86400000).toISOString())
+          .order('starts_at', { ascending: false })
+          .limit(3),
+        supabase
+          .from('players')
+          .select('id, name, country, ranking, category, avatar_url, ranking_move')
+          .not('ranking_move', 'is', null)
+          .gt('ranking_move', 0)
+          .lte('ranking', 50)
+          .order('ranking_move', { ascending: false })
+          .limit(3),
+      ])
+
+      const items: SearchResult[] = []
+      for (const p of (playersRes.data ?? []) as any[]) {
+        items.push({
+          type: 'player', id: p.id,
+          title: p.name,
+          subtitle: `#${p.ranking} ${p.category === 'men' ? 'Men' : 'Women'}`,
+          icon: null,
+          imageUrl: p.avatar_url ?? null,
+          href: `/player/${p.id}`,
+        })
+      }
+      for (const t of (tournamentsRes.data ?? []) as any[]) {
+        const dateStr = t.starts_at && t.ends_at ? ` · ${formatDateRange(t.starts_at, t.ends_at)}` : ''
+        items.push({
+          type: 'tournament', id: t.id,
+          title: t.name,
+          subtitle: `${levelLabel(t.level)}${dateStr}`,
+          icon: t.country ? countryFlag(t.country) : null,
+          imageUrl: null,
+          href: '/v2/matches',
+        })
+      }
+      // Biggest movers — deduplicate against top players
+      const topIds = new Set(items.filter(i => i.type === 'player').map(i => i.id))
+      for (const p of (moversRes.data ?? []) as any[]) {
+        if (topIds.has(p.id)) continue
+        items.push({
+          type: 'player', id: p.id,
+          title: p.name,
+          subtitle: `#${p.ranking} ${p.category === 'men' ? 'Men' : 'Women'}`,
+          icon: null,
+          imageUrl: p.avatar_url ?? null,
+          href: `/player/${p.id}`,
+          badge: `↑${p.ranking_move}`,
+        })
+      }
+      setPopular(items)
+    })()
+  }, [open, popular.length])
+
+  // Search with debounce
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return }
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true)
+      const q = `%${query.trim()}%`
+      const [playersRes, tournamentsRes, matchesRes] = await Promise.all([
+        supabase
+          .from('players')
+          .select('id, name, country, ranking, category, avatar_url')
+          .ilike('name', q)
+          .order('ranking', { ascending: true, nullsFirst: false })
+          .limit(5),
+        supabase
+          .from('tournaments')
+          .select('id, name, country, level, starts_at, ends_at')
+          .ilike('name', q)
+          .order('starts_at', { ascending: false })
+          .limit(3),
+        supabase
+          .from('matches')
+          .select(`
+            id,
+            pair1_player1:players!matches_pair1_player1_id_fkey(name),
+            pair1_player2:players!matches_pair1_player2_id_fkey(name),
+            pair2_player1:players!matches_pair2_player1_id_fkey(name),
+            pair2_player2:players!matches_pair2_player2_id_fkey(name),
+            tournament:tournaments(name),
+            round, status
+          `)
+          .or(`pair1_player1.name.ilike.${q},pair1_player2.name.ilike.${q},pair2_player1.name.ilike.${q},pair2_player2.name.ilike.${q}`)
+          .order('scheduled_at', { ascending: false })
+          .limit(4),
+      ])
+
+      const items: SearchResult[] = []
+      for (const p of (playersRes.data ?? []) as any[]) {
+        items.push({
+          type: 'player', id: p.id,
+          title: p.name,
+          subtitle: p.ranking ? `#${p.ranking} ${p.category === 'men' ? 'Men' : 'Women'}` : p.category === 'men' ? 'Men' : 'Women',
+          icon: null,
+          imageUrl: p.avatar_url ?? null,
+          href: `/player/${p.id}`,
+        })
+      }
+      for (const t of (tournamentsRes.data ?? []) as any[]) {
+        const dateStr = t.starts_at && t.ends_at ? ` · ${formatDateRange(t.starts_at, t.ends_at)}` : ''
+        items.push({
+          type: 'tournament', id: t.id,
+          title: t.name,
+          subtitle: `${levelLabel(t.level)}${dateStr}`,
+          icon: t.country ? countryFlag(t.country) : null,
+          imageUrl: null,
+          href: '/v2/matches',
+        })
+      }
+      for (const m of (matchesRes.data ?? []) as any[]) {
+        const p1 = [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).join(' / ')
+        const p2 = [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).join(' / ')
+        items.push({
+          type: 'match', id: m.id,
+          title: `${p1} vs ${p2}`,
+          subtitle: [m.tournament?.name, m.round, m.status].filter(Boolean).join(' · '),
+          icon: null,
+          imageUrl: null,
+          href: `/match/${m.id}`,
+        })
+      }
+      setResults(items)
+      setSearching(false)
+    }, 250)
+  }, [query])
+
+  if (!open) return null
+
+  const display = query.trim() ? results : popular
+  const groupedDisplay = {
+    player: display.filter(r => r.type === 'player'),
+    tournament: display.filter(r => r.type === 'tournament'),
+    match: display.filter(r => r.type === 'match'),
+  }
+  const typeLabels = { player: 'Players', tournament: 'Tournaments', match: 'Matches' }
+  const typeIcons = { player: '👤', tournament: '🏆', match: '🎾' }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 500,
+          background: 'var(--bg-base)',
+          borderRadius: '0 0 16px 16px',
+          maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+        }}
+      >
+        {/* Search input */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 14px',
+          borderBottom: '1px solid var(--border-card)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search players, tournaments, matches..."
+            style={{
+              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              color: 'var(--text-primary)', fontSize: 15, fontFamily: 'inherit',
+              fontWeight: 500,
+            }}
+          />
+          <button
+            onClick={onClose}
+            style={{
+              background: 'var(--bg-card-alt)', border: 'none', borderRadius: 6,
+              padding: '4px 10px', fontSize: 11, fontWeight: 700,
+              color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+
+        {/* Results */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {!query.trim() && popular.length > 0 && (
+            <div style={{ padding: '4px 16px 8px', fontSize: 10, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Popular
+            </div>
+          )}
+          {searching && (
+            <div style={{ padding: '20px 16px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+              Searching...
+            </div>
+          )}
+          {query.trim() && !searching && results.length === 0 && (
+            <div style={{ padding: '20px 16px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+              No results for "{query}"
+            </div>
+          )}
+          {(['player', 'tournament', 'match'] as const).map(type => {
+            const items = groupedDisplay[type]
+            if (items.length === 0) return null
+            return (
+              <div key={type}>
+                {query.trim() && (
+                  <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {typeIcons[type]} {typeLabels[type]}
+                  </div>
+                )}
+                {items.map(item => (
+                  <Link
+                    key={`${type}-${item.id}`}
+                    href={item.href}
+                    onClick={onClose}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 16px', textDecoration: 'none', color: 'inherit',
+                    }}
+                  >
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title}
+                        style={{
+                          width: 32, height: 32, borderRadius: '50%',
+                          objectFit: 'cover', flexShrink: 0,
+                          background: 'var(--bg-card-alt)',
+                        }}
+                      />
+                    ) : item.icon ? (
+                      <span style={{ fontSize: 18, width: 32, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                    ) : (
+                      <span style={{
+                        fontSize: 12, width: 32, height: 32, borderRadius: '50%',
+                        background: 'var(--bg-card-alt)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        color: 'var(--text-muted)',
+                      }}>
+                        {typeIcons[type]}
+                      </span>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {item.title}
+                      </div>
+                      {item.subtitle && (
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                          {item.subtitle}
+                        </div>
+                      )}
+                    </div>
+                    {item.badge && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, color: '#22c55e',
+                        background: 'rgba(34,197,94,0.12)', borderRadius: 6,
+                        padding: '2px 6px', flexShrink: 0,
+                      }}>
+                        {item.badge}
+                      </span>
+                    )}
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round">
+                      <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                  </Link>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -475,12 +922,14 @@ export default function HomePage() {
   const [topWomen, setTopWomen] = useState<RankedPlayer[]>([])
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [highlights, setHighlights] = useState<Highlight[]>([])
+  const [latestNews, setLatestNews] = useState<{ id: string; title: string; source_icon: string; source_name: string; url: string; published_at: string; language: string | null }[]>([])
   const [userCountry, setUserCountry] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
     // Run all queries in parallel
-    const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes, highlightsRes] = await Promise.all([
+    const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes, highlightsRes, newsRes] = await Promise.all([
       // Live matches (full data for MatchCard)
       supabase
         .from('matches')
@@ -567,6 +1016,14 @@ export default function HomePage() {
         .eq('status', 'active')
         .order('published_at', { ascending: false })
         .limit(10),
+
+      // Latest news articles
+      supabase
+        .from('articles')
+        .select('id, title, source_icon, source_name, url, published_at, language')
+        .eq('status', 'active')
+        .order('published_at', { ascending: false })
+        .limit(6),
     ])
 
     setLiveMatches((liveRes.data as any) ?? [])
@@ -576,6 +1033,7 @@ export default function HomePage() {
     setTopWomen((womenRes.data as any) ?? [])
     setRecentMatches((recentRes.data as any) ?? [])
     setHighlights((highlightsRes.data as any) ?? [])
+    setLatestNews((newsRes.data as any) ?? [])
     setLoading(false)
   }, [])
 
@@ -621,12 +1079,15 @@ export default function HomePage() {
       }}>
         <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 26, width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
 
-        <div style={{
-          flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-          background: 'var(--bg-input)', borderRadius: 10,
-          border: '1px solid var(--border-card)',
-          padding: '7px 12px', cursor: 'pointer',
-        }}>
+        <div
+          onClick={() => setSearchOpen(true)}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+            background: 'var(--bg-input)', borderRadius: 10,
+            border: '1px solid var(--border-card)',
+            padding: '7px 12px', cursor: 'pointer',
+          }}
+        >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
@@ -650,9 +1111,46 @@ export default function HomePage() {
       {liveCount > 0 ? (
         <CollapsibleSection title="Live Now" action={`See all ${liveCount} live`} href="/v2/matches">
           <div style={{ padding: '0 16px' }}>
-            {liveMatches.slice(0, 6).map(m => (
-              <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />
-            ))}
+            {(() => {
+              const t = (liveMatches[0] as any)?.tournament
+              return (
+                <div style={{
+                  borderRadius: 12, overflow: 'hidden',
+                  border: '1px solid var(--border-card)',
+                  background: 'var(--bg-card)',
+                }}>
+                  {/* Tournament header row */}
+                  {t && (
+                    <Link
+                      href="/v2/matches"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 12px',
+                        background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(56,200,255,0.06) 100%)',
+                        borderBottom: '1px solid var(--border-card)',
+                        textDecoration: 'none', color: 'inherit',
+                      }}
+                    >
+                      {t.country && (
+                        <span style={{ fontSize: 16, lineHeight: 1 }}>{countryFlag(t.country)}</span>
+                      )}
+                      <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {t.name}
+                      </span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </Link>
+                  )}
+                  {/* Matches inside the card — no outer border on MatchCard */}
+                  <div style={{ padding: '4px 10px 6px' }}>
+                    {liveMatches.slice(0, 6).map(m => (
+                      <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} embedded />
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </CollapsibleSection>
       ) : scheduledMatches.length > 0 ? (
@@ -682,6 +1180,13 @@ export default function HomePage() {
         </CollapsibleSection>
       )}
 
+      {/* Latest News — compact ticker */}
+      {latestNews.length > 0 && (
+        <CollapsibleSection title="News" action="See all" href="/v2/feed?filter=news">
+          <NewsTickerWidget items={latestNews} />
+        </CollapsibleSection>
+      )}
+
       {/* Upcoming tournaments */}
       {upcomingTournaments.length > 0 && (
         <CollapsibleSection title="Upcoming Tournaments" action="See all" href="/v2/tournaments">
@@ -708,6 +1213,9 @@ export default function HomePage() {
       )}
 
       <div style={{ height: 20 }} />
+
+      {/* Search overlay */}
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   )
 }

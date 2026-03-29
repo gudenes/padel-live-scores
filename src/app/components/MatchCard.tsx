@@ -29,9 +29,11 @@ interface MatchCardProps {
   // For "Followed by" matches — page.tsx injects an estimated label (prev time + 90 min)
   // formatted as "Starting at H:MM AM/PM" so the existing time parser can handle it
   estimatedScheduleLabel?: string
+  // When embedded inside a parent card, strip outer border/background
+  embedded?: boolean
 }
 
-export default function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel }: MatchCardProps) {
+export default function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embedded }: MatchCardProps) {
   const router = useRouter()
 
   const { pair1Sets, pair2Sets, currentSet, currentGame } = getCurrentScore(match)
@@ -92,10 +94,10 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     return parsed ? parsed.p2 > parsed.p1 : false
   }).length
 
-  // Only display sets with a real score OR the current in-progress set
-  const displaySets = (match.sets ?? []).filter(
-    (s: any) => s.set_score !== null || s.is_current
-  )
+  // Only display sets with a real score OR the current in-progress set, sorted by set_number
+  const displaySets = (match.sets ?? [])
+    .filter((s: any) => s.set_score !== null || s.is_current)
+    .sort((a: any, b: any) => (a.set_number ?? 0) - (b.set_number ?? 0))
 
   const category = (match as any).category as string | null
   const genderAccent = category === 'men' ? 'var(--color-men)' : category === 'women' ? 'var(--color-women)' : 'transparent'
@@ -165,9 +167,23 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   const pillCourt = { fontSize: 9, fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-card-alt)', borderRadius: 5, padding: '2px 7px', border: '1px solid var(--border-strong)', maxWidth: 130, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, whiteSpace: 'nowrap' as const }
 
   // ── Card wrapper style ─────────────────────────────────────────
-  const cardStyle = {
+  const cardStyle = embedded ? {
+    background: 'transparent',
+    borderTop: 'none',
+    borderRight: 'none',
+    borderBottom: 'none',
+    borderLeft: `3px solid ${genderAccent}`,
+    borderRadius: 6,
+    marginBottom: 3,
+    overflow: 'hidden' as const,
+    cursor: 'pointer' as const,
+    width: '100%',
+    boxSizing: 'border-box' as const,
+  } : {
     background: 'var(--bg-card)',
-    border: '1px solid var(--border-card)',
+    borderTop: '1px solid var(--border-card)',
+    borderRight: '1px solid var(--border-card)',
+    borderBottom: '1px solid var(--border-card)',
     borderLeft: `3px solid ${genderAccent}`,
     borderRadius: 8,
     marginBottom: 5,

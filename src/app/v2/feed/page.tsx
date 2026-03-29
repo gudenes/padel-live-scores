@@ -1,9 +1,9 @@
 'use client'
 // src/app/v2/feed/page.tsx
-// Feed Center — videos + articles in a unified, chronological feed.
+// Feed Center — videos + news in a single unified stream, ranked by score.
 
-import { useEffect, useState, useCallback } from 'react'
-import Link from 'next/link'
+import { Suspense, useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ interface Highlight {
   blocked_countries: string[] | null
 }
 
-interface Article {
+interface NewsItem {
   id: string
   title: string
   source_name: string
@@ -40,7 +40,7 @@ interface Article {
 
 type FeedItem =
   | { type: 'video'; data: Highlight }
-  | { type: 'article'; data: Article }
+  | { type: 'news'; data: NewsItem }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -73,7 +73,6 @@ function isAvailableInCountry(h: Highlight, country: string): boolean {
   return true
 }
 
-// Score = freshness (exponential decay, ~48h half-life) * popularity * source_weight
 function feedScore(publishedAt: string, clicks: number, weight: number): number {
   const hoursOld = (Date.now() - new Date(publishedAt).getTime()) / 3600000
   const freshness = Math.exp(-hoursOld / 48)
@@ -86,12 +85,22 @@ function trackClick(articleId: string) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: articleId }),
-  }).catch(() => {}) // fire-and-forget
+  }).catch(() => {})
 }
 
-// ── Components ──────────────────────────────────────────────────────────────
+const LANG_LABELS: Record<string, string> = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR' }
 
-function VideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highlight) => void }) {
+type ContentFilter = 'all' | 'videos' | 'news'
+
+const FILTER_OPTIONS: { key: ContentFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'videos', label: 'Videos' },
+  { key: 'news', label: 'News' },
+]
+
+// ── Hero card — top-scoring item gets big treatment ─────────────────────────
+
+function HeroVideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highlight) => void }) {
   return (
     <button
       onClick={() => onPlay(item)}
@@ -105,23 +114,23 @@ function VideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highlight) =
       <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
         <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         <div style={{
-          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.15)',
+          position: 'absolute', inset: 0, background: 'linear-gradient(transparent 40%, rgba(0,0,0,0.8))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div style={{
-            width: 52, height: 52, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.92)',
+            width: 56, height: 56, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.95)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
           }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#111" stroke="none">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="#111" stroke="none">
               <polygon points="6,3 20,12 6,21" />
             </svg>
           </div>
         </div>
         {item.duration && (
           <div style={{
-            position: 'absolute', bottom: 8, right: 8,
+            position: 'absolute', bottom: 10, right: 10,
             background: 'rgba(0,0,0,0.85)', borderRadius: 4,
             padding: '3px 7px', fontSize: 11, fontWeight: 700,
             color: '#fff', fontFamily: 'var(--font-mono)',
@@ -129,42 +138,41 @@ function VideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highlight) =
             {item.duration}
           </div>
         )}
-        <div style={{
-          position: 'absolute', top: 8, left: 8,
-          background: 'rgba(255,68,85,0.9)', borderRadius: 4,
-          padding: '3px 8px', fontSize: 9, fontWeight: 800,
-          color: '#fff', letterSpacing: '0.5px', textTransform: 'uppercase',
-        }}>
-          Video
+        {/* Bottom overlay text */}
+        <div style={{ position: 'absolute', bottom: 10, left: 12, right: 70 }}>
+          <div style={{
+            fontSize: 15, fontWeight: 800, color: '#fff',
+            lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+            textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+          }}>
+            {item.title}
+          </div>
         </div>
       </div>
-      <div style={{ padding: '12px 14px' }}>
-        <div style={{
-          fontSize: 14, fontWeight: 700, color: 'var(--text-primary)',
-          lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+      <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span style={{
+          fontSize: 9, fontWeight: 800, color: '#fff',
+          background: 'rgba(255,68,85,0.9)', borderRadius: 3,
+          padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.3px',
         }}>
-          {item.title}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{item.channel_name}</span>
-          {item.view_count > 0 && (
-            <>
-              <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>·</span>
-              <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{formatViews(item.view_count)} views</span>
-            </>
-          )}
-          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>·</span>
-          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{timeAgo(item.published_at)}</span>
-        </div>
+          Video
+        </span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{item.channel_name}</span>
+        {item.view_count > 0 && (
+          <>
+            <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>·</span>
+            <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{formatViews(item.view_count)} views</span>
+          </>
+        )}
+        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>·</span>
+        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{timeAgo(item.published_at)}</span>
       </div>
     </button>
   )
 }
 
-const LANG_LABELS: Record<string, string> = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR' }
-
-function ArticleCard({ item }: { item: Article }) {
+function HeroNewsCard({ item }: { item: NewsItem }) {
   return (
     <a
       href={item.url}
@@ -172,54 +180,48 @@ function ArticleCard({ item }: { item: Article }) {
       rel="noopener noreferrer"
       onClick={() => trackClick(item.id)}
       style={{
-        display: 'flex', gap: 12, background: 'var(--bg-card)',
+        display: 'block', background: 'var(--bg-card)',
         border: '1px solid var(--border-card)', borderRadius: 14,
         overflow: 'hidden', textDecoration: 'none', color: 'inherit',
-        padding: 14,
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-          <div style={{
-            width: 20, height: 20, borderRadius: 4,
-            background: 'var(--color-accent)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 900, color: '#000',
+      {item.image_url && (
+        <div style={{ width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
+          <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      )}
+      <div style={{ padding: '12px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <span style={{
+            fontSize: 9, fontWeight: 800, color: 'var(--color-accent)',
+            background: 'rgba(255,193,7,0.12)', borderRadius: 3,
+            padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.3px',
           }}>
-            {item.source_icon || item.source_name.charAt(0)}
-          </div>
-          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            News
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
             {item.source_name}
           </span>
           {item.language && (
             <span style={{
               fontSize: 8, fontWeight: 800, color: 'var(--text-muted)',
               background: 'var(--bg-card-alt)', borderRadius: 3,
-              padding: '2px 5px', letterSpacing: '0.3px',
+              padding: '2px 5px',
             }}>
               {LANG_LABELS[item.language] ?? item.language.toUpperCase()}
             </span>
           )}
-          <span style={{
-            fontSize: 9, fontWeight: 700, color: 'var(--color-accent)',
-            background: 'rgba(255,193,7,0.1)', borderRadius: 3,
-            padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.3px',
-          }}>
-            Article
-          </span>
         </div>
         <div style={{
-          fontSize: 14, fontWeight: 700, color: 'var(--text-primary)',
-          lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
-          marginBottom: 6,
+          fontSize: 16, fontWeight: 800, color: 'var(--text-primary)',
+          lineHeight: 1.3, marginBottom: 6,
         }}>
           {item.title}
         </div>
         {item.snippet && (
           <div style={{
             fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4,
-            display: '-webkit-box', WebkitLineClamp: 2,
+            display: '-webkit-box', WebkitLineClamp: 3,
             WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
             marginBottom: 8,
           }}>
@@ -236,9 +238,150 @@ function ArticleCard({ item }: { item: Article }) {
           )}
         </div>
       </div>
+    </a>
+  )
+}
+
+// ── Compact video card — horizontal layout for stream items ─────────────────
+
+function CompactVideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highlight) => void }) {
+  return (
+    <button
+      onClick={() => onPlay(item)}
+      style={{
+        display: 'flex', gap: 12, width: '100%', background: 'var(--bg-card)',
+        border: '1px solid var(--border-card)', borderRadius: 14,
+        overflow: 'hidden', cursor: 'pointer', textAlign: 'left',
+        fontFamily: 'inherit', padding: 0, color: 'inherit',
+      }}
+    >
+      {/* Thumbnail */}
+      <div style={{ position: 'relative', width: 140, flexShrink: 0, aspectRatio: '16/9', background: '#0a1929' }}>
+        <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <div style={{
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.9)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="#111" stroke="none">
+              <polygon points="6,3 20,12 6,21" />
+            </svg>
+          </div>
+        </div>
+        {item.duration && (
+          <div style={{
+            position: 'absolute', bottom: 4, right: 4,
+            background: 'rgba(0,0,0,0.85)', borderRadius: 3,
+            padding: '1px 5px', fontSize: 9, fontWeight: 700,
+            color: '#fff', fontFamily: 'var(--font-mono)',
+          }}>
+            {item.duration}
+          </div>
+        )}
+      </div>
+      {/* Info */}
+      <div style={{ flex: 1, padding: '10px 12px 10px 0', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+          <span style={{
+            fontSize: 8, fontWeight: 800, color: '#fff',
+            background: 'rgba(255,68,85,0.9)', borderRadius: 3,
+            padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.3px',
+          }}>
+            Video
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>{item.channel_name}</span>
+        </div>
+        <div style={{
+          fontSize: 13, fontWeight: 700, color: 'var(--text-primary)',
+          lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+          marginBottom: 6,
+        }}>
+          {item.title}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {item.view_count > 0 && (
+            <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(item.view_count)} views</span>
+          )}
+          {item.view_count > 0 && <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>}
+          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{timeAgo(item.published_at)}</span>
+        </div>
+      </div>
+    </button>
+  )
+}
+
+// ── News card — horizontal layout ───────────────────────────────────────────
+
+function NewsCard({ item }: { item: NewsItem }) {
+  return (
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => trackClick(item.id)}
+      style={{
+        display: 'flex', gap: 12, background: 'var(--bg-card)',
+        border: '1px solid var(--border-card)', borderRadius: 14,
+        overflow: 'hidden', textDecoration: 'none', color: 'inherit',
+        padding: 14,
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+          <span style={{
+            fontSize: 8, fontWeight: 800, color: 'var(--color-accent)',
+            background: 'rgba(255,193,7,0.12)', borderRadius: 3,
+            padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.3px',
+          }}>
+            News
+          </span>
+          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>{item.source_name}</span>
+          {item.language && (
+            <span style={{
+              fontSize: 8, fontWeight: 800, color: 'var(--text-muted)',
+              background: 'var(--bg-card-alt)', borderRadius: 3,
+              padding: '2px 5px',
+            }}>
+              {LANG_LABELS[item.language] ?? item.language.toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div style={{
+          fontSize: 13, fontWeight: 700, color: 'var(--text-primary)',
+          lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+          marginBottom: 4,
+        }}>
+          {item.title}
+        </div>
+        {item.snippet && (
+          <div style={{
+            fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.35,
+            display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+            marginBottom: 6,
+          }}>
+            {item.snippet}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{timeAgo(item.published_at)}</span>
+          {item.click_count > 0 && (
+            <>
+              <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
+              <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{item.click_count} reads</span>
+            </>
+          )}
+        </div>
+      </div>
       {item.image_url && (
         <div style={{
-          width: 100, height: 100, borderRadius: 10, overflow: 'hidden',
+          width: 90, height: 90, borderRadius: 10, overflow: 'hidden',
           flexShrink: 0, background: '#0a1929',
         }}>
           <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -247,6 +390,8 @@ function ArticleCard({ item }: { item: Article }) {
     </a>
   )
 }
+
+// ── Video player modal ──────────────────────────────────────────────────────
 
 function VideoPlayerModal({ video, onClose }: { video: Highlight; onClose: () => void }) {
   return (
@@ -297,16 +442,27 @@ function VideoPlayerModal({ video, onClose }: { video: Highlight; onClose: () =>
 function FeedSkeleton() {
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{
+        background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+        borderRadius: 14, overflow: 'hidden',
+      }}>
+        <div style={{ width: '100%', aspectRatio: '16/9', background: 'var(--bg-card-alt)' }} />
+        <div style={{ padding: '12px 14px' }}>
+          <div style={{ height: 16, width: '80%', background: 'var(--bg-card-alt)', borderRadius: 4 }} />
+          <div style={{ height: 12, width: '50%', background: 'var(--bg-card-alt)', borderRadius: 4, marginTop: 8 }} />
+        </div>
+      </div>
       {[1, 2, 3].map(i => (
         <div key={i} style={{
-          background: 'var(--bg-card)', border: '1px solid var(--border-card)',
-          borderRadius: 14, overflow: 'hidden',
+          display: 'flex', gap: 12, background: 'var(--bg-card)',
+          border: '1px solid var(--border-card)', borderRadius: 14, padding: 14,
         }}>
-          <div style={{ width: '100%', aspectRatio: '16/9', background: 'var(--bg-card-alt)' }} />
-          <div style={{ padding: '12px 14px' }}>
-            <div style={{ height: 16, width: '80%', background: 'var(--bg-card-alt)', borderRadius: 4 }} />
-            <div style={{ height: 12, width: '50%', background: 'var(--bg-card-alt)', borderRadius: 4, marginTop: 8 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ height: 10, width: '40%', background: 'var(--bg-card-alt)', borderRadius: 3, marginBottom: 8 }} />
+            <div style={{ height: 14, width: '90%', background: 'var(--bg-card-alt)', borderRadius: 4, marginBottom: 6 }} />
+            <div style={{ height: 14, width: '60%', background: 'var(--bg-card-alt)', borderRadius: 4 }} />
           </div>
+          <div style={{ width: 90, height: 90, borderRadius: 10, background: 'var(--bg-card-alt)', flexShrink: 0 }} />
         </div>
       ))}
     </div>
@@ -315,16 +471,29 @@ function FeedSkeleton() {
 
 // ── Main page ───────────────────────────────────────────────────────────────
 
-export default function FeedPage() {
-  const [filter, setFilter] = useState<'all' | 'video' | 'article'>('all')
+export default function FeedPageWrapper() {
+  return (
+    <Suspense fallback={<FeedSkeleton />}>
+      <FeedPage />
+    </Suspense>
+  )
+}
+
+function FeedPage() {
+  const searchParams = useSearchParams()
+  const initialFilter = (['all', 'videos', 'news'] as const).includes(searchParams.get('filter') as any)
+    ? (searchParams.get('filter') as ContentFilter)
+    : 'all'
+
   const [playing, setPlaying] = useState<Highlight | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
-  const [articles, setArticles] = useState<Article[]>([])
+  const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
+  const [filter, setFilter] = useState<ContentFilter>(initialFilter)
 
   const fetchData = useCallback(async () => {
-    const [highlightsRes, articlesRes] = await Promise.all([
+    const [highlightsRes, newsRes] = await Promise.all([
       supabase
         .from('highlights')
         .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries')
@@ -340,34 +509,32 @@ export default function FeedPage() {
     ])
 
     setHighlights((highlightsRes.data as any) ?? [])
-    setArticles((articlesRes.data as any) ?? [])
+    setNews((newsRes.data as any) ?? [])
     setLoading(false)
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { setUserCountry(getUserCountry()) }, [])
 
-  useEffect(() => {
-    setUserCountry(getUserCountry())
-  }, [])
-
-  // Merge videos + articles, sorted by score (freshness * popularity * source_weight)
+  // Merge everything into a single scored feed, with filter boosting
   const feed: FeedItem[] = (() => {
     const items: { item: FeedItem; score: number }[] = []
 
-    if (filter !== 'article') {
+    if (filter !== 'news') {
       for (const h of highlights) {
         if (isAvailableInCountry(h, userCountry)) {
-          // Videos use view_count for popularity, weight 1.0
-          const score = feedScore(h.published_at, Math.floor(h.view_count / 100), 1.0)
-          items.push({ item: { type: 'video', data: h }, score })
+          const base = feedScore(h.published_at, Math.floor(h.view_count / 100), 1.0)
+          const boost = filter === 'videos' ? 10 : 1
+          items.push({ item: { type: 'video', data: h }, score: base * boost })
         }
       }
     }
 
-    if (filter !== 'video') {
-      for (const a of articles) {
-        const score = feedScore(a.published_at, a.click_count, a.source_weight)
-        items.push({ item: { type: 'article', data: a }, score })
+    if (filter !== 'videos') {
+      for (const a of news) {
+        const base = feedScore(a.published_at, a.click_count, a.source_weight)
+        const boost = filter === 'news' ? 10 : 1
+        items.push({ item: { type: 'news', data: a }, score: base * boost })
       }
     }
 
@@ -375,83 +542,82 @@ export default function FeedPage() {
     return items.map(i => i.item)
   })()
 
-  const filterButtons: { key: typeof filter; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: feed.length },
-    { key: 'video', label: 'Videos', count: highlights.filter(h => isAvailableInCountry(h, userCountry)).length },
-    { key: 'article', label: 'Articles', count: articles.length },
-  ]
+  const hero = feed[0] ?? null
+  const rest = feed.slice(1)
 
   return (
     <div style={{ minHeight: '100vh' }}>
-      {/* Header */}
+      {/* App header — same as home page */}
       <div style={{
-        padding: '16px 16px 0',
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
         position: 'sticky', top: 0, zIndex: 10,
         background: 'var(--bg-base)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <Link
-            href="/v2"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 32, height: 32, borderRadius: 8,
-              background: 'var(--bg-card)', border: '1px solid var(--border-card)',
-              textDecoration: 'none',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-          </Link>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-              Feed
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
-              Highlights, news & stories
-            </div>
-          </div>
+        <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 26, width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+        <div style={{
+          flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+          background: 'var(--bg-input)', borderRadius: 10,
+          border: '1px solid var(--border-card)',
+          padding: '7px 12px', cursor: 'pointer',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Search players, tournaments...</span>
+        </div>
+        <button style={{
+          width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',
+          cursor: 'pointer', background: 'var(--bg-card-alt)', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Title + slogan + content filter */}
+      <div style={{ padding: '14px 16px 0' }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+          Feed
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>
+          Your daily dose of padel — highlights, news & more
         </div>
 
-        {/* Filter tabs */}
+        {/* Content type selector — segmented control matching other v2 pages */}
         <div style={{
-          display: 'flex', gap: 8, paddingBottom: 12,
-          borderBottom: '1px solid var(--border-card)',
+          display: 'flex', gap: 0, marginTop: 14,
+          background: 'var(--bg-card-alt)', borderRadius: 8, padding: 2,
+          width: 'fit-content',
         }}>
-          {filterButtons.map(({ key, label, count }) => {
-            const active = filter === key
+          {FILTER_OPTIONS.map(opt => {
+            const active = filter === opt.key
             return (
               <button
-                key={key}
-                onClick={() => setFilter(key)}
+                key={opt.key}
+                onClick={() => setFilter(opt.key)}
                 style={{
-                  padding: '7px 16px', borderRadius: 20,
-                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: 'inherit', border: 'none',
-                  background: active ? 'var(--color-accent)' : 'var(--bg-card)',
+                  padding: '5px 14px', borderRadius: 6, border: 'none',
+                  fontSize: 11, fontWeight: 700, fontFamily: 'inherit',
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  background: active ? 'var(--color-accent)' : 'transparent',
                   color: active ? '#000' : 'var(--text-muted)',
-                  transition: 'all 0.15s ease',
-                  display: 'flex', alignItems: 'center', gap: 5,
+                  transition: 'all 0.15s',
                 }}
               >
-                {label}
-                {!loading && (
-                  <span style={{
-                    fontSize: 10, fontWeight: 800,
-                    background: active ? 'rgba(0,0,0,0.15)' : 'var(--bg-card-alt)',
-                    borderRadius: 10, padding: '1px 6px',
-                    color: active ? 'rgba(0,0,0,0.6)' : 'var(--text-faint)',
-                  }}>
-                    {count}
-                  </span>
-                )}
+                {opt.label}
               </button>
             )
           })}
         </div>
       </div>
 
-      {/* Feed items */}
+      {/* Feed */}
       {loading ? (
         <FeedSkeleton />
       ) : feed.length === 0 ? (
@@ -459,24 +625,36 @@ export default function FeedPage() {
           textAlign: 'center', padding: '60px 20px',
           fontSize: 13, color: 'var(--text-muted)',
         }}>
-          {filter === 'article'
-            ? 'No articles yet — coming soon!'
-            : 'No content available'}
+          No content available
         </div>
       ) : (
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {feed.map(item => {
-            if (item.type === 'video') {
-              return <VideoCard key={`v-${item.data.id}`} item={item.data} onPlay={setPlaying} />
-            }
-            return <ArticleCard key={`a-${item.data.id}`} item={item.data} />
-          })}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Hero — top-scoring item gets full-width treatment */}
+          {hero && (
+            <div style={{ padding: '16px 16px 0' }}>
+              {hero.type === 'video' ? (
+                <HeroVideoCard item={hero.data} onPlay={setPlaying} />
+              ) : (
+                <HeroNewsCard item={hero.data} />
+              )}
+            </div>
+          )}
 
-          <div style={{
-            textAlign: 'center', padding: '20px 0 8px',
-            fontSize: 11, color: 'var(--text-faint)', fontWeight: 600,
-          }}>
-            You're all caught up
+          {/* Rest of feed — compact cards */}
+          <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {rest.map(item => {
+              if (item.type === 'video') {
+                return <CompactVideoCard key={`v-${(item.data as Highlight).id}`} item={item.data as Highlight} onPlay={setPlaying} />
+              }
+              return <NewsCard key={`n-${(item.data as NewsItem).id}`} item={item.data as NewsItem} />
+            })}
+
+            <div style={{
+              textAlign: 'center', padding: '20px 0 8px',
+              fontSize: 11, color: 'var(--text-faint)', fontWeight: 600,
+            }}>
+              You're all caught up
+            </div>
           </div>
         </div>
       )}
