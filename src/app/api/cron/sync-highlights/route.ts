@@ -7,16 +7,12 @@ import { createServerClient } from '@/lib/supabase'
 
 export const maxDuration = 60
 
-// YouTube channels to pull from — add more channel IDs as needed
-const CHANNELS = [
-  { id: 'UCy5E3iDS8MMapnFUGqKF8jA', name: 'Premier Padel' },
-]
-
-// Keywords to search within each channel
+// Broad search queries — finds highlights from Premier Padel official,
+// Daily Padel, broadcasters, and other quality sources
 const SEARCH_QUERIES = [
-  'highlights',
-  'best points',
-  'match point',
+  'premier padel highlights',
+  'premier padel best points',
+  'premier padel match highlights 2026',
 ]
 
 interface YouTubeSearchItem {
@@ -73,43 +69,40 @@ export async function GET(req: NextRequest) {
   const allVideoIds: Set<string> = new Set()
   const videoMap: Record<string, { title: string; channelName: string; thumbnailUrl: string; publishedAt: string }> = {}
 
-  // Step 1: Search for videos across channels and queries
-  for (const channel of CHANNELS) {
-    for (const query of SEARCH_QUERIES) {
-      try {
-        const params = new URLSearchParams({
-          part: 'snippet',
-          channelId: channel.id,
-          q: query,
-          type: 'video',
-          order: 'date',
-          maxResults: '10',
-          publishedAfter: new Date(Date.now() - 30 * 86400000).toISOString(), // last 30 days
-          key: apiKey,
-        })
+  // Step 1: Search for videos across queries (broad search, no channel filter)
+  for (const query of SEARCH_QUERIES) {
+    try {
+      const params = new URLSearchParams({
+        part: 'snippet',
+        q: query,
+        type: 'video',
+        order: 'date',
+        maxResults: '10',
+        publishedAfter: new Date(Date.now() - 30 * 86400000).toISOString(), // last 30 days
+        key: apiKey,
+      })
 
-        const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`)
-        if (!res.ok) {
-          console.error(`YouTube search error for "${query}":`, await res.text())
-          continue
-        }
-
-        const data = await res.json()
-        const items = (data.items ?? []) as YouTubeSearchItem[]
-
-        for (const item of items) {
-          const vid = item.id.videoId
-          allVideoIds.add(vid)
-          videoMap[vid] = {
-            title: item.snippet.title,
-            channelName: item.snippet.channelTitle,
-            thumbnailUrl: item.snippet.thumbnails.high?.url ?? item.snippet.thumbnails.medium?.url,
-            publishedAt: item.snippet.publishedAt,
-          }
-        }
-      } catch (err) {
-        console.error(`YouTube search failed for "${query}" on ${channel.name}:`, err)
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`)
+      if (!res.ok) {
+        console.error(`YouTube search error for "${query}":`, await res.text())
+        continue
       }
+
+      const data = await res.json()
+      const items = (data.items ?? []) as YouTubeSearchItem[]
+
+      for (const item of items) {
+        const vid = item.id.videoId
+        allVideoIds.add(vid)
+        videoMap[vid] = {
+          title: item.snippet.title,
+          channelName: item.snippet.channelTitle,
+          thumbnailUrl: item.snippet.thumbnails.high?.url ?? item.snippet.thumbnails.medium?.url,
+          publishedAt: item.snippet.publishedAt,
+        }
+      }
+    } catch (err) {
+      console.error(`YouTube search failed for "${query}":`, err)
     }
   }
 
