@@ -183,12 +183,21 @@ export default function RankingPage() {
     setQuery('')
   }, [])
 
-  // Close on Escape
+  // Close on Escape or click outside the search box
   useEffect(() => {
     if (!searchOpen) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeSearch() }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeSearch() }
+    const onMouseDown = (e: MouseEvent) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        closeSearch()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('mousedown', onMouseDown)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onMouseDown)
+    }
   }, [searchOpen, closeSearch])
 
   const load = useCallback(async (category: 'men' | 'women') => {
@@ -248,6 +257,8 @@ export default function RankingPage() {
         borderBottom: '0.5px solid rgba(255,255,255,0.06)',
         position: 'sticky', top: 0, zIndex: 10,
         background: 'var(--bg-base)',
+        boxShadow: searchOpen ? '0 4px 20px rgba(0,0,0,0.4)' : 'none',
+        transition: 'box-shadow 0.2s',
       }}>
         {/* Spacer to center logo */}
         <div style={{ width: 36 }} />
@@ -277,22 +288,10 @@ export default function RankingPage() {
         </button>
       </div>
 
-      {/* Search overlay — backdrop + floating pill */}
+      {/* Search overlay — floating pill, no backdrop so list stays clickable */}
       {searchOpen && (
-        <>
-          {/* Backdrop — click outside to close */}
-          <div
-            onClick={closeSearch}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 40,
-              background: 'rgba(0,0,0,0.55)',
-              backdropFilter: 'blur(2px)',
-            }}
-          />
-
-          {/* Floating search box */}
-          <div
-            ref={searchBoxRef}
+        <div
+          ref={searchBoxRef}
             style={{
               position: 'fixed', top: 56, left: '50%', transform: 'translateX(-50%)',
               width: 'calc(100% - 32px)', maxWidth: 468,
@@ -341,8 +340,7 @@ export default function RankingPage() {
                 Cancel
               </button>
             )}
-          </div>
-        </>
+        </div>
       )}
 
       {/* Title + updated date */}
