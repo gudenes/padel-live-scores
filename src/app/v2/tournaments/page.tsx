@@ -3,8 +3,8 @@
 // Tournament browser — Premier Padel (default) & FIP Tour tabs
 // Sections: Live hero → Upcoming (2-col grid) → Completed (cards with winners)
 
-import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { countryFlag } from '@/types/match'
@@ -103,8 +103,19 @@ const FIP_LEVELS = ['fip_platinum', 'fip_gold', 'fip_other']
 
 // ── Main Page ─────────────────────────────────────────────────────────────
 
-export default function TournamentsPage() {
+export default function TournamentsPageWrapper() {
+  return (
+    <Suspense fallback={<div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading tournaments...</div>}>
+      <TournamentsPage />
+    </Suspense>
+  )
+}
+
+function TournamentsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const scrollToId = searchParams.get('scrollTo')
+  const scrollDoneRef = useRef(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('premier')
   const [fipFilter, setFipFilter] = useState<FipFilter>('all')
@@ -112,6 +123,16 @@ export default function TournamentsPage() {
   const [loading, setLoading] = useState(true)
   const [liveMatches, setLiveMatches] = useState<Record<string, any[]>>({})
   const [liveTournamentIds, setLiveTournamentIds] = useState<Set<string>>(new Set())
+
+  // ── Scroll to tournament when returning from detail page ─────────────
+  useEffect(() => {
+    if (!scrollToId || loading || scrollDoneRef.current) return
+    scrollDoneRef.current = true
+    setTimeout(() => {
+      const el = document.querySelector(`[data-tournament-id="${scrollToId}"]`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 100)
+  }, [scrollToId, loading])
 
   // ── Fetch tournaments + winners ──────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -334,7 +355,7 @@ export default function TournamentsPage() {
           {live.map(t => {
             const round = getCurrentRound(liveMatches[t.id] ?? [])
             return (
-              <div key={t.id} style={{ padding: '12px 16px 0' }}>
+              <div key={t.id} data-tournament-id={t.id} style={{ padding: '12px 16px 0' }}>
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   background: 'var(--color-live-bg)', borderRadius: 6,
@@ -350,7 +371,7 @@ export default function TournamentsPage() {
                   LIVE
                 </div>
 
-                <Link href={`/v2/matches?tournament=${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Link href={`/v2/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div style={{
                     borderRadius: 14, padding: '16px 18px',
                     background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(255,70,85,0.06) 100%)',
@@ -525,7 +546,7 @@ function UpcomingCard({ tournament: t }: { tournament: Tournament }) {
   const days = daysUntil(t.starts_at)
 
   return (
-    <Link href={`/v2/matches?tournament=${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+    <Link href={`/v2/tournaments/${t.id}`} data-tournament-id={t.id} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div style={{
         borderRadius: 12, padding: 14,
         background: 'var(--bg-card)', border: '1px solid var(--border-card)',
@@ -573,7 +594,7 @@ function CompletedCard({ tournament: t }: { tournament: TournamentWithWinners })
   }
 
   return (
-    <Link href={`/v2/matches?tournament=${t.id}&round=Finals`} style={{ textDecoration: 'none', color: 'inherit' }}>
+    <Link href={`/v2/tournaments/${t.id}?round=Finals`} data-tournament-id={t.id} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div style={{
         padding: 14, background: 'var(--bg-card)',
         border: '1px solid var(--border-card)', borderRadius: 12, cursor: 'pointer',

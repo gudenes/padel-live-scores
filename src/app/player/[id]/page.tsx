@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { countryFlag, toShortName } from '@/types/match'
 import SearchOverlay from '@/app/v2/SearchOverlay'
+import BottomNav from '@/app/components/BottomNav'
 
 export default function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -53,18 +54,24 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   }, [id])
 
   if (loading) return (
+    <>
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Loading player...</div>
     </main>
+    <BottomNav />
+    </>
   )
 
   if (!player) return (
+    <>
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 16 }}>Player not found</div>
         <button onClick={handleBack} style={{ color: 'var(--color-accent)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Go back</button>
       </div>
     </main>
+    <BottomNav />
+    </>
   )
 
   const categoryColor = player.category === 'men' ? 'var(--color-men)' : player.category === 'women' ? 'var(--color-women)' : 'var(--text-dim)'
@@ -89,7 +96,8 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   ].filter(Boolean) as { label: string; value: string }[]
 
   return (
-    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto' }}>
+    <>
+    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
 
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
       {/* Nav */}
@@ -100,6 +108,23 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         position: 'sticky', top: 0, zIndex: 10,
         background: 'var(--bg-base)',
       }}>
+        <button
+          onClick={handleBack}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)',
+          }}
+          aria-label="Go back"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+        </div>
         <button
           onClick={() => setSearchOpen(true)}
           style={{
@@ -112,20 +137,6 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-          </svg>
-        </button>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
-        </div>
-        <button style={{
-          width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',
-          cursor: 'pointer', background: 'var(--bg-card-alt)', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--text-muted)',
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
           </svg>
         </button>
       </div>
@@ -258,5 +269,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         })}
       </div>
     </main>
+    <BottomNav />
+    </>
   )
 }
