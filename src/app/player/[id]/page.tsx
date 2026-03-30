@@ -4,12 +4,15 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { countryFlag, toShortName } from '@/types/match'
+import SearchOverlay from '@/app/v2/SearchOverlay'
+import BottomNav from '@/app/components/BottomNav'
 
 export default function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
+  const [searchOpen, setSearchOpen] = useState(false)
   const [player, setPlayer] = useState<any>(null)
   const [matches, setMatches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,18 +54,24 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   }, [id])
 
   if (loading) return (
+    <>
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Loading player...</div>
     </main>
+    <BottomNav />
+    </>
   )
 
   if (!player) return (
+    <>
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 16 }}>Player not found</div>
         <button onClick={handleBack} style={{ color: 'var(--color-accent)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Go back</button>
       </div>
     </main>
+    <BottomNav />
+    </>
   )
 
   const categoryColor = player.category === 'men' ? 'var(--color-men)' : player.category === 'women' ? 'var(--color-women)' : 'var(--text-dim)'
@@ -87,17 +96,49 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   ].filter(Boolean) as { label: string; value: string }[]
 
   return (
-    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto' }}>
+    <>
+    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
 
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
       {/* Nav */}
-      <div style={{ background: 'var(--bg-base)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '0.5px solid var(--border-card)', position: 'sticky', top: 0, zIndex: 10 }}>
-        <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-input)', border: '0.5px solid var(--border-strong)', borderRadius: 20, padding: '5px 12px', cursor: 'pointer', color: '#aaa', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-          ← Back
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--bg-base)',
+      }}>
+        <button
+          onClick={handleBack}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)',
+          }}
+          aria-label="Go back"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
         </button>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
-        <div style={{ width: 60, flexShrink: 0 }} />
+        <button
+          onClick={() => setSearchOpen(true)}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)',
+          }}
+          aria-label="Search"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+        </button>
       </div>
 
       {/* Hero */}
@@ -228,5 +269,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         })}
       </div>
     </main>
+    <BottomNav />
+    </>
   )
 }

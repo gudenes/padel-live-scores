@@ -20,9 +20,9 @@ import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarming
 
 interface MatchCardProps {
   match: Match
-  viewerCount: number
-  expanded: boolean
-  onToggle: () => void
+  viewerCount?: number
+  expanded?: boolean
+  onToggle?: () => void
   // Bookmark — only shown on scheduled matches
   bookmarked?: boolean
   onBookmark?: () => void
@@ -53,6 +53,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
   const isBye = status === 'bye'
   const isWarming = isWarmingUp(match)
   const winnerPair = (match as any).winner_pair
+  const duration = (match as any).duration as string | null
 
   // Sweep Flash — row highlight when a point is scored (transient, no hold state)
   const prevP1Point = useRef<string | null>(null)
@@ -349,6 +350,15 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                 {isLive && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.4px', color: 'var(--color-live)', textTransform: 'uppercase' }}>● Live</span>}
                 {roundLabel && <span style={pillRound}>{roundLabel}</span>}
                 {court && <span style={pillCourt}>{court}</span>}
+                {isFinished && duration && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 600, color: 'var(--text-dim)',
+                    background: 'var(--bg-input)', border: '0.5px solid var(--border-card)',
+                    borderRadius: 4, padding: '1px 5px', letterSpacing: '0.2px',
+                  }}>
+                    {duration}
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 2 }}>

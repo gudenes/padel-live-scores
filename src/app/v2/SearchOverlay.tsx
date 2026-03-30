@@ -29,10 +29,32 @@ interface SearchResult {
   badge?: string | null
 }
 
+const RECENTS_KEY = 'padel-search-recents'
+const MAX_RECENTS = 6
+
+function loadRecents(): SearchResult[] {
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+
+function saveRecent(item: SearchResult) {
+  const recents = loadRecents().filter(r => !(r.type === item.type && r.id === item.id))
+  recents.unshift({ ...item, badge: undefined })
+  if (recents.length > MAX_RECENTS) recents.length = MAX_RECENTS
+  localStorage.setItem(RECENTS_KEY, JSON.stringify(recents))
+}
+
+function clearRecents() {
+  localStorage.removeItem(RECENTS_KEY)
+}
+
 export default function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [popular, setPopular] = useState<SearchResult[]>([])
+  const [recents, setRecents] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -41,6 +63,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
     if (open) {
       setQuery('')
       setResults([])
+      setRecents(loadRecents())
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [open])
@@ -90,7 +113,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           subtitle: `${levelLabel(t.level)}${dateStr}`,
           icon: t.country ? countryFlag(t.country) : null,
           imageUrl: null,
-          href: '/v2/matches',
+          href: `/v2/tournaments/${t.id}`,
         })
       }
       const topIds = new Set(items.filter(i => i.type === 'player').map(i => i.id))
@@ -164,7 +187,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           subtitle: `${levelLabel(t.level)}${dateStr}`,
           icon: t.country ? countryFlag(t.country) : null,
           imageUrl: null,
-          href: '/v2/matches',
+          href: `/v2/tournaments/${t.id}`,
         })
       }
       for (const m of (matchesRes.data ?? []) as any[]) {
@@ -183,6 +206,16 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
       setSearching(false)
     }, 250)
   }, [query])
+
+  const handleResultClick = (item: SearchResult) => {
+    saveRecent(item)
+    onClose()
+  }
+
+  const handleClearRecents = () => {
+    clearRecents()
+    setRecents([])
+  }
 
   if (!open) return null
 
@@ -247,6 +280,61 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
 
         {/* Results */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {/* Recents section */}
+          {!query.trim() && recents.length > 0 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 16px 8px' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Recent
+                </span>
+                <button
+                  onClick={handleClearRecents}
+                  style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '2px 4px' }}
+                >
+                  Clear
+                </button>
+              </div>
+              {recents.map(item => (
+                <Link
+                  key={`recent-${item.type}-${item.id}`}
+                  href={item.href}
+                  onClick={() => handleResultClick(item)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 16px', textDecoration: 'none', color: 'inherit',
+                  }}
+                >
+                  {/* Clock icon */}
+                  <span style={{
+                    fontSize: 12, width: 32, height: 32, borderRadius: '50%',
+                    background: 'var(--bg-card-alt)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    color: 'var(--text-muted)',
+                  }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {item.title}
+                    </div>
+                    {item.subtitle && (
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                        {item.subtitle}
+                      </div>
+                    )}
+                  </div>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </Link>
+              ))}
+            </>
+          )}
           {!query.trim() && popular.length > 0 && (
             <div style={{ padding: '4px 16px 8px', fontSize: 10, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               Popular
@@ -276,7 +364,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
                   <Link
                     key={`${type}-${item.id}`}
                     href={item.href}
-                    onClick={onClose}
+                    onClick={() => handleResultClick(item)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '10px 16px', textDecoration: 'none', color: 'inherit',

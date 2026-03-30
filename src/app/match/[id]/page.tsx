@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, Game, getCurrentScore, pairName, isStarPoint, countryFlag, parseSetScore, toShortName } from '@/types/match'
 import MomentumChart from './MomentumChart'
+import SearchOverlay from '@/app/v2/SearchOverlay'
+import BottomNav from '@/app/components/BottomNav'
 
 type SubTab = 'live' | 'players' | 'h2h'
 
@@ -69,6 +71,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const router = useRouter()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
+  const [searchOpen, setSearchOpen] = useState(false)
   const [match, setMatch] = useState<Match | null>(null)
   const [loading, setLoading] = useState(true)
   const [subTab, setSubTab] = useState<SubTab>('live')
@@ -203,17 +206,23 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   }
 
   if (loading) return (
+    <>
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Loading match...</div>
     </main>
+    <BottomNav />
+    </>
   )
   if (!match) return (
+    <>
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 16 }}>Match not found</div>
         <button onClick={handleBack} style={{ color: 'var(--color-accent)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Go back</button>
       </div>
     </main>
+    <BottomNav />
+    </>
   )
 
   const { pair1Sets, pair2Sets, currentSet, currentGame } = getCurrentScore(match)
@@ -251,30 +260,51 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   })
 
   return (
-    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto' }}>
+    <>
+    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
+
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* ── Nav bar ───────────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--bg-base)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '0.5px solid var(--border-card)', position: 'sticky', top: navHidden ? -49 : 0, zIndex: 10, transition: 'top 0.25s ease' }}>
-        <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-input)', border: '0.5px solid var(--border-strong)', borderRadius: 20, padding: '5px 12px', cursor: 'pointer', color: '#aaa', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-          ← Back
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        position: 'sticky', top: navHidden ? -49 : 0, zIndex: 10,
+        background: 'var(--bg-base)',
+        transition: 'top 0.25s ease',
+      }}>
+        <button
+          onClick={handleBack}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)',
+          }}
+          aria-label="Go back"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
         </button>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
-        {isScheduled ? (
-          <span style={{ fontSize: 10, color: '#64748b', background: 'rgba(100,116,139,0.1)', border: '0.5px solid rgba(100,116,139,0.2)', borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
-            {scheduledDateStr}
-          </span>
-        ) : isLive ? (
-          <div style={{ width: 40, flexShrink: 0 }} /> /* live banner handles the indicator */
-        ) : isFinished ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-            <span style={{ fontSize: 10, color: '#777', background: '#1a2535', borderRadius: 6, padding: '2px 8px', border: '0.5px solid #243548' }}>Finished</span>
-            {duration && <span style={{ fontSize: 10, color: 'var(--text-ghost)', background: 'var(--bg-input)', borderRadius: 6, padding: '2px 6px', fontFamily: 'var(--font-mono)' }}>⏱ {duration}</span>}
-          </div>
-        ) : (
-          <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>{matchDate}</span>
-        )}
+        <button
+          onClick={() => setSearchOpen(true)}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)',
+          }}
+          aria-label="Search"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+        </button>
       </div>
 
       {/* ── Live banner ──────────────────────────────────────────────── */}
@@ -575,6 +605,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         </>
       )}
     </main>
+    <BottomNav />
+    </>
   )
 }
 
