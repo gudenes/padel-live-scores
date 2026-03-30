@@ -4,12 +4,14 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { countryFlag, toShortName } from '@/types/match'
+import SearchOverlay from '@/app/v2/SearchOverlay'
 
 export default function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
+  const [searchOpen, setSearchOpen] = useState(false)
   const [player, setPlayer] = useState<any>(null)
   const [matches, setMatches] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,15 +91,43 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   return (
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto' }}>
 
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
       {/* Nav */}
-      <div style={{ background: 'var(--bg-base)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '0.5px solid var(--border-card)', position: 'sticky', top: 0, zIndex: 10 }}>
-        <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-input)', border: '0.5px solid var(--border-strong)', borderRadius: 20, padding: '5px 12px', cursor: 'pointer', color: '#aaa', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
-          ← Back
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--bg-base)',
+      }}>
+        <button
+          onClick={() => setSearchOpen(true)}
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)',
+          }}
+          aria-label="Search"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
         </button>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
-        <div style={{ width: 60, flexShrink: 0 }} />
+        <button style={{
+          width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',
+          cursor: 'pointer', background: 'var(--bg-card-alt)', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
       </div>
 
       {/* Hero */}

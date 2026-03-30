@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { countryFlag } from '@/types/match'
+import SearchOverlay from '../SearchOverlay'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ const FIP_LEVELS = ['fip_platinum', 'fip_gold', 'fip_other']
 
 export default function TournamentsPage() {
   const router = useRouter()
+  const [searchOpen, setSearchOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('premier')
   const [fipFilter, setFipFilter] = useState<FipFilter>('all')
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
@@ -152,10 +154,14 @@ export default function TournamentsPage() {
         liveMatchesMap[tid].push(m)
       }
 
+      const doneStatuses = new Set(['finished', 'bye', 'retired', 'walkover', 'cancelled'])
       for (const t of candidateLive) {
         const matches = liveMatchesMap[t.id] ?? []
-        const hasUnfinished = matches.some((m: any) => m.status !== 'finished')
-        if (hasUnfinished) confirmedLiveIds.add(t.id)
+        const hasLiveMatch = matches.some((m: any) => m.status === 'live')
+        const hasScheduled = matches.some((m: any) => m.status === 'scheduled')
+        const hasFinished = matches.some((m: any) => m.status === 'finished')
+        // Tournament is live if it has an active match, or has started and still has scheduled matches
+        if (hasLiveMatch || (hasFinished && hasScheduled)) confirmedLiveIds.add(t.id)
       }
     }
 
@@ -232,6 +238,7 @@ export default function TournamentsPage() {
   return (
     <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 20 }}>
 
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
@@ -241,7 +248,7 @@ export default function TournamentsPage() {
         background: 'var(--bg-base)',
       }}>
         <button
-          onClick={() => router.push('/v2')}
+          onClick={() => setSearchOpen(true)}
           style={{
             width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
             background: 'transparent',

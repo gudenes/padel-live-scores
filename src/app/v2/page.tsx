@@ -176,17 +176,6 @@ function UpcomingTournamentCard({ tournament }: { tournament: Tournament }) {
         )}
       </div>
 
-      {tournament.level && (
-        <div style={{
-          display: 'inline-block', marginTop: 10,
-          padding: '3px 10px', borderRadius: 6,
-          background: isLive ? 'var(--color-live-bg)' : 'var(--color-accent-bg)',
-          fontSize: 10, fontWeight: 700, color: isLive ? 'var(--color-live)' : 'var(--color-accent)',
-          letterSpacing: '0.04em', textTransform: 'uppercase',
-        }}>
-          {levelLabel(tournament.level)}
-        </div>
-      )}
     </div>
   )
 }

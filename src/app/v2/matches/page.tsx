@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, isWarmingUp } from '@/types/match'
 import MatchCard from '../../components/MatchCard'
 import { useBookmarks } from '@/hooks/useBookmarks'
+import SearchOverlay from '../SearchOverlay'
 
 // ── Stage ordering ────────────────────────────────────────────────────────
 const ROUND_ORDER: Record<string, number> = {
@@ -68,6 +69,7 @@ function V2Page() {
   const paramAppliedRef = useRef(false)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // ── Fetch ─────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -435,15 +437,51 @@ function V2Page() {
         borderRight: '0.5px solid var(--border-base)',
       }}>
 
+        <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+
         {/* ── Sticky header ── */}
         <div style={{
           background: 'var(--bg-base)', borderBottom: '0.5px solid var(--border-base)',
-          padding: '8px 14px 0', position: 'sticky', top: 0, zIndex: 10,
+          padding: '0 14px 0', position: 'sticky', top: 0, zIndex: 10,
         }}>
 
-          {/* ROW 1: Wordmark + gender toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 32, width: 'auto', objectFit: 'contain' }} />
+          {/* ROW 1: Search icon + Logo + Profile icon */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 0',
+          }}>
+            <button
+              onClick={() => setSearchOpen(true)}
+              style={{
+                width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: 'transparent',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--text-muted)',
+              }}
+              aria-label="Search"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </button>
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+              <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+            </div>
+            <button style={{
+              width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',
+              cursor: 'pointer', background: 'var(--bg-card-alt)', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--text-muted)',
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* ROW 2: Gender toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
             <div style={{ display: 'flex', gap: 0, background: 'var(--bg-card-alt)', borderRadius: 8, padding: 2 }}>
               {(['all', 'men', 'women'] as const).map(g => (
                 <button key={g} onClick={() => setGenderFilter(g)} style={{
