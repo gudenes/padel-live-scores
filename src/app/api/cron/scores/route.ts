@@ -9,6 +9,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { inferFinalScore, inferBatch } from '@/lib/score-inference'
+import { PlayerResolver } from '@/lib/player-resolver'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -255,22 +256,27 @@ function computePairGames(set: ApiSet): { pair1_games: number; pair2_games: numb
 }
 
 // ── Upsert helpers ─────────────────────────────────────────────
+let _scoreResolver: PlayerResolver | null = null
+async function getScoreResolver(): Promise<PlayerResolver> {
+  if (!_scoreResolver) {
+    _scoreResolver = new PlayerResolver(supabase)
+    await _scoreResolver.load()
+  }
+  return _scoreResolver
+}
+
 async function upsertPlayer(name: string, externalNumericId?: number): Promise<string | null> {
-  const externalId = externalNumericId
-    ? String(externalNumericId)
-    : normalizePlayerName(name)
-
-  const { data, error } = await supabase
-    .from('players')
-    .upsert({ external_id: externalId, name }, { onConflict: 'external_id' })
-    .select('id')
-    .single()
-
-  if (error || !data) {
-    console.error(`[Score Agent] Failed to upsert player ${name}:`, error)
+  try {
+    const resolver = await getScoreResolver()
+    const { playerId } = await resolver.resolve({
+      externalId: externalNumericId ? String(externalNumericId) : undefined,
+      name,
+    })
+    return playerId
+  } catch (err) {
+    console.error(`[Score Agent] Failed to resolve player ${name}:`, err)
     return null
   }
-  return data.id
 }
 
 async function upsertSetsAndGames(

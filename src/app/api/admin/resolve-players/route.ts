@@ -173,7 +173,9 @@ async function applyMerge(keep: Player, dupe: Player): Promise<{ fksUpdated: num
 // ── Main handler ─────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-  const apply = new URL(req.url).searchParams.get('apply') === 'true'
+  const params = new URL(req.url).searchParams
+  const apply = params.get('apply') === 'true'
+  const methodFilter = params.get('method') // 'exact', 'fuzzy', or null (both)
 
   // Fetch all players
   const { data: allPlayers, error } = await supabase
@@ -252,12 +254,16 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Filter by method if requested
+  const filtered = methodFilter
+    ? duplicates.filter(d => d.method === methodFilter)
+    : duplicates
+
   // Apply merges if requested
   let totalFksUpdated = 0
   if (apply) {
-    // Re-fetch full player data for merge
     const playerById = new Map(allPlayers.map(p => [p.id, p as Player]))
-    for (const d of duplicates) {
+    for (const d of filtered) {
       const keep = playerById.get(d.keep.id)
       const dupe = playerById.get(d.dupe.id)
       if (!keep || !dupe) continue
@@ -269,9 +275,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     mode: apply ? 'applied' : 'dry-run',
+    ...(methodFilter ? { methodFilter } : {}),
     totalPlayers: allPlayers.length,
-    duplicatesFound: duplicates.length,
+    duplicatesFound: filtered.length,
     ...(apply ? { fksUpdated: totalFksUpdated } : {}),
-    duplicates,
+    duplicates: filtered,
   })
 }

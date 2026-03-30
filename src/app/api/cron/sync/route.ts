@@ -10,6 +10,7 @@
 // - Handles 429 (rate limits)
 
 import { createClient } from '@supabase/supabase-js'
+import { PlayerResolver } from '@/lib/player-resolver'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -633,24 +634,31 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
   return synced
 }
 
+// Shared player resolver — initialized lazily
+let _resolver: PlayerResolver | null = null
+async function getResolver(): Promise<PlayerResolver> {
+  if (!_resolver) {
+    _resolver = new PlayerResolver(supabase)
+    await _resolver.load()
+  }
+  return _resolver
+}
+
 // Upsert a player from the tournament match detail format
 // { id, name, side, connections: { pair } }
 async function upsertPlayerFromDetail(player: any): Promise<string | null> {
   if (!player?.id) return null
-  const { data, error } = await supabase
-    .from('players')
-    .upsert(
-      {
-        external_id: String(player.id),
-        name: player.name ?? 'Unknown',
-        side: player.side ?? null,
-      },
-      { onConflict: 'external_id' }
-    )
-    .select('id')
-    .single()
-  if (error || !data) return null
-  return data.id
+  try {
+    const resolver = await getResolver()
+    const { playerId } = await resolver.resolve({
+      externalId: String(player.id),
+      name: player.name ?? 'Unknown',
+      side: player.side ?? null,
+    })
+    return playerId
+  } catch {
+    return null
+  }
 }
 
 // ── Step 4: Sync player rankings + handle redirects ───────────
