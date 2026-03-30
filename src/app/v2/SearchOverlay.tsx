@@ -139,7 +139,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
     debounceRef.current = setTimeout(async () => {
       setSearching(true)
       const q = `%${query.trim()}%`
-      const [playersRes, tournamentsRes, matchesRes] = await Promise.all([
+      const [playersRes, tournamentsRes] = await Promise.all([
         supabase
           .from('players')
           .select('id, name, country, ranking, category, avatar_url')
@@ -152,21 +152,28 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           .ilike('name', q)
           .order('starts_at', { ascending: false })
           .limit(3),
-        supabase
+      ])
+
+      // Find matches by player IDs from the player search results
+      const playerIds = (playersRes.data ?? []).map((p: any) => p.id)
+      let matchesRes: { data: any[] | null } = { data: [] }
+      if (playerIds.length > 0) {
+        matchesRes = await supabase
           .from('matches')
           .select(`
-            id,
-            pair1_player1:players!matches_pair1_player1_id_fkey(name),
-            pair1_player2:players!matches_pair1_player2_id_fkey(name),
-            pair2_player1:players!matches_pair2_player1_id_fkey(name),
-            pair2_player2:players!matches_pair2_player2_id_fkey(name),
+            id, started_at,
+            pair1_player1:players!matches_pair1_player1_id_fkey(id, name),
+            pair1_player2:players!matches_pair1_player2_id_fkey(id, name),
+            pair2_player1:players!matches_pair2_player1_id_fkey(id, name),
+            pair2_player2:players!matches_pair2_player2_id_fkey(id, name),
             tournament:tournaments(name),
             round, status
           `)
-          .or(`pair1_player1.name.ilike.${q},pair1_player2.name.ilike.${q},pair2_player1.name.ilike.${q},pair2_player2.name.ilike.${q}`)
-          .order('scheduled_at', { ascending: false })
-          .limit(4),
-      ])
+          .or(playerIds.map((id: string) => `pair1_player1_id.eq.${id},pair1_player2_id.eq.${id},pair2_player1_id.eq.${id},pair2_player2_id.eq.${id}`).join(','))
+          .in('status', ['finished', 'live', 'scheduled'])
+          .order('started_at', { ascending: false })
+          .limit(4)
+      }
 
       const items: SearchResult[] = []
       for (const p of (playersRes.data ?? []) as any[]) {
@@ -193,13 +200,16 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
       for (const m of (matchesRes.data ?? []) as any[]) {
         const p1 = [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).join(' / ')
         const p2 = [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).join(' / ')
+        const date = m.started_at ? new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(m.started_at)) : ''
+        const statusLabel = m.status === 'live' ? 'Live' : m.status === 'finished' ? 'Finished' : 'Scheduled'
         items.push({
           type: 'match', id: m.id,
           title: `${p1} vs ${p2}`,
-          subtitle: [m.tournament?.name, m.round, m.status].filter(Boolean).join(' · '),
+          subtitle: [m.tournament?.name, m.round, date, statusLabel].filter(Boolean).join(' · '),
           icon: null,
           imageUrl: null,
           href: `/match/${m.id}`,
+          badge: m.status === 'live' ? 'LIVE' : null,
         })
       }
       setResults(items)

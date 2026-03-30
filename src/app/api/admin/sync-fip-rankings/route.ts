@@ -142,19 +142,26 @@ async function fetchRaceRankings(gender: 'male' | 'female', top: number): Promis
   return all
 }
 
-// ── Player map (name → id) ──────────────────────────────────────────────
+// ── Player maps (fip_id → id, name → id) ───────────────────────────────
 
-async function getPlayerMap(category: string): Promise<Map<string, string>> {
+interface PlayerMaps {
+  byFipId: Map<string, string>
+  byName: Map<string, string>
+}
+
+async function getPlayerMaps(category: string): Promise<PlayerMaps> {
   const { data } = await supabase
     .from('players')
-    .select('id, name')
+    .select('id, name, fip_id')
     .eq('category', category)
 
-  const map = new Map<string, string>()
-  for (const p of data ?? []) {
-    map.set(normalize(p.name), p.id)
+  const byFipId = new Map<string, string>()
+  const byName = new Map<string, string>()
+  for (const p of (data ?? []) as any[]) {
+    if (p.fip_id) byFipId.set(p.fip_id, p.id)
+    byName.set(normalize(p.name), p.id)
   }
-  return map
+  return { byFipId, byName }
 }
 
 // ── Main handler ─────────────────────────────────────────────────────────
@@ -176,8 +183,8 @@ export async function GET(req: NextRequest) {
   ]
 
   for (const { fip, db } of genders) {
-    // Load existing player map — we'll refresh it after official creates new players
-    let playerMap = await getPlayerMap(db)
+    // Load existing player maps — we'll refresh after official creates new players
+    let maps = await getPlayerMaps(db)
 
     // ── Official rankings ──────────────────────────────────────────────
     if (!typeFilter || typeFilter === 'official') {
@@ -186,17 +193,23 @@ export async function GET(req: NextRequest) {
 
       for (const p of officials) {
         const fullName = fipFullName(p)
+        const fipId = `fip-${p.player_id}`
         const normalizedName = normalize(fullName)
-        let playerId = playerMap.get(normalizedName)
+
+        // Lookup priority: fip_id → name match
+        let playerId = maps.byFipId.get(fipId) ?? maps.byName.get(normalizedName)
 
         if (playerId) {
-          // Update existing player
+          // Update existing player — also set fip_id if missing
           const { error } = await supabase
             .from('players')
             .update({
               ranking: p.rank,
               points: p.points,
               ranking_move: p.move,
+              fip_id: fipId,
+              avatar_url: p.thumbnail || undefined,
+              profile_url: p.url || undefined,
               updated_at: now,
             })
             .eq('id', playerId)
@@ -209,7 +222,8 @@ export async function GET(req: NextRequest) {
           const { data: inserted, error } = await supabase
             .from('players')
             .insert({
-              external_id: `fip-${p.player_id}`,
+              external_id: fipId,
+              fip_id: fipId,
               name: fullName,
               country: country2,
               category: db,
@@ -228,15 +242,18 @@ export async function GET(req: NextRequest) {
             results.official.unmatched++
           } else {
             results.official.created++
-            // Add to map so race ranking can find this player later
-            if (inserted) playerMap.set(normalizedName, inserted.id)
+            // Add to maps so race ranking can find this player later
+            if (inserted) {
+              maps.byFipId.set(fipId, inserted.id)
+              maps.byName.set(normalizedName, inserted.id)
+            }
           }
         }
       }
 
-      // Refresh map after inserts so race can match them
+      // Refresh maps after inserts so race can match them
       if (!typeFilter || typeFilter !== 'official') {
-        playerMap = await getPlayerMap(db)
+        maps = await getPlayerMaps(db)
       }
     }
 
@@ -247,7 +264,8 @@ export async function GET(req: NextRequest) {
 
       for (const p of races) {
         const fullName = fipFullName(p)
-        const playerId = playerMap.get(normalize(fullName))
+        const fipId = `fip-${p.player_id}`
+        const playerId = maps.byFipId.get(fipId) ?? maps.byName.get(normalize(fullName))
 
         if (playerId) {
           const { error } = await supabase
@@ -256,6 +274,7 @@ export async function GET(req: NextRequest) {
               race_ranking: p.race_rank,
               race_points: p.race_points,
               race_move: p.race_move,
+              fip_id: fipId,
               updated_at: now,
             })
             .eq('id', playerId)
