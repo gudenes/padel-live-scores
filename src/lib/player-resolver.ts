@@ -111,16 +111,28 @@ export class PlayerResolver {
 
   /** Load all players into memory. Call once before resolving. */
   async load(): Promise<void> {
-    const { data, error } = await this.supabase
-      .from('players')
-      .select('id, external_id, fip_id, name, country, category')
+    // Supabase defaults to 1000 rows — paginate to load all players
+    const allData: any[] = []
+    const PAGE_SIZE = 1000
+    let offset = 0
 
-    if (error || !data) {
-      console.error('[PlayerResolver] Failed to load players:', error?.message)
-      return
+    while (true) {
+      const { data, error } = await this.supabase
+        .from('players')
+        .select('id, external_id, fip_id, name, country, category')
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      if (error || !data) {
+        console.error('[PlayerResolver] Failed to load players:', error?.message)
+        break
+      }
+
+      allData.push(...data)
+      if (data.length < PAGE_SIZE) break
+      offset += PAGE_SIZE
     }
 
-    for (const p of data as any[]) {
+    for (const p of allData) {
       const cached: CachedPlayer = {
         id: p.id,
         externalId: p.external_id,
@@ -135,6 +147,7 @@ export class PlayerResolver {
       if (!this.byNormalizedName.has(norm)) this.byNormalizedName.set(norm, [])
       this.byNormalizedName.get(norm)!.push(cached)
     }
+    console.log(`[PlayerResolver] Loaded ${allData.length} players into cache`)
     this.loaded = true
   }
 
