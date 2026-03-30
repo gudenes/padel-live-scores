@@ -179,6 +179,9 @@ export default function BottomNav() {
 
   // Fetch badge data
   const fetchBadges = useCallback(async () => {
+    const lastFeedVisit = localStorage.getItem('last-feed-visit')
+    const feedSince = lastFeedVisit || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
     const [liveRes, newsRes] = await Promise.all([
       supabase
         .from('matches')
@@ -187,7 +190,7 @@ export default function BottomNav() {
       supabase
         .from('articles')
         .select('id', { count: 'exact', head: true })
-        .gte('published_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+        .gte('published_at', feedSince),
     ])
     setLiveCount(liveRes.count ?? 0)
     setNewsCount(newsRes.count ?? 0)
@@ -199,7 +202,7 @@ export default function BottomNav() {
     return () => clearInterval(interval)
   }, [fetchBadges])
 
-  // Check if ranking was updated in last 24h
+  // Check if ranking was updated since last visit
   useEffect(() => {
     ;(async () => {
       const { data } = await supabase
@@ -210,11 +213,28 @@ export default function BottomNav() {
         .limit(1)
         .single()
       if (data?.updated_at) {
-        const hoursAgo = (Date.now() - new Date(data.updated_at).getTime()) / (1000 * 60 * 60)
-        setRankingNew(hoursAgo < 24)
+        const lastRankingVisit = localStorage.getItem('last-ranking-visit')
+        if (lastRankingVisit) {
+          setRankingNew(new Date(data.updated_at).getTime() > new Date(lastRankingVisit).getTime())
+        } else {
+          const hoursAgo = (Date.now() - new Date(data.updated_at).getTime()) / (1000 * 60 * 60)
+          setRankingNew(hoursAgo < 24)
+        }
       }
     })()
   }, [])
+
+  // Clear badges when visiting feed or ranking
+  useEffect(() => {
+    if (pathname === '/v2/feed') {
+      localStorage.setItem('last-feed-visit', new Date().toISOString())
+      setNewsCount(0)
+    }
+    if (pathname === '/v2/ranking') {
+      localStorage.setItem('last-ranking-visit', new Date().toISOString())
+      setRankingNew(false)
+    }
+  }, [pathname])
 
   return (
     <>

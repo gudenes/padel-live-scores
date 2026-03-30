@@ -551,7 +551,8 @@ const SPOILER_STYLES = `
 `
 
 function SpoilerCard({ match, label, color, children }: { match: Match; label: string; color: string; children: ReactNode }) {
-  const [state, setState] = useState<'hidden' | 'revealing' | 'revealed'>('hidden')
+  const alreadyRevealed = typeof window !== 'undefined' && localStorage.getItem(`spoiler-${match.id}`) === '1'
+  const [state, setState] = useState<'hidden' | 'revealing' | 'revealed'>(alreadyRevealed ? 'revealed' : 'hidden')
   const [pressed, setPressed] = useState(false)
   const [showBanner, setShowBanner] = useState(false)
   const [bannerOut, setBannerOut] = useState(false)
@@ -580,6 +581,7 @@ function SpoilerCard({ match, label, color, children }: { match: Match; label: s
     }
 
     setState('revealing')
+    localStorage.setItem(`spoiler-${match.id}`, '1')
 
     // Show winner banner after radial wipe starts
     setTimeout(() => setShowBanner(true), 300)
@@ -684,7 +686,7 @@ function SpoilerCard({ match, label, color, children }: { match: Match; label: s
           <div style={{
             background: 'rgba(10,15,25,0.88)',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            borderRadius: 16, padding: '20px 24px 16px',
+            borderRadius: 14, padding: '12px 18px',
             textAlign: 'center',
             border: '1px solid rgba(52,211,153,0.3)',
             animation: bannerOut
@@ -696,7 +698,7 @@ function SpoilerCard({ match, label, color, children }: { match: Match; label: s
               <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                 {[winnerP1, winnerP2].filter(Boolean).map((p: any, i: number) => (
                   <div key={p.id} style={{
-                    marginLeft: i > 0 ? -16 : 0,
+                    marginLeft: i > 0 ? -12 : 0,
                     zIndex: 2 - i,
                     animation: `winner-avatar-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) ${0.15 + i * 0.15}s both`,
                   }}>
@@ -705,15 +707,15 @@ function SpoilerCard({ match, label, color, children }: { match: Match; label: s
                         src={`/api/img?src=${encodeURIComponent(p.avatar_url)}`}
                         alt={p.name}
                         style={{
-                          width: 84, height: 84, borderRadius: '50%', objectFit: 'cover',
+                          width: 64, height: 64, borderRadius: '50%', objectFit: 'cover',
                         }}
                       />
                     ) : (
                       <div style={{
-                        width: 84, height: 84, borderRadius: '50%',
+                        width: 64, height: 64, borderRadius: '50%',
                         background: '#0D2540',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 28, fontWeight: 700, color: 'var(--text-secondary)',
+                        fontSize: 22, fontWeight: 700, color: 'var(--text-secondary)',
                       }}>
                         {p.name?.[0]}
                       </div>
@@ -721,14 +723,9 @@ function SpoilerCard({ match, label, color, children }: { match: Match; label: s
                   </div>
                 ))}
               </div>
-              {/* Names + label on the right */}
+              {/* Label on the right */}
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 9, fontWeight: 600, color: '#34d399', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 6 }}>Champions</div>
-                {[winnerP1, winnerP2].filter(Boolean).map((p: any) => (
-                  <div key={p.id} style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {p.name}
-                  </div>
-                ))}
+                <div style={{ fontSize: 9, fontWeight: 600, color: '#34d399', letterSpacing: '1px', textTransform: 'uppercase' }}>Champions</div>
               </div>
             </div>
           </div>
@@ -1061,10 +1058,11 @@ export default function HomePage() {
       {/* Header — logo left, search center, profile right */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 14px',
-        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        padding: '12px 14px',
+        borderBottom: '0.5px solid rgba(255,255,255,0.08)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: 'var(--bg-base)',
+        background: 'rgba(17, 17, 17, 0.85)',
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
       }}>
         <button
           onClick={() => setSearchOpen(true)}
