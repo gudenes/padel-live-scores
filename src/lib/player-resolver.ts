@@ -263,13 +263,43 @@ export class PlayerResolver {
 
     if (error || !data) {
       console.error(`[PlayerResolver] Failed to create player ${input.name}:`, error?.message)
-      // Fallback: try to find by external_id in case of race condition
-      const { data: fallback } = await this.supabase
+      // Fallback: try to find by external_id or fip_id in case of race condition / constraint conflict
+      let fallback: { id: string } | null = null
+      const { data: f1 } = await this.supabase
         .from('players')
-        .select('id')
+        .select('id, external_id, fip_id, name, country, category')
         .eq('external_id', insertData.external_id)
         .single()
-      if (fallback) return { playerId: fallback.id, action: 'found' }
+      fallback = f1
+
+      if (!fallback && insertData.fip_id) {
+        const { data: f2 } = await this.supabase
+          .from('players')
+          .select('id, external_id, fip_id, name, country, category')
+          .eq('fip_id', insertData.fip_id)
+          .single()
+        fallback = f2
+      }
+
+      if (fallback) {
+        // Update cache so subsequent lookups succeed
+        const cached: CachedPlayer = {
+          id: fallback.id,
+          externalId: (fallback as any).external_id ?? null,
+          fipId: (fallback as any).fip_id ?? null,
+          name: (fallback as any).name ?? input.name,
+          country: (fallback as any).country ?? null,
+          category: (fallback as any).category ?? null,
+        }
+        if (cached.externalId) this.byExternalId.set(cached.externalId, cached)
+        if (cached.fipId) this.byFipId.set(cached.fipId, cached)
+        const fnorm = normalize(cached.name)
+        if (!this.byNormalizedName.has(fnorm)) this.byNormalizedName.set(fnorm, [])
+        if (!this.byNormalizedName.get(fnorm)!.some(p => p.id === cached.id)) {
+          this.byNormalizedName.get(fnorm)!.push(cached)
+        }
+        return { playerId: fallback.id, action: 'found' }
+      }
       throw new Error(`Failed to resolve player: ${input.name}`)
     }
 
