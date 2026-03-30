@@ -177,14 +177,23 @@ export async function GET(req: NextRequest) {
   const apply = params.get('apply') === 'true'
   const methodFilter = params.get('method') // 'exact', 'fuzzy', or null (both)
 
-  // Fetch all players
-  const { data: allPlayers, error } = await supabase
-    .from('players')
-    .select('id, external_id, fip_id, name, country, category, ranking, points, avatar_url, profile_url, side, height, birthplace, birthdate, hand, win_rate, total_matches, titles, finals, semifinals, ranking_move, race_ranking, race_points, race_move, updated_at')
-    .order('name')
+  // Fetch all players (paginate past Supabase 1000-row default)
+  const allPlayers: any[] = []
+  const PAGE_SIZE = 1000
+  let offset = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, external_id, fip_id, name, country, category, ranking, points, avatar_url, profile_url, side, height, birthplace, birthdate, hand, win_rate, total_matches, titles, finals, semifinals, ranking_move, race_ranking, race_points, race_move, updated_at')
+      .order('name')
+      .range(offset, offset + PAGE_SIZE - 1)
 
-  if (error || !allPlayers) {
-    return NextResponse.json({ error: 'Failed to fetch players' }, { status: 500 })
+    if (error || !data) {
+      return NextResponse.json({ error: 'Failed to fetch players' }, { status: 500 })
+    }
+    allPlayers.push(...data)
+    if (data.length < PAGE_SIZE) break
+    offset += PAGE_SIZE
   }
 
   // Group by category

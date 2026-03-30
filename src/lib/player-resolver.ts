@@ -191,14 +191,14 @@ export class PlayerResolver {
       }
     }
 
-    // 4. Fuzzy name match (token overlap ≥ 0.7, same category)
+    // 4. Fuzzy name match (token overlap ≥ 0.9, same category)
     if (!existing && input.category) {
       let bestScore = 0
       for (const [, players] of this.byNormalizedName) {
         for (const p of players) {
           if (p.category !== input.category) continue
           const sim = tokenSimilarity(input.name, p.name)
-          if (sim >= 0.7 && sim > bestScore) {
+          if (sim >= 0.9 && sim > bestScore) {
             // Extra check: if both have country, they must match
             if (input.country && p.country && input.country !== p.country) continue
             bestScore = sim
