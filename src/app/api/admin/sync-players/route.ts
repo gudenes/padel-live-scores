@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { PlayerResolver } from '@/lib/player-resolver'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,6 +60,9 @@ export async function GET(req: NextRequest) {
   const categories = categoryFilter ? [categoryFilter] : ['men', 'women']
   const results = { upserted: 0, errors: 0, pages: 0, total: 0 }
 
+  const resolver = new PlayerResolver(supabase)
+  await resolver.load()
+
   for (const category of categories) {
     let page = singlePage ?? 1
     let lastPage = 1
@@ -72,30 +76,20 @@ export async function GET(req: NextRequest) {
         results.total = json.meta?.total ?? results.total
 
         if (fast) {
-          // ── Fast mode: upsert directly from list data, no detail/stats ──
+          // ── Fast mode: resolve from list data, no detail/stats ──
           for (const p of players) {
             try {
-              const upsertData: Record<string, any> = {
-                external_id: String(p.id),
+              await resolver.resolveAndEnrich({
+                externalId: String(p.id),
                 name: p.name,
                 country: p.nationality ?? null,
                 ranking: p.ranking ? parseInt(p.ranking) : null,
                 points: p.points ? parseInt(p.points) : null,
-                avatar_url: p.photo_url ?? null,
+                avatarUrl: p.photo_url ?? null,
                 side: p.side ?? null,
                 category,
-              }
-
-              const { error } = await supabase
-                .from('players')
-                .upsert(upsertData, { onConflict: 'external_id' })
-
-              if (error) {
-                console.error(`[sync-players] upsert error for player ${p.id}:`, error.message)
-                results.errors++
-              } else {
-                results.upserted++
-              }
+              })
+              results.upserted++
             } catch (err: any) {
               console.error(`[sync-players] error for player ${p.id}:`, err.message)
               results.errors++
@@ -114,37 +108,27 @@ export async function GET(req: NextRequest) {
 
                 const winRate = parseWinRate(stats?.matches_played ?? null, stats?.matches_won ?? null)
 
-                const upsertData: Record<string, any> = {
-                  external_id: String(p.id),
+                await resolver.resolveAndEnrich({
+                  externalId: String(p.id),
                   name: detail?.name ?? p.name,
                   country: detail?.nationality ?? p.nationality ?? null,
                   ranking: detail?.ranking ? parseInt(detail.ranking) : (p.ranking ? parseInt(p.ranking) : null),
                   points: detail?.points ? parseInt(detail.points) : (p.points ? parseInt(p.points) : null),
-                  avatar_url: detail?.photo_url ?? p.photo_url ?? null,
-                  profile_url: detail?.url ?? null,
+                  avatarUrl: detail?.photo_url ?? p.photo_url ?? null,
+                  profileUrl: detail?.url ?? null,
                   side: detail?.side ?? p.side ?? null,
                   category,
                   height: detail?.height ? parseInt(detail.height) : null,
                   birthplace: detail?.birthplace ?? null,
                   birthdate: detail?.birthdate ?? null,
                   hand: detail?.hand ?? null,
-                  win_rate: winRate,
-                  total_matches: stats?.matches_played ?? null,
+                  winRate,
+                  totalMatches: stats?.matches_played ?? null,
                   titles: stats?.titles ?? null,
                   finals: stats?.finals ?? null,
                   semifinals: stats?.semifinals ?? null,
-                }
-
-                const { error } = await supabase
-                  .from('players')
-                  .upsert(upsertData, { onConflict: 'external_id' })
-
-                if (error) {
-                  console.error(`[sync-players] upsert error for player ${p.id}:`, error.message)
-                  results.errors++
-                } else {
-                  results.upserted++
-                }
+                })
+                results.upserted++
               } catch (err: any) {
                 console.error(`[sync-players] error for player ${p.id}:`, err.message)
                 results.errors++

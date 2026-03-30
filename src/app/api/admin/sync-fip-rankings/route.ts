@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { PlayerResolver } from '@/lib/player-resolver'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -142,27 +143,6 @@ async function fetchRaceRankings(gender: 'male' | 'female', top: number): Promis
   return all
 }
 
-// ── Player maps (fip_id → id, name → id) ───────────────────────────────
-
-interface PlayerMaps {
-  byFipId: Map<string, string>
-  byName: Map<string, string>
-}
-
-async function getPlayerMaps(category: string): Promise<PlayerMaps> {
-  const { data } = await supabase
-    .from('players')
-    .select('id, name, fip_id')
-    .eq('category', category)
-
-  const byFipId = new Map<string, string>()
-  const byName = new Map<string, string>()
-  for (const p of (data ?? []) as any[]) {
-    if (p.fip_id) byFipId.set(p.fip_id, p.id)
-    byName.set(normalize(p.name), p.id)
-  }
-  return { byFipId, byName }
-}
 
 // ── Main handler ─────────────────────────────────────────────────────────
 
@@ -182,10 +162,10 @@ export async function GET(req: NextRequest) {
     { fip: 'female', db: 'women' },
   ]
 
-  for (const { fip, db } of genders) {
-    // Load existing player maps — we'll refresh after official creates new players
-    let maps = await getPlayerMaps(db)
+  const resolver = new PlayerResolver(supabase)
+  await resolver.load()
 
+  for (const { fip, db } of genders) {
     // ── Official rankings ──────────────────────────────────────────────
     if (!typeFilter || typeFilter === 'official') {
       const officials = await fetchOfficialRankings(fip, top)
@@ -194,66 +174,27 @@ export async function GET(req: NextRequest) {
       for (const p of officials) {
         const fullName = fipFullName(p)
         const fipId = `fip-${p.player_id}`
-        const normalizedName = normalize(fullName)
+        const country2 = fipCountryToIso2(p.country_name)
 
-        // Lookup priority: fip_id → name match
-        let playerId = maps.byFipId.get(fipId) ?? maps.byName.get(normalizedName)
+        try {
+          const { action } = await resolver.resolveAndEnrich({
+            name: fullName,
+            fipId,
+            category: db,
+            country: country2,
+            ranking: p.rank,
+            points: p.points,
+            rankingMove: p.move,
+            avatarUrl: p.thumbnail || null,
+            profileUrl: p.url || null,
+          })
 
-        if (playerId) {
-          // Update existing player — also set fip_id if missing
-          const { error } = await supabase
-            .from('players')
-            .update({
-              ranking: p.rank,
-              points: p.points,
-              ranking_move: p.move,
-              fip_id: fipId,
-              avatar_url: p.thumbnail || undefined,
-              profile_url: p.url || undefined,
-              updated_at: now,
-            })
-            .eq('id', playerId)
-
-          if (error) console.error(`[sync-fip] update error for ${fullName}:`, error.message)
+          if (action === 'created') results.official.created++
           else results.official.updated++
-        } else {
-          // Create new player from FIP data
-          const country2 = fipCountryToIso2(p.country_name)
-          const { data: inserted, error } = await supabase
-            .from('players')
-            .insert({
-              external_id: fipId,
-              fip_id: fipId,
-              name: fullName,
-              country: country2,
-              category: db,
-              ranking: p.rank,
-              points: p.points,
-              ranking_move: p.move,
-              avatar_url: p.thumbnail || null,
-              profile_url: p.url || null,
-              updated_at: now,
-            })
-            .select('id')
-            .single()
-
-          if (error) {
-            console.error(`[sync-fip] create error for ${fullName}:`, error.message)
-            results.official.unmatched++
-          } else {
-            results.official.created++
-            // Add to maps so race ranking can find this player later
-            if (inserted) {
-              maps.byFipId.set(fipId, inserted.id)
-              maps.byName.set(normalizedName, inserted.id)
-            }
-          }
+        } catch (err: any) {
+          console.error(`[sync-fip] error for ${fullName}:`, err.message)
+          results.official.unmatched++
         }
-      }
-
-      // Refresh maps after inserts so race can match them
-      if (!typeFilter || typeFilter !== 'official') {
-        maps = await getPlayerMaps(db)
       }
     }
 
@@ -265,24 +206,20 @@ export async function GET(req: NextRequest) {
       for (const p of races) {
         const fullName = fipFullName(p)
         const fipId = `fip-${p.player_id}`
-        const playerId = maps.byFipId.get(fipId) ?? maps.byName.get(normalize(fullName))
 
-        if (playerId) {
-          const { error } = await supabase
-            .from('players')
-            .update({
-              race_ranking: p.race_rank,
-              race_points: p.race_points,
-              race_move: p.race_move,
-              fip_id: fipId,
-              updated_at: now,
-            })
-            .eq('id', playerId)
+        try {
+          const { action } = await resolver.resolveAndEnrich({
+            name: fullName,
+            fipId,
+            category: db,
+            raceRanking: p.race_rank,
+            racePoints: p.race_points,
+            raceMove: p.race_move,
+          })
 
-          if (error) console.error(`[sync-fip] race update error for ${fullName}:`, error.message)
+          if (action === 'created') results.race.created++
           else results.race.updated++
-        } else {
-          // Player not in DB even after official sync — skip race-only players
+        } catch {
           results.race.unmatched++
         }
       }
