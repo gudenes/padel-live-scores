@@ -236,7 +236,12 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
     match: display.filter(r => r.type === 'match'),
   }
   const typeLabels = { player: 'Players', tournament: 'Tournaments', match: 'Matches' }
-  const typeIcons = { player: '👤', tournament: '🏆', match: '🎾' }
+  const typeLetters = { player: 'P', tournament: 'T', match: 'M' }
+  const typeColors = {
+    player: { bg: 'rgba(56,200,255,0.1)', text: 'rgba(56,200,255,0.8)' },
+    tournament: { bg: 'rgba(251,191,36,0.1)', text: 'rgba(251,191,36,0.8)' },
+    match: { bg: 'rgba(34,197,94,0.1)', text: 'rgba(34,197,94,0.8)' },
+  }
 
   return (
     <div
@@ -367,7 +372,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
               <div key={type}>
                 {query.trim() && (
                   <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    {typeIcons[type]} {typeLabels[type]}
+                    {typeLabels[type]}
                   </div>
                 )}
                 {items.map(item => (
@@ -394,12 +399,12 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
                       <span style={{ fontSize: 18, width: 32, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
                     ) : (
                       <span style={{
-                        fontSize: 12, width: 32, height: 32, borderRadius: '50%',
-                        background: 'var(--bg-card-alt)', display: 'flex',
+                        fontSize: 11, fontWeight: 700, width: 32, height: 32, borderRadius: 10,
+                        background: typeColors[type].bg, display: 'flex',
                         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        color: 'var(--text-muted)',
+                        color: typeColors[type].text, letterSpacing: 0.3,
                       }}>
-                        {typeIcons[type]}
+                        {typeLetters[type]}
                       </span>
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>

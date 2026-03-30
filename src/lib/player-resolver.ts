@@ -111,16 +111,28 @@ export class PlayerResolver {
 
   /** Load all players into memory. Call once before resolving. */
   async load(): Promise<void> {
-    const { data, error } = await this.supabase
-      .from('players')
-      .select('id, external_id, fip_id, name, country, category')
+    // Supabase defaults to 1000 rows — paginate to load all players
+    const allData: any[] = []
+    const PAGE_SIZE = 1000
+    let offset = 0
 
-    if (error || !data) {
-      console.error('[PlayerResolver] Failed to load players:', error?.message)
-      return
+    while (true) {
+      const { data, error } = await this.supabase
+        .from('players')
+        .select('id, external_id, fip_id, name, country, category')
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      if (error || !data) {
+        console.error('[PlayerResolver] Failed to load players:', error?.message)
+        break
+      }
+
+      allData.push(...data)
+      if (data.length < PAGE_SIZE) break
+      offset += PAGE_SIZE
     }
 
-    for (const p of data as any[]) {
+    for (const p of allData) {
       const cached: CachedPlayer = {
         id: p.id,
         externalId: p.external_id,
@@ -135,6 +147,7 @@ export class PlayerResolver {
       if (!this.byNormalizedName.has(norm)) this.byNormalizedName.set(norm, [])
       this.byNormalizedName.get(norm)!.push(cached)
     }
+    console.log(`[PlayerResolver] Loaded ${allData.length} players into cache`)
     this.loaded = true
   }
 
@@ -178,14 +191,14 @@ export class PlayerResolver {
       }
     }
 
-    // 4. Fuzzy name match (token overlap ≥ 0.7, same category)
+    // 4. Fuzzy name match (token overlap ≥ 0.9, same category)
     if (!existing && input.category) {
       let bestScore = 0
       for (const [, players] of this.byNormalizedName) {
         for (const p of players) {
           if (p.category !== input.category) continue
           const sim = tokenSimilarity(input.name, p.name)
-          if (sim >= 0.7 && sim > bestScore) {
+          if (sim >= 0.9 && sim > bestScore) {
             // Extra check: if both have country, they must match
             if (input.country && p.country && input.country !== p.country) continue
             bestScore = sim
