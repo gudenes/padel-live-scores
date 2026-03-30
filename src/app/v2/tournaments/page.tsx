@@ -240,20 +240,22 @@ export default function TournamentsPage() {
         position: 'sticky', top: 0, zIndex: 10,
         background: 'var(--bg-base)',
       }}>
-        <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 26, width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
-        <div
+        <button
           onClick={() => router.push('/v2')}
           style={{
-            flex: 1, display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--bg-input)', borderRadius: 10,
-            border: '1px solid var(--border-card)',
-            padding: '7px 12px', cursor: 'pointer',
+            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            background: 'transparent',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)',
           }}
+          aria-label="Search"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Search players, tournaments...</span>
+        </button>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
         <button style={{
           width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',

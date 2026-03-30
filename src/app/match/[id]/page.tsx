@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, Game, getCurrentScore, pairName, isStarPoint, countryFlag, parseSetScore, toShortName } from '@/types/match'
+import MomentumChart from './MomentumChart'
 
 type SubTab = 'live' | 'players' | 'h2h'
 
@@ -74,6 +75,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [h2hMatches, setH2hMatches] = useState<any[]>([])
   const [h2hLoading, setH2hLoading] = useState(false)
   const [heroHidden, setHeroHidden] = useState(false)
+  const [navHidden, setNavHidden] = useState(false)
+  const lastScrollY = useRef(0)
   const heroSentinelRef = useRef<HTMLDivElement>(null)
   const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 })
 
@@ -169,6 +172,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   }, [match])
 
   useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY
+      if (y > lastScrollY.current && y > 60) setNavHidden(true)
+      else setNavHidden(false)
+      lastScrollY.current = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
     if (!match || match.status !== 'scheduled') return
     const scheduledAt = (match as any).starts_at
     if (!scheduledAt) return
@@ -240,7 +254,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto' }}>
 
       {/* ── Nav bar ───────────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--bg-base)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '0.5px solid var(--border-card)', position: 'sticky', top: 0, zIndex: 10 }}>
+      <div style={{ background: 'var(--bg-base)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '0.5px solid var(--border-card)', position: 'sticky', top: navHidden ? -49 : 0, zIndex: 10, transition: 'top 0.25s ease' }}>
         <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-input)', border: '0.5px solid var(--border-strong)', borderRadius: 20, padding: '5px 12px', cursor: 'pointer', color: '#aaa', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-sans)', flexShrink: 0 }}>
           ← Back
         </button>
@@ -273,21 +287,48 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
       {/* ── Compact sticky score (appears when hero scrolls away) ────── */}
       <div style={{
-        position: 'sticky', top: 49, zIndex: 8,
+        position: 'sticky', top: navHidden ? 0 : 49, zIndex: 8,
         background: 'var(--bg-card)',
         borderBottom: '0.5px solid var(--border-card)',
         overflow: 'hidden',
-        maxHeight: heroHidden ? 62 : 0,
+        maxHeight: heroHidden ? 68 : 0,
         opacity: heroHidden ? 1 : 0,
-        transition: 'max-height 0.25s ease, opacity 0.2s ease',
+        transition: 'top 0.25s ease, max-height 0.25s ease, opacity 0.2s ease',
       }}>
-        <div style={{ padding: '7px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {/* Pair 1 compact row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: p2Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {pair1Label}
+        <div style={{ padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Avatars + Names column */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', flexShrink: 0 }}>
+                <img src={`/api/img?src=${encodeURIComponent(match.pair1_player1?.avatar_url ?? '')}`} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={`/api/img?src=${encodeURIComponent(match.pair1_player2?.avatar_url ?? '')}`} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)', marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: p2Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {pair1Label}
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ display: 'flex', flexShrink: 0 }}>
+                <img src={`/api/img?src=${encodeURIComponent(match.pair2_player1?.avatar_url ?? '')}`} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={`/api/img?src=${encodeURIComponent(match.pair2_player2?.avatar_url ?? '')}`} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)', marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              </div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: p1Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {pair2Label}
+              </div>
+            </div>
+          </div>
+          {/* Live indicator column */}
+          {isLive && currentSet && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, gap: 4 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite', flexShrink: 0 }} />
+              <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--color-live)', textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+                Set {currentSet.set_number} · Game {currentGame?.game_number ?? 1}
+              </span>
+            </div>
+          )}
+          {/* Scores column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               {(match.sets ?? []).map(set => {
                 const parsed = parseSetScore(set.set_score)
                 const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
@@ -303,13 +344,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 </span>
               )}
             </div>
-          </div>
-          {/* Pair 2 compact row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ flex: 1, fontSize: 11, fontWeight: 600, color: p1Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {pair2Label}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               {(match.sets ?? []).map(set => {
                 const parsed = parseSetScore(set.set_score)
                 const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
@@ -320,7 +355,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 )
               })}
               {!isFinished && (
-                <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', color: '#333', marginLeft: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', color: starPoint ? 'var(--color-star)' : 'var(--color-live)', marginLeft: 4 }}>
                   {p2Point ?? '0'}
                 </span>
               )}
@@ -454,8 +489,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
       )}
 
-      {/* ── LIVE / FINISHED: fan support poll ────────────────────────── */}
-      {!isScheduled && (
+      {/* ── FINISHED: fan support poll ───────────────────────────────── */}
+      {isFinished && (
         <div style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)', padding: '12px 16px' }}>
           <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-dim)', textAlign: 'center', marginBottom: 10 }}>
             {isFinished ? 'Who did you root for?' : 'Who are you rooting for?'}
@@ -476,6 +511,31 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </div>
           <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', marginTop: 6 }}>3,779 fans voted</div>
         </div>
+      )}
+
+      {/* ── Game Journey chart ────────────────────────────────────── */}
+      {!isScheduled && (match.sets ?? []).length > 0 && (
+        <MomentumChart
+          sets={match.sets ?? []}
+          pair1Label={pair1Label}
+          pair2Label={pair2Label}
+          isLive={isLive}
+          pair1Color={PAIR1_COLOR}
+          pair2Color={PAIR2_COLOR}
+          pair1Avatars={[match.pair1_player1?.avatar_url ?? null, match.pair1_player2?.avatar_url ?? null]}
+          pair2Avatars={[match.pair2_player1?.avatar_url ?? null, match.pair2_player2?.avatar_url ?? null]}
+          onGameClick={(setNum, gameNum) => {
+            setSubTab('live')
+            setTimeout(() => {
+              const el = document.getElementById(`game-s${setNum}-g${gameNum}`)
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                el.style.background = 'rgba(56,200,255,0.08)'
+                setTimeout(() => { el.style.background = '' }, 1500)
+              }
+            }, 100)
+          }}
+        />
       )}
 
       {/* ── FINISHED: match stats ─────────────────────────────────────── */}
@@ -707,14 +767,6 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
 
   return (
     <div>
-      {/* Live indicator */}
-      {isLive && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 16px 4px' }}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite' }} />
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-live)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Live · Point history</span>
-        </div>
-      )}
-
       {sets.map((set) => {
         const sortedGames = [...(set.games ?? [])].sort((a, b) => a.game_number - b.game_number)
         const reversedGames = [...sortedGames].reverse()
@@ -745,7 +797,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
               }
 
               return (
-                <div key={game.id} style={{ borderTop: '0.5px solid var(--border-card)' }}>
+                <div key={game.id} id={`game-s${set.set_number}-g${game.game_number}`} style={{ borderTop: '0.5px solid var(--border-card)' }}>
                   {/* Game header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 16px 4px', background: 'rgba(0,0,0,0.15)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
