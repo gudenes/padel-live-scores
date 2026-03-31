@@ -204,8 +204,7 @@ function HeroNewsCard({ item, visited, onClickArticle }: { item: NewsItem; visit
         display: 'block', background: 'var(--bg-card)',
         border: '1px solid var(--border-card)', borderRadius: 14,
         overflow: 'hidden', textDecoration: 'none', color: 'inherit',
-        opacity: visited ? 0.55 : 1,
-        transition: 'opacity 0.2s',
+        opacity: 1,
       }}
     >
       {item.image_url && (
@@ -352,16 +351,15 @@ function NewsCard({ item, visited, onClickArticle }: { item: NewsItem; visited?:
         border: '1px solid var(--border-card)', borderRadius: 14,
         overflow: 'hidden', textDecoration: 'none', color: 'inherit',
         padding: 14,
-        opacity: visited ? 0.55 : 1,
-        transition: 'opacity 0.2s',
+        opacity: 1,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
           {visited && (
             <span style={{
-              fontSize: 8, fontWeight: 800, color: 'var(--text-faint)',
-              background: 'rgba(255,255,255,0.06)', borderRadius: 3,
+              fontSize: 8, fontWeight: 800, color: '#fff',
+              background: '#22c55e', borderRadius: 3,
               padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.3px',
             }}>
               Read
