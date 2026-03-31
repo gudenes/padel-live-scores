@@ -526,7 +526,32 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark 
 
 // ── Video player modal ──────────────────────────────────────────────────────
 
-function VideoPlayerModal({ video, onClose }: { video: Highlight; onClose: () => void }) {
+function VideoPlayerModal({ video, onClose, onUnavailable }: { video: Highlight; onClose: () => void; onUnavailable?: (id: string) => void }) {
+  const [unavailable, setUnavailable] = useState(false)
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    // Quick oEmbed check — YouTube returns 401/404 for private/unavailable videos
+    let cancelled = false
+    fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${video.youtube_id}&format=json`)
+      .then(res => {
+        if (cancelled) return
+        if (!res.ok) {
+          setUnavailable(true)
+          onUnavailable?.(video.id)
+          // Report to backend so it gets hidden for everyone
+          fetch('/api/feed/report-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ youtube_id: video.youtube_id }),
+          }).catch(() => {})
+        }
+        setChecking(false)
+      })
+      .catch(() => { if (!cancelled) setChecking(false) })
+    return () => { cancelled = true }
+  }, [video.youtube_id, video.id, onUnavailable])
+
   return (
     <div
       onClick={onClose}
@@ -549,17 +574,37 @@ function VideoPlayerModal({ video, onClose }: { video: Highlight; onClose: () =>
       >
         ✕
       </button>
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 500, aspectRatio: '16/9', borderRadius: 12, overflow: 'hidden' }}
-      >
-        <iframe
-          src={`https://www.youtube.com/embed/${video.youtube_id}?autoplay=1&rel=0`}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
-          style={{ width: '100%', height: '100%', border: 'none' }}
-        />
-      </div>
+      {unavailable ? (
+        <div style={{
+          width: '100%', maxWidth: 500, aspectRatio: '16/9', borderRadius: 12,
+          background: 'rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 8,
+        }} onClick={e => e.stopPropagation()}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Video unavailable</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>This video is private or has been removed</div>
+        </div>
+      ) : (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ width: '100%', maxWidth: 500, aspectRatio: '16/9', borderRadius: 12, overflow: 'hidden' }}
+        >
+          {checking ? (
+            <div style={{ width: '100%', height: '100%', background: '#0a1929', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Loading...</div>
+            </div>
+          ) : (
+            <iframe
+              src={`https://www.youtube.com/embed/${video.youtube_id}?autoplay=1&rel=0`}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          )}
+        </div>
+      )}
       <div style={{ maxWidth: 500, width: '100%', marginTop: 12 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.3 }}>
           {video.title}
@@ -954,7 +999,7 @@ function FeedPage() {
 
       {/* Video player modal */}
       {playing && (
-        <VideoPlayerModal video={playing} onClose={() => setPlaying(null)} />
+        <VideoPlayerModal video={playing} onClose={() => setPlaying(null)} onUnavailable={markBroken} />
       )}
     </div>
   )

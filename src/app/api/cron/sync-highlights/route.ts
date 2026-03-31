@@ -39,6 +39,7 @@ interface YouTubeVideoItem {
     }
   }
   statistics: { viewCount: string }
+  status?: { privacyStatus?: string }
 }
 
 // Convert ISO 8601 duration (PT8M24S) to "8:24"
@@ -176,7 +177,7 @@ export async function GET(req: NextRequest) {
     const batch = videoIds.slice(i, i + 50)
     try {
       const params = new URLSearchParams({
-        part: 'contentDetails,statistics',
+        part: 'contentDetails,statistics,status',
         id: batch.join(','),
         key: apiKey,
       })
@@ -189,14 +190,19 @@ export async function GET(req: NextRequest) {
 
       for (const item of items) {
         const existing = videoMap[item.id]
-        if (existing) {
-          (existing as any).duration = formatDuration(item.contentDetails.duration)
-          ;(existing as any).durationSecs = durationSeconds(item.contentDetails.duration)
-          ;(existing as any).viewCount = parseInt(item.statistics.viewCount || '0')
-          const rr = item.contentDetails.regionRestriction
-          if (rr?.allowed) (existing as any).allowedCountries = rr.allowed
-          if (rr?.blocked) (existing as any).blockedCountries = rr.blocked
+        if (!existing) continue
+        // Skip non-public videos (private, unlisted-but-not-embeddable, etc.)
+        const privacy = item.status?.privacyStatus
+        if (privacy && privacy !== 'public' && privacy !== 'unlisted') {
+          delete videoMap[item.id]
+          continue
         }
+        ;(existing as any).duration = formatDuration(item.contentDetails.duration)
+        ;(existing as any).durationSecs = durationSeconds(item.contentDetails.duration)
+        ;(existing as any).viewCount = parseInt(item.statistics.viewCount || '0')
+        const rr = item.contentDetails.regionRestriction
+        if (rr?.allowed) (existing as any).allowedCountries = rr.allowed
+        if (rr?.blocked) (existing as any).blockedCountries = rr.blocked
       }
     } catch (err) {
       console.error('YouTube videos.list failed:', err)
@@ -263,7 +269,7 @@ export async function GET(req: NextRequest) {
       .select('id, youtube_id')
       .eq('status', 'active')
       .order('published_at', { ascending: false })
-      .limit(100)
+      .limit(200)
 
     if (activeVideos && activeVideos.length > 0) {
       const ytIds = activeVideos.map((v: any) => v.youtube_id)
