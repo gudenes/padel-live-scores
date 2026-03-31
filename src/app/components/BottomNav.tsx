@@ -21,9 +21,11 @@ function MatchesIcon({ active }: { active: boolean }) {
   const c = active ? 'var(--color-accent)' : 'var(--text-faint)'
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="3.5"/>
-      <circle cx="16" cy="16" r="3.5"/>
-      <path d="M10.5 5.5L18.5 13.5"/>
+      <circle cx="12" cy="12" r="9"/>
+      {/* Top-left seam curve */}
+      <path d="M4.5 7.5C7 7 9.5 9 10 12c0.3 2-0.5 4.5-1.5 6.5"/>
+      {/* Bottom-right seam curve */}
+      <path d="M19.5 16.5C17 17 14.5 15 14 12c-0.3-2 0.5-4.5 1.5-6.5"/>
     </svg>
   )
 }

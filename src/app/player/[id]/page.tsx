@@ -148,7 +148,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         <div style={{ flexShrink: 0 }}>
           {player.avatar_url && !imgError ? (
             <img
-              src={`/api/img?src=${encodeURIComponent(player.avatar_url)}`}
+              src={player.avatar_url}
               alt={player.name}
               onError={() => setImgError(true)}
               style={{ width: 80, height: 80, borderRadius: 14, objectFit: 'cover', border: `2px solid ${categoryColor}` }}

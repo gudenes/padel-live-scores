@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
         hostname: 'storage.googleapis.com',
         pathname: '/fantasypadeltour/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'jwqaesjjoghzobngxejn.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
 };
