@@ -883,6 +883,7 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
   allMatches: Match[]
   genderFilter: 'men' | 'women'
 }) {
+  const router = useRouter()
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const finishedMatches = genderMatches.filter(m =>
     ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
