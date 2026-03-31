@@ -402,9 +402,15 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark 
       >
         {/* Source + Language */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 14px 8px' }}>
-          {item.source_icon && (
-            <img src={item.source_icon} alt="" style={{ width: 14, height: 14, borderRadius: 3, objectFit: 'contain' }} />
-          )}
+          {(() => {
+            // Use source_icon if it's a URL, otherwise derive favicon from article URL
+            const iconSrc = item.source_icon?.startsWith('http')
+              ? item.source_icon
+              : (() => { try { return `https://www.google.com/s2/favicons?sz=64&domain=${new URL(item.url).hostname}` } catch { return null } })()
+            return iconSrc ? (
+              <img src={iconSrc} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: 'contain' }} />
+            ) : null
+          })()}
           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>{item.source_name}</span>
           {item.language && (
             <span style={{

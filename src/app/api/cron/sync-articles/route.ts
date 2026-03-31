@@ -75,6 +75,30 @@ function extractImage(html: string): string | null {
   return match ? match[1] : null
 }
 
+// Extract domain from URL for favicon lookup
+function getDomain(url: string): string | null {
+  try { return new URL(url).hostname } catch { return null }
+}
+
+// Google's public favicon service — returns a 32px icon for any domain
+function faviconUrl(domain: string): string {
+  return `https://www.google.com/s2/favicons?sz=64&domain=${domain}`
+}
+
+// Google News titles embed the real source after the last " - "
+// e.g. "Galán conquista Miami - Estrella Digital" → "Estrella Digital"
+function extractRealSource(title: string, fallback: string): string {
+  const sep = title.lastIndexOf(' - ')
+  if (sep > 0 && sep < title.length - 3) {
+    const candidate = title.substring(sep + 3).trim()
+    // Sanity: source name should be short-ish and not look like a sentence
+    if (candidate.length > 0 && candidate.length < 60 && !candidate.includes('. ')) {
+      return candidate
+    }
+  }
+  return fallback
+}
+
 interface ArticleRow {
   title: string
   source_name: string
@@ -122,10 +146,21 @@ async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
         ? truncate(stripHtml(item.content))
         : null
 
+    // For Google News: extract the real source from the title and use the article domain for favicon
+    const rawTitle = stripHtml(item.title)
+    const isGoogleNews = source.key.startsWith('google-news')
+    const realSource = isGoogleNews ? extractRealSource(rawTitle, source.name) : source.name
+    // Strip the source suffix from Google News titles ("Title - Source" → "Title")
+    const cleanTitle = isGoogleNews && rawTitle.lastIndexOf(' - ') > 0
+      ? rawTitle.substring(0, rawTitle.lastIndexOf(' - ')).trim()
+      : rawTitle
+    const domain = getDomain(item.link)
+    const iconUrl = domain ? faviconUrl(domain) : null
+
     rows.push({
-      title: stripHtml(item.title),
-      source_name: source.name,
-      source_icon: source.icon,
+      title: cleanTitle,
+      source_name: realSource,
+      source_icon: iconUrl ?? source.icon,
       source_key: source.key,
       url: item.link,
       image_url: imageUrl,
@@ -164,10 +199,13 @@ async function fetchFIP(source: ArticleSource): Promise<ArticleRow[]> {
   for (const post of posts) {
     const imageUrl = post._embedded?.['wp:featuredmedia']?.[0]?.source_url ?? null
 
+    const domain = getDomain(post.link)
+    const iconUrl = domain ? faviconUrl(domain) : null
+
     rows.push({
       title: stripHtml(post.title.rendered),
       source_name: source.name,
-      source_icon: source.icon,
+      source_icon: iconUrl ?? source.icon,
       source_key: source.key,
       url: post.link,
       image_url: imageUrl,
