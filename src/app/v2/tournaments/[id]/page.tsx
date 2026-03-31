@@ -947,7 +947,7 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
   // best-ranking beat the pair with the best (lowest) best-ranking, with
   // the largest ranking gap.
   const biggestUpset = (() => {
-    let best: { winner: string; loser: string; winnerRank: number; loserRank: number; gap: number } | null = null
+    let best: { winner: string; loser: string; winnerRank: number; loserRank: number; gap: number; match: Match } | null = null
 
     for (const m of finishedMatches) {
       const p1a = (m as any).pair1_player1
@@ -980,7 +980,7 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
         const loserDisplay = winner === 1
           ? `${toShortName(p2a?.name ?? '?')} / ${toShortName(p2b?.name ?? '?')}`
           : `${toShortName(p1a?.name ?? '?')} / ${toShortName(p1b?.name ?? '?')}`
-        best = { winner: winnerDisplay, loser: loserDisplay, winnerRank, loserRank, gap }
+        best = { winner: winnerDisplay, loser: loserDisplay, winnerRank, loserRank, gap, match: m }
       }
     }
     return best
@@ -1046,18 +1046,10 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
             </div>
           ))}
 
-          {/* Biggest upset detail */}
+          {/* Biggest upset match card */}
           {biggestUpset && (
-            <div style={{
-              padding: '8px 12px', background: 'var(--bg-card)', borderRadius: 8,
-              marginTop: 4, border: '1px solid var(--border-strong)',
-            }}>
-              <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 4, fontWeight: 600 }}>
-                {biggestUpset.winner} <span style={{ color: 'var(--color-accent)' }}>(#{biggestUpset.winnerRank})</span>
-              </div>
-              <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>
-                beat {biggestUpset.loser} <span>(#{biggestUpset.loserRank})</span>
-              </div>
+            <div style={{ marginTop: 4 }}>
+              <MatchCard match={biggestUpset.match} viewerCount={0} expanded={false} onToggle={() => {}} />
             </div>
           )}
         </>
