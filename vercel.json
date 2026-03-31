@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/sync?scope=matches",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 */1 * * *"
     },
     {
       "path": "/api/cron/sync",
@@ -18,11 +18,11 @@
     },
     {
       "path": "/api/cron/sync-highlights",
-      "schedule": "0 */6 * * *"
+      "schedule": "20 */1 * * *"
     },
     {
       "path": "/api/cron/sync-articles",
-      "schedule": "0 */6 * * *"
+      "schedule": "40 */1 * * *"
     }
   ]
 }
