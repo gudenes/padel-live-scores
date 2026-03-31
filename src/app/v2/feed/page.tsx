@@ -356,18 +356,9 @@ function NewsCard({ item, visited, onClickArticle }: { item: NewsItem; visited?:
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-          {visited && (
-            <span style={{
-              fontSize: 8, fontWeight: 800, color: '#fff',
-              background: '#22c55e', borderRadius: 3,
-              padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.3px',
-            }}>
-              Read
-            </span>
-          )}
           <span style={{
-            fontSize: 8, fontWeight: 800, color: visited ? 'var(--text-faint)' : 'var(--color-accent)',
-            background: visited ? 'rgba(255,255,255,0.06)' : 'rgba(255,193,7,0.12)', borderRadius: 3,
+            fontSize: 8, fontWeight: 800, color: 'var(--color-accent)',
+            background: 'rgba(255,193,7,0.12)', borderRadius: 3,
             padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.3px',
           }}>
             News
