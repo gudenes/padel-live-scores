@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, isWarmingUp } from '@/types/match'
+import { Match, countryFlag, isWarmingUp, toShortName } from '@/types/match'
 import MatchCard from '../../../components/MatchCard'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import SearchOverlay from '../../SearchOverlay'
@@ -66,6 +66,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
+  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>('matches')
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
@@ -563,8 +564,38 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </div>
           )}
 
-          {/* ROW 3: Stage selector strip */}
-          {availableRounds.length > 0 && (
+          {/* ROW 3: Page tabs — Matches / Overview / Recap */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-base)' }}>
+            {(['matches', 'overview', 'recap'] as const).map(tab => {
+              const active = pageTab === tab
+              // Hide Recap for non-finished tournaments
+              const isFinished = activeTournamentObj?.status === 'completed' || activeTournamentObj?.status === 'finished'
+              if (tab === 'recap' && !isFinished) return null
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setPageTab(tab)}
+                  style={{
+                    flex: 1, padding: '10px 0', border: 'none', background: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, letterSpacing: '0.3px', fontFamily: 'inherit',
+                    color: active ? 'var(--color-accent)' : 'var(--text-faint)',
+                    position: 'relative', transition: 'color 0.2s',
+                  }}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {active && (
+                    <span style={{
+                      position: 'absolute', bottom: -1, left: '20%', right: '20%',
+                      height: 2, borderRadius: 1, background: 'var(--color-accent)',
+                    }} />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* ROW 4: Stage selector strip (Matches tab only) */}
+          {pageTab === 'matches' && availableRounds.length > 0 && (
             <div ref={stageStripRef} style={{
               display: 'flex', gap: 6, padding: '8px 0 10px',
               overflowX: 'auto', scrollbarWidth: 'none',
@@ -619,64 +650,383 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           )}
         </div>
 
-        {/* ── Feed ── */}
-        <div style={{ padding: '6px 10px 16px' }}>
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 10, height: 88, marginBottom: 6, opacity: 0.3 }} />
-            ))
-          ) : (
-            <>
-              {liveMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader
-                    dot color="var(--color-live)" label="Live now"
-                    right={syncAgo}
-                    rightColor={justUpdated ? 'var(--color-success)' : undefined}
-                  />
-                  {liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                </div>
-              )}
-
-              {warmingUpMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader dot color="var(--color-live)" label="Warming up" />
-                  {warmingUpMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                </div>
-              )}
-
-              {scheduledMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader label="Up next" />
-                  {scheduledMatches.map(m => (
-                    <MatchCard
-                      key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}}
-                      bookmarked={isBookmarked(m.id)}
-                      onBookmark={() => toggleBookmark(m.id)}
-                      estimatedScheduleLabel={estimatedLabels[m.id]}
+        {/* ── Matches Feed ── */}
+        {pageTab === 'matches' && (
+          <div style={{ padding: '6px 10px 16px' }}>
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 10, height: 88, marginBottom: 6, opacity: 0.3 }} />
+              ))
+            ) : (
+              <>
+                {liveMatches.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <SectionHeader
+                      dot color="var(--color-live)" label="Live now"
+                      right={syncAgo}
+                      rightColor={justUpdated ? 'var(--color-success)' : undefined}
                     />
-                  ))}
-                </div>
-              )}
+                    {liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
+                  </div>
+                )}
 
-              {finishedMatches.length > 0 && (
-                <div>
-                  <SectionHeader label={`Results · ${selectedRound ?? ''}`} />
-                  {finishedMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                </div>
-              )}
+                {warmingUpMatches.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <SectionHeader dot color="var(--color-live)" label="Warming up" />
+                    {warmingUpMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
+                  </div>
+                )}
 
-              {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
-                <div style={{ textAlign: 'center', paddingTop: 80 }}>
-                  <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
-                  <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>
-                  <p style={{ color: 'var(--text-faint)', fontSize: 13, marginTop: 4 }}>Try selecting a different round</p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                {scheduledMatches.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <SectionHeader label="Up next" />
+                    {scheduledMatches.map(m => (
+                      <MatchCard
+                        key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}}
+                        bookmarked={isBookmarked(m.id)}
+                        onBookmark={() => toggleBookmark(m.id)}
+                        estimatedScheduleLabel={estimatedLabels[m.id]}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {finishedMatches.length > 0 && (
+                  <div>
+                    <SectionHeader label={`Results · ${selectedRound ?? ''}`} />
+                    {finishedMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
+                  </div>
+                )}
+
+                {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
+                  <div style={{ textAlign: 'center', paddingTop: 80 }}>
+                    <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
+                    <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>
+                    <p style={{ color: 'var(--text-faint)', fontSize: 13, marginTop: 4 }}>Try selecting a different round</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Overview Tab ── */}
+        {pageTab === 'overview' && (
+          <TournamentOverview
+            tournament={activeTournamentObj}
+            allMatches={allMatches}
+            genderFilter={genderFilter}
+            availableRounds={availableRounds}
+            roundDates={roundDates}
+          />
+        )}
+
+        {/* ── Recap Tab ── */}
+        {pageTab === 'recap' && (
+          <TournamentRecap
+            tournament={activeTournamentObj}
+            allMatches={allMatches}
+            genderFilter={genderFilter}
+          />
+        )}
       </main>
+    </div>
+  )
+}
+
+// ── Overview Component ─────────────────────────────────────────────────────
+function TournamentOverview({ tournament, allMatches, genderFilter, availableRounds, roundDates }: {
+  tournament: any
+  allMatches: Match[]
+  genderFilter: 'men' | 'women'
+  availableRounds: string[]
+  roundDates: Record<string, string>
+}) {
+  const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
+  const totalMatches = genderMatches.length
+
+  // Count unique teams (pairs)
+  const teamSet = new Set<string>()
+  for (const m of genderMatches) {
+    const p1 = [(m as any).pair1_player1?.name, (m as any).pair1_player2?.name].filter(Boolean).sort().join('/')
+    const p2 = [(m as any).pair2_player1?.name, (m as any).pair2_player2?.name].filter(Boolean).sort().join('/')
+    if (p1) teamSet.add(p1)
+    if (p2) teamSet.add(p2)
+  }
+  const totalTeams = teamSet.size
+
+  // Count unique countries
+  const countrySet = new Set<string>()
+  for (const m of genderMatches) {
+    for (const key of ['pair1_player1', 'pair1_player2', 'pair2_player1', 'pair2_player2'] as const) {
+      const country = (m as any)[key]?.country as string | undefined
+      if (country) countrySet.add(country)
+    }
+  }
+  const totalCountries = countrySet.size
+
+  // Build schedule: round → date + count
+  const schedule = availableRounds.map(round => {
+    const count = genderMatches.filter(m => normalizeRoundFull(m.round as string) === round).length
+    return { round, date: roundDates[round] ?? '', count }
+  })
+
+  // Top seeds — first round matches where players have rankings, sorted by rank
+  const seededTeams: { rank: number; names: string; flag: string }[] = []
+  const seenPairs = new Set<string>()
+  for (const m of genderMatches) {
+    for (const pairKey of [['pair1_player1', 'pair1_player2'], ['pair2_player1', 'pair2_player2']]) {
+      const p1 = (m as any)[pairKey[0]]
+      const p2 = (m as any)[pairKey[1]]
+      if (!p1?.name || !p2?.name) continue
+      const key = [p1.name, p2.name].sort().join('/')
+      if (seenPairs.has(key)) continue
+      seenPairs.add(key)
+      const bestRank = Math.min(p1.ranking || 9999, p2.ranking || 9999)
+      if (bestRank < 9999) {
+        seededTeams.push({
+          rank: bestRank,
+          names: `${toShortName(p1.name)} / ${toShortName(p2.name)}`,
+          flag: countryFlag(p1.country) || countryFlag(p2.country) || '',
+        })
+      }
+    }
+  }
+  seededTeams.sort((a, b) => a.rank - b.rank)
+  const topSeeds = seededTeams.slice(0, 8)
+
+  const StatCard = ({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) => (
+    <div style={{
+      background: 'var(--bg-card)', borderRadius: 10,
+      border: '1px solid var(--border-strong)',
+      padding: 12, textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color: accent ? 'var(--color-accent)' : 'var(--text-primary)' }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontWeight: 600, letterSpacing: '0.3px' }}>{label}</div>
+    </div>
+  )
+
+  return (
+    <div style={{ padding: '14px 14px 20px' }}>
+      {/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+        <StatCard value={totalTeams || '—'} label="TEAMS" accent />
+        <StatCard value={totalMatches || '—'} label="MATCHES" />
+        <StatCard value={totalCountries || '—'} label="COUNTRIES" />
+        <StatCard value={tournament?.prize_money ?? '—'} label="PRIZE MONEY" />
+      </div>
+
+      {/* Top seeds */}
+      {topSeeds.length > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px 8px' }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Top Seeds</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
+          </div>
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: 12,
+            border: '1px solid var(--border-strong)',
+            padding: '4px 14px', marginBottom: 16,
+          }}>
+            {topSeeds.map((seed, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
+                borderBottom: i < topSeeds.length - 1 ? '0.5px solid var(--border-base)' : 'none',
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-faint)', width: 20, textAlign: 'center' }}>
+                  {i + 1}
+                </span>
+                <span style={{ fontSize: 13, flexShrink: 0 }}>{seed.flag}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{seed.names}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>#{seed.rank}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Schedule */}
+      {schedule.length > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px 8px' }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Schedule</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
+          </div>
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: 12,
+            border: '1px solid var(--border-strong)',
+            padding: '4px 14px',
+          }}>
+            {schedule.map((s, i) => (
+              <div key={s.round} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
+                borderBottom: i < schedule.length - 1 ? '0.5px solid var(--border-base)' : 'none',
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? 'var(--color-accent)' : 'var(--text-muted)', width: 50 }}>
+                  {s.date.split('–')[0]?.trim() || '—'}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>
+                  {s.round} ({s.count} {s.count === 1 ? 'match' : 'matches'})
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Recap Component ────────────────────────────────────────────────────────
+function TournamentRecap({ tournament, allMatches, genderFilter }: {
+  tournament: any
+  allMatches: Match[]
+  genderFilter: 'men' | 'women'
+}) {
+  const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
+  const finishedMatches = genderMatches.filter(m =>
+    ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
+  )
+
+  // Find the final
+  const finalMatch = genderMatches.find(m => {
+    const r = normalizeRoundFull(m.round as string)
+    return r === 'Finals' && ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
+  })
+
+  // Find semifinals
+  const semiMatches = genderMatches.filter(m => {
+    const r = normalizeRoundFull(m.round as string)
+    return r === 'Semifinals' && ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
+  })
+
+  // Determine winner from final match
+  const getWinner = (m: Match) => {
+    const sets = (m as any).sets ?? []
+    let p1Sets = 0, p2Sets = 0
+    for (const s of sets) {
+      if ((s.pair1_score ?? 0) > (s.pair2_score ?? 0)) p1Sets++
+      else if ((s.pair2_score ?? 0) > (s.pair1_score ?? 0)) p2Sets++
+    }
+    return p1Sets > p2Sets ? 1 : 2
+  }
+
+  const formatMatchScore = (m: Match) => {
+    const sets = ((m as any).sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number)
+    return sets.map((s: any) => `${s.pair1_score ?? 0}-${s.pair2_score ?? 0}`).join('  ')
+  }
+
+  const pairDisplay = (m: Match, pair: 1 | 2) => {
+    const p1 = pair === 1 ? (m as any).pair1_player1 : (m as any).pair2_player1
+    const p2 = pair === 1 ? (m as any).pair1_player2 : (m as any).pair2_player2
+    const flag1 = p1?.country ? countryFlag(p1.country) : ''
+    const flag2 = p2?.country ? countryFlag(p2.country) : ''
+    const name1 = p1?.name ? toShortName(p1.name) : 'TBD'
+    const name2 = p2?.name ? toShortName(p2.name) : 'TBD'
+    return `${flag1} ${name1} / ${flag2} ${name2}`
+  }
+
+  // Stats
+  const totalPlayed = finishedMatches.length
+  const threeSetMatches = finishedMatches.filter(m => {
+    const sets = ((m as any).sets ?? [])
+    return sets.length >= 3
+  }).length
+  const threeSetPct = totalPlayed > 0 ? Math.round((threeSetMatches / totalPlayed) * 100) : 0
+
+  return (
+    <div style={{ padding: '14px 14px 20px' }}>
+      {/* Winner card */}
+      {finalMatch ? (() => {
+        const winnerPair = getWinner(finalMatch)
+        const loserPair = winnerPair === 1 ? 2 : 1
+        return (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(56,200,255,0.06), rgba(56,200,255,0.02))',
+            border: '1px solid var(--color-accent-border)',
+            borderRadius: 14, padding: 16, textAlign: 'center', marginBottom: 16,
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 6 }}>🏆</div>
+            <div style={{ fontSize: 9, color: 'var(--color-accent)', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 4 }}>
+              CHAMPIONS
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 800 }}>
+              {pairDisplay(finalMatch, winnerPair as 1 | 2)}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+              {formatMatchScore(finalMatch)}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 6 }}>
+              vs {pairDisplay(finalMatch, loserPair as 1 | 2)}
+            </div>
+          </div>
+        )
+      })() : (
+        <div style={{ textAlign: 'center', padding: '40px 0 20px' }}>
+          <p style={{ fontSize: 36, marginBottom: 8 }}>🏆</p>
+          <p style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Final not played yet</p>
+          <p style={{ color: 'var(--text-faint)', fontSize: 12, marginTop: 4 }}>Check back after the tournament ends</p>
+        </div>
+      )}
+
+      {/* Tournament stats */}
+      {totalPlayed > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px 8px' }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Tournament Stats</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
+          </div>
+          {[
+            { label: 'Total matches played', value: String(totalPlayed) },
+            { label: '3-set matches', value: `${threeSetMatches} (${threeSetPct}%)` },
+          ].map((stat, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 12px', background: 'var(--bg-card)', borderRadius: 8,
+              marginBottom: 4, border: '1px solid var(--border-strong)',
+            }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{stat.label}</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{stat.value}</span>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Semifinal results */}
+      {semiMatches.length > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '16px 2px 8px' }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Semifinal Results</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
+          </div>
+          {semiMatches.map(m => {
+            const winner = getWinner(m)
+            return (
+              <div key={m.id} style={{
+                background: 'var(--bg-card)', border: '1px solid var(--border-strong)',
+                borderRadius: 12, padding: '12px 14px', marginBottom: 8,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: winner === 1 ? 'var(--color-accent)' : 'var(--text-primary)', opacity: winner === 1 ? 1 : 0.5 }}>
+                    {pairDisplay(m, 1)}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: winner === 1 ? 'var(--text-primary)' : 'var(--text-faint)' }}>
+                    {((m as any).sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number).map((s: any) => `${s.pair1_score ?? 0}-${s.pair2_score ?? 0}`).join('  ')}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: winner === 2 ? 'var(--color-accent)' : 'var(--text-primary)', opacity: winner === 2 ? 1 : 0.5 }}>
+                    {pairDisplay(m, 2)}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: winner === 2 ? 'var(--text-primary)' : 'var(--text-faint)' }}>
+                    {((m as any).sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number).map((s: any) => `${s.pair2_score ?? 0}-${s.pair1_score ?? 0}`).join('  ')}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </>
+      )}
     </div>
   )
 }
