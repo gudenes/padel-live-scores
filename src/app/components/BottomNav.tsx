@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
@@ -17,12 +17,15 @@ function HomeIcon({ active }: { active: boolean }) {
   )
 }
 
-function ScoresIcon({ active }: { active: boolean }) {
+function MatchesIcon({ active }: { active: boolean }) {
   const c = active ? 'var(--color-accent)' : 'var(--text-faint)'
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round">
-      <rect x="3" y="3" width="18" height="18" rx="3"/>
-      <path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9"/>
+      {/* Top-left seam curve */}
+      <path d="M4.5 7.5C7 7 9.5 9 10 12c0.3 2-0.5 4.5-1.5 6.5"/>
+      {/* Bottom-right seam curve */}
+      <path d="M19.5 16.5C17 17 14.5 15 14 12c-0.3-2 0.5-4.5 1.5-6.5"/>
     </svg>
   )
 }
@@ -144,7 +147,7 @@ function LiveRings() {
 
 const TABS = [
   { href: '/v2',             label: 'Home',    Icon: HomeIcon },
-  { href: '/v2/matches',     label: 'Scores',  Icon: ScoresIcon },
+  { href: '/v2/matches',     label: 'Matches', Icon: MatchesIcon },
   { href: '/v2/feed',        label: 'Feed',    Icon: FeedIcon },
   { href: '/v2/ranking',     label: 'Ranking', Icon: RankingIcon },
   { href: '/v2/tournaments', label: 'Events',  Icon: EventsIcon },
@@ -176,6 +179,32 @@ export default function BottomNav() {
   const [newsCount, setNewsCount] = useState(0)
   const [rankingNew, setRankingNew] = useState(false)
   const [pressed, setPressed] = useState<string | null>(null)
+  const navRef = useRef<HTMLElement>(null)
+  const [pillStyle, setPillStyle] = useState<{ left: number; width: number } | null>(null)
+  const hasAnimated = useRef(false)
+
+  // Active tab index
+  const activeIndex = TABS.findIndex(({ href }) =>
+    href === '/v2/tournaments' ? pathname.startsWith('/v2/tournaments') : pathname === href
+  )
+
+  // Measure the active icon-box position and move the pill
+  useEffect(() => {
+    if (!navRef.current || activeIndex < 0) return
+    const icons = navRef.current.querySelectorAll<HTMLElement>('[data-icon-box]')
+    const box = icons[activeIndex]
+    if (!box) return
+    const navRect = navRef.current.getBoundingClientRect()
+    const boxRect = box.getBoundingClientRect()
+    setPillStyle({
+      left: boxRect.left - navRect.left + (boxRect.width - 44) / 2,
+      width: 44,
+    })
+    // After first render, enable transitions
+    if (!hasAnimated.current) {
+      requestAnimationFrame(() => { hasAnimated.current = true })
+    }
+  }, [activeIndex])
 
   // Fetch badge data
   const fetchBadges = useCallback(async () => {
@@ -239,7 +268,7 @@ export default function BottomNav() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: NAV_STYLES }} />
-      <nav style={{
+      <nav ref={navRef} style={{
         position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
         width: '100%', maxWidth: 500,
         display: 'flex', alignItems: 'stretch', justifyContent: 'space-around',
@@ -249,6 +278,23 @@ export default function BottomNav() {
         padding: '6px 6px 8px',
         zIndex: 20,
       }}>
+        {/* Floating active pill */}
+        {pillStyle && (
+          <div style={{
+            position: 'absolute',
+            top: 6,
+            left: pillStyle.left,
+            width: pillStyle.width,
+            height: 34,
+            borderRadius: 10,
+            background: 'rgba(56,200,255,0.1)',
+            transition: hasAnimated.current
+              ? 'left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.25s ease'
+              : 'none',
+            pointerEvents: 'none',
+            zIndex: 0,
+          }} />
+        )}
         {TABS.map(({ href, label, Icon }) => {
           const active = href === '/v2/tournaments'
             ? pathname.startsWith('/v2/tournaments')
@@ -273,18 +319,18 @@ export default function BottomNav() {
                 userSelect: 'none',
               }}
             >
-              <div style={{
-                width: active ? 44 : 38,
+              <div data-icon-box style={{
+                width: 44,
                 height: 34, borderRadius: 10,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative',
-                background: active ? 'rgba(56,200,255,0.1)' : 'transparent',
                 transform: isPressed
                   ? 'scale(0.82)'
                   : active ? 'scale(1.05)' : 'scale(1)',
                 transition: isPressed
                   ? 'transform 0.08s ease-in'
-                  : 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  : 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                zIndex: 1,
               }}>
                 {isHome && liveCount > 0 && <LiveRings />}
                 <Icon active={active} />

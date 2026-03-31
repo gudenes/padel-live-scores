@@ -427,6 +427,11 @@ export async function inferFinalScore(
     `tiebreak: ${tiebreak})`
   )
 
+  // 12. Infer winner_pair if all sets now have scores and winner is not set
+  if (!match.winner_pair) {
+    await inferWinnerPair(supabase, matchId)
+  }
+
   return {
     matchId,
     action: 'inferred',
@@ -435,6 +440,52 @@ export async function inferFinalScore(
     inferredScore: newScore,
     gameWinner,
   }
+}
+
+/**
+ * Infer the match winner from completed set scores.
+ * Best-of-3: first to win 2 sets.
+ * Only sets with non-null set_score are counted.
+ * Only updates winner_pair if it's currently null.
+ */
+export async function inferWinnerPair(
+  supabase: SupabaseClient,
+  matchId: string,
+): Promise<1 | 2 | null> {
+  const { data: sets } = await supabase
+    .from('sets')
+    .select('set_number, set_score, pair1_games, pair2_games')
+    .eq('match_id', matchId)
+    .not('set_score', 'is', null)
+    .order('set_number', { ascending: true })
+
+  if (!sets || sets.length < 2) return null
+
+  let p1Sets = 0
+  let p2Sets = 0
+
+  for (const set of sets) {
+    const p1 = set.pair1_games ?? 0
+    const p2 = set.pair2_games ?? 0
+    if (p1 > p2) p1Sets++
+    else if (p2 > p1) p2Sets++
+    // tied sets (e.g. tiebreaker in progress) — skip
+  }
+
+  // Best-of-3: need 2 sets to win
+  const winner = p1Sets >= 2 ? 1 : p2Sets >= 2 ? 2 : null
+
+  if (winner) {
+    await supabase
+      .from('matches')
+      .update({ winner_pair: winner, updated_at: new Date().toISOString() })
+      .eq('id', matchId)
+      .is('winner_pair', null) // only if not already set
+
+    console.log(`[score-inference] Match ${matchId}: inferred winner = pair ${winner} (${p1Sets}-${p2Sets} sets)`)
+  }
+
+  return winner
 }
 
 /**

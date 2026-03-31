@@ -331,8 +331,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ display: 'flex', flexShrink: 0 }}>
-                <img src={`/api/img?src=${encodeURIComponent(match.pair1_player1?.avatar_url ?? '')}`} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                <img src={`/api/img?src=${encodeURIComponent(match.pair1_player2?.avatar_url ?? '')}`} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)', marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={match.pair1_player1?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={match.pair1_player2?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)', marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
               </div>
               <div style={{ fontSize: 11, fontWeight: 600, color: p2Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {pair1Label}
@@ -340,8 +340,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ display: 'flex', flexShrink: 0 }}>
-                <img src={`/api/img?src=${encodeURIComponent(match.pair2_player1?.avatar_url ?? '')}`} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                <img src={`/api/img?src=${encodeURIComponent(match.pair2_player2?.avatar_url ?? '')}`} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)', marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={match.pair2_player1?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={match.pair2_player2?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)', marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
               </div>
               <div style={{ fontSize: 11, fontWeight: 600, color: p1Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {pair2Label}
@@ -1032,7 +1032,7 @@ function PlayerAvatar({ player, size, winner, accent }: { player: any; size: num
   const borderColor = winner ? (accent ?? 'rgba(255,255,255,0.4)') : 'var(--border-strong)'
   if (!player) return <div style={{ width: size, height: size, borderRadius: size / 3, background: 'var(--border-strong)', flexShrink: 0 }} />
   return player.avatar_url && !imgError ? (
-    <img src={`/api/img?src=${encodeURIComponent(player.avatar_url)}`} alt={player.name} style={{ width: size, height: size, borderRadius: size / 3, objectFit: 'cover', flexShrink: 0, border: `1.5px solid ${borderColor}` }} onError={() => setImgError(true)} />
+    <img src={player.avatar_url} alt={player.name} style={{ width: size, height: size, borderRadius: size / 3, objectFit: 'cover', flexShrink: 0, border: `1.5px solid ${borderColor}` }} onError={() => setImgError(true)} />
   ) : (
     <div style={{ width: size, height: size, borderRadius: size / 3, background: '#0D2540', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.35, color: 'var(--text-secondary)', fontWeight: 700, border: `1.5px solid ${borderColor}` }}>
       {player.name?.[0]}
@@ -1050,7 +1050,7 @@ function PlayerSquare({ player, winner, router }: { player: any; winner?: boolea
   const cursor = player?.id ? 'pointer' : 'default'
   if (!player) return <div style={{ width: 56, height: 56, borderRadius: 10, background: bg, border, flexShrink: 0 }} />
   return player.avatar_url && !imgError ? (
-    <img onClick={handleClick} src={`/api/img?src=${encodeURIComponent(player.avatar_url)}`} alt={player.name} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border, cursor }} onError={() => setImgError(true)} />
+    <img onClick={handleClick} src={player.avatar_url} alt={player.name} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border, cursor }} onError={() => setImgError(true)} />
   ) : (
     <div onClick={handleClick} style={{ width: 56, height: 56, borderRadius: 10, background: bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: winner ? 'rgba(255,255,255,0.7)' : '#4A6A8A', fontWeight: 700, border, cursor }}>
       {initials}

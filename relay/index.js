@@ -201,6 +201,81 @@ async function tryInferFinalScore(matchDbId) {
   }
 }
 
+// ── Match finish cleanup: clear is_current + compute coverage ─
+async function cleanupMatchFinish(matchDbId) {
+  // Clear is_current on all sets and games
+  await Promise.all([
+    supabase.from('sets').update({ is_current: false }).eq('match_id', matchDbId),
+    supabase.from('games').update({ is_current: false }).eq('match_id', matchDbId),
+  ])
+
+  // Compute coverage from actual stored data
+  const { data: sets } = await supabase
+    .from('sets')
+    .select('set_score, id')
+    .eq('match_id', matchDbId)
+    .not('set_score', 'is', null)
+
+  if (!sets || sets.length === 0) {
+    await supabase.from('matches').update({ coverage: null }).eq('id', matchDbId)
+    return
+  }
+
+  let expectedGames = 0
+  for (const set of sets) {
+    if (!set.set_score) continue
+    const parts = set.set_score.split('-')
+    const p1 = parseInt(parts[0]) || 0
+    const p2 = parseInt((parts[1]?.match(/^\d+/) ?? ['0'])[0]) || 0
+    expectedGames += p1 + p2
+  }
+
+  const { count: gamesWithPoints } = await supabase
+    .from('games')
+    .select('id', { count: 'exact', head: true })
+    .eq('match_id', matchDbId)
+    .not('points', 'is', null)
+    .neq('points', '{}')
+
+  const actualGames = gamesWithPoints ?? 0
+
+  let coverage = null
+  if (expectedGames > 0 && actualGames >= expectedGames) coverage = 'full'
+  else if (actualGames > 0) coverage = 'partial'
+
+  await supabase.from('matches').update({ coverage }).eq('id', matchDbId)
+  console.log(`[Coverage] Match ${matchDbId}: ${actualGames}/${expectedGames} games → ${coverage}`)
+
+  // Infer winner_pair if not set — derive from set scores
+  const { data: matchCheck } = await supabase
+    .from('matches')
+    .select('winner_pair')
+    .eq('id', matchDbId)
+    .single()
+  if (matchCheck && !matchCheck.winner_pair) {
+    const { data: allSets } = await supabase
+      .from('sets')
+      .select('pair1_games, pair2_games')
+      .eq('match_id', matchDbId)
+      .not('set_score', 'is', null)
+    if (allSets && allSets.length >= 2) {
+      let p1Sets = 0, p2Sets = 0
+      for (const s of allSets) {
+        if ((s.pair1_games ?? 0) > (s.pair2_games ?? 0)) p1Sets++
+        else if ((s.pair2_games ?? 0) > (s.pair1_games ?? 0)) p2Sets++
+      }
+      const winner = p1Sets >= 2 ? 1 : p2Sets >= 2 ? 2 : null
+      if (winner) {
+        await supabase.from('matches')
+          .update({ winner_pair: winner, updated_at: new Date().toISOString() })
+          .eq('id', matchDbId)
+          .is('winner_pair', null)
+        console.log(`[Relay] Inferred winner = pair ${winner} (${p1Sets}-${p2Sets} sets)`)
+      }
+    }
+  }
+}
+
 // ── Write live state to Supabase ──────────────────────────────
 async function handleLiveUpdate(data) {
   const externalId = String(data.id)
@@ -258,6 +333,21 @@ async function handleLiveUpdate(data) {
           isCurrentSet &&
           game.game_number === Math.max(...(set.games ?? []).map((g) => g.game_number))
 
+        // Guard: on finish/ended, don't overwrite with fewer points
+        let pointsToWrite = game.points ?? []
+        const isFinishing = data.status === 'finished' || data.status === 'ended'
+        if (isFinishing) {
+          const { data: existing } = await supabase.from('games')
+            .select('points')
+            .eq('set_id', setRow.id)
+            .eq('game_number', game.game_number)
+            .maybeSingle()
+          const existingPoints = (existing?.points ?? [])
+          if (existingPoints.length > pointsToWrite.length) {
+            pointsToWrite = existingPoints
+          }
+        }
+
         await supabase
           .from('games')
           .upsert(
@@ -266,7 +356,7 @@ async function handleLiveUpdate(data) {
               match_id: matchDbId,
               game_number: game.game_number,
               game_score: game.game_score,
-              points: game.points,
+              points: pointsToWrite,
               is_current: isCurrentGame,
               updated_at: new Date().toISOString(),
             },
@@ -294,14 +384,16 @@ async function handleLiveUpdate(data) {
       console.log(`[Relay] Match ${externalId} ${data.status} — triggering final state fetch`)
       await fetchAndWriteFinalState(externalId, matchDbId)
 
-      // ── NEW: Inference fallback ──
-      // After writing final state, check if a set is still incomplete
-      // Give a small delay for the writes to commit
+      // ── Inference fallback ──
       if (data.status === 'finished') {
         await new Promise((resolve) => setTimeout(resolve, 500))
         await tryInferFinalScore(matchDbId)
       }
-      // ── END inference fallback ──
+
+      // ── Cleanup: clear is_current flags + compute coverage ──
+      if (data.status === 'finished') {
+        await cleanupMatchFinish(matchDbId)
+      }
 
       // Only unsubscribe on finished/bye — keep listening during ended in case it updates
       if (data.status === 'finished' || data.status === 'bye') unsubscribeChannel(data.channel)

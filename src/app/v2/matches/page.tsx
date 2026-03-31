@@ -48,15 +48,42 @@ function groupByTournament(matches: Match[]): { tournament: any; matches: Match[
     }
     group.matches.push(m)
   }
-  groups.sort((a, b) => tournamentSortKey(a.tournament) - tournamentSortKey(b.tournament))
+  groups.sort((a, b) => {
+    // Live tournaments first, then by most recent date
+    const aHasLive = a.matches.some(m => m.status === 'live')
+    const bHasLive = b.matches.some(m => m.status === 'live')
+    if (aHasLive !== bHasLive) return aHasLive ? -1 : 1
+    const aDate = a.tournament?.starts_at ?? ''
+    const bDate = b.tournament?.starts_at ?? ''
+    return bDate.localeCompare(aDate)
+  })
   return groups
 }
 
 // ── Components ────────────────────────────────────────────────────────────
 
+function tournamentStatus(matches: Match[]): 'live' | 'finished' | 'upcoming' | null {
+  if (matches.length === 0) return null
+  const hasLive = matches.some(m => m.status === 'live')
+  if (hasLive) return 'live'
+  const allDone = matches.every(m => ['finished', 'retired', 'walkover'].includes(m.status))
+  if (allDone) return 'finished'
+  const allScheduled = matches.every(m => m.status === 'scheduled')
+  if (allScheduled) return 'upcoming'
+  return null // mixed state
+}
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  live: { label: 'LIVE', color: '#fff', bg: 'var(--color-live)' },
+  finished: { label: 'FINISHED', color: 'var(--text-dim)', bg: 'rgba(255,255,255,0.06)' },
+  upcoming: { label: 'UPCOMING', color: 'var(--color-accent)', bg: 'rgba(56,200,255,0.1)' },
+}
+
 function TournamentGroup({ tournament, matches, defaultOpen = true }: { tournament: any; matches: Match[]; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   const badge = tournament?.level ? levelLabel(tournament.level) : null
+  const status = tournamentStatus(matches)
+  const statusCfg = status ? STATUS_CONFIG[status] : null
   return (
     <div style={{
       borderRadius: 12, overflow: 'hidden',
@@ -82,12 +109,27 @@ function TournamentGroup({ tournament, matches, defaultOpen = true }: { tourname
               <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{countryFlag(tournament.country)}</span>
             ) : null}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {tournament.name}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {tournament.name}
+                </span>
+                {statusCfg && (
+                  <span style={{
+                    fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
+                    padding: '2px 5px', borderRadius: 4,
+                    color: statusCfg.color, background: statusCfg.bg,
+                    flexShrink: 0, lineHeight: '12px',
+                    animation: status === 'live' ? 'pulse 2s infinite' : undefined,
+                  }}>
+                    {statusCfg.label}
+                  </span>
+                )}
               </div>
-              {badge && (
+              {(badge || tournament.starts_at) && (
                 <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 1 }}>
-                  {badge}
+                  {badge}{badge && tournament.starts_at ? ' · ' : ''}
+                  {tournament.starts_at && new Date(tournament.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  {tournament.ends_at && ` – ${new Date(tournament.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
                 </div>
               )}
             </div>
@@ -154,7 +196,8 @@ function ScoresPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [tab, setTab] = useState<'live' | 'next' | 'results'>('results')
+  const [tab, setTab] = useState<'live' | 'all' | 'results' | 'next'>('all')
+  const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
   const pageRef = useRef(0)
 
   const matchSelect = `
@@ -197,10 +240,9 @@ function ScoresPage() {
     pageRef.current = 0
     setLoading(false)
 
-    // Auto-select tab based on data
+    // Auto-select tab: live if matches are happening, otherwise all
     if ((liveRes.data?.length ?? 0) > 0) setTab('live')
-    else if ((scheduledRes.data?.length ?? 0) > 0) setTab('next')
-    else setTab('results')
+    else setTab('all')
   }, [])
 
   const fetchMoreResults = useCallback(async () => {
@@ -244,14 +286,28 @@ function ScoresPage() {
     }
   }, [fetchData])
 
+  // Auto-switch gender if no matches for current filter
+  const allLoaded = [...liveMatches, ...scheduledMatches, ...recentMatches]
+  const hasMen = allLoaded.some(m => (m as any).category === 'men')
+  const hasWomen = allLoaded.some(m => (m as any).category === 'women')
+  useEffect(() => {
+    if (loading || allLoaded.length === 0) return
+    if (genderFilter === 'men' && !hasMen && hasWomen) setGenderFilter('women')
+    else if (genderFilter === 'women' && !hasWomen && hasMen) setGenderFilter('men')
+  }, [loading, hasMen, hasWomen, genderFilter]) // eslint-disable-line
+
+  // Filter by gender
+  const gf = (matches: Match[]) => matches.filter(m => (m as any).category === genderFilter)
+
   // Current tab data
-  const currentMatches = tab === 'live' ? liveMatches
-    : tab === 'next' ? scheduledMatches.filter(hasPlayers)
-    : recentMatches
+  const currentMatches = tab === 'live' ? gf(liveMatches)
+    : tab === 'all' ? gf([...liveMatches, ...scheduledMatches.filter(hasPlayers), ...recentMatches])
+    : tab === 'next' ? gf(scheduledMatches.filter(hasPlayers))
+    : gf(recentMatches)
   const grouped = groupByTournament(currentMatches)
 
-  const liveCount = liveMatches.filter(m => !isWarmingUp(m)).length
-  const nextCount = scheduledMatches.filter(hasPlayers).length
+  const liveCount = gf(liveMatches).filter(m => !isWarmingUp(m)).length
+  const nextCount = gf(scheduledMatches).filter(hasPlayers).length
 
   return (
     <main style={{
@@ -307,12 +363,14 @@ function ScoresPage() {
         <Spinner fullHeight />
       ) : (
         <>
-          {/* Toggle tabs */}
+          {/* Toggle tabs + gender selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px 10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
             {([
-              { key: 'live' as const, label: 'Live', count: liveCount, isLive: true },
-              { key: 'next' as const, label: 'Next', count: nextCount, isLive: false },
-              { key: 'results' as const, label: 'Results', count: 0, isLive: false },
+              { key: 'live' as const, label: 'Live', isLive: true },
+              { key: 'all' as const, label: 'All', isLive: false },
+              { key: 'results' as const, label: 'Results', isLive: false },
+              { key: 'next' as const, label: 'Upcoming', isLive: false },
             ]).map(t => {
               const active = tab === t.key
               return (
@@ -340,19 +398,40 @@ function ScoresPage() {
                     }} />
                   )}
                   {t.label}
-                  {t.count > 0 && (
-                    <span style={{
-                      fontSize: 10, fontWeight: 800,
-                      background: active ? 'rgba(0,0,0,0.15)' : 'var(--bg-card-alt)',
-                      borderRadius: 8, padding: '1px 6px',
-                      color: active ? '#000' : 'var(--text-dim)',
-                    }}>
-                      {t.count}
-                    </span>
-                  )}
                 </button>
               )
             })}
+            </div>
+            {/* Gender toggle */}
+            <div
+              onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
+                background: 'var(--bg-card-alt)', borderRadius: 14,
+                padding: 2, position: 'relative', width: 52, height: 26, flexShrink: 0,
+                border: `1px solid ${genderFilter === 'women' ? 'rgba(244,114,182,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                transition: 'border-color 0.2s',
+              }}
+            >
+              <div style={{
+                position: 'absolute', top: 2, left: genderFilter === 'men' ? 2 : 26,
+                width: 22, height: 22, borderRadius: 11,
+                background: genderFilter === 'women' ? 'var(--color-women)' : 'var(--color-accent)',
+                transition: 'left 0.2s ease, background 0.2s ease',
+              }} />
+              <span style={{
+                flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700,
+                position: 'relative', zIndex: 1,
+                color: genderFilter === 'men' ? '#000' : 'var(--text-faint)',
+                transition: 'color 0.2s',
+              }}>M</span>
+              <span style={{
+                flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700,
+                position: 'relative', zIndex: 1,
+                color: genderFilter === 'women' ? '#000' : 'var(--text-faint)',
+                transition: 'color 0.2s',
+              }}>F</span>
+            </div>
           </div>
 
           {/* Grouped matches */}
@@ -362,7 +441,7 @@ function ScoresPage() {
                 key={group.tournament?.id ?? idx}
                 tournament={group.tournament}
                 matches={group.matches}
-                defaultOpen={tab === 'next' ? false : idx < 3}
+                defaultOpen={tab === 'live'}
               />
             )) : (
               <div style={{
@@ -374,14 +453,14 @@ function ScoresPage() {
                   {tab === 'live' ? 'No live matches right now' : tab === 'next' ? 'No upcoming matches' : 'No recent results'}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  {tab === 'live' ? 'Check back during tournament days' : tab === 'next' ? 'Scheduled matches will appear here' : 'Results will appear after matches finish'}
+                  {tab === 'live' ? 'Check back during tournament days' : tab === 'all' ? 'No matches available' : tab === 'next' ? 'Scheduled matches will appear here' : 'Results will appear after matches finish'}
                 </div>
               </div>
             )}
           </div>
 
           {/* Load more — only for results tab */}
-          {tab === 'results' && hasMore && (
+          {(tab === 'results' || tab === 'all') && hasMore && (
             <div style={{ padding: '16px 16px 24px', textAlign: 'center' }}>
               <button
                 onClick={fetchMoreResults}

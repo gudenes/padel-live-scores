@@ -428,16 +428,6 @@ function MatchesToggleSection({ liveMatches, scheduledMatches }: { liveMatches: 
                 }} />
               )}
               {isLiveTab ? 'Live' : 'Next Matches'}
-              {count > 0 && (
-                <span style={{
-                  fontSize: 10, fontWeight: 800,
-                  background: active ? 'rgba(0,0,0,0.15)' : 'var(--bg-card-alt)',
-                  borderRadius: 8, padding: '1px 6px',
-                  color: active ? '#000' : 'var(--text-dim)',
-                }}>
-                  {count}
-                </span>
-              )}
             </button>
           )
         })}
@@ -936,7 +926,7 @@ function SpoilerCard({ match, label, color, children }: { match: Match; label: s
                   }}>
                     {p.avatar_url ? (
                       <img
-                        src={`/api/img?src=${encodeURIComponent(p.avatar_url)}`}
+                        src={p.avatar_url}
                         alt={p.name}
                         style={{
                           width: 64, height: 64, borderRadius: '50%', objectFit: 'cover',

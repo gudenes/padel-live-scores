@@ -102,7 +102,7 @@ function MiniAvatar({ url, size = 32 }: { url: string | null; size?: number }) {
   if (url && !err) {
     return (
       <img
-        src={`/api/img?src=${encodeURIComponent(url)}`}
+        src={url}
         alt=""
         style={{
           width: size, height: size, borderRadius: '50%',
