@@ -894,12 +894,6 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
     return r === 'Finals' && ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
   })
 
-  // Find semifinals
-  const semiMatches = genderMatches.filter(m => {
-    const r = normalizeRoundFull(m.round as string)
-    return r === 'Semifinals' && ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
-  })
-
   // Determine winner from final match
   const getWinner = (m: Match) => {
     const sets = (m as any).sets ?? []
@@ -933,6 +927,71 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
     return sets.length >= 3
   }).length
   const threeSetPct = totalPlayed > 0 ? Math.round((threeSetMatches / totalPlayed) * 100) : 0
+
+  // Average match duration — parse "HH:MM" duration field
+  const durations = finishedMatches
+    .map(m => {
+      const d = (m as any).duration as string | null
+      if (!d) return 0
+      const parts = d.split(':')
+      if (parts.length === 2) return parseInt(parts[0]) * 60 + parseInt(parts[1])
+      return 0
+    })
+    .filter(d => d > 0)
+  const avgDurationMins = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0
+  const avgDurationLabel = avgDurationMins > 0
+    ? avgDurationMins >= 60 ? `${Math.floor(avgDurationMins / 60)}h ${avgDurationMins % 60}m` : `${avgDurationMins} min`
+    : null
+
+  // Biggest upset — find the match where the pair with the worst (highest)
+  // best-ranking beat the pair with the best (lowest) best-ranking, with
+  // the largest ranking gap.
+  const biggestUpset = (() => {
+    let best: { winner: string; loser: string; winnerRank: number; loserRank: number; gap: number } | null = null
+
+    for (const m of finishedMatches) {
+      const p1a = (m as any).pair1_player1
+      const p1b = (m as any).pair1_player2
+      const p2a = (m as any).pair2_player1
+      const p2b = (m as any).pair2_player2
+
+      // Best ranking in each pair (lower = better)
+      const rank1 = Math.min(p1a?.ranking || 9999, p1b?.ranking || 9999)
+      const rank2 = Math.min(p2a?.ranking || 9999, p2b?.ranking || 9999)
+
+      // Skip if either pair has no ranking data
+      if (rank1 >= 9999 || rank2 >= 9999) continue
+      // Skip if ranks are equal (no upset)
+      if (rank1 === rank2) continue
+
+      const winner = getWinner(m)
+      const favoriteIsPair = rank1 < rank2 ? 1 : 2 // lower rank = favorite
+      // Upset = when the underdog (worse rank) wins
+      if (winner === favoriteIsPair) continue
+
+      const winnerRank = winner === 1 ? rank1 : rank2
+      const loserRank = winner === 1 ? rank2 : rank1
+      const gap = winnerRank - loserRank // positive = underdog won
+
+      if (!best || gap > best.gap) {
+        const winnerDisplay = winner === 1
+          ? `${toShortName(p1a?.name ?? '?')} / ${toShortName(p1b?.name ?? '?')}`
+          : `${toShortName(p2a?.name ?? '?')} / ${toShortName(p2b?.name ?? '?')}`
+        const loserDisplay = winner === 1
+          ? `${toShortName(p2a?.name ?? '?')} / ${toShortName(p2b?.name ?? '?')}`
+          : `${toShortName(p1a?.name ?? '?')} / ${toShortName(p1b?.name ?? '?')}`
+        best = { winner: winnerDisplay, loser: loserDisplay, winnerRank, loserRank, gap }
+      }
+    }
+    return best
+  })()
+
+  const stats: { label: string; value: string }[] = [
+    { label: 'Total matches played', value: String(totalPlayed) },
+    { label: '3-set matches', value: `${threeSetMatches} (${threeSetPct}%)` },
+  ]
+  if (avgDurationLabel) stats.push({ label: 'Average match duration', value: avgDurationLabel })
+  if (biggestUpset) stats.push({ label: 'Biggest upset', value: `#${biggestUpset.winnerRank} beat #${biggestUpset.loserRank}` })
 
   return (
     <div style={{ padding: '14px 14px 20px' }}>
@@ -976,10 +1035,7 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
             <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Tournament Stats</span>
             <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
           </div>
-          {[
-            { label: 'Total matches played', value: String(totalPlayed) },
-            { label: '3-set matches', value: `${threeSetMatches} (${threeSetPct}%)` },
-          ].map((stat, i) => (
+          {stats.map((stat, i) => (
             <div key={i} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '8px 12px', background: 'var(--bg-card)', borderRadius: 8,
@@ -989,42 +1045,21 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
               <span style={{ fontSize: 13, fontWeight: 700 }}>{stat.value}</span>
             </div>
           ))}
-        </>
-      )}
 
-      {/* Semifinal results */}
-      {semiMatches.length > 0 && (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '16px 2px 8px' }}>
-            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Semifinal Results</span>
-            <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
-          </div>
-          {semiMatches.map(m => {
-            const winner = getWinner(m)
-            return (
-              <div key={m.id} style={{
-                background: 'var(--bg-card)', border: '1px solid var(--border-strong)',
-                borderRadius: 12, padding: '12px 14px', marginBottom: 8,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: winner === 1 ? 'var(--color-accent)' : 'var(--text-primary)', opacity: winner === 1 ? 1 : 0.5 }}>
-                    {pairDisplay(m, 1)}
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: winner === 1 ? 'var(--text-primary)' : 'var(--text-faint)' }}>
-                    {((m as any).sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number).map((s: any) => `${s.pair1_score ?? 0}-${s.pair2_score ?? 0}`).join('  ')}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: winner === 2 ? 'var(--color-accent)' : 'var(--text-primary)', opacity: winner === 2 ? 1 : 0.5 }}>
-                    {pairDisplay(m, 2)}
-                  </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: winner === 2 ? 'var(--text-primary)' : 'var(--text-faint)' }}>
-                    {((m as any).sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number).map((s: any) => `${s.pair2_score ?? 0}-${s.pair1_score ?? 0}`).join('  ')}
-                  </span>
-                </div>
+          {/* Biggest upset detail */}
+          {biggestUpset && (
+            <div style={{
+              padding: '8px 12px', background: 'var(--bg-card)', borderRadius: 8,
+              marginTop: 4, border: '1px solid var(--border-strong)',
+            }}>
+              <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 4, fontWeight: 600 }}>
+                {biggestUpset.winner} <span style={{ color: 'var(--color-accent)' }}>(#{biggestUpset.winnerRank})</span>
               </div>
-            )
-          })}
+              <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>
+                beat {biggestUpset.loser} <span>(#{biggestUpset.loserRank})</span>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
