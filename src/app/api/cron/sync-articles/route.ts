@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import Parser from 'rss-parser'
+import GoogleNewsDecoder from 'google-news-decoder'
 
 export const maxDuration = 60
 
@@ -183,6 +184,7 @@ interface ArticleRow {
   published_at: string
   source_weight: number
   updated_at: string
+  favicon_url: string | null
 }
 
 // ── RSS fetcher ─────────────────────────────────────────────────────────────
@@ -192,8 +194,34 @@ const parser = new Parser({
   headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
 })
 
+// For Google News feeds: fetch raw XML and extract <source url="...">name</source>
+// mapping so we can get the real publisher domain for favicons.
+// Returns a Map of source name → source URL (e.g. "MARCA" → "https://www.marca.com")
+async function fetchGoogleNewsSourceMap(feedUrl: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  try {
+    const res = await fetch(feedUrl, {
+      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+    })
+    if (!res.ok) return map
+    const xml = await res.text()
+    const matches = xml.matchAll(/<source\s+url="([^"]+)"[^>]*>([^<]+)<\/source>/gi)
+    for (const m of matches) {
+      map.set(m[2].trim(), m[1].trim())
+    }
+  } catch { /* ignore */ }
+  return map
+}
+
 async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
-  const feed = await parser.parseURL(source.url)
+  const isGoogleNews = source.key.startsWith('google-news')
+
+  // For Google News: fetch the raw XML in parallel to get source URLs
+  const [feed, sourceMap] = await Promise.all([
+    parser.parseURL(source.url),
+    isGoogleNews ? fetchGoogleNewsSourceMap(source.url) : Promise.resolve(new Map<string, string>()),
+  ])
+
   const cutoff = Date.now() - 14 * 86400000 // last 14 days
   const rows: ArticleRow[] = []
 
@@ -218,16 +246,23 @@ async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
         ? truncate(stripHtml(item.content))
         : null
 
-    // For Google News: extract the real source from the title and use the article domain for favicon
+    // For Google News: extract the real source from the title and resolve favicon from source URL
     const rawTitle = stripHtml(item.title)
-    const isGoogleNews = source.key.startsWith('google-news')
     const realSource = isGoogleNews ? extractRealSource(rawTitle, source.name) : source.name
     // Strip the source suffix from Google News titles ("Title - Source" → "Title")
     const cleanTitle = isGoogleNews && rawTitle.lastIndexOf(' - ') > 0
       ? rawTitle.substring(0, rawTitle.lastIndexOf(' - ')).trim()
       : rawTitle
-    const domain = getDomain(item.link)
-    const iconUrl = domain ? faviconUrl(domain) : null
+
+    // Resolve favicon: for Google News use the real publisher domain from <source url="...">,
+    // otherwise fall back to the link domain
+    let iconDomain: string | null = null
+    if (isGoogleNews) {
+      const publisherUrl = sourceMap.get(realSource)
+      if (publisherUrl) iconDomain = getDomain(publisherUrl)
+    }
+    if (!iconDomain) iconDomain = getDomain(item.link)
+    const iconUrl = iconDomain ? faviconUrl(iconDomain) : null
 
     rows.push({
       title: cleanTitle,
@@ -241,6 +276,7 @@ async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
       published_at: pubDate.toISOString(),
       source_weight: source.weight,
       updated_at: new Date().toISOString(),
+      favicon_url: iconUrl,
     })
   }
 
@@ -286,6 +322,7 @@ async function fetchFIP(source: ArticleSource): Promise<ArticleRow[]> {
       published_at: new Date(post.date).toISOString(),
       source_weight: source.weight,
       updated_at: new Date().toISOString(),
+      favicon_url: iconUrl,
     })
   }
 
@@ -317,25 +354,45 @@ export async function GET(req: NextRequest) {
 
       if (rows.length === 0) continue
 
-      // Enrich articles — fetch og:image, og:description, and resolve real URLs.
+      // Enrich articles — resolve real URLs for Google News, fetch og:image & og:description.
       // Process up to 10 at a time to stay within the 60s timeout.
-      const needEnrich = rows.filter(r => !r.image_url || source.key.startsWith('google-news')).slice(0, 10)
+      const isGNews = source.key.startsWith('google-news')
+      const needEnrich = rows.filter(r => !r.image_url || isGNews).slice(0, 10)
       if (needEnrich.length > 0) {
+        // For Google News: first decode the real article URLs
+        if (isGNews) {
+          const decoder = new GoogleNewsDecoder()
+          const decodeResults = await Promise.allSettled(
+            needEnrich.map(r => decoder.decodeGoogleNewsUrl(r.url))
+          )
+          for (let i = 0; i < needEnrich.length; i++) {
+            const result = decodeResults[i]
+            if (result.status !== 'fulfilled' || !result.value?.decodedUrl) continue
+            // Store the real URL temporarily for og:meta fetch
+            ;(needEnrich[i] as any)._realUrl = result.value.decodedUrl
+            // Update favicon from real domain
+            const domain = getDomain(result.value.decodedUrl)
+            if (domain) {
+              const resolvedFavicon = faviconUrl(domain)
+              needEnrich[i].source_icon = resolvedFavicon
+              needEnrich[i].favicon_url = resolvedFavicon
+            }
+          }
+        }
+
+        // Fetch og:image and og:description from the real URL (or original URL for non-Google News)
         const ogResults = await Promise.allSettled(
-          needEnrich.map(r => fetchOgMeta(r.url))
+          needEnrich.map(r => fetchOgMeta((r as any)._realUrl ?? r.url))
         )
         for (let i = 0; i < needEnrich.length; i++) {
           const result = ogResults[i]
           if (result.status !== 'fulfilled') continue
-          const { image, description, realUrl } = result.value
+          const { image, description } = result.value
           if (image && !needEnrich[i].image_url) needEnrich[i].image_url = image
-          if (description && source.key.startsWith('google-news')) needEnrich[i].snippet = description
-          // Update favicon to use the real domain (not news.google.com)
-          if (realUrl) {
-            const domain = getDomain(realUrl)
-            if (domain) needEnrich[i].source_icon = faviconUrl(domain)
-          }
+          if (description && isGNews) needEnrich[i].snippet = description
         }
+        // Clean up temp property before upsert
+        for (const r of needEnrich) delete (r as any)._realUrl
       }
 
       const { error, data } = await supabase

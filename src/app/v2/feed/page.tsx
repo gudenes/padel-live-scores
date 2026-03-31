@@ -37,6 +37,7 @@ interface NewsItem {
   category: string | null
   click_count: number
   source_weight: number
+  favicon_url: string | null
 }
 
 type FeedItem =
@@ -403,10 +404,10 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark 
         {/* Source + Language */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 14px 8px' }}>
           {(() => {
-            // Use source_icon if it's a URL, otherwise derive favicon from article URL
-            const iconSrc = item.source_icon?.startsWith('http')
-              ? item.source_icon
-              : (() => { try { return `https://www.google.com/s2/favicons?sz=64&domain=${new URL(item.url).hostname}` } catch { return null } })()
+            // Prefer favicon_url from DB, then source_icon if URL, then derive from article domain
+            const iconSrc = item.favicon_url
+              ?? (item.source_icon?.startsWith('http') ? item.source_icon : null)
+              ?? (() => { try { return `https://www.google.com/s2/favicons?sz=64&domain=${new URL(item.url).hostname}` } catch { return null } })()
             return iconSrc ? (
               <img src={iconSrc} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: 'contain' }} />
             ) : null
@@ -687,7 +688,7 @@ function FeedPage() {
         .limit(50),
       supabase
         .from('articles')
-        .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight')
+        .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url')
         .eq('status', 'active')
         .order('published_at', { ascending: false })
         .limit(50),
