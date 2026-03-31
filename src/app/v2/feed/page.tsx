@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SearchOverlay from '../SearchOverlay'
+import Spinner from '../../components/Spinner'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -593,7 +594,7 @@ function VideoPlayerModal({ video, onClose, onUnavailable }: { video: Highlight;
         >
           {checking ? (
             <div style={{ width: '100%', height: '100%', background: '#0a1929', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Loading...</div>
+              <Spinner size={24} />
             </div>
           ) : (
             <iframe

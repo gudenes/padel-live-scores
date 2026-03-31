@@ -5,6 +5,7 @@
 
 import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
+import Spinner from '@/app/components/Spinner'
 
 interface Article {
   id: string
@@ -59,7 +60,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
         minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'var(--bg-main)', color: 'var(--text-primary)',
       }}>
-        <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>Loading...</div>
+        <Spinner fullHeight />
       </div>
     )
   }

@@ -10,6 +10,7 @@ import { Match, countryFlag, pairName, isWarmingUp } from '@/types/match'
 import MatchCard from '../components/MatchCard'
 import Link from 'next/link'
 import SearchOverlay from './SearchOverlay'
+import Spinner from '../components/Spinner'
 
 // ── Country names ──────────────────────────────────────────────────────────
 
@@ -601,7 +602,7 @@ function VideoPlayerInline({ video, onClose, unavailable, checking, onCheckStart
         >
           {checking ? (
             <div style={{ width: '100%', height: '100%', background: '#0a1929', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Loading...</div>
+              <Spinner size={24} />
             </div>
           ) : (
             <iframe
@@ -1278,8 +1279,8 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 500, margin: '0 auto', padding: '60px 20px', textAlign: 'center', color: 'var(--text-faint)', fontSize: 14 }}>
-        Loading...
+      <div style={{ maxWidth: 500, margin: '0 auto' }}>
+        <Spinner fullHeight />
       </div>
     )
   }

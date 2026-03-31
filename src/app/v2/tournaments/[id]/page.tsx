@@ -10,6 +10,7 @@ import { Match, countryFlag, isWarmingUp } from '@/types/match'
 import MatchCard from '../../../components/MatchCard'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import SearchOverlay from '../../SearchOverlay'
+import Spinner from '../../../components/Spinner'
 
 // ── Stage ordering ────────────────────────────────────────────────────────
 const ROUND_ORDER: Record<string, number> = {
@@ -42,7 +43,7 @@ function localDateKey(d: Date): string {
 export default function TournamentDetailWrapper({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   return (
-    <Suspense fallback={<div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading matches...</div>}>
+    <Suspense fallback={<Spinner fullHeight />}>
       <TournamentDetail tournamentId={id} />
     </Suspense>
   )

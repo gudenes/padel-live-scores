@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { countryFlag, toShortName } from '@/types/match'
 import SearchOverlay from '@/app/v2/SearchOverlay'
 import BottomNav from '@/app/components/BottomNav'
+import Spinner from '@/app/components/Spinner'
 
 export default function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -56,7 +57,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   if (loading) return (
     <>
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Loading player...</div>
+      <Spinner fullHeight />
     </main>
     <BottomNav />
     </>
