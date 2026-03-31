@@ -85,9 +85,11 @@ function TournamentGroup({ tournament, matches, defaultOpen = true }: { tourname
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {tournament.name}
               </div>
-              {badge && (
+              {(badge || tournament.starts_at) && (
                 <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 1 }}>
-                  {badge}
+                  {badge}{badge && tournament.starts_at ? ' · ' : ''}
+                  {tournament.starts_at && new Date(tournament.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  {tournament.ends_at && ` – ${new Date(tournament.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
                 </div>
               )}
             </div>
@@ -154,7 +156,7 @@ function ScoresPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [tab, setTab] = useState<'live' | 'next' | 'results'>('results')
+  const [tab, setTab] = useState<'live' | 'all' | 'results' | 'next'>('all')
   const pageRef = useRef(0)
 
   const matchSelect = `
@@ -246,6 +248,7 @@ function ScoresPage() {
 
   // Current tab data
   const currentMatches = tab === 'live' ? liveMatches
+    : tab === 'all' ? [...liveMatches, ...scheduledMatches.filter(hasPlayers), ...recentMatches]
     : tab === 'next' ? scheduledMatches.filter(hasPlayers)
     : recentMatches
   const grouped = groupByTournament(currentMatches)
@@ -310,9 +313,10 @@ function ScoresPage() {
           {/* Toggle tabs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px 10px' }}>
             {([
-              { key: 'live' as const, label: 'Live', count: liveCount, isLive: true },
-              { key: 'next' as const, label: 'Next', count: nextCount, isLive: false },
-              { key: 'results' as const, label: 'Results', count: 0, isLive: false },
+              { key: 'live' as const, label: 'Live', isLive: true },
+              { key: 'all' as const, label: 'All', isLive: false },
+              { key: 'results' as const, label: 'Results', isLive: false },
+              { key: 'next' as const, label: 'Upcoming', isLive: false },
             ]).map(t => {
               const active = tab === t.key
               return (
@@ -340,16 +344,6 @@ function ScoresPage() {
                     }} />
                   )}
                   {t.label}
-                  {t.count > 0 && (
-                    <span style={{
-                      fontSize: 10, fontWeight: 800,
-                      background: active ? 'rgba(0,0,0,0.15)' : 'var(--bg-card-alt)',
-                      borderRadius: 8, padding: '1px 6px',
-                      color: active ? '#000' : 'var(--text-dim)',
-                    }}>
-                      {t.count}
-                    </span>
-                  )}
                 </button>
               )
             })}
@@ -362,7 +356,7 @@ function ScoresPage() {
                 key={group.tournament?.id ?? idx}
                 tournament={group.tournament}
                 matches={group.matches}
-                defaultOpen={tab === 'next' ? false : idx < 3}
+                defaultOpen={tab === 'live'}
               />
             )) : (
               <div style={{
@@ -374,14 +368,14 @@ function ScoresPage() {
                   {tab === 'live' ? 'No live matches right now' : tab === 'next' ? 'No upcoming matches' : 'No recent results'}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  {tab === 'live' ? 'Check back during tournament days' : tab === 'next' ? 'Scheduled matches will appear here' : 'Results will appear after matches finish'}
+                  {tab === 'live' ? 'Check back during tournament days' : tab === 'all' ? 'No matches available' : tab === 'next' ? 'Scheduled matches will appear here' : 'Results will appear after matches finish'}
                 </div>
               </div>
             )}
           </div>
 
           {/* Load more — only for results tab */}
-          {tab === 'results' && hasMore && (
+          {(tab === 'results' || tab === 'all') && hasMore && (
             <div style={{ padding: '16px 16px 24px', textAlign: 'center' }}>
               <button
                 onClick={fetchMoreResults}
