@@ -99,6 +99,78 @@ function extractRealSource(title: string, fallback: string): string {
   return fallback
 }
 
+// Fetch og:image and og:description from a URL by downloading the HTML head.
+// Follows redirects (important for Google News URLs). Timeout 5s per article.
+async function fetchOgMeta(url: string): Promise<{ image: string | null; description: string | null; realUrl: string | null }> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+      redirect: 'follow',
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!res.ok) return { image: null, description: null, realUrl: null }
+    const realUrl = res.url !== url ? res.url : null
+    const reader = res.body?.getReader()
+    if (!reader) return { image: null, description: null, realUrl }
+    let html = ''
+    while (html.length < 50000) {
+      const { done, value } = await reader.read()
+      if (done) break
+      html += new TextDecoder().decode(value)
+      if (html.includes('</head>')) break
+    }
+    reader.cancel().catch(() => {})
+    const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/)
+    const descMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/)
+      || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/)
+    return {
+      image: imgMatch ? imgMatch[1] : null,
+      description: descMatch ? truncate(stripHtml(descMatch[1]), 200) : null,
+      realUrl,
+    }
+  } catch {
+    return { image: null, description: null, realUrl: null }
+  }
+}
+
+// Legacy wrapper
+async function fetchOgImage(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+      redirect: 'follow',
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!res.ok) return null
+    // Only read first 50KB to find og:image (it's always in <head>)
+    const reader = res.body?.getReader()
+    if (!reader) return null
+    let html = ''
+    while (html.length < 50000) {
+      const { done, value } = await reader.read()
+      if (done) break
+      html += new TextDecoder().decode(value)
+      // Check if we've passed </head> — no need to read further
+      if (html.includes('</head>')) break
+    }
+    reader.cancel().catch(() => {})
+    const match = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/)
+    return match ? match[1] : null
+  } catch {
+    return null
+  }
+}
+
 interface ArticleRow {
   title: string
   source_name: string
@@ -244,6 +316,27 @@ export async function GET(req: NextRequest) {
       results[source.key] = { fetched: rows.length }
 
       if (rows.length === 0) continue
+
+      // Enrich articles — fetch og:image, og:description, and resolve real URLs.
+      // Process up to 10 at a time to stay within the 60s timeout.
+      const needEnrich = rows.filter(r => !r.image_url || source.key.startsWith('google-news')).slice(0, 10)
+      if (needEnrich.length > 0) {
+        const ogResults = await Promise.allSettled(
+          needEnrich.map(r => fetchOgMeta(r.url))
+        )
+        for (let i = 0; i < needEnrich.length; i++) {
+          const result = ogResults[i]
+          if (result.status !== 'fulfilled') continue
+          const { image, description, realUrl } = result.value
+          if (image && !needEnrich[i].image_url) needEnrich[i].image_url = image
+          if (description && source.key.startsWith('google-news')) needEnrich[i].snippet = description
+          // Update favicon to use the real domain (not news.google.com)
+          if (realUrl) {
+            const domain = getDomain(realUrl)
+            if (domain) needEnrich[i].source_icon = faviconUrl(domain)
+          }
+        }
+      }
 
       const { error, data } = await supabase
         .from('articles')

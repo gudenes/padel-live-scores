@@ -430,7 +430,7 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark 
           </div>
         )}
 
-        {/* Title */}
+        {/* Title + Description */}
         <div style={{ padding: item.image_url ? '10px 14px 4px' : '0 14px 4px' }}>
           <div style={{
             fontSize: 15, fontWeight: 800, color: 'var(--text-primary)',
@@ -439,6 +439,24 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark 
           }}>
             {item.title}
           </div>
+          {(() => {
+            // Skip snippets that just repeat the title (common with Google News)
+            if (!item.snippet) return null
+            const clean = item.snippet.replace(/\u00a0/g, ' ').trim()
+            const titleNorm = item.title.replace(/\u00a0/g, ' ').trim()
+            if (clean.startsWith(titleNorm)) return null
+            if (titleNorm.startsWith(clean.slice(0, 40))) return null
+            return (
+              <div style={{
+                fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4,
+                display: '-webkit-box', WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+                marginTop: 4,
+              }}>
+                {clean}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Bottom row: freshness · reads · bookmark · share */}
