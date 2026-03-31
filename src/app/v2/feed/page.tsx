@@ -791,131 +791,126 @@ function FeedPage() {
           No content available
         </div>
       ) : filter === 'all' ? (
-        /* ── "All" view: video carousel + news list ── */
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          {/* Video carousel */}
+        /* ── "All" view: interleaved videos + news ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
           {(() => {
             const vids = availableHighlights
-            if (vids.length === 0) return null
-            return (
-              <div style={{ padding: '16px 0 0' }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '0 16px 10px',
-                }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Highlights
-                  </span>
-                  <button
-                    onClick={() => setFilter('videos')}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 11, fontWeight: 700, color: 'var(--color-accent)',
-                      fontFamily: 'inherit', padding: 0,
-                    }}
-                  >
-                    See all &rsaquo;
-                  </button>
-                </div>
-                <div style={{
-                  display: 'flex', gap: 12, overflowX: 'auto',
-                  padding: '0 16px 16px', scrollSnapType: 'x mandatory',
-                  WebkitOverflowScrolling: 'touch',
-                  msOverflowStyle: 'none', scrollbarWidth: 'none',
-                }}>
-                  {vids.slice(0, 10).map(v => (
-                    <button
-                      key={v.id}
-                      onClick={() => setPlaying(v)}
-                      style={{
-                        flex: '0 0 260px', scrollSnapAlign: 'start',
-                        background: 'var(--bg-card)', border: '1px solid var(--border-card)',
-                        borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
-                        textAlign: 'left', fontFamily: 'inherit', padding: 0, color: 'inherit',
-                      }}
-                    >
-                      <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
-                        <img src={v.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => markBroken(v.id)} />
-                        <div style={{
-                          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.15)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <div style={{
-                            width: 40, height: 40, borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.92)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
-                          }}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none">
-                              <polygon points="6,3 20,12 6,21" />
-                            </svg>
-                          </div>
-                        </div>
-                        {v.duration && (
-                          <div style={{
-                            position: 'absolute', bottom: 6, right: 6,
-                            background: 'rgba(0,0,0,0.85)', borderRadius: 4,
-                            padding: '2px 6px', fontSize: 10, fontWeight: 700,
-                            color: '#fff', fontFamily: 'var(--font-mono)',
-                          }}>
-                            {v.duration}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ padding: '8px 10px' }}>
-                        <div style={{
-                          fontSize: 12, fontWeight: 700, color: 'var(--text-primary)',
-                          lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
-                          marginBottom: 4,
-                        }}>
-                          {v.title}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
-                          {v.view_count > 0 && (
-                            <>
-                              <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
-                              <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
+            const articles = news
+            const blocks: React.ReactNode[] = []
+            let vi = 0 // video index
+            let ai = 0 // article index
+            let blockIdx = 0
 
-          {/* News section */}
-          {news.length > 0 && (
-            <div style={{ padding: '0 16px 16px' }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '4px 0 10px',
-              }}>
-                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  News
-                </span>
-                <button
-                  onClick={() => setFilter('news')}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: 'var(--color-accent)',
-                    fontFamily: 'inherit', padding: 0,
-                  }}
-                >
-                  See all &rsaquo;
-                </button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {news.slice(0, 15).map(item => (
-                  <NewsCard key={`n-${item.id}`} item={item} visited={visitedArticles.has(item.id)} onClickArticle={handleArticleClick} bookmarked={bookmarkedArticles.has(item.id)} onToggleBookmark={toggleBookmarkArticle} />
-                ))}
-              </div>
-            </div>
-          )}
+            // Repeating pattern: hero → 2 articles → carousel → 3 articles → single video → 3 articles → carousel → ...
+            const pattern: Array<'hero' | 'carousel' | 'single' | 'articles2' | 'articles3'> =
+              ['hero', 'articles2', 'carousel', 'articles3', 'single', 'articles3', 'carousel', 'articles3']
+
+            while (vi < vids.length || ai < articles.length) {
+              const step = pattern[blockIdx % pattern.length]
+              blockIdx++
+
+              if (step === 'hero') {
+                if (vi >= vids.length) continue
+                const v = vids[vi++]
+                blocks.push(
+                  <div key={`hero-${v.id}`} style={{ padding: '4px 16px' }}>
+                    <HeroVideoCard item={v} onPlay={setPlaying} onBroken={markBroken} />
+                  </div>
+                )
+              } else if (step === 'carousel') {
+                const batch = vids.slice(vi, vi + 4)
+                if (batch.length === 0) continue
+                vi += batch.length
+                blocks.push(
+                  <div key={`car-${vi}`} style={{ padding: '4px 0' }}>
+                    <div style={{
+                      display: 'flex', gap: 12, overflowX: 'auto',
+                      padding: '0 16px', scrollSnapType: 'x mandatory',
+                      WebkitOverflowScrolling: 'touch',
+                      msOverflowStyle: 'none', scrollbarWidth: 'none',
+                    }}>
+                      {batch.map(v => (
+                        <button
+                          key={v.id}
+                          onClick={() => setPlaying(v)}
+                          style={{
+                            flex: '0 0 260px', scrollSnapAlign: 'start',
+                            background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+                            borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
+                            textAlign: 'left', fontFamily: 'inherit', padding: 0, color: 'inherit',
+                          }}
+                        >
+                          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
+                            <img src={v.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => markBroken(v.id)} />
+                            <div style={{
+                              position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.15)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                              <div style={{
+                                width: 40, height: 40, borderRadius: '50%',
+                                background: 'rgba(255,255,255,0.92)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+                              }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none"><polygon points="6,3 20,12 6,21" /></svg>
+                              </div>
+                            </div>
+                            {v.duration && (
+                              <div style={{
+                                position: 'absolute', bottom: 6, right: 6,
+                                background: 'rgba(0,0,0,0.85)', borderRadius: 4,
+                                padding: '2px 6px', fontSize: 10, fontWeight: 700,
+                                color: '#fff', fontFamily: 'var(--font-mono)',
+                              }}>{v.duration}</div>
+                            )}
+                          </div>
+                          <div style={{ padding: '8px 10px' }}>
+                            <div style={{
+                              fontSize: 12, fontWeight: 700, color: 'var(--text-primary)',
+                              lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical' as any, overflow: 'hidden', marginBottom: 4,
+                            }}>{v.title}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
+                              {v.view_count > 0 && (
+                                <>
+                                  <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
+                                  <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              } else if (step === 'single') {
+                if (vi >= vids.length) continue
+                const v = vids[vi++]
+                blocks.push(
+                  <div key={`single-${v.id}`} style={{ padding: '4px 16px' }}>
+                    <CompactVideoCard item={v} onPlay={setPlaying} onBroken={markBroken} />
+                  </div>
+                )
+              } else {
+                // articles2 or articles3
+                const count = step === 'articles2' ? 2 : 3
+                const batch = articles.slice(ai, ai + count)
+                if (batch.length === 0) continue
+                ai += batch.length
+                blocks.push(
+                  <div key={`arts-${ai}`} style={{ padding: '4px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {batch.map(item => (
+                      <NewsCard key={`n-${item.id}`} item={item} visited={visitedArticles.has(item.id)} onClickArticle={handleArticleClick} bookmarked={bookmarkedArticles.has(item.id)} onToggleBookmark={toggleBookmarkArticle} />
+                    ))}
+                  </div>
+                )
+              }
+            }
+
+            return blocks
+          })()}
 
           <div style={{
             textAlign: 'center', padding: '20px 0 8px',
