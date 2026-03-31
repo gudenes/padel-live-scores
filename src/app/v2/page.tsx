@@ -255,8 +255,41 @@ function RankingsWidget({ men, women }: { men: RankedPlayer[]; women: RankedPlay
 
 
 
+// Premier Padel levels get priority ordering (lower = higher priority)
+const LEVEL_PRIORITY: Record<string, number> = {
+  finals: 0, major: 1, p1: 2, p2: 3,
+  fip_platinum: 4, fip_gold: 5, fip_other: 6,
+}
+
+function tournamentSortKey(t: any): number {
+  return LEVEL_PRIORITY[t?.level ?? ''] ?? 99
+}
+
+function hasPlayers(m: Match): boolean {
+  const a = m as any
+  return !!(a.pair1_player1 || a.pair1_player2 || a.pair2_player1 || a.pair2_player2)
+}
+
+function groupByTournament(matches: Match[]): { tournament: any; matches: Match[] }[] {
+  const groups: { tournament: any; matches: Match[] }[] = []
+  for (const m of matches) {
+    const t = (m as any).tournament
+    const tid = t?.id ?? 'unknown'
+    let group = groups.find(g => (g.tournament?.id ?? 'unknown') === tid)
+    if (!group) {
+      group = { tournament: t, matches: [] }
+      groups.push(group)
+    }
+    group.matches.push(m)
+  }
+  // Sort: Premier Padel first
+  groups.sort((a, b) => tournamentSortKey(a.tournament) - tournamentSortKey(b.tournament))
+  return groups
+}
+
 function TournamentGroup({ tournament, matches, defaultOpen = true }: { tournament: any; matches: Match[]; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
+  const levelBadge = tournament?.level ? levelLabel(tournament.level) : null
   return (
     <div style={{
       borderRadius: 12, overflow: 'hidden',
@@ -264,42 +297,175 @@ function TournamentGroup({ tournament, matches, defaultOpen = true }: { tourname
       background: 'var(--bg-card)',
     }}>
       {tournament && (
-        <button
-          onClick={() => setOpen(o => !o)}
+        <div
           style={{
-            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-            padding: '8px 12px',
+            display: 'flex', alignItems: 'center', gap: 0, width: '100%',
             borderBottom: open ? '1px solid var(--border-card)' : 'none',
-            background: 'transparent', border: 'none', borderBottomStyle: open ? 'solid' : 'none',
-            borderBottomWidth: open ? 1 : 0, borderBottomColor: 'var(--border-card)',
-            cursor: 'pointer', fontFamily: 'inherit', color: 'inherit', textAlign: 'left',
           }}
         >
-          {tournament.country && (
-            <span style={{ fontSize: 16, lineHeight: 1 }}>{countryFlag(tournament.country)}</span>
-          )}
-          <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-            {tournament.name}
-          </span>
-          <span style={{ fontSize: 10, color: 'var(--text-faint)', fontWeight: 600 }}>
-            {matches.length}
-          </span>
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none"
-            stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+          {/* Tournament name — navigates to tournament page */}
+          <Link
+            href={`/v2/tournaments/${tournament.id}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0,
+              padding: '9px 0 9px 12px',
+              textDecoration: 'none', color: 'inherit',
+            }}
           >
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </button>
+            {tournament.logo_url ? (
+              <img
+                src={tournament.logo_url}
+                alt=""
+                style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4, flexShrink: 0 }}
+              />
+            ) : tournament.country ? (
+              <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{countryFlag(tournament.country)}</span>
+            ) : null}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {tournament.name}
+              </div>
+              {levelBadge && (
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 1 }}>
+                  {levelBadge}
+                </div>
+              )}
+            </div>
+          </Link>
+          {/* Collapse toggle */}
+          <button
+            onClick={() => setOpen(o => !o)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '9px 12px 9px 8px',
+              background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: 10, color: 'var(--text-faint)', fontWeight: 600 }}>
+              {matches.length}
+            </span>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+            >
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
       )}
       {open && (
         <div style={{ padding: '4px 10px 6px' }}>
           {matches.map(m => (
-            <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} embedded />
+            <MatchCard key={m.id} match={m} embedded />
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+const TOGGLE_STYLES = `
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+`
+
+// Premier Padel + Platinum are the only tiers with live scoring support
+const LIVE_SCORE_LEVELS = ['finals', 'major', 'p1', 'p2', 'fip_platinum']
+
+function MatchesToggleSection({ liveMatches, scheduledMatches }: { liveMatches: Match[]; scheduledMatches: Match[] }) {
+  // Filter live matches to only tiers with live scoring
+  const liveScorable = liveMatches.filter(m => {
+    const level = (m as any).tournament?.level
+    return level && LIVE_SCORE_LEVELS.includes(level)
+  })
+  const hasLive = liveScorable.length > 0
+  const [tab, setTab] = useState<'live' | 'next'>(hasLive ? 'live' : 'next')
+
+  // Update tab when live matches appear/disappear
+  useEffect(() => {
+    if (hasLive && tab !== 'live') setTab('live')
+    if (!hasLive && tab === 'live') setTab('next')
+  }, [hasLive])
+
+  const currentMatches = tab === 'live' ? liveScorable : scheduledMatches
+  // Only show matches with players assigned
+  const withPlayers = currentMatches.filter(hasPlayers)
+  const grouped = groupByTournament(withPlayers)
+
+  return (
+    <div>
+      <style dangerouslySetInnerHTML={{ __html: TOGGLE_STYLES }} />
+      {/* Toggle tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px 10px' }}>
+        {(['live', 'next'] as const).map(t => {
+          const active = tab === t
+          const isLiveTab = t === 'live'
+          const count = isLiveTab ? liveScorable.length : scheduledMatches.filter(hasPlayers).length
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px', borderRadius: 20,
+                border: active ? 'none' : '1px solid var(--border-strong)',
+                background: active
+                  ? (isLiveTab ? 'var(--color-live)' : 'var(--color-accent)')
+                  : 'transparent',
+                color: active ? '#000' : 'var(--text-muted)',
+                fontSize: 12, fontWeight: 700, fontFamily: 'inherit',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              {isLiveTab && (
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: active ? '#000' : 'var(--color-live)',
+                  flexShrink: 0,
+                  animation: hasLive ? 'pulse 2s infinite' : undefined,
+                }} />
+              )}
+              {isLiveTab ? 'Live' : 'Next Matches'}
+              {count > 0 && (
+                <span style={{
+                  fontSize: 10, fontWeight: 800,
+                  background: active ? 'rgba(0,0,0,0.15)' : 'var(--bg-card-alt)',
+                  borderRadius: 8, padding: '1px 6px',
+                  color: active ? '#000' : 'var(--text-dim)',
+                }}>
+                  {count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Grouped matches */}
+      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {grouped.length > 0 ? grouped.map((group, idx) => (
+          <TournamentGroup
+            key={group.tournament?.id ?? idx}
+            tournament={group.tournament}
+            matches={group.matches}
+            defaultOpen={tab === 'live' ? idx === 0 : false}
+          />
+        )) : (
+          <div style={{
+            borderRadius: 14, background: 'var(--bg-card)',
+            border: '1px solid var(--border-card)', padding: '20px 18px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>&#127934;</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+              {tab === 'live' ? 'No live matches right now' : 'No upcoming matches'}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {tab === 'live' ? 'Check back during tournament days for live scores' : 'Scheduled matches will appear here'}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -361,7 +527,7 @@ function RecentResultsWidget({ matches }: { matches: Match[] }) {
   )
 }
 
-function HighlightsCarousel({ highlights }: { highlights: Highlight[] }) {
+function HighlightsCarousel({ highlights, onBroken }: { highlights: Highlight[]; onBroken?: (id: string) => void }) {
   const [playing, setPlaying] = useState<Highlight | null>(null)
 
   if (highlights.length === 0) return null
@@ -399,6 +565,7 @@ function HighlightsCarousel({ highlights }: { highlights: Highlight[] }) {
                   src={v.thumbnail_url}
                   alt={v.title}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={() => onBroken?.(v.id)}
                 />
                 <div style={{
                   position: 'absolute', inset: 0,
@@ -878,6 +1045,10 @@ export default function HomePage() {
   const [latestFinals, setLatestFinals] = useState<Match[]>([])
   const [latestFinalsTournament, setLatestFinalsTournament] = useState<any>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
+  const [brokenThumbs, setBrokenThumbs] = useState<Set<string>>(new Set())
+  const markBroken = useCallback((id: string) => {
+    setBrokenThumbs(prev => { const s = new Set(prev); s.add(id); return s })
+  }, [])
   const [latestNews, setLatestNews] = useState<{ id: string; title: string; source_icon: string; source_name: string; url: string; published_at: string; language: string | null }[]>([])
   const [userCountry, setUserCountry] = useState<string>('')
   const [loading, setLoading] = useState(true)
@@ -891,7 +1062,7 @@ export default function HomePage() {
         .from('matches')
         .select(`
           *,
-          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
+          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url),
           pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
           pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
           pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
@@ -906,7 +1077,7 @@ export default function HomePage() {
         .from('matches')
         .select(`
           *,
-          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
+          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url),
           pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
           pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
           pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
@@ -915,7 +1086,7 @@ export default function HomePage() {
         `)
         .eq('status', 'scheduled')
         .order('scheduled_at', { ascending: true })
-        .limit(4),
+        .limit(50),
 
       // Upcoming or current Premier Padel tournament
       supabase
@@ -949,7 +1120,7 @@ export default function HomePage() {
         .from('matches')
         .select(`
           *,
-          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
+          tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url),
           pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
           pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
           pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
@@ -1095,114 +1266,25 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Live matches */}
-      {liveCount > 0 ? (
-        <CollapsibleSection title="Live Now" action={`See all ${liveCount} live`} href="/v2/matches">
-          <div style={{ padding: '0 16px' }}>
-            {(() => {
-              const t = (trulyLive[0] as any)?.tournament
-              return (
-                <div style={{
-                  borderRadius: 12, overflow: 'hidden',
-                  border: '1px solid var(--border-card)',
-                  background: 'var(--bg-card)',
-                }}>
-                  {/* Tournament header row */}
-                  {t && (
-                    <Link
-                      href="/v2/matches"
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '9px 12px',
-                        background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(56,200,255,0.06) 100%)',
-                        borderBottom: '1px solid var(--border-card)',
-                        textDecoration: 'none', color: 'inherit',
-                      }}
-                    >
-                      {t.country && (
-                        <span style={{ fontSize: 16, lineHeight: 1 }}>{countryFlag(t.country)}</span>
-                      )}
-                      <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {t.name}
-                      </span>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6"/>
-                      </svg>
-                    </Link>
-                  )}
-                  {/* Matches inside the card — no outer border on MatchCard */}
-                  <div style={{ padding: '4px 10px 6px' }}>
-                    {trulyLive.slice(0, 6).map(m => (
-                      <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} embedded />
-                    ))}
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-        </CollapsibleSection>
-      ) : null}
+      {/* Live / Next Matches toggle */}
+      <MatchesToggleSection
+        liveMatches={[...trulyLive, ...warmingUp]}
+        scheduledMatches={scheduledMatches}
+      />
 
-      {/* Warming up + Scheduled — shown when no truly live matches, or warming up below live */}
-      {warmingUp.length > 0 || (liveCount === 0 && scheduledMatches.length > 0) ? (
-        <CollapsibleSection
-          title={warmingUp.length > 0 ? 'Warming Up' : 'Coming Up'}
-          action="All matches"
-          href="/v2/matches"
-        >
-          <div style={{ padding: '0 16px' }}>
-            {(() => {
-              const allUpcoming = [...warmingUp, ...scheduledMatches]
-              const t = (allUpcoming[0] as any)?.tournament
-              return (
-                <div style={{
-                  borderRadius: 12, overflow: 'hidden',
-                  border: '1px solid var(--border-card)',
-                  background: 'var(--bg-card)',
-                }}>
-                  {t && (
-                    <Link
-                      href="/v2/matches"
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '9px 12px',
-                        background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(56,200,255,0.06) 100%)',
-                        borderBottom: '1px solid var(--border-card)',
-                        textDecoration: 'none', color: 'inherit',
-                      }}
-                    >
-                      {t.country && (
-                        <span style={{ fontSize: 16, lineHeight: 1 }}>{countryFlag(t.country)}</span>
-                      )}
-                      <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {t.name}
-                      </span>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6"/>
-                      </svg>
-                    </Link>
-                  )}
-                  <div style={{ padding: '4px 10px 6px' }}>
-                    {allUpcoming.map(m => (
-                      <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} embedded />
-                    ))}
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-        </CollapsibleSection>
-      ) : liveCount === 0 ? (
+      {/* Latest Winners — shown when no live matches */}
+      {liveCount === 0 && scheduledMatches.filter(hasPlayers).length === 0 && latestFinals.length > 0 && (
         <>
           <div style={{ height: 12 }} />
           <LatestWinnersWidget matches={latestFinals} tournament={latestFinalsTournament} />
         </>
-      ) : null}
+      )}
 
       {/* Video Highlights — filtered by user's country */}
       {highlights.length > 0 && (
         <CollapsibleSection title="Highlights" action="See all" href="/v2/feed">
-          <HighlightsCarousel highlights={highlights.filter(h => {
+          <HighlightsCarousel onBroken={markBroken} highlights={highlights.filter(h => {
+            if (brokenThumbs.has(h.id)) return false
             if (!userCountry) return true // no geo info → show all
             if (h.allowed_countries && h.allowed_countries.length > 0) return h.allowed_countries.includes(userCountry)
             if (h.blocked_countries && h.blocked_countries.length > 0) return !h.blocked_countries.includes(userCountry)

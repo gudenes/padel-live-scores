@@ -64,7 +64,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
-  const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all')
+  const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
@@ -76,13 +76,14 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       .from('matches')
       .select(`
         *,
-        tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level),
+        tournament:tournaments!inner(id, name, starts_at, ends_at, country, timezone, level),
         pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
         pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
         pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
         pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
         sets(*, games(*))
       `)
+      .eq('tournament.id', tournamentId)
       .in('status', ['live', 'scheduled', 'finished', 'retired', 'walkover', 'ended', 'bye'])
       .order('court_order', { ascending: true, nullsFirst: false })
       .order('started_at', { ascending: false })
@@ -100,7 +101,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     setJustUpdated(true)
     setTimeout(() => setJustUpdated(false), 1500)
     setLoading(false)
-  }, [])
+  }, [tournamentId])
 
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
@@ -152,23 +153,23 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   // Always use the route param as the active tournament
   useEffect(() => {
-    if (tournaments.length === 0) return
     setActiveTournament(tournamentId)
-  }, [tournaments, tournamentId])
+  }, [tournamentId])
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
 
-  // ── Available rounds for active tournament (ordered R64 → Finals) ─────
+  // ── Available rounds for active tournament + gender (ordered R64 → Finals) ─
   const availableRounds = useMemo(() => {
     const seen = new Set<string>()
     for (const m of allMatches) {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) continue
+      if ((m as any).category !== genderFilter) continue
       const r = m.round as string | null
       if (r) seen.add(normalizeRoundFull(r))
     }
     // Sort ascending by round number: early rounds first (R64, R32 … Finals)
     return [...seen].sort((a, b) => (ROUND_ORDER[b] ?? 0) - (ROUND_ORDER[a] ?? 0))
-  }, [allMatches, activeTournament]) // eslint-disable-line
+  }, [allMatches, activeTournament, genderFilter]) // eslint-disable-line
 
   // ── Dates per round (for stage pill sub-label) ────────────────────────
   const roundDates = useMemo(() => {
@@ -177,6 +178,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       const dates = new Set<string>()
       for (const m of allMatches) {
         if (activeTournament && (m as any).tournament?.id !== activeTournament) continue
+        if ((m as any).category !== genderFilter) continue
         if (normalizeRoundFull(m.round as string) !== round) continue
         const src = (m as any).scheduled_at ?? (m as any).started_at
         if (src) dates.add(src.slice(0, 10))
@@ -241,7 +243,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     return allMatches.filter(m => {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
       if (selectedRound && normalizeRoundFull(m.round as string) !== selectedRound) return false
-      if (genderFilter !== 'all' && (m as any).category !== genderFilter) return false
+      if ((m as any).category !== genderFilter) return false
       return true
     })
   }, [allMatches, activeTournament, selectedRound, genderFilter]) // eslint-disable-line
@@ -409,35 +411,68 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           padding: '0 14px 0', position: 'sticky', top: 0, zIndex: 10,
         }}>
 
-          {/* ROW 1: Back button + Tournament name */}
+          {/* ROW 1: Back button + Gender toggle pills + Search */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 0',
           }}>
             <button
-              onClick={() => router.push(`/v2/tournaments?scrollTo=${tournamentId}`)}
+              onClick={() => router.back()}
               style={{
                 width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
                 background: 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--text-muted)',
+                color: 'var(--text-muted)', flexShrink: 0,
               }}
-              aria-label="Back to tournaments"
+              aria-label="Back"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 18l-6-6 6-6"/>
               </svg>
             </button>
-            <div style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {activeTournamentObj?.name ?? 'Tournament'}
+
+            {/* PadelNacho logo — centered */}
+            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+              <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
             </div>
+            <div
+              onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
+                background: 'var(--bg-card-alt)', borderRadius: 14,
+                padding: 2, position: 'relative', width: 52, height: 26,
+                border: `1px solid ${genderFilter === 'women' ? 'rgba(244,114,182,0.3)' : 'rgba(255,255,255,0.08)'}`,
+                transition: 'border-color 0.2s',
+              }}
+            >
+              {/* Sliding pill */}
+              <div style={{
+                position: 'absolute', top: 2, left: genderFilter === 'men' ? 2 : 26,
+                width: 22, height: 22, borderRadius: 11,
+                background: genderFilter === 'women' ? 'var(--color-women)' : 'var(--color-accent)',
+                transition: 'left 0.2s ease, background 0.2s ease',
+              }} />
+              <span style={{
+                flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700,
+                position: 'relative', zIndex: 1,
+                color: genderFilter === 'men' ? '#000' : 'var(--text-faint)',
+                transition: 'color 0.2s',
+              }}>M</span>
+              <span style={{
+                flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700,
+                position: 'relative', zIndex: 1,
+                color: genderFilter === 'women' ? '#000' : 'var(--text-faint)',
+                transition: 'color 0.2s',
+              }}>F</span>
+            </div>
+
             <button
               onClick={() => setSearchOpen(true)}
               style={{
                 width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
                 background: 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--text-muted)',
+                color: 'var(--text-muted)', flexShrink: 0,
               }}
               aria-label="Search"
             >
@@ -447,33 +482,13 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </button>
           </div>
 
-          {/* ROW 2: Gender toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-            <div style={{ display: 'flex', gap: 0, background: 'var(--bg-card-alt)', borderRadius: 8, padding: 2 }}>
-              {(['all', 'men', 'women'] as const).map(g => (
-                <button key={g} onClick={() => setGenderFilter(g)} style={{
-                  padding: '4px 10px', borderRadius: 6, border: 'none',
-                  fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer',
-                  background: genderFilter === g
-                    ? (g === 'women' ? 'var(--color-women)' : g === 'men' ? 'var(--color-accent)' : 'var(--color-accent)')
-                    : 'transparent',
-                  color: genderFilter === g ? '#000' : 'var(--text-muted)',
-                  transition: 'all 0.15s',
-                }}>
-                  {g === 'all' ? 'All' : g === 'men' ? 'M' : 'F'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ROW 2: Tournament row — logo + name + stage + chevron to switch */}
+          {/* ROW 2: Tournament card */}
           {activeTournamentObj && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '8px 0', borderTop: '0.5px solid var(--border-base)',
               borderBottom: '0.5px solid var(--border-base)',
             }}>
-              {/* Logo — prefer logo_url, fall back to flag emoji */}
               {activeTournamentObj.logo_url ? (
                 <img
                   src={activeTournamentObj.logo_url}
@@ -486,13 +501,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 </div>
               ) : null}
 
-              {/* Name · venue · dates · status */}
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {activeTournamentObj.name}
                 </div>
 
-                {/* Venue — location pin icon + name */}
                 {activeTournamentObj.venue && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
                     <svg width="10" height="12" viewBox="0 0 24 28" fill="none" stroke="var(--text-muted)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
@@ -509,7 +522,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   </div>
                 )}
 
-                {/* Dates + prize money + status */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3, flexWrap: 'wrap' }}>
                   {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
                     <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
@@ -537,7 +549,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 </div>
               </div>
 
-              {/* Chevron */}
               <span style={{ fontSize: 16, color: 'var(--text-faint)', flexShrink: 0, lineHeight: 1 }}>›</span>
             </div>
           )}

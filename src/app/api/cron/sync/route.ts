@@ -115,6 +115,9 @@ const COUNTRY_TIMEZONES: Record<string, string> = {
   GR: 'Europe/Athens',
   TR: 'Europe/Istanbul',
   IL: 'Asia/Jerusalem',
+  KZ: 'Asia/Almaty',
+  UZ: 'Asia/Tashkent',
+  KG: 'Asia/Bishkek',
 }
 
 // Location overrides — cities that differ from country default
@@ -132,6 +135,8 @@ const LOCATION_OVERRIDES: Array<{ pattern: RegExp; timezone: string }> = [
   { pattern: /abu dhabi/i,        timezone: 'Asia/Dubai' },
   { pattern: /doha/i,             timezone: 'Asia/Qatar' },
   { pattern: /hong kong/i,        timezone: 'Asia/Hong_Kong' },
+  { pattern: /almaty/i,           timezone: 'Asia/Almaty' },
+  { pattern: /tashkent/i,         timezone: 'Asia/Tashkent' },
 ]
 
 function inferTimezone(country: string | null, location: string | null): string | null {
@@ -844,9 +849,20 @@ export async function GET(request: Request) {
         .lt('ends_at', today)
         .limit(3)
 
+      // Upcoming tournaments: starting within the next 7 days
+      // Draws and schedules are often published days before the tournament starts
+      const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      const { data: upcomingTournaments } = await supabase
+        .from('tournaments')
+        .select('external_id, name')
+        .gt('starts_at', today)
+        .lte('starts_at', oneWeekFromNow)
+        .limit(5)
+
       const allTournaments = [
         ...(activeTournaments ?? []),
         ...(recentTournaments ?? []),
+        ...(upcomingTournaments ?? []),
       ]
 
       // Deduplicate
