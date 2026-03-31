@@ -81,7 +81,27 @@ function feedScore(publishedAt: string, clicks: number, weight: number): number 
   return freshness * popularity * weight
 }
 
+const VISITED_KEY = 'padel-visited-articles'
+
+function getVisitedArticles(): Set<string> {
+  try {
+    const raw = localStorage.getItem(VISITED_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
+  } catch { return new Set() }
+}
+
+function markArticleVisited(id: string) {
+  try {
+    const visited = getVisitedArticles()
+    visited.add(id)
+    // Keep only latest 200 to avoid unbounded growth
+    const arr = [...visited].slice(-200)
+    localStorage.setItem(VISITED_KEY, JSON.stringify(arr))
+  } catch { /* ignore */ }
+}
+
 function trackClick(articleId: string) {
+  markArticleVisited(articleId)
   fetch('/api/feed/click', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -173,17 +193,19 @@ function HeroVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay: (v
   )
 }
 
-function HeroNewsCard({ item }: { item: NewsItem }) {
+function HeroNewsCard({ item, visited, onClickArticle }: { item: NewsItem; visited?: boolean; onClickArticle?: (id: string) => void }) {
   return (
     <a
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackClick(item.id)}
+      onClick={() => onClickArticle ? onClickArticle(item.id) : trackClick(item.id)}
       style={{
         display: 'block', background: 'var(--bg-card)',
         border: '1px solid var(--border-card)', borderRadius: 14,
         overflow: 'hidden', textDecoration: 'none', color: 'inherit',
+        opacity: visited ? 0.55 : 1,
+        transition: 'opacity 0.2s',
       }}
     >
       {item.image_url && (
@@ -318,25 +340,36 @@ function CompactVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay:
 
 // ── News card — horizontal layout ───────────────────────────────────────────
 
-function NewsCard({ item }: { item: NewsItem }) {
+function NewsCard({ item, visited, onClickArticle }: { item: NewsItem; visited?: boolean; onClickArticle?: (id: string) => void }) {
   return (
     <a
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackClick(item.id)}
+      onClick={() => onClickArticle ? onClickArticle(item.id) : trackClick(item.id)}
       style={{
         display: 'flex', gap: 12, background: 'var(--bg-card)',
         border: '1px solid var(--border-card)', borderRadius: 14,
         overflow: 'hidden', textDecoration: 'none', color: 'inherit',
         padding: 14,
+        opacity: visited ? 0.55 : 1,
+        transition: 'opacity 0.2s',
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+          {visited && (
+            <span style={{
+              fontSize: 8, fontWeight: 800, color: 'var(--text-faint)',
+              background: 'rgba(255,255,255,0.06)', borderRadius: 3,
+              padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.3px',
+            }}>
+              Read
+            </span>
+          )}
           <span style={{
-            fontSize: 8, fontWeight: 800, color: 'var(--color-accent)',
-            background: 'rgba(255,193,7,0.12)', borderRadius: 3,
+            fontSize: 8, fontWeight: 800, color: visited ? 'var(--text-faint)' : 'var(--color-accent)',
+            background: visited ? 'rgba(255,255,255,0.06)' : 'rgba(255,193,7,0.12)', borderRadius: 3,
             padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.3px',
           }}>
             News
@@ -493,6 +526,11 @@ function FeedPage() {
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
   const [filter, setFilter] = useState<ContentFilter>(initialFilter)
+  const [visitedArticles, setVisitedArticles] = useState<Set<string>>(new Set())
+  const handleArticleClick = useCallback((id: string) => {
+    trackClick(id)
+    setVisitedArticles(prev => { const s = new Set(prev); s.add(id); return s })
+  }, [])
   const [brokenThumbs, setBrokenThumbs] = useState<Set<string>>(new Set())
   const markBroken = useCallback((id: string) => {
     setBrokenThumbs(prev => { const s = new Set(prev); s.add(id); return s })
@@ -520,7 +558,7 @@ function FeedPage() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
-  useEffect(() => { setUserCountry(getUserCountry()) }, [])
+  useEffect(() => { setUserCountry(getUserCountry()); setVisitedArticles(getVisitedArticles()) }, [])
 
   // Filter out highlights with broken thumbnails (private/unavailable videos)
   const availableHighlights = highlights.filter(h =>
@@ -765,7 +803,7 @@ function FeedPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {news.slice(0, 15).map(item => (
-                  <NewsCard key={`n-${item.id}`} item={item} />
+                  <NewsCard key={`n-${item.id}`} item={item} visited={visitedArticles.has(item.id)} onClickArticle={handleArticleClick} />
                 ))}
               </div>
             </div>
@@ -787,7 +825,7 @@ function FeedPage() {
               {hero.type === 'video' ? (
                 <HeroVideoCard item={hero.data} onPlay={setPlaying} onBroken={markBroken} />
               ) : (
-                <HeroNewsCard item={hero.data} />
+                <HeroNewsCard item={hero.data} visited={visitedArticles.has((hero.data as NewsItem).id)} onClickArticle={handleArticleClick} />
               )}
             </div>
           )}
@@ -798,7 +836,7 @@ function FeedPage() {
               if (item.type === 'video') {
                 return <CompactVideoCard key={`v-${(item.data as Highlight).id}`} item={item.data as Highlight} onPlay={setPlaying} onBroken={markBroken} />
               }
-              return <NewsCard key={`n-${(item.data as NewsItem).id}`} item={item.data as NewsItem} />
+              return <NewsCard key={`n-${(item.data as NewsItem).id}`} item={item.data as NewsItem} visited={visitedArticles.has((item.data as NewsItem).id)} onClickArticle={handleArticleClick} />
             })}
 
             <div style={{
