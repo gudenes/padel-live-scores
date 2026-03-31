@@ -8,6 +8,7 @@ import { Match, Game, getCurrentScore, pairName, isStarPoint, countryFlag, parse
 import MomentumChart from './MomentumChart'
 import SearchOverlay from '@/app/v2/SearchOverlay'
 import BottomNav from '@/app/components/BottomNav'
+import Spinner from '@/app/components/Spinner'
 
 type SubTab = 'live' | 'players' | 'h2h'
 
@@ -208,7 +209,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   if (loading) return (
     <>
     <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Loading match...</div>
+      <Spinner fullHeight />
     </main>
     <BottomNav />
     </>
@@ -917,9 +918,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
   }
 
   if (h2hLoading) return (
-    <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-dim)', fontSize: 12 }}>
-      Loading H2H history...
-    </div>
+    <Spinner size={22} />
   )
 
   return (

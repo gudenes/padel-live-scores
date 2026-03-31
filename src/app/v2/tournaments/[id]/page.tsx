@@ -6,10 +6,11 @@
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, isWarmingUp } from '@/types/match'
+import { Match, countryFlag, isWarmingUp, toShortName } from '@/types/match'
 import MatchCard from '../../../components/MatchCard'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import SearchOverlay from '../../SearchOverlay'
+import Spinner from '../../../components/Spinner'
 
 // ── Stage ordering ────────────────────────────────────────────────────────
 const ROUND_ORDER: Record<string, number> = {
@@ -42,7 +43,7 @@ function localDateKey(d: Date): string {
 export default function TournamentDetailWrapper({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   return (
-    <Suspense fallback={<div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading matches...</div>}>
+    <Suspense fallback={<Spinner fullHeight />}>
       <TournamentDetail tournamentId={id} />
     </Suspense>
   )
@@ -65,6 +66,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
+  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>('matches')
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()
@@ -157,6 +159,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   }, [tournamentId])
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
+
+  // ── Auto-switch gender if no matches exist for the default ────────────
+  useEffect(() => {
+    if (loading || allMatches.length === 0) return
+    const hasMen = allMatches.some(m => (m as any).category === 'men')
+    const hasWomen = allMatches.some(m => (m as any).category === 'women')
+    if (genderFilter === 'men' && !hasMen && hasWomen) setGenderFilter('women')
+    else if (genderFilter === 'women' && !hasWomen && hasMen) setGenderFilter('men')
+  }, [loading, allMatches, genderFilter])
 
   // ── Available rounds for active tournament + gender (ordered R64 → Finals) ─
   const availableRounds = useMemo(() => {
@@ -553,8 +564,38 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </div>
           )}
 
-          {/* ROW 3: Stage selector strip */}
-          {availableRounds.length > 0 && (
+          {/* ROW 3: Page tabs — Matches / Overview / Recap */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-base)' }}>
+            {(['matches', 'overview', 'recap'] as const).map(tab => {
+              const active = pageTab === tab
+              // Hide Recap for non-finished tournaments
+              const isFinished = activeTournamentObj?.status === 'completed' || activeTournamentObj?.status === 'finished'
+              if (tab === 'recap' && !isFinished) return null
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setPageTab(tab)}
+                  style={{
+                    flex: 1, padding: '10px 0', border: 'none', background: 'none', cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, letterSpacing: '0.3px', fontFamily: 'inherit',
+                    color: active ? 'var(--color-accent)' : 'var(--text-faint)',
+                    position: 'relative', transition: 'color 0.2s',
+                  }}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {active && (
+                    <span style={{
+                      position: 'absolute', bottom: -1, left: '20%', right: '20%',
+                      height: 2, borderRadius: 1, background: 'var(--color-accent)',
+                    }} />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* ROW 4: Stage selector strip (Matches tab only) */}
+          {pageTab === 'matches' && availableRounds.length > 0 && (
             <div ref={stageStripRef} style={{
               display: 'flex', gap: 6, padding: '8px 0 10px',
               overflowX: 'auto', scrollbarWidth: 'none',
@@ -609,64 +650,493 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           )}
         </div>
 
-        {/* ── Feed ── */}
-        <div style={{ padding: '6px 10px 16px' }}>
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 10, height: 88, marginBottom: 6, opacity: 0.3 }} />
-            ))
-          ) : (
-            <>
-              {liveMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader
-                    dot color="var(--color-live)" label="Live now"
-                    right={syncAgo}
-                    rightColor={justUpdated ? 'var(--color-success)' : undefined}
-                  />
-                  {liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                </div>
-              )}
-
-              {warmingUpMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader dot color="var(--color-live)" label="Warming up" />
-                  {warmingUpMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
-                </div>
-              )}
-
-              {scheduledMatches.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <SectionHeader label="Up next" />
-                  {scheduledMatches.map(m => (
-                    <MatchCard
-                      key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}}
-                      bookmarked={isBookmarked(m.id)}
-                      onBookmark={() => toggleBookmark(m.id)}
-                      estimatedScheduleLabel={estimatedLabels[m.id]}
+        {/* ── Matches Feed ── */}
+        {pageTab === 'matches' && (
+          <div style={{ padding: '6px 10px 16px' }}>
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={{ background: 'var(--bg-card)', borderRadius: 10, height: 88, marginBottom: 6, opacity: 0.3 }} />
+              ))
+            ) : (
+              <>
+                {liveMatches.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <SectionHeader
+                      dot color="var(--color-live)" label="Live now"
+                      right={syncAgo}
+                      rightColor={justUpdated ? 'var(--color-success)' : undefined}
                     />
-                  ))}
-                </div>
-              )}
+                    {liveMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
+                  </div>
+                )}
 
-              {finishedMatches.length > 0 && (
+                {warmingUpMatches.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <SectionHeader dot color="var(--color-live)" label="Warming up" />
+                    {warmingUpMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
+                  </div>
+                )}
+
+                {scheduledMatches.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <SectionHeader label="Up next" />
+                    {scheduledMatches.map(m => (
+                      <MatchCard
+                        key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}}
+                        bookmarked={isBookmarked(m.id)}
+                        onBookmark={() => toggleBookmark(m.id)}
+                        estimatedScheduleLabel={estimatedLabels[m.id]}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {finishedMatches.length > 0 && (
+                  <div>
+                    <SectionHeader label={`Results · ${selectedRound ?? ''}`} />
+                    {finishedMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
+                  </div>
+                )}
+
+                {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
+                  <div style={{ textAlign: 'center', paddingTop: 80 }}>
+                    <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
+                    <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>
+                    <p style={{ color: 'var(--text-faint)', fontSize: 13, marginTop: 4 }}>Try selecting a different round</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Overview Tab ── */}
+        {pageTab === 'overview' && (
+          <TournamentOverview
+            tournament={activeTournamentObj}
+            allMatches={allMatches}
+            genderFilter={genderFilter}
+            availableRounds={availableRounds}
+            roundDates={roundDates}
+          />
+        )}
+
+        {/* ── Recap Tab ── */}
+        {pageTab === 'recap' && (
+          <TournamentRecap
+            tournament={activeTournamentObj}
+            allMatches={allMatches}
+            genderFilter={genderFilter}
+          />
+        )}
+      </main>
+    </div>
+  )
+}
+
+// ── Overview Component ─────────────────────────────────────────────────────
+function TournamentOverview({ tournament, allMatches, genderFilter, availableRounds, roundDates }: {
+  tournament: any
+  allMatches: Match[]
+  genderFilter: 'men' | 'women'
+  availableRounds: string[]
+  roundDates: Record<string, string>
+}) {
+  const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
+  const totalMatches = genderMatches.length
+
+  // Count unique teams (pairs)
+  const teamSet = new Set<string>()
+  for (const m of genderMatches) {
+    const p1 = [(m as any).pair1_player1?.name, (m as any).pair1_player2?.name].filter(Boolean).sort().join('/')
+    const p2 = [(m as any).pair2_player1?.name, (m as any).pair2_player2?.name].filter(Boolean).sort().join('/')
+    if (p1) teamSet.add(p1)
+    if (p2) teamSet.add(p2)
+  }
+  const totalTeams = teamSet.size
+
+  // Count unique countries
+  const countrySet = new Set<string>()
+  for (const m of genderMatches) {
+    for (const key of ['pair1_player1', 'pair1_player2', 'pair2_player1', 'pair2_player2'] as const) {
+      const country = (m as any)[key]?.country as string | undefined
+      if (country) countrySet.add(country)
+    }
+  }
+  const totalCountries = countrySet.size
+
+  // Build schedule: round → date + count
+  const schedule = availableRounds.map(round => {
+    const count = genderMatches.filter(m => normalizeRoundFull(m.round as string) === round).length
+    return { round, date: roundDates[round] ?? '', count }
+  })
+
+  // Top seeds — first round matches where players have rankings, sorted by rank
+  const seededTeams: { rank: number; names: string; flag: string }[] = []
+  const seenPairs = new Set<string>()
+  for (const m of genderMatches) {
+    for (const pairKey of [['pair1_player1', 'pair1_player2'], ['pair2_player1', 'pair2_player2']]) {
+      const p1 = (m as any)[pairKey[0]]
+      const p2 = (m as any)[pairKey[1]]
+      if (!p1?.name || !p2?.name) continue
+      const key = [p1.name, p2.name].sort().join('/')
+      if (seenPairs.has(key)) continue
+      seenPairs.add(key)
+      const bestRank = Math.min(p1.ranking || 9999, p2.ranking || 9999)
+      if (bestRank < 9999) {
+        seededTeams.push({
+          rank: bestRank,
+          names: `${toShortName(p1.name)} / ${toShortName(p2.name)}`,
+          flag: countryFlag(p1.country) || countryFlag(p2.country) || '',
+        })
+      }
+    }
+  }
+  seededTeams.sort((a, b) => a.rank - b.rank)
+  const topSeeds = seededTeams.slice(0, 8)
+
+  const StatCard = ({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) => (
+    <div style={{
+      background: 'var(--bg-card)', borderRadius: 10,
+      border: '1px solid var(--border-strong)',
+      padding: 12, textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color: accent ? 'var(--color-accent)' : 'var(--text-primary)' }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, fontWeight: 600, letterSpacing: '0.3px' }}>{label}</div>
+    </div>
+  )
+
+  return (
+    <div style={{ padding: '14px 14px 20px' }}>
+      {/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+        <StatCard value={totalTeams || '—'} label="TEAMS" accent />
+        <StatCard value={totalMatches || '—'} label="MATCHES" />
+        <StatCard value={totalCountries || '—'} label="COUNTRIES" />
+        <StatCard value={tournament?.prize_money ?? '—'} label="PRIZE MONEY" />
+      </div>
+
+      {/* Top seeds */}
+      {topSeeds.length > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px 8px' }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Top Seeds</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
+          </div>
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: 12,
+            border: '1px solid var(--border-strong)',
+            padding: '4px 14px', marginBottom: 16,
+          }}>
+            {topSeeds.map((seed, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
+                borderBottom: i < topSeeds.length - 1 ? '0.5px solid var(--border-base)' : 'none',
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-faint)', width: 20, textAlign: 'center' }}>
+                  {i + 1}
+                </span>
+                <span style={{ fontSize: 13, flexShrink: 0 }}>{seed.flag}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{seed.names}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>#{seed.rank}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Schedule */}
+      {schedule.length > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px 8px' }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Schedule</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
+          </div>
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: 12,
+            border: '1px solid var(--border-strong)',
+            padding: '4px 14px',
+          }}>
+            {schedule.map((s, i) => (
+              <div key={s.round} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
+                borderBottom: i < schedule.length - 1 ? '0.5px solid var(--border-base)' : 'none',
+              }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? 'var(--color-accent)' : 'var(--text-muted)', width: 50 }}>
+                  {s.date.split('–')[0]?.trim() || '—'}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1 }}>
+                  {s.round} ({s.count} {s.count === 1 ? 'match' : 'matches'})
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Recap Component ────────────────────────────────────────────────────────
+function TournamentRecap({ tournament, allMatches, genderFilter }: {
+  tournament: any
+  allMatches: Match[]
+  genderFilter: 'men' | 'women'
+}) {
+  const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
+  const finishedMatches = genderMatches.filter(m =>
+    ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
+  )
+
+  // Find the final
+  const finalMatch = genderMatches.find(m => {
+    const r = normalizeRoundFull(m.round as string)
+    return r === 'Finals' && ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
+  })
+
+  // Determine winner from final match using pair1_games / pair2_games
+  // Returns 1, 2, or 0 if the winner can't be determined (tie / incomplete)
+  const getWinner = (m: Match): 0 | 1 | 2 => {
+    const sets = (m as any).sets ?? []
+    let p1Sets = 0, p2Sets = 0
+    for (const s of sets) {
+      const p1 = s.pair1_games ?? 0
+      const p2 = s.pair2_games ?? 0
+      if (p1 > p2) p1Sets++
+      else if (p2 > p1) p2Sets++
+    }
+    if (p1Sets === p2Sets) return 0
+    return p1Sets > p2Sets ? 1 : 2
+  }
+
+  const formatMatchScore = (m: Match) => {
+    const sets = ((m as any).sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number)
+    return sets.map((s: any) => `${s.pair1_games ?? 0}-${s.pair2_games ?? 0}`).join('  ')
+  }
+
+  const pairDisplay = (m: Match, pair: 1 | 2) => {
+    const p1 = pair === 1 ? (m as any).pair1_player1 : (m as any).pair2_player1
+    const p2 = pair === 1 ? (m as any).pair1_player2 : (m as any).pair2_player2
+    const flag1 = p1?.country ? countryFlag(p1.country) : ''
+    const flag2 = p2?.country ? countryFlag(p2.country) : ''
+    const name1 = p1?.name ? toShortName(p1.name) : 'TBD'
+    const name2 = p2?.name ? toShortName(p2.name) : 'TBD'
+    return `${flag1} ${name1} / ${flag2} ${name2}`
+  }
+
+  // Stats
+  const totalPlayed = finishedMatches.length
+  const threeSetMatches = finishedMatches.filter(m => {
+    const sets = ((m as any).sets ?? [])
+    return sets.length >= 3
+  }).length
+  const threeSetPct = totalPlayed > 0 ? Math.round((threeSetMatches / totalPlayed) * 100) : 0
+
+  // Average match duration — parse "HH:MM" duration field
+  const durations = finishedMatches
+    .map(m => {
+      const d = (m as any).duration as string | null
+      if (!d) return 0
+      const parts = d.split(':')
+      if (parts.length === 2) return parseInt(parts[0]) * 60 + parseInt(parts[1])
+      return 0
+    })
+    .filter(d => d > 0)
+  const avgDurationMins = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0
+  const avgDurationLabel = avgDurationMins > 0
+    ? avgDurationMins >= 60 ? `${Math.floor(avgDurationMins / 60)}h ${avgDurationMins % 60}m` : `${avgDurationMins} min`
+    : null
+
+  // Top 3 biggest upsets — matches where the underdog (worse ranking) won,
+  // sorted by largest ranking gap.
+  type Upset = { winner: string; loser: string; winnerRank: number; loserRank: number; gap: number; match: Match }
+  const topUpsets: Upset[] = (() => {
+    const upsets: Upset[] = []
+
+    for (const m of finishedMatches) {
+      const p1a = (m as any).pair1_player1
+      const p1b = (m as any).pair1_player2
+      const p2a = (m as any).pair2_player1
+      const p2b = (m as any).pair2_player2
+
+      // Best ranking in each pair (lower = better)
+      const rank1 = Math.min(p1a?.ranking || 9999, p1b?.ranking || 9999)
+      const rank2 = Math.min(p2a?.ranking || 9999, p2b?.ranking || 9999)
+
+      // Skip if either pair has no ranking data
+      if (rank1 >= 9999 || rank2 >= 9999) continue
+      // Skip if ranks are equal (no upset)
+      if (rank1 === rank2) continue
+      // Only consider upsets involving at least one top-30 player
+      if (rank1 > 30 && rank2 > 30) continue
+
+      const winner = getWinner(m)
+      if (winner === 0) continue // can't determine winner
+      const favoriteIsPair = rank1 < rank2 ? 1 : 2 // lower rank = favorite
+      // Upset = when the underdog (worse rank) wins
+      if (winner === favoriteIsPair) continue
+
+      const winnerRank = winner === 1 ? rank1 : rank2
+      const loserRank = winner === 1 ? rank2 : rank1
+      const gap = winnerRank - loserRank // positive = underdog won
+
+      const winnerDisplay = winner === 1
+        ? `${toShortName(p1a?.name ?? '?')} / ${toShortName(p1b?.name ?? '?')}`
+        : `${toShortName(p2a?.name ?? '?')} / ${toShortName(p2b?.name ?? '?')}`
+      const loserDisplay = winner === 1
+        ? `${toShortName(p2a?.name ?? '?')} / ${toShortName(p2b?.name ?? '?')}`
+        : `${toShortName(p1a?.name ?? '?')} / ${toShortName(p1b?.name ?? '?')}`
+      upsets.push({ winner: winnerDisplay, loser: loserDisplay, winnerRank, loserRank, gap, match: m })
+    }
+
+    return upsets.sort((a, b) => b.gap - a.gap).slice(0, 3)
+  })()
+
+  const stats: { label: string; value: string }[] = [
+    { label: 'Total matches played', value: String(totalPlayed) },
+    { label: '3-set matches', value: `${threeSetMatches} (${threeSetPct}%)` },
+  ]
+  if (avgDurationLabel) stats.push({ label: 'Average match duration', value: avgDurationLabel })
+  return (
+    <div style={{ padding: '14px 14px 20px' }}>
+      {/* Winner card */}
+      {finalMatch && getWinner(finalMatch) !== 0 ? (() => {
+        const winnerPair = getWinner(finalMatch)
+        const loserPair = winnerPair === 1 ? 2 : 1
+        const wp1 = winnerPair === 1 ? (finalMatch as any).pair1_player1 : (finalMatch as any).pair2_player1
+        const wp2 = winnerPair === 1 ? (finalMatch as any).pair1_player2 : (finalMatch as any).pair2_player2
+        const lp1 = loserPair === 1 ? (finalMatch as any).pair1_player1 : (finalMatch as any).pair2_player1
+        const lp2 = loserPair === 1 ? (finalMatch as any).pair1_player2 : (finalMatch as any).pair2_player2
+        const sets = ((finalMatch as any).sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number)
+        const winnerGames = sets.map((s: any) => winnerPair === 1 ? (s.pair1_games ?? 0) : (s.pair2_games ?? 0))
+        const loserGames = sets.map((s: any) => winnerPair === 1 ? (s.pair2_games ?? 0) : (s.pair1_games ?? 0))
+        const winnerSetsWon = winnerGames.filter((g: number, i: number) => g > loserGames[i]).length
+        const loserSetsWon = loserGames.filter((g: number, i: number) => g > winnerGames[i]).length
+
+        const AvatarCircle = ({ player, size }: { player: any; size: number }) => (
+          <div style={{
+            width: size, height: size, borderRadius: '50%', overflow: 'hidden',
+            background: 'var(--bg-card)', border: '2px solid var(--bg-card)', flexShrink: 0,
+          }}>
+            {player?.avatar_url ? (
+              <img src={player.avatar_url} alt={player.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.32, color: 'var(--text-faint)' }}>
+                {player?.name?.charAt(0) ?? '?'}
+              </div>
+            )}
+          </div>
+        )
+
+        return (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(56,200,255,0.06), rgba(56,200,255,0.02))',
+            border: '1px solid var(--color-accent-border)',
+            borderRadius: 14, padding: 16, marginBottom: 16, position: 'relative',
+          }}>
+            {/* Top row: CHAMPIONS label + match detail link */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 9, color: 'var(--color-accent)', fontWeight: 800, letterSpacing: '1.5px', textTransform: 'uppercase' }}>
+                CHAMPIONS
+              </div>
+              <div
+                onClick={() => router.push(`/match/${finalMatch.id}`)}
+                style={{ fontSize: 11, color: 'var(--color-accent)', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Details &rsaquo;
+              </div>
+            </div>
+
+            {/* Winner row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div style={{ display: 'flex', flexShrink: 0 }}>
+                <AvatarCircle player={wp1} size={36} />
+                <div style={{ marginLeft: -10, zIndex: 0 }}>
+                  <AvatarCircle player={wp2} size={36} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
                 <div>
-                  <SectionHeader label={`Results · ${selectedRound ?? ''}`} />
-                  {finishedMatches.map(m => <MatchCard key={m.id} match={m} viewerCount={0} expanded={false} onToggle={() => {}} />)}
+                  <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>
+                    {wp1?.country ? countryFlag(wp1.country) + ' ' : ''}{wp1?.name ? toShortName(wp1.name) : 'TBD'}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>
+                    {wp2?.country ? countryFlag(wp2.country) + ' ' : ''}{wp2?.name ? toShortName(wp2.name) : 'TBD'}
+                  </div>
                 </div>
-              )}
+                <span style={{ fontSize: 24 }}>🏆</span>
+              </div>
+              <div style={{
+                fontSize: 22, fontWeight: 800, color: 'var(--color-accent)',
+                flexShrink: 0,
+              }}>{winnerSetsWon}</div>
+            </div>
 
-              {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
-                <div style={{ textAlign: 'center', paddingTop: 80 }}>
-                  <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
-                  <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>
-                  <p style={{ color: 'var(--text-faint)', fontSize: 13, marginTop: 4 }}>Try selecting a different round</p>
+            {/* Loser row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: 0.7 }}>
+              <div style={{ display: 'flex', flexShrink: 0 }}>
+                <AvatarCircle player={lp1} size={36} />
+                <div style={{ marginLeft: -10, zIndex: 0 }}>
+                  <AvatarCircle player={lp2} size={36} />
                 </div>
-              )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', lineHeight: 1.3 }}>
+                  {lp1?.country ? countryFlag(lp1.country) + ' ' : ''}{lp1?.name ? toShortName(lp1.name) : 'TBD'}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', lineHeight: 1.3 }}>
+                  {lp2?.country ? countryFlag(lp2.country) + ' ' : ''}{lp2?.name ? toShortName(lp2.name) : 'TBD'}
+                </div>
+              </div>
+              <div style={{
+                fontSize: 22, fontWeight: 800, color: 'var(--text-muted)',
+                flexShrink: 0,
+              }}>{loserSetsWon}</div>
+            </div>
+          </div>
+        )
+      })() : (
+        <div style={{ textAlign: 'center', padding: '40px 0 20px' }}>
+          <p style={{ fontSize: 36, marginBottom: 8 }}>🏆</p>
+          <p style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Final not played yet</p>
+          <p style={{ color: 'var(--text-faint)', fontSize: 12, marginTop: 4 }}>Check back after the tournament ends</p>
+        </div>
+      )}
+
+      {/* Tournament stats */}
+      {totalPlayed > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '4px 2px 8px' }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Tournament Stats</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
+          </div>
+          {stats.map((stat, i) => (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 12px', background: 'var(--bg-card)', borderRadius: 8,
+              marginBottom: 4, border: '1px solid var(--border-strong)',
+            }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{stat.label}</span>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{stat.value}</span>
+            </div>
+          ))}
+
+          {/* Top upsets — each with label + match card in one container */}
+          {topUpsets.length > 0 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '12px 2px 8px' }}>
+                <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>Biggest Upsets</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--border-base)' }} />
+              </div>
+              {topUpsets.map((upset, i) => (
+                <div key={i} style={{ marginBottom: 4 }}>
+                  <MatchCard match={upset.match} viewerCount={0} expanded={false} onToggle={() => {}} />
+                </div>
+              ))}
             </>
           )}
-        </div>
-      </main>
+        </>
+      )}
     </div>
   )
 }

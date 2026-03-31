@@ -10,6 +10,7 @@ import { Match, countryFlag, isWarmingUp } from '@/types/match'
 import MatchCard from '../../components/MatchCard'
 import SearchOverlay from '../SearchOverlay'
 import Link from 'next/link'
+import Spinner from '../../components/Spinner'
 
 // ── Level helpers ─────────────────────────────────────────────────────────
 
@@ -127,7 +128,7 @@ const TAB_STYLES = `
 
 export default function ScoresPageWrapper() {
   return (
-    <Suspense fallback={<div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading scores...</div>}>
+    <Suspense fallback={<Spinner fullHeight />}>
       <ScoresPage />
     </Suspense>
   )
@@ -303,9 +304,7 @@ function ScoresPage() {
       </div>
 
       {loading ? (
-        <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading scores...</div>
-        </div>
+        <Spinner fullHeight />
       ) : (
         <>
           {/* Toggle tabs */}
@@ -398,7 +397,7 @@ function ScoresPage() {
                   fontFamily: 'inherit',
                 }}
               >
-                {loadingMore ? 'Loading...' : 'Load more results'}
+                {loadingMore ? <Spinner size={16} /> : 'Load more results'}
               </button>
             </div>
           )}

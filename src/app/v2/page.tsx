@@ -10,6 +10,7 @@ import { Match, countryFlag, pairName, isWarmingUp } from '@/types/match'
 import MatchCard from '../components/MatchCard'
 import Link from 'next/link'
 import SearchOverlay from './SearchOverlay'
+import Spinner from '../components/Spinner'
 
 // ── Country names ──────────────────────────────────────────────────────────
 
@@ -527,8 +528,108 @@ function RecentResultsWidget({ matches }: { matches: Match[] }) {
   )
 }
 
+function VideoPlayerInline({ video, onClose, unavailable, checking, onCheckStart, onCheckDone, onUnavailable, formatViews }: {
+  video: { youtube_id: string; id: string; title: string; channel_name: string; view_count: number }
+  onClose: () => void
+  unavailable: boolean
+  checking: boolean
+  onCheckStart: () => void
+  onCheckDone: (available: boolean) => void
+  onUnavailable: (id: string) => void
+  formatViews: (n: number) => string
+}) {
+  useEffect(() => {
+    onCheckStart()
+    let cancelled = false
+    fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${video.youtube_id}&format=json`)
+      .then(res => {
+        if (cancelled) return
+        if (!res.ok) {
+          onCheckDone(false)
+          onUnavailable(video.id)
+          fetch('/api/feed/report-video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ youtube_id: video.youtube_id }),
+          }).catch(() => {})
+        } else {
+          onCheckDone(true)
+        }
+      })
+      .catch(() => { if (!cancelled) onCheckDone(true) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video.youtube_id])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(0,0,0,0.92)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '16px',
+      }}
+    >
+      <button
+        onClick={onClose}
+        style={{
+          position: 'absolute', top: 16, right: 16,
+          width: 36, height: 36, borderRadius: '50%',
+          background: 'rgba(255,255,255,0.15)', border: 'none',
+          color: '#fff', fontSize: 20, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        ✕
+      </button>
+      {unavailable ? (
+        <div style={{
+          width: '100%', maxWidth: 500, aspectRatio: '16/9', borderRadius: 12,
+          background: 'rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 8,
+        }} onClick={e => e.stopPropagation()}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Video unavailable</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>This video is private or has been removed</div>
+        </div>
+      ) : (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ width: '100%', maxWidth: 500, aspectRatio: '16/9', borderRadius: 12, overflow: 'hidden' }}
+        >
+          {checking ? (
+            <div style={{ width: '100%', height: '100%', background: '#0a1929', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Spinner size={24} />
+            </div>
+          ) : (
+            <iframe
+              src={`https://www.youtube.com/embed/${video.youtube_id}?autoplay=1&rel=0`}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+              style={{ width: '100%', height: '100%', border: 'none' }}
+            />
+          )}
+        </div>
+      )}
+      <div style={{ maxWidth: 500, width: '100%', marginTop: 12 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.3 }}>
+          {video.title}
+        </div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+          {video.channel_name}{video.view_count > 0 ? ` · ${formatViews(video.view_count)} views` : ''}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function HighlightsCarousel({ highlights, onBroken }: { highlights: Highlight[]; onBroken?: (id: string) => void }) {
   const [playing, setPlaying] = useState<Highlight | null>(null)
+  const [videoUnavailable, setVideoUnavailable] = useState(false)
+  const [videoChecking, setVideoChecking] = useState(false)
 
   if (highlights.length === 0) return null
 
@@ -619,52 +720,16 @@ function HighlightsCarousel({ highlights, onBroken }: { highlights: Highlight[];
 
       {/* Inline YouTube player modal */}
       {playing && (
-        <div
-          onClick={() => setPlaying(null)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 100,
-            background: 'rgba(0,0,0,0.92)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '16px',
-          }}
-        >
-          {/* Close button */}
-          <button
-            onClick={() => setPlaying(null)}
-            style={{
-              position: 'absolute', top: 16, right: 16,
-              width: 36, height: 36, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.15)', border: 'none',
-              color: '#fff', fontSize: 20, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            ✕
-          </button>
-
-          {/* Video player */}
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ width: '100%', maxWidth: 500, aspectRatio: '16/9', borderRadius: 12, overflow: 'hidden' }}
-          >
-            <iframe
-              src={`https://www.youtube.com/embed/${playing.youtube_id}?autoplay=1&rel=0`}
-              allow="autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen
-              style={{ width: '100%', height: '100%', border: 'none' }}
-            />
-          </div>
-
-          {/* Title below player */}
-          <div style={{ maxWidth: 500, width: '100%', marginTop: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.3 }}>
-              {playing.title}
-            </div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
-              {playing.channel_name}{playing.view_count > 0 ? ` · ${formatViews(playing.view_count)} views` : ''}
-            </div>
-          </div>
-        </div>
+        <VideoPlayerInline
+          video={playing}
+          onClose={() => { setPlaying(null); setVideoUnavailable(false); setVideoChecking(false) }}
+          unavailable={videoUnavailable}
+          checking={videoChecking}
+          onCheckStart={() => setVideoChecking(true)}
+          onCheckDone={(available) => { setVideoChecking(false); setVideoUnavailable(!available) }}
+          onUnavailable={(id) => { onBroken?.(id) }}
+          formatViews={formatViews}
+        />
       )}
     </>
   )
@@ -1214,8 +1279,8 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 500, margin: '0 auto', padding: '60px 20px', textAlign: 'center', color: 'var(--text-faint)', fontSize: 14 }}>
-        Loading...
+      <div style={{ maxWidth: 500, margin: '0 auto' }}>
+        <Spinner fullHeight />
       </div>
     )
   }

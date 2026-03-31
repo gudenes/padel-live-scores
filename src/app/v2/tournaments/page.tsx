@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { countryFlag } from '@/types/match'
 import SearchOverlay from '../SearchOverlay'
+import Spinner from '../../components/Spinner'
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ const FIP_LEVELS = ['fip_platinum', 'fip_gold', 'fip_other']
 
 export default function TournamentsPageWrapper() {
   return (
-    <Suspense fallback={<div style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Loading tournaments...</div>}>
+    <Suspense fallback={<Spinner fullHeight />}>
       <TournamentsPage />
     </Suspense>
   )
@@ -346,9 +347,7 @@ function TournamentsPage() {
       )}
 
       {loading ? (
-        <div style={{ padding: '60px 20px', textAlign: 'center' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading tournaments...</div>
-        </div>
+        <Spinner fullHeight />
       ) : (
         <>
           {/* Live hero */}
