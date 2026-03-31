@@ -81,27 +81,42 @@ function ArticlePage({ articleId }: { articleId: string }) {
     <div style={{
       minHeight: '100dvh', background: 'var(--bg-main)', color: 'var(--text-primary)',
     }}>
-      {/* Header */}
+      {/* Header — matches the global app header */}
       <div style={{
-        display: 'flex', alignItems: 'center', padding: '12px 16px',
-        borderBottom: '1px solid var(--border-card)',
-        position: 'sticky', top: 0, background: 'var(--bg-main)', zIndex: 10,
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        position: 'sticky', top: 0, zIndex: 10,
+        background: 'var(--bg-base)',
       }}>
-        <a href="/v2/feed" style={{
-          color: 'var(--text-muted)', textDecoration: 'none',
-          display: 'flex', alignItems: 'center', gap: 6, fontSize: 14,
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <a
+          href="/v2/feed"
+          style={{
+            width: 36, height: 36, borderRadius: '50%', border: 'none',
+            background: 'transparent', textDecoration: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--text-muted)',
+          }}
+          aria-label="Back to Feed"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
-          Feed
         </a>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="PadelNacho" style={{ height: 22 }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-          />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <img src="/padel-nacho-logo.png" alt="PadelNacho" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
-        <div style={{ width: 50 }} /> {/* Spacer for centering */}
+        <button style={{
+          width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',
+          cursor: 'pointer', background: 'var(--bg-card-alt)', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'var(--text-muted)',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
       </div>
 
       {/* Article card */}
