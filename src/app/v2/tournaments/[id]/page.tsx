@@ -159,6 +159,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
 
+  // ── Auto-switch gender if no matches exist for the default ────────────
+  useEffect(() => {
+    if (loading || allMatches.length === 0) return
+    const hasMen = allMatches.some(m => (m as any).category === 'men')
+    const hasWomen = allMatches.some(m => (m as any).category === 'women')
+    if (genderFilter === 'men' && !hasMen && hasWomen) setGenderFilter('women')
+    else if (genderFilter === 'women' && !hasWomen && hasMen) setGenderFilter('men')
+  }, [loading, allMatches, genderFilter])
+
   // ── Available rounds for active tournament + gender (ordered R64 → Finals) ─
   const availableRounds = useMemo(() => {
     const seen = new Set<string>()
