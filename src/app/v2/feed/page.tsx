@@ -2,7 +2,7 @@
 // src/app/v2/feed/page.tsx
 // Feed Center — videos + news in a single unified stream, ranked by score.
 
-import { Suspense, useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SearchOverlay from '../SearchOverlay'
@@ -101,7 +101,7 @@ const FILTER_OPTIONS: { key: ContentFilter; label: string }[] = [
 
 // ── Hero card — top-scoring item gets big treatment ─────────────────────────
 
-function HeroVideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highlight) => void }) {
+function HeroVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay: (v: Highlight) => void; onBroken?: (id: string) => void }) {
   return (
     <button
       onClick={() => onPlay(item)}
@@ -113,7 +113,7 @@ function HeroVideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highligh
       }}
     >
       <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
-        <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => onBroken?.(item.id)} />
         <div style={{
           position: 'absolute', inset: 0, background: 'linear-gradient(transparent 40%, rgba(0,0,0,0.8))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -245,7 +245,7 @@ function HeroNewsCard({ item }: { item: NewsItem }) {
 
 // ── Compact video card — horizontal layout for stream items ─────────────────
 
-function CompactVideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highlight) => void }) {
+function CompactVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay: (v: Highlight) => void; onBroken?: (id: string) => void }) {
   return (
     <button
       onClick={() => onPlay(item)}
@@ -258,7 +258,7 @@ function CompactVideoCard({ item, onPlay }: { item: Highlight; onPlay: (v: Highl
     >
       {/* Thumbnail */}
       <div style={{ position: 'relative', width: 140, flexShrink: 0, aspectRatio: '16/9', background: '#0a1929' }}>
-        <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img src={item.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => onBroken?.(item.id)} />
         <div style={{
           position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.1)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -493,6 +493,10 @@ function FeedPage() {
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
   const [filter, setFilter] = useState<ContentFilter>(initialFilter)
+  const [brokenThumbs, setBrokenThumbs] = useState<Set<string>>(new Set())
+  const markBroken = useCallback((id: string) => {
+    setBrokenThumbs(prev => { const s = new Set(prev); s.add(id); return s })
+  }, [])
 
   const fetchData = useCallback(async () => {
     const [highlightsRes, newsRes] = await Promise.all([
@@ -518,13 +522,18 @@ function FeedPage() {
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { setUserCountry(getUserCountry()) }, [])
 
+  // Filter out highlights with broken thumbnails (private/unavailable videos)
+  const availableHighlights = highlights.filter(h =>
+    !brokenThumbs.has(h.id) && isAvailableInCountry(h, userCountry)
+  )
+
   // Merge everything into a single scored feed, with filter boosting
   const feed: FeedItem[] = (() => {
     const items: { item: FeedItem; score: number }[] = []
 
     if (filter !== 'news') {
-      for (const h of highlights) {
-        if (isAvailableInCountry(h, userCountry)) {
+      for (const h of availableHighlights) {
+        if (true) {
           const base = feedScore(h.published_at, Math.floor(h.view_count / 100), 1.0)
           const boost = filter === 'videos' ? 10 : 1
           items.push({ item: { type: 'video', data: h }, score: base * boost })
@@ -635,13 +644,148 @@ function FeedPage() {
         }}>
           No content available
         </div>
+      ) : filter === 'all' ? (
+        /* ── "All" view: video carousel + news list ── */
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Video carousel */}
+          {(() => {
+            const vids = availableHighlights
+            if (vids.length === 0) return null
+            return (
+              <div style={{ padding: '16px 0 0' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '0 16px 10px',
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Highlights
+                  </span>
+                  <button
+                    onClick={() => setFilter('videos')}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 11, fontWeight: 700, color: 'var(--color-accent)',
+                      fontFamily: 'inherit', padding: 0,
+                    }}
+                  >
+                    See all &rsaquo;
+                  </button>
+                </div>
+                <div style={{
+                  display: 'flex', gap: 12, overflowX: 'auto',
+                  padding: '0 16px 16px', scrollSnapType: 'x mandatory',
+                  WebkitOverflowScrolling: 'touch',
+                  msOverflowStyle: 'none', scrollbarWidth: 'none',
+                }}>
+                  {vids.slice(0, 10).map(v => (
+                    <button
+                      key={v.id}
+                      onClick={() => setPlaying(v)}
+                      style={{
+                        flex: '0 0 260px', scrollSnapAlign: 'start',
+                        background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+                        borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
+                        textAlign: 'left', fontFamily: 'inherit', padding: 0, color: 'inherit',
+                      }}
+                    >
+                      <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
+                        <img src={v.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => markBroken(v.id)} />
+                        <div style={{
+                          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.15)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.92)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+                          }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none">
+                              <polygon points="6,3 20,12 6,21" />
+                            </svg>
+                          </div>
+                        </div>
+                        {v.duration && (
+                          <div style={{
+                            position: 'absolute', bottom: 6, right: 6,
+                            background: 'rgba(0,0,0,0.85)', borderRadius: 4,
+                            padding: '2px 6px', fontSize: 10, fontWeight: 700,
+                            color: '#fff', fontFamily: 'var(--font-mono)',
+                          }}>
+                            {v.duration}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ padding: '8px 10px' }}>
+                        <div style={{
+                          fontSize: 12, fontWeight: 700, color: 'var(--text-primary)',
+                          lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+                          marginBottom: 4,
+                        }}>
+                          {v.title}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
+                          {v.view_count > 0 && (
+                            <>
+                              <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
+                              <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* News section */}
+          {news.length > 0 && (
+            <div style={{ padding: '0 16px 16px' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '4px 0 10px',
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  News
+                </span>
+                <button
+                  onClick={() => setFilter('news')}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 700, color: 'var(--color-accent)',
+                    fontFamily: 'inherit', padding: 0,
+                  }}
+                >
+                  See all &rsaquo;
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {news.slice(0, 15).map(item => (
+                  <NewsCard key={`n-${item.id}`} item={item} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{
+            textAlign: 'center', padding: '20px 0 8px',
+            fontSize: 11, color: 'var(--text-faint)', fontWeight: 600,
+          }}>
+            You're all caught up
+          </div>
+        </div>
       ) : (
+        /* ── Videos-only or News-only view: hero + stream ── */
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           {/* Hero — top-scoring item gets full-width treatment */}
           {hero && (
             <div style={{ padding: '16px 16px 0' }}>
               {hero.type === 'video' ? (
-                <HeroVideoCard item={hero.data} onPlay={setPlaying} />
+                <HeroVideoCard item={hero.data} onPlay={setPlaying} onBroken={markBroken} />
               ) : (
                 <HeroNewsCard item={hero.data} />
               )}
@@ -652,7 +796,7 @@ function FeedPage() {
           <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {rest.map(item => {
               if (item.type === 'video') {
-                return <CompactVideoCard key={`v-${(item.data as Highlight).id}`} item={item.data as Highlight} onPlay={setPlaying} />
+                return <CompactVideoCard key={`v-${(item.data as Highlight).id}`} item={item.data as Highlight} onPlay={setPlaying} onBroken={markBroken} />
               }
               return <NewsCard key={`n-${(item.data as NewsItem).id}`} item={item.data as NewsItem} />
             })}

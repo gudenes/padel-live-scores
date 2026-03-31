@@ -203,8 +203,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Step 2b: Detect private/unavailable videos — videos.list silently drops
+  // videos it can't return (private, deleted, etc.).  Any ID in our map that
+  // didn't come back from videos.list has no duration metadata, which means
+  // it's unavailable.  Remove it from the map so we don't upsert a broken entry.
+  const detailsReturned = new Set(
+    Object.entries(videoMap)
+      .filter(([, info]) => (info as any).duration !== undefined)
+      .map(([id]) => id)
+  )
+  for (const id of allVideoIds) {
+    if (!detailsReturned.has(id)) {
+      delete videoMap[id]
+    }
+  }
+
   // Step 3: Filter out short videos (< 5 min) and upsert
   let upserted = 0
+  let hidden = 0
   const errors: string[] = []
 
   // Priority channel videos skip the duration filter
@@ -238,11 +254,65 @@ export async function GET(req: NextRequest) {
     upserted = upsertData?.length ?? 0
   }
 
+  // Step 4: Health check — verify existing active videos are still available on YouTube.
+  // YouTube videos.list silently omits private/deleted videos, so any ID missing
+  // from the response is unavailable and should be hidden.
+  try {
+    const { data: activeVideos } = await supabase
+      .from('highlights')
+      .select('id, youtube_id')
+      .eq('status', 'active')
+      .order('published_at', { ascending: false })
+      .limit(100)
+
+    if (activeVideos && activeVideos.length > 0) {
+      const ytIds = activeVideos.map((v: any) => v.youtube_id)
+      const returnedIds = new Set<string>()
+
+      // Check in batches of 50
+      for (let i = 0; i < ytIds.length; i += 50) {
+        const batch = ytIds.slice(i, i + 50)
+        try {
+          const params = new URLSearchParams({
+            part: 'id,status',
+            id: batch.join(','),
+            key: apiKey,
+          })
+          const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`)
+          if (!res.ok) continue
+          const data = await res.json()
+          for (const item of (data.items ?? [])) {
+            // Only count as available if the video has a public or unlisted privacy status
+            const privacyStatus = item.status?.privacyStatus
+            if (privacyStatus === 'public' || privacyStatus === 'unlisted') {
+              returnedIds.add(item.id)
+            }
+          }
+        } catch { /* skip batch on error */ }
+      }
+
+      // Hide videos that YouTube didn't return or aren't public/unlisted
+      const toHide = activeVideos.filter((v: any) => !returnedIds.has(v.youtube_id))
+      if (toHide.length > 0) {
+        const { error: hideErr } = await supabase
+          .from('highlights')
+          .update({ status: 'hidden', updated_at: new Date().toISOString() })
+          .in('id', toHide.map((v: any) => v.id))
+        if (hideErr) errors.push(`Hide error: ${hideErr.message}`)
+        else hidden = toHide.length
+        console.log(`Hid ${toHide.length} unavailable videos:`, toHide.map((v: any) => v.youtube_id))
+      }
+    }
+  } catch (err) {
+    console.error('Health check failed:', err)
+  }
+
   return NextResponse.json({
     message: errors.length > 0 ? 'Highlights sync had errors' : 'Highlights sync complete',
     found: allVideoIds.size,
     filteredOut: allVideoIds.size - filtered.length,
     upserted,
+    hidden,
     errors,
   })
 }
