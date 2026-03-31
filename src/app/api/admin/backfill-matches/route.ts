@@ -217,9 +217,11 @@ async function processMatch(
         pair1_player2_id: p1p2Id,
         pair2_player1_id: p2p1Id,
         pair2_player2_id: p2p2Id,
-        started_at: match.started_time,
+        started_at: match.started_time ?? null,
         scheduled_at: match.played_at ?? null,
-        finished_at: status === 'finished' || status === 'retired' ? match.started_time : null,
+        finished_at: (status === 'finished' || status === 'retired')
+          ? (match.started_time ?? match.played_at ?? null)
+          : null,
         winner_pair: winnerPair,
         retired_pair: retiredPair,
         duration: match.duration ?? null,
@@ -317,7 +319,7 @@ export async function GET(request: Request) {
     const { data } = await supabase
       .from('tournaments')
       .select('id, external_id, name, level, status, starts_at, season_external_id')
-      .order('starts_at', { ascending: true })
+      .order('starts_at', { ascending: false })
       .range(offset, offset + 999)
     if (!data || data.length === 0) break
     allTournaments.push(...data)

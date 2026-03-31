@@ -957,6 +957,7 @@ export default function HomePage() {
           sets(*, games(*))
         `)
         .in('status', ['finished', 'retired', 'walkover'])
+        .not('finished_at', 'is', null)
         .order('finished_at', { ascending: false })
         .limit(20),
 
