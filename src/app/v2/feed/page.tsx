@@ -37,6 +37,7 @@ interface NewsItem {
   category: string | null
   click_count: number
   source_weight: number
+  favicon_url: string | null
 }
 
 type FeedItem =
@@ -81,7 +82,27 @@ function feedScore(publishedAt: string, clicks: number, weight: number): number 
   return freshness * popularity * weight
 }
 
+const VISITED_KEY = 'padel-visited-articles'
+
+function getVisitedArticles(): Set<string> {
+  try {
+    const raw = localStorage.getItem(VISITED_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
+  } catch { return new Set() }
+}
+
+function markArticleVisited(id: string) {
+  try {
+    const visited = getVisitedArticles()
+    visited.add(id)
+    // Keep only latest 200 to avoid unbounded growth
+    const arr = [...visited].slice(-200)
+    localStorage.setItem(VISITED_KEY, JSON.stringify(arr))
+  } catch { /* ignore */ }
+}
+
 function trackClick(articleId: string) {
+  markArticleVisited(articleId)
   fetch('/api/feed/click', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -90,6 +111,19 @@ function trackClick(articleId: string) {
 }
 
 const LANG_LABELS: Record<string, string> = { en: 'EN', es: 'ES', pt: 'PT', fr: 'FR' }
+
+const BOOKMARKED_ARTICLES_KEY = 'padel-bookmarked-articles'
+
+function getBookmarkedArticles(): Set<string> {
+  try {
+    const raw = localStorage.getItem(BOOKMARKED_ARTICLES_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
+  } catch { return new Set() }
+}
+
+function writeBookmarkedArticles(ids: Set<string>) {
+  try { localStorage.setItem(BOOKMARKED_ARTICLES_KEY, JSON.stringify([...ids])) } catch {}
+}
 
 type ContentFilter = 'all' | 'videos' | 'news'
 
@@ -173,17 +207,18 @@ function HeroVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay: (v
   )
 }
 
-function HeroNewsCard({ item }: { item: NewsItem }) {
+function HeroNewsCard({ item, visited, onClickArticle }: { item: NewsItem; visited?: boolean; onClickArticle?: (id: string) => void }) {
   return (
     <a
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={() => trackClick(item.id)}
+      onClick={() => onClickArticle ? onClickArticle(item.id) : trackClick(item.id)}
       style={{
         display: 'block', background: 'var(--bg-card)',
         border: '1px solid var(--border-card)', borderRadius: 14,
         overflow: 'hidden', textDecoration: 'none', color: 'inherit',
+        opacity: 1,
       }}
     >
       {item.image_url && (
@@ -316,79 +351,210 @@ function CompactVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay:
   )
 }
 
-// ── News card — horizontal layout ───────────────────────────────────────────
+// ── News card — big vertical layout with image, actions ───────────────────────
 
-function NewsCard({ item }: { item: NewsItem }) {
+function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark }: {
+  item: NewsItem; visited?: boolean; onClickArticle?: (id: string) => void;
+  bookmarked?: boolean; onToggleBookmark?: (id: string) => void;
+}) {
+  const [shareOpen, setShareOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setShareOpen(o => !o)
+  }
+
+  const handleCopyLink = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    navigator.clipboard.writeText(item.url).then(() => {
+      setCopied(true)
+      setTimeout(() => { setCopied(false); setShareOpen(false) }, 1500)
+    }).catch(() => {})
+  }
+
+  const handleWhatsApp = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    window.open(`https://wa.me/?text=${encodeURIComponent(item.title + '\n' + item.url)}`, '_blank')
+    setShareOpen(false)
+  }
+
+  const handleBookmark = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    onToggleBookmark?.(item.id)
+  }
+
   return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={() => trackClick(item.id)}
-      style={{
-        display: 'flex', gap: 12, background: 'var(--bg-card)',
-        border: '1px solid var(--border-card)', borderRadius: 14,
-        overflow: 'hidden', textDecoration: 'none', color: 'inherit',
-        padding: 14,
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-          <span style={{
-            fontSize: 8, fontWeight: 800, color: 'var(--color-accent)',
-            background: 'rgba(255,193,7,0.12)', borderRadius: 3,
-            padding: '2px 5px', textTransform: 'uppercase', letterSpacing: '0.3px',
-          }}>
-            News
-          </span>
-          <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>{item.source_name}</span>
+    <div style={{ position: 'relative' }}>
+      <a
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => onClickArticle ? onClickArticle(item.id) : trackClick(item.id)}
+        style={{
+          display: 'block', background: 'var(--bg-card)',
+          border: '1px solid var(--border-card)', borderRadius: 14,
+          overflow: 'hidden', textDecoration: 'none', color: 'inherit',
+        }}
+      >
+        {/* Source + Language */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '12px 14px 8px' }}>
+          {(() => {
+            // Prefer favicon_url from DB, then source_icon if URL, then derive from article domain
+            const iconSrc = item.favicon_url
+              ?? (item.source_icon?.startsWith('http') ? item.source_icon : null)
+              ?? (() => { try { return `https://www.google.com/s2/favicons?sz=64&domain=${new URL(item.url).hostname}` } catch { return null } })()
+            return iconSrc ? (
+              <img src={iconSrc} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: 'contain' }} />
+            ) : null
+          })()}
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>{item.source_name}</span>
           {item.language && (
             <span style={{
               fontSize: 8, fontWeight: 800, color: 'var(--text-muted)',
               background: 'var(--bg-card-alt)', borderRadius: 3,
-              padding: '2px 5px',
+              padding: '2px 5px', textTransform: 'uppercase',
             }}>
               {LANG_LABELS[item.language] ?? item.language.toUpperCase()}
             </span>
           )}
         </div>
-        <div style={{
-          fontSize: 13, fontWeight: 700, color: 'var(--text-primary)',
-          lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
-          marginBottom: 4,
-        }}>
-          {item.title}
-        </div>
-        {item.snippet && (
-          <div style={{
-            fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.35,
-            display: '-webkit-box', WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
-            marginBottom: 6,
-          }}>
-            {item.snippet}
+
+        {/* Image */}
+        {item.image_url && (
+          <div style={{ width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
+            <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{timeAgo(item.published_at)}</span>
+
+        {/* Title + Description */}
+        <div style={{ padding: item.image_url ? '10px 14px 4px' : '0 14px 4px' }}>
+          <div style={{
+            fontSize: 15, fontWeight: 800, color: 'var(--text-primary)',
+            lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+          }}>
+            {item.title}
+          </div>
+          {(() => {
+            // Skip snippets that just repeat the title (common with Google News)
+            if (!item.snippet) return null
+            const clean = item.snippet.replace(/\u00a0/g, ' ').trim()
+            const titleNorm = item.title.replace(/\u00a0/g, ' ').trim()
+            if (clean.startsWith(titleNorm)) return null
+            if (titleNorm.startsWith(clean.slice(0, 40))) return null
+            return (
+              <div style={{
+                fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4,
+                display: '-webkit-box', WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+                marginTop: 4,
+              }}>
+                {clean}
+              </div>
+            )
+          })()}
+        </div>
+
+        {/* Bottom row: freshness · reads · bookmark · share */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '6px 14px 12px',
+        }}>
+          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{timeAgo(item.published_at)}</span>
           {item.click_count > 0 && (
             <>
-              <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
-              <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{item.click_count} reads</span>
+              <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>·</span>
+              <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{item.click_count} reads</span>
             </>
           )}
+
+          <div style={{ flex: 1 }} />
+
+          {/* Bookmark */}
+          <button
+            onClick={handleBookmark}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+              color: bookmarked ? 'var(--color-accent)' : 'var(--text-faint)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'color 0.15s',
+            }}
+            aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+          </button>
+
+          {/* Share */}
+          <button
+            onClick={handleShare}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+              color: 'var(--text-faint)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+            aria-label="Share"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </button>
         </div>
-      </div>
-      {item.image_url && (
+      </a>
+
+      {/* Share dropdown */}
+      {shareOpen && (
         <div style={{
-          width: 90, height: 90, borderRadius: 10, overflow: 'hidden',
-          flexShrink: 0, background: '#0a1929',
+          position: 'absolute', bottom: 42, right: 14, zIndex: 20,
+          background: 'var(--bg-card-alt)', border: '1px solid var(--border-card)',
+          borderRadius: 10, padding: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+          display: 'flex', flexDirection: 'column', gap: 2, minWidth: 160,
         }}>
-          <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <button
+            onClick={handleCopyLink}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: copied ? '#22c55e' : 'var(--text-primary)',
+              fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+              borderRadius: 6, width: '100%', textAlign: 'left',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {copied ? (
+                <><polyline points="20 6 9 17 4 12"/></>
+              ) : (
+                <><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>
+              )}
+            </svg>
+            {copied ? 'Copied!' : 'Copy link'}
+          </button>
+          <button
+            onClick={handleWhatsApp}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--text-primary)',
+              fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+              borderRadius: 6, width: '100%', textAlign: 'left',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366" stroke="none">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+              <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/>
+            </svg>
+            WhatsApp
+          </button>
         </div>
       )}
-    </a>
+    </div>
   )
 }
 
@@ -493,6 +659,20 @@ function FeedPage() {
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
   const [filter, setFilter] = useState<ContentFilter>(initialFilter)
+  const [visitedArticles, setVisitedArticles] = useState<Set<string>>(new Set())
+  const handleArticleClick = useCallback((id: string) => {
+    trackClick(id)
+    setVisitedArticles(prev => { const s = new Set(prev); s.add(id); return s })
+  }, [])
+  const [bookmarkedArticles, setBookmarkedArticles] = useState<Set<string>>(new Set())
+  const toggleBookmarkArticle = useCallback((id: string) => {
+    setBookmarkedArticles(prev => {
+      const s = new Set(prev)
+      if (s.has(id)) s.delete(id); else s.add(id)
+      writeBookmarkedArticles(s)
+      return s
+    })
+  }, [])
   const [brokenThumbs, setBrokenThumbs] = useState<Set<string>>(new Set())
   const markBroken = useCallback((id: string) => {
     setBrokenThumbs(prev => { const s = new Set(prev); s.add(id); return s })
@@ -508,7 +688,7 @@ function FeedPage() {
         .limit(50),
       supabase
         .from('articles')
-        .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight')
+        .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url')
         .eq('status', 'active')
         .order('published_at', { ascending: false })
         .limit(50),
@@ -520,7 +700,7 @@ function FeedPage() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
-  useEffect(() => { setUserCountry(getUserCountry()) }, [])
+  useEffect(() => { setUserCountry(getUserCountry()); setVisitedArticles(getVisitedArticles()); setBookmarkedArticles(getBookmarkedArticles()) }, [])
 
   // Filter out highlights with broken thumbnails (private/unavailable videos)
   const availableHighlights = highlights.filter(h =>
@@ -765,7 +945,7 @@ function FeedPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {news.slice(0, 15).map(item => (
-                  <NewsCard key={`n-${item.id}`} item={item} />
+                  <NewsCard key={`n-${item.id}`} item={item} visited={visitedArticles.has(item.id)} onClickArticle={handleArticleClick} bookmarked={bookmarkedArticles.has(item.id)} onToggleBookmark={toggleBookmarkArticle} />
                 ))}
               </div>
             </div>
@@ -787,7 +967,7 @@ function FeedPage() {
               {hero.type === 'video' ? (
                 <HeroVideoCard item={hero.data} onPlay={setPlaying} onBroken={markBroken} />
               ) : (
-                <HeroNewsCard item={hero.data} />
+                <HeroNewsCard item={hero.data} visited={visitedArticles.has((hero.data as NewsItem).id)} onClickArticle={handleArticleClick} />
               )}
             </div>
           )}
@@ -798,7 +978,7 @@ function FeedPage() {
               if (item.type === 'video') {
                 return <CompactVideoCard key={`v-${(item.data as Highlight).id}`} item={item.data as Highlight} onPlay={setPlaying} onBroken={markBroken} />
               }
-              return <NewsCard key={`n-${(item.data as NewsItem).id}`} item={item.data as NewsItem} />
+              return <NewsCard key={`n-${(item.data as NewsItem).id}`} item={item.data as NewsItem} visited={visitedArticles.has((item.data as NewsItem).id)} onClickArticle={handleArticleClick} bookmarked={bookmarkedArticles.has((item.data as NewsItem).id)} onToggleBookmark={toggleBookmarkArticle} />
             })}
 
             <div style={{

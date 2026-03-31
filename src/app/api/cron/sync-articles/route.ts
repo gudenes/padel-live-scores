@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import Parser from 'rss-parser'
+import GoogleNewsDecoder from 'google-news-decoder'
 
 export const maxDuration = 60
 
@@ -75,6 +76,102 @@ function extractImage(html: string): string | null {
   return match ? match[1] : null
 }
 
+// Extract domain from URL for favicon lookup
+function getDomain(url: string): string | null {
+  try { return new URL(url).hostname } catch { return null }
+}
+
+// Google's public favicon service — returns a 32px icon for any domain
+function faviconUrl(domain: string): string {
+  return `https://www.google.com/s2/favicons?sz=64&domain=${domain}`
+}
+
+// Google News titles embed the real source after the last " - "
+// e.g. "Galán conquista Miami - Estrella Digital" → "Estrella Digital"
+function extractRealSource(title: string, fallback: string): string {
+  const sep = title.lastIndexOf(' - ')
+  if (sep > 0 && sep < title.length - 3) {
+    const candidate = title.substring(sep + 3).trim()
+    // Sanity: source name should be short-ish and not look like a sentence
+    if (candidate.length > 0 && candidate.length < 60 && !candidate.includes('. ')) {
+      return candidate
+    }
+  }
+  return fallback
+}
+
+// Fetch og:image and og:description from a URL by downloading the HTML head.
+// Follows redirects (important for Google News URLs). Timeout 5s per article.
+async function fetchOgMeta(url: string): Promise<{ image: string | null; description: string | null; realUrl: string | null }> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+      redirect: 'follow',
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!res.ok) return { image: null, description: null, realUrl: null }
+    const realUrl = res.url !== url ? res.url : null
+    const reader = res.body?.getReader()
+    if (!reader) return { image: null, description: null, realUrl }
+    let html = ''
+    while (html.length < 50000) {
+      const { done, value } = await reader.read()
+      if (done) break
+      html += new TextDecoder().decode(value)
+      if (html.includes('</head>')) break
+    }
+    reader.cancel().catch(() => {})
+    const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/)
+    const descMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/)
+      || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/)
+    return {
+      image: imgMatch ? imgMatch[1] : null,
+      description: descMatch ? truncate(stripHtml(descMatch[1]), 200) : null,
+      realUrl,
+    }
+  } catch {
+    return { image: null, description: null, realUrl: null }
+  }
+}
+
+// Legacy wrapper
+async function fetchOgImage(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+      redirect: 'follow',
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!res.ok) return null
+    // Only read first 50KB to find og:image (it's always in <head>)
+    const reader = res.body?.getReader()
+    if (!reader) return null
+    let html = ''
+    while (html.length < 50000) {
+      const { done, value } = await reader.read()
+      if (done) break
+      html += new TextDecoder().decode(value)
+      // Check if we've passed </head> — no need to read further
+      if (html.includes('</head>')) break
+    }
+    reader.cancel().catch(() => {})
+    const match = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/)
+    return match ? match[1] : null
+  } catch {
+    return null
+  }
+}
+
 interface ArticleRow {
   title: string
   source_name: string
@@ -87,6 +184,7 @@ interface ArticleRow {
   published_at: string
   source_weight: number
   updated_at: string
+  favicon_url: string | null
 }
 
 // ── RSS fetcher ─────────────────────────────────────────────────────────────
@@ -96,8 +194,34 @@ const parser = new Parser({
   headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
 })
 
+// For Google News feeds: fetch raw XML and extract <source url="...">name</source>
+// mapping so we can get the real publisher domain for favicons.
+// Returns a Map of source name → source URL (e.g. "MARCA" → "https://www.marca.com")
+async function fetchGoogleNewsSourceMap(feedUrl: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  try {
+    const res = await fetch(feedUrl, {
+      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+    })
+    if (!res.ok) return map
+    const xml = await res.text()
+    const matches = xml.matchAll(/<source\s+url="([^"]+)"[^>]*>([^<]+)<\/source>/gi)
+    for (const m of matches) {
+      map.set(m[2].trim(), m[1].trim())
+    }
+  } catch { /* ignore */ }
+  return map
+}
+
 async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
-  const feed = await parser.parseURL(source.url)
+  const isGoogleNews = source.key.startsWith('google-news')
+
+  // For Google News: fetch the raw XML in parallel to get source URLs
+  const [feed, sourceMap] = await Promise.all([
+    parser.parseURL(source.url),
+    isGoogleNews ? fetchGoogleNewsSourceMap(source.url) : Promise.resolve(new Map<string, string>()),
+  ])
+
   const cutoff = Date.now() - 14 * 86400000 // last 14 days
   const rows: ArticleRow[] = []
 
@@ -122,10 +246,28 @@ async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
         ? truncate(stripHtml(item.content))
         : null
 
+    // For Google News: extract the real source from the title and resolve favicon from source URL
+    const rawTitle = stripHtml(item.title)
+    const realSource = isGoogleNews ? extractRealSource(rawTitle, source.name) : source.name
+    // Strip the source suffix from Google News titles ("Title - Source" → "Title")
+    const cleanTitle = isGoogleNews && rawTitle.lastIndexOf(' - ') > 0
+      ? rawTitle.substring(0, rawTitle.lastIndexOf(' - ')).trim()
+      : rawTitle
+
+    // Resolve favicon: for Google News use the real publisher domain from <source url="...">,
+    // otherwise fall back to the link domain
+    let iconDomain: string | null = null
+    if (isGoogleNews) {
+      const publisherUrl = sourceMap.get(realSource)
+      if (publisherUrl) iconDomain = getDomain(publisherUrl)
+    }
+    if (!iconDomain) iconDomain = getDomain(item.link)
+    const iconUrl = iconDomain ? faviconUrl(iconDomain) : null
+
     rows.push({
-      title: stripHtml(item.title),
-      source_name: source.name,
-      source_icon: source.icon,
+      title: cleanTitle,
+      source_name: realSource,
+      source_icon: iconUrl ?? source.icon,
       source_key: source.key,
       url: item.link,
       image_url: imageUrl,
@@ -134,6 +276,7 @@ async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
       published_at: pubDate.toISOString(),
       source_weight: source.weight,
       updated_at: new Date().toISOString(),
+      favicon_url: iconUrl,
     })
   }
 
@@ -164,10 +307,13 @@ async function fetchFIP(source: ArticleSource): Promise<ArticleRow[]> {
   for (const post of posts) {
     const imageUrl = post._embedded?.['wp:featuredmedia']?.[0]?.source_url ?? null
 
+    const domain = getDomain(post.link)
+    const iconUrl = domain ? faviconUrl(domain) : null
+
     rows.push({
       title: stripHtml(post.title.rendered),
       source_name: source.name,
-      source_icon: source.icon,
+      source_icon: iconUrl ?? source.icon,
       source_key: source.key,
       url: post.link,
       image_url: imageUrl,
@@ -176,6 +322,7 @@ async function fetchFIP(source: ArticleSource): Promise<ArticleRow[]> {
       published_at: new Date(post.date).toISOString(),
       source_weight: source.weight,
       updated_at: new Date().toISOString(),
+      favicon_url: iconUrl,
     })
   }
 
@@ -206,6 +353,47 @@ export async function GET(req: NextRequest) {
       results[source.key] = { fetched: rows.length }
 
       if (rows.length === 0) continue
+
+      // Enrich articles — resolve real URLs for Google News, fetch og:image & og:description.
+      // Process up to 10 at a time to stay within the 60s timeout.
+      const isGNews = source.key.startsWith('google-news')
+      const needEnrich = rows.filter(r => !r.image_url || isGNews).slice(0, 10)
+      if (needEnrich.length > 0) {
+        // For Google News: first decode the real article URLs
+        if (isGNews) {
+          const decoder = new GoogleNewsDecoder()
+          const decodeResults = await Promise.allSettled(
+            needEnrich.map(r => decoder.decodeGoogleNewsUrl(r.url))
+          )
+          for (let i = 0; i < needEnrich.length; i++) {
+            const result = decodeResults[i]
+            if (result.status !== 'fulfilled' || !result.value?.decodedUrl) continue
+            // Store the real URL temporarily for og:meta fetch
+            ;(needEnrich[i] as any)._realUrl = result.value.decodedUrl
+            // Update favicon from real domain
+            const domain = getDomain(result.value.decodedUrl)
+            if (domain) {
+              const resolvedFavicon = faviconUrl(domain)
+              needEnrich[i].source_icon = resolvedFavicon
+              needEnrich[i].favicon_url = resolvedFavicon
+            }
+          }
+        }
+
+        // Fetch og:image and og:description from the real URL (or original URL for non-Google News)
+        const ogResults = await Promise.allSettled(
+          needEnrich.map(r => fetchOgMeta((r as any)._realUrl ?? r.url))
+        )
+        for (let i = 0; i < needEnrich.length; i++) {
+          const result = ogResults[i]
+          if (result.status !== 'fulfilled') continue
+          const { image, description } = result.value
+          if (image && !needEnrich[i].image_url) needEnrich[i].image_url = image
+          if (description && isGNews) needEnrich[i].snippet = description
+        }
+        // Clean up temp property before upsert
+        for (const r of needEnrich) delete (r as any)._realUrl
+      }
 
       const { error, data } = await supabase
         .from('articles')
