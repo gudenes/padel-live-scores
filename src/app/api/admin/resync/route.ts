@@ -54,7 +54,7 @@ async function resyncMatch(dbMatch: any): Promise<{ status: string; external_id:
         await supabase.from('players').update({
           country: detail?.nationality ?? undefined,
           ranking: detail?.ranking ? parseInt(detail.ranking) : undefined,
-          avatar_url: detail?.photo_url ?? undefined,
+          // Don't overwrite avatar_url — we host avatars on Supabase Storage
           win_rate: stats?.win_percentage ? Math.round(parseFloat(stats.win_percentage)) : undefined,
           total_matches: stats?.matches_played ?? undefined,
         }).eq('external_id', String(p.id))
@@ -78,39 +78,27 @@ async function resyncMatch(dbMatch: any): Promise<{ status: string; external_id:
     const liveSets = liveDetail?.sets ?? []
 
     if (liveSets.length > 0) {
-      // For finished matches: drop orphan null sets
+      // For finished matches: only process sets with scores
       const validSets = newStatus === 'finished'
         ? liveSets.filter((s: any) => s.set_score !== null)
         : liveSets
-
-      await supabase.from('games').delete().eq('match_id', matchDbId)
-      await supabase.from('sets').delete().eq('match_id', matchDbId)
 
       const maxSetNumber = validSets.length > 0 ? Math.max(...validSets.map((s: any) => s.set_number)) : 0
 
       for (const set of validSets) {
         const isCurrentSet = set.set_score === null && set.set_number === maxSetNumber && newStatus === 'live'
+        const pg = set.set_score ? gamesFromScore(set.set_score) : null
+
         const { data: setRow } = await supabase.from('sets').upsert({
-          match_id: matchDbId, set_number: set.set_number, set_score: set.set_score, is_current: isCurrentSet,
+          match_id: matchDbId, set_number: set.set_number, set_score: set.set_score,
+          is_current: isCurrentSet,
+          ...(pg ? { pair1_games: pg.p1, pair2_games: pg.p2 } : {}),
         }, { onConflict: 'match_id, set_number' }).select('id').single()
         if (!setRow) continue
 
-        const games = set.games ?? []
-        const maxGame = games.length > 0 ? Math.max(...games.map((g: any) => g.game_number)) : 0
-        for (const game of games) {
-          await supabase.from('games').upsert({
-            set_id: setRow.id, match_id: matchDbId, game_number: game.game_number,
-            game_score: game.game_score, points: game.points.filter((p: string) => p !== '0:0'),
-            is_current: isCurrentSet && game.game_number === maxGame,
-          }, { onConflict: 'set_id, game_number' })
-        }
-
-        // Priority 1: set_score is the source of truth for finished sets
-        if (set.set_score) {
-          const pg = gamesFromScore(set.set_score)
-          if (pg) await supabase.from('sets').update({ pair1_games: pg.p1, pair2_games: pg.p2 }).eq('id', setRow.id)
-        } else {
-          // In-progress: use last cumulative game_score
+        // If no set_score, compute pair_games from last game_score
+        if (!pg) {
+          const games = set.games ?? []
           const lastGame = games.filter((g: any) => g.game_score && g.game_score !== '0-0')
             .sort((a: any, b: any) => a.game_number - b.game_number).at(-1)
           if (lastGame?.game_score) {
@@ -118,9 +106,37 @@ async function resyncMatch(dbMatch: any): Promise<{ status: string; external_id:
             await supabase.from('sets').update({ pair1_games: p1 ?? 0, pair2_games: p2 ?? 0 }).eq('id', setRow.id)
           }
         }
+
+        // Upsert games — merge points: keep the longer array
+        const games = set.games ?? []
+        const maxGame = games.length > 0 ? Math.max(...games.map((g: any) => g.game_number)) : 0
+        for (const game of games) {
+          const newPoints = (game.points ?? []).filter((p: string) => p !== '0:0')
+
+          // Check if existing game has more points — if so, keep them
+          const { data: existingGame } = await supabase.from('games')
+            .select('points')
+            .eq('set_id', setRow.id)
+            .eq('game_number', game.game_number)
+            .maybeSingle()
+          const existingPoints = (existingGame?.points as string[]) ?? []
+          const mergedPoints = existingPoints.length > newPoints.length ? existingPoints : newPoints
+
+          await supabase.from('games').upsert({
+            set_id: setRow.id, match_id: matchDbId, game_number: game.game_number,
+            game_score: game.game_score, points: mergedPoints,
+            is_current: isCurrentSet && game.game_number === maxGame,
+          }, { onConflict: 'set_id, game_number' })
+        }
       }
+
+      // Clean up orphan null sets for finished matches
+      if (newStatus === 'finished') {
+        await supabase.from('sets').delete().eq('match_id', matchDbId).is('set_score', null)
+      }
+
       const orphans = liveSets.length - validSets.length
-      changes.push(`${validSets.length} sets resynced${orphans > 0 ? `, ${orphans} orphan null set(s) removed` : ''}`)
+      changes.push(`${validSets.length} sets resynced (merge)${orphans > 0 ? `, ${orphans} orphan null set(s) removed` : ''}`)
 
     } else if (matchDetail.score?.length > 0) {
       await supabase.from('sets').delete().eq('match_id', matchDbId)

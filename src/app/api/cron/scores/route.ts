@@ -8,7 +8,7 @@
 // 5. score_source tracking on all set writes (api/inferred/live)
 
 import { createClient } from '@supabase/supabase-js'
-import { inferFinalScore, inferBatch } from '@/lib/score-inference'
+import { inferFinalScore, inferBatch, inferWinnerPair } from '@/lib/score-inference'
 import { PlayerResolver } from '@/lib/player-resolver'
 
 const supabase = createClient(
@@ -326,6 +326,20 @@ async function upsertSetsAndGames(
         isCurrentSet &&
         game.game_number === Math.max(...set.games.map((g) => g.game_number))
 
+      // Guard: don't overwrite with fewer points on finished matches
+      let pointsToWrite = game.points ?? []
+      if (isMatchFinished) {
+        const { data: existing } = await supabase.from('games')
+          .select('points')
+          .eq('set_id', setDbId)
+          .eq('game_number', game.game_number)
+          .maybeSingle()
+        const existingPoints = (existing?.points as string[]) ?? []
+        if (existingPoints.length > pointsToWrite.length) {
+          pointsToWrite = existingPoints
+        }
+      }
+
       const { error: gameError } = await supabase
         .from('games')
         .upsert(
@@ -334,7 +348,7 @@ async function upsertSetsAndGames(
             match_id: matchDbId,
             game_number: game.game_number,
             game_score: game.game_score,
-            points: game.points,
+            points: pointsToWrite,
             is_current: isCurrentGame,
             updated_at: new Date().toISOString(),
           },
@@ -629,6 +643,9 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
       // Fallback: write what we have from /live
       await upsertSetsAndGames(matchRow.id, liveState.sets, true)
     }
+
+    // Clean up is_current flags and compute coverage from actual data
+    await cleanupMatchFinish(matchRow.id)
   } else {
     await upsertSetsAndGames(matchRow.id, liveState.sets, false)
   }
@@ -711,6 +728,7 @@ async function reconcileIncompleteMatches(): Promise<{
     const written = await writeFinalState(match.id, match.external_id)
 
     if (written) {
+      await cleanupMatchFinish(match.id)
       console.log(`[Reconciliation] ✓ Repaired match ${match.external_id}`)
       repaired++
     } else {
@@ -730,6 +748,141 @@ async function reconcileIncompleteMatches(): Promise<{
   // ── END inference reconciliation ──
 
   return { checked: incompleteMatches.length, repaired, skipped, inferred: inferredCount }
+}
+
+// ── Match finish cleanup: is_current flags + coverage ─────────
+// Called after writeFinalState to ensure DB is fully consistent.
+// 1. Clears is_current on ALL sets and games
+// 2. Computes coverage from actual stored data vs expected game count
+async function cleanupMatchFinish(matchDbId: string): Promise<void> {
+  // Clear is_current on all sets and games for this match
+  await Promise.all([
+    supabase.from('sets').update({ is_current: false }).eq('match_id', matchDbId),
+    supabase.from('games').update({ is_current: false }).eq('match_id', matchDbId),
+  ])
+
+  // Compute coverage from actual data
+  const { data: sets } = await supabase
+    .from('sets')
+    .select('set_score, id')
+    .eq('match_id', matchDbId)
+    .not('set_score', 'is', null)
+
+  if (!sets || sets.length === 0) {
+    await supabase.from('matches').update({ coverage: null }).eq('id', matchDbId)
+    return
+  }
+
+  let expectedGames = 0
+  for (const set of sets) {
+    if (!set.set_score) continue
+    const parts = set.set_score.split('-')
+    const p1 = parseInt(parts[0]) || 0
+    const p2 = parseInt((parts[1]?.match(/^\d+/) ?? ['0'])[0]) || 0
+    expectedGames += p1 + p2
+  }
+
+  // Count games that have point data
+  const { count: gamesWithPoints } = await supabase
+    .from('games')
+    .select('id', { count: 'exact', head: true })
+    .eq('match_id', matchDbId)
+    .not('points', 'is', null)
+    .neq('points', '{}')
+
+  const actualGames = gamesWithPoints ?? 0
+
+  let coverage: string | null
+  if (expectedGames === 0) {
+    coverage = null
+  } else if (actualGames >= expectedGames) {
+    coverage = 'full'
+  } else if (actualGames > 0) {
+    coverage = 'partial'
+  } else {
+    coverage = null
+  }
+
+  await supabase.from('matches').update({ coverage }).eq('id', matchDbId)
+  console.log(`[Coverage] Match ${matchDbId}: ${actualGames}/${expectedGames} games tracked → ${coverage}`)
+
+  // Infer winner if not set
+  const { data: matchCheck } = await supabase
+    .from('matches')
+    .select('winner_pair')
+    .eq('id', matchDbId)
+    .single()
+  if (matchCheck && !matchCheck.winner_pair) {
+    await inferWinnerPair(supabase, matchDbId)
+  }
+}
+
+// ── Stale match detector ──────────────────────────────────────
+// Finds matches stuck as 'live' in DB that are no longer in the API live feed.
+// This catches matches where the relay missed the 'finished' Pusher event.
+async function detectStaleMatches(currentlyLiveFromApi: ApiMatch[]): Promise<{
+  found: number; transitioned: number; failed: number
+}> {
+  const liveExternalIds = new Set(currentlyLiveFromApi.map(m => String(m.id)))
+
+  // Find matches in DB with status='live' updated >15 min ago
+  const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+  const { data: staleMatches } = await supabase
+    .from('matches')
+    .select('id, external_id')
+    .eq('status', 'live')
+    .lt('updated_at', fifteenMinAgo)
+    .limit(10)
+
+  if (!staleMatches || staleMatches.length === 0) return { found: 0, transitioned: 0, failed: 0 }
+
+  // Filter out any that are genuinely still live in the API
+  const trulyStale = staleMatches.filter(m => !liveExternalIds.has(m.external_id))
+  if (trulyStale.length === 0) return { found: staleMatches.length, transitioned: 0, failed: 0 }
+
+  console.log(`[Stale Detector] Found ${trulyStale.length} stale live match(es)`)
+
+  let transitioned = 0
+  let failed = 0
+
+  for (const match of trulyStale) {
+    if (isRateLimited()) break
+
+    // Try to get current state from the API
+    const detail = await fetchMatchDetail(match.external_id)
+
+    if (detail && (detail.status === 'finished' || detail.winner)) {
+      // Match is finished — write final state
+      const written = await writeFinalState(match.id, match.external_id)
+      if (written) {
+        // Clean up is_current flags and compute coverage
+        await cleanupMatchFinish(match.id)
+        console.log(`[Stale Detector] ✓ Transitioned stale match ${match.external_id} to finished`)
+        transitioned++
+      } else {
+        failed++
+      }
+    } else if (detail) {
+      // Match has a known status but not finished — update it
+      await supabase
+        .from('matches')
+        .update({ status: detail.status ?? 'finished', updated_at: new Date().toISOString() })
+        .eq('id', match.id)
+      console.log(`[Stale Detector] Updated stale match ${match.external_id} to status=${detail.status}`)
+      transitioned++
+    } else {
+      // Can't reach the API — mark as finished with what we have
+      console.warn(`[Stale Detector] No API data for stale match ${match.external_id} — forcing finish`)
+      await supabase
+        .from('matches')
+        .update({ status: 'finished', finished_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', match.id)
+      await cleanupMatchFinish(match.id)
+      transitioned++
+    }
+  }
+
+  return { found: trulyStale.length, transitioned, failed }
 }
 
 // ── Main handler ───────────────────────────────────────────────
@@ -777,6 +930,11 @@ export async function GET(request: Request) {
       }
     }
 
+    // ── Step 1b: Detect stale "live" matches ────────────────────
+    // Matches stuck as status='live' in DB but no longer in the API live feed.
+    // This happens when the relay misses the 'finished' Pusher event.
+    const staleResult = await detectStaleMatches(liveMatches)
+
     // ── Step 2: Reconcile incomplete finished matches ──────────
     const reconciliation = await reconcileIncompleteMatches()
 
@@ -802,6 +960,7 @@ export async function GET(request: Request) {
       total: liveMatches.length,
       mode: 'live',
       rateLimitRemaining: _rateLimitRemaining,
+      staleMatches: staleResult,
       reconciliation,
     })
   } catch (error) {
