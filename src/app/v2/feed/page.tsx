@@ -357,30 +357,34 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark 
   item: NewsItem; visited?: boolean; onClickArticle?: (id: string) => void;
   bookmarked?: boolean; onToggleBookmark?: (id: string) => void;
 }) {
-  const [shareOpen, setShareOpen] = useState(false)
+  // Build our app URL for sharing (so users land on PadelNacho, not the source)
+  const articleUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/v2/feed/article/${item.id}`
+    : `/v2/feed/article/${item.id}`
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Use native Web Share API if available (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: item.title,
+          text: item.snippet ?? item.title,
+          url: articleUrl,
+        })
+      } catch { /* user cancelled or error — ignore */ }
+    } else {
+      // Fallback for desktop: copy link to clipboard
+      try {
+        await navigator.clipboard.writeText(articleUrl)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch { /* ignore */ }
+    }
+  }
+
   const [copied, setCopied] = useState(false)
-
-  const handleShare = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setShareOpen(o => !o)
-  }
-
-  const handleCopyLink = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    navigator.clipboard.writeText(item.url).then(() => {
-      setCopied(true)
-      setTimeout(() => { setCopied(false); setShareOpen(false) }, 1500)
-    }).catch(() => {})
-  }
-
-  const handleWhatsApp = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    window.open(`https://wa.me/?text=${encodeURIComponent(item.title + '\n' + item.url)}`, '_blank')
-    setShareOpen(false)
-  }
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -496,64 +500,26 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark 
             onClick={handleShare}
             style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-              color: 'var(--text-faint)',
+              color: copied ? '#22c55e' : 'var(--text-faint)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'color 0.15s',
             }}
             aria-label="Share"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
+            {copied ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            )}
           </button>
         </div>
       </a>
 
-      {/* Share dropdown */}
-      {shareOpen && (
-        <div style={{
-          position: 'absolute', bottom: 42, right: 14, zIndex: 20,
-          background: 'var(--bg-card-alt)', border: '1px solid var(--border-card)',
-          borderRadius: 10, padding: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-          display: 'flex', flexDirection: 'column', gap: 2, minWidth: 160,
-        }}>
-          <button
-            onClick={handleCopyLink}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: copied ? '#22c55e' : 'var(--text-primary)',
-              fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-              borderRadius: 6, width: '100%', textAlign: 'left',
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {copied ? (
-                <><polyline points="20 6 9 17 4 12"/></>
-              ) : (
-                <><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>
-              )}
-            </svg>
-            {copied ? 'Copied!' : 'Copy link'}
-          </button>
-          <button
-            onClick={handleWhatsApp}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--text-primary)',
-              fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-              borderRadius: 6, width: '100%', textAlign: 'left',
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366" stroke="none">
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-              <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/>
-            </svg>
-            WhatsApp
-          </button>
-        </div>
-      )}
     </div>
   )
 }
