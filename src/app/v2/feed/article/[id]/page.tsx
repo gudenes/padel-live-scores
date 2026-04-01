@@ -6,6 +6,7 @@
 import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import Spinner from '@/app/components/Spinner'
+import ProfileButton from '@/components/ProfileButton'
 
 interface Article {
   id: string
@@ -107,17 +108,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
           <img src="/padel-nacho-logo.png" alt="PadelNacho" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
-        <button style={{
-          width: 34, height: 34, borderRadius: '50%', border: '1.5px solid var(--border-strong)',
-          cursor: 'pointer', background: 'var(--bg-card-alt)', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--text-muted)',
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        </button>
+        <ProfileButton />
       </div>
 
       {/* Article card */}

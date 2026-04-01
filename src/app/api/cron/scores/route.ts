@@ -532,7 +532,7 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
   // Check if match already has player data in DB
   const { data: existing } = await supabase
     .from('matches')
-    .select('id, pair1_player1_id, tournament_id, round, court, category')
+    .select('id, status, pair1_player1_id, tournament_id, round, court, category')
     .eq('external_id', externalId)
     .single()
 
@@ -610,6 +610,21 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
   if (matchError || !matchRow) {
     console.error(`[Score Agent] Failed to upsert match ${externalId}:`, matchError)
     return
+  }
+
+  // ── Push notification: match just went live ──
+  const wasNotLive = !existing || existing.status !== 'live'
+  if (wasNotLive && liveState.status === 'live' && matchRow?.id) {
+    // Fire-and-forget: don't block the cron
+    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3002'
+    fetch(`${baseUrl}/api/push/notify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.CRON_SECRET}`,
+      },
+      body: JSON.stringify({ matchId: matchRow.id }),
+    }).catch(err => console.error('[Score Agent] Push notify failed:', err))
   }
 
   if (isFinished) {
