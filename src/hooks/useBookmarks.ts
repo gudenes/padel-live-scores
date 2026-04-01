@@ -1,14 +1,16 @@
 'use client'
 // src/hooks/useBookmarks.ts
-// Stores bookmarked match IDs in localStorage.
-// Interface is designed to be swappable with a Supabase-backed implementation
-// when user accounts are introduced (just swap the storage layer, keep the hook API).
+// Dual-mode bookmark storage:
+// - Authenticated: reads/writes user_bookmarks table in Supabase
+// - Anonymous: reads/writes localStorage (original behavior)
 
 import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@/components/AuthProvider'
+import { supabase } from '@/lib/supabase'
 
 const STORAGE_KEY = 'pn_bookmarked_matches'
 
-function readStorage(): Set<string> {
+function readLocalStorage(): Set<string> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? new Set(JSON.parse(raw) as string[]) : new Set()
@@ -17,34 +19,78 @@ function readStorage(): Set<string> {
   }
 }
 
-function writeStorage(ids: Set<string>) {
+function writeLocalStorage(ids: Set<string>) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]))
   } catch {}
 }
 
 export function useBookmarks() {
+  const { user } = useAuth()
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set())
+  const [loaded, setLoaded] = useState(false)
 
-  // Hydrate from storage on mount (client-only)
+  // Load bookmarks on mount or when auth state changes
   useEffect(() => {
-    setBookmarked(readStorage())
-  }, [])
+    if (user) {
+      // Authenticated: fetch from Supabase
+      supabase
+        .from('user_bookmarks')
+        .select('target_id')
+        .eq('user_id', user.id)
+        .eq('bookmark_type', 'match')
+        .then(({ data }) => {
+          const ids = new Set((data ?? []).map(r => r.target_id))
+          setBookmarked(ids)
+          setLoaded(true)
+        })
+    } else {
+      // Anonymous: read localStorage
+      setBookmarked(readLocalStorage())
+      setLoaded(true)
+    }
+  }, [user])
 
-  const toggle = useCallback((matchId: string) => {
-    setBookmarked(prev => {
-      const next = new Set(prev)
-      if (next.has(matchId)) next.delete(matchId)
-      else next.add(matchId)
-      writeStorage(next)
-      return next
-    })
-  }, [])
+  const toggle = useCallback(
+    async (matchId: string) => {
+      const isCurrentlyBookmarked = bookmarked.has(matchId)
+
+      // Optimistic update
+      setBookmarked(prev => {
+        const next = new Set(prev)
+        if (isCurrentlyBookmarked) next.delete(matchId)
+        else next.add(matchId)
+
+        if (!user) writeLocalStorage(next)
+        return next
+      })
+
+      if (user) {
+        if (isCurrentlyBookmarked) {
+          await supabase
+            .from('user_bookmarks')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('bookmark_type', 'match')
+            .eq('target_id', matchId)
+        } else {
+          await supabase
+            .from('user_bookmarks')
+            .insert({
+              user_id: user.id,
+              bookmark_type: 'match',
+              target_id: matchId,
+            })
+        }
+      }
+    },
+    [user, bookmarked],
+  )
 
   const isBookmarked = useCallback(
     (matchId: string) => bookmarked.has(matchId),
     [bookmarked],
   )
 
-  return { isBookmarked, toggle, bookmarked }
+  return { isBookmarked, toggle, bookmarked, loaded }
 }
