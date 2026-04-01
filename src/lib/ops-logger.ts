@@ -1,12 +1,21 @@
 // src/lib/ops-logger.ts
 // Lightweight wrapper for logging cron/relay execution to ops_events table.
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
+let _client: SupabaseClient | null = null
+
+function getClient(): SupabaseClient {
+  if (!_client) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_KEY
+    if (!url || !key) {
+      throw new Error('[ops-logger] Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_KEY')
+    }
+    _client = createClient(url, key)
+  }
+  return _client
+}
 
 /**
  * Wraps a cron handler function, logging start/end/error to ops_events.
@@ -32,9 +41,28 @@ export async function logOpsEvent(
   } catch (err) {
     status = 'error'
     errorMessage = String(err)
-    // Re-throw so the cron handler can still return its error response
+    // Log the error row, then re-throw
     const finishedAt = new Date()
-    await supabase.from('ops_events').insert({
+    try {
+      const { error: dbErr } = await getClient().from('ops_events').insert({
+        source,
+        status,
+        started_at: startedAt.toISOString(),
+        finished_at: finishedAt.toISOString(),
+        duration_ms: finishedAt.getTime() - startedAt.getTime(),
+        meta,
+        error_message: errorMessage,
+      })
+      if (dbErr) console.error('[ops-logger] Failed to write error event:', dbErr.message)
+    } catch (writeErr) {
+      console.error('[ops-logger] Exception writing error event:', writeErr)
+    }
+    throw err
+  }
+
+  const finishedAt = new Date()
+  try {
+    const { error: dbErr } = await getClient().from('ops_events').insert({
       source,
       status,
       started_at: startedAt.toISOString(),
@@ -43,19 +71,10 @@ export async function logOpsEvent(
       meta,
       error_message: errorMessage,
     })
-    throw err
+    if (dbErr) console.error('[ops-logger] Failed to write event:', dbErr.message)
+  } catch (writeErr) {
+    console.error('[ops-logger] Exception writing event:', writeErr)
   }
-
-  const finishedAt = new Date()
-  await supabase.from('ops_events').insert({
-    source,
-    status,
-    started_at: startedAt.toISOString(),
-    finished_at: finishedAt.toISOString(),
-    duration_ms: finishedAt.getTime() - startedAt.getTime(),
-    meta,
-    error_message: errorMessage,
-  })
 
   return meta
 }
