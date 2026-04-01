@@ -54,6 +54,8 @@ export interface PlayerInput {
   finals?: number | null
   /** Semifinals appearances */
   semifinals?: number | null
+  /** Override for updated_at (e.g. FIP ranking publication date) */
+  updatedAt?: string | null
 }
 
 export interface ResolveResult {
@@ -399,7 +401,7 @@ export class PlayerResolver {
     if (input.fipId) enrichFields.fip_id = input.fipId
 
     if (Object.keys(enrichFields).length > 0) {
-      enrichFields.updated_at = new Date().toISOString()
+      enrichFields.updated_at = input.updatedAt ?? new Date().toISOString()
       await this.supabase
         .from('players')
         .update(enrichFields)

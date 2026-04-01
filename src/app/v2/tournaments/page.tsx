@@ -49,6 +49,12 @@ function levelLabel(level: string | null): string {
   return level ? (map[level] ?? level) : ''
 }
 
+// Coverage levels per padelapi.org documentation
+const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platinum'])
+function hasLiveCoverage(level: string | null): boolean {
+  return FULL_COVERAGE_LEVELS.has(level ?? '')
+}
+
 function daysUntil(dateStr: string): number {
   const now = new Date()
   const target = new Date(dateStr)
@@ -119,6 +125,7 @@ function TournamentsPage() {
   const scrollDoneRef = useRef(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('premier')
+  const [switching, setSwitching] = useState(false)
   const [fipFilter, setFipFilter] = useState<FipFilter>('all')
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
   const [loading, setLoading] = useState(true)
@@ -182,8 +189,9 @@ function TournamentsPage() {
         const hasLiveMatch = matches.some((m: any) => m.status === 'live')
         const hasScheduled = matches.some((m: any) => m.status === 'scheduled')
         const hasFinished = matches.some((m: any) => m.status === 'finished')
-        // Tournament is live if it has an active match, or has started and still has scheduled matches
-        if (hasLiveMatch || (hasFinished && hasScheduled)) confirmedLiveIds.add(t.id)
+        // Tournament is live if it has an active match, has started and still has scheduled matches,
+        // or is within its date range and has only scheduled matches (not yet kicked off today)
+        if (hasLiveMatch || hasScheduled) confirmedLiveIds.add(t.id)
       }
     }
 
@@ -299,25 +307,38 @@ function TournamentsPage() {
         </button>
       </div>
 
-      {/* Hero label + circuit chip */}
-      <div style={{ padding: '16px 16px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Hero label + circuit chip — logo morph animation on switch */}
+      <div style={{ padding: '16px 16px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img
             src={tab === 'premier' ? '/premier-padel-logo.svg' : '/fip-tour-logo.svg'}
             alt={tab === 'premier' ? 'Premier Padel' : 'FIP Tour'}
-            style={{ height: 32, width: 'auto', objectFit: 'contain' }}
+            style={{
+              height: 32, width: 'auto', objectFit: 'contain',
+              transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease',
+              transform: switching ? 'translateX(40px) scale(0.6)' : 'translateX(0) scale(1)',
+              opacity: switching ? 0 : 1,
+            }}
           />
-          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            {new Date().getFullYear()} Season
-          </div>
         </div>
         <button
-          onClick={() => { setTab(t => t === 'premier' ? 'fip' : 'premier'); setFipFilter('all') }}
+          onClick={() => {
+            if (switching) return
+            setSwitching(true)
+            setTimeout(() => {
+              setTab(t => t === 'premier' ? 'fip' : 'premier')
+              setFipFilter('all')
+              setTimeout(() => setSwitching(false), 50)
+            }, 350)
+          }}
           style={{
             padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 600,
             cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
             background: 'var(--bg-card-alt)', color: 'var(--text-muted)',
-            border: '1px solid var(--border-card)', transition: 'all 0.15s',
+            border: '1px solid var(--border-card)',
+            transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease',
+            transform: switching ? 'translateX(-40px) scale(1.4)' : 'translateX(0) scale(1)',
+            opacity: switching ? 0 : 1,
             display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
@@ -358,87 +379,25 @@ function TournamentsPage() {
       {loading ? (
         <Spinner fullHeight />
       ) : (
-        <>
-          {/* Live hero */}
-          {live.map(t => {
-            const round = getCurrentRound(liveMatches[t.id] ?? [])
-            return (
-              <div key={t.id} data-tournament-id={t.id} style={{ padding: '12px 16px 0' }}>
-                <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  background: 'var(--color-live-bg)', borderRadius: 6,
-                  padding: '3px 10px', fontSize: 10, fontWeight: 700,
-                  color: 'var(--color-live)', letterSpacing: '0.04em',
-                  marginBottom: 10,
-                }}>
-                  <span style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: 'var(--color-live)',
-                    animation: 'pulse 1.5s infinite',
-                  }} />
-                  LIVE
-                </div>
-
-                <Link href={`/v2/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{
-                    borderRadius: 14, padding: '16px 18px',
-                    background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(255,70,85,0.06) 100%)',
-                    border: '1px solid var(--color-live-border)',
-                    position: 'relative', overflow: 'hidden', cursor: 'pointer',
-                  }}>
-                    <div style={{
-                      position: 'absolute', top: -30, right: -30, width: 100, height: 100,
-                      borderRadius: '50%', background: 'rgba(255,70,85,0.08)', filter: 'blur(30px)',
-                    }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
-                      <div>
-                        <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px' }}>
-                          {countryFlag(t.country)} {t.name}
-                        </h3>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                          {t.location ?? countryName(t.country)}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span>{formatDateRange(t.starts_at, t.ends_at)}</span>
-                          {t.prize_money && t.prize_money !== 'EUR 0' && (
-                            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>· {t.prize_money}</span>
-                          )}
-                        </div>
-                      </div>
-                      {round && (
-                        <div style={{
-                          fontSize: 10, fontWeight: 700, color: 'var(--color-live)',
-                          background: 'var(--color-live-bg)', borderRadius: 4, padding: '2px 6px',
-                        }}>
-                          {round}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      marginTop: 12, padding: '6px 14px', borderRadius: 8,
-                      background: 'rgba(255,70,85,0.12)', border: '1px solid rgba(255,70,85,0.25)',
-                      fontSize: 11, fontWeight: 700, color: 'var(--color-live)',
-                      position: 'relative',
-                    }}>
-                      View Matches
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            )
-          })}
-
-          {/* Upcoming — stacked hero + compact strip */}
-          {upcoming.length > 0 && (
+        <div style={{
+          transition: 'opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          opacity: switching ? 0 : 1,
+          transform: switching ? 'scale(0.97)' : 'scale(1)',
+          transformOrigin: 'center top',
+        }}>
+          {/* Upcoming — live tournament as hero, or next upcoming */}
+          {(live.length > 0 || upcoming.length > 0) && (
             <>
               <SectionHeader
                 icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
-                title="Upcoming"
-                count={`${upcoming.length} events`}
+                title={live.length > 0 ? 'Live' : 'Upcoming'}
+                count={`${live.length + upcoming.length} events`}
               />
-              <UpcomingStack tournaments={upcoming} />
+              <UpcomingStack
+                tournaments={upcoming}
+                liveTournament={live[0] ?? null}
+                liveRound={live[0] ? getCurrentRound(liveMatches[live[0].id] ?? []) : null}
+              />
             </>
           )}
 
@@ -487,7 +446,7 @@ function TournamentsPage() {
               No tournaments found
             </div>
           )}
-        </>
+        </div>
       )}
 
       <style>{`
@@ -508,7 +467,7 @@ function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: s
       </span>
       {count && (
         <span style={{
-          fontSize: 10, fontWeight: 600, color: 'var(--text-faint)',
+          fontSize: 10, fontWeight: 600, color: 'var(--text-dim)',
           background: 'var(--bg-card-alt)', borderRadius: 10, padding: '2px 8px',
         }}>
           {count}
@@ -518,9 +477,23 @@ function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: s
   )
 }
 
-function UpcomingStack({ tournaments }: { tournaments: Tournament[] }) {
-  const [next, ...rest] = tournaments
-  const days = daysUntil(next.starts_at)
+function UpcomingStack({ tournaments, liveTournament, liveRound }: {
+  tournaments: Tournament[]
+  liveTournament: Tournament | null
+  liveRound: string | null
+}) {
+  // Hero is the live tournament if available, otherwise the first upcoming
+  const hero = liveTournament ?? tournaments[0] ?? null
+  const isLive = !!liveTournament
+  const rest = liveTournament ? tournaments : tournaments.slice(1)
+
+  if (!hero) return null
+
+  const days = isLive ? null : daysUntil(hero.starts_at)
+
+  // Color scheme: red for live, cyan for upcoming
+  const accent = isLive ? '255,70,85' : '56,200,255'
+  const accentVar = isLive ? 'var(--color-live)' : 'var(--color-accent)'
 
   return (
     <div style={{ paddingBottom: 8 }}>
@@ -542,69 +515,98 @@ function UpcomingStack({ tournaments }: { tournaments: Tournament[] }) {
           }} />
         )}
 
-        {/* Front card — next event */}
-        <Link href={`/v2/tournaments/${next.id}`} data-tournament-id={next.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+        {/* Front card — live or next event */}
+        <Link href={`/v2/tournaments/${hero.id}`} data-tournament-id={hero.id} style={{ textDecoration: 'none', color: 'inherit' }}>
           <div style={{
             position: 'relative', borderRadius: 16, padding: 20, cursor: 'pointer',
-            background: 'linear-gradient(135deg, rgba(56,200,255,0.10) 0%, var(--bg-card) 60%, rgba(245,158,11,0.06) 100%)',
-            border: '1.5px solid rgba(56,200,255,0.25)', overflow: 'hidden', zIndex: 2,
+            background: `linear-gradient(135deg, rgba(${accent},0.10) 0%, var(--bg-card) 60%, rgba(245,158,11,0.06) 100%)`,
+            border: `1.5px solid rgba(${accent},0.25)`, overflow: 'hidden', zIndex: 2,
           }}>
             <div style={{
               position: 'absolute', top: -30, right: -30, width: 100, height: 100,
-              borderRadius: '50%', background: 'rgba(56,200,255,0.06)', filter: 'blur(30px)',
+              borderRadius: '50%', background: `rgba(${accent},0.06)`, filter: 'blur(30px)',
             }} />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
               <div>
                 <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  background: 'rgba(56,200,255,0.15)', border: '1px solid rgba(56,200,255,0.3)',
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: `rgba(${accent},0.15)`, border: `1px solid rgba(${accent},0.3)`,
                   borderRadius: 6, padding: '3px 10px', fontSize: 9, fontWeight: 800,
-                  color: 'var(--color-accent)', letterSpacing: '0.08em', marginBottom: 10,
+                  color: accentVar, letterSpacing: '0.08em', marginBottom: 10,
                 }}>
-                  NEXT UP
+                  {isLive && (
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: accentVar,
+                      animation: 'pulse 1.5s infinite',
+                    }} />
+                  )}
+                  {isLive ? 'LIVE NOW' : 'NEXT UP'}
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  {countryFlag(next.country)} {next.name}
+                  {countryFlag(hero.country)} {hero.name}
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>
-                  {next.location ?? countryName(next.country)}
+                  {hero.location ?? countryName(hero.country)}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {formatDateRange(next.starts_at, next.ends_at)}
+                  {formatDateRange(hero.starts_at, hero.ends_at)}
                 </div>
               </div>
-              {/* Countdown */}
-              <div style={{
-                textAlign: 'center', padding: '8px 12px', borderRadius: 12,
-                background: 'rgba(56,200,255,0.08)', border: '1px solid rgba(56,200,255,0.15)',
-                flexShrink: 0,
-              }}>
-                <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-accent)', fontFamily: 'monospace', lineHeight: 1 }}>
-                  {days}
+              {/* Countdown or round badge */}
+              {isLive ? (
+                liveRound && (
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: accentVar,
+                    background: `rgba(${accent},0.12)`, borderRadius: 6, padding: '4px 8px',
+                  }}>
+                    {liveRound}
+                  </div>
+                )
+              ) : (
+                <div style={{
+                  textAlign: 'center', padding: '8px 12px', borderRadius: 12,
+                  background: `rgba(${accent},0.08)`, border: `1px solid rgba(${accent},0.15)`,
+                  flexShrink: 0,
+                }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: accentVar, fontFamily: 'monospace', lineHeight: 1 }}>
+                    {days}
+                  </div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+                    DAYS
+                  </div>
                 </div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                  DAYS
-                </div>
-              </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)' }}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-                {levelLabel(next.level)}
+                {levelLabel(hero.level)}
               </div>
-              {next.prize_money && next.prize_money !== 'EUR 0' && (
-                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{next.prize_money}</div>
+              {hero.prize_money && hero.prize_money !== 'EUR 0' && (
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{hero.prize_money}</div>
+              )}
+              {!hasLiveCoverage(hero.level) && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
+                  background: 'rgba(255,255,255,0.05)', borderRadius: 4,
+                  padding: '2px 6px',
+                }}>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                  Results only
+                </div>
               )}
               <div style={{ flex: 1 }} />
               <div style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 padding: '6px 14px', borderRadius: 8,
-                background: 'rgba(56,200,255,0.12)', border: '1px solid rgba(56,200,255,0.25)',
-                fontSize: 11, fontWeight: 700, color: 'var(--color-accent)',
+                background: `rgba(${accent},0.12)`, border: `1px solid rgba(${accent},0.25)`,
+                fontSize: 11, fontWeight: 700, color: accentVar,
               }}>
-                View
+                {isLive ? 'View Matches' : 'View'}
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
               </div>
             </div>
@@ -629,14 +631,17 @@ function UpcomingStack({ tournaments }: { tournaments: Tournament[] }) {
                   background: 'var(--bg-card)', border: '1px solid var(--border-card)',
                   minWidth: 150, cursor: 'pointer',
                 }}>
-                  <div style={{ fontSize: 9, color: 'var(--text-faint)', fontWeight: 600, marginBottom: 4 }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 600, marginBottom: 4 }}>
                     {dateLabel}
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                     {countryFlag(t.country)} {t.name}
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {d} days
+                    {!hasLiveCoverage(t.level) && (
+                      <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>· Results only</span>
+                    )}
                   </div>
                 </div>
               </Link>
@@ -791,7 +796,7 @@ function CollapsibleSeason({ year, tournaments }: { year: number; tournaments: T
           {year} Season
         </span>
         <span style={{
-          fontSize: 10, fontWeight: 600, color: 'var(--text-faint)',
+          fontSize: 10, fontWeight: 600, color: 'var(--text-dim)',
           background: 'var(--bg-card-alt)', borderRadius: 10, padding: '2px 8px',
         }}>
           {tournaments.length} events

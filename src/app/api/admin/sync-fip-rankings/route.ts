@@ -91,7 +91,18 @@ interface FipRacePlayer {
   country_flag: string
 }
 
-async function fetchOfficialRankings(gender: 'male' | 'female', top: number): Promise<FipRankingPlayer[]> {
+// Compute the Monday date of a given week (matching currentYearWeek numbering)
+function weekToDate(year: number, week: number): string {
+  // Reverse of currentYearWeek: find the Monday of the given week number
+  const jan1 = new Date(year, 0, 1)
+  const jan1Day = jan1.getDay() // 0=Sun ... 6=Sat
+  // currentYearWeek weeks start on Sunday. Add 1 to land on Monday (FIP publication day).
+  const dayOffset = (week - 1) * 7 - jan1Day + 2 // Monday of that week
+  const monday = new Date(year, 0, 1 + dayOffset)
+  return monday.toISOString().slice(0, 10) + 'T00:00:00Z'
+}
+
+async function fetchOfficialRankings(gender: 'male' | 'female', top: number): Promise<{ players: FipRankingPlayer[]; rankingDate: string }> {
   const { year, week } = currentYearWeek()
 
   // FIP may not have data for the current week yet — try current, then fall back up to 3 weeks
@@ -114,12 +125,13 @@ async function fetchOfficialRankings(gender: 'male' | 'female', top: number): Pr
     }
 
     if (all.length > 0) {
-      console.log(`[sync-fip] official ${gender}: found data at week ${w}`)
-      return all
+      const rankingDate = weekToDate(year, w)
+      console.log(`[sync-fip] official ${gender}: found data at week ${w} (${rankingDate})`)
+      return { players: all, rankingDate }
     }
   }
 
-  return []
+  return { players: [], rankingDate: new Date().toISOString() }
 }
 
 async function fetchRaceRankings(gender: 'male' | 'female', top: number): Promise<FipRacePlayer[]> {
@@ -168,8 +180,8 @@ export async function GET(req: NextRequest) {
   for (const { fip, db } of genders) {
     // ── Official rankings ──────────────────────────────────────────────
     if (!typeFilter || typeFilter === 'official') {
-      const officials = await fetchOfficialRankings(fip, top)
-      console.log(`[sync-fip] official ${fip}: ${officials.length} players fetched`)
+      const { players: officials, rankingDate } = await fetchOfficialRankings(fip, top)
+      console.log(`[sync-fip] official ${fip}: ${officials.length} players fetched (ranking date: ${rankingDate})`)
 
       for (const p of officials) {
         const fullName = fipFullName(p)
@@ -187,6 +199,7 @@ export async function GET(req: NextRequest) {
             rankingMove: p.move,
             avatarUrl: p.thumbnail || null,
             profileUrl: p.url || null,
+            updatedAt: rankingDate,
           })
 
           if (action === 'created') results.official.created++

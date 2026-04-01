@@ -142,8 +142,8 @@ function TournamentGroup({ tournament, matches, defaultOpen = true }: { tourname
               background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: 10, color: 'var(--text-faint)', fontWeight: 600 }}>{matches.length}</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            <span style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 600 }}>{matches.length}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
               style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
             >
               <polyline points="9 18 15 12 9 6"/>
