@@ -80,9 +80,10 @@ export async function GET(request: Request) {
           const matches = await fetchDrawMatches(tournament.matchscorer_url)
           console.log(`[FIP Scores] Found ${matches.length} matches for ${tournament.name}`)
 
-          for (const match of matches) {
+          for (let i = 0; i < matches.length; i++) {
+            const match = matches[i]
             try {
-              const matchResult = await upsertFipMatch(match, tournament.id, resolver)
+              const matchResult = await upsertFipMatch(match, tournament.id, resolver, i)
               if (matchResult === 'upserted') totalUpserted++
               else totalSkipped++
             } catch (e) {
@@ -117,8 +118,9 @@ async function upsertFipMatch(
   match: ParsedMatch,
   tournamentId: string,
   resolver: PlayerResolver,
+  matchIndex: number,
 ): Promise<'upserted' | 'skipped'> {
-  const externalId = buildMatchExternalId(tournamentId, match)
+  const externalId = buildMatchExternalId(tournamentId, match, matchIndex)
 
   const { data: existing } = await supabase
     .from('matches')
@@ -196,12 +198,17 @@ async function upsertFipMatch(
   return 'upserted'
 }
 
-function buildMatchExternalId(tournamentId: string, match: ParsedMatch): string {
+function buildMatchExternalId(tournamentId: string, match: ParsedMatch, matchIndex: number): string {
   const cat = match.category === 'men' ? 'm' : 'w'
   const round = normalizeRound(match.round).toLowerCase()
+  // Use player names when available for stability across re-orders,
+  // fall back to index when names are empty (BYE/TBD matches)
   const t1 = match.team1.player1.lastName.toLowerCase().replace(/[^a-z]/g, '').slice(0, 10)
   const t2 = match.team2.player1.lastName.toLowerCase().replace(/[^a-z]/g, '').slice(0, 10)
-  return `fip-${tournamentId}-${cat}-${round}-${t1}-${t2}`
+  if (t1 && t2) {
+    return `fip-${tournamentId}-${cat}-${round}-${t1}-${t2}`
+  }
+  return `fip-${tournamentId}-${cat}-${round}-${matchIndex}`
 }
 
 async function resolvePlayer(
