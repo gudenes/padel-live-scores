@@ -87,7 +87,7 @@ ALTER TABLE tournaments ADD COLUMN matchscorer_url TEXT;
 
 - `source`: `'padelapi'` or `'fip'` — determines which pipeline owns the tournament
 - `fip_slug`: padelfip.com event slug for URL construction
-- `matchscorer_url`: discovered matchscorerlive.com draw URL
+- `matchscorer_url`: matchscorerlive tournament code (e.g. `FIP-2025-3301`) used to build widget URLs
 
 ### Existing table usage
 
