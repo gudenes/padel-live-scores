@@ -616,7 +616,8 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
   const wasNotLive = !existing || existing.status !== 'live'
   if (wasNotLive && liveState.status === 'live' && matchRow?.id) {
     // Fire-and-forget: don't block the cron
-    fetch(`${process.env.RELAY_URL ? 'https://padel-nacho.vercel.app' : 'http://localhost:3002'}/api/push/notify`, {
+    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3002'
+    fetch(`${baseUrl}/api/push/notify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -59,6 +59,10 @@ CREATE POLICY "Users can insert own bookmarks"
   ON public.user_bookmarks FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can update own bookmarks"
+  ON public.user_bookmarks FOR UPDATE
+  USING (auth.uid() = user_id);
+
 CREATE POLICY "Users can delete own bookmarks"
   ON public.user_bookmarks FOR DELETE
   USING (auth.uid() = user_id);
