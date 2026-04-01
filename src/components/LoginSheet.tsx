@@ -3,7 +3,8 @@
 // Bottom sheet for sign-in: Google OAuth + magic link email fallback.
 // Slides up from bottom with dimmed backdrop.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
 
 interface LoginSheetProps {
@@ -17,7 +18,10 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  if (!open) return null
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  if (!open || !mounted) return null
 
   const handleGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -49,7 +53,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     }
   }
 
-  return (
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -166,6 +170,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           to { transform: translateY(0); }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   )
 }
