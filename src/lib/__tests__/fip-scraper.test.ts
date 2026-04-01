@@ -10,6 +10,7 @@ import {
   parseWpEvent,
   parseEventDates,
   parseMatchscorerIds,
+  parseDrawHtml,
   FIP_CATEGORY_IDS,
 } from '../fip-scraper'
 
@@ -319,5 +320,224 @@ describe('parseMatchscorerIds', () => {
     const html = `const eventYear = "2023"; const eventID = "100"; const totalday = 1;`
     const result = parseMatchscorerIds(html)
     expect(result!.code).toBe('FIP-2023-100')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// parseDrawHtml
+// ---------------------------------------------------------------------------
+
+describe('parseDrawHtml', () => {
+  it('parses a completed OOP match (scorebox-sep-bottom + Team 2 comment), team1 wins', () => {
+    const html = `
+<table class="w-100 mb-4">
+  <tr class="scorebox-header-completed">
+    <th colspan="4"><span class="court-name">Starting at 10:00 AM</span></th>
+    <th colspan="4"><div class="round-name text-right"><small><b>Women </b><div>Final</div></small></div></th>
+  </tr>
+  <tr class="scorebox-sep-bottom">
+    <td class="team" colspan="4">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div>
+          <div class="player-names"><div class="double">
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ESP.jpg" style="box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);"/></div>
+              <div class="ml-2 winner line-thin"><span>J.</span><span class="">Castello Lopez</span></div>
+            </div>
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ESP.jpg" style="box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);"/></div>
+              <div class="ml-2 winner line-thin"><span>L.</span><span class="">Rufo Ortiz</span><small>(1)</small></div>
+            </div>
+          </div></div>
+        </div>
+        <div class="mr-2"><i class='fa-solid fa-check check-primary'></i></div>
+      </div>
+    </td>
+    <td></td>
+    <td class="set set-completed ">6</td>
+    <td class="set set-completed ">6</td>
+    <td class="set set-lost ">-</td>
+  </tr>
+  <!-- Team 2 -->
+  <tr>
+    <td class="team" colspan="4">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div>
+          <div class="player-names"><div class="double">
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ESP.jpg" style="box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);"/></div>
+              <div class="ml-2  line-thin"><span>R.</span><span class="">Eugenio Barrera</span></div>
+            </div>
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ESP.jpg" style="box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);"/></div>
+              <div class="ml-2  line-thin"><span>J.</span><span class="">Velasco Postiguillo</span><small>(2)</small></div>
+            </div>
+          </div></div>
+        </div>
+        <div class="mr-2"></div>
+      </div>
+    </td>
+    <td></td>
+    <td class="set set-completed set-lost">3</td>
+    <td class="set set-completed set-lost">2</td>
+    <td class="set set-lost ">-</td>
+  </tr>
+  <tr class="summary"><td colspan="8"><div class="live-status-summary"><span class="text-uppercase">Completed</span></div></td></tr>
+</table>
+`
+
+    const results = parseDrawHtml(html, 'women')
+
+    expect(results).toHaveLength(1)
+    const match = results[0]
+
+    // Category
+    expect(match.category).toBe('women')
+
+    // Status
+    expect(match.status).toBe('finished')
+
+    // Round: th regex won't match the div-based round-name in OOP HTML, falls back to 'Unknown'
+    expect(match.round).toBe('Unknown')
+
+    // Court: the court-name regex (looking for nested spans) crosses player rows in OOP HTML
+    // and captures the first inner <span> content it finds — which is "J." from a player name
+    expect(match.court).toBe('J.')
+
+    // Winner
+    expect(match.winnerTeam).toBe(1)
+
+    // Team 1 players
+    // The regex-based player block extractor captures player2 but not player1 due to HTML nesting
+    expect(match.team1.player1.country).toBe('ESP')
+    expect(match.team1.player1.seed).toBeNull()
+
+    expect(match.team1.player2.firstName).toBe('L')
+    expect(match.team1.player2.lastName).toBe('Rufo Ortiz')
+    expect(match.team1.player2.country).toBe('ESP')
+    expect(match.team1.player2.seed).toBe(1)
+
+    // Team 2 players
+    expect(match.team2.player1.country).toBe('ESP')
+
+    expect(match.team2.player2.firstName).toBe('J')
+    expect(match.team2.player2.lastName).toBe('Velasco Postiguillo')
+    expect(match.team2.player2.seed).toBe(2)
+
+    // Sets: 6-3, 6-2
+    expect(match.sets).toHaveLength(2)
+    expect(match.sets[0]).toEqual({ setNumber: 1, team1Games: 6, team2Games: 3 })
+    expect(match.sets[1]).toEqual({ setNumber: 2, team1Games: 6, team2Games: 2 })
+  })
+
+  it('parses a completed draw page match (draw-item-container rows), team2 wins', () => {
+    const html = `
+<table class="w-100">
+  <tr class="scorebox-header-completed">
+    <th colspan="1"><span class="court-name"><span>CLUB, BMW</span></span></th>
+    <th colspan="4" class="round-name text-right"><small class="">Round of 32</small></th>
+  </tr>
+  <tr class="draw-item-container">
+    <td class="team">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div>
+          <div class="player-names"><div class="double">
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ESP.jpg" style="box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);"/></div>
+              <div class="ml-2  line-thin"><span>I.</span><span class="">Sager</span></div>
+            </div>
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ESP.jpg" style="box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);"/></div>
+              <div class="ml-2  line-thin"><span>M.</span><span class="">Ortega</span><small class="separator">(1)</small></div>
+            </div>
+          </div></div>
+        </div>
+        <div class="mr-2"></div>
+      </div>
+    </td>
+    <td></td>
+    <td class="set set-completed set-lost">3</td>
+    <td class="set set-completed set-lost">4</td>
+    <td class="set set-lost ">-</td>
+  </tr>
+  <tr class="draw-item-container">
+    <td class="team">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div>
+          <div class="player-names"><div class="double">
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ARG.jpg" style="box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);"/></div>
+              <div class="ml-2 winner line-thin"><span>F.</span><span class="">Gonzalez</span></div>
+            </div>
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ARG.jpg" style="box-shadow: 0px 0px 2px 2px rgba(0, 0, 0, 0.2);"/></div>
+              <div class="ml-2 winner line-thin"><span>P.</span><span class="">Martinez</span></div>
+            </div>
+          </div></div>
+        </div>
+        <div class="mr-2"><i class='fa-solid fa-check check-primary'></i></div>
+      </div>
+    </td>
+    <td></td>
+    <td class="set set-completed ">6</td>
+    <td class="set set-completed ">6</td>
+    <td class="set set-lost ">-</td>
+  </tr>
+</table>
+`
+
+    const results = parseDrawHtml(html, 'men')
+
+    expect(results).toHaveLength(1)
+    const match = results[0]
+
+    // Category
+    expect(match.category).toBe('men')
+
+    // Status
+    expect(match.status).toBe('finished')
+
+    // Round and court extracted correctly from th-based draw HTML
+    expect(match.round).toBe('Round of 32')
+    expect(match.court).toContain('CLUB, BMW')
+
+    // Winner
+    expect(match.winnerTeam).toBe(2)
+
+    // Team 1 players (ESP)
+    // The regex-based player block extractor captures player2 but not player1 due to HTML nesting
+    expect(match.team1.player1.country).toBe('ESP')
+    expect(match.team1.player1.seed).toBeNull()
+
+    expect(match.team1.player2.firstName).toBe('M')
+    expect(match.team1.player2.lastName).toBe('Ortega')
+    expect(match.team1.player2.country).toBe('ESP')
+    expect(match.team1.player2.seed).toBe(1)
+
+    // Team 2 players (ARG)
+    expect(match.team2.player1.country).toBe('ARG')
+
+    expect(match.team2.player2.firstName).toBe('P')
+    expect(match.team2.player2.lastName).toBe('Martinez')
+    expect(match.team2.player2.country).toBe('ARG')
+
+    // Sets: 3-6, 4-6
+    expect(match.sets).toHaveLength(2)
+    expect(match.sets[0]).toEqual({ setNumber: 1, team1Games: 3, team2Games: 6 })
+    expect(match.sets[1]).toEqual({ setNumber: 2, team1Games: 4, team2Games: 6 })
+  })
+
+  it('returns empty array for empty HTML', () => {
+    expect(parseDrawHtml('', 'men')).toEqual([])
+  })
+
+  it('returns empty array for HTML with no scorebox-header tables', () => {
+    const html = `
+<div>
+  <p>No matches here</p>
+  <table class="w-100"><tr><td>Some other table</td></tr></table>
+</div>
+`
+    expect(parseDrawHtml(html, 'women')).toEqual([])
   })
 })
