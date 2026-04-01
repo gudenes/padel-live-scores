@@ -1,8 +1,9 @@
 'use client'
 // src/app/auth/callback/page.tsx
-// Handles OAuth and magic link redirects — exchanges code for session.
-// Must be client-side so the Supabase client has access to the PKCE
-// code_verifier stored in the browser during the OAuth initiation.
+// Handles OAuth and magic link redirects.
+// The Supabase client (detectSessionInUrl + PKCE) automatically exchanges
+// the ?code= param for a session. We just wait for the auth state to
+// update, then redirect home.
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -12,24 +13,30 @@ export default function AuthCallback() {
   const router = useRouter()
 
   useEffect(() => {
-    const handleCallback = async () => {
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get('code')
-
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (error) {
-          console.error('[Auth Callback] Error exchanging code:', error.message)
-          router.replace('/v2?auth_error=1')
-          return
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'SIGNED_IN') {
+          router.replace('/v2')
         }
       }
+    )
 
-      // Redirect to home after successful auth
-      router.replace('/v2')
+    // Fallback: if already signed in or if auto-detection already ran
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/v2')
+      }
+    })
+
+    // Safety timeout — if nothing happens after 5s, redirect with error
+    const timeout = setTimeout(() => {
+      router.replace('/v2?auth_error=1')
+    }, 5000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
     }
-
-    handleCallback()
   }, [router])
 
   return (
