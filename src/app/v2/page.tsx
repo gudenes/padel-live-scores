@@ -241,7 +241,7 @@ function RankingsWidget({ men, women }: { men: RankedPlayer[]; women: RankedPlay
               </div>
             </div>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-accent)', fontFamily: 'var(--font-mono)' }}>
-              {(p.points ?? 0).toLocaleString()}
+              {p.points ?? 0}
             </span>
           </div>
         )

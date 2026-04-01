@@ -120,7 +120,7 @@ YOUTUBE_API_KEY               # YouTube Data API (highlights sync)
 ## Commands
 
 ```bash
-npm run dev          # Dev server (localhost:3000)
+npm run dev          # Dev server (localhost:3002)
 npm run build        # Production build
 npm run lint         # ESLint
 npx vitest run src/lib/__tests__/score-inference.test.ts  # Unit tests
@@ -132,27 +132,27 @@ Backfills all tournament + match data from padelapi.org. Budget: 2,000 requests/
 
 ```bash
 # Dry run — see what needs syncing (no API calls)
-curl -s "http://localhost:3000/api/admin/backfill-matches" | python3 -m json.tool
+curl -s "http://localhost:3002/api/admin/backfill-matches" | python3 -m json.tool
 
 # Run backfill (stops at 2,000 requests, resume next day)
-curl -s "http://localhost:3000/api/admin/backfill-matches?run=true"
+curl -s "http://localhost:3002/api/admin/backfill-matches?run=true"
 
 # Filter by season or tournament
-curl -s "http://localhost:3000/api/admin/backfill-matches?run=true&season=4"
-curl -s "http://localhost:3000/api/admin/backfill-matches?run=true&tournament=727"
+curl -s "http://localhost:3002/api/admin/backfill-matches?run=true&season=4"
+curl -s "http://localhost:3002/api/admin/backfill-matches?run=true&tournament=727"
 
 # Skip point-by-point data (faster, less detail)
-curl -s "http://localhost:3000/api/admin/backfill-matches?run=true&skip_pbp=true"
+curl -s "http://localhost:3002/api/admin/backfill-matches?run=true&skip_pbp=true"
 ```
 
 ### Other Admin Commands
 
 ```bash
 # Seed a single tournament
-curl -s "http://localhost:3000/api/admin/seed-tournament?tournament=727" | python3 -m json.tool
+curl -s "http://localhost:3002/api/admin/seed-tournament?tournament=727" | python3 -m json.tool
 
 # Resync recent matches
-curl -s "http://localhost:3000/api/admin/resync" | python3 -m json.tool
+curl -s "http://localhost:3002/api/admin/resync" | python3 -m json.tool
 
 # Trigger cron manually (production)
 curl -H "Authorization: Bearer $CRON_SECRET" https://padel-nacho.vercel.app/api/cron/scores
