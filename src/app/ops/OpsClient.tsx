@@ -27,6 +27,18 @@ interface StaleMatch {
   updated_at: string
 }
 
+interface OngoingEvent {
+  tournament_id: string
+  name: string
+  level: string | null
+  country: string | null
+  categories: string[]
+  live: number
+  scheduled: number
+  finished: number
+  total: number
+}
+
 interface DashboardData {
   health: Record<string, HealthEntry>
   relay: RelayStatus
@@ -41,7 +53,11 @@ interface DashboardData {
     missing_scores: number
     unresolved_players: number
     total_tournaments: number
+    ongoing_events: number
+    ongoing_live_matches: number
+    ongoing_scheduled_matches: number
   }
+  ongoing: OngoingEvent[]
   usage: null
   recent_events: Array<{
     source: string
@@ -57,12 +73,12 @@ interface DashboardData {
 // ── Config ──────────────────────────────────────────────────────
 
 const TILES = [
-  { key: 'cron:scores', label: 'Scores', schedule: 'Every 2 min' },
-  { key: 'cron:sync-matches', label: 'Sync Matches', schedule: 'Every 1h' },
-  { key: 'cron:sync', label: 'Full Sync', schedule: 'Mon 4am UTC' },
-  { key: 'cron:rankings', label: 'Rankings', schedule: 'Daily 5am UTC' },
-  { key: 'cron:articles', label: 'Articles', schedule: 'Hourly :40' },
-  { key: 'cron:highlights', label: 'Highlights', schedule: 'Hourly :20' },
+  { key: 'cron:scores', label: 'Scores', schedule: 'Every 2 min', description: 'Polls padelapi.org for live match scores, upserts point/game/set data, detects stale matches stuck as live' },
+  { key: 'cron:sync-matches', label: 'Sync Matches', schedule: 'Every 1h', description: 'Syncs match metadata (players, courts, rounds) for all active tournaments from padelapi.org' },
+  { key: 'cron:sync', label: 'Full Sync', schedule: 'Mon 4am UTC', description: 'Weekly full sync: tournaments, players, seasons, and FIP logos from padelapi.org' },
+  { key: 'cron:rankings', label: 'Rankings', schedule: 'Daily 5am UTC', description: 'Fetches FIP official and race rankings (top 1000, men & women) from the FIP website' },
+  { key: 'cron:articles', label: 'Articles', schedule: 'Hourly :40', description: 'Fetches padel news from Google News RSS feeds and FIP WordPress API, deduplicates and upserts' },
+  { key: 'cron:highlights', label: 'Highlights', schedule: 'Hourly :20', description: 'Fetches recent match highlight videos from YouTube padel channels, filters duplicates' },
 ] as const
 
 // ── Helpers ─────────────────────────────────────────────────────
@@ -126,6 +142,29 @@ function metaSummary(source: string, meta: Record<string, any> | null): string {
   }
 }
 
+function InfoTooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false)
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-block', marginLeft: 4, cursor: 'help' }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <span style={{ fontSize: 10, color: '#aaa', fontWeight: 400, border: '1px solid #ddd', borderRadius: '50%', width: 14, height: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>?</span>
+      {show && (
+        <span style={{
+          position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 6,
+          background: '#1f2937', color: '#fff', fontSize: 11, lineHeight: '1.4', padding: '6px 10px',
+          borderRadius: 6, whiteSpace: 'normal', width: 220, zIndex: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          pointerEvents: 'none',
+        }}>
+          {text}
+        </span>
+      )}
+    </span>
+  )
+}
+
 const SOURCE_COLORS: Record<string, { bg: string; text: string }> = {
   'cron:scores': { bg: '#dbeafe', text: '#1e40af' },
   'cron:sync': { bg: '#d1fae5', text: '#065f46' },
@@ -179,6 +218,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
+  const [tab, setTab] = useState<'health' | 'data'>('health')
 
   const poll = useCallback(async () => {
     try {
@@ -231,15 +271,105 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         </div>
       </div>
 
+      {/* Ongoing Events — always visible at top */}
+      {data.ongoing.length > 0 && (
+        <>
+          <div style={sectionLabel}>Ongoing Events</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, marginBottom: 24 }}>
+            {data.ongoing.map(evt => {
+              const progress = evt.total > 0 ? Math.round(((evt.finished) / evt.total) * 100) : 0
+              const hasLive = evt.live > 0
+              return (
+                <div key={evt.tournament_id} style={{
+                  ...card,
+                  borderLeft: hasLive ? '3px solid #22c55e' : '3px solid #3b82f6',
+                  padding: 14,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#111', lineHeight: 1.3 }}>{evt.name}</div>
+                      <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>
+                        {[evt.level, evt.country, ...evt.categories].filter(Boolean).join(' · ')}
+                      </div>
+                    </div>
+                    {hasLive && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, color: '#fff', background: '#22c55e',
+                        padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', flexShrink: 0, marginLeft: 8,
+                      }}>LIVE</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: hasLive ? '#166534' : '#666' }}>{evt.live}</div>
+                      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Live</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: '#1e40af' }}>{evt.scheduled}</div>
+                      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Scheduled</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: '#666' }}>{evt.finished}</div>
+                      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Finished</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>{evt.total}</div>
+                      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Total</div>
+                    </div>
+                  </div>
+                  {/* Progress bar */}
+                  <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginTop: 8 }}>
+                    <div style={{
+                      height: '100%', borderRadius: 2,
+                      width: `${progress}%`,
+                      background: progress === 100 ? '#22c55e' : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 9, color: '#999', marginTop: 3, textAlign: 'right' }}>{progress}% complete</div>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+      {data.ongoing.length === 0 && (
+        <div style={{ ...card, marginBottom: 24, textAlign: 'center', color: '#999', fontSize: 12 }}>
+          No ongoing events — all tournaments are between rounds
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid #e5e7eb' }}>
+        {(['health', 'data'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              padding: '8px 20px',
+              fontSize: 13,
+              fontWeight: tab === t ? 700 : 500,
+              color: tab === t ? '#111' : '#888',
+              background: 'none',
+              border: 'none',
+              borderBottom: tab === t ? '2px solid #111' : '2px solid transparent',
+              cursor: 'pointer',
+              marginBottom: -1,
+            }}
+          >
+            {t === 'health' ? 'Integration Health' : 'Data'}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'health' && <>
       {/* Section 1: Integration Health */}
-      <div style={sectionLabel}>Integration Health</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 20 }}>
         {TILES.map(tile => {
           const h = data.health[tile.key]
           const color = statusColor(h?.status ?? 'unknown')
           return (
             <div key={tile.key} style={{ ...card, border: statusBorder(h?.status ?? 'unknown'), borderLeft: `3px solid ${color}` }}>
-              <div style={tileLabel}>{tile.label}</div>
+              <div style={{ ...tileLabel, display: 'flex', alignItems: 'center' }}>{tile.label}<InfoTooltip text={tile.description} /></div>
               <div style={{ fontSize: 10, color: '#bbb', marginBottom: 6 }}>{tile.schedule}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
@@ -262,7 +392,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
           const label = r.ok ? 'Connected' : r.pusher_state === 'unreachable' ? 'Unreachable' : 'Disconnected'
           return (
             <div style={{ ...card, border: r.ok ? '1px solid #e5e7eb' : '1px solid #fecaca', borderLeft: `3px solid ${color}` }}>
-              <div style={tileLabel}>Relay (Pusher)</div>
+              <div style={{ ...tileLabel, display: 'flex', alignItems: 'center' }}>Relay (Pusher)<InfoTooltip text="Railway Node.js service with persistent Pusher WebSocket connection. Receives real-time point-by-point updates and writes them to Supabase." /></div>
               <div style={{ fontSize: 10, color: '#bbb', marginBottom: 6 }}>Always-on</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
@@ -284,7 +414,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
           const pct = Math.min(100, Math.round((used / daily) * 100))
           return (
             <div style={{ ...card, borderLeft: '3px solid #3b82f6' }}>
-              <div style={tileLabel}>API Budget</div>
+              <div style={{ ...tileLabel, display: 'flex', alignItems: 'center' }}>API Budget<InfoTooltip text="Daily API request budget for padelapi.org. Limit: 2,000/day, 10/min. The scores cron tracks remaining requests per run." /></div>
               <div style={{ fontSize: 10, color: '#bbb', marginBottom: 6 }}>padelapi.org</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: '#1e40af' }}>{used.toLocaleString()}</div>
               <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginTop: 4 }}>
@@ -296,6 +426,54 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         })()}
       </div>
 
+      {/* Section 5: Recent Events */}
+      <div style={sectionLabel}>Recent Events</div>
+      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+        <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Time</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Source</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Status</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Duration</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.recent_events.map((evt, i) => {
+              const sc = SOURCE_COLORS[evt.source] ?? { bg: '#f3f4f6', text: '#374151' }
+              const shortSource = evt.source.replace('cron:', '')
+              return (
+                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '6px 12px', color: '#999' }}>{timeAgo(evt.started_at)}</td>
+                  <td style={{ padding: '6px 12px' }}>
+                    <span style={{ background: sc.bg, color: sc.text, padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 500 }}>
+                      {shortSource}
+                    </span>
+                  </td>
+                  <td style={{ padding: '6px 12px', color: statusColor(evt.status) }}>
+                    {evt.status === 'ok' ? '\u2713' : evt.status === 'error' ? '\u2717' : '\u26A0'} {evt.status}
+                  </td>
+                  <td style={{ padding: '6px 12px', color: '#666' }}>{formatDuration(evt.duration_ms)}</td>
+                  <td style={{ padding: '6px 12px', color: evt.error_message ? '#dc2626' : '#666' }}>
+                    {evt.error_message ?? metaSummary(evt.source, evt.meta)}
+                  </td>
+                </tr>
+              )
+            })}
+            {data.recent_events.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ padding: '20px 12px', textAlign: 'center', color: '#999' }}>
+                  No events yet. Events will appear after cron jobs run.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      </>}
+
+      {tab === 'data' && <>
       {/* Section 2: Data Freshness */}
       <div style={sectionLabel}>Data Freshness</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
@@ -349,63 +527,30 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
           </div>
           <div style={dimText}>missing external_id</div>
         </div>
-      </div>
-
-      {/* Section 4: App Usage — placeholder for v2 */}
-      {data.usage && (
-        <>
-          <div style={sectionLabel}>App Usage (24h)</div>
-          <div style={{ ...card, marginBottom: 20, color: '#999', fontSize: 12 }}>
-            Analytics integration coming in v2
+        <div style={{ ...card, borderLeft: '3px solid #8b5cf6' }}>
+          <div style={tileLabel}>Ongoing Events</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#5b21b6', marginTop: 4 }}>
+            {data.quality.ongoing_events}
           </div>
-        </>
-      )}
-
-      {/* Section 5: Recent Events */}
-      <div style={sectionLabel}>Recent Events</div>
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-        <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Time</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Source</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Status</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Duration</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.recent_events.map((evt, i) => {
-              const sc = SOURCE_COLORS[evt.source] ?? { bg: '#f3f4f6', text: '#374151' }
-              const shortSource = evt.source.replace('cron:', '')
-              return (
-                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '6px 12px', color: '#999' }}>{timeAgo(evt.started_at)}</td>
-                  <td style={{ padding: '6px 12px' }}>
-                    <span style={{ background: sc.bg, color: sc.text, padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 500 }}>
-                      {shortSource}
-                    </span>
-                  </td>
-                  <td style={{ padding: '6px 12px', color: statusColor(evt.status) }}>
-                    {evt.status === 'ok' ? '\u2713' : evt.status === 'error' ? '\u2717' : '\u26A0'} {evt.status}
-                  </td>
-                  <td style={{ padding: '6px 12px', color: '#666' }}>{formatDuration(evt.duration_ms)}</td>
-                  <td style={{ padding: '6px 12px', color: evt.error_message ? '#dc2626' : '#666' }}>
-                    {evt.error_message ?? metaSummary(evt.source, evt.meta)}
-                  </td>
-                </tr>
-              )
-            })}
-            {data.recent_events.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ padding: '20px 12px', textAlign: 'center', color: '#999' }}>
-                  No events yet. Events will appear after cron jobs run.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          <div style={dimText}>tournaments with active matches</div>
+        </div>
+        <div style={{ ...card, borderLeft: '3px solid #22c55e' }}>
+          <div style={tileLabel}>Live Matches</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#166534', marginTop: 4 }}>
+            {data.quality.ongoing_live_matches}
+          </div>
+          <div style={dimText}>in progress right now</div>
+        </div>
+        <div style={{ ...card, borderLeft: '3px solid #3b82f6' }}>
+          <div style={tileLabel}>Scheduled Matches</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1e40af', marginTop: 4 }}>
+            {data.quality.ongoing_scheduled_matches}
+          </div>
+          <div style={dimText}>upcoming in ongoing events</div>
+        </div>
       </div>
+
+      </>}
     </div>
     </div>
   )

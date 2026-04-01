@@ -12,12 +12,13 @@ const RELAY_URL = process.env.RELAY_URL
 const RELAY_SECRET = process.env.RELAY_SECRET
 
 export async function GET() {
-  const [health, freshness, quality, recentEvents, relay] = await Promise.all([
+  const [health, freshness, quality, recentEvents, relay, ongoing] = await Promise.all([
     fetchHealth(),
     fetchFreshness(),
     fetchQuality(),
     fetchRecentEvents(),
     fetchRelayStatus(),
+    fetchOngoing(),
   ])
 
   return Response.json({
@@ -25,6 +26,7 @@ export async function GET() {
     relay,
     freshness,
     quality,
+    ongoing,
     usage: null, // Vercel Analytics API — deferred to v2
     recent_events: recentEvents,
     fetched_at: new Date().toISOString(),
@@ -104,27 +106,103 @@ async function fetchFreshness() {
 // ── Quality: counts from existing tables ───────────────────────
 
 async function fetchQuality() {
-  const [matchesRes, pbpRes, tournamentsRes, unresolvedRes] = await Promise.all([
+  const [matchesRes, pbpRes, tournamentsRes, unresolvedRes, missingRes, ongoingRes] = await Promise.all([
     supabase.from('matches').select('id', { count: 'exact', head: true }),
     supabase.from('matches').select('id', { count: 'exact', head: true }).not('raw_payload', 'is', null),
     supabase.from('tournaments').select('id', { count: 'exact', head: true }),
     supabase.from('players').select('id', { count: 'exact', head: true }).is('external_id', null),
+    supabase.from('matches').select('id', { count: 'exact', head: true }).in('status', ['finished', 'retired']).is('winner_pair', null),
+    // Ongoing events: tournaments with at least one live or scheduled match
+    supabase.from('matches').select('tournament_id, status', { count: 'exact', head: false }).in('status', ['live', 'scheduled']),
   ])
 
-  // Missing scores: finished matches without winner
-  const { count: missingCount } = await supabase
-    .from('matches')
-    .select('id', { count: 'exact', head: true })
-    .in('status', ['finished', 'retired'])
-    .is('winner_pair', null)
+  // Aggregate ongoing event stats from match data
+  const ongoingMatches = ongoingRes.data ?? []
+  const eventMap = new Map<string, { live: number; scheduled: number }>()
+  for (const m of ongoingMatches) {
+    if (!m.tournament_id) continue
+    const entry = eventMap.get(m.tournament_id) ?? { live: 0, scheduled: 0 }
+    if (m.status === 'live') entry.live++
+    else entry.scheduled++
+    eventMap.set(m.tournament_id, entry)
+  }
 
   return {
     total_matches: matchesRes.count ?? 0,
     with_pbp: pbpRes.count ?? 0,
-    missing_scores: missingCount ?? 0,
+    missing_scores: missingRes.count ?? 0,
     unresolved_players: unresolvedRes.count ?? 0,
     total_tournaments: tournamentsRes.count ?? 0,
+    ongoing_events: eventMap.size,
+    ongoing_live_matches: ongoingMatches.filter(m => m.status === 'live').length,
+    ongoing_scheduled_matches: ongoingMatches.filter(m => m.status === 'scheduled').length,
   }
+}
+
+// ── Ongoing: per-tournament breakdown ─────────────────────────
+
+async function fetchOngoing() {
+  // Fetch all live + scheduled matches with tournament_id and category
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('tournament_id, status, category')
+    .in('status', ['live', 'scheduled'])
+
+  if (!matches || matches.length === 0) return []
+
+  // Group by tournament
+  const tournamentIds = [...new Set(matches.map(m => m.tournament_id).filter(Boolean))]
+
+  // Fetch tournament names
+  const { data: tournaments } = await supabase
+    .from('tournaments')
+    .select('id, name, level, country')
+    .in('id', tournamentIds)
+
+  const tournamentMap = new Map((tournaments ?? []).map(t => [t.id, t]))
+
+  // Build per-tournament stats
+  const eventStats = new Map<string, { live: number; scheduled: number; finished: number; categories: Set<string> }>()
+  for (const m of matches) {
+    if (!m.tournament_id) continue
+    const entry = eventStats.get(m.tournament_id) ?? { live: 0, scheduled: 0, finished: 0, categories: new Set() }
+    if (m.status === 'live') entry.live++
+    else if (m.status === 'scheduled') entry.scheduled++
+    if (m.category) entry.categories.add(m.category)
+    eventStats.set(m.tournament_id, entry)
+  }
+
+  // Also count finished matches for these tournaments (for progress)
+  const { data: finishedMatches } = await supabase
+    .from('matches')
+    .select('tournament_id')
+    .in('tournament_id', tournamentIds)
+    .in('status', ['finished', 'retired'])
+
+  for (const m of finishedMatches ?? []) {
+    if (!m.tournament_id) continue
+    const entry = eventStats.get(m.tournament_id)
+    if (entry) entry.finished++
+  }
+
+  return tournamentIds
+    .map(id => {
+      const t = tournamentMap.get(id)
+      const stats = eventStats.get(id)!
+      const total = stats.live + stats.scheduled + stats.finished
+      return {
+        tournament_id: id,
+        name: t?.name ?? 'Unknown',
+        level: t?.level ?? null,
+        country: t?.country ?? null,
+        categories: [...stats.categories],
+        live: stats.live,
+        scheduled: stats.scheduled,
+        finished: stats.finished,
+        total,
+      }
+    })
+    .sort((a, b) => b.live - a.live || b.scheduled - a.scheduled)
 }
 
 // ── Recent events log ──────────────────────────────────────────
