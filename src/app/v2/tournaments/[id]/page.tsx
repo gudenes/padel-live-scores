@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, isWarmingUp, toShortName } from '@/types/match'
+import { Match, countryFlag, isWarmingUp, toShortName, parseSetScore } from '@/types/match'
 import MatchCard from '../../../components/MatchCard'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import SearchOverlay from '../../SearchOverlay'
@@ -17,20 +17,21 @@ const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platin
 
 // ── Stage ordering ────────────────────────────────────────────────────────
 const ROUND_ORDER: Record<string, number> = {
-  'Finals': 1, 'Final': 1,
-  'Semifinals': 2, 'Semifinal': 2, 'Semi': 2,
-  'Quarterfinals': 3, 'Quarter': 3, 'Quarters': 3,
-  'Round of 16': 4,
-  'Round of 32': 5,
-  'Round of 64': 6,
+  'Finals': 1, 'Final': 1, 'F': 1,
+  'Semifinals': 2, 'Semifinal': 2, 'Semi': 2, 'SF': 2,
+  'Quarterfinals': 3, 'Quarter': 3, 'Quarters': 3, 'QF': 3,
+  'Round of 16': 4, 'R16': 4,
+  'Round of 32': 5, 'R32': 5,
+  'Round of 64': 6, 'R64': 6,
 }
 
 // Normalize API round names to full display names
 function normalizeRoundFull(r: string): string {
   const map: Record<string, string> = {
-    'Quarter': 'Quarterfinals', 'Quarters': 'Quarterfinals',
-    'Semi': 'Semifinals', 'Semifinal': 'Semifinals',
-    'Final': 'Finals',
+    'Quarter': 'Quarterfinals', 'Quarters': 'Quarterfinals', 'QF': 'Quarterfinals',
+    'Semi': 'Semifinals', 'Semifinal': 'Semifinals', 'SF': 'Semifinals',
+    'Final': 'Finals', 'F': 'Finals',
+    'R16': 'R16', 'R32': 'R32', 'R64': 'R64',
   }
   return map[r] ?? r
 }
@@ -918,11 +919,19 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
   // Determine winner from final match using pair1_games / pair2_games
   // Returns 1, 2, or 0 if the winner can't be determined (tie / incomplete)
   const getWinner = (m: Match): 0 | 1 | 2 => {
+    // Use winner_pair if available (set by backfill / relay)
+    if ((m as any).winner_pair === 1) return 1
+    if ((m as any).winner_pair === 2) return 2
     const sets = (m as any).sets ?? []
     let p1Sets = 0, p2Sets = 0
     for (const s of sets) {
-      const p1 = s.pair1_games ?? 0
-      const p2 = s.pair2_games ?? 0
+      let p1 = s.pair1_games ?? 0
+      let p2 = s.pair2_games ?? 0
+      // Fallback: parse set_score (e.g. "6-4") when pair1/2_games are missing
+      if (p1 === 0 && p2 === 0 && s.set_score) {
+        const parsed = parseSetScore(s.set_score)
+        if (parsed) { p1 = parsed.p1; p2 = parsed.p2 }
+      }
       if (p1 > p2) p1Sets++
       else if (p2 > p1) p2Sets++
     }
@@ -932,7 +941,13 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
 
   const formatMatchScore = (m: Match) => {
     const sets = ((m as any).sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number)
-    return sets.map((s: any) => `${s.pair1_games ?? 0}-${s.pair2_games ?? 0}`).join('  ')
+    return sets.map((s: any) => {
+      if (s.pair1_games != null && s.pair2_games != null && (s.pair1_games > 0 || s.pair2_games > 0))
+        return `${s.pair1_games}-${s.pair2_games}`
+      const parsed = parseSetScore(s.set_score)
+      if (parsed) return `${parsed.p1}-${parsed.p2}`
+      return `${s.pair1_games ?? 0}-${s.pair2_games ?? 0}`
+    }).join('  ')
   }
 
   const pairDisplay = (m: Match, pair: 1 | 2) => {

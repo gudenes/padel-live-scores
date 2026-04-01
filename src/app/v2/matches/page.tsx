@@ -88,7 +88,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 function getChampions(matches: Match[], category: string): { player1: string | null; player2: string | null; avatar1: string | null; avatar2: string | null } | null {
   const finals = matches.filter(m => {
     const a = m as any
-    return a.category === category && a.round?.toLowerCase()?.includes('final') && !a.round?.toLowerCase()?.includes('semi') && !a.round?.toLowerCase()?.includes('quarter') && a.winner_pair
+    const r = (a.round ?? '').toLowerCase()
+    const isFinal = r === 'f' || r === 'final' || r === 'finals'
+    return a.category === category && isFinal && a.winner_pair
   })
   if (finals.length === 0) return null
   const f = finals[0] as any
