@@ -5,6 +5,7 @@
 
 import { NextRequest } from 'next/server'
 import { GET as syncFipRankings } from '@/app/api/admin/sync-fip-rankings/route'
+import { logOpsEvent } from '@/lib/ops-logger'
 
 export const maxDuration = 120 // FIP fetch for 4 queries (2 genders × 2 types) can take a while
 
@@ -23,5 +24,14 @@ export async function GET(req: NextRequest) {
   url.searchParams.set('top', '1000')
   const fakeReq = new NextRequest(url)
 
-  return syncFipRankings(fakeReq)
+  try {
+    const meta = await logOpsEvent('cron:rankings', async () => {
+      const res = await syncFipRankings(fakeReq)
+      const data = await res.json()
+      return { official: data.official ?? 0, race: data.race ?? 0 }
+    })
+    return Response.json(meta)
+  } catch (error) {
+    return Response.json({ error: String(error) }, { status: 500 })
+  }
 }

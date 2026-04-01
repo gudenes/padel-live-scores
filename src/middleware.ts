@@ -2,22 +2,53 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  const response = NextResponse.next()
+  const { pathname } = request.nextUrl
 
-  // Vercel injects x-vercel-ip-country with the 2-letter ISO country code
+  // ── Ops dashboard auth ──────────────────────────────────────
+  if (pathname.startsWith('/ops')) {
+    const cronSecret = process.env.CRON_SECRET
+    if (!cronSecret) {
+      return new NextResponse('Server misconfigured', { status: 500 })
+    }
+
+    // Check for token in query param (first visit / bookmark)
+    const tokenParam = request.nextUrl.searchParams.get('token')
+    if (tokenParam === cronSecret) {
+      // Set cookie and redirect without token in URL
+      const cleanUrl = new URL(pathname, request.url)
+      const response = NextResponse.redirect(cleanUrl)
+      response.cookies.set('ops_token', cronSecret, {
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/ops',
+      })
+      return response
+    }
+
+    // Check cookie
+    const cookieToken = request.cookies.get('ops_token')?.value
+    if (cookieToken !== cronSecret) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
+
+    return NextResponse.next()
+  }
+
+  // ── Geo-country cookie (existing) ───────────────────────────
+  const response = NextResponse.next()
   const country = request.headers.get('x-vercel-ip-country') ?? ''
   if (country) {
     response.cookies.set('geo-country', country, {
       path: '/',
-      httpOnly: false, // readable by client JS
+      httpOnly: false,
       sameSite: 'lax',
-      maxAge: 86400, // refresh daily
+      maxAge: 86400,
     })
   }
-
   return response
 }
 
 export const config = {
-  matcher: ['/v2/:path*'],
+  matcher: ['/v2/:path*', '/ops/:path*'],
 }
