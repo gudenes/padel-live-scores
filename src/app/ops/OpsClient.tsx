@@ -58,11 +58,11 @@ interface DashboardData {
 
 const TILES = [
   { key: 'cron:scores', label: 'Scores', schedule: 'Every 2 min' },
-  { key: 'cron:sync-matches', label: 'Sync Matches', schedule: 'Every 6h' },
+  { key: 'cron:sync-matches', label: 'Sync Matches', schedule: 'Every 1h' },
   { key: 'cron:sync', label: 'Full Sync', schedule: 'Mon 4am UTC' },
   { key: 'cron:rankings', label: 'Rankings', schedule: 'Daily 5am UTC' },
-  { key: 'cron:articles', label: 'Articles', schedule: 'Every 6h' },
-  { key: 'cron:highlights', label: 'Highlights', schedule: 'Every 6h' },
+  { key: 'cron:articles', label: 'Articles', schedule: 'Hourly :40' },
+  { key: 'cron:highlights', label: 'Highlights', schedule: 'Hourly :20' },
 ] as const
 
 // ── Helpers ─────────────────────────────────────────────────────
