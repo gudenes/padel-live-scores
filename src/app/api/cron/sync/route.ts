@@ -893,6 +893,10 @@ export async function GET(request: Request) {
       }
 
       innerResult.rateLimitRemaining = _rateLimitRemaining
+      // Flat keys for ops dashboard meta consumption
+      innerResult.tournaments_synced = innerResult.tournaments?.synced ?? 0
+      innerResult.matches_synced = innerResult.matches?.synced ?? 0
+      innerResult.players_synced = innerResult.players?.synced ?? innerResult.players?.upserted ?? 0
       console.log('[Sync] Weekly sync complete:', innerResult)
       return innerResult
     })
