@@ -14,7 +14,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     flowType: 'pkce',
     autoRefreshToken: true,
     persistSession: true,
-    lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<unknown>) => fn(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => fn(),
   },
 })
 
