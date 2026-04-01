@@ -334,7 +334,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
                     )}
                   </div>
                 ) : (
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', letterSpacing: '0.3px' }}>TBD</span>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-dim)', letterSpacing: '0.3px' }}>TBD</span>
                 )}
               </div>
             </div>
@@ -363,11 +363,11 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 2 }}>
                   {displaySets.map((set) => (
-                    <span key={set.set_number} style={{ fontSize: 8, width: isLive ? 24 : 16, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : 'var(--text-faint)', fontWeight: 700, letterSpacing: '0.2px' }}>S{set.set_number}</span>
+                    <span key={set.set_number} style={{ fontSize: 8, width: isLive ? 24 : 16, textAlign: 'center', color: set.is_current ? 'var(--color-success)' : 'var(--text-dim)', fontWeight: 700, letterSpacing: '0.2px' }}>S{set.set_number}</span>
                   ))}
-                  {isLive && <><span style={{ width: 4 }} /><span style={{ fontSize: 8, width: 32, textAlign: 'center', color: 'var(--text-faint)', fontWeight: 700, marginLeft: 8 }}>Pts</span></>}
+                  {isLive && <><span style={{ width: 4 }} /><span style={{ fontSize: 8, width: 32, textAlign: 'center', color: 'var(--text-dim)', fontWeight: 700, marginLeft: 8 }}>Pts</span></>}
                 </div>
-                {isFinished && <span style={{ fontSize: 8, width: 28, textAlign: 'center', color: 'var(--text-faint)', fontWeight: 700, marginLeft: 6, letterSpacing: '0.2px' }}>Sets</span>}
+                {isFinished && <span style={{ fontSize: 8, width: 28, textAlign: 'center', color: 'var(--text-dim)', fontWeight: 700, marginLeft: 6, letterSpacing: '0.2px' }}>Sets</span>}
               </div>
             </div>
 

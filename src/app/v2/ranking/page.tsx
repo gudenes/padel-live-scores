@@ -45,6 +45,7 @@ interface Player {
   avatar_url: string | null
   category: string | null
   updated_at: string | null
+  ranking_date: string | null
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
@@ -163,7 +164,7 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
 
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-accent)' }}>
-          {pts != null ? pts.toLocaleString() : '—'}
+          {pts != null ? pts : '—'}
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 2, fontWeight: 600, letterSpacing: '0.04em' }}>
           PTS
@@ -216,19 +217,31 @@ export default function RankingPage() {
     const rankCol  = rt === 'official' ? 'ranking'  : 'race_ranking'
     const pointCol = rt === 'official' ? 'points'   : 'race_points'
 
-    const { data } = await supabase
+    // Try with ranking_date column; fall back without it if column doesn't exist yet
+    let { data, error } = await supabase
       .from('players')
-      .select('id, name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at')
+      .select('id, name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at, ranking_date')
       .eq('category', g)
       .not(rankCol, 'is', null)
       .order(rankCol, { ascending: true })
       .limit(1000)
 
+    if (error) {
+      const fallback = await supabase
+        .from('players')
+        .select('id, name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at')
+        .eq('category', g)
+        .not(rankCol, 'is', null)
+        .order(rankCol, { ascending: true })
+        .limit(1000)
+      data = fallback.data
+    }
+
     setPlayers(data ?? [])
 
     if (data && data.length > 0) {
-      const latest = data.reduce((a, b) => (a.updated_at ?? '') > (b.updated_at ?? '') ? a : b)
-      setUpdatedAt(latest.updated_at)
+      const latest = data.reduce((a, b) => ((a as any).ranking_date ?? a.updated_at ?? '') > ((b as any).ranking_date ?? b.updated_at ?? '') ? a : b)
+      setUpdatedAt((latest as any).ranking_date ?? latest.updated_at)
     }
 
     setLoading(false)

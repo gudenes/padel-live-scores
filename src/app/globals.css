@@ -16,14 +16,14 @@
   --border-strong: #1C3D5C;
   --border-inner:  #0B1E30;
 
-  /* Text — warm parchment hierarchy */
+  /* Text — warm parchment hierarchy (improved contrast) */
   --text-primary:   #EEE4CE;
   --text-secondary: #9AAEC4;
-  --text-muted:     #4E6E8A;
-  --text-dim:       #2D4E6A;
-  --text-faint:     #1A3450;
-  --text-ghost:     #0E2438;
-  --text-invisible: #091C2E;
+  --text-muted:     #6889A5;
+  --text-dim:       #4A6F8E;
+  --text-faint:     #365A78;
+  --text-ghost:     #1A3450;
+  --text-invisible: #0E2438;
 
   /* Live — punchy red-rose */
   --color-live:        #FF4655;

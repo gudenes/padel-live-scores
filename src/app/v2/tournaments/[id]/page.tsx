@@ -12,6 +12,9 @@ import { useBookmarks } from '@/hooks/useBookmarks'
 import SearchOverlay from '../../SearchOverlay'
 import Spinner from '../../../components/Spinner'
 
+// Coverage levels per padelapi.org — tournaments with live point-by-point scoring
+const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platinum'])
+
 // ── Stage ordering ────────────────────────────────────────────────────────
 const ROUND_ORDER: Record<string, number> = {
   'Finals': 1, 'Final': 1,
@@ -578,7 +581,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   style={{
                     flex: 1, padding: '10px 0', border: 'none', background: 'none', cursor: 'pointer',
                     fontSize: 12, fontWeight: 700, letterSpacing: '0.3px', fontFamily: 'inherit',
-                    color: active ? 'var(--color-accent)' : 'var(--text-faint)',
+                    color: active ? 'var(--color-accent)' : 'var(--text-muted)',
                     position: 'relative', transition: 'color 0.2s',
                   }}
                 >
@@ -593,6 +596,20 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               )
             })}
           </div>
+
+          {/* Coverage disclaimer for tournaments without live scoring */}
+          {activeTournamentObj && !FULL_COVERAGE_LEVELS.has(activeTournamentObj.level ?? '') && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 2px',
+              fontSize: 11, color: 'var(--text-muted)',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+              </svg>
+              <span style={{ color: 'var(--text-secondary)' }}>Live point-by-point scoring is not available for this event. Scores are updated periodically.</span>
+            </div>
+          )}
 
           {/* ROW 4: Stage selector strip (Matches tab only) */}
           {pageTab === 'matches' && availableRounds.length > 0 && (
@@ -637,7 +654,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                     {roundDates[round] && (
                       <span style={{
                         fontSize: 8, letterSpacing: '0.2px',
-                        color: active ? 'var(--color-accent)' : 'var(--text-faint)',
+                        color: active ? 'var(--color-accent)' : 'var(--text-dim)',
                         textTransform: 'uppercase',
                       }}>
                         {roundDates[round]}
@@ -702,7 +719,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div style={{ textAlign: 'center', paddingTop: 80 }}>
                     <p style={{ fontSize: 36, marginBottom: 12 }}>🎾</p>
                     <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No matches for this stage</p>
-                    <p style={{ color: 'var(--text-faint)', fontSize: 13, marginTop: 4 }}>Try selecting a different round</p>
+                    <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 4 }}>Try selecting a different round</p>
                   </div>
                 )}
               </>
@@ -1100,7 +1117,7 @@ function TournamentRecap({ tournament, allMatches, genderFilter }: {
         <div style={{ textAlign: 'center', padding: '40px 0 20px' }}>
           <p style={{ fontSize: 36, marginBottom: 8 }}>🏆</p>
           <p style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 14 }}>Final not played yet</p>
-          <p style={{ color: 'var(--text-faint)', fontSize: 12, marginTop: 4 }}>Check back after the tournament ends</p>
+          <p style={{ color: 'var(--text-dim)', fontSize: 12, marginTop: 4 }}>Check back after the tournament ends</p>
         </div>
       )}
 

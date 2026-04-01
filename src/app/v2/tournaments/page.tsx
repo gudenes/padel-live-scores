@@ -49,6 +49,12 @@ function levelLabel(level: string | null): string {
   return level ? (map[level] ?? level) : ''
 }
 
+// Coverage levels per padelapi.org documentation
+const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platinum'])
+function hasLiveCoverage(level: string | null): boolean {
+  return FULL_COVERAGE_LEVELS.has(level ?? '')
+}
+
 function daysUntil(dateStr: string): number {
   const now = new Date()
   const target = new Date(dateStr)
@@ -119,6 +125,7 @@ function TournamentsPage() {
   const scrollDoneRef = useRef(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('premier')
+  const [switching, setSwitching] = useState(false)
   const [fipFilter, setFipFilter] = useState<FipFilter>('all')
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
   const [loading, setLoading] = useState(true)
@@ -182,8 +189,9 @@ function TournamentsPage() {
         const hasLiveMatch = matches.some((m: any) => m.status === 'live')
         const hasScheduled = matches.some((m: any) => m.status === 'scheduled')
         const hasFinished = matches.some((m: any) => m.status === 'finished')
-        // Tournament is live if it has an active match, or has started and still has scheduled matches
-        if (hasLiveMatch || (hasFinished && hasScheduled)) confirmedLiveIds.add(t.id)
+        // Tournament is live if it has an active match, has started and still has scheduled matches,
+        // or is within its date range and has only scheduled matches (not yet kicked off today)
+        if (hasLiveMatch || hasScheduled) confirmedLiveIds.add(t.id)
       }
     }
 
@@ -299,30 +307,52 @@ function TournamentsPage() {
         </button>
       </div>
 
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, padding: '12px 16px 4px' }}>
-        {(['premier', 'fip'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => { setTab(t); if (t === 'premier') setFipFilter('all') }}
+      {/* Hero label + circuit chip — logo morph animation on switch */}
+      <div style={{ padding: '16px 16px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <img
+            src={tab === 'premier' ? '/premier-padel-logo.svg' : '/fip-tour-logo.svg'}
+            alt={tab === 'premier' ? 'Premier Padel' : 'FIP Tour'}
             style={{
-              flex: 1, padding: '8px 0', textAlign: 'center',
-              fontSize: 12, fontWeight: 700, letterSpacing: '0.03em',
-              borderRadius: 8, cursor: 'pointer', border: 'none',
-              fontFamily: 'inherit', transition: 'all 0.15s',
-              background: tab === t ? 'var(--color-accent)' : 'var(--bg-card-alt)',
-              color: tab === t ? '#000' : 'var(--text-muted)',
-              ...(tab !== t ? { border: '1px solid var(--border-card)' } : {}),
+              height: 32, width: 'auto', objectFit: 'contain',
+              transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease',
+              transform: switching ? 'translateX(40px) scale(0.6)' : 'translateX(0) scale(1)',
+              opacity: switching ? 0 : 1,
             }}
-          >
-            {t === 'premier' ? 'Premier Padel' : 'FIP Tour'}
-          </button>
-        ))}
+          />
+        </div>
+        <button
+          onClick={() => {
+            if (switching) return
+            setSwitching(true)
+            setTimeout(() => {
+              setTab(t => t === 'premier' ? 'fip' : 'premier')
+              setFipFilter('all')
+              setTimeout(() => setSwitching(false), 50)
+            }, 350)
+          }}
+          style={{
+            padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+            background: 'var(--bg-card-alt)', color: 'var(--text-muted)',
+            border: '1px solid var(--border-card)',
+            transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease',
+            transform: switching ? 'translateX(-40px) scale(1.4)' : 'translateX(0) scale(1)',
+            opacity: switching ? 0 : 1,
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <img
+            src={tab === 'premier' ? '/fip-tour-logo.svg' : '/premier-padel-logo.svg'}
+            alt=""
+            style={{ height: 14, width: 'auto', objectFit: 'contain', opacity: 0.7 }}
+          />
+        </button>
       </div>
 
-      {/* FIP filter chips */}
+      {/* FIP filter chips — only when FIP Tour is active */}
       {tab === 'fip' && (
-        <div style={{ display: 'flex', gap: 6, padding: '12px 16px 8px', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: 6, padding: '10px 16px 4px', overflowX: 'auto' }}>
           {([
             ['all', 'All'],
             ['fip_platinum', 'Platinum'],
@@ -349,118 +379,29 @@ function TournamentsPage() {
       {loading ? (
         <Spinner fullHeight />
       ) : (
-        <>
-          {/* Live hero */}
-          {live.map(t => {
-            const round = getCurrentRound(liveMatches[t.id] ?? [])
-            return (
-              <div key={t.id} data-tournament-id={t.id} style={{ padding: '12px 16px 0' }}>
-                <div style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 5,
-                  background: 'var(--color-live-bg)', borderRadius: 6,
-                  padding: '3px 10px', fontSize: 10, fontWeight: 700,
-                  color: 'var(--color-live)', letterSpacing: '0.04em',
-                  marginBottom: 10,
-                }}>
-                  <span style={{
-                    width: 6, height: 6, borderRadius: '50%',
-                    background: 'var(--color-live)',
-                    animation: 'pulse 1.5s infinite',
-                  }} />
-                  LIVE
-                </div>
-
-                <Link href={`/v2/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{
-                    borderRadius: 14, padding: '16px 18px',
-                    background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(255,70,85,0.06) 100%)',
-                    border: '1px solid var(--color-live-border)',
-                    position: 'relative', overflow: 'hidden', cursor: 'pointer',
-                  }}>
-                    <div style={{
-                      position: 'absolute', top: -30, right: -30, width: 100, height: 100,
-                      borderRadius: '50%', background: 'rgba(255,70,85,0.08)', filter: 'blur(30px)',
-                    }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
-                      <div>
-                        <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 4px' }}>
-                          {countryFlag(t.country)} {t.name}
-                        </h3>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                          {t.location ?? countryName(t.country)}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span>{formatDateRange(t.starts_at, t.ends_at)}</span>
-                          {t.prize_money && t.prize_money !== 'EUR 0' && (
-                            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>· {t.prize_money}</span>
-                          )}
-                        </div>
-                      </div>
-                      {round && (
-                        <div style={{
-                          fontSize: 10, fontWeight: 700, color: 'var(--color-live)',
-                          background: 'var(--color-live-bg)', borderRadius: 4, padding: '2px 6px',
-                        }}>
-                          {round}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      marginTop: 12, padding: '6px 14px', borderRadius: 8,
-                      background: 'rgba(255,70,85,0.12)', border: '1px solid rgba(255,70,85,0.25)',
-                      fontSize: 11, fontWeight: 700, color: 'var(--color-live)',
-                      position: 'relative',
-                    }}>
-                      View Matches
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            )
-          })}
-
-          {/* Upcoming — grouped by month */}
-          {upcoming.length > 0 && (
+        <div style={{
+          transition: 'opacity 0.3s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          opacity: switching ? 0 : 1,
+          transform: switching ? 'scale(0.97)' : 'scale(1)',
+          transformOrigin: 'center top',
+        }}>
+          {/* Upcoming — live tournament as hero, or next upcoming */}
+          {(live.length > 0 || upcoming.length > 0) && (
             <>
               <SectionHeader
                 icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>}
-                title="Upcoming"
-                count={`${upcoming.length} events`}
+                title={live.length > 0 ? 'Live' : 'Upcoming'}
+                count={`${live.length + upcoming.length} events`}
               />
-              {(() => {
-                const byMonth: Record<string, TournamentWithWinners[]> = {}
-                for (const t of upcoming) {
-                  const d = new Date(t.starts_at)
-                  const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`
-                  const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                  if (!byMonth[key]) byMonth[key] = []
-                  byMonth[key].push({ ...t, _monthLabel: label } as any)
-                }
-                return Object.entries(byMonth).map(([key, items]) => (
-                  <div key={key}>
-                    <div style={{
-                      padding: '10px 16px 6px', fontSize: 10, fontWeight: 700,
-                      color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.06em',
-                    }}>
-                      {(items[0] as any)._monthLabel}
-                    </div>
-                    <div style={{
-                      display: 'grid', gridTemplateColumns: '1fr 1fr',
-                      gap: 10, padding: '0 16px',
-                    }}>
-                      {items.map(t => (
-                        <UpcomingCard key={t.id} tournament={t} />
-                      ))}
-                    </div>
-                  </div>
-                ))
-              })()}
+              <UpcomingStack
+                tournaments={upcoming}
+                liveTournament={live[0] ?? null}
+                liveRound={live[0] ? getCurrentRound(liveMatches[live[0].id] ?? []) : null}
+              />
             </>
           )}
 
-          {/* Completed — current season + collapsible previous seasons */}
+          {/* Completed — carousel + collapsible previous seasons */}
           {completed.length > 0 && (
             <>
               {(() => {
@@ -468,7 +409,6 @@ function TournamentsPage() {
                 const currentSeason = completed.filter(t => new Date(t.starts_at).getFullYear() === currentYear)
                 const previousSeasons = completed.filter(t => new Date(t.starts_at).getFullYear() < currentYear)
 
-                // Group previous by year
                 const prevByYear: Record<number, TournamentWithWinners[]> = {}
                 for (const t of previousSeasons) {
                   const yr = new Date(t.starts_at).getFullYear()
@@ -485,11 +425,7 @@ function TournamentsPage() {
                           title="Completed"
                           count={`${currentYear} Season`}
                         />
-                        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {currentSeason.map(t => (
-                            <CompletedCard key={t.id} tournament={t} />
-                          ))}
-                        </div>
+                        <CompletedCarousel tournaments={currentSeason} />
                       </>
                     )}
 
@@ -510,7 +446,7 @@ function TournamentsPage() {
               No tournaments found
             </div>
           )}
-        </>
+        </div>
       )}
 
       <style>{`
@@ -531,7 +467,7 @@ function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: s
       </span>
       {count && (
         <span style={{
-          fontSize: 10, fontWeight: 600, color: 'var(--text-faint)',
+          fontSize: 10, fontWeight: 600, color: 'var(--text-dim)',
           background: 'var(--bg-card-alt)', borderRadius: 10, padding: '2px 8px',
         }}>
           {count}
@@ -541,103 +477,299 @@ function SectionHeader({ icon, title, count }: { icon: React.ReactNode; title: s
   )
 }
 
-function UpcomingCard({ tournament: t }: { tournament: Tournament }) {
-  const days = daysUntil(t.starts_at)
+function UpcomingStack({ tournaments, liveTournament, liveRound }: {
+  tournaments: Tournament[]
+  liveTournament: Tournament | null
+  liveRound: string | null
+}) {
+  // Hero is the live tournament if available, otherwise the first upcoming
+  const hero = liveTournament ?? tournaments[0] ?? null
+  const isLive = !!liveTournament
+  const rest = liveTournament ? tournaments : tournaments.slice(1)
+
+  if (!hero) return null
+
+  const days = isLive ? null : daysUntil(hero.starts_at)
+
+  // Color scheme: red for live, cyan for upcoming
+  const accent = isLive ? '255,70,85' : '56,200,255'
+  const accentVar = isLive ? 'var(--color-live)' : 'var(--color-accent)'
 
   return (
-    <Link href={`/v2/tournaments/${t.id}`} data-tournament-id={t.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-      <div style={{
-        borderRadius: 12, padding: 14,
-        background: 'var(--bg-card)', border: '1px solid var(--border-card)',
-        cursor: 'pointer', overflow: 'hidden',
-        height: '100%', display: 'flex', flexDirection: 'column',
-        minWidth: 0,
-      }}>
-        <span style={{ fontSize: 20, marginBottom: 8, display: 'block' }}>
-          {countryFlag(t.country)}
-        </span>
-        <div style={{
-          fontSize: 13, fontWeight: 700, color: 'var(--text-primary)',
-          marginBottom: 2, lineHeight: 1.2,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {t.name}
-        </div>
-        <div style={{
-          fontSize: 11, color: 'var(--text-muted)', marginBottom: 8,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {t.location ?? countryName(t.country)}
-        </div>
-        <div style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 500, marginBottom: 8 }}>
-          {formatDateShort(t.starts_at, t.ends_at)}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 'auto' }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-accent)', fontFamily: 'var(--font-mono)' }}>
-            {days}d
-          </span>
-        </div>
+    <div style={{ paddingBottom: 8 }}>
+      {/* Stacked hero card */}
+      <div style={{ position: 'relative', padding: '0 16px', marginBottom: rest.length > 0 ? 16 : 8 }}>
+        {/* Peek cards behind */}
+        {rest.length >= 2 && (
+          <div style={{
+            position: 'absolute', top: 8, left: 28, right: 28, height: 160,
+            borderRadius: 14, background: 'var(--bg-card-alt)',
+            border: '1px solid rgba(255,255,255,0.04)', opacity: 0.4,
+          }} />
+        )}
+        {rest.length >= 1 && (
+          <div style={{
+            position: 'absolute', top: 4, left: 22, right: 22, height: 160,
+            borderRadius: 14, background: 'var(--bg-card)',
+            border: '1px solid rgba(255,255,255,0.06)', opacity: 0.6,
+          }} />
+        )}
+
+        {/* Front card — live or next event */}
+        <Link href={`/v2/tournaments/${hero.id}`} data-tournament-id={hero.id} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div style={{
+            position: 'relative', borderRadius: 16, padding: 20, cursor: 'pointer',
+            background: `linear-gradient(135deg, rgba(${accent},0.10) 0%, var(--bg-card) 60%, rgba(245,158,11,0.06) 100%)`,
+            border: `1.5px solid rgba(${accent},0.25)`, overflow: 'hidden', zIndex: 2,
+          }}>
+            <div style={{
+              position: 'absolute', top: -30, right: -30, width: 100, height: 100,
+              borderRadius: '50%', background: `rgba(${accent},0.06)`, filter: 'blur(30px)',
+            }} />
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
+              <div>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: `rgba(${accent},0.15)`, border: `1px solid rgba(${accent},0.3)`,
+                  borderRadius: 6, padding: '3px 10px', fontSize: 9, fontWeight: 800,
+                  color: accentVar, letterSpacing: '0.08em', marginBottom: 10,
+                }}>
+                  {isLive && (
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: accentVar,
+                      animation: 'pulse 1.5s infinite',
+                    }} />
+                  )}
+                  {isLive ? 'LIVE NOW' : 'NEXT UP'}
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  {countryFlag(hero.country)} {hero.name}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>
+                  {hero.location ?? countryName(hero.country)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {formatDateRange(hero.starts_at, hero.ends_at)}
+                </div>
+              </div>
+              {/* Countdown or round badge */}
+              {isLive ? (
+                liveRound && (
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: accentVar,
+                    background: `rgba(${accent},0.12)`, borderRadius: 6, padding: '4px 8px',
+                  }}>
+                    {liveRound}
+                  </div>
+                )
+              ) : (
+                <div style={{
+                  textAlign: 'center', padding: '8px 12px', borderRadius: 12,
+                  background: `rgba(${accent},0.08)`, border: `1px solid rgba(${accent},0.15)`,
+                  flexShrink: 0,
+                }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: accentVar, fontFamily: 'monospace', lineHeight: 1 }}>
+                    {days}
+                  </div>
+                  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+                    DAYS
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                {levelLabel(hero.level)}
+              </div>
+              {hero.prize_money && hero.prize_money !== 'EUR 0' && (
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{hero.prize_money}</div>
+              )}
+              {!hasLiveCoverage(hero.level) && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  fontSize: 9, fontWeight: 600, color: 'var(--text-muted)',
+                  background: 'rgba(255,255,255,0.05)', borderRadius: 4,
+                  padding: '2px 6px',
+                }}>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                  Results only
+                </div>
+              )}
+              <div style={{ flex: 1 }} />
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '6px 14px', borderRadius: 8,
+                background: `rgba(${accent},0.12)`, border: `1px solid rgba(${accent},0.25)`,
+                fontSize: 11, fontWeight: 700, color: accentVar,
+              }}>
+                {isLive ? 'View Matches' : 'View'}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+          </div>
+        </Link>
       </div>
-    </Link>
+
+      {/* Compact horizontal strip for remaining upcoming */}
+      {rest.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 8, padding: '0 16px', overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+        }}>
+          {rest.map(t => {
+            const d = daysUntil(t.starts_at)
+            const startDate = new Date(t.starts_at)
+            const dateLabel = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+            return (
+              <Link key={t.id} href={`/v2/tournaments/${t.id}`} data-tournament-id={t.id} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+                <div style={{
+                  padding: '10px 14px', borderRadius: 10,
+                  background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+                  minWidth: 150, cursor: 'pointer',
+                }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 600, marginBottom: 4 }}>
+                    {dateLabel}
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                    {countryFlag(t.country)} {t.name}
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {d} days
+                    {!hasLiveCoverage(t.level) && (
+                      <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>· Results only</span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
-function CompletedCard({ tournament: t }: { tournament: TournamentWithWinners }) {
-  const menWinners = t.winners.find(w => w.category === 'men')
-  const womenWinners = t.winners.find(w => w.category === 'women')
-
+function CompletedCarousel({ tournaments }: { tournaments: TournamentWithWinners[] }) {
   function shortName(fullName: string | null): string {
     if (!fullName) return '—'
     const parts = fullName.trim().split(' ')
-    return parts[parts.length - 1] // last name
+    return parts[parts.length - 1]
   }
 
   return (
-    <Link href={`/v2/tournaments/${t.id}?round=Finals`} data-tournament-id={t.id} style={{ textDecoration: 'none', color: 'inherit' }}>
-      <div style={{
-        padding: 14, background: 'var(--bg-card)',
-        border: '1px solid var(--border-card)', borderRadius: 12, cursor: 'pointer',
-      }}>
-        {/* Top row: flag + name + date + chevron */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 20, flexShrink: 0, width: 28, textAlign: 'center' }}>
-            {countryFlag(t.country)}
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-              {t.name}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>{formatDateShort(t.starts_at, t.ends_at)}</span>
-              <span>· {t.location ?? countryName(t.country)}</span>
-            </div>
-          </div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2" strokeLinecap="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </div>
+    <div style={{
+      display: 'flex', gap: 12, padding: '0 16px 16px', overflowX: 'auto',
+      WebkitOverflowScrolling: 'touch',
+    }}>
+      {tournaments.map((t, i) => {
+        const menWinners = t.winners.find(w => w.category === 'men')
+        const womenWinners = t.winners.find(w => w.category === 'women')
+        const isFirst = i === 0
 
-        {/* Winners section */}
-        {(menWinners || womenWinners) && (
-          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-base)' }}>
+        return (
+          <Link key={t.id} href={`/v2/tournaments/${t.id}?round=Finals`} data-tournament-id={t.id} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
             <div style={{
-              fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
-              letterSpacing: '0.06em', color: 'var(--text-faint)', marginBottom: 6,
+              minWidth: isFirst ? 300 : 260, borderRadius: 14,
+              background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+              overflow: 'hidden', cursor: 'pointer',
             }}>
-              Winners
-            </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              {menWinners && (
-                <WinnerEntry category="men" winner={menWinners} shortName={shortName} />
+              {/* Header */}
+              <div style={{
+                padding: '12px 14px', display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: (menWinners || womenWinners) ? '1px solid rgba(255,255,255,0.06)' : 'none',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 20 }}>{countryFlag(t.country)}</span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      {formatDateShort(t.starts_at, t.ends_at)} · {t.location ?? countryName(t.country)}
+                    </div>
+                  </div>
+                </div>
+                {t.level && (
+                  <div style={{
+                    fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 4,
+                    background: t.level === 'major' || t.level === 'finals'
+                      ? 'rgba(245,158,11,0.1)' : 'rgba(56,200,255,0.1)',
+                    color: t.level === 'major' || t.level === 'finals'
+                      ? '#F59E0B' : 'var(--color-accent)',
+                    flexShrink: 0,
+                  }}>
+                    {levelLabel(t.level).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              {/* Champions */}
+              {(menWinners || womenWinners) && (
+                <div style={{ padding: '12px 14px' }}>
+                  <div style={{
+                    fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.06em', color: '#F59E0B', marginBottom: 8,
+                  }}>
+                    Champions
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {menWinners && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 4, height: 24, borderRadius: 2, background: '#5BA8FF', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', flexShrink: 0, marginRight: 4 }}>
+                          {menWinners.player1_avatar && (
+                            <img src={menWinners.player1_avatar} alt="" style={{
+                              width: 24, height: 24, borderRadius: '50%', objectFit: 'cover',
+                              border: '1.5px solid var(--bg-base)', background: 'var(--bg-card-alt)',
+                            }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          )}
+                          {menWinners.player2_avatar && (
+                            <img src={menWinners.player2_avatar} alt="" style={{
+                              width: 24, height: 24, borderRadius: '50%', objectFit: 'cover',
+                              border: '1.5px solid var(--bg-base)', background: 'var(--bg-card-alt)',
+                              marginLeft: -8,
+                            }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
+                          {shortName(menWinners.player1_name)} / {shortName(menWinners.player2_name)}
+                        </div>
+                      </div>
+                    )}
+                    {womenWinners && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 4, height: 24, borderRadius: 2, background: '#F472B6', flexShrink: 0 }} />
+                        <div style={{ display: 'flex', flexShrink: 0, marginRight: 4 }}>
+                          {womenWinners.player1_avatar && (
+                            <img src={womenWinners.player1_avatar} alt="" style={{
+                              width: 24, height: 24, borderRadius: '50%', objectFit: 'cover',
+                              border: '1.5px solid var(--bg-base)', background: 'var(--bg-card-alt)',
+                            }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          )}
+                          {womenWinners.player2_avatar && (
+                            <img src={womenWinners.player2_avatar} alt="" style={{
+                              width: 24, height: 24, borderRadius: '50%', objectFit: 'cover',
+                              border: '1.5px solid var(--bg-base)', background: 'var(--bg-card-alt)',
+                              marginLeft: -8,
+                            }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
+                          {shortName(womenWinners.player1_name)} / {shortName(womenWinners.player2_name)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
-              {womenWinners && (
-                <WinnerEntry category="women" winner={womenWinners} shortName={shortName} />
-              )}
             </div>
-          </div>
-        )}
-      </div>
-    </Link>
+          </Link>
+        )
+      })}
+    </div>
   )
 }
 
@@ -664,63 +796,16 @@ function CollapsibleSeason({ year, tournaments }: { year: number; tournaments: T
           {year} Season
         </span>
         <span style={{
-          fontSize: 10, fontWeight: 600, color: 'var(--text-faint)',
+          fontSize: 10, fontWeight: 600, color: 'var(--text-dim)',
           background: 'var(--bg-card-alt)', borderRadius: 10, padding: '2px 8px',
         }}>
           {tournaments.length} events
         </span>
       </button>
       {open && (
-        <div style={{ padding: '0 16px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {tournaments.map(t => (
-            <CompletedCard key={t.id} tournament={t} />
-          ))}
-        </div>
+        <CompletedCarousel tournaments={tournaments} />
       )}
     </div>
   )
 }
 
-function WinnerEntry({ category, winner, shortName }: {
-  category: 'men' | 'women'
-  winner: Winner
-  shortName: (name: string | null) => string
-}) {
-  const catColor = category === 'men' ? '#5BA8FF' : '#F472B6'
-  return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-      <div style={{ display: 'flex', flexShrink: 0 }}>
-        <img
-          src={winner.player1_avatar ?? ''}
-          alt=""
-          style={{
-            width: 24, height: 24, borderRadius: '50%', objectFit: 'cover',
-            border: '1.5px solid var(--bg-base)', background: 'var(--bg-card-alt)',
-          }}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-        />
-        <img
-          src={winner.player2_avatar ?? ''}
-          alt=""
-          style={{
-            width: 24, height: 24, borderRadius: '50%', objectFit: 'cover',
-            border: '1.5px solid var(--bg-base)', background: 'var(--bg-card-alt)',
-            marginLeft: -8,
-          }}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-        />
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: catColor }}>
-          {category === 'men' ? 'Men' : 'Women'}
-        </span>
-        <div style={{
-          fontSize: 10, color: 'var(--text-secondary)', fontWeight: 500,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {shortName(winner.player1_name)} / {shortName(winner.player2_name)}
-        </div>
-      </div>
-    </div>
-  )
-}
