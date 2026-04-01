@@ -185,6 +185,8 @@ function normalizePlayerName(name: string): string {
 }
 
 // ── Fetch live matches ─────────────────────────────────────────
+// Note: padelapi.org /live only returns Premier Padel matches.
+// Gold/Silver/Bronze are handled by the FIP standalone pipeline (cron:fip-scores).
 async function fetchLiveMatches(): Promise<ApiMatch[]> {
   const res = await fetchFromApi('/live')
   if (!res) return []

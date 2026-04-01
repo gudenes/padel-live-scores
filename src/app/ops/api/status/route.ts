@@ -39,6 +39,7 @@ async function fetchHealth() {
   const sources = [
     'cron:scores', 'cron:sync', 'cron:sync-matches',
     'cron:rankings', 'cron:articles', 'cron:highlights',
+    'cron:fip-tournaments', 'cron:fip-scores',
   ]
 
   const health: Record<string, any> = {}
