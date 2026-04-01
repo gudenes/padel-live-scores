@@ -45,6 +45,7 @@ interface Player {
   avatar_url: string | null
   category: string | null
   updated_at: string | null
+  ranking_date: string | null
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
@@ -218,7 +219,7 @@ export default function RankingPage() {
 
     const { data } = await supabase
       .from('players')
-      .select('id, name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at')
+      .select('id, name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at, ranking_date')
       .eq('category', g)
       .not(rankCol, 'is', null)
       .order(rankCol, { ascending: true })
@@ -227,8 +228,8 @@ export default function RankingPage() {
     setPlayers(data ?? [])
 
     if (data && data.length > 0) {
-      const latest = data.reduce((a, b) => (a.updated_at ?? '') > (b.updated_at ?? '') ? a : b)
-      setUpdatedAt(latest.updated_at)
+      const latest = data.reduce((a, b) => (a.ranking_date ?? a.updated_at ?? '') > (b.ranking_date ?? b.updated_at ?? '') ? a : b)
+      setUpdatedAt(latest.ranking_date ?? latest.updated_at)
     }
 
     setLoading(false)

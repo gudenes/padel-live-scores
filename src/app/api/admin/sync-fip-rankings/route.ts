@@ -199,7 +199,7 @@ export async function GET(req: NextRequest) {
             rankingMove: p.move,
             avatarUrl: p.thumbnail || null,
             profileUrl: p.url || null,
-            updatedAt: rankingDate,
+            rankingDate,
           })
 
           if (action === 'created') results.official.created++
