@@ -210,13 +210,14 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
   if (!data) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <p style={{ color: '#999' }}>Loading dashboard...</p>
       </div>
     )
   }
 
   return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#f8f9fa', overflow: 'auto' }}>
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -405,6 +406,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
           </tbody>
         </table>
       </div>
+    </div>
     </div>
   )
 }
