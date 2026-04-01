@@ -364,8 +364,8 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
     )
 
     // Skip Gold/Silver/Bronze — these are now handled by the FIP standalone pipeline
-    // padelapi uses fip_gold/fip_silver/fip_bronze level names
-    const FIP_STANDALONE_LEVELS = ['Gold', 'Silver', 'Bronze', 'fip_gold', 'fip_silver', 'fip_bronze']
+    // padelapi uses fip_gold/fip_silver/fip_bronze; our FIP pipeline uses fip_gold/fip_other
+    const FIP_STANDALONE_LEVELS = ['fip_gold', 'fip_silver', 'fip_bronze', 'fip_other']
     const filteredTournaments = tournaments.filter(
       (t: any) => !FIP_STANDALONE_LEVELS.includes(t.level)
     )

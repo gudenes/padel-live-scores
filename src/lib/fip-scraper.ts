@@ -23,10 +23,12 @@ export const FIP_CATEGORY_IDS: Record<string, number> = {
   Bronze: 497,
 }
 
-// Reverse lookup: id → level name
-const CATEGORY_ID_TO_LEVEL: Record<number, string> = Object.fromEntries(
-  Object.entries(FIP_CATEGORY_IDS).map(([level, id]) => [id, level])
-)
+// Reverse lookup: id → DB level name (matching padelapi convention used in UI)
+const CATEGORY_ID_TO_LEVEL: Record<number, string> = {
+  [FIP_CATEGORY_IDS.Gold]: 'fip_gold',
+  [FIP_CATEGORY_IDS.Silver]: 'fip_other',
+  [FIP_CATEGORY_IDS.Bronze]: 'fip_other',
+}
 
 /** 3-letter → 2-letter ISO country codes (Olympic/FIP style) */
 export const ISO3_TO_ISO2: Record<string, string> = {
@@ -65,7 +67,7 @@ export interface FipTournament {
   categoryIds: number[]
   countryTermIds: number[]
   genderTermIds: number[]
-  level: string // 'Gold', 'Silver', 'Bronze'
+  level: string // 'fip_gold', 'fip_other'
 }
 
 export interface EventDates {
@@ -134,7 +136,7 @@ function decodeHtmlEntities(text: string): string {
 export function parseWpEvent(event: any): FipTournament {
   // Extract level from category IDs
   const categoryIds: number[] = event['category-event'] ?? []
-  let level = 'Gold' // default
+  let level = 'fip_gold' // default
   for (const id of categoryIds) {
     if (CATEGORY_ID_TO_LEVEL[id]) {
       level = CATEGORY_ID_TO_LEVEL[id]
