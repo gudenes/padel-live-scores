@@ -363,7 +363,13 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
       (existing ?? []).map((r: any) => [r.external_id, r])
     )
 
-    for (const t of tournaments) {
+    // Skip Gold/Silver/Bronze — these are now handled by the FIP standalone pipeline
+    const FIP_STANDALONE_LEVELS = ['Gold', 'Silver', 'Bronze']
+    const filteredTournaments = tournaments.filter(
+      (t: any) => !FIP_STANDALONE_LEVELS.includes(t.level)
+    )
+
+    for (const t of filteredTournaments) {
       if (!t.id) continue
       const externalId = String(t.id)
       const prev = existingMap[externalId] ?? {}
@@ -427,7 +433,7 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
       }
     }
 
-    console.log(`[Sync] Tournaments synced: ${syncedIds.length}/${tournaments.length}`)
+    console.log(`[Sync] Tournaments synced: ${syncedIds.length}/${filteredTournaments.length} (${tournaments.length - filteredTournaments.length} FIP standalone skipped)`)
     return syncedIds
   } catch (e) {
     console.error('[Sync] Failed to parse tournaments:', e)
@@ -841,6 +847,7 @@ export async function GET(request: Request) {
           .select('external_id, name')
           .lte('starts_at', today)
           .gte('ends_at', today)
+          .not('source', 'eq', 'fip')
           .limit(5)
 
         // Recently completed tournaments
@@ -849,6 +856,7 @@ export async function GET(request: Request) {
           .select('external_id, name')
           .gte('ends_at', twoWeeksAgo)
           .lt('ends_at', today)
+          .not('source', 'eq', 'fip')
           .limit(3)
 
         // Upcoming tournaments: starting within the next 7 days
@@ -859,6 +867,7 @@ export async function GET(request: Request) {
           .select('external_id, name')
           .gt('starts_at', today)
           .lte('starts_at', oneWeekFromNow)
+          .not('source', 'eq', 'fip')
           .limit(5)
 
         const allTournaments = [
