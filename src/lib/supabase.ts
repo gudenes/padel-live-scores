@@ -7,8 +7,15 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 // Browser client — uses anon key, respects RLS
-// Call this in client components
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Auth options enable PKCE flow and session detection from OAuth/magic-link redirects
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+    autoRefreshToken: true,
+    persistSession: true,
+  },
+})
 
 // Server client — uses service key, bypasses RLS
 // Only use in API routes and server components
