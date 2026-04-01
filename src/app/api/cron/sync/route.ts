@@ -11,6 +11,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { PlayerResolver } from '@/lib/player-resolver'
+import { logOpsEvent } from '@/lib/ops-logger'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -802,96 +803,100 @@ export async function GET(request: Request) {
   _retryAfter = 0
 
   try {
-    console.log(`[Sync] Starting weekly sync (scope: ${scope})...`)
-    const result: Record<string, any> = { scope, rateLimitRemaining: _rateLimitRemaining }
+    const result = await logOpsEvent(`cron:sync${scope === 'matches' ? '-matches' : ''}`, async () => {
+      console.log(`[Sync] Starting weekly sync (scope: ${scope})...`)
+      const innerResult: Record<string, any> = { scope, rateLimitRemaining: _rateLimitRemaining }
 
-    // ── Specific tournament match sync ──
-    if (forceTournament) {
-      const matchesSynced = await syncTournamentMatches(forceTournament)
-      return Response.json({ tournament: forceTournament, matchesSynced })
-    }
-
-    // ── Tournaments ──
-    const syncScopes = scope.split(',') // allows comma-separated scopes
-    if (syncScopes.includes('all') || syncScopes.includes('tournaments')) {
-      const seasonIds = await getActiveSeasonIds()
-      let totalTournamentsSynced = 0
-      for (const seasonId of seasonIds) {
-        if (isRateLimited()) break
-        const synced = await syncTournaments(seasonId)
-        totalTournamentsSynced += synced.length
+      // ── Specific tournament match sync ──
+      if (forceTournament) {
+        const matchesSynced = await syncTournamentMatches(forceTournament)
+        return { tournament: forceTournament, matchesSynced }
       }
-      result.tournaments = { synced: totalTournamentsSynced, seasons: seasonIds }
-    }
 
-    // ── Matches for active + recently completed tournaments ──
-    // Syncs ALL matches for:
-    //   - Currently active tournaments (scheduled upcoming matches + live + results)
-    //   - Tournaments that ended in the last 14 days (fix any remaining broken results)
-    // This is the single source of truth for scheduled matches AND reconciliation
-    if (syncScopes.includes('all') || syncScopes.includes('matches')) {
-      const today = new Date().toISOString().slice(0, 10)
-      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-
-      // Active tournaments: started and not yet ended
-      const { data: activeTournaments } = await supabase
-        .from('tournaments')
-        .select('external_id, name')
-        .lte('starts_at', today)
-        .gte('ends_at', today)
-        .limit(5)
-
-      // Recently completed tournaments
-      const { data: recentTournaments } = await supabase
-        .from('tournaments')
-        .select('external_id, name')
-        .gte('ends_at', twoWeeksAgo)
-        .lt('ends_at', today)
-        .limit(3)
-
-      // Upcoming tournaments: starting within the next 7 days
-      // Draws and schedules are often published days before the tournament starts
-      const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      const { data: upcomingTournaments } = await supabase
-        .from('tournaments')
-        .select('external_id, name')
-        .gt('starts_at', today)
-        .lte('starts_at', oneWeekFromNow)
-        .limit(5)
-
-      const allTournaments = [
-        ...(activeTournaments ?? []),
-        ...(recentTournaments ?? []),
-        ...(upcomingTournaments ?? []),
-      ]
-
-      // Deduplicate
-      const seen = new Set<string>()
-      const uniqueTournaments = allTournaments.filter(t => {
-        if (seen.has(t.external_id)) return false
-        seen.add(t.external_id)
-        return true
-      })
-
-      console.log(`[Sync] Syncing matches for ${uniqueTournaments.length} tournament(s)`)
-
-      let totalMatchesSynced = 0
-      for (const t of uniqueTournaments) {
-        if (isRateLimited()) break
-        const count = await syncTournamentMatches(t.external_id)
-        totalMatchesSynced += count
+      // ── Tournaments ──
+      const syncScopes = scope.split(',') // allows comma-separated scopes
+      if (syncScopes.includes('all') || syncScopes.includes('tournaments')) {
+        const seasonIds = await getActiveSeasonIds()
+        let totalTournamentsSynced = 0
+        for (const seasonId of seasonIds) {
+          if (isRateLimited()) break
+          const synced = await syncTournaments(seasonId)
+          totalTournamentsSynced += synced.length
+        }
+        innerResult.tournaments = { synced: totalTournamentsSynced, seasons: seasonIds }
       }
-      result.matches = { synced: totalMatchesSynced, tournaments: uniqueTournaments.map(t => t.external_id) }
-    }
 
-    // ── Players ──
-    if (syncScopes.includes('all') || syncScopes.includes('players')) {
-      const playerResult = await syncPlayers()
-      result.players = playerResult
-    }
+      // ── Matches for active + recently completed tournaments ──
+      // Syncs ALL matches for:
+      //   - Currently active tournaments (scheduled upcoming matches + live + results)
+      //   - Tournaments that ended in the last 14 days (fix any remaining broken results)
+      // This is the single source of truth for scheduled matches AND reconciliation
+      if (syncScopes.includes('all') || syncScopes.includes('matches')) {
+        const today = new Date().toISOString().slice(0, 10)
+        const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-    result.rateLimitRemaining = _rateLimitRemaining
-    console.log('[Sync] Weekly sync complete:', result)
+        // Active tournaments: started and not yet ended
+        const { data: activeTournaments } = await supabase
+          .from('tournaments')
+          .select('external_id, name')
+          .lte('starts_at', today)
+          .gte('ends_at', today)
+          .limit(5)
+
+        // Recently completed tournaments
+        const { data: recentTournaments } = await supabase
+          .from('tournaments')
+          .select('external_id, name')
+          .gte('ends_at', twoWeeksAgo)
+          .lt('ends_at', today)
+          .limit(3)
+
+        // Upcoming tournaments: starting within the next 7 days
+        // Draws and schedules are often published days before the tournament starts
+        const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        const { data: upcomingTournaments } = await supabase
+          .from('tournaments')
+          .select('external_id, name')
+          .gt('starts_at', today)
+          .lte('starts_at', oneWeekFromNow)
+          .limit(5)
+
+        const allTournaments = [
+          ...(activeTournaments ?? []),
+          ...(recentTournaments ?? []),
+          ...(upcomingTournaments ?? []),
+        ]
+
+        // Deduplicate
+        const seen = new Set<string>()
+        const uniqueTournaments = allTournaments.filter(t => {
+          if (seen.has(t.external_id)) return false
+          seen.add(t.external_id)
+          return true
+        })
+
+        console.log(`[Sync] Syncing matches for ${uniqueTournaments.length} tournament(s)`)
+
+        let totalMatchesSynced = 0
+        for (const t of uniqueTournaments) {
+          if (isRateLimited()) break
+          const count = await syncTournamentMatches(t.external_id)
+          totalMatchesSynced += count
+        }
+        innerResult.matches = { synced: totalMatchesSynced, tournaments: uniqueTournaments.map(t => t.external_id) }
+      }
+
+      // ── Players ──
+      if (syncScopes.includes('all') || syncScopes.includes('players')) {
+        const playerResult = await syncPlayers()
+        innerResult.players = playerResult
+      }
+
+      innerResult.rateLimitRemaining = _rateLimitRemaining
+      console.log('[Sync] Weekly sync complete:', innerResult)
+      return innerResult
+    })
+
     return Response.json(result)
   } catch (error) {
     console.error('[Sync] Fatal error:', error)

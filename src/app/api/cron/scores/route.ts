@@ -10,6 +10,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { inferFinalScore, inferBatch, inferWinnerPair } from '@/lib/score-inference'
 import { PlayerResolver } from '@/lib/player-resolver'
+import { logOpsEvent } from '@/lib/ops-logger'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -902,66 +903,73 @@ export async function GET(request: Request) {
   }
 
   try {
-    console.log('[Score Agent] Starting live sync...')
+    const result = await logOpsEvent('cron:scores', async () => {
+      console.log('[Score Agent] Starting live sync...')
 
-    // ── Step 1: Sync live matches ──────────────────────────────
-    const liveMatches = await fetchLiveMatches()
-    let syncSucceeded = 0
-    let syncFailed = 0
+      // ── Step 1: Sync live matches ──────────────────────────────
+      const liveMatches = await fetchLiveMatches()
+      let syncSucceeded = 0
+      let syncFailed = 0
 
-    if (liveMatches.length === 0) {
-      console.log('[Score Agent] No live matches at this time.')
-    } else {
-      console.log(`[Score Agent] Found ${liveMatches.length} live match(es)`)
+      if (liveMatches.length === 0) {
+        console.log('[Score Agent] No live matches at this time.')
+      } else {
+        console.log(`[Score Agent] Found ${liveMatches.length} live match(es)`)
 
-      for (const match of liveMatches) {
-        if (isRateLimited()) break
+        for (const match of liveMatches) {
+          if (isRateLimited()) break
 
-        const liveState = await fetchMatchLiveState(match.id)
-        if (!liveState) { syncFailed++; continue }
+          const liveState = await fetchMatchLiveState(match.id)
+          if (!liveState) { syncFailed++; continue }
 
-        try {
-          await upsertMatch(match, liveState)
-          syncSucceeded++
-        } catch (e) {
-          console.error(`[Score Agent] Failed to upsert match ${match.id}:`, e)
-          syncFailed++
+          try {
+            await upsertMatch(match, liveState)
+            syncSucceeded++
+          } catch (e) {
+            console.error(`[Score Agent] Failed to upsert match ${match.id}:`, e)
+            syncFailed++
+          }
         }
       }
-    }
 
-    // ── Step 1b: Detect stale "live" matches ────────────────────
-    // Matches stuck as status='live' in DB but no longer in the API live feed.
-    // This happens when the relay misses the 'finished' Pusher event.
-    const staleResult = await detectStaleMatches(liveMatches)
+      // ── Step 1b: Detect stale "live" matches ────────────────────
+      // Matches stuck as status='live' in DB but no longer in the API live feed.
+      // This happens when the relay misses the 'finished' Pusher event.
+      const staleResult = await detectStaleMatches(liveMatches)
 
-    // ── Step 2: Reconcile incomplete finished matches ──────────
-    const reconciliation = await reconcileIncompleteMatches()
+      // ── Step 2: Reconcile incomplete finished matches ──────────
+      const reconciliation = await reconcileIncompleteMatches()
 
-    // ── Step 3: Ping Railway relay ────────────────────────────
-    try {
-      await fetch(
-        `${process.env.RELAY_URL}/sync`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${process.env.RELAY_SECRET}` },
-        }
-      )
-      console.log('[Score Agent] Relay pinged successfully')
-    } catch (e) {
-      console.warn('[Score Agent] Relay ping failed (non-fatal):', e)
-    }
+      // ── Step 3: Ping Railway relay ────────────────────────────
+      try {
+        await fetch(
+          `${process.env.RELAY_URL}/sync`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${process.env.RELAY_SECRET}` },
+          }
+        )
+        console.log('[Score Agent] Relay pinged successfully')
+      } catch (e) {
+        console.warn('[Score Agent] Relay ping failed (non-fatal):', e)
+      }
 
-    console.log(`[Score Agent] Done. Synced: ${syncSucceeded}, Failed: ${syncFailed}`)
+      console.log(`[Score Agent] Done. Synced: ${syncSucceeded}, Failed: ${syncFailed}`)
+
+      return {
+        synced: syncSucceeded,
+        failed: syncFailed,
+        total: liveMatches.length,
+        live_matches: liveMatches.length,
+        stale: staleResult.found,
+        api_requests: _rateLimitRemaining,
+      }
+    })
 
     return Response.json({
-      synced: syncSucceeded,
-      failed: syncFailed,
-      total: liveMatches.length,
+      ...result,
       mode: 'live',
       rateLimitRemaining: _rateLimitRemaining,
-      staleMatches: staleResult,
-      reconciliation,
     })
   } catch (error) {
     console.error('[Score Agent] Fatal error:', error)

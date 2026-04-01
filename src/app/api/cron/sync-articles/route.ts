@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import Parser from 'rss-parser'
 import GoogleNewsDecoder from 'google-news-decoder'
+import { logOpsEvent } from '@/lib/ops-logger'
 
 export const maxDuration = 60
 
@@ -340,79 +341,90 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = createServerClient()
-  const results: Record<string, { fetched: number; error?: string }> = {}
-  let totalUpserted = 0
+  try {
+    const meta = await logOpsEvent('cron:articles', async () => {
+      const supabase = createServerClient()
+      const results: Record<string, { fetched: number; error?: string }> = {}
+      let totalUpserted = 0
 
-  for (const source of SOURCES) {
-    try {
-      const rows = source.type === 'wp-api'
-        ? await fetchFIP(source)
-        : await fetchRSS(source)
+      for (const source of SOURCES) {
+        try {
+          const rows = source.type === 'wp-api'
+            ? await fetchFIP(source)
+            : await fetchRSS(source)
 
-      results[source.key] = { fetched: rows.length }
+          results[source.key] = { fetched: rows.length }
 
-      if (rows.length === 0) continue
+          if (rows.length === 0) continue
 
-      // Enrich articles — resolve real URLs for Google News, fetch og:image & og:description.
-      // Process up to 10 at a time to stay within the 60s timeout.
-      const isGNews = source.key.startsWith('google-news')
-      const needEnrich = rows.filter(r => !r.image_url || isGNews).slice(0, 10)
-      if (needEnrich.length > 0) {
-        // For Google News: first decode the real article URLs
-        if (isGNews) {
-          const decoder = new GoogleNewsDecoder()
-          const decodeResults = await Promise.allSettled(
-            needEnrich.map(r => decoder.decodeGoogleNewsUrl(r.url))
-          )
-          for (let i = 0; i < needEnrich.length; i++) {
-            const result = decodeResults[i]
-            if (result.status !== 'fulfilled' || !result.value?.decodedUrl) continue
-            // Store the real URL temporarily for og:meta fetch
-            ;(needEnrich[i] as any)._realUrl = result.value.decodedUrl
-            // Update favicon from real domain
-            const domain = getDomain(result.value.decodedUrl)
-            if (domain) {
-              const resolvedFavicon = faviconUrl(domain)
-              needEnrich[i].source_icon = resolvedFavicon
-              needEnrich[i].favicon_url = resolvedFavicon
+          // Enrich articles — resolve real URLs for Google News, fetch og:image & og:description.
+          // Process up to 10 at a time to stay within the 60s timeout.
+          const isGNews = source.key.startsWith('google-news')
+          const needEnrich = rows.filter(r => !r.image_url || isGNews).slice(0, 10)
+          if (needEnrich.length > 0) {
+            // For Google News: first decode the real article URLs
+            if (isGNews) {
+              const decoder = new GoogleNewsDecoder()
+              const decodeResults = await Promise.allSettled(
+                needEnrich.map(r => decoder.decodeGoogleNewsUrl(r.url))
+              )
+              for (let i = 0; i < needEnrich.length; i++) {
+                const result = decodeResults[i]
+                if (result.status !== 'fulfilled' || !result.value?.decodedUrl) continue
+                // Store the real URL temporarily for og:meta fetch
+                ;(needEnrich[i] as any)._realUrl = result.value.decodedUrl
+                // Update favicon from real domain
+                const domain = getDomain(result.value.decodedUrl)
+                if (domain) {
+                  const resolvedFavicon = faviconUrl(domain)
+                  needEnrich[i].source_icon = resolvedFavicon
+                  needEnrich[i].favicon_url = resolvedFavicon
+                }
+              }
             }
+
+            // Fetch og:image and og:description from the real URL (or original URL for non-Google News)
+            const ogResults = await Promise.allSettled(
+              needEnrich.map(r => fetchOgMeta((r as any)._realUrl ?? r.url))
+            )
+            for (let i = 0; i < needEnrich.length; i++) {
+              const result = ogResults[i]
+              if (result.status !== 'fulfilled') continue
+              const { image, description } = result.value
+              if (image && !needEnrich[i].image_url) needEnrich[i].image_url = image
+              if (description && isGNews) needEnrich[i].snippet = description
+            }
+            // Clean up temp property before upsert
+            for (const r of needEnrich) delete (r as any)._realUrl
           }
-        }
 
-        // Fetch og:image and og:description from the real URL (or original URL for non-Google News)
-        const ogResults = await Promise.allSettled(
-          needEnrich.map(r => fetchOgMeta((r as any)._realUrl ?? r.url))
-        )
-        for (let i = 0; i < needEnrich.length; i++) {
-          const result = ogResults[i]
-          if (result.status !== 'fulfilled') continue
-          const { image, description } = result.value
-          if (image && !needEnrich[i].image_url) needEnrich[i].image_url = image
-          if (description && isGNews) needEnrich[i].snippet = description
+          const { error, data } = await supabase
+            .from('articles')
+            .upsert(rows, { onConflict: 'url' })
+            .select('id')
+
+          if (error) {
+            results[source.key].error = error.message
+          } else {
+            totalUpserted += data?.length ?? 0
+          }
+        } catch (err) {
+          results[source.key] = { fetched: 0, error: String(err) }
         }
-        // Clean up temp property before upsert
-        for (const r of needEnrich) delete (r as any)._realUrl
       }
 
-      const { error, data } = await supabase
-        .from('articles')
-        .upsert(rows, { onConflict: 'url' })
-        .select('id')
-
-      if (error) {
-        results[source.key].error = error.message
-      } else {
-        totalUpserted += data?.length ?? 0
+      return {
+        new: totalUpserted,
+        sources_checked: Object.keys(results).length,
+        sources: results,
       }
-    } catch (err) {
-      results[source.key] = { fetched: 0, error: String(err) }
-    }
+    })
+
+    return NextResponse.json({
+      message: 'Article sync complete',
+      ...meta,
+    })
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
-
-  return NextResponse.json({
-    message: 'Article sync complete',
-    totalUpserted,
-    sources: results,
-  })
 }
