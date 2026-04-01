@@ -62,18 +62,24 @@ function groupByTournament(matches: Match[]): { tournament: any; matches: Match[
 
 // ── Components ────────────────────────────────────────────────────────────
 
-function tournamentStatus(matches: Match[], tournament?: any): 'live' | 'finished' | 'upcoming' | null {
+function tournamentStatus(matches: Match[], tournament?: any): 'live' | 'finished' | 'upcoming' | 'qualifying' | null {
   if (matches.length === 0) return null
   const hasLive = matches.some(m => m.status === 'live')
   if (hasLive) return 'live'
   const allDone = matches.every(m => ['finished', 'retired', 'walkover'].includes(m.status))
   if (allDone) return 'finished'
   const hasScheduled = matches.some(m => m.status === 'scheduled')
-  // Tournament has started but all matches still scheduled → treat as live (in progress)
+  // Tournament has started but all matches still scheduled
   if (hasScheduled && tournament?.starts_at) {
     const now = new Date()
     const start = new Date(tournament.starts_at)
-    if (start <= now) return 'live'
+    if (start <= now) {
+      // FIP tournaments: qualifying runs before main draw
+      if (tournament.source === 'fip' && matches.every((m: any) => m.status === 'scheduled')) {
+        return 'qualifying'
+      }
+      return 'live'
+    }
   }
   if (hasScheduled && matches.every(m => m.status === 'scheduled')) return 'upcoming'
   return null // mixed state
@@ -83,6 +89,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   live: { label: 'LIVE', color: '#fff', bg: 'var(--color-live)' },
   finished: { label: 'FINISHED', color: 'var(--text-dim)', bg: 'rgba(255,255,255,0.06)' },
   upcoming: { label: 'UPCOMING', color: 'var(--color-accent)', bg: 'rgba(56,200,255,0.1)' },
+  qualifying: { label: 'QUALIFYING', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)' },
 }
 
 function getChampions(matches: Match[], category: string): { player1: string | null; player2: string | null; avatar1: string | null; avatar2: string | null } | null {
@@ -354,7 +361,7 @@ function ScoresPage() {
 
   const matchSelect = `
     *,
-    tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url),
+    tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url, source),
     pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, avatar_url, side),
     pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, avatar_url, side),
     pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, avatar_url, side),

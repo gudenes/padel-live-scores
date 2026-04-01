@@ -157,7 +157,7 @@ async function fetchOngoing() {
   // Fetch tournament names
   const { data: tournaments } = await supabase
     .from('tournaments')
-    .select('id, name, level, country')
+    .select('id, name, level, country, source, starts_at')
     .in('id', tournamentIds)
 
   const tournamentMap = new Map((tournaments ?? []).map(t => [t.id, t]))
@@ -191,16 +191,23 @@ async function fetchOngoing() {
       const t = tournamentMap.get(id)
       const stats = eventStats.get(id)!
       const total = stats.live + stats.scheduled + stats.finished
+      // FIP tournaments in qualifying: started but all MD/WD matches still scheduled
+      const isQualifying = t?.source === 'fip'
+        && t?.starts_at && new Date(t.starts_at) <= new Date()
+        && stats.live === 0 && stats.finished === 0 && stats.scheduled > 0
+
       return {
         tournament_id: id,
         name: t?.name ?? 'Unknown',
         level: t?.level ?? null,
         country: t?.country ?? null,
+        source: t?.source ?? null,
         categories: [...stats.categories],
         live: stats.live,
         scheduled: stats.scheduled,
         finished: stats.finished,
         total,
+        qualifying: isQualifying,
       }
     })
     .sort((a, b) => b.live - a.live || b.scheduled - a.scheduled)
