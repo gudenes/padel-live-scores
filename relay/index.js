@@ -10,8 +10,7 @@
 'use strict'
 
 const express = require('express')
-const PusherModule = require('pusher-js')
-const Pusher = PusherModule.default || PusherModule
+const Pusher = require('pusher-js')
 const { createClient } = require('@supabase/supabase-js')
 
 // ── Config ────────────────────────────────────────────────────
