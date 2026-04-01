@@ -109,7 +109,7 @@ function decodeHtmlEntities(text: string): string {
  */
 export function parseWpEvent(event: any): FipTournament {
   // Extract level from category IDs
-  const categoryIds: number[] = event.categories ?? []
+  const categoryIds: number[] = event['category-event'] ?? []
   let level = 'Gold' // default
   for (const id of categoryIds) {
     if (CATEGORY_ID_TO_LEVEL[id]) {
@@ -120,8 +120,8 @@ export function parseWpEvent(event: any): FipTournament {
 
   // Country and gender are stored in custom taxonomies — acf or custom fields
   // The WP API may expose them via `_links` or embedded `wp:term`
-  const countryTermIds: number[] = event['country-fip'] ?? event.country ?? []
-  const genderTermIds: number[] = event['gender-fip'] ?? event.gender ?? []
+  const countryTermIds: number[] = event.country ?? []
+  const genderTermIds: number[] = event.gender ?? []
 
   const rawTitle: string =
     event.title?.rendered ?? event.title ?? ''
@@ -481,7 +481,7 @@ export async function fetchFipEvents(level?: string): Promise<FipTournament[]> {
     let totalPages = 1
 
     while (page <= totalPages) {
-      const url = `${FIP_WP_API}/events?categories=${catId}&page=${page}&per_page=20`
+      const url = `${FIP_WP_API}/events?category-event=${catId}&page=${page}&per_page=20&_fields=id,title,slug,link,featured_media,category-event,country,gender,event-year`
       const resp = await fetch(url, { headers: DEFAULT_HEADERS })
 
       if (!resp.ok) {
@@ -545,7 +545,7 @@ export async function resolveCountryTerms(
     let totalPages = 1
 
     while (page <= totalPages) {
-      const url = `${FIP_WP_API}/country-fip?per_page=100&page=${page}`
+      const url = `${FIP_WP_API}/country?per_page=100&page=${page}&_fields=id,name,slug`
       try {
         const resp = await fetch(url, { headers: DEFAULT_HEADERS })
         if (!resp.ok) break
@@ -557,9 +557,9 @@ export async function resolveCountryTerms(
         if (wpTotal) totalPages = parseInt(wpTotal, 10)
 
         for (const term of terms) {
-          if (term.id && term.slug) {
-            // slug is typically ISO code or country name; prefer slug as-is
-            countryTermCache.set(term.id, term.slug.toUpperCase())
+          if (term.id && term.name) {
+            // name contains 3-letter ISO country code (e.g. "ESP", "ARG")
+            countryTermCache.set(term.id, term.name.toUpperCase())
           }
         }
 

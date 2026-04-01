@@ -25,9 +25,9 @@ describe('parseWpEvent', () => {
       slug: 'fip-gold-andorra-2025',
       link: 'https://www.padelfip.com/events/fip-gold-andorra-2025/',
       featured_media: 123,
-      categories: [19, 5],
-      'country-fip': [10],
-      'gender-fip': [20],
+      'category-event': [19, 5],
+      country: [10],
+      gender: [20],
     }
 
     const result = parseWpEvent(event)
@@ -50,9 +50,9 @@ describe('parseWpEvent', () => {
       slug: 'fip-silver-madrid',
       link: 'https://www.padelfip.com/events/fip-silver-madrid/',
       featured_media: 0,
-      categories: [496],
-      'country-fip': [],
-      'gender-fip': [],
+      'category-event': [496],
+      country: [],
+      gender: [],
     }
 
     const result = parseWpEvent(event)
@@ -66,9 +66,9 @@ describe('parseWpEvent', () => {
       slug: 'fip-bronze-barcelona',
       link: '',
       featured_media: 0,
-      categories: [497],
-      'country-fip': [],
-      'gender-fip': [],
+      'category-event': [497],
+      country: [],
+      gender: [],
     }
 
     const result = parseWpEvent(event)
@@ -82,9 +82,9 @@ describe('parseWpEvent', () => {
       slug: 'test-tournament',
       link: 'https://example.com',
       featured_media: 42,
-      categories: [19],
-      'country-fip': [7, 8],
-      'gender-fip': [11, 12],
+      'category-event': [19],
+      country: [7, 8],
+      gender: [11, 12],
     }
 
     const result = parseWpEvent(event)
@@ -101,9 +101,9 @@ describe('parseWpEvent', () => {
       slug: 'fip-test',
       link: '',
       featured_media: 0,
-      categories: [19],
-      'country-fip': [],
-      'gender-fip': [],
+      'category-event': [19],
+      country: [],
+      gender: [],
     }
 
     const result = parseWpEvent(event)
@@ -117,9 +117,9 @@ describe('parseWpEvent', () => {
       slug: 'cup-gold-2025',
       link: '',
       featured_media: 0,
-      categories: [19],
-      'country-fip': [],
-      'gender-fip': [],
+      'category-event': [19],
+      country: [],
+      gender: [],
     }
 
     const result = parseWpEvent(event)
@@ -133,9 +133,9 @@ describe('parseWpEvent', () => {
       slug: 'unknown',
       link: '',
       featured_media: 0,
-      categories: [999],
-      'country-fip': [],
-      'gender-fip': [],
+      'category-event': [999],
+      country: [],
+      gender: [],
     }
 
     const result = parseWpEvent(event)
@@ -149,7 +149,7 @@ describe('parseWpEvent', () => {
       slug: 'minimal',
       link: '',
       featured_media: 0,
-      categories: [496],
+      'category-event': [496],
     }
 
     const result = parseWpEvent(event)
