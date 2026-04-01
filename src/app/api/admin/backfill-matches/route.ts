@@ -245,6 +245,17 @@ async function processMatch(
   const liveSets = liveDetail?.sets ?? []
   if (liveSets.length > 0) {
     for (const set of liveSets) {
+      // Parse set_score (e.g. "6-4") into pair1_games / pair2_games
+      let pair1Games: number | null = null
+      let pair2Games: number | null = null
+      if (set.set_score) {
+        const parts = set.set_score.split('-')
+        if (parts.length === 2) {
+          pair1Games = parseInt(parts[0]) || 0
+          pair2Games = parseInt(parts[1]) || 0
+        }
+      }
+
       const { data: setRow, error: setError } = await supabase
         .from('sets')
         .upsert(
@@ -252,8 +263,10 @@ async function processMatch(
             match_id: matchDbId,
             set_number: set.set_number,
             set_score: set.set_score,
+            pair1_games: pair1Games,
+            pair2_games: pair2Games,
             is_current: false,
-            score_source: 'pbp',
+            score_source: 'api',
           },
           { onConflict: 'match_id, set_number' }
         )
