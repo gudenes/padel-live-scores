@@ -63,12 +63,17 @@ async function migrateLocalBookmarks(userId: string) {
 }
 
 async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, display_name, avatar_url')
-    .eq('id', userId)
-    .single()
-  return data
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .eq('id', userId)
+      .single()
+    if (error) return null
+    return data
+  } catch {
+    return null
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

@@ -45,12 +45,14 @@ export default function ProfilePage() {
     if (!user) return
 
     async function fetchBookmarks() {
-      // Fetch bookmarked match IDs
-      const { data: matchBookmarks } = await supabase
+      // Fetch bookmarked match IDs (table may not exist yet before migration)
+      const { data: matchBookmarks, error: matchErr } = await supabase
         .from('user_bookmarks')
         .select('target_id')
         .eq('user_id', user!.id)
         .eq('bookmark_type', 'match')
+
+      if (matchErr) { setLoadingData(false); return }
 
       // Fetch bookmarked player IDs
       const { data: playerBookmarks } = await supabase
