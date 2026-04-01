@@ -55,6 +55,7 @@ export default function TournamentDetailWrapper({ params }: { params: Promise<{ 
 function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const searchParams = useSearchParams()
   const paramRound = searchParams.get('round')
+  const paramTab = searchParams.get('tab')
   const router = useRouter()
 
   // ── State ─────────────────────────────────────────────────────────────
@@ -69,7 +70,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>('matches')
+  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>(
+    paramTab === 'recap' ? 'recap' : paramTab === 'overview' ? 'overview' : 'matches'
+  )
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   const { isBookmarked, toggle: toggleBookmark } = useBookmarks()

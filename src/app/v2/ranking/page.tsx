@@ -234,7 +234,7 @@ export default function RankingPage() {
         .not(rankCol, 'is', null)
         .order(rankCol, { ascending: true })
         .limit(1000)
-      data = fallback.data
+      data = fallback.data as typeof data
     }
 
     setPlayers(data ?? [])

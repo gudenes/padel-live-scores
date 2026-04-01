@@ -581,10 +581,6 @@ function UpcomingStack({ tournaments, liveTournament, liveRound }: {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, position: 'relative' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)' }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-                {levelLabel(hero.level)}
-              </div>
               {hero.prize_money && hero.prize_money !== 'EUR 0' && (
                 <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{hero.prize_money}</div>
               )}

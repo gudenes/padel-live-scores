@@ -327,11 +327,20 @@ export async function GET(request: Request) {
     offset += 1000
   }
 
-  // Find tournaments that already have matches
-  const { data: matchCounts } = await supabase
-    .from('matches')
-    .select('tournament_id')
-  const tourneysWithMatches = new Set(matchCounts?.map(m => m.tournament_id))
+  // Find tournaments that already have matches (paginate to avoid 1000-row default limit)
+  const allTournamentIds: string[] = []
+  let mOffset = 0
+  while (true) {
+    const { data: batch } = await supabase
+      .from('matches')
+      .select('tournament_id')
+      .range(mOffset, mOffset + 999)
+    if (!batch || batch.length === 0) break
+    allTournamentIds.push(...batch.map(m => m.tournament_id))
+    if (batch.length < 1000) break
+    mOffset += 1000
+  }
+  const tourneysWithMatches = new Set(allTournamentIds)
 
   // Filter to finished tournaments that need syncing
   let targets = allTournaments.filter(t => {
