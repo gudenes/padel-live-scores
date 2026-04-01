@@ -279,10 +279,11 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
             {data.ongoing.map(evt => {
               const progress = evt.total > 0 ? Math.round(((evt.finished) / evt.total) * 100) : 0
               const hasLive = evt.live > 0
+              const isQualifying = (evt as any).qualifying === true
               return (
                 <div key={evt.tournament_id} style={{
                   ...card,
-                  borderLeft: hasLive ? '3px solid #22c55e' : '3px solid #3b82f6',
+                  borderLeft: hasLive ? '3px solid #22c55e' : isQualifying ? '3px solid #f59e0b' : '3px solid #3b82f6',
                   padding: 14,
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -292,12 +293,17 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
                         {[evt.level, evt.country, ...evt.categories].filter(Boolean).join(' · ')}
                       </div>
                     </div>
-                    {hasLive && (
+                    {hasLive ? (
                       <span style={{
                         fontSize: 9, fontWeight: 700, color: '#fff', background: '#22c55e',
                         padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', flexShrink: 0, marginLeft: 8,
                       }}>LIVE</span>
-                    )}
+                    ) : isQualifying ? (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, color: '#92400e', background: 'rgba(245,158,11,0.15)',
+                        padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', flexShrink: 0, marginLeft: 8,
+                      }}>QUALIFYING</span>
+                    ) : null}
                   </div>
                   <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
                     <div>

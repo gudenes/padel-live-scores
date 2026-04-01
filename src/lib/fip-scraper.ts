@@ -23,10 +23,36 @@ export const FIP_CATEGORY_IDS: Record<string, number> = {
   Bronze: 497,
 }
 
-// Reverse lookup: id → level name
-const CATEGORY_ID_TO_LEVEL: Record<number, string> = Object.fromEntries(
-  Object.entries(FIP_CATEGORY_IDS).map(([level, id]) => [id, level])
-)
+// Reverse lookup: id → DB level name (matching padelapi convention used in UI)
+const CATEGORY_ID_TO_LEVEL: Record<number, string> = {
+  [FIP_CATEGORY_IDS.Gold]: 'fip_gold',
+  [FIP_CATEGORY_IDS.Silver]: 'fip_other',
+  [FIP_CATEGORY_IDS.Bronze]: 'fip_other',
+}
+
+/** 3-letter → 2-letter ISO country codes (Olympic/FIP style) */
+export const ISO3_TO_ISO2: Record<string, string> = {
+  ESP: 'ES', ARG: 'AR', BRA: 'BR', MEX: 'MX', FRA: 'FR', ITA: 'IT',
+  POR: 'PT', GER: 'DE', GBR: 'GB', USA: 'US', CHI: 'CL', COL: 'CO',
+  URU: 'UY', PAR: 'PY', BOL: 'BO', PER: 'PE', ECU: 'EC', VEN: 'VE',
+  BEL: 'BE', NED: 'NL', SWE: 'SE', NOR: 'NO', DEN: 'DK', FIN: 'FI',
+  SUI: 'CH', AUT: 'AT', POL: 'PL', CZE: 'CZ', ROM: 'RO', GRE: 'GR',
+  TUR: 'TR', ISR: 'IL', UAE: 'AE', KSA: 'SA', QAT: 'QA', HKG: 'HK',
+  JPN: 'JP', AUS: 'AU', RSA: 'ZA', MAR: 'MA', EGY: 'EG', KAZ: 'KZ',
+  CAN: 'CA', IRL: 'IE', CRO: 'HR', SRB: 'RS', UKR: 'UA', HUN: 'HU',
+  SLO: 'SI', SVK: 'SK', BUL: 'BG', LTU: 'LT', LAT: 'LV', EST: 'EE',
+  CYP: 'CY', MLT: 'MT', LUX: 'LU', ISL: 'IS', AND: 'AD', MON: 'MC',
+  ALG: 'DZ', TUN: 'TN', SEN: 'SN', CIV: 'CI', CMR: 'CM', GHA: 'GH',
+  NGA: 'NG', KEN: 'KE', SGP: 'SG', IND: 'IN', CHN: 'CN', KOR: 'KR',
+  TWN: 'TW', THA: 'TH', IDN: 'ID', MAS: 'MY', PHI: 'PH', NZL: 'NZ',
+  CRC: 'CR', PAN: 'PA', DOM: 'DO', CUB: 'CU', GTM: 'GT', HON: 'HN',
+  ESA: 'SV', NCA: 'NI', JAM: 'JM', TTO: 'TT', GUY: 'GY', SUR: 'SR',
+}
+
+export function toIso2(iso3: string | null): string | null {
+  if (!iso3) return null
+  return ISO3_TO_ISO2[iso3.toUpperCase()] ?? null
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,7 +67,7 @@ export interface FipTournament {
   categoryIds: number[]
   countryTermIds: number[]
   genderTermIds: number[]
-  level: string // 'Gold', 'Silver', 'Bronze'
+  level: string // 'fip_gold', 'fip_other'
 }
 
 export interface EventDates {
@@ -110,7 +136,7 @@ function decodeHtmlEntities(text: string): string {
 export function parseWpEvent(event: any): FipTournament {
   // Extract level from category IDs
   const categoryIds: number[] = event['category-event'] ?? []
-  let level = 'Gold' // default
+  let level = 'fip_gold' // default
   for (const id of categoryIds) {
     if (CATEGORY_ID_TO_LEVEL[id]) {
       level = CATEGORY_ID_TO_LEVEL[id]
@@ -572,8 +598,8 @@ export async function resolveCountryTerms(
   }
 
   for (const id of termIds) {
-    const code = countryTermCache.get(id)
-    if (code) return code
+    const iso3 = countryTermCache.get(id)
+    if (iso3) return toIso2(iso3) ?? iso3
   }
 
   return null
@@ -609,31 +635,27 @@ export async function fetchDrawMatches(
       'g'
     )
 
-  const drawPages: Array<{ drawCode: string; category: 'men' | 'women' }> = []
+  // Collect all round pages per draw code (e.g. MD/5, MD/4, MD/3, MD/2, MD/1)
+  const drawPages: Array<{ drawCode: string; roundCount: string; category: 'men' | 'women' }> = []
   const seen = new Set<string>()
 
   let linkMatch: RegExpExecArray | null
   while ((linkMatch = navLinkRe.exec(mainHtml)) !== null) {
     const drawCode = linkMatch[1]
-    if (seen.has(drawCode)) continue
-    seen.add(drawCode)
+    const roundCount = linkMatch[2]
+    const key = `${drawCode}/${roundCount}`
+    if (seen.has(key)) continue
+    seen.add(key)
 
     // Skip qualifying
     if (drawCode === 'MQ' || drawCode === 'WQ') continue
-    // MD = Men's Main Draw, WD = Women's Main Draw
     const category: 'men' | 'women' = drawCode.startsWith('W') ? 'women' : 'men'
-    drawPages.push({ drawCode, category })
+    drawPages.push({ drawCode, roundCount, category })
   }
 
   const allMatches: ParsedMatch[] = []
 
-  for (const { drawCode, category } of drawPages) {
-    // Re-find the round count for this drawCode
-    const roundCountMatch = new RegExp(
-      `/screen/draw/${escapeRegex(matchscorerCode)}/${drawCode}/(\\d+)\\?t=tol`
-    ).exec(mainHtml)
-    const roundCount = roundCountMatch ? roundCountMatch[1] : '1'
-
+  for (const { drawCode, roundCount, category } of drawPages) {
     const drawUrl = `${MATCHSCORER_WIDGET}/screen/draw/${matchscorerCode}/${drawCode}/${roundCount}?t=tol`
     const drawResp = await fetch(drawUrl, { headers: matchscorerHeaders })
 

@@ -5,7 +5,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { PlayerResolver } from '@/lib/player-resolver'
 import { logOpsEvent } from '@/lib/ops-logger'
-import { fetchDrawMatches, type ParsedMatch } from '@/lib/fip-scraper'
+import { fetchDrawMatches, toIso2, type ParsedMatch } from '@/lib/fip-scraper'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,30 +22,6 @@ function normalizeRound(round: string): string {
   if (r.includes('32') || r.includes('r32')) return 'R32'
   if (r.includes('64') || r.includes('r64')) return 'R64'
   return round
-}
-
-// ── 3-letter to 2-letter ISO country code mapping ─────────────────
-const ISO3_TO_ISO2: Record<string, string> = {
-  ESP: 'ES', ARG: 'AR', BRA: 'BR', MEX: 'MX', FRA: 'FR', ITA: 'IT',
-  POR: 'PT', GER: 'DE', GBR: 'GB', USA: 'US', CHI: 'CL', COL: 'CO',
-  URU: 'UY', PAR: 'PY', BOL: 'BO', PER: 'PE', ECU: 'EC', VEN: 'VE',
-  BEL: 'BE', NED: 'NL', SWE: 'SE', NOR: 'NO', DEN: 'DK', FIN: 'FI',
-  SUI: 'CH', AUT: 'AT', POL: 'PL', CZE: 'CZ', ROM: 'RO', GRE: 'GR',
-  TUR: 'TR', ISR: 'IL', UAE: 'AE', KSA: 'SA', QAT: 'QA', HKG: 'HK',
-  JPN: 'JP', AUS: 'AU', RSA: 'ZA', MAR: 'MA', EGY: 'EG', KAZ: 'KZ',
-  CAN: 'CA', IRL: 'IE', CRO: 'HR', SRB: 'RS', UKR: 'UA', HUN: 'HU',
-  SLO: 'SI', SVK: 'SK', BUL: 'BG', LTU: 'LT', LAT: 'LV', EST: 'EE',
-  CYP: 'CY', MLT: 'MT', LUX: 'LU', ISL: 'IS', AND: 'AD', MON: 'MC',
-  ALG: 'DZ', TUN: 'TN', SEN: 'SN', CIV: 'CI', CMR: 'CM', GHA: 'GH',
-  NGA: 'NG', KEN: 'KE', SGP: 'SG', IND: 'IN', CHN: 'CN', KOR: 'KR',
-  TWN: 'TW', THA: 'TH', IDN: 'ID', MAS: 'MY', PHI: 'PH', NZL: 'NZ',
-  CRC: 'CR', PAN: 'PA', DOM: 'DO', CUB: 'CU', GTM: 'GT', HON: 'HN',
-  ESA: 'SV', NCA: 'NI', JAM: 'JM', TTO: 'TT', GUY: 'GY', SUR: 'SR',
-}
-
-function toIso2(iso3: string | null): string | null {
-  if (!iso3) return null
-  return ISO3_TO_ISO2[iso3.toUpperCase()] ?? null
 }
 
 // ── Inline winner inference (best-of-3) ────────────────────────────
@@ -104,9 +80,10 @@ export async function GET(request: Request) {
           const matches = await fetchDrawMatches(tournament.matchscorer_url)
           console.log(`[FIP Scores] Found ${matches.length} matches for ${tournament.name}`)
 
-          for (const match of matches) {
+          for (let i = 0; i < matches.length; i++) {
+            const match = matches[i]
             try {
-              const matchResult = await upsertFipMatch(match, tournament.id, resolver)
+              const matchResult = await upsertFipMatch(match, tournament.id, resolver, i)
               if (matchResult === 'upserted') totalUpserted++
               else totalSkipped++
             } catch (e) {
@@ -141,8 +118,9 @@ async function upsertFipMatch(
   match: ParsedMatch,
   tournamentId: string,
   resolver: PlayerResolver,
+  matchIndex: number,
 ): Promise<'upserted' | 'skipped'> {
-  const externalId = buildMatchExternalId(tournamentId, match)
+  const externalId = buildMatchExternalId(tournamentId, match, matchIndex)
 
   const { data: existing } = await supabase
     .from('matches')
@@ -220,12 +198,17 @@ async function upsertFipMatch(
   return 'upserted'
 }
 
-function buildMatchExternalId(tournamentId: string, match: ParsedMatch): string {
+function buildMatchExternalId(tournamentId: string, match: ParsedMatch, matchIndex: number): string {
   const cat = match.category === 'men' ? 'm' : 'w'
   const round = normalizeRound(match.round).toLowerCase()
+  // Use player names when available for stability across re-orders,
+  // fall back to index when names are empty (BYE/TBD matches)
   const t1 = match.team1.player1.lastName.toLowerCase().replace(/[^a-z]/g, '').slice(0, 10)
   const t2 = match.team2.player1.lastName.toLowerCase().replace(/[^a-z]/g, '').slice(0, 10)
-  return `fip-${tournamentId}-${cat}-${round}-${t1}-${t2}`
+  if (t1 && t2) {
+    return `fip-${tournamentId}-${cat}-${round}-${t1}-${t2}`
+  }
+  return `fip-${tournamentId}-${cat}-${round}-${matchIndex}`
 }
 
 async function resolvePlayer(

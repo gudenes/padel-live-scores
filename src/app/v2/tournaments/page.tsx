@@ -44,7 +44,8 @@ function formatDateShort(start: string, end: string): string {
 function levelLabel(level: string | null): string {
   const map: Record<string, string> = {
     finals: 'Finals', major: 'Major', p1: 'P1', p2: 'P2',
-    fip_platinum: 'FIP Platinum', fip_gold: 'FIP Gold', fip_other: 'FIP Tour',
+    fip_platinum: 'FIP Platinum', fip_gold: 'FIP Gold',
+    fip_silver: 'FIP Silver', fip_bronze: 'FIP Bronze', fip_other: 'FIP Tour',
   }
   return level ? (map[level] ?? level) : ''
 }
@@ -106,7 +107,7 @@ type Tab = 'premier' | 'fip'
 type FipFilter = 'all' | 'fip_platinum' | 'fip_gold' | 'fip_other'
 
 const PREMIER_LEVELS = ['finals', 'major', 'p1', 'p2']
-const FIP_LEVELS = ['fip_platinum', 'fip_gold', 'fip_other']
+const FIP_LEVELS = ['fip_platinum', 'fip_gold', 'fip_silver', 'fip_bronze', 'fip_other']
 
 // ── Main Page ─────────────────────────────────────────────────────────────
 
@@ -152,7 +153,7 @@ function TournamentsPage() {
       .select('id, name, starts_at, ends_at, country, level, location, prize_money')
       .not('level', 'is', null)
       .order('starts_at', { ascending: false })
-      .limit(100)
+      .limit(500)
 
     if (!tournamentsData) { setLoading(false); return }
 
@@ -216,7 +217,7 @@ function TournamentsPage() {
           pair2_player2:players!matches_pair2_player2_id_fkey(name, avatar_url)
         `)
         .in('tournament.id', completedIds)
-        .in('round', ['Finals', 'Final', 'FINAL', 'finals', 'final'])
+        .in('round', ['Finals', 'Final', 'FINAL', 'finals', 'final', 'F'])
         .eq('status', 'finished')
         .not('winner_pair', 'is', null)
 
