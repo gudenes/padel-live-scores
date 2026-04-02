@@ -375,7 +375,7 @@ function ScoresPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-
+    try {
     const [liveRes, scheduledRes, recentRes] = await Promise.all([
       supabase.from('matches').select(matchSelect)
         .eq('status', 'live')
@@ -398,7 +398,6 @@ function ScoresPage() {
     setRecentMatches(sortSets((recentRes.data as any) ?? []))
     setHasMore(true) // Can still load previous seasons
     pageRef.current = 0
-    setLoading(false)
 
     // Auto-select tab: live if matches are happening (including started tournaments with scheduled matches)
     const hasLive = (liveRes.data?.length ?? 0) > 0
@@ -407,6 +406,11 @@ function ScoresPage() {
     )
     if (hasLive || hasLiveScheduled) setTab('live')
     else setTab('all')
+    } catch (e) {
+      console.error('[Matches] fetchData error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   const fetchMoreResults = useCallback(async () => {

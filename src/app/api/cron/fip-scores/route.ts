@@ -128,11 +128,12 @@ async function upsertFipMatch(
 
   const { data: existing } = await supabase
     .from('matches')
-    .select('id, status, winner_pair')
+    .select('id, status, winner_pair, finished_at')
     .eq('external_id', externalId)
     .single()
 
-  if (existing?.status === 'finished' && existing.winner_pair !== null) {
+  // Skip only if fully complete: finished + has winner + has finished_at timestamp
+  if (existing?.status === 'finished' && existing.winner_pair !== null && existing.finished_at !== null) {
     return 'skipped'
   }
 
@@ -166,8 +167,11 @@ async function upsertFipMatch(
     updated_at: new Date().toISOString(),
   }
 
-  if (match.status === 'finished' && !existing) {
-    matchData.finished_at = new Date().toISOString()
+  if (match.status === 'finished') {
+    // Set finished_at when transitioning to finished (new match or was scheduled)
+    if (!existing || existing.status !== 'finished') {
+      matchData.finished_at = new Date().toISOString()
+    }
   }
 
   const { data: matchRow, error: matchError } = await supabase
