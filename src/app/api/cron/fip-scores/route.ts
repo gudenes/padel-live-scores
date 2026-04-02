@@ -78,7 +78,11 @@ export async function GET(request: Request) {
           console.log(`[FIP Scores] Processing: ${tournament.name} (${tournament.matchscorer_url})`)
 
           const matches = await fetchDrawMatches(tournament.matchscorer_url)
-          console.log(`[FIP Scores] Found ${matches.length} matches for ${tournament.name}`)
+          const finished = matches.filter(m => m.status === 'finished').length
+          const scheduled = matches.filter(m => m.status === 'scheduled').length
+          const men = matches.filter(m => m.category === 'men').length
+          const women = matches.filter(m => m.category === 'women').length
+          console.log(`[FIP Scores] Found ${matches.length} matches for ${tournament.name} (${finished} finished, ${scheduled} scheduled, ${men} men, ${women} women)`)
 
           for (let i = 0; i < matches.length; i++) {
             const match = matches[i]
