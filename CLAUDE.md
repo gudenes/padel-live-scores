@@ -30,10 +30,13 @@ src/
     supabase.ts            # Client factory (browser anon + server service key)
     score-inference.ts     # Final score inference from point data
     player-resolver.ts     # Player deduplication
+    feed-scoring.ts        # Feed ranking engine (personalization, dedup, quality signals)
   types/
     match.ts               # Core interfaces (Match, Set, Game, Player) + utility functions
   hooks/
     useBookmarks.ts        # localStorage bookmarks (future: Supabase auth)
+    useHiddenFeedItems.ts  # localStorage hidden feed items (videos + news)
+    useFeedPreferences.ts  # localStorage feed preferences (language, category, channel)
 relay/
   index.js                 # Railway Node.js service — persistent Pusher WebSocket relay
 supabase/
@@ -50,8 +53,8 @@ supabase/
 | `players` | Player profiles | `external_id`, `name`, `country`, `avatar_url` (Supabase Storage), `ranking`, `category` |
 | `tournaments` | Tournament info | `external_id`, `name`, `level`, `country`, `logo_url`, `starts_at`, `ends_at` |
 | `seasons` | Season grouping | `external_id`, `name`, `year` |
-| `articles` | News feed | `source_url`, `source_name`, `published_at`, `player_ids[]`, `tournament_ids[]` |
-| `highlights` | YouTube videos | `external_id` (video ID), `youtube_url`, `channel_name`, `is_available` |
+| `articles` | News feed | `source_url`, `source_name`, `published_at`, `click_count`, `source_weight`, `favicon_url` |
+| `highlights` | YouTube videos | `youtube_id`, `channel_name`, `view_count`, `like_count`, `comment_count`, `description`, `channel_quality_score` |
 
 ### Relationships
 - `matches` → `tournaments` (via `tournament_id`)
@@ -97,6 +100,19 @@ When API doesn't provide `winner_pair`, infer from completed set scores (best-of
 
 ### Stale Match Detection
 Cron detects matches stuck as `live` in DB >15min and absent from API live feed — transitions them to finished.
+
+### Feed Scoring & Personalization
+Feed ranking in `src/lib/feed-scoring.ts` combines multiple signals:
+- **Base score**: `freshness (exp decay over 48h) * popularity (log10 clicks) * source_weight`
+- **Stale year penalty**: titles mentioning old years get 0.3x–0.7x
+- **Language affinity**: boosts articles in user's preferred language (up to 1.3x, needs 3+ clicks)
+- **Category preference**: boosts men's/women's content based on click history (1.3x/0.7x, needs 5+ clicks with >65% dominance)
+- **Channel engagement**: boosts channels user watches (1.15x–1.3x after 3+ plays)
+- **Bookmark relevance**: boosts content mentioning players from bookmarked matches (1.4x–1.8x)
+- **Channel quality**: server-computed from YouTube engagement rate + priority channel status
+- **Title-based dedup**: clusters items with >50% token overlap, shows best one with "+N similar" collapsed
+
+User preferences tracked in localStorage via `useFeedPreferences` hook. Hidden items via `useHiddenFeedItems` hook — shared across feed page and home carousel.
 
 ### Avatar Hosting
 Player avatars hosted on Supabase Storage (bucket: `avatars`), not proxied from external sources. Migration done via `/api/admin/migrate-avatars`.

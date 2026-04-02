@@ -12,13 +12,14 @@ const RELAY_URL = process.env.RELAY_URL
 const RELAY_SECRET = process.env.RELAY_SECRET
 
 export async function GET() {
-  const [health, freshness, quality, recentEvents, relay, ongoing] = await Promise.all([
+  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats] = await Promise.all([
     fetchHealth(),
     fetchFreshness(),
     fetchQuality(),
     fetchRecentEvents(),
     fetchRelayStatus(),
     fetchOngoing(),
+    fetchCronStats(),
   ])
 
   return Response.json({
@@ -27,6 +28,7 @@ export async function GET() {
     freshness,
     quality,
     ongoing,
+    cron_stats: cronStats,
     usage: null, // Vercel Analytics API — deferred to v2
     recent_events: recentEvents,
     fetched_at: new Date().toISOString(),
@@ -223,4 +225,58 @@ async function fetchRecentEvents() {
     .limit(50)
 
   return data ?? []
+}
+
+// ── Cron stats: run counts + cumulative datapoints ─────────────
+
+async function fetchCronStats() {
+  // Fetch all ops_events to compute run counts and aggregate datapoints per source
+  const { data } = await supabase
+    .from('ops_events')
+    .select('source, status, meta')
+
+  if (!data) return {}
+
+  const stats: Record<string, { runs: number; ok_runs: number; datapoints: number }> = {}
+
+  for (const evt of data) {
+    const s = stats[evt.source] ?? { runs: 0, ok_runs: 0, datapoints: 0 }
+    s.runs++
+    if (evt.status === 'ok') s.ok_runs++
+
+    // Sum up datapoints from meta based on source type
+    if (evt.meta && evt.status === 'ok') {
+      const m = evt.meta as Record<string, any>
+      switch (evt.source) {
+        case 'cron:scores':
+          s.datapoints += (m.synced ?? 0)
+          break
+        case 'cron:sync-matches':
+          s.datapoints += (m.matches_synced ?? 0)
+          break
+        case 'cron:sync':
+          s.datapoints += (m.tournaments_synced ?? 0) + (m.players_synced ?? 0)
+          break
+        case 'cron:rankings':
+          s.datapoints += (m.official ?? 0) + (m.race ?? 0)
+          break
+        case 'cron:articles':
+          s.datapoints += (m.new ?? 0)
+          break
+        case 'cron:highlights':
+          s.datapoints += (m.new ?? 0)
+          break
+        case 'cron:fip-tournaments':
+          s.datapoints += (m.upserted ?? 0)
+          break
+        case 'cron:fip-scores':
+          s.datapoints += (m.matches_upserted ?? 0)
+          break
+      }
+    }
+
+    stats[evt.source] = s
+  }
+
+  return stats
 }
