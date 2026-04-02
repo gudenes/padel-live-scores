@@ -26,6 +26,7 @@ interface ParsedPlayer {
 interface ParsedTeam {
   teamNumber: number
   drawType: 'main' | 'qualifying'
+  isWildCard: boolean
   players: ParsedPlayer[]
 }
 
@@ -227,6 +228,7 @@ export default function EntryListTab() {
         teams: (raw.teams ?? []).map((t: any, i: number) => ({
           teamNumber: t.position ?? i + 1,
           drawType: t.drawType ?? 'main',
+          isWildCard: t.isWildCard ?? false,
           players: [
             { name: t.player1?.name ?? '', country: t.player1?.country ?? null, ranking: t.player1?.ranking ?? null, points: t.player1?.points ?? null, action: 'new' as const },
             { name: t.player2?.name ?? '', country: t.player2?.country ?? null, ranking: t.player2?.ranking ?? null, points: t.player2?.points ?? null, action: 'new' as const },
@@ -590,7 +592,14 @@ export default function EntryListTab() {
                   style={{ background: teamBg, borderBottom: '1px solid #f3f4f6' }}
                 >
                   <td style={{ padding: '6px 10px', color: '#999', fontSize: 11 }}>
-                    {pi === 0 ? team.teamNumber : ''}
+                    {pi === 0 ? (
+                      <>
+                        {team.teamNumber}
+                        {team.isWildCard && (
+                          <span style={{ marginLeft: 3, fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 3, background: '#fef3c7', color: '#92400e', verticalAlign: 'middle' }}>WC</span>
+                        )}
+                      </>
+                    ) : ''}
                   </td>
                   <td style={{ padding: '6px 10px', fontWeight: 500, color: '#111' }}>{player.name}</td>
                   <td style={{ padding: '6px 10px', color: '#555' }}>{player.country ?? '—'}</td>

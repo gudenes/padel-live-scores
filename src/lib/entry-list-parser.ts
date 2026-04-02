@@ -5,8 +5,13 @@
 // FIP entry list PDFs contain two sections:
 //   1. Main Draw teams (positions 1-N)
 //   2. Qualifications teams (positions restart at 1)
-// Separated by a line containing "QUALIFICATIONS" (or "QUALIFYING").
-// The parser detects this boundary automatically and tags each team.
+//
+// Section boundary detection (two patterns):
+//   A. "QUALIFICATIONS" text between sections (men's PDFs)
+//   B. Second "Pos Ranking..." header where positions restart at 1 (women's PDFs)
+//
+// Wild Card entries have "WC" prefix: "25 WC 708 Mariya Sinitsyna KAZ"
+// These are tagged with isWildCard: true on the team.
 
 export interface ParsedEntryPlayer {
   name: string
@@ -21,6 +26,7 @@ export interface ParsedTeam {
   position: number
   teamPoints: number
   drawType: DrawType
+  isWildCard: boolean
   player1: ParsedEntryPlayer
   player2: ParsedEntryPlayer
 }
@@ -34,6 +40,13 @@ export interface EntryListMetadata {
 export interface ParseResult {
   teams: ParsedTeam[]
   metadata: EntryListMetadata
+}
+
+// Header line that starts each section in the PDF
+const HEADER_RE = /^Pos\s+(Ranking\s+)?/i
+
+function isHeaderLine(line: string): boolean {
+  return HEADER_RE.test(line) || (line.toLowerCase().includes('ranking') && line.toLowerCase().includes('player'))
 }
 
 /**
@@ -51,6 +64,7 @@ export function parseEntryListText(text: string): ParseResult {
   const positionRe = /^(\d+)\s+/
 
   let currentDrawType: DrawType = 'main'
+  let headerCount = 0
 
   // Extract metadata from text
   const metadata = extractMetadataFromText(text)
@@ -66,16 +80,24 @@ export function parseEntryListText(text: string): ParseResult {
       continue
     }
 
-    // Skip headers, page separators, metadata lines
-    if (line.startsWith('Pos') || (line.toLowerCase().includes('ranking') && line.toLowerCase().includes('player'))) {
+    // Skip headers, but count them — a second header means qualifying section
+    // (women's PDFs have qualifying teams between second header and metadata block)
+    if (isHeaderLine(line)) {
+      headerCount++
+      if (headerCount >= 2 && currentDrawType === 'main') {
+        currentDrawType = 'qualifying'
+      }
       i++
       continue
     }
+
+    // Skip page separators and metadata lines
     if (/^--\s*\d+\s*of\s*\d+\s*--$/.test(line)) { i++; continue }
     if (/^(MAIN DRAW|ENTRY LIST|FIP\s|Last Update)/i.test(line)) { i++; continue }
 
     // WC (wildcard) prefix: "27 WC 1364 Dmitry Myagkov RUS"
-    const wcLine = line.replace(/^(\d+)\s+WC\s+/i, '$1 ')
+    const hasWC = /^(\d+)\s+WC\s+/i.test(line)
+    const wcLine = hasWC ? line.replace(/^(\d+)\s+WC\s+/i, '$1 ') : line
 
     const posMatch = positionRe.exec(wcLine)
     if (!posMatch) { i++; continue }
@@ -140,6 +162,7 @@ export function parseEntryListText(text: string): ParseResult {
       position,
       teamPoints,
       drawType: currentDrawType,
+      isWildCard: hasWC,
       player1: { name: player1Name, country: player1Country, ranking: player1Ranking, points: player1Points },
       player2: { name: player2Name, country: player2Country, ranking: player2Ranking, points: player2Points },
     })
@@ -154,7 +177,7 @@ export function parseEntryListText(text: string): ParseResult {
 function extractMetadataFromText(text: string): EntryListMetadata {
   const lastUpdateMatch = /Last Update:\s*(.+)/i.exec(text)
   const titleMatch = /^(FIP\s+\w+\s+\w+)/m.exec(text)
-  // "ENTRY LIST Hombres's" or "ENTRY LIST Mujeres"
+  // "ENTRY LIST Hombres's" or "ENTRY LIST Mujeres" or "ENTRY LIST Women's"
   const categoryMatch = /ENTRY LIST\s+(\S+)/i.exec(text)
 
   return {
