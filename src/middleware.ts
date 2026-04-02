@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── Ops dashboard auth ──────────────────────────────────────
-  if (pathname.startsWith('/ops')) {
+  if (pathname.startsWith('/ops') || pathname.startsWith('/api/ops')) {
     const cronSecret = process.env.CRON_SECRET
     if (!cronSecret) {
       return new NextResponse('Server misconfigured', { status: 500 })
@@ -21,7 +21,7 @@ export function middleware(request: NextRequest) {
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: '/ops',
+        path: '/',
       })
       return response
     }
@@ -50,5 +50,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/v2/:path*', '/ops/:path*'],
+  matcher: ['/v2/:path*', '/ops/:path*', '/api/ops/:path*'],
 }

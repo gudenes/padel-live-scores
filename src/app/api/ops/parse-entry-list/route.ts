@@ -1,18 +1,11 @@
 // src/app/api/ops/parse-entry-list/route.ts
 // Accepts PDF file (multipart/form-data) or JSON text ({ text: string }).
 // Returns parsed teams + PDF metadata.
-// Note: middleware only covers /ops/* paths, not /api/ops/* — auth is inline here.
+// Auth: handled by middleware (ops_token cookie check for /api/ops/* paths).
 
 import { parseEntryListText, extractVersion } from '@/lib/entry-list-parser'
 
 export async function POST(request: Request) {
-  // Inline auth: middleware matcher only covers /ops/*, not /api/ops/*
-  const cronSecret = process.env.CRON_SECRET
-  const authHeader = request.headers.get('authorization')
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
   const contentType = request.headers.get('content-type') ?? ''
 
   let text: string

@@ -70,10 +70,8 @@ const sectionLabel: React.CSSProperties = {
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function getOpsToken(): string {
-  const match = document.cookie.match(/ops_token=([^;]+)/)
-  return match?.[1] ?? ''
-}
+// Auth note: /api/ops/* routes are protected by middleware via ops_token cookie.
+// No explicit auth headers needed — the cookie is sent automatically.
 
 function urgencyDot(tournament: Tournament): { color: string; label: string; sortKey: number } {
   const now = Date.now()
@@ -144,9 +142,7 @@ export default function EntryListTab() {
   useEffect(() => {
     let cancelled = false
     setLoadingTournaments(true)
-    fetch('/api/ops/seed-entry-list?action=list-tournaments', {
-      headers: { Authorization: `Bearer ${getOpsToken()}` },
-    })
+    fetch('/api/ops/seed-entry-list?action=list-tournaments')
       .then(r => r.json())
       .then(data => {
         if (cancelled) return
@@ -204,16 +200,12 @@ export default function EntryListTab() {
         form.append('file', selectedFile)
         res = await fetch('/api/ops/parse-entry-list', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${getOpsToken()}` },
           body: form,
         })
       } else {
         res = await fetch('/api/ops/parse-entry-list', {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${getOpsToken()}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: pasteText }),
         })
       }
@@ -262,10 +254,7 @@ export default function EntryListTab() {
 
       const res = await fetch('/api/ops/seed-entry-list', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${getOpsToken()}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tournamentId: selectedTournament,
           category,

@@ -11,20 +11,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 )
 
-// ── Auth helper ─────────────────────────────────────────────────
-function checkAuth(request: Request): Response | null {
-  const cronSecret = process.env.CRON_SECRET
-  const authHeader = request.headers.get('authorization')
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  return null
-}
+// Auth: handled by middleware (ops_token cookie check for /api/ops/* paths).
 
 // ── GET: List FIP tournaments for dropdown ──────────────────────
 export async function GET(request: Request) {
-  const authErr = checkAuth(request)
-  if (authErr) return authErr
 
   const url = new URL(request.url)
   const action = url.searchParams.get('action')
@@ -67,9 +57,6 @@ interface SeedRequest {
 }
 
 export async function POST(request: Request) {
-  const authErr = checkAuth(request)
-  if (authErr) return authErr
-
   const body: SeedRequest = await request.json()
 
   if (!body.tournamentId || !body.category || !body.players?.length) {
