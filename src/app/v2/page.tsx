@@ -12,6 +12,9 @@ import Link from 'next/link'
 import SearchOverlay from './SearchOverlay'
 import Spinner from '../components/Spinner'
 import ProfileButton from '@/components/ProfileButton'
+import { useHiddenFeedItems } from '@/hooks/useHiddenFeedItems'
+import { useFeedPreferences } from '@/hooks/useFeedPreferences'
+import { scoreItem, type ScoringContext } from '@/lib/feed-scoring'
 
 // ── Country names ──────────────────────────────────────────────────────────
 
@@ -617,17 +620,49 @@ function VideoPlayerInline({ video, onClose, unavailable, checking, onCheckStart
   )
 }
 
-function HighlightsCarousel({ highlights, onBroken }: { highlights: Highlight[]; onBroken?: (id: string) => void }) {
+function HighlightsCarousel({ highlights, news, onBroken, feedPrefs }: {
+  highlights: Highlight[]
+  news?: { id: string; title: string; source_icon: string; source_name: string; url: string; published_at: string; language: string | null; image_url: string | null }[]
+  onBroken?: (id: string) => void
+  feedPrefs?: import('@/hooks/useFeedPreferences').FeedPrefs
+}) {
   const [playing, setPlaying] = useState<Highlight | null>(null)
   const [videoUnavailable, setVideoUnavailable] = useState(false)
   const [videoChecking, setVideoChecking] = useState(false)
 
-  if (highlights.length === 0) return null
+  // Merge videos and news, score with personalized signals, deduplicate
+  type FeedItem = { type: 'video'; data: Highlight } | { type: 'news'; data: { id: string; title: string; source_icon: string; source_name: string; url: string; published_at: string; language: string | null; image_url: string | null } }
+  const defaultPrefs = { langClicks: {}, catClicks: { men: 0, women: 0 }, channelPlays: {} }
+  const ctx: ScoringContext = { prefs: feedPrefs ?? defaultPrefs }
+  const feed: FeedItem[] = [
+    ...highlights.map(h => ({ type: 'video' as const, data: h })),
+    ...(news ?? []).map(n => ({ type: 'news' as const, data: n })),
+  ].sort((a, b) => {
+    const scoreA = a.type === 'video'
+      ? scoreItem({ type: 'video', id: a.data.id, title: a.data.title, channel_name: (a.data as Highlight).channel_name, published_at: a.data.published_at, view_count: (a.data as Highlight).view_count, category: (a.data as Highlight).category }, ctx)
+      : scoreItem({ type: 'news', id: a.data.id, title: a.data.title, source_name: (a.data as any).source_name, published_at: a.data.published_at, click_count: 0, source_weight: 1, language: (a.data as any).language, category: null }, ctx)
+    const scoreB = b.type === 'video'
+      ? scoreItem({ type: 'video', id: b.data.id, title: b.data.title, channel_name: (b.data as Highlight).channel_name, published_at: b.data.published_at, view_count: (b.data as Highlight).view_count, category: (b.data as Highlight).category }, ctx)
+      : scoreItem({ type: 'news', id: b.data.id, title: b.data.title, source_name: (b.data as any).source_name, published_at: b.data.published_at, click_count: 0, source_weight: 1, language: (b.data as any).language, category: null }, ctx)
+    return scoreB - scoreA
+  })
+
+  if (feed.length === 0) return null
+
+  const LANG_FLAGS: Record<string, string> = { en: '\uD83C\uDDEC\uD83C\uDDE7', es: '\uD83C\uDDEA\uD83C\uDDF8', pt: '\uD83C\uDDF5\uD83C\uDDF9', fr: '\uD83C\uDDEB\uD83C\uDDF7' }
 
   function formatViews(count: number): string {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
     if (count >= 1000) return `${Math.round(count / 1000)}K`
     return String(count)
+  }
+
+  function agoLabel(dateStr: string): string {
+    const h = Math.floor((Date.now() - new Date(dateStr).getTime()) / 3600000)
+    if (h < 1) return 'Now'
+    if (h < 24) return `${h}h`
+    const d = Math.floor(h / 24)
+    return d === 1 ? '1d' : `${d}d`
   }
 
   return (
@@ -638,75 +673,155 @@ function HighlightsCarousel({ highlights, onBroken }: { highlights: Highlight[];
         WebkitOverflowScrolling: 'touch',
         msOverflowStyle: 'none', scrollbarWidth: 'none',
       }}>
-        {highlights.map(v => (
-          <button
-            key={v.id}
-            onClick={() => setPlaying(v)}
-            style={{
-              textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 220,
-              scrollSnapAlign: 'start', background: 'none', border: 'none',
-              padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
-            }}
-          >
-            <div style={{
-              borderRadius: 12, overflow: 'hidden',
-              background: 'var(--bg-card)', border: '1px solid var(--border-card)',
-            }}>
-              <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#1a1a2e' }}>
-                <img
-                  src={v.thumbnail_url}
-                  alt={v.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={() => onBroken?.(v.id)}
-                />
+        {feed.map(item => {
+          if (item.type === 'video') {
+            const v = item.data
+            return (
+              <button
+                key={`v-${v.id}`}
+                onClick={() => setPlaying(v)}
+                style={{
+                  textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 260,
+                  scrollSnapAlign: 'start', background: 'none', border: 'none',
+                  padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+                }}
+              >
                 <div style={{
-                  position: 'absolute', inset: 0,
-                  background: 'rgba(0,0,0,0.2)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: 12, overflow: 'hidden',
+                  background: 'var(--bg-card)', border: '1px solid var(--border-card)',
                 }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.9)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                  }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none">
-                      <polygon points="6,3 20,12 6,21" />
-                    </svg>
+                  <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#1a1a2e' }}>
+                    <img
+                      src={v.thumbnail_url}
+                      alt={v.title}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={() => onBroken?.(v.id)}
+                    />
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      background: 'rgba(0,0,0,0.2)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <div style={{
+                        width: 40, height: 40, borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.9)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                      }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none">
+                          <polygon points="6,3 20,12 6,21" />
+                        </svg>
+                      </div>
+                    </div>
+                    {v.duration && (
+                      <div style={{
+                        position: 'absolute', bottom: 6, right: 6,
+                        background: 'rgba(0,0,0,0.8)', borderRadius: 4,
+                        padding: '2px 6px', fontSize: 10, fontWeight: 700,
+                        color: '#fff', fontFamily: 'var(--font-mono)',
+                      }}>
+                        {v.duration}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ padding: '10px 12px' }}>
+                    <div style={{
+                      fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
+                      lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+                    }}>
+                      {v.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
+                      {v.view_count > 0 && (
+                        <>
+                          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
+                          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {v.duration && (
-                  <div style={{
-                    position: 'absolute', bottom: 6, right: 6,
-                    background: 'rgba(0,0,0,0.8)', borderRadius: 4,
-                    padding: '2px 6px', fontSize: 10, fontWeight: 700,
-                    color: '#fff', fontFamily: 'var(--font-mono)',
-                  }}>
-                    {v.duration}
-                  </div>
-                )}
-              </div>
-              <div style={{ padding: '10px 12px' }}>
+              </button>
+            )
+          } else {
+            const n = item.data
+            return (
+              <a
+                key={`n-${n.id}`}
+                href={n.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  fetch('/api/feed/click', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: n.id }),
+                  }).catch(() => {})
+                }}
+                style={{
+                  textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 260,
+                  scrollSnapAlign: 'start',
+                }}
+              >
                 <div style={{
-                  fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
-                  lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+                  borderRadius: 12, overflow: 'hidden',
+                  background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+                  height: '100%', display: 'flex', flexDirection: 'column',
                 }}>
-                  {v.title}
+                  {/* News image — same aspect ratio as video thumbnails */}
+                  <div style={{
+                    width: '100%', aspectRatio: '16/9',
+                    background: '#1a1a2e',
+                    position: 'relative', overflow: 'hidden',
+                  }}>
+                    {n.image_url && (
+                      <img
+                        src={n.image_url}
+                        alt=""
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    )}
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 50%)' }} />
+                    {/* Source favicon badge */}
+                    {n.source_icon && (
+                      <div style={{
+                        position: 'absolute', top: 8, left: 8,
+                        width: 22, height: 22, borderRadius: 5,
+                        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        overflow: 'hidden',
+                      }}>
+                        <img src={n.source_icon} alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+                      </div>
+                    )}
+                    {/* Time badge */}
+                    <div style={{
+                      position: 'absolute', bottom: 6, right: 6,
+                      background: 'rgba(0,0,0,0.8)', borderRadius: 4,
+                      padding: '2px 6px', fontSize: 10, fontWeight: 700,
+                      color: '#fff',
+                    }}>
+                      {agoLabel(n.published_at)}
+                    </div>
+                  </div>
+                  <div style={{ padding: '10px 12px', flex: 1 }}>
+                    <div style={{
+                      fontSize: 12, fontWeight: 600, color: 'var(--text-primary)',
+                      lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+                    }}>
+                      {n.title}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{n.source_name}</span>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
-                  {v.view_count > 0 && (
-                    <>
-                      <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
-                      <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </button>
-        ))}
+              </a>
+            )
+          }
+        })}
       </div>
 
       {/* Inline YouTube player modal */}
@@ -1105,7 +1220,9 @@ export default function HomePage() {
   const markBroken = useCallback((id: string) => {
     setBrokenThumbs(prev => { const s = new Set(prev); s.add(id); return s })
   }, [])
-  const [latestNews, setLatestNews] = useState<{ id: string; title: string; source_icon: string; source_name: string; url: string; published_at: string; language: string | null }[]>([])
+  const [latestNews, setLatestNews] = useState<{ id: string; title: string; source_icon: string; source_name: string; url: string; published_at: string; language: string | null; image_url: string | null }[]>([])
+  const { isHidden: isFeedHidden } = useHiddenFeedItems()
+  const { prefs: homeFeedPrefs } = useFeedPreferences()
   const [userCountry, setUserCountry] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -1196,11 +1313,12 @@ export default function HomePage() {
         .order('published_at', { ascending: false })
         .limit(10),
 
-      // Latest news articles
+      // Latest news articles (only those with images)
       supabase
         .from('articles')
-        .select('id, title, source_icon, source_name, url, published_at, language')
+        .select('id, title, source_icon, source_name, url, published_at, language, image_url')
         .eq('status', 'active')
+        .not('image_url', 'is', null)
         .order('published_at', { ascending: false })
         .limit(6),
     ])
@@ -1326,23 +1444,21 @@ export default function HomePage() {
         </>
       )}
 
-      {/* Video Highlights — filtered by user's country */}
-      {highlights.length > 0 && (
+      {/* Highlights + News — mixed carousel sorted by date */}
+      {(highlights.length > 0 || latestNews.length > 0) && (
         <CollapsibleSection title="Highlights" action="See all" href="/v2/feed">
-          <HighlightsCarousel onBroken={markBroken} highlights={highlights.filter(h => {
-            if (brokenThumbs.has(h.id)) return false
-            if (!userCountry) return true // no geo info → show all
-            if (h.allowed_countries && h.allowed_countries.length > 0) return h.allowed_countries.includes(userCountry)
-            if (h.blocked_countries && h.blocked_countries.length > 0) return !h.blocked_countries.includes(userCountry)
-            return true
-          })} />
-        </CollapsibleSection>
-      )}
-
-      {/* Latest News — compact ticker */}
-      {latestNews.length > 0 && (
-        <CollapsibleSection title="News" action="See all" href="/v2/feed?filter=news">
-          <NewsTickerWidget items={latestNews} />
+          <HighlightsCarousel
+            onBroken={markBroken}
+            highlights={highlights.filter(h => {
+              if (brokenThumbs.has(h.id) || isFeedHidden(h.id)) return false
+              if (!userCountry) return true
+              if (h.allowed_countries && h.allowed_countries.length > 0) return h.allowed_countries.includes(userCountry)
+              if (h.blocked_countries && h.blocked_countries.length > 0) return !h.blocked_countries.includes(userCountry)
+              return true
+            })}
+            news={latestNews.filter(n => !isFeedHidden(n.id))}
+            feedPrefs={homeFeedPrefs}
+          />
         </CollapsibleSection>
       )}
 
