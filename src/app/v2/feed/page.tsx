@@ -785,24 +785,29 @@ function FeedPage() {
   }, [bookmarkedMatches])
 
   const fetchData = useCallback(async () => {
-    const [highlightsRes, newsRes] = await Promise.all([
-      supabase
-        .from('highlights')
-        .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, like_count, channel_quality_score, published_at, category, allowed_countries, blocked_countries')
-        .eq('status', 'active')
-        .order('published_at', { ascending: false })
-        .limit(50),
-      supabase
-        .from('articles')
-        .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url')
-        .eq('status', 'active')
-        .order('published_at', { ascending: false })
-        .limit(50),
-    ])
+    try {
+      const [highlightsRes, newsRes] = await Promise.all([
+        supabase
+          .from('highlights')
+          .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, like_count, channel_quality_score, published_at, category, allowed_countries, blocked_countries')
+          .eq('status', 'active')
+          .order('published_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('articles')
+          .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url')
+          .eq('status', 'active')
+          .order('published_at', { ascending: false })
+          .limit(50),
+      ])
 
-    setHighlights((highlightsRes.data as any) ?? [])
-    setNews((newsRes.data as any) ?? [])
-    setLoading(false)
+      setHighlights((highlightsRes.data as any) ?? [])
+      setNews((newsRes.data as any) ?? [])
+    } catch (e) {
+      console.error('[Feed] fetchData error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])

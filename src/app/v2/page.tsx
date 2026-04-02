@@ -1228,6 +1228,7 @@ export default function HomePage() {
   const [searchOpen, setSearchOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
+    try {
     // Run all queries in parallel
     const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes, highlightsRes, newsRes] = await Promise.all([
       // Live matches (full data for MatchCard)
@@ -1363,8 +1364,11 @@ export default function HomePage() {
         .order('category', { ascending: true })
       setLatestFinals((finals as any) ?? [])
     }
-
-    setLoading(false)
+    } catch (e) {
+      console.error('[Home] fetchData error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])

@@ -147,7 +147,7 @@ function TournamentsPage() {
   // ── Fetch tournaments + winners ──────────────────────────────────────
   const fetchData = useCallback(async () => {
     setLoading(true)
-
+    try {
     // Get all tournaments for current season
     const { data: tournamentsData } = await supabase
       .from('tournaments')
@@ -156,7 +156,7 @@ function TournamentsPage() {
       .order('starts_at', { ascending: false })
       .limit(500)
 
-    if (!tournamentsData) { setLoading(false); return }
+    if (!tournamentsData) return
 
     const now = new Date()
 
@@ -244,7 +244,11 @@ function TournamentsPage() {
       ...t,
       winners: winnersMap[t.id] ?? [],
     })))
-    setLoading(false)
+    } catch (e) {
+      console.error('[Tournaments] fetchData error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])

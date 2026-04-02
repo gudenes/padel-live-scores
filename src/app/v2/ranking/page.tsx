@@ -213,7 +213,7 @@ export default function RankingPage() {
 
   const load = useCallback(async (rt: RankType, g: Gender) => {
     setLoading(true)
-
+    try {
     const rankCol  = rt === 'official' ? 'ranking'  : 'race_ranking'
     const pointCol = rt === 'official' ? 'points'   : 'race_points'
 
@@ -244,7 +244,11 @@ export default function RankingPage() {
       setUpdatedAt((latest as any).ranking_date ?? latest.updated_at)
     }
 
-    setLoading(false)
+    } catch (e) {
+      console.error('[Ranking] load error:', e)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { load(rankType, gender) }, [rankType, gender, load])
