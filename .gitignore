@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .superpowers/
+
+# claude code worktrees (contain full node_modules copies, overloads file watcher)
+.claude/worktrees/
