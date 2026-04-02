@@ -264,6 +264,9 @@ export class PlayerResolver {
           existing.fipId = updates.fip_id
           this.byFipId.set(updates.fip_id, existing)
         }
+        // Keep ranking/points in sync so disambiguation works within a session
+        if (input.ranking != null) existing.ranking = input.ranking
+        if (input.points != null) existing.points = input.points
 
         return { playerId: existing.id, action: 'enriched' }
       }
@@ -318,7 +321,7 @@ export class PlayerResolver {
       let fallback: { id: string } | null = null
       const { data: f1 } = await this.supabase
         .from('players')
-        .select('id, external_id, fip_id, name, country, category')
+        .select('id, external_id, fip_id, name, country, category, ranking, points')
         .eq('external_id', insertData.external_id)
         .single()
       fallback = f1
@@ -326,7 +329,7 @@ export class PlayerResolver {
       if (!fallback && insertData.fip_id) {
         const { data: f2 } = await this.supabase
           .from('players')
-          .select('id, external_id, fip_id, name, country, category')
+          .select('id, external_id, fip_id, name, country, category, ranking, points')
           .eq('fip_id', insertData.fip_id)
           .single()
         fallback = f2
@@ -374,6 +377,16 @@ export class PlayerResolver {
     this.byNormalizedName.get(norm)!.push(cached)
 
     return { playerId: data.id, action: 'created' }
+  }
+
+  /** Find a cached player by DB id (for post-enrichment cache updates). */
+  private findCachedById(id: string): CachedPlayer | null {
+    for (const [, players] of this.byNormalizedName) {
+      for (const p of players) {
+        if (p.id === id) return p
+      }
+    }
+    return null
   }
 
   /** Build update object to enrich existing player with new non-null data. */
@@ -447,6 +460,13 @@ export class PlayerResolver {
         .from('players')
         .update(enrichFields)
         .eq('id', result.playerId)
+
+      // Update cached player ranking/points so disambiguation works within this session
+      const cached = this.findCachedById(result.playerId)
+      if (cached) {
+        if (input.ranking != null) cached.ranking = input.ranking
+        if (input.points != null) cached.points = input.points
+      }
     }
 
     return { playerId: result.playerId, action: result.action === 'created' ? 'created' : 'enriched' }
