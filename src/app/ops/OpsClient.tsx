@@ -58,6 +58,7 @@ interface DashboardData {
     ongoing_scheduled_matches: number
   }
   ongoing: OngoingEvent[]
+  cron_stats: Record<string, { runs: number; ok_runs: number; datapoints: number }>
   usage: null
   recent_events: Array<{
     source: string
@@ -79,6 +80,8 @@ const TILES = [
   { key: 'cron:rankings', label: 'Rankings', schedule: 'Daily 5am UTC', description: 'Fetches FIP official and race rankings (top 1000, men & women) from the FIP website' },
   { key: 'cron:articles', label: 'Articles', schedule: 'Hourly :40', description: 'Fetches padel news from Google News RSS feeds and FIP WordPress API, deduplicates and upserts' },
   { key: 'cron:highlights', label: 'Highlights', schedule: 'Hourly :20', description: 'Fetches recent match highlight videos from YouTube padel channels, filters duplicates' },
+  { key: 'cron:fip-tournaments', label: 'FIP Tournaments', schedule: 'Every 12h', description: 'Syncs FIP tournament data including draws, brackets, and scheduling from the FIP API' },
+  { key: 'cron:fip-scores', label: 'FIP Scores', schedule: 'Every 2h', description: 'Polls FIP API for live match scores in FIP-sourced tournaments, upserts results' },
 ] as const
 
 // ── Helpers ─────────────────────────────────────────────────────
@@ -138,6 +141,8 @@ function metaSummary(source: string, meta: Record<string, any> | null): string {
     case 'cron:rankings': return `Official: ${meta.official ?? 0} · Race: ${meta.race ?? 0}`
     case 'cron:articles': return `${meta.new ?? 0} new from ${meta.sources_checked ?? 0} sources`
     case 'cron:highlights': return `${meta.new ?? 0} new videos`
+    case 'cron:fip-tournaments': return `${meta.upserted ?? 0} upserted · ${meta.enriched ?? 0} enriched`
+    case 'cron:fip-scores': return `${meta.matches_upserted ?? 0} matches · ${meta.active_tournaments ?? 0} tournaments`
     default: return ''
   }
 }
@@ -172,6 +177,8 @@ const SOURCE_COLORS: Record<string, { bg: string; text: string }> = {
   'cron:rankings': { bg: '#fef3c7', text: '#92400e' },
   'cron:articles': { bg: '#fce7f3', text: '#9d174d' },
   'cron:highlights': { bg: '#ede9fe', text: '#5b21b6' },
+  'cron:fip-tournaments': { bg: '#ccfbf1', text: '#115e59' },
+  'cron:fip-scores': { bg: '#ccfbf1', text: '#115e59' },
   'relay': { bg: '#fee2e2', text: '#991b1b' },
 }
 
@@ -372,6 +379,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 20 }}>
         {TILES.map(tile => {
           const h = data.health[tile.key]
+          const stats = data.cron_stats?.[tile.key]
           const color = statusColor(h?.status ?? 'unknown')
           return (
             <div key={tile.key} style={{ ...card, border: statusBorder(h?.status ?? 'unknown'), borderLeft: `3px solid ${color}` }}>
@@ -387,6 +395,12 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
               <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>
                 {h?.error_message ? <span style={{ color: '#dc2626' }}>{h.error_message.slice(0, 60)}</span> : metaSummary(tile.key, h?.meta ?? null)}
               </div>
+              {stats && (
+                <div style={{ fontSize: 10, color: '#999', marginTop: 4, borderTop: '1px solid #f3f4f6', paddingTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                  <span>{stats.runs} runs ({stats.ok_runs} ok)</span>
+                  <span>{stats.datapoints.toLocaleString()} datapoints</span>
+                </div>
+              )}
             </div>
           )
         })}
