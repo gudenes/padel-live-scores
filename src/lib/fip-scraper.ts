@@ -49,9 +49,18 @@ export const ISO3_TO_ISO2: Record<string, string> = {
   ESA: 'SV', NCA: 'NI', JAM: 'JM', TTO: 'TT', GUY: 'GY', SUR: 'SR',
 }
 
+/** Pre-computed set of valid 2-letter ISO codes for fast lookup */
+const ISO2_VALUES = new Set(Object.values(ISO3_TO_ISO2))
+
 export function toIso2(iso3: string | null): string | null {
   if (!iso3) return null
-  return ISO3_TO_ISO2[iso3.toUpperCase()] ?? null
+  const upper = iso3.toUpperCase()
+  // Direct 3→2 lookup
+  const mapped = ISO3_TO_ISO2[upper]
+  if (mapped) return mapped
+  // Already a valid 2-letter code? Check if it exists as a value in the map
+  if (upper.length === 2 && ISO2_VALUES.has(upper)) return upper
+  return null
 }
 
 // ---------------------------------------------------------------------------
