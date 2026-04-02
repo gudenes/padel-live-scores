@@ -5,6 +5,10 @@
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useHiddenFeedItems } from '@/hooks/useHiddenFeedItems'
+import { useFeedPreferences } from '@/hooks/useFeedPreferences'
+import { buildScoredFeed, type FeedCluster, type ScoredHighlight, type ScoredArticle, type ScoringContext } from '@/lib/feed-scoring'
+import { useBookmarks } from '@/hooks/useBookmarks'
 import SearchOverlay from '../SearchOverlay'
 import Spinner from '../../components/Spinner'
 import ProfileButton from '@/components/ProfileButton'
@@ -19,6 +23,8 @@ interface Highlight {
   thumbnail_url: string
   duration: string | null
   view_count: number
+  like_count: number
+  channel_quality_score: number | null
   published_at: string
   category: string | null
   allowed_countries: string[] | null
@@ -77,12 +83,6 @@ function isAvailableInCountry(h: Highlight, country: string): boolean {
   return true
 }
 
-function feedScore(publishedAt: string, clicks: number, weight: number): number {
-  const hoursOld = (Date.now() - new Date(publishedAt).getTime()) / 3600000
-  const freshness = Math.exp(-hoursOld / 48)
-  const popularity = 1 + Math.log10(1 + clicks)
-  return freshness * popularity * weight
-}
 
 const VISITED_KEY = 'padel-visited-articles'
 
@@ -137,8 +137,9 @@ const FILTER_OPTIONS: { key: ContentFilter; label: string }[] = [
 
 // ── Hero card — top-scoring item gets big treatment ─────────────────────────
 
-function HeroVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay: (v: Highlight) => void; onBroken?: (id: string) => void }) {
+function HeroVideoCard({ item, onPlay, onBroken, onHide }: { item: Highlight; onPlay: (v: Highlight) => void; onBroken?: (id: string) => void; onHide?: (id: string) => void }) {
   return (
+    <div style={{ position: 'relative' }}>
     <button
       onClick={() => onPlay(item)}
       style={{
@@ -206,6 +207,24 @@ function HeroVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay: (v
         <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{timeAgo(item.published_at)}</span>
       </div>
     </button>
+    {onHide && (
+      <button
+        onClick={(e) => { e.stopPropagation(); onHide(item.id) }}
+        style={{
+          position: 'absolute', top: 8, right: 8, zIndex: 2,
+          background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+          color: 'var(--text-faint)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'color 0.15s',
+        }}
+        aria-label="Not interested"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    )}
+    </div>
   )
 }
 
@@ -282,8 +301,9 @@ function HeroNewsCard({ item, visited, onClickArticle }: { item: NewsItem; visit
 
 // ── Compact video card — horizontal layout for stream items ─────────────────
 
-function CompactVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay: (v: Highlight) => void; onBroken?: (id: string) => void }) {
+function CompactVideoCard({ item, onPlay, onBroken, onHide }: { item: Highlight; onPlay: (v: Highlight) => void; onBroken?: (id: string) => void; onHide?: (id: string) => void }) {
   return (
+    <div style={{ position: 'relative' }}>
     <button
       onClick={() => onPlay(item)}
       style={{
@@ -350,14 +370,33 @@ function CompactVideoCard({ item, onPlay, onBroken }: { item: Highlight; onPlay:
         </div>
       </div>
     </button>
+    {onHide && (
+      <button
+        onClick={(e) => { e.stopPropagation(); onHide(item.id) }}
+        style={{
+          position: 'absolute', top: 6, right: 6, zIndex: 2,
+          background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+          color: 'var(--text-faint)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'color 0.15s',
+        }}
+        aria-label="Not interested"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    )}
+    </div>
   )
 }
 
 // ── News card — big vertical layout with image, actions ───────────────────────
 
-function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark }: {
+function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark, onHide }: {
   item: NewsItem; visited?: boolean; onClickArticle?: (id: string) => void;
   bookmarked?: boolean; onToggleBookmark?: (id: string) => void;
+  onHide?: (id: string) => void;
 }) {
   // Build our app URL for sharing (so users land on PadelNacho, not the source)
   const articleUrl = typeof window !== 'undefined'
@@ -519,9 +558,28 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark 
               </svg>
             )}
           </button>
+
         </div>
       </a>
 
+      {/* Top-right hide button */}
+      {onHide && (
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onHide(item.id) }}
+          style={{
+            position: 'absolute', top: 8, right: 8, zIndex: 2,
+            background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+            color: 'var(--text-faint)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'color 0.15s',
+          }}
+          aria-label="Not interested"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
@@ -666,17 +724,21 @@ function FeedPage() {
     : 'all'
 
   const [searchOpen, setSearchOpen] = useState(false)
-  const [playing, setPlaying] = useState<Highlight | null>(null)
+  const [playing, setPlayingRaw] = useState<Highlight | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
   const [filter, setFilter] = useState<ContentFilter>(initialFilter)
+  const { hide: hideFeedItem, isHidden } = useHiddenFeedItems()
+  const { prefs: feedPrefs, trackArticleClick: trackArticlePref, trackVideoPlay } = useFeedPreferences()
   const [visitedArticles, setVisitedArticles] = useState<Set<string>>(new Set())
   const handleArticleClick = useCallback((id: string) => {
     trackClick(id)
     setVisitedArticles(prev => { const s = new Set(prev); s.add(id); return s })
-  }, [])
+    const article = news.find(a => a.id === id)
+    if (article) trackArticlePref(article.language, article.category)
+  }, [news, trackArticlePref])
   const [bookmarkedArticles, setBookmarkedArticles] = useState<Set<string>>(new Set())
   const toggleBookmarkArticle = useCallback((id: string) => {
     setBookmarkedArticles(prev => {
@@ -690,12 +752,43 @@ function FeedPage() {
   const markBroken = useCallback((id: string) => {
     setBrokenThumbs(prev => { const s = new Set(prev); s.add(id); return s })
   }, [])
+  const setPlaying = useCallback((v: Highlight | null) => {
+    setPlayingRaw(v)
+    if (v) trackVideoPlay(v.channel_name, v.category)
+  }, [trackVideoPlay])
+
+  // Bookmark relevance: fetch player names from bookmarked matches
+  const { bookmarked: bookmarkedMatches } = useBookmarks()
+  const [bookmarkedPlayerNames, setBookmarkedPlayerNames] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (bookmarkedMatches.size === 0) { setBookmarkedPlayerNames(new Set()); return }
+    const ids = [...bookmarkedMatches].slice(0, 20) // cap to avoid huge queries
+    supabase
+      .from('matches')
+      .select('pair1_player1:players!matches_pair1_player1_id_fkey(name), pair1_player2:players!matches_pair1_player2_id_fkey(name), pair2_player1:players!matches_pair2_player1_id_fkey(name), pair2_player2:players!matches_pair2_player2_id_fkey(name)')
+      .in('id', ids)
+      .then(({ data }) => {
+        const names = new Set<string>()
+        for (const m of data ?? []) {
+          for (const key of ['pair1_player1', 'pair1_player2', 'pair2_player1', 'pair2_player2'] as const) {
+            const player = (m as any)[key]
+            if (player?.name) {
+              // Extract last name (most distinctive for title matching)
+              const parts = player.name.trim().split(/\s+/)
+              if (parts.length > 1) names.add(parts[parts.length - 1].toLowerCase())
+              else names.add(parts[0].toLowerCase())
+            }
+          }
+        }
+        setBookmarkedPlayerNames(names)
+      })
+  }, [bookmarkedMatches])
 
   const fetchData = useCallback(async () => {
     const [highlightsRes, newsRes] = await Promise.all([
       supabase
         .from('highlights')
-        .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries')
+        .select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, like_count, channel_quality_score, published_at, category, allowed_countries, blocked_countries')
         .eq('status', 'active')
         .order('published_at', { ascending: false })
         .limit(50),
@@ -715,37 +808,37 @@ function FeedPage() {
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { setUserCountry(getUserCountry()); setVisitedArticles(getVisitedArticles()); setBookmarkedArticles(getBookmarkedArticles()) }, [])
 
-  // Filter out highlights with broken thumbnails (private/unavailable videos)
+  // Filter out highlights with broken thumbnails, geo-blocked, or hidden by user
   const availableHighlights = highlights.filter(h =>
-    !brokenThumbs.has(h.id) && isAvailableInCountry(h, userCountry)
+    !brokenThumbs.has(h.id) && isAvailableInCountry(h, userCountry) && !isHidden(h.id)
   )
+  const visibleNews = news.filter(a => !isHidden(a.id))
 
-  // Merge everything into a single scored feed, with filter boosting
-  const feed: FeedItem[] = (() => {
-    const items: { item: FeedItem; score: number }[] = []
-
+  // Build scored + deduplicated feed using enhanced scoring
+  const feedClusters: FeedCluster<FeedItem>[] = (() => {
+    const items: FeedItem[] = []
     if (filter !== 'news') {
-      for (const h of availableHighlights) {
-        if (true) {
-          const base = feedScore(h.published_at, Math.floor(h.view_count / 100), 1.0)
-          const boost = filter === 'videos' ? 10 : 1
-          items.push({ item: { type: 'video', data: h }, score: base * boost })
-        }
-      }
+      for (const h of availableHighlights) items.push({ type: 'video', data: h })
     }
-
     if (filter !== 'videos') {
-      for (const a of news) {
-        const base = feedScore(a.published_at, a.click_count, a.source_weight)
-        const boost = filter === 'news' ? 10 : 1
-        items.push({ item: { type: 'news', data: a }, score: base * boost })
-      }
+      for (const a of visibleNews) items.push({ type: 'news', data: a })
     }
 
-    items.sort((a, b) => b.score - a.score)
-    return items.map(i => i.item)
+    const toScorable = (item: FeedItem): ScoredHighlight | ScoredArticle => {
+      if (item.type === 'video') {
+        const h = item.data as Highlight
+        return { type: 'video', id: h.id, title: h.title, channel_name: h.channel_name, published_at: h.published_at, view_count: h.view_count, like_count: h.like_count, channel_quality_score: h.channel_quality_score, category: h.category }
+      }
+      const a = item.data as NewsItem
+      return { type: 'news', id: a.id, title: a.title, source_name: a.source_name, published_at: a.published_at, click_count: a.click_count, source_weight: a.source_weight, language: a.language, category: a.category }
+    }
+
+    const ctx: ScoringContext = { prefs: feedPrefs, bookmarkedPlayerNames }
+    return buildScoredFeed(items, toScorable, ctx)
   })()
 
+  // Flat feed for filtered views (videos-only / news-only) — no clustering
+  const feed = feedClusters.map(c => c.primary)
   const hero = feed[0] ?? null
   const rest = feed.slice(1)
 
@@ -828,126 +921,42 @@ function FeedPage() {
           No content available
         </div>
       ) : filter === 'all' ? (
-        /* ── "All" view: interleaved videos + news ── */
+        /* ── "All" view: scored + deduplicated feed ── */
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
-          {(() => {
-            const vids = availableHighlights
-            const articles = news
-            const blocks: React.ReactNode[] = []
-            let vi = 0 // video index
-            let ai = 0 // article index
-            let blockIdx = 0
+          {feedClusters.map((cluster, i) => {
+            const item = cluster.primary
+            const collapsed = cluster.collapsed.length
 
-            // Repeating pattern: hero → 2 articles → carousel → 3 articles → single video → 3 articles → carousel → ...
-            const pattern: Array<'hero' | 'carousel' | 'single' | 'articles2' | 'articles3'> =
-              ['hero', 'articles2', 'carousel', 'articles3', 'single', 'articles3', 'carousel', 'articles3']
-
-            while (vi < vids.length || ai < articles.length) {
-              const step = pattern[blockIdx % pattern.length]
-              blockIdx++
-
-              if (step === 'hero') {
-                if (vi >= vids.length) continue
-                const v = vids[vi++]
-                blocks.push(
-                  <div key={`hero-${v.id}`} style={{ padding: '4px 16px' }}>
-                    <HeroVideoCard item={v} onPlay={setPlaying} onBroken={markBroken} />
-                  </div>
-                )
-              } else if (step === 'carousel') {
-                const batch = vids.slice(vi, vi + 4)
-                if (batch.length === 0) continue
-                vi += batch.length
-                blocks.push(
-                  <div key={`car-${vi}`} style={{ padding: '4px 0' }}>
-                    <div style={{
-                      display: 'flex', gap: 12, overflowX: 'auto',
-                      padding: '0 16px', scrollSnapType: 'x mandatory',
-                      WebkitOverflowScrolling: 'touch',
-                      msOverflowStyle: 'none', scrollbarWidth: 'none',
-                    }}>
-                      {batch.map(v => (
-                        <button
-                          key={v.id}
-                          onClick={() => setPlaying(v)}
-                          style={{
-                            flex: '0 0 260px', scrollSnapAlign: 'start',
-                            background: 'var(--bg-card)', border: '1px solid var(--border-card)',
-                            borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
-                            textAlign: 'left', fontFamily: 'inherit', padding: 0, color: 'inherit',
-                          }}
-                        >
-                          <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
-                            <img src={v.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={() => markBroken(v.id)} />
-                            <div style={{
-                              position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.15)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            }}>
-                              <div style={{
-                                width: 40, height: 40, borderRadius: '50%',
-                                background: 'rgba(255,255,255,0.92)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
-                              }}>
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="#111" stroke="none"><polygon points="6,3 20,12 6,21" /></svg>
-                              </div>
-                            </div>
-                            {v.duration && (
-                              <div style={{
-                                position: 'absolute', bottom: 6, right: 6,
-                                background: 'rgba(0,0,0,0.85)', borderRadius: 4,
-                                padding: '2px 6px', fontSize: 10, fontWeight: 700,
-                                color: '#fff', fontFamily: 'var(--font-mono)',
-                              }}>{v.duration}</div>
-                            )}
-                          </div>
-                          <div style={{ padding: '8px 10px' }}>
-                            <div style={{
-                              fontSize: 12, fontWeight: 700, color: 'var(--text-primary)',
-                              lineHeight: 1.3, display: '-webkit-box', WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical' as any, overflow: 'hidden', marginBottom: 4,
-                            }}>{v.title}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{v.channel_name}</span>
-                              {v.view_count > 0 && (
-                                <>
-                                  <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>·</span>
-                                  <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatViews(v.view_count)} views</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+            if (item.type === 'video') {
+              const v = item.data as Highlight
+              return (
+                <div key={`v-${v.id}`} style={{ padding: '4px 16px' }}>
+                  {i === 0 ? (
+                    <HeroVideoCard item={v} onPlay={setPlaying} onBroken={markBroken} onHide={hideFeedItem} />
+                  ) : (
+                    <CompactVideoCard item={v} onPlay={setPlaying} onBroken={markBroken} onHide={hideFeedItem} />
+                  )}
+                  {collapsed > 0 && (
+                    <div style={{ fontSize: 11, color: 'var(--text-faint)', padding: '4px 2px 0', fontWeight: 500 }}>
+                      +{collapsed} similar {collapsed === 1 ? 'video' : 'videos'}
                     </div>
-                  </div>
-                )
-              } else if (step === 'single') {
-                if (vi >= vids.length) continue
-                const v = vids[vi++]
-                blocks.push(
-                  <div key={`single-${v.id}`} style={{ padding: '4px 16px' }}>
-                    <CompactVideoCard item={v} onPlay={setPlaying} onBroken={markBroken} />
-                  </div>
-                )
-              } else {
-                // articles2 or articles3
-                const count = step === 'articles2' ? 2 : 3
-                const batch = articles.slice(ai, ai + count)
-                if (batch.length === 0) continue
-                ai += batch.length
-                blocks.push(
-                  <div key={`arts-${ai}`} style={{ padding: '4px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {batch.map(item => (
-                      <NewsCard key={`n-${item.id}`} item={item} visited={visitedArticles.has(item.id)} onClickArticle={handleArticleClick} bookmarked={bookmarkedArticles.has(item.id)} onToggleBookmark={toggleBookmarkArticle} />
-                    ))}
-                  </div>
-                )
-              }
+                  )}
+                </div>
+              )
             }
 
-            return blocks
-          })()}
+            const a = item.data as NewsItem
+            return (
+              <div key={`n-${a.id}`} style={{ padding: '4px 16px' }}>
+                <NewsCard item={a} visited={visitedArticles.has(a.id)} onClickArticle={handleArticleClick} bookmarked={bookmarkedArticles.has(a.id)} onToggleBookmark={toggleBookmarkArticle} onHide={hideFeedItem} />
+                {collapsed > 0 && (
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)', padding: '4px 2px 0', fontWeight: 500 }}>
+                    +{collapsed} similar {collapsed === 1 ? 'article' : 'articles'}
+                  </div>
+                )}
+              </div>
+            )
+          })}
 
           <div style={{
             textAlign: 'center', padding: '20px 0 8px',
@@ -963,7 +972,7 @@ function FeedPage() {
           {hero && (
             <div style={{ padding: '16px 16px 0' }}>
               {hero.type === 'video' ? (
-                <HeroVideoCard item={hero.data} onPlay={setPlaying} onBroken={markBroken} />
+                <HeroVideoCard item={hero.data} onPlay={setPlaying} onBroken={markBroken} onHide={hideFeedItem} />
               ) : (
                 <HeroNewsCard item={hero.data} visited={visitedArticles.has((hero.data as NewsItem).id)} onClickArticle={handleArticleClick} />
               )}
@@ -974,9 +983,9 @@ function FeedPage() {
           <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {rest.map(item => {
               if (item.type === 'video') {
-                return <CompactVideoCard key={`v-${(item.data as Highlight).id}`} item={item.data as Highlight} onPlay={setPlaying} onBroken={markBroken} />
+                return <CompactVideoCard key={`v-${(item.data as Highlight).id}`} item={item.data as Highlight} onPlay={setPlaying} onBroken={markBroken} onHide={hideFeedItem} />
               }
-              return <NewsCard key={`n-${(item.data as NewsItem).id}`} item={item.data as NewsItem} visited={visitedArticles.has((item.data as NewsItem).id)} onClickArticle={handleArticleClick} bookmarked={bookmarkedArticles.has((item.data as NewsItem).id)} onToggleBookmark={toggleBookmarkArticle} />
+              return <NewsCard key={`n-${(item.data as NewsItem).id}`} item={item.data as NewsItem} visited={visitedArticles.has((item.data as NewsItem).id)} onClickArticle={handleArticleClick} bookmarked={bookmarkedArticles.has((item.data as NewsItem).id)} onToggleBookmark={toggleBookmarkArticle} onHide={hideFeedItem} />
             })}
 
             <div style={{

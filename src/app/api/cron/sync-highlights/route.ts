@@ -39,8 +39,9 @@ interface YouTubeVideoItem {
       blocked?: string[]
     }
   }
-  statistics: { viewCount: string }
+  statistics: { viewCount: string; likeCount?: string; commentCount?: string }
   status?: { privacyStatus?: string }
+  snippet?: { description?: string; tags?: string[] }
 }
 
 // Convert ISO 8601 duration (PT8M24S) to "8:24"
@@ -180,7 +181,7 @@ export async function GET(req: NextRequest) {
         const batch = videoIds.slice(i, i + 50)
         try {
           const params = new URLSearchParams({
-            part: 'contentDetails,statistics,status',
+            part: 'contentDetails,statistics,status,snippet',
             id: batch.join(','),
             key: apiKey,
           })
@@ -203,6 +204,10 @@ export async function GET(req: NextRequest) {
             ;(existing as any).duration = formatDuration(item.contentDetails.duration)
             ;(existing as any).durationSecs = durationSeconds(item.contentDetails.duration)
             ;(existing as any).viewCount = parseInt(item.statistics.viewCount || '0')
+            ;(existing as any).likeCount = parseInt(item.statistics.likeCount || '0')
+            ;(existing as any).commentCount = parseInt(item.statistics.commentCount || '0')
+            ;(existing as any).description = (item.snippet?.description ?? '').slice(0, 1000)
+            ;(existing as any).ytTags = item.snippet?.tags ?? []
             const rr = item.contentDetails.regionRestriction
             if (rr?.allowed) (existing as any).allowedCountries = rr.allowed
             if (rr?.blocked) (existing as any).blockedCountries = rr.blocked
@@ -237,19 +242,33 @@ export async function GET(req: NextRequest) {
         ([id, info]) => priorityVideoIds.has(id) || ((info as any).durationSecs ?? 0) >= MIN_DURATION_SECONDS
       )
 
-      const rows = filtered.map(([youtubeId, info]) => ({
-        youtube_id: youtubeId,
-        title: info.title,
-        channel_name: info.channelName,
-        thumbnail_url: info.thumbnailUrl,
-        duration: (info as any).duration ?? null,
-        view_count: (info as any).viewCount ?? 0,
-        published_at: info.publishedAt,
-        category: inferCategory(info.title),
-        allowed_countries: (info as any).allowedCountries ?? null,
-        blocked_countries: (info as any).blockedCountries ?? null,
-        updated_at: new Date().toISOString(),
-      }))
+      const rows = filtered.map(([youtubeId, info]) => {
+        const viewCount = (info as any).viewCount ?? 0
+        const likeCount = (info as any).likeCount ?? 0
+        // Engagement rate: likes/views — strong quality signal
+        const engagementRate = viewCount > 0 ? likeCount / viewCount : 0
+        // Channel quality: priority channels get a boost, engagement rate adds more
+        const isPriority = priorityVideoIds.has(youtubeId)
+        const channelQuality = (isPriority ? 1.3 : 1.0) + Math.min(engagementRate * 10, 0.5)
+
+        return {
+          youtube_id: youtubeId,
+          title: info.title,
+          channel_name: info.channelName,
+          thumbnail_url: info.thumbnailUrl,
+          duration: (info as any).duration ?? null,
+          view_count: viewCount,
+          like_count: likeCount,
+          comment_count: (info as any).commentCount ?? 0,
+          description: (info as any).description ?? null,
+          channel_quality_score: Math.round(channelQuality * 100) / 100,
+          published_at: info.publishedAt,
+          category: inferCategory(info.title),
+          allowed_countries: (info as any).allowedCountries ?? null,
+          blocked_countries: (info as any).blockedCountries ?? null,
+          updated_at: new Date().toISOString(),
+        }
+      })
 
       // Batch upsert all at once
       const { error, data: upsertData } = await supabase
