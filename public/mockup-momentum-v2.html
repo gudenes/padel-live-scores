@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Match Momentum v3 — Bars + Line</title>
+<style>
+  :root {
+    --bg-base: #0B1120;
+    --bg-card: #111827;
+    --bg-card-alt: #0F1729;
+    --border-card: rgba(255,255,255,0.06);
+    --text-primary: #E8ECF1;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --text-faint: #475569;
+    --color-accent: #38C8FF;
+    --color-live: #FF4455;
+    --color-p1: #4ADE80;
+    --color-p1-bg: rgba(74,222,128,0.15);
+    --color-p2: #818CF8;
+    --color-p2-bg: rgba(129,140,248,0.15);
+    --color-star: #F5A623;
+    --color-break: #FF6B6B;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg-base); font-family: var(--font-sans); color: var(--text-primary); }
+  .page { max-width: 500px; margin: 0 auto; padding: 16px 0 40px; }
+  .card { margin: 0 16px; border-radius: 12px; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border-card); }
+  .label { margin: 24px 16px 8px; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #F5A623; }
+  .note { margin: 0 16px 14px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div style="padding: 0 16px 16px; text-align: center;">
+    <div style="font-size: 16px; font-weight: 800; margin-bottom: 4px;">Momentum v3 — Bars + Line</div>
+    <div style="font-size: 11px; color: var(--text-muted);">Bars show dominance per game, line tracks cumulative momentum</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- LIVE SET VIEW -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <div class="label">Live — Current set</div>
+
+  <div class="card">
+    <div style="padding: 14px 16px 8px;">
+      <!-- Header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Momentum</span>
+          <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--color-live); animation: blink 1.2s ease-in-out infinite;"></span>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <span style="font-size: 9px; padding: 2px 8px; border-radius: 4px; background: rgba(56,200,255,0.1); color: var(--color-accent); font-weight: 700; border: 1px solid rgba(56,200,255,0.2);">Set 1</span>
+          <span style="font-size: 9px; padding: 2px 8px; border-radius: 4px; color: var(--text-faint); font-weight: 600;">Set 2</span>
+        </div>
+      </div>
+
+      <!-- Score row -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+        <div style="font-size: 9px; font-weight: 700; color: var(--color-p1);">3 - 2</div>
+        <div style="font-size: 9px; color: var(--text-faint); font-family: var(--font-mono);">A - 40</div>
+      </div>
+
+      <!-- Chart area -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <!-- P1 avatar/name -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 36px;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #2D5A27, #4ADE80); display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 10px;">🇦🇷</span>
+          </div>
+          <div style="font-size: 7px; font-weight: 700; color: var(--color-p1); text-align: center; line-height: 1.1;">T/C</div>
+        </div>
+
+        <!-- The chart -->
+        <div style="flex: 1; position: relative; height: 180px;">
+          <svg viewBox="0 0 500 180" style="width: 100%; height: 100%;" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="barP1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#4ADE80" stop-opacity="0.9"/>
+                <stop offset="100%" stop-color="#4ADE80" stop-opacity="0.3"/>
+              </linearGradient>
+              <linearGradient id="barP2" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stop-color="#818CF8" stop-opacity="0.9"/>
+                <stop offset="100%" stop-color="#818CF8" stop-opacity="0.3"/>
+              </linearGradient>
+              <linearGradient id="areaP1live" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#4ADE80" stop-opacity="0.12"/>
+                <stop offset="100%" stop-color="#4ADE80" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="areaP2live" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stop-color="#818CF8" stop-opacity="0.12"/>
+                <stop offset="100%" stop-color="#818CF8" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Center line -->
+            <line x1="0" y1="90" x2="500" y2="90" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+            <!-- Game boundaries -->
+            <line x1="100" y1="10" x2="100" y2="170" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="200" y1="10" x2="200" y2="170" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="300" y1="10" x2="300" y2="170" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+            <line x1="400" y1="10" x2="400" y2="170" stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3,3"/>
+
+            <!-- ═══ BARS: Points won per game ═══ -->
+            <!--
+              GAME 1: P1 wins 40-15 → P1 scored 4, P2 scored 1
+              P1 bars grow UP from center (90), P2 bars grow DOWN
+              Bar height = points × 14px
+            -->
+            <!-- G1: P1 = 4 pts (bar up 56px), P2 = 1 pt (bar down 14px) -->
+            <rect x="20" y="34" width="60" height="56" rx="3" fill="url(#barP1)" opacity="0.6"/>
+            <rect x="20" y="90" width="60" height="14" rx="3" fill="url(#barP2)" opacity="0.4"/>
+
+            <!-- G2: P2 wins 40-30 → P2 = 4, P1 = 3 -->
+            <rect x="120" y="48" width="60" height="42" rx="3" fill="url(#barP1)" opacity="0.5"/>
+            <rect x="120" y="90" width="60" height="56" rx="3" fill="url(#barP2)" opacity="0.6"/>
+
+            <!-- G3: P1 wins 40-0 (BREAK!) → P1 = 4, P2 = 0 -->
+            <rect x="220" y="34" width="60" height="56" rx="3" fill="url(#barP1)" opacity="0.7"/>
+            <!-- No P2 bar — love game -->
+
+            <!-- G4: P2 wins 40-15 → P2 = 4, P1 = 1 -->
+            <rect x="320" y="76" width="60" height="14" rx="3" fill="url(#barP1)" opacity="0.4"/>
+            <rect x="320" y="90" width="60" height="56" rx="3" fill="url(#barP2)" opacity="0.6"/>
+
+            <!-- G5: In progress (A-40) → P1 = 5, P2 = 4 so far -->
+            <rect x="420" y="20" width="60" height="70" rx="3" fill="url(#barP1)" opacity="0.5"/>
+            <rect x="420" y="90" width="60" height="56" rx="3" fill="url(#barP2)" opacity="0.5"/>
+
+            <!-- ═══ MOMENTUM LINE: Cumulative flow ═══ -->
+            <!--
+              The line flows across all games showing cumulative momentum
+              Each point shifts it: +1 per pt, +3 game bonus, +5 break bonus
+              Center = 90, P1 direction = up (lower y), P2 = down (higher y)
+            -->
+
+            <!-- Game 1: P1 dominates → line climbs up -->
+            <!-- G1 pts: P1,P1,P2,P1,P1+game → momentum: 0,+1,+2,+1,+2,+5 -->
+            <!-- Y: 90, 87, 84, 87, 84, 72 -->
+            <polyline
+              points="0,90 20,87 40,84 55,87 70,84 100,72"
+              fill="none" stroke="var(--color-p1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+
+            <!-- Area fill for P1 zone -->
+            <path d="M0,90 L20,87 L40,84 L55,87 L70,84 L100,72 L100,90 Z" fill="url(#areaP1live)"/>
+
+            <!-- Game 2: P2 wins close game → line dips toward center -->
+            <!-- G2 pts: P2,P1,P2,P2,P1,P2+game → running: +5,+4,+5,+4,+3,+4,+1 -->
+            <!-- Y: 72, 75, 72, 75, 78, 75, 87 -->
+            <polyline
+              points="100,72 118,75 135,72 150,75 165,78 180,75 200,87"
+              fill="none" stroke="var(--color-p2)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+            <path d="M100,72 L118,75 L135,72 L150,75 L165,78 L180,75 L200,87 L200,90 L100,90 L100,72 Z" fill="url(#areaP1live)" opacity="0.5"/>
+
+            <!-- Game 3: P1 love break → big spike up -->
+            <!-- G3 pts: P1,P1,P1,P1+game+break → running: +1,+2,+3,+4,+12 -->
+            <!-- Y: 87, 84, 81, 78, 54 (break bonus makes big jump!) -->
+            <polyline
+              points="200,87 225,84 250,81 275,78 300,48"
+              fill="none" stroke="var(--color-p1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+            <path d="M200,87 L225,84 L250,81 L275,78 L300,48 L300,90 L200,90 Z" fill="url(#areaP1live)"/>
+
+            <!-- Break marker -->
+            <circle cx="300" cy="48" r="8" fill="none" stroke="var(--color-break)" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>
+            <text x="300" y="36" text-anchor="middle" font-size="8" fill="var(--color-break)" font-weight="700" font-family="-apple-system, sans-serif" opacity="0.8">BRK</text>
+
+            <!-- Game 4: P2 holds comfortably → line drops -->
+            <!-- G4 pts: P2,P2,P1,P2,P2+game → running: +12,+11,+10,+11,+10,+7 -->
+            <!-- Y: 48, 51, 54, 51, 54, 63 -->
+            <polyline
+              points="300,48 320,51 340,54 355,51 370,54 400,63"
+              fill="none" stroke="var(--color-p2)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+            <path d="M300,48 L320,51 L340,54 L355,51 L370,54 L400,63 L400,90 L300,90 Z" fill="url(#areaP1live)" opacity="0.6"/>
+
+            <!-- Game 5: Tight deuce game, P1 at A-40 -->
+            <!-- G5 pts: P1,P2,P1,P1,P2,P1(D),P2(40-A),P1(D),P1(A-40) -->
+            <!-- running: +7,+8,+7,+8,+9,+8,+9,+8,+9,+10 -->
+            <!-- Y: 63, 60, 63, 60, 57, 60, 57, 60, 57, 54 -->
+            <polyline
+              points="400,63 412,60 424,63 436,60 448,57 456,60 464,57 472,60 484,57 498,54"
+              fill="none" stroke="var(--color-p1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+            <path d="M400,63 L412,60 L424,63 L436,60 L448,57 L456,60 L464,57 L472,60 L484,57 L498,54 L498,90 L400,90 Z" fill="url(#areaP1live)" opacity="0.5"/>
+
+            <!-- Serve indicators (small dots on P2 serve games) -->
+            <circle cx="50" cy="172" r="3" fill="var(--color-p1)" opacity="0.5"/>
+            <circle cx="150" cy="172" r="3" fill="var(--color-p2)" opacity="0.5"/>
+            <circle cx="250" cy="172" r="3" fill="var(--color-p2)" opacity="0.5"/>
+            <circle cx="350" cy="172" r="3" fill="var(--color-p1)" opacity="0.5"/>
+            <circle cx="450" cy="172" r="3" fill="var(--color-p1)" opacity="0.5"/>
+
+            <!-- Star point marker in G5 -->
+            <circle cx="448" cy="57" r="5" fill="var(--color-star)" opacity="0.8"/>
+            <text x="448" y="60" text-anchor="middle" font-size="7" fill="white" font-weight="700" font-family="-apple-system, sans-serif">★</text>
+
+            <!-- Pulsing current position -->
+            <circle cx="498" cy="54" r="4.5" fill="var(--color-p1)">
+              <animate attributeName="r" values="4;6;4" dur="1.5s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="1;0.6;1" dur="1.5s" repeatCount="indefinite"/>
+            </circle>
+
+            <!-- Game labels -->
+            <text x="50" y="178" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.15)" font-weight="700" font-family="-apple-system, sans-serif">G1</text>
+            <text x="150" y="178" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.15)" font-weight="700" font-family="-apple-system, sans-serif">G2</text>
+            <text x="250" y="178" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.15)" font-weight="700" font-family="-apple-system, sans-serif">G3</text>
+            <text x="350" y="178" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.15)" font-weight="700" font-family="-apple-system, sans-serif">G4</text>
+            <text x="450" y="178" text-anchor="middle" font-size="8" fill="rgba(56,200,255,0.4)" font-weight="700" font-family="-apple-system, sans-serif">G5</text>
+          </svg>
+        </div>
+
+        <!-- P2 avatar/name -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 36px;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #3730A3, #818CF8); display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 10px;">🇪🇸</span>
+          </div>
+          <div style="font-size: 7px; font-weight: 700; color: var(--color-p2); text-align: center; line-height: 1.1;">G/Ch</div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div style="display: flex; align-items: center; justify-content: center; gap: 14px; padding: 6px 0 4px;">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <div style="width: 10px; height: 6px; background: var(--color-p1); border-radius: 2px; opacity: 0.6;"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Points won</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <div style="width: 12px; height: 2px; background: var(--color-p1); border-radius: 1px;"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Momentum</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; border: 1.5px dashed var(--color-break); opacity: 0.6;"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Break</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="font-size: 8px; color: var(--color-star);">★</span>
+          <span style="font-size: 8px; color: var(--text-faint);">Star pt</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- FINISHED MATCH — Full 3-set view -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <div class="label">Finished match — Full 3 sets</div>
+
+  <div class="card">
+    <div style="padding: 14px 16px 8px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Match Momentum</span>
+        <span style="font-size: 9px; color: var(--text-faint); font-family: var(--font-mono);">6-3 · 4-6 · 7-5</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <!-- P1 -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 36px;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #2D5A27, #4ADE80); display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 10px;">🇦🇷</span>
+          </div>
+          <div style="font-size: 7px; font-weight: 700; color: var(--color-p1); text-align: center; line-height: 1.1;">T/C</div>
+        </div>
+
+        <div style="flex: 1; position: relative; height: 200px;">
+          <svg viewBox="0 0 600 200" style="width: 100%; height: 100%;" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="barP1f" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#4ADE80" stop-opacity="0.8"/>
+                <stop offset="100%" stop-color="#4ADE80" stop-opacity="0.2"/>
+              </linearGradient>
+              <linearGradient id="barP2f" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stop-color="#818CF8" stop-opacity="0.8"/>
+                <stop offset="100%" stop-color="#818CF8" stop-opacity="0.2"/>
+              </linearGradient>
+              <linearGradient id="areaP1f" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#4ADE80" stop-opacity="0.10"/>
+                <stop offset="100%" stop-color="#4ADE80" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="areaP2f" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stop-color="#818CF8" stop-opacity="0.10"/>
+                <stop offset="100%" stop-color="#818CF8" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+
+            <!-- Center line -->
+            <line x1="0" y1="100" x2="600" y2="100" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+            <!-- Set boundaries -->
+            <line x1="200" y1="5" x2="200" y2="195" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+            <line x1="400" y1="5" x2="400" y2="195" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+
+            <!-- Set labels at top -->
+            <rect x="80" y="2" width="40" height="14" rx="3" fill="rgba(74,222,128,0.12)"/>
+            <text x="100" y="12" text-anchor="middle" font-size="8" fill="var(--color-p1)" font-weight="700" font-family="-apple-system, sans-serif">6 - 3</text>
+            <rect x="280" y="2" width="40" height="14" rx="3" fill="rgba(129,140,248,0.12)"/>
+            <text x="300" y="12" text-anchor="middle" font-size="8" fill="var(--color-p2)" font-weight="700" font-family="-apple-system, sans-serif">4 - 6</text>
+            <rect x="480" y="2" width="40" height="14" rx="3" fill="rgba(74,222,128,0.12)"/>
+            <text x="500" y="12" text-anchor="middle" font-size="8" fill="var(--color-p1)" font-weight="700" font-family="-apple-system, sans-serif">7 - 5</text>
+
+            <!-- ═══ SET 1 BARS: P1 wins 6-3 ═══ -->
+            <!-- 9 games, each ~22px wide, in 200px space -->
+            <!-- G1: P1 40-15 → P1=4, P2=1 -->
+            <rect x="2" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="2" y="100" width="18" height="11" rx="2" fill="url(#barP2f)" opacity="0.35"/>
+            <!-- G2: P2 40-30 → P1=3, P2=4 -->
+            <rect x="24" y="67" width="18" height="33" rx="2" fill="url(#barP1f)" opacity="0.45"/>
+            <rect x="24" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.5"/>
+            <!-- G3: P1 40-0 → P1=4, P2=0 -->
+            <rect x="46" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.55"/>
+            <!-- G4: P1 40-15 → P1=4, P2=1 -->
+            <rect x="68" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="68" y="100" width="18" height="11" rx="2" fill="url(#barP2f)" opacity="0.3"/>
+            <!-- G5: P2 40-30 → P1=3, P2=4 -->
+            <rect x="90" y="67" width="18" height="33" rx="2" fill="url(#barP1f)" opacity="0.4"/>
+            <rect x="90" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.5"/>
+            <!-- G6: P1 40-15 → P1=4, P2=1 -->
+            <rect x="112" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="112" y="100" width="18" height="11" rx="2" fill="url(#barP2f)" opacity="0.3"/>
+            <!-- G7: P2 40-30 → P1=3, P2=4 -->
+            <rect x="134" y="67" width="18" height="33" rx="2" fill="url(#barP1f)" opacity="0.4"/>
+            <rect x="134" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.5"/>
+            <!-- G8: P1 40-0 → P1=4, P2=0 -->
+            <rect x="156" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.6"/>
+            <!-- G9: P1 40-15 → P1=4, P2=1 -->
+            <rect x="178" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.55"/>
+            <rect x="178" y="100" width="18" height="11" rx="2" fill="url(#barP2f)" opacity="0.3"/>
+
+            <!-- ═══ SET 2 BARS: P2 wins 6-4 ═══ -->
+            <!-- G1: P2 40-15 → P1=1, P2=4 -->
+            <rect x="204" y="89" width="18" height="11" rx="2" fill="url(#barP1f)" opacity="0.3"/>
+            <rect x="204" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.5"/>
+            <!-- G2: P1 40-30 → P1=4, P2=3 -->
+            <rect x="224" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="224" y="100" width="18" height="33" rx="2" fill="url(#barP2f)" opacity="0.45"/>
+            <!-- G3: P2 40-0 (BREAK) → P2=4, P1=0 -->
+            <rect x="244" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.65"/>
+            <!-- G4: P2 40-15 → P1=1, P2=4 -->
+            <rect x="264" y="89" width="18" height="11" rx="2" fill="url(#barP1f)" opacity="0.3"/>
+            <rect x="264" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.55"/>
+            <!-- G5: P1 40-30 → P1=4, P2=3 -->
+            <rect x="284" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.45"/>
+            <rect x="284" y="100" width="18" height="33" rx="2" fill="url(#barP2f)" opacity="0.45"/>
+            <!-- G6: P2 40-15 → P1=1, P2=4 -->
+            <rect x="304" y="89" width="18" height="11" rx="2" fill="url(#barP1f)" opacity="0.3"/>
+            <rect x="304" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.55"/>
+            <!-- G7: P1 40-30 → P1=4, P2=3 -->
+            <rect x="324" y="56" width="18" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="324" y="100" width="18" height="33" rx="2" fill="url(#barP2f)" opacity="0.4"/>
+            <!-- G8: P2 40-0 (BREAK) → P2=4, P1=0 -->
+            <rect x="344" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.65"/>
+            <!-- G9: P2 40-30 → P2=4, P1=3 -->
+            <rect x="364" y="67" width="18" height="33" rx="2" fill="url(#barP1f)" opacity="0.4"/>
+            <rect x="364" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.55"/>
+            <!-- G10: P2 40-15 → P2=4, P1=1 -->
+            <rect x="384" y="89" width="18" height="11" rx="2" fill="url(#barP1f)" opacity="0.3"/>
+            <rect x="384" y="100" width="18" height="44" rx="2" fill="url(#barP2f)" opacity="0.5"/>
+
+            <!-- ═══ SET 3 BARS: P1 wins 7-5 ═══ -->
+            <!-- 12 games, each ~16px wide in 200px -->
+            <!-- G1: P1 40-30 -->
+            <rect x="404" y="56" width="13" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="404" y="100" width="13" height="33" rx="2" fill="url(#barP2f)" opacity="0.4"/>
+            <!-- G2: P2 40-15 -->
+            <rect x="420" y="89" width="13" height="11" rx="2" fill="url(#barP1f)" opacity="0.3"/>
+            <rect x="420" y="100" width="13" height="44" rx="2" fill="url(#barP2f)" opacity="0.5"/>
+            <!-- G3: P1 40-15 -->
+            <rect x="436" y="56" width="13" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="436" y="100" width="13" height="11" rx="2" fill="url(#barP2f)" opacity="0.3"/>
+            <!-- G4: P2 40-30 -->
+            <rect x="452" y="67" width="13" height="33" rx="2" fill="url(#barP1f)" opacity="0.4"/>
+            <rect x="452" y="100" width="13" height="44" rx="2" fill="url(#barP2f)" opacity="0.5"/>
+            <!-- G5: P1 40-0 (BREAK) -->
+            <rect x="468" y="56" width="13" height="44" rx="2" fill="url(#barP1f)" opacity="0.65"/>
+            <!-- G6: P2 40-15 -->
+            <rect x="484" y="89" width="13" height="11" rx="2" fill="url(#barP1f)" opacity="0.3"/>
+            <rect x="484" y="100" width="13" height="44" rx="2" fill="url(#barP2f)" opacity="0.55"/>
+            <!-- G7: P2 40-0 (BREAK BACK) -->
+            <rect x="500" y="100" width="13" height="44" rx="2" fill="url(#barP2f)" opacity="0.65"/>
+            <!-- G8: P1 40-30 -->
+            <rect x="516" y="56" width="13" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="516" y="100" width="13" height="33" rx="2" fill="url(#barP2f)" opacity="0.4"/>
+            <!-- G9: P2 40-30 -->
+            <rect x="532" y="67" width="13" height="33" rx="2" fill="url(#barP1f)" opacity="0.4"/>
+            <rect x="532" y="100" width="13" height="44" rx="2" fill="url(#barP2f)" opacity="0.5"/>
+            <!-- G10: P1 40-15 -->
+            <rect x="548" y="56" width="13" height="44" rx="2" fill="url(#barP1f)" opacity="0.5"/>
+            <rect x="548" y="100" width="13" height="11" rx="2" fill="url(#barP2f)" opacity="0.3"/>
+            <!-- G11: P1 40-0 (BREAK) -->
+            <rect x="564" y="56" width="13" height="44" rx="2" fill="url(#barP1f)" opacity="0.7"/>
+            <!-- G12: P1 40-15 -->
+            <rect x="580" y="56" width="13" height="44" rx="2" fill="url(#barP1f)" opacity="0.6"/>
+            <rect x="580" y="100" width="13" height="11" rx="2" fill="url(#barP2f)" opacity="0.3"/>
+
+            <!-- ═══ MOMENTUM LINE across all 3 sets ═══ -->
+            <!-- SET 1: P1 dominates, line climbs up from center -->
+            <polyline
+              points="0,100 11,96 33,88 55,92 77,84 99,72 111,76 133,80 155,68 177,64 199,52"
+              fill="none" stroke="var(--color-p1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M0,100 L11,96 L33,88 L55,92 L77,84 L99,72 L111,76 L133,80 L155,68 L177,64 L199,52 L199,100 L0,100 Z"
+                  fill="url(#areaP1f)"/>
+
+            <!-- SET 2: P2 fights back, momentum resets then drops below center -->
+            <polyline
+              points="201,100 213,104 233,96 253,112 273,118 293,110 313,120 333,114 353,128 373,134 393,142"
+              fill="none" stroke="var(--color-p2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M201,100 L213,104 L233,96 L253,112 L273,118 L293,110 L313,120 L333,114 L353,128 L373,134 L393,142 L393,100 L201,100 Z"
+                  fill="url(#areaP2f)"/>
+
+            <!-- Break markers in set 2 -->
+            <circle cx="253" cy="112" r="5" fill="none" stroke="var(--color-break)" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.6"/>
+            <circle cx="353" cy="128" r="5" fill="none" stroke="var(--color-break)" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.6"/>
+
+            <!-- SET 3: Tight battle, P1 pulls away at end -->
+            <polyline
+              points="401,100 411,96 427,104 443,96 459,104 475,88 491,96 507,108 523,100 539,106 555,92 571,78 587,68 599,60"
+              fill="none" stroke="var(--color-p1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- P1 area above center in set 3 -->
+            <path d="M401,100 L411,96 L411,100 Z" fill="url(#areaP1f)" opacity="0.5"/>
+            <path d="M427,100 L443,96 L443,100 Z" fill="url(#areaP1f)" opacity="0.5"/>
+            <path d="M459,100 L475,88 L491,96 L491,100 L459,100 Z" fill="url(#areaP1f)" opacity="0.7"/>
+            <path d="M523,100 L539,106 L539,100 Z" fill="url(#areaP2f)" opacity="0.4"/>
+            <path d="M539,100 L555,92 L571,78 L587,68 L599,60 L599,100 L539,100 Z" fill="url(#areaP1f)"/>
+            <!-- P2 dips -->
+            <path d="M411,100 L427,104 L427,100 Z" fill="url(#areaP2f)" opacity="0.4"/>
+            <path d="M443,100 L459,104 L459,100 Z" fill="url(#areaP2f)" opacity="0.4"/>
+            <path d="M491,100 L507,108 L523,100 Z" fill="url(#areaP2f)" opacity="0.5"/>
+
+            <!-- Break + final surge markers -->
+            <circle cx="475" cy="88" r="5" fill="none" stroke="var(--color-break)" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.6"/>
+            <circle cx="507" cy="108" r="5" fill="none" stroke="var(--color-break)" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.6"/>
+            <circle cx="571" cy="78" r="5" fill="none" stroke="var(--color-break)" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.6"/>
+
+            <!-- Star points -->
+            <circle cx="155" cy="68" r="4" fill="var(--color-star)" opacity="0.7"/>
+            <circle cx="333" cy="114" r="4" fill="var(--color-star)" opacity="0.7"/>
+            <circle cx="555" cy="92" r="4" fill="var(--color-star)" opacity="0.7"/>
+
+            <!-- Winner marker -->
+            <circle cx="599" cy="60" r="5" fill="var(--color-p1)"/>
+          </svg>
+        </div>
+
+        <!-- P2 -->
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; width: 36px;">
+          <div style="width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #3730A3, #818CF8); display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 10px;">🇪🇸</span>
+          </div>
+          <div style="font-size: 7px; font-weight: 700; color: var(--color-p2); text-align: center; line-height: 1.1;">G/Ch</div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 0 4px;">
+        <div style="display: flex; align-items: center; gap: 3px;">
+          <div style="width: 10px; height: 6px; background: var(--color-p1); border-radius: 2px; opacity: 0.6;"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Pts won</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 3px;">
+          <div style="width: 10px; height: 6px; background: var(--color-p2); border-radius: 2px; opacity: 0.6;"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Pts won</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 3px;">
+          <div style="width: 12px; height: 2px; background: white; border-radius: 1px; opacity: 0.5;"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Momentum</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 3px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; border: 1.5px dashed var(--color-break); opacity: 0.5;"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Break</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- IN CONTEXT — on the match page -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <div class="label">In context — on the match page</div>
+
+  <div style="margin: 0 16px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-card);">
+    <!-- Fake score -->
+    <div style="padding: 10px 14px; background: var(--bg-card); border-bottom: 1px solid var(--border-card);">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 12px; font-weight: 700;">🇦🇷 Tapia / 🇪🇸 Coello</span>
+        <span style="font-size: 18px; font-weight: 900; font-family: var(--font-mono); color: var(--text-primary);">3 <span style="color: var(--color-live);">A</span></span>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">🇪🇸 Galan / 🇦🇷 Chingotto</span>
+        <span style="font-size: 18px; font-weight: 900; font-family: var(--font-mono); color: var(--text-secondary);">2 <span style="color: var(--text-muted);">40</span></span>
+      </div>
+    </div>
+
+    <!-- Compact momentum widget -->
+    <div style="padding: 8px 10px; background: var(--bg-card-alt); border-bottom: 1px solid var(--border-card);">
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <div style="width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #2D5A27, #4ADE80); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <span style="font-size: 8px;">🇦🇷</span>
+        </div>
+
+        <div style="flex: 1; position: relative; height: 60px;">
+          <svg viewBox="0 0 500 60" style="width: 100%; height: 100%;" preserveAspectRatio="none">
+            <!-- Center -->
+            <line x1="0" y1="30" x2="500" y2="30" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+            <!-- Game boundaries -->
+            <line x1="100" y1="5" x2="100" y2="55" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="2,2"/>
+            <line x1="200" y1="5" x2="200" y2="55" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="2,2"/>
+            <line x1="300" y1="5" x2="300" y2="55" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="2,2"/>
+            <line x1="400" y1="5" x2="400" y2="55" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="2,2"/>
+
+            <!-- Compact bars -->
+            <rect x="15" y="10" width="70" height="20" rx="2" fill="var(--color-p1)" opacity="0.35"/>
+            <rect x="15" y="30" width="70" height="5" rx="2" fill="var(--color-p2)" opacity="0.25"/>
+            <rect x="115" y="17" width="70" height="13" rx="2" fill="var(--color-p1)" opacity="0.3"/>
+            <rect x="115" y="30" width="70" height="20" rx="2" fill="var(--color-p2)" opacity="0.35"/>
+            <rect x="215" y="10" width="70" height="20" rx="2" fill="var(--color-p1)" opacity="0.4"/>
+            <rect x="315" y="25" width="70" height="5" rx="2" fill="var(--color-p1)" opacity="0.25"/>
+            <rect x="315" y="30" width="70" height="20" rx="2" fill="var(--color-p2)" opacity="0.35"/>
+            <rect x="415" y="7" width="70" height="23" rx="2" fill="var(--color-p1)" opacity="0.3"/>
+            <rect x="415" y="30" width="70" height="20" rx="2" fill="var(--color-p2)" opacity="0.3"/>
+
+            <!-- Line -->
+            <polyline
+              points="0,30 50,26 100,20 150,24 200,28 250,22 300,12 350,16 400,20 450,18 498,15"
+              fill="none" stroke="var(--color-p1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M0,30 L50,26 L100,20 L150,24 L200,28 L250,22 L300,12 L350,16 L400,20 L450,18 L498,15 L498,30 L0,30 Z"
+                  fill="rgba(74,222,128,0.06)"/>
+            <circle cx="498" cy="15" r="3" fill="var(--color-p1)">
+              <animate attributeName="r" values="2.5;4;2.5" dur="1.5s" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </div>
+
+        <div style="width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #3730A3, #818CF8); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <span style="font-size: 8px;">🇪🇸</span>
+        </div>
+      </div>
+      <div style="text-align: center; font-size: 7px; color: var(--text-faint); margin-top: 2px;">
+        G1 · G2 · G3 · G4 · <span style="color: var(--color-accent);">G5</span>
+      </div>
+    </div>
+
+    <!-- Fake fan poll -->
+    <div style="padding: 10px 14px; background: var(--bg-card);">
+      <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--text-faint); letter-spacing: 0.5px; margin-bottom: 6px;">Who are you rooting for?</div>
+      <div style="height: 4px; border-radius: 2px; overflow: hidden; display: flex; background: rgba(129,140,248,0.25);">
+        <div style="width: 62%; background: var(--color-p1); opacity: 0.7;"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+        <span style="font-size: 9px; color: var(--color-p1); font-weight: 700;">62%</span>
+        <span style="font-size: 9px; color: var(--color-p2); font-weight: 700;">38%</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 40px;"></div>
+</div>
+
+<style>
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Match Momentum — Compact Mockup</title>
+<style>
+  :root {
+    --bg-base: #0B1120;
+    --bg-card: #111827;
+    --bg-card-alt: #0F1729;
+    --border-card: rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --text-primary: #E8ECF1;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --text-faint: #475569;
+    --color-accent: #38C8FF;
+    --color-live: #FF4455;
+    --color-p1: #F59E0B;
+    --color-p2: #14B8A6;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg-base); font-family: var(--font-sans); color: var(--text-primary); }
+  .page { max-width: 500px; margin: 0 auto; padding: 16px 0; }
+  .card { margin: 0 16px; border-radius: 12px; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border-card); }
+  .label { margin: 20px 16px 8px; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #F5A623; }
+  .note { margin: 0 16px 16px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div style="padding: 0 16px 10px; text-align: center;">
+    <div style="font-size: 16px; font-weight: 800; margin-bottom: 4px;">Match Momentum — Compact Variants</div>
+    <div style="font-size: 11px; color: var(--text-muted);">Fits between the score hero and the fan poll</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- VARIANT A: Ultra-compact inline bar -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <div class="label">Variant A — Inline bar (smallest)</div>
+  <div class="note">Just a thin colored bar showing game-by-game momentum. Each segment = 1 game. Amber = P1 won, Teal = P2 won. Taller = more dominant win (love game vs deuce).</div>
+
+  <div class="card">
+    <div style="padding: 10px 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <span style="font-size: 9px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px;">Momentum</span>
+        <span style="font-size: 9px; color: var(--text-faint);">Set 1 · Game 5</span>
+      </div>
+      <!-- Bar chart: each game is a bar, up = P1, down = P2 -->
+      <div style="display: flex; align-items: center; height: 32px; gap: 2px;">
+        <!-- Game 1: P1 won (love game — tall bar) -->
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center; position: relative;">
+          <div style="width: 100%; height: 85%; border-radius: 2px 2px 0 0; background: linear-gradient(to top, rgba(245,158,11,0.15), rgba(245,158,11,0.5));"></div>
+        </div>
+        <!-- Game 2: P2 won (close game — short bar) -->
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center;">
+          <div style="flex: 1;"></div>
+          <div style="width: 100%; height: 35%; border-radius: 0 0 2px 2px; background: linear-gradient(to bottom, rgba(20,184,166,0.15), rgba(20,184,166,0.5));"></div>
+        </div>
+        <!-- Game 3: P1 won (deuce — medium bar) -->
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center;">
+          <div style="width: 100%; height: 45%; border-radius: 2px 2px 0 0; background: linear-gradient(to top, rgba(245,158,11,0.15), rgba(245,158,11,0.5));"></div>
+          <div style="flex: 1;"></div>
+        </div>
+        <!-- Game 4: P2 won (love game — tall bar) -->
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center;">
+          <div style="flex: 1;"></div>
+          <div style="width: 100%; height: 80%; border-radius: 0 0 2px 2px; background: linear-gradient(to bottom, rgba(20,184,166,0.15), rgba(20,184,166,0.5));"></div>
+        </div>
+        <!-- Game 5: P1 winning (in progress — pulsing) -->
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center;">
+          <div style="width: 100%; height: 55%; border-radius: 2px 2px 0 0; background: linear-gradient(to top, rgba(245,158,11,0.2), rgba(245,158,11,0.6)); animation: pulse 1.5s ease-in-out infinite;"></div>
+          <div style="flex: 1;"></div>
+        </div>
+        <!-- Remaining games (empty placeholders) -->
+        <div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 100%; height: 1px; background: var(--border-strong); opacity: 0.3;"></div>
+        </div>
+        <div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 100%; height: 1px; background: var(--border-strong); opacity: 0.3;"></div>
+        </div>
+        <div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 100%; height: 1px; background: var(--border-strong); opacity: 0.3;"></div>
+        </div>
+        <div style="flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 100%; height: 1px; background: var(--border-strong); opacity: 0.3;"></div>
+        </div>
+      </div>
+      <!-- Pair labels -->
+      <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <div style="width: 6px; height: 6px; border-radius: 1px; background: var(--color-p1);"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Tapia / Coello</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="font-size: 8px; color: var(--text-faint);">Galan / Chingotto</span>
+          <div style="width: 6px; height: 6px; border-radius: 1px; background: var(--color-p2);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- VARIANT B: Cumulative line (medium) -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <div class="label">Variant B — Cumulative line (medium)</div>
+  <div class="note">Running game advantage over time. Line above center = P1 leads. The steeper the slope, the more dominant that stretch. Shows the full match story across sets.</div>
+
+  <div class="card">
+    <div style="padding: 10px 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 9px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px;">Momentum</span>
+        <div style="display: flex; gap: 8px;">
+          <span style="font-size: 9px; padding: 1px 6px; border-radius: 4px; background: rgba(56,200,255,0.1); color: var(--color-accent); font-weight: 600; border: 1px solid rgba(56,200,255,0.2);">S1</span>
+          <span style="font-size: 9px; padding: 1px 6px; border-radius: 4px; color: var(--text-faint); font-weight: 600;">S2</span>
+          <span style="font-size: 9px; padding: 1px 6px; border-radius: 4px; color: var(--text-faint); font-weight: 600;">S3</span>
+        </div>
+      </div>
+
+      <div style="position: relative; height: 64px;">
+        <!-- P1 / P2 subtle labels -->
+        <div style="position: absolute; top: 2px; right: 0; font-size: 7px; font-weight: 700; color: var(--color-p1); opacity: 0.4;">T/C ↑</div>
+        <div style="position: absolute; bottom: 2px; right: 0; font-size: 7px; font-weight: 700; color: var(--color-p2); opacity: 0.4;">G/Ch ↓</div>
+
+        <svg viewBox="0 0 400 64" style="width: 100%; height: 100%;" preserveAspectRatio="none">
+          <!-- Center line -->
+          <line x1="0" y1="32" x2="400" y2="32" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+
+          <!-- Cumulative advantage line -->
+          <!-- Start at 0, P1 wins G1 (+1), P2 wins G2 (0), P1 wins G3 (+1), P2 wins G4 (0), P1 leading G5 (+0.5) -->
+          <polyline
+            points="0,32 80,18 160,32 240,18 320,32 400,24"
+            fill="none" stroke="url(#lineGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          />
+          <!-- Fill above center (P1 dominance) -->
+          <path d="M0,32 L80,18 L160,32 L240,18 L320,32 L400,24 L400,32 L0,32"
+                fill="rgba(245,158,11,0.08)"/>
+          <!-- Fill below center would be P2 dominance — none in this set -->
+
+          <!-- Game dots -->
+          <circle cx="0" cy="32" r="2" fill="var(--text-faint)"/>
+          <circle cx="80" cy="18" r="2.5" fill="var(--color-p1)"/>
+          <circle cx="160" cy="32" r="2.5" fill="var(--color-p2)"/>
+          <circle cx="240" cy="18" r="2.5" fill="var(--color-p1)"/>
+          <circle cx="320" cy="32" r="2.5" fill="var(--color-p2)"/>
+          <!-- Current (pulsing) -->
+          <circle cx="400" cy="24" r="3.5" fill="var(--color-p1)" opacity="0.8">
+            <animate attributeName="r" values="3;5;3" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+
+          <defs>
+            <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="var(--color-p1)" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="var(--color-p1)" stop-opacity="1"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; margin-top: 2px;">
+        <span style="font-size: 7px; color: var(--text-faint);">G1</span>
+        <span style="font-size: 7px; color: var(--text-faint);">G2</span>
+        <span style="font-size: 7px; color: var(--text-faint);">G3</span>
+        <span style="font-size: 7px; color: var(--text-faint);">G4</span>
+        <span style="font-size: 7px; color: var(--color-accent); font-weight: 700;">G5</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- VARIANT C: Full match (multi-set) -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <div class="label">Variant C — Full match view (finished match)</div>
+  <div class="note">After the match, shows all sets together. Set boundaries marked with vertical lines. Tells the complete match story — "P1 dominated set 1, P2 fought back in set 2, tight third set."</div>
+
+  <div class="card">
+    <div style="padding: 10px 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+        <span style="font-size: 9px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px;">Match Momentum</span>
+        <span style="font-size: 9px; color: var(--text-faint);">6-3 · 4-6 · 7-5</span>
+      </div>
+
+      <div style="position: relative; height: 56px;">
+        <div style="position: absolute; top: 2px; right: 0; font-size: 7px; font-weight: 700; color: var(--color-p1); opacity: 0.4;">T/C</div>
+        <div style="position: absolute; bottom: 2px; right: 0; font-size: 7px; font-weight: 700; color: var(--color-p2); opacity: 0.4;">G/Ch</div>
+
+        <svg viewBox="0 0 400 56" style="width: 100%; height: 100%;" preserveAspectRatio="none">
+          <!-- Center -->
+          <line x1="0" y1="28" x2="400" y2="28" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+
+          <!-- Set boundaries -->
+          <line x1="140" y1="0" x2="140" y2="56" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="2,3"/>
+          <line x1="265" y1="0" x2="265" y2="56" stroke="rgba(255,255,255,0.08)" stroke-width="1" stroke-dasharray="2,3"/>
+
+          <!-- Set labels -->
+          <text x="70" y="8" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.15)" font-weight="700">SET 1</text>
+          <text x="202" y="8" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.15)" font-weight="700">SET 2</text>
+          <text x="332" y="8" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.15)" font-weight="700">SET 3</text>
+
+          <!-- Set 1: P1 dominates (6-3) — line stays above center -->
+          <polyline
+            points="0,28 16,22 32,18 48,14 64,18 80,14 96,10 112,14 128,10"
+            fill="none" stroke="var(--color-p1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M0,28 L16,22 L32,18 L48,14 L64,18 L80,14 L96,10 L112,14 L128,10 L128,28 L0,28"
+                fill="rgba(245,158,11,0.08)"/>
+
+          <!-- Transition -->
+          <line x1="128" y1="10" x2="152" y2="28" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="2,2"/>
+
+          <!-- Set 2: P2 fights back (4-6) — line goes below center -->
+          <polyline
+            points="152,28 168,32 184,28 200,34 216,38 232,34 248,40 256,44"
+            fill="none" stroke="var(--color-p2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M152,28 L168,32 L184,28 L200,34 L216,38 L232,34 L248,40 L256,44 L256,28 L152,28"
+                fill="rgba(20,184,166,0.08)"/>
+
+          <!-- Transition -->
+          <line x1="256" y1="44" x2="278" y2="28" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="2,2"/>
+
+          <!-- Set 3: Tight, P1 edges it (7-5) — line oscillates, ends slightly above -->
+          <polyline
+            points="278,28 294,24 310,30 326,26 342,30 358,24 374,20 390,16 400,12"
+            fill="none" stroke="var(--color-p1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M278,28 L294,24 L310,30 L326,26 L342,30 L358,24 L374,20 L390,16 L400,12 L400,28 L278,28"
+                fill="rgba(245,158,11,0.06)"/>
+          <!-- Small P2 dip -->
+          <path d="M278,28 L294,24 L310,30 L326,26 L310,30 L310,28 L278,28"
+                fill="rgba(20,184,166,0.04)"/>
+
+          <!-- Winner dot -->
+          <circle cx="400" cy="12" r="3" fill="var(--color-p1)"/>
+        </svg>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <div style="width: 6px; height: 6px; border-radius: 1px; background: var(--color-p1);"></div>
+          <span style="font-size: 8px; color: var(--text-faint);">Tapia / Coello</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="font-size: 8px; color: var(--text-faint);">Galan / Chingotto</span>
+          <div style="width: 6px; height: 6px; border-radius: 1px; background: var(--color-p2);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- In context: how it fits on the match page -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <div class="label">In context — where it sits on the page</div>
+  <div class="note">Placed right after the score hero, before the fan poll. Takes ~70px of height. No interaction needed — purely visual.</div>
+
+  <!-- Simulated match page context -->
+  <div style="margin: 0 16px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-card);">
+    <!-- Fake score area (condensed) -->
+    <div style="padding: 10px 14px; background: var(--bg-card); border-bottom: 1px solid var(--border-card);">
+      <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-primary);">🇦🇷 Tapia / 🇪🇸 Coello</div>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="font-size: 18px; font-weight: 900; color: var(--text-primary); font-family: var(--font-mono);">3</span>
+          <span style="font-size: 20px; font-weight: 900; color: var(--color-live); font-family: var(--font-mono);">A</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">🇪🇸 Galan / 🇦🇷 Chingotto</div>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="font-size: 18px; font-weight: 900; color: var(--text-secondary); font-family: var(--font-mono);">2</span>
+          <span style="font-size: 20px; font-weight: 900; color: var(--text-muted); font-family: var(--font-mono);">40</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⭐ MOMENTUM WIDGET (Variant B) -->
+    <div style="padding: 8px 14px; background: var(--bg-card-alt); border-bottom: 1px solid var(--border-card);">
+      <div style="position: relative; height: 40px;">
+        <svg viewBox="0 0 400 40" style="width: 100%; height: 100%;" preserveAspectRatio="none">
+          <line x1="0" y1="20" x2="400" y2="20" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+          <polyline points="0,20 80,12 160,20 240,12 320,20 400,15" fill="none" stroke="var(--color-p1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+          <path d="M0,20 L80,12 L160,20 L240,12 L320,20 L400,15 L400,20 L0,20" fill="rgba(245,158,11,0.06)"/>
+          <circle cx="400" cy="15" r="3" fill="var(--color-p1)" opacity="0.8">
+            <animate attributeName="r" values="2.5;4;2.5" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span style="font-size: 7px; color: var(--color-p1); opacity: 0.5; font-weight: 600;">T/C</span>
+        <span style="font-size: 7px; color: var(--text-faint);">Set 1 · G5</span>
+        <span style="font-size: 7px; color: var(--color-p2); opacity: 0.5; font-weight: 600;">G/Ch</span>
+      </div>
+    </div>
+
+    <!-- Fake fan poll (condensed) -->
+    <div style="padding: 10px 14px; background: var(--bg-card);">
+      <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--text-faint); letter-spacing: 0.5px; margin-bottom: 6px;">Who are you rooting for?</div>
+      <div style="height: 4px; border-radius: 2px; overflow: hidden; display: flex; background: rgba(20,184,166,0.25);">
+        <div style="width: 62%; background: var(--color-p1); opacity: 0.7;"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+        <span style="font-size: 9px; color: var(--color-p1); font-weight: 700;">62%</span>
+        <span style="font-size: 9px; color: var(--color-p2); font-weight: 700;">38%</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="height: 40px;"></div>
+
+</div>
+
+<style>
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+</style>
+</body>
+</html>

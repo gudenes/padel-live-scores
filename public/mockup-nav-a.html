@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nav Concept A v2 — Glassmorphic + Touch Feel + Badges</title>
+<style>
+  :root {
+    --bg-base: #0B1120;
+    --bg-card: #111827;
+    --text-primary: #F1F5F9;
+    --text-muted: #64748B;
+    --text-faint: #3B4A63;
+    --accent: #4A9EFF;
+    --accent-bg: rgba(74,158,255,0.12);
+    --live: #FF4455;
+    --live-bg: rgba(255,68,85,0.12);
+    --amber: #F59E0B;
+    --teal: #14B8A6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg-base); font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: var(--text-primary); }
+
+  .phone { width: 390px; height: 844px; margin: 20px auto; position: relative; overflow: hidden; border-radius: 40px; border: 2px solid #1E293B; background: var(--bg-base); }
+
+  .content { padding: 60px 16px 120px; }
+  .content h2 { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .card { background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 10px; border: 0.5px solid rgba(255,255,255,0.06); }
+  .card .title { font-size: 14px; font-weight: 700; }
+  .card .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ── Nav bar ── */
+  .nav-a {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 0 12px 24px;
+  }
+
+  .nav-a-bar {
+    display: flex; align-items: stretch; justify-content: space-around;
+    background: rgba(11, 17, 32, 0.78);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 0.5px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 8px 6px 10px;
+    position: relative;
+  }
+
+  /* ── Tab base ── */
+  .nav-a-tab {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    text-decoration: none; flex: 1; position: relative;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* ── Icon container ── */
+  .nav-a-tab .icon-wrap {
+    width: 42px; height: 38px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+
+  /* Active pill highlight */
+  .nav-a-tab.active .icon-wrap {
+    background: var(--accent-bg);
+    transform: scale(1.05);
+  }
+
+  /* ── Touch press effect ── */
+  .nav-a-tab:active .icon-wrap {
+    transform: scale(0.85) !important;
+    transition: transform 0.08s ease-in !important;
+  }
+  .nav-a-tab:active .label {
+    transform: scale(0.92);
+    transition: transform 0.08s ease-in !important;
+  }
+
+  /* Ripple layer inside icon-wrap */
+  .nav-a-tab .icon-wrap::after {
+    content: '';
+    position: absolute; inset: -4px; border-radius: 16px;
+    background: radial-gradient(circle, rgba(74,158,255,0.2) 0%, transparent 70%);
+    opacity: 0; transform: scale(0.5);
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+  }
+  .nav-a-tab:active .icon-wrap::after {
+    opacity: 1; transform: scale(1.2);
+    transition: opacity 0.06s, transform 0.06s;
+  }
+
+  .nav-a-tab svg { transition: all 0.2s; }
+
+  /* ── Label ── */
+  .nav-a-tab .label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
+    color: var(--text-faint); transition: all 0.2s;
+  }
+  .nav-a-tab.active .label { color: var(--accent); }
+
+  /* ── Live pulse ring around Home icon ── */
+  .live-ring {
+    position: absolute; inset: -3px; border-radius: 14px;
+    border: 1.5px solid var(--live);
+    opacity: 0;
+    animation: ring-pulse 2s ease-out infinite;
+    pointer-events: none;
+  }
+  .live-ring:nth-child(2) { animation-delay: 1s; }
+
+  @keyframes ring-pulse {
+    0% { opacity: 0.6; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.35); }
+  }
+
+  /* Live badge on Home */
+  .badge {
+    position: absolute; z-index: 2;
+    min-width: 16px; height: 16px; border-radius: 8px;
+    font-size: 9px; font-weight: 800; line-height: 16px; text-align: center;
+    padding: 0 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    pointer-events: none;
+  }
+
+  .badge-live {
+    top: -2px; right: -2px;
+    background: var(--live); color: #fff;
+    animation: badge-pop 2s ease-in-out infinite;
+  }
+  @keyframes badge-pop {
+    0%, 100% { transform: scale(1); }
+    8% { transform: scale(1.2); }
+    16% { transform: scale(1); }
+  }
+
+  /* News count badge */
+  .badge-news {
+    top: -2px; right: 0px;
+    background: var(--teal); color: #fff;
+  }
+
+  /* Ranking movement badge */
+  .badge-rank {
+    top: -2px; right: 0px;
+    background: var(--amber); color: #000;
+    font-size: 8px; font-weight: 900;
+  }
+
+  /* Live dot on Scores tab */
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--live); position: absolute; top: 4px; right: 4px;
+    z-index: 2;
+    animation: dot-blink 1.5s ease-in-out infinite;
+  }
+  @keyframes dot-blink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  /* ── Events tab — calendar icon with live day dot ── */
+
+  .desc { text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px; max-width: 390px; margin: 0 auto; line-height: 1.6; }
+  .desc b { color: var(--text-primary); }
+  h1 { text-align: center; font-size: 18px; margin: 40px 0 8px; color: var(--text-primary); }
+
+  /* ── Demo interaction helper ── */
+  .try-hint {
+    text-align: center; margin-top: 10px; font-size: 11px; color: var(--text-faint);
+    animation: hint-fade 3s ease-in-out infinite;
+  }
+  @keyframes hint-fade {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Concept A v2 — Touch Feel + Smart Badges</h1>
+<div class="desc">
+  <b>Press & release</b> any tab to feel the scale-down + ripple effect. <b>Home</b> has a pulsing live ring + live count badge. <b>Scores</b> has a live dot. <b>Feed</b> shows 24h news count. <b>Ranking</b> shows movement indicator. No center FAB — 5 equal tabs.
+</div>
+<div class="try-hint">Tap the tabs below to feel the press effect</div>
+
+<div class="phone">
+  <div class="content">
+    <h2>Upcoming matches</h2>
+    <div class="card"><div class="title">Coello / Tapia vs Lebron / Galan</div><div class="sub">Miami P1 · Semifinals · 14:00</div></div>
+    <div class="card"><div class="title">Brea / Gonzalez vs Triay / Fernandez</div><div class="sub">Miami P1 · Semifinals · 16:00</div></div>
+    <div class="card"><div class="title">Chingotto / Galan vs Di Nenno / Navarro</div><div class="sub">Miami P1 · Quarterfinals · 18:00</div></div>
+    <h2 style="margin-top:24px">Results</h2>
+    <div class="card"><div class="title">Sanchez / Josemaria vs Ortega / Riera</div><div class="sub">Miami P1 · R16 · 6-3 7-5</div></div>
+    <div class="card"><div class="title">Stupaczuk / Lima vs Ruiz / Campagnolo</div><div class="sub">Miami P1 · R16 · 6-4 3-6 6-2</div></div>
+  </div>
+
+  <div class="nav-a">
+    <div class="nav-a-bar">
+
+      <!-- HOME — active, with live pulse ring + live badge -->
+      <a class="nav-a-tab active" href="#" onclick="switchTab(this); return false;">
+        <div class="icon-wrap">
+          <!-- Pulsing rings -->
+          <div class="live-ring"></div>
+          <div class="live-ring"></div>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(74,158,255,0.1)" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <div class="badge badge-live">3</div>
+        </div>
+        <span class="label" style="color: var(--accent)">Home</span>
+      </a>
+
+      <!-- SCORES — live dot indicator -->
+      <a class="nav-a-tab" href="#" onclick="switchTab(this); return false;">
+        <div class="icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" stroke-width="2" stroke-linecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>
+          </svg>
+          <div class="live-dot"></div>
+        </div>
+        <span class="label">Scores</span>
+      </a>
+
+      <!-- FEED — news count badge -->
+      <a class="nav-a-tab" href="#" onclick="switchTab(this); return false;">
+        <div class="icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="2" fill="var(--text-faint)"/>
+            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+          </svg>
+          <div class="badge badge-news">12</div>
+        </div>
+        <span class="label">Feed</span>
+      </a>
+
+      <!-- RANKING — movement nudge -->
+      <a class="nav-a-tab" href="#" onclick="switchTab(this); return false;">
+        <div class="icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" stroke-width="2" stroke-linecap="round">
+            <path d="M12 20V10M18 20V4M6 20v-4"/>
+          </svg>
+          <div class="badge badge-rank">NEW</div>
+        </div>
+        <span class="label">Ranking</span>
+      </a>
+
+      <!-- EVENTS -->
+      <a class="nav-a-tab" href="#" onclick="switchTab(this); return false;">
+        <div class="icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" stroke-width="2" stroke-linecap="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+          </svg>
+        </div>
+        <span class="label">Events</span>
+      </a>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// Tab switching with active state transfer
+function switchTab(el) {
+  document.querySelectorAll('.nav-a-tab').forEach(t => {
+    t.classList.remove('active');
+    // Reset icon colors
+    const svg = t.querySelector('svg');
+    if (svg) {
+      svg.setAttribute('stroke', 'var(--text-faint)');
+      svg.setAttribute('fill', 'none');
+    }
+    const label = t.querySelector('.label');
+    if (label) label.style.color = '';
+    // Remove live rings from non-home tabs
+    t.querySelectorAll('.live-ring').forEach(r => r.style.display = '');
+  });
+
+  el.classList.add('active');
+  const svg = el.querySelector('svg');
+  if (svg) {
+    svg.setAttribute('stroke', 'var(--accent)');
+    svg.setAttribute('fill', 'rgba(74,158,255,0.1)');
+  }
+  const label = el.querySelector('.label');
+  if (label) label.style.color = 'var(--accent)';
+}
+</script>
+
+</body>
+</html>
