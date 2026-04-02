@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseEntryListText, type ParsedTeam } from './entry-list-parser'
+import { parseEntryListText, type ParsedTeam } from '../entry-list-parser'
 
 const SAMPLE_TEXT = `Pos Ranking \tPlayer \tRanking \tPlayer \tTeam Points
 1 \t15 Jeronimo Gonzalez ESP
