@@ -20,15 +20,22 @@ export async function GET(request: Request) {
   const action = url.searchParams.get('action')
 
   if (action === 'list-tournaments') {
-    const today = new Date().toISOString().slice(0, 10)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-    const { data: tournaments } = await supabase
+    // Fetch FIP tournaments: starting within next 30 days, or recently active (ended within 30 days)
+    const { data: tournaments, error } = await supabase
       .from('tournaments')
       .select('id, name, country, level, starts_at, ends_at')
       .eq('source', 'fip')
-      .or(`starts_at.lte.${in30Days},and(starts_at.lte.${today},ends_at.gte.${today})`)
+      .gte('starts_at', thirtyDaysAgo)
+      .lte('starts_at', in30Days)
       .order('starts_at', { ascending: true })
+
+    if (error) {
+      console.error('[Entry List] Failed to fetch tournaments:', error.message)
+      return Response.json({ error: error.message, tournaments: [] }, { status: 500 })
+    }
 
     return Response.json({ tournaments: tournaments ?? [] })
   }

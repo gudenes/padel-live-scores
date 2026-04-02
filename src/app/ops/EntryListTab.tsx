@@ -143,14 +143,17 @@ export default function EntryListTab() {
     let cancelled = false
     setLoadingTournaments(true)
     fetch('/api/ops/seed-entry-list?action=list-tournaments')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then(data => {
         if (cancelled) return
         setTournaments(data.tournaments ?? [])
         setTournamentError(null)
       })
-      .catch(() => {
-        if (!cancelled) setTournamentError('Failed to load tournaments')
+      .catch((e) => {
+        if (!cancelled) setTournamentError(`Failed to load tournaments: ${e.message}`)
       })
       .finally(() => {
         if (!cancelled) setLoadingTournaments(false)
