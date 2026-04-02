@@ -203,7 +203,12 @@ export default function EntryListTab() {
   }, [])
 
   const sortedTournaments = [...tournaments].sort((a, b) => {
-    return urgencyDot(a).sortKey - urgencyDot(b).sortKey
+    const urgencyDiff = urgencyDot(a).sortKey - urgencyDot(b).sortKey
+    if (urgencyDiff !== 0) return urgencyDiff
+    // At same urgency, tournaments missing uploads sort higher
+    const aReady = (a.hasEntryList ? 1 : 0) + (a.hasDraw ? 1 : 0)
+    const bReady = (b.hasEntryList ? 1 : 0) + (b.hasDraw ? 1 : 0)
+    return aReady - bReady
   })
 
   // ── File handling ──────────────────────────────────────────────

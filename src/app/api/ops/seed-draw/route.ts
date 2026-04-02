@@ -83,6 +83,7 @@ export async function POST(request: Request) {
         name: entry.player2Name,
         country: toIso2(entry.player2Country),
         category: body.category,
+        points: entry.teamPoints ?? undefined,
       })
       if (p2Result.action === 'created') created++
       else resolved++

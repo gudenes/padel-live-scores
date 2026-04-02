@@ -53,15 +53,17 @@ export async function GET(request: Request) {
     // Check readiness: which tournaments have entry lists and draws uploaded
     const tournamentIds = (tournaments ?? []).map(t => t.id)
 
-    // Entry list seeds from ops_events
+    // Entry list seeds from ops_events (filter in JS — JSONB .in() is unreliable across PostgREST versions)
     const { data: entryListEvents } = await supabase
       .from('ops_events')
       .select('meta')
       .eq('source', 'entry-list-seed')
-      .in('meta->>tournament_id', tournamentIds)
 
+    const tournamentIdSet = new Set(tournamentIds)
     const entryListTournamentIds = new Set(
-      (entryListEvents ?? []).map(e => (e.meta as any)?.tournament_id).filter(Boolean)
+      (entryListEvents ?? [])
+        .map(e => (e.meta as any)?.tournament_id)
+        .filter((id: string) => id && tournamentIdSet.has(id))
     )
 
     // Draw seeds from tournament_draws
