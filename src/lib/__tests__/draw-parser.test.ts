@@ -25,7 +25,7 @@ RELEASED
 describe('parseDrawText', () => {
   it('parses bracket entries from draw text', () => {
     const result = parseDrawText(SAMPLE_DRAW)
-    expect(result.entries.length).toBeGreaterThanOrEqual(5)
+    expect(result.entries).toHaveLength(5)
 
     // Seed 1 team
     expect(result.entries[0]).toMatchObject({
@@ -66,17 +66,18 @@ describe('parseDrawText', () => {
 
   it('parses seeded teams with points', () => {
     const result = parseDrawText(SAMPLE_DRAW)
-    expect(result.seededTeams.length).toBeGreaterThanOrEqual(2)
+    expect(result.seededTeams).toHaveLength(2)
     expect(result.seededTeams[0]).toMatchObject({
       seed: 1,
       points: 7110,
     })
   })
 
-  it('extracts metadata', () => {
+  it('extracts metadata including drawSize', () => {
     const result = parseDrawText(SAMPLE_DRAW)
     expect(result.metadata.category).toBe('women')
     expect(result.metadata.releaseDate).toBe('30 Mar 2026')
+    expect(result.metadata.drawSize).toBe(5)
   })
 
   it('handles unseeded teams (no prefix)', () => {
@@ -93,5 +94,50 @@ describe('parseDrawText', () => {
     const result = parseDrawText('')
     expect(result.entries).toEqual([])
     expect(result.seededTeams).toEqual([])
+    expect(result.warnings).toEqual([])
+  })
+
+  it('detects LL (lucky loser) markers', () => {
+    const text = `WOMEN
+LL \tGOMEZ, Ana \tESP
+MARTINEZ, Sofia \tARG
+Round of 32`
+    const result = parseDrawText(text)
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0].marker).toBe('LL')
+    expect(result.entries[0].player1Name).toBe('Ana Gomez')
+  })
+
+  it('detects men category from header', () => {
+    const text = `MEN
+1 GONZALEZ, Jeronimo \tARG
+DI NENNO, Martin \tARG
+Round of 32`
+    const result = parseDrawText(text)
+    expect(result.metadata.category).toBe('men')
+    expect(result.entries).toHaveLength(1)
+  })
+
+  it('warns on unpaired player (odd number of lines)', () => {
+    const text = `WOMEN
+1 OSORO ULRICH, Aranzazu \tARG
+IGLESIAS SEGADOR, Victoria \tESP
+NEIZVESTNAYA, Angelina
+Round of 32`
+    const result = parseDrawText(text)
+    expect(result.entries).toHaveLength(1)
+    expect(result.warnings).toHaveLength(1)
+    expect(result.warnings[0]).toContain('Unpaired player')
+    expect(result.warnings[0]).toContain('Angelina Neizvestnaya')
+  })
+
+  it('handles apostrophes in names', () => {
+    const text = `WOMEN
+O'BRIEN, Siobhan \tIRL
+MURPHY, Kate \tIRL
+Round of 32`
+    const result = parseDrawText(text)
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0].player1Name).toBe("Siobhan O'Brien")
   })
 })

@@ -33,6 +33,7 @@ export interface DrawParseResult {
   entries: ParsedDrawEntry[]
   seededTeams: ParsedSeededTeam[]
   metadata: DrawMetadata
+  warnings: string[]
 }
 
 // ── Name helpers ────────────────────────────────────────────────
@@ -52,7 +53,7 @@ function flipName(raw: string): string {
 function titleCase(s: string): string {
   return s
     .toLowerCase()
-    .replace(/(?:^|\s|-)(\S)/g, (_, c) => _.slice(0, -1) + c.toUpperCase())
+    .replace(/(?:^|\s|-|')(\S)/g, (_, c) => _.slice(0, -1) + c.toUpperCase())
 }
 
 // ── Parsing ─────────────────────────────────────────────────────
@@ -64,7 +65,7 @@ const PLAYER_LINE_RE = /^(?:(\d+|Q|WC|LL)\s+)?(.+?)(?:\s+([A-Z]{2,3}))?\s*$/
 const SEEDED_TEAM_RE = /^(\d+)\.\s*(.+?)\s*\/\s*(.+?)\s+(\d+)\s*$/
 
 // Lines that signal the end of bracket entries
-const BRACKET_END_RE = /^(Round of|Quarterfinal|Semifinal|Final|Winner|\u20AC|\d+\s*$|Seeded teams|TEAM\s+POINTS|Withdrawal|Lucky|Retire|RELEASED|Tournament|Main Referee)/i
+const BRACKET_END_RE = /^(Round of|Quarterfinal|Semifinal|Final|Winner|\u20AC|\d+\s*$|Seeded teams|TEAM\s+POINTS|Withdrawal|Lucky|Retire|RELEASED|Tournament|Main Referee|Qualifying|Bye|WALKOVER)/i
 
 // Date line: "30 Mar 2026"
 const DATE_RE = /^\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/
@@ -75,12 +76,14 @@ export function parseDrawText(text: string): DrawParseResult {
       entries: [],
       seededTeams: [],
       metadata: { category: 'women', releaseDate: null, drawSize: 0 },
+      warnings: [],
     }
   }
 
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   const entries: ParsedDrawEntry[] = []
   const seededTeams: ParsedSeededTeam[] = []
+  const warnings: string[] = []
   let category: 'men' | 'women' = 'women'
   let releaseDate: string | null = null
 
@@ -151,6 +154,11 @@ export function parseDrawText(text: string): DrawParseResult {
     i++
   }
 
+  // Warn if there's an unpaired player 1 (odd number of player lines)
+  if (pendingPlayer1) {
+    warnings.push(`Unpaired player at draw position ${drawPosition}: ${pendingPlayer1.name}`)
+  }
+
   // Phase 2: Parse seeded teams and metadata from remaining lines
   for (; i < lines.length; i++) {
     const line = lines[i]
@@ -182,5 +190,6 @@ export function parseDrawText(text: string): DrawParseResult {
       releaseDate,
       drawSize: entries.length,
     },
+    warnings,
   }
 }
