@@ -128,12 +128,14 @@ async function upsertFipMatch(
 
   const { data: existing } = await supabase
     .from('matches')
-    .select('id, status, winner_pair, finished_at')
+    .select('id, status, winner_pair, finished_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
     .eq('external_id', externalId)
     .single()
 
-  // Skip only if fully complete: finished + has winner + has finished_at timestamp
-  if (existing?.status === 'finished' && existing.winner_pair !== null && existing.finished_at !== null) {
+  // Skip only if fully complete: finished + has winner + has finished_at + all 4 players resolved
+  const hasAllPlayers = existing?.pair1_player1_id && existing?.pair1_player2_id &&
+    existing?.pair2_player1_id && existing?.pair2_player2_id
+  if (existing?.status === 'finished' && existing.winner_pair !== null && existing.finished_at !== null && hasAllPlayers) {
     return 'skipped'
   }
 
