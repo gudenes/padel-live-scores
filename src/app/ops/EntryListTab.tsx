@@ -223,7 +223,23 @@ export default function EntryListTab() {
         throw new Error(err.error ?? 'Parse failed')
       }
 
-      const data: ParseResult = await res.json()
+      const raw = await res.json()
+      const data: ParseResult = {
+        teams: (raw.teams ?? []).map((t: any, i: number) => ({
+          teamNumber: t.position ?? i + 1,
+          players: [
+            { name: t.player1?.name ?? '', country: t.player1?.country ?? null, ranking: t.player1?.ranking ?? null, points: t.player1?.points ?? null, action: 'new' as const },
+            { name: t.player2?.name ?? '', country: t.player2?.country ?? null, ranking: t.player2?.ranking ?? null, points: t.player2?.points ?? null, action: 'new' as const },
+          ],
+        })),
+        metadata: {
+          filename: raw.metadata?.filename ?? undefined,
+          version: raw.metadata?.version != null ? String(raw.metadata.version) : undefined,
+          modified: raw.metadata?.lastModified ?? undefined,
+          pages: raw.metadata?.pageCount ?? undefined,
+        },
+        playerCount: raw.playerCount ?? 0,
+      }
       setParseResult(data)
       setStage('preview')
     } catch (err: unknown) {
@@ -241,7 +257,7 @@ export default function EntryListTab() {
 
     try {
       const allPlayers = parseResult.teams.flatMap(t =>
-        t.players.map(p => ({ name: p.name, country: p.country, action: p.action }))
+        t.players.map(p => ({ name: p.name, country: p.country ?? '', action: p.action === 'new' ? 'create' : 'link' }))
       )
 
       const res = await fetch('/api/ops/seed-entry-list', {
