@@ -23,13 +23,15 @@ src/
     api/
       cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings)
       admin/               # Protected maintenance endpoints (resync, backfill, seed, migrate)
+      ops/                 # Ops dashboard APIs (seed-entry-list, parse-draw, seed-draw)
       feed/                # Article click tracking, video reporting
       match-stats/         # Match stats computation
     components/            # Shared components (MatchCard, CompactMatchCard, BottomNav, Spinner)
   lib/
     supabase.ts            # Client factory (browser anon + server service key)
     score-inference.ts     # Final score inference from point data
-    player-resolver.ts     # Player deduplication
+    player-resolver.ts     # Player deduplication (with ranking/points disambiguation)
+    draw-parser.ts         # FIP draw PDF text parser (pure function)
     feed-scoring.ts        # Feed ranking engine (personalization, dedup, quality signals)
   types/
     match.ts               # Core interfaces (Match, Set, Game, Player) + utility functions
@@ -55,6 +57,7 @@ supabase/
 | `seasons` | Season grouping | `external_id`, `name`, `year` |
 | `articles` | News feed | `source_url`, `source_name`, `published_at`, `click_count`, `source_weight`, `favicon_url` |
 | `highlights` | YouTube videos | `youtube_id`, `channel_name`, `view_count`, `like_count`, `comment_count`, `description`, `channel_quality_score` |
+| `tournament_draws` | Parsed draw brackets | `tournament_id`, `category`, `draw_position`, `seed`, `marker`, `player1/2_name`, `player1/2_id` |
 
 ### Relationships
 - `matches` → `tournaments` (via `tournament_id`)
@@ -177,6 +180,46 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://padel-nacho.vercel.app/api/
 ## Rate Limits
 
 padelapi.org: 10 req/min, 2,000 req/day, 50,000 req/month. Score Agent tracks request count per run (max 60).
+
+## FIP Draw Pipeline (branch: claude/elated-almeida)
+
+Eliminates TBD player names on FIP tournament matches. Two subsystems:
+
+### PlayerResolver improvements (`src/lib/player-resolver.ts`)
+- Resolution chain: fip_id → external_id → normalized name + category (with ranking/points disambiguation) → fuzzy match (0.7 threshold)
+- CachedPlayer includes `ranking` and `points` for disambiguation
+- `tokenSimilarity` exported for FIP scraper draw lookup
+- Fallback queries fetch `ranking, points` columns; cache updated after enrichment
+
+### Draw PDF pipeline
+- **Parser** (`src/lib/draw-parser.ts`): Pure function parsing FIP draw PDF text into structured bracket data with seeds, Q/WC/LL markers, name conversion (LASTNAME, Firstname → Firstname Lastname)
+- **Parse API** (`src/app/api/ops/parse-draw/route.ts`): PDF upload → pdf-parse text extraction → parseDrawText
+- **Seed API** (`src/app/api/ops/seed-draw/route.ts`): Stores parsed bracket in `tournament_draws`, resolves players via PlayerResolver
+- **FIP scraper integration** (`src/app/api/cron/fip-scores/route.ts`): Loads `tournament_draws` at cron start, checks draws first (tokenSimilarity >= 0.7) before falling back to PlayerResolver
+- **Ops UI** (`src/app/ops/EntryListTab.tsx`): Draw upload section with file picker, preview table, seed confirmation. EL/DR badges on tournament selector.
+
+### New DB table: `tournament_draws`
+- Migration: `supabase/migrations/20260402_tournament_draws.sql`
+- Columns: tournament_id, category, draw_position, seed, marker (Q/WC/LL), player1/2_name, player1/2_country, player1/2_id, team_points
+- Unique constraint: (tournament_id, category, draw_position)
+
+### Auth pattern for ops API routes
+- Middleware (`src/middleware.ts`) sets httpOnly `ops_token` cookie on `/ops?token=<CRON_SECRET>` login
+- All `/api/ops/*` routes read the cookie via `cookies()` and compare to `CRON_SECRET` env var
+- 401 responses include `reason` field: `server_misconfigured` (CRON_SECRET not set) or `token_mismatch` (cookie invalid)
+
+### Current status (as of 2026-04-02)
+- All 11 implementation tasks complete, code merged and deployed to Vercel
+- **Draw parser fix deployed**: Removed overly broad `\d+\s*$` from BRACKET_END_RE that stopped parsing on standalone seed numbers from PDF extraction
+- **Tests**: draw-parser (14), player-resolver (10), entry-list-parser (10) — all passing
+- **Known issue — 401 on ops dashboard**: After deploy, `/api/ops/seed-entry-list?action=list-tournaments` returns 401. Diagnostic logging added. To debug: check if error says `server_misconfigured` (CRON_SECRET not in Vercel env vars) or `token_mismatch` (re-login via `/ops?token=<secret>`). Check Vercel function logs.
+- **Pending**: After 401 is fixed, re-upload both draw PDFs (men MD-v4, women WD-v3) for FIP Gold Almaty. Then trigger fip-scores cron to backfill player IDs on 68 existing matches (all currently have null player IDs because old cron ran before deploy).
+- **Test tournament**: FIP Gold Almaty (ID: `d3d73d56-eea4-4ebb-8715-58fa87751a52`). Entry lists seeded (men 78 players, women 56). 68 matches (36 men, 32 women).
+- **Pre-existing test failures**: 5 parseWpEvent tests expect 'Gold'/'Silver'/'Bronze' but implementation returns 'fip_gold'/'fip_other' — NOT related to this work.
+
+### Config notes
+- `next.config.ts`: `serverExternalPackages: ['pdf-parse']` required for pdf-parse in API routes
+- `package.json`: pdf-parse ^2.4.5 (dependency), vitest ^4.1.2 (devDependency)
 
 ## Important Notes
 
