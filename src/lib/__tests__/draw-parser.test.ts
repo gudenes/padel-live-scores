@@ -140,4 +140,40 @@ Round of 32`
     expect(result.entries).toHaveLength(1)
     expect(result.entries[0].player1Name).toBe("Siobhan O'Brien")
   })
+
+  it('skips standalone number lines from PDF seed markers', () => {
+    // Real PDF extraction sometimes puts seed numbers on standalone lines
+    const text = `MEN
+1 LEBRON, Alejandro\tESP
+GALAN, Juan\tESP
+12
+LOPEZ, Martin\tARG
+GARCIA, Pablo\tARG
+Q RUIZ, Carlos\tESP
+SANCHEZ, Pedro\tESP
+Seeded teams
+TEAM\tPOINTS
+1. LEBRON, Alejandro / GALAN, Juan\t12000`
+
+    const result = parseDrawText(text)
+    // Should get 3 entries, not stop at the standalone "12"
+    expect(result.entries).toHaveLength(3)
+    expect(result.entries[0].seed).toBe(1)
+    expect(result.entries[1].player1Name).toBe('Martin Lopez')
+    expect(result.entries[2].marker).toBe('Q')
+  })
+
+  it('skips multi-digit standalone lines like "1 1" from PDF extraction', () => {
+    const text = `WOMEN
+OSORO ULRICH, Aranzazu\tARG
+IGLESIAS SEGADOR, Victoria\tESP
+1 1
+LOPEZ, Maria\tESP
+GARCIA, Ana\tESP
+Seeded teams`
+
+    const result = parseDrawText(text)
+    expect(result.entries).toHaveLength(2)
+    expect(result.entries[1].player1Name).toBe('Maria Lopez')
+  })
 })

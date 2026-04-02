@@ -15,8 +15,13 @@ const supabase = createClient(
 async function checkOpsAuth(): Promise<Response | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get('ops_token')?.value
-  if (!process.env.CRON_SECRET || token !== process.env.CRON_SECRET) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!process.env.CRON_SECRET) {
+    console.error('[Ops Auth] CRON_SECRET env var is not set')
+    return Response.json({ error: 'Unauthorized', reason: 'server_misconfigured' }, { status: 401 })
+  }
+  if (token !== process.env.CRON_SECRET) {
+    console.error('[Ops Auth] Token mismatch', { hasToken: !!token, tokenLength: token?.length })
+    return Response.json({ error: 'Unauthorized', reason: 'token_mismatch' }, { status: 401 })
   }
   return null
 }

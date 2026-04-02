@@ -65,7 +65,9 @@ const PLAYER_LINE_RE = /^(?:(\d+|Q|WC|LL)\s+)?(.+?)(?:\s+([A-Z]{2,3}))?\s*$/
 const SEEDED_TEAM_RE = /^(\d+)\.\s*(.+?)\s*\/\s*(.+?)\s+(\d+)\s*$/
 
 // Lines that signal the end of bracket entries
-const BRACKET_END_RE = /^(Round of|Quarterfinal|Semifinal|Final|Winner|\u20AC|\d+\s*$|Seeded teams|TEAM\s+POINTS|Withdrawal|Lucky|Retire|RELEASED|Tournament|Main Referee|Qualifying|Bye|WALKOVER)/i
+// Note: \d+\s*$ was removed — standalone numbers are seed markers from PDF extraction,
+// not bracket-end signals. They're handled by PLAYER_LINE_RE prefix matching.
+const BRACKET_END_RE = /^(Round of|Quarterfinal|Semifinal|Final|Winner|\u20AC|Seeded teams|TEAM\s+POINTS|Withdrawal|Lucky|Retire|RELEASED|Tournament|Main Referee|Qualifying|Bye|WALKOVER)/i
 
 // Date line: "30 Mar 2026"
 const DATE_RE = /^\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/
@@ -116,8 +118,8 @@ export function parseDrawText(text: string): DrawParseResult {
     const rawName = match[2].trim()
     const country = match[3] ?? null
 
-    // Skip empty names
-    if (!rawName || rawName === '-') { i++; continue }
+    // Skip empty names and standalone numbers (seed markers from PDF extraction)
+    if (!rawName || rawName === '-' || /^\d+(\s+\d+)*$/.test(rawName)) { i++; continue }
 
     // Determine seed/marker from prefix
     let seed: number | null = null
