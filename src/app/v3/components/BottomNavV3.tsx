@@ -102,7 +102,7 @@ export default function BottomNavV3() {
         display: 'flex',
         justifyContent: 'space-around',
         alignItems: 'flex-end',
-        padding: '8px 0 env(safe-area-inset-bottom, 20px)',
+        padding: '4px 0 env(safe-area-inset-bottom, 16px)',
         zIndex: 200,
       }}>
         {TABS.map((tab) => {
@@ -117,21 +117,24 @@ export default function BottomNavV3() {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
-                padding: '8px 24px',
+                gap: 2,
+                padding: '6px 24px',
                 position: 'relative',
                 textDecoration: 'none',
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
-              {/* Top bar indicator — chunky tab above icon */}
+              {/* Top bar indicator — inside edge of nav */}
               <div style={{
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                transform: 'translateX(-50%)',
                 width: 40,
-                height: 6,
+                height: 4,
                 background: isActive ? GREEN : 'transparent',
                 clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
                 transition: 'background 0.25s ease',
-                marginBottom: 2,
               }} />
 
               {/* Icon wrapper */}
