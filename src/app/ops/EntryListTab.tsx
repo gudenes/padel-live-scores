@@ -262,7 +262,13 @@ export default function EntryListTab() {
 
     try {
       const allPlayers = parseResult.teams.flatMap(t =>
-        t.players.map(p => ({ name: p.name, country: p.country ?? '', action: p.action === 'new' ? 'create' : 'link' }))
+        t.players.map(p => ({
+          name: p.name,
+          country: p.country ?? '',
+          ranking: p.ranking ?? undefined,
+          points: p.points ?? undefined,
+          action: p.action === 'new' ? 'create' : 'link',
+        }))
       )
 
       // Determine dominant draw type for the seed request (most teams win)

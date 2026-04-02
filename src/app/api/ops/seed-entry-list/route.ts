@@ -61,6 +61,8 @@ export async function GET(request: Request) {
 interface SeedPlayer {
   name: string
   country: string      // 3-letter code from PDF
+  ranking?: number     // FIP ranking from entry list
+  points?: number      // FIP points from entry list
   action: 'link' | 'create'
   playerId?: string    // For 'link' action — existing DB player ID
 }
@@ -115,6 +117,8 @@ export async function POST(request: Request) {
           name: player.name,
           country: iso2,
           category: body.category,
+          ranking: player.ranking ?? null,
+          points: player.points ?? null,
         })
 
         if (result.action === 'created') {
