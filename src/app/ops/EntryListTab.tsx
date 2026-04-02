@@ -184,8 +184,11 @@ export default function EntryListTab() {
     let cancelled = false
     setLoadingTournaments(true)
     fetch('/api/ops/seed-entry-list?action=list-tournaments')
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      .then(async r => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}))
+          throw new Error(`HTTP ${r.status}: ${body.reason ?? body.error ?? 'Unknown'}`)
+        }
         return r.json()
       })
       .then(data => {
