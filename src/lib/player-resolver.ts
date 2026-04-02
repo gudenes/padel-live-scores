@@ -100,6 +100,8 @@ interface CachedPlayer {
   name: string
   country: string | null
   category: string | null
+  ranking: number | null
+  points: number | null
 }
 
 export class PlayerResolver {
@@ -123,7 +125,7 @@ export class PlayerResolver {
     while (true) {
       const { data, error } = await this.supabase
         .from('players')
-        .select('id, external_id, fip_id, name, country, category')
+        .select('id, external_id, fip_id, name, country, category, ranking, points')
         .range(offset, offset + PAGE_SIZE - 1)
 
       if (error || !data) {
@@ -144,6 +146,8 @@ export class PlayerResolver {
         name: p.name,
         country: p.country,
         category: p.category,
+        ranking: p.ranking ?? null,
+        points: p.points ?? null,
       }
       if (p.external_id) this.byExternalId.set(p.external_id, cached)
       if (p.fip_id) this.byFipId.set(p.fip_id, cached)
@@ -308,6 +312,8 @@ export class PlayerResolver {
           name: (fallback as any).name ?? input.name,
           country: (fallback as any).country ?? null,
           category: (fallback as any).category ?? null,
+          ranking: (fallback as any).ranking ?? null,
+          points: (fallback as any).points ?? null,
         }
         if (cached.externalId) this.byExternalId.set(cached.externalId, cached)
         if (cached.fipId) this.byFipId.set(cached.fipId, cached)
@@ -329,6 +335,8 @@ export class PlayerResolver {
       name: input.name,
       country: input.country ?? null,
       category: input.category ?? null,
+      ranking: input.ranking ?? null,
+      points: input.points ?? null,
     }
     this.byExternalId.set(insertData.external_id, cached)
     if (insertData.fip_id) this.byFipId.set(insertData.fip_id, cached)
