@@ -50,7 +50,37 @@ export async function GET(request: Request) {
       return Response.json({ error: error.message, tournaments: [] }, { status: 500 })
     }
 
-    return Response.json({ tournaments: tournaments ?? [] })
+    // Check readiness: which tournaments have entry lists and draws uploaded
+    const tournamentIds = (tournaments ?? []).map(t => t.id)
+
+    // Entry list seeds from ops_events
+    const { data: entryListEvents } = await supabase
+      .from('ops_events')
+      .select('meta')
+      .eq('source', 'entry-list-seed')
+      .in('meta->>tournament_id', tournamentIds)
+
+    const entryListTournamentIds = new Set(
+      (entryListEvents ?? []).map(e => (e.meta as any)?.tournament_id).filter(Boolean)
+    )
+
+    // Draw seeds from tournament_draws
+    const { data: drawRows } = await supabase
+      .from('tournament_draws')
+      .select('tournament_id')
+      .in('tournament_id', tournamentIds)
+
+    const drawTournamentIds = new Set(
+      (drawRows ?? []).map(r => r.tournament_id)
+    )
+
+    const enriched = (tournaments ?? []).map(t => ({
+      ...t,
+      hasEntryList: entryListTournamentIds.has(t.id),
+      hasDraw: drawTournamentIds.has(t.id),
+    }))
+
+    return Response.json({ tournaments: enriched })
   }
 
   return Response.json({ error: 'Unknown action' }, { status: 400 })
