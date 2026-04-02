@@ -25,6 +25,7 @@ interface ParsedPlayer {
 
 interface ParsedTeam {
   teamNumber: number
+  drawType: 'main' | 'qualifying'
   players: ParsedPlayer[]
 }
 
@@ -35,6 +36,9 @@ interface ParseResult {
     version?: string
     modified?: string
     pages?: number
+    lastUpdate?: string    // from PDF text: "29/3/2026 h 03:09 p. m."
+    title?: string         // from PDF text: "FIP GOLD ALMATY"
+    category?: string      // from PDF text: "Hombres's" or "Mujeres"
   }
   playerCount: number
 }
@@ -48,7 +52,6 @@ interface SeedResult {
 
 type Stage = 'select' | 'parsing' | 'preview' | 'seeding' | 'done'
 type Category = 'men' | 'women'
-type DrawType = 'main' | 'qualifying'
 type InputMode = 'upload' | 'paste'
 
 // ── Shared styles (matching OpsClient.tsx) ───────────────────────
@@ -125,7 +128,6 @@ export default function EntryListTab() {
   const [stage, setStage] = useState<Stage>('select')
   const [selectedTournament, setSelectedTournament] = useState<string>('')
   const [category, setCategory] = useState<Category>('men')
-  const [drawType, setDrawType] = useState<DrawType>('main')
   const [inputMode, setInputMode] = useState<InputMode>('upload')
 
   const [dragOver, setDragOver] = useState(false)
@@ -224,6 +226,7 @@ export default function EntryListTab() {
       const data: ParseResult = {
         teams: (raw.teams ?? []).map((t: any, i: number) => ({
           teamNumber: t.position ?? i + 1,
+          drawType: t.drawType ?? 'main',
           players: [
             { name: t.player1?.name ?? '', country: t.player1?.country ?? null, ranking: t.player1?.ranking ?? null, points: t.player1?.points ?? null, action: 'new' as const },
             { name: t.player2?.name ?? '', country: t.player2?.country ?? null, ranking: t.player2?.ranking ?? null, points: t.player2?.points ?? null, action: 'new' as const },
@@ -234,6 +237,9 @@ export default function EntryListTab() {
           version: raw.metadata?.version != null ? String(raw.metadata.version) : undefined,
           modified: raw.metadata?.lastModified ?? undefined,
           pages: raw.metadata?.pageCount ?? undefined,
+          lastUpdate: raw.metadata?.lastUpdate ?? undefined,
+          title: raw.metadata?.title ?? undefined,
+          category: raw.metadata?.category ?? undefined,
         },
         playerCount: raw.playerCount ?? 0,
       }
@@ -257,13 +263,18 @@ export default function EntryListTab() {
         t.players.map(p => ({ name: p.name, country: p.country ?? '', action: p.action === 'new' ? 'create' : 'link' }))
       )
 
+      // Determine dominant draw type for the seed request (most teams win)
+      const mainCount = parseResult.teams.filter(t => t.drawType === 'main').length
+      const qualCount = parseResult.teams.filter(t => t.drawType === 'qualifying').length
+      const dominantDrawType = qualCount > mainCount ? 'qualifying' : 'main'
+
       const res = await fetch('/api/ops/seed-entry-list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tournamentId: selectedTournament,
           category,
-          drawType,
+          drawType: dominantDrawType,
           players: allPlayers,
           metadata: parseResult.metadata,
         }),
@@ -282,6 +293,7 @@ export default function EntryListTab() {
       setStage('preview')
     }
   }, [parseResult, selectedTournament, category])
+  // Note: drawType removed from deps — now computed from parseResult
 
   // ── Reset ──────────────────────────────────────────────────────
 
@@ -396,55 +408,29 @@ export default function EntryListTab() {
           )}
         </div>
 
-        {/* Category & Draw Type toggles */}
-        <div style={{ ...card, marginBottom: 12, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-          <div>
-            <div style={sectionLabel}>Category</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {(['men', 'women'] as Category[]).map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCategory(c)}
-                  style={{
-                    padding: '6px 18px',
-                    borderRadius: 999,
-                    border: 'none',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    background: category === c ? '#3b82f6' : '#f3f4f6',
-                    color: category === c ? '#fff' : '#374151',
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  {c.charAt(0).toUpperCase() + c.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div style={sectionLabel}>Draw Type</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {(['main', 'qualifying'] as DrawType[]).map(dt => (
-                <button
-                  key={dt}
-                  onClick={() => setDrawType(dt)}
-                  style={{
-                    padding: '6px 18px',
-                    borderRadius: 999,
-                    border: 'none',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    background: drawType === dt ? '#8b5cf6' : '#f3f4f6',
-                    color: drawType === dt ? '#fff' : '#374151',
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  {dt === 'main' ? 'Main Draw' : 'Qualifying'}
-                </button>
-              ))}
-            </div>
+        {/* Category toggle */}
+        <div style={{ ...card, marginBottom: 12 }}>
+          <div style={sectionLabel}>Category</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {(['men', 'women'] as Category[]).map(c => (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                style={{
+                  padding: '6px 18px',
+                  borderRadius: 999,
+                  border: 'none',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  background: category === c ? '#3b82f6' : '#f3f4f6',
+                  color: category === c ? '#fff' : '#374151',
+                  transition: 'background 0.15s',
+                }}
+              >
+                {c.charAt(0).toUpperCase() + c.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -571,6 +557,75 @@ export default function EntryListTab() {
   if (stage === 'preview') {
     const meta = parseResult?.metadata ?? {}
     const teams = parseResult?.teams ?? []
+    const mainTeams = teams.filter(t => t.drawType === 'main')
+    const qualTeams = teams.filter(t => t.drawType === 'qualifying')
+
+    const renderTeamTable = (sectionTeams: ParsedTeam[], label: string) => (
+      <div style={{ ...card, marginBottom: 12, padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '8px 10px', background: '#f3f4f6', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase' as const,
+            background: label === 'Main Draw' ? '#d1fae5' : '#fef3c7',
+            color: label === 'Main Draw' ? '#065f46' : '#92400e',
+          }}>{label}</span>
+          <span style={{ fontSize: 11, color: '#888' }}>{sectionTeams.length} teams · {sectionTeams.length * 2} players</span>
+        </div>
+        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666', width: 36 }}>#</th>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Name</th>
+              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Country</th>
+              <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Ranking</th>
+              <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Points</th>
+              <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sectionTeams.map((team, ti) => {
+              const teamBg = ti % 2 === 0 ? '#ffffff' : '#f9fafb'
+              return team.players.map((player, pi) => (
+                <tr
+                  key={`${team.teamNumber}-${team.drawType}-${pi}`}
+                  style={{ background: teamBg, borderBottom: '1px solid #f3f4f6' }}
+                >
+                  <td style={{ padding: '6px 10px', color: '#999', fontSize: 11 }}>
+                    {pi === 0 ? team.teamNumber : ''}
+                  </td>
+                  <td style={{ padding: '6px 10px', fontWeight: 500, color: '#111' }}>{player.name}</td>
+                  <td style={{ padding: '6px 10px', color: '#555' }}>{player.country ?? '—'}</td>
+                  <td style={{ padding: '6px 10px', textAlign: 'right', color: '#555' }}>
+                    {player.ranking !== null ? player.ranking : '—'}
+                  </td>
+                  <td style={{ padding: '6px 10px', textAlign: 'right', color: '#555' }}>
+                    {player.points !== null ? player.points.toLocaleString() : '—'}
+                  </td>
+                  <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                    <span style={{
+                      ...statusBadgeStyle(player.action),
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: '2px 7px',
+                      borderRadius: 4,
+                      display: 'inline-block',
+                    }}>
+                      {statusBadgeLabel(player.action)}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            })}
+            {sectionTeams.length === 0 && (
+              <tr>
+                <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+                  No players found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    )
 
     return (
       <div>
@@ -583,9 +638,8 @@ export default function EntryListTab() {
         {/* Metadata info bar */}
         <div style={{ ...card, marginBottom: 12 }}>
           <div style={{ ...sectionLabel, display: 'flex', alignItems: 'center', gap: 8 }}>
-            Parsed Entry List
-            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#dbeafe', color: '#1e40af', textTransform: 'uppercase' }}>{category}</span>
-            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: drawType === 'main' ? '#d1fae5' : '#fef3c7', color: drawType === 'main' ? '#065f46' : '#92400e', textTransform: 'uppercase' }}>{drawType === 'main' ? 'Main Draw' : 'Qualifying'}</span>
+            {meta.title ?? 'Parsed Entry List'}
+            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#dbeafe', color: '#1e40af', textTransform: 'uppercase' }}>{meta.category ?? category}</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
             {meta.filename && (
@@ -600,9 +654,15 @@ export default function EntryListTab() {
                 <div style={{ fontSize: 12, color: '#333', fontWeight: 500 }}>{meta.version}</div>
               </div>
             )}
+            {meta.lastUpdate && (
+              <div>
+                <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase' as const, fontWeight: 600 }}>Last Update</div>
+                <div style={{ fontSize: 12, color: '#333', fontWeight: 500 }}>{meta.lastUpdate}</div>
+              </div>
+            )}
             {meta.modified && (
               <div>
-                <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase' as const, fontWeight: 600 }}>Modified</div>
+                <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase' as const, fontWeight: 600 }}>PDF Modified</div>
                 <div style={{ fontSize: 12, color: '#333', fontWeight: 500 }}>{meta.modified}</div>
               </div>
             )}
@@ -614,7 +674,12 @@ export default function EntryListTab() {
             )}
             <div>
               <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase' as const, fontWeight: 600 }}>Teams</div>
-              <div style={{ fontSize: 12, color: '#333', fontWeight: 500 }}>{teams.length}</div>
+              <div style={{ fontSize: 12, color: '#333', fontWeight: 500 }}>
+                {teams.length}
+                {mainTeams.length > 0 && qualTeams.length > 0 && (
+                  <span style={{ color: '#888', fontWeight: 400 }}> ({mainTeams.length} MD + {qualTeams.length} Q)</span>
+                )}
+              </div>
             </div>
             <div>
               <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase' as const, fontWeight: 600 }}>Players</div>
@@ -623,63 +688,9 @@ export default function EntryListTab() {
           </div>
         </div>
 
-        {/* Player table */}
-        <div style={{ ...card, marginBottom: 12, padding: 0, overflow: 'hidden' }}>
-          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666', width: 36 }}>#</th>
-                <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Name</th>
-                <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Country</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Ranking</th>
-                <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Points</th>
-                <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {teams.map((team, ti) => {
-                const teamBg = ti % 2 === 0 ? '#ffffff' : '#f9fafb'
-                return team.players.map((player, pi) => (
-                  <tr
-                    key={`${team.teamNumber}-${pi}`}
-                    style={{ background: teamBg, borderBottom: '1px solid #f3f4f6' }}
-                  >
-                    <td style={{ padding: '6px 10px', color: '#999', fontSize: 11 }}>
-                      {pi === 0 ? team.teamNumber : ''}
-                    </td>
-                    <td style={{ padding: '6px 10px', fontWeight: 500, color: '#111' }}>{player.name}</td>
-                    <td style={{ padding: '6px 10px', color: '#555' }}>{player.country ?? '—'}</td>
-                    <td style={{ padding: '6px 10px', textAlign: 'right', color: '#555' }}>
-                      {player.ranking !== null ? player.ranking : '—'}
-                    </td>
-                    <td style={{ padding: '6px 10px', textAlign: 'right', color: '#555' }}>
-                      {player.points !== null ? player.points.toLocaleString() : '—'}
-                    </td>
-                    <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                      <span style={{
-                        ...statusBadgeStyle(player.action),
-                        fontSize: 10,
-                        fontWeight: 600,
-                        padding: '2px 7px',
-                        borderRadius: 4,
-                        display: 'inline-block',
-                      }}>
-                        {statusBadgeLabel(player.action)}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              })}
-              {teams.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                    No players found in entry list
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {/* Player tables grouped by draw type */}
+        {mainTeams.length > 0 && renderTeamTable(mainTeams, 'Main Draw')}
+        {qualTeams.length > 0 && renderTeamTable(qualTeams, 'Qualifying')}
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: 8 }}>

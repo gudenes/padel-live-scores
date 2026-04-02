@@ -87,11 +87,20 @@ export async function POST(request: Request) {
     }
   }
 
-  const teams = parseEntryListText(text)
+  const parseResult = parseEntryListText(text)
 
+  // Merge text-extracted metadata with PDF metadata (PDF metadata takes precedence where both exist)
+  const textMeta = parseResult.metadata
   return Response.json({
-    teams,
-    metadata,
-    playerCount: teams.length * 2,
+    teams: parseResult.teams,
+    metadata: {
+      ...metadata,
+      // Use PDF title if available, fall back to text-extracted title
+      title: metadata.title ?? textMeta.title,
+      // Text-extracted fields not available from PDF metadata
+      lastUpdate: textMeta.lastUpdate,
+      category: textMeta.category,
+    },
+    playerCount: parseResult.teams.length * 2,
   })
 }
