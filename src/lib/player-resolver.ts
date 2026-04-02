@@ -81,7 +81,7 @@ function tokens(name: string): Set<string> {
   return new Set(normalize(name).split(' ').filter(t => t.length > 1))
 }
 
-function tokenSimilarity(a: string, b: string): number {
+export function tokenSimilarity(a: string, b: string): number {
   const ta = tokens(a)
   const tb = tokens(b)
   if (ta.size === 0 || tb.size === 0) return 0
@@ -189,24 +189,53 @@ export class PlayerResolver {
       existing = this.byExternalId.get(input.externalId) ?? null
     }
 
-    // 3. Exact normalized name match (prefer same category)
+    // 3. Exact normalized name match (prefer same category, disambiguate by ranking/points)
     if (!existing) {
       const norm = normalize(input.name)
       const candidates = this.byNormalizedName.get(norm)
       if (candidates) {
-        // Prefer same category
-        existing = candidates.find(c => c.category === input.category) ?? candidates[0]
+        // Filter to same category if available
+        const sameCat = input.category
+          ? candidates.filter(c => c.category === input.category)
+          : candidates
+        const pool = sameCat.length > 0 ? sameCat : candidates
+
+        if (pool.length === 1) {
+          existing = pool[0]
+        } else if (pool.length > 1 && (input.ranking != null || input.points != null)) {
+          // 3b. Disambiguate by ranking+points proximity
+          let bestDistance = Infinity
+          for (const c of pool) {
+            if (c.ranking == null && c.points == null) continue
+            const rDist = (input.ranking != null && c.ranking != null)
+              ? Math.abs(input.ranking - c.ranking) / Math.max(input.ranking, c.ranking, 1)
+              : 0.5
+            const pDist = (input.points != null && c.points != null)
+              ? Math.abs(input.points - c.points) / Math.max(input.points, c.points, 1)
+              : 0.5
+            const dist = (rDist + pDist) / 2
+            if (dist < bestDistance) {
+              bestDistance = dist
+              existing = c
+            }
+          }
+          // If best distance > 0.5, none are close — don't pick a bad match
+          if (bestDistance > 0.5) existing = null
+        } else if (pool.length > 1) {
+          // No ranking/points to disambiguate — pick first (existing behavior)
+          existing = pool[0]
+        }
       }
     }
 
-    // 4. Fuzzy name match (token overlap ≥ 0.9, same category)
+    // 4. Fuzzy name match (token overlap ≥ 0.7, same category)
     if (!existing && input.category) {
       let bestScore = 0
       for (const [, players] of this.byNormalizedName) {
         for (const p of players) {
           if (p.category !== input.category) continue
           const sim = tokenSimilarity(input.name, p.name)
-          if (sim >= 0.9 && sim > bestScore) {
+          if (sim >= 0.7 && sim > bestScore) {
             // Extra check: if both have country, they must match
             if (input.country && p.country && input.country !== p.country) continue
             bestScore = sim
