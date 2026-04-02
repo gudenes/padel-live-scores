@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── Ops dashboard auth ──────────────────────────────────────
-  if (pathname.startsWith('/ops') || pathname.startsWith('/api/ops')) {
+  if (pathname.startsWith('/ops')) {
     const cronSecret = process.env.CRON_SECRET
     if (!cronSecret) {
       return new NextResponse('Server misconfigured', { status: 500 })
@@ -17,12 +17,15 @@ export function middleware(request: NextRequest) {
       // Set cookie and redirect without token in URL
       const cleanUrl = new URL(pathname, request.url)
       const response = NextResponse.redirect(cleanUrl)
+      // Set cookie on both /ops and / paths so it's sent to /api/ops/* too
       response.cookies.set('ops_token', cronSecret, {
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30, // 30 days
         path: '/',
       })
+      // Delete old cookie scoped to /ops (from before this fix)
+      response.cookies.delete({ name: 'ops_token', path: '/ops' })
       return response
     }
 
@@ -50,5 +53,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/v2/:path*', '/ops/:path*', '/api/ops/:path*'],
+  matcher: ['/v2/:path*', '/ops/:path*'],
 }

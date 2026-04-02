@@ -1,8 +1,10 @@
 // src/app/api/ops/seed-entry-list/route.ts
 // Accepts confirmed player list + tournament info, seeds players via PlayerResolver.
 // Also serves tournament list for the dropdown (GET).
+// Auth: reads ops_token cookie (httpOnly, set by middleware on /ops login).
 
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { PlayerResolver } from '@/lib/player-resolver'
 import { toIso2 } from '@/lib/fip-scraper'
 
@@ -11,10 +13,21 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 )
 
-// Auth: handled by middleware (ops_token cookie check for /api/ops/* paths).
+// ── Auth ────────────────────────────────────────────────────────
+async function checkOpsAuth(): Promise<Response | null> {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('ops_token')?.value
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret || token !== cronSecret) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  return null
+}
 
 // ── GET: List FIP tournaments for dropdown ──────────────────────
 export async function GET(request: Request) {
+  const authErr = await checkOpsAuth()
+  if (authErr) return authErr
 
   const url = new URL(request.url)
   const action = url.searchParams.get('action')
@@ -64,6 +77,9 @@ interface SeedRequest {
 }
 
 export async function POST(request: Request) {
+  const authErr = await checkOpsAuth()
+  if (authErr) return authErr
+
   const body: SeedRequest = await request.json()
 
   if (!body.tournamentId || !body.category || !body.players?.length) {

@@ -1,11 +1,19 @@
 // src/app/api/ops/parse-entry-list/route.ts
 // Accepts PDF file (multipart/form-data) or JSON text ({ text: string }).
 // Returns parsed teams + PDF metadata.
-// Auth: handled by middleware (ops_token cookie check for /api/ops/* paths).
+// Auth: reads ops_token cookie (httpOnly, set by middleware on /ops login).
 
+import { cookies } from 'next/headers'
 import { parseEntryListText, extractVersion } from '@/lib/entry-list-parser'
 
 export async function POST(request: Request) {
+  // Auth check
+  const cookieStore = await cookies()
+  const token = cookieStore.get('ops_token')?.value
+  if (!process.env.CRON_SECRET || token !== process.env.CRON_SECRET) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const contentType = request.headers.get('content-type') ?? ''
 
   let text: string
