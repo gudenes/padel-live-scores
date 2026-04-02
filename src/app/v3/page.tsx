@@ -300,7 +300,7 @@ function LiveMatchCard({ match }: { match: Match }) {
             opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.4 : 1,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 14 }}>{countryFlag(flag)}</span>
+              <span style={{ fontSize: 14 }}>{countryFlag(flag ?? null)}</span>
               <span style={{
                 fontSize: 14, fontWeight: 700, color: '#fff',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
