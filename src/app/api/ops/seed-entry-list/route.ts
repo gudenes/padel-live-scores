@@ -68,6 +68,7 @@ interface SeedPlayer {
 interface SeedRequest {
   tournamentId: string
   category: 'men' | 'women'
+  drawType?: 'main' | 'qualifying'
   players: SeedPlayer[]
   metadata?: {
     filename?: string
@@ -137,6 +138,7 @@ export async function POST(request: Request) {
       tournament_id: body.tournamentId,
       tournament_name: tournament.name,
       category: body.category,
+      draw_type: body.drawType ?? 'main',
       filename: body.metadata?.filename ?? null,
       version: body.metadata?.version ?? null,
       last_modified: body.metadata?.lastModified ?? null,

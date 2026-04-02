@@ -48,6 +48,7 @@ interface SeedResult {
 
 type Stage = 'select' | 'parsing' | 'preview' | 'seeding' | 'done'
 type Category = 'men' | 'women'
+type DrawType = 'main' | 'qualifying'
 type InputMode = 'upload' | 'paste'
 
 // ── Shared styles (matching OpsClient.tsx) ───────────────────────
@@ -124,6 +125,7 @@ export default function EntryListTab() {
   const [stage, setStage] = useState<Stage>('select')
   const [selectedTournament, setSelectedTournament] = useState<string>('')
   const [category, setCategory] = useState<Category>('men')
+  const [drawType, setDrawType] = useState<DrawType>('main')
   const [inputMode, setInputMode] = useState<InputMode>('upload')
 
   const [dragOver, setDragOver] = useState(false)
@@ -261,6 +263,7 @@ export default function EntryListTab() {
         body: JSON.stringify({
           tournamentId: selectedTournament,
           category,
+          drawType,
           players: allPlayers,
           metadata: parseResult.metadata,
         }),
@@ -393,29 +396,55 @@ export default function EntryListTab() {
           )}
         </div>
 
-        {/* Category toggle */}
-        <div style={{ ...card, marginBottom: 12 }}>
-          <div style={sectionLabel}>Category</div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {(['men', 'women'] as Category[]).map(c => (
-              <button
-                key={c}
-                onClick={() => setCategory(c)}
-                style={{
-                  padding: '6px 18px',
-                  borderRadius: 999,
-                  border: 'none',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: category === c ? '#3b82f6' : '#f3f4f6',
-                  color: category === c ? '#fff' : '#374151',
-                  transition: 'background 0.15s',
-                }}
-              >
-                {c.charAt(0).toUpperCase() + c.slice(1)}
-              </button>
-            ))}
+        {/* Category & Draw Type toggles */}
+        <div style={{ ...card, marginBottom: 12, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <div>
+            <div style={sectionLabel}>Category</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {(['men', 'women'] as Category[]).map(c => (
+                <button
+                  key={c}
+                  onClick={() => setCategory(c)}
+                  style={{
+                    padding: '6px 18px',
+                    borderRadius: 999,
+                    border: 'none',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: category === c ? '#3b82f6' : '#f3f4f6',
+                    color: category === c ? '#fff' : '#374151',
+                    transition: 'background 0.15s',
+                  }}
+                >
+                  {c.charAt(0).toUpperCase() + c.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={sectionLabel}>Draw Type</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {(['main', 'qualifying'] as DrawType[]).map(dt => (
+                <button
+                  key={dt}
+                  onClick={() => setDrawType(dt)}
+                  style={{
+                    padding: '6px 18px',
+                    borderRadius: 999,
+                    border: 'none',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: drawType === dt ? '#8b5cf6' : '#f3f4f6',
+                    color: drawType === dt ? '#fff' : '#374151',
+                    transition: 'background 0.15s',
+                  }}
+                >
+                  {dt === 'main' ? 'Main Draw' : 'Qualifying'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -553,7 +582,11 @@ export default function EntryListTab() {
 
         {/* Metadata info bar */}
         <div style={{ ...card, marginBottom: 12 }}>
-          <div style={sectionLabel}>Parsed Entry List</div>
+          <div style={{ ...sectionLabel, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Parsed Entry List
+            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: '#dbeafe', color: '#1e40af', textTransform: 'uppercase' }}>{category}</span>
+            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4, background: drawType === 'main' ? '#d1fae5' : '#fef3c7', color: drawType === 'main' ? '#065f46' : '#92400e', textTransform: 'uppercase' }}>{drawType === 'main' ? 'Main Draw' : 'Qualifying'}</span>
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
             {meta.filename && (
               <div>
