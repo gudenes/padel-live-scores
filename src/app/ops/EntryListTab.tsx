@@ -13,6 +13,8 @@ interface Tournament {
   level: string | null
   starts_at: string | null
   ends_at: string | null
+  hasEntryList?: boolean
+  hasDraw?: boolean
 }
 
 interface ParsedPlayer {
@@ -48,6 +50,32 @@ interface SeedResult {
   linked: number
   created: number
   total: number
+  errors: string[]
+}
+
+interface DrawEntry {
+  drawPosition: number
+  player1Name: string
+  player1Country: string | null
+  player2Name: string
+  player2Country: string | null
+  seed: number | null
+  marker: 'Q' | 'WC' | 'LL' | null
+  teamPoints: number | null
+}
+
+interface DrawParseResult {
+  entries: DrawEntry[]
+  seededTeams: { seed: number; player1: string; player2: string; points: number }[]
+  metadata: { category: 'men' | 'women'; releaseDate: string | null; drawSize: number }
+  warnings: string[]
+  filename: string
+}
+
+interface DrawSeedResult {
+  slots: number
+  resolved: number
+  created: number
   errors: string[]
 }
 
@@ -142,6 +170,14 @@ export default function EntryListTab() {
   const [seedError, setSeedError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Draw upload state
+  const [drawFile, setDrawFile] = useState<File | null>(null)
+  const [drawParseResult, setDrawParseResult] = useState<DrawParseResult | null>(null)
+  const [drawParseError, setDrawParseError] = useState<string | null>(null)
+  const [drawSeedResult, setDrawSeedResult] = useState<DrawSeedResult | null>(null)
+  const [drawStage, setDrawStage] = useState<'idle' | 'parsing' | 'preview' | 'seeding' | 'done'>('idle')
+  const drawFileInputRef = useRef<HTMLInputElement>(null)
 
   // Load tournaments on mount
   useEffect(() => {
@@ -305,6 +341,82 @@ export default function EntryListTab() {
 
   // ── Reset ──────────────────────────────────────────────────────
 
+  // ── Draw handlers ────────────────────────────────────────────────
+
+  const handleDrawFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) setDrawFile(file)
+  }, [])
+
+  const handleDrawParse = useCallback(async () => {
+    if (!drawFile || !selectedTournament) return
+    setDrawParseError(null)
+    setDrawStage('parsing')
+
+    try {
+      const form = new FormData()
+      form.append('file', drawFile)
+      const res = await fetch('/api/ops/parse-draw', { method: 'POST', body: form })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }))
+        throw new Error(err.error ?? 'Parse failed')
+      }
+
+      const data: DrawParseResult = await res.json()
+      setDrawParseResult(data)
+      setDrawStage('preview')
+    } catch (err: unknown) {
+      setDrawParseError(err instanceof Error ? err.message : 'Parse failed')
+      setDrawStage('idle')
+    }
+  }, [drawFile, selectedTournament])
+
+  const handleDrawSeed = useCallback(async () => {
+    if (!drawParseResult || !selectedTournament) return
+    setDrawStage('seeding')
+
+    try {
+      // Merge team_points from seededTeams into entries
+      const seededMap = new Map(drawParseResult.seededTeams.map(s => [s.seed, s.points]))
+      const entries = drawParseResult.entries.map(e => ({
+        ...e,
+        teamPoints: e.seed ? seededMap.get(e.seed) ?? null : null,
+      }))
+
+      const res = await fetch('/api/ops/seed-draw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournamentId: selectedTournament,
+          category,
+          entries,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }))
+        throw new Error(err.error ?? 'Seed failed')
+      }
+
+      const data: DrawSeedResult = await res.json()
+      setDrawSeedResult(data)
+      setDrawStage('done')
+    } catch (err: unknown) {
+      setDrawParseError(err instanceof Error ? err.message : 'Seed failed')
+      setDrawStage('preview')
+    }
+  }, [drawParseResult, selectedTournament, category])
+
+  const handleDrawReset = useCallback(() => {
+    setDrawStage('idle')
+    setDrawFile(null)
+    setDrawParseResult(null)
+    setDrawSeedResult(null)
+    setDrawParseError(null)
+    if (drawFileInputRef.current) drawFileInputRef.current.value = ''
+  }, [])
+
   const handleReset = useCallback(() => {
     setStage('select')
     setParseResult(null)
@@ -314,7 +426,9 @@ export default function EntryListTab() {
     setSelectedFile(null)
     setPasteText('')
     if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [])
+    // Also reset draw state
+    handleDrawReset()
+  }, [handleDrawReset])
 
   const canParse =
     selectedTournament &&
@@ -356,9 +470,11 @@ export default function EntryListTab() {
               <option value="">Select a tournament...</option>
               {sortedTournaments.map(t => {
                 const dot = urgencyDot(t)
+                const el = t.hasEntryList ? '\u2713' : '\u2717'
+                const dr = t.hasDraw ? '\u2713' : '\u2717'
                 return (
                   <option key={t.id} value={t.id}>
-                    {t.name}{t.country ? ` (${t.country})` : ''} — {dot.label}
+                    {t.name}{t.country ? ` (${t.country})` : ''} — {dot.label} [EL:{el}] [DR:{dr}]
                   </option>
                 )
               })}
@@ -408,7 +524,11 @@ export default function EntryListTab() {
                       {t.name}
                       {t.country && <span style={{ color: '#999', marginLeft: 4 }}>({t.country})</span>}
                     </div>
-                    <div style={{ fontSize: 10, color: '#888' }}>{dot.label}</div>
+                    <div style={{ fontSize: 10, color: '#888', display: 'flex', gap: 4, alignItems: 'center' }}>
+                      {dot.label}
+                      <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: t.hasEntryList ? '#dcfce7' : '#fef2f2', color: t.hasEntryList ? '#166534' : '#dc2626' }}>EL</span>
+                      <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: t.hasDraw ? '#dcfce7' : '#fef2f2', color: t.hasDraw ? '#166534' : '#dc2626' }}>DR</span>
+                    </div>
                   </div>
                 )
               })}
@@ -556,6 +676,179 @@ export default function EntryListTab() {
             Extracting players from entry list...
           </div>
         )}
+
+        {/* ── Draw Upload Section ──────────────────────────────────── */}
+        <div style={{ marginTop: 24, borderTop: '1px solid #e5e7eb', paddingTop: 16 }}>
+          <div style={sectionLabel}>Upload Draw PDF</div>
+
+          {drawParseError && (
+            <div style={{ ...card, background: '#fef2f2', border: '1px solid #fecaca', marginBottom: 12, color: '#dc2626', fontSize: 12 }}>
+              {drawParseError}
+            </div>
+          )}
+
+          {drawStage === 'idle' && (
+            <div style={{ ...card, marginBottom: 12 }}>
+              <input
+                ref={drawFileInputRef}
+                type="file"
+                accept=".pdf"
+                style={{ display: 'none' }}
+                onChange={handleDrawFileChange}
+              />
+              <div
+                onClick={() => drawFileInputRef.current?.click()}
+                style={{
+                  border: '2px dashed #d1d5db',
+                  borderRadius: 8,
+                  padding: '20px 16px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: '#fafafa',
+                }}
+              >
+                {drawFile ? (
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{drawFile.name}</div>
+                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                      {(drawFile.size / 1024).toFixed(1)} KB · Click to change
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 13, color: '#555' }}>
+                      Drop draw PDF here or <span style={{ color: '#3b82f6', textDecoration: 'underline' }}>browse</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleDrawParse}
+                disabled={!drawFile || !selectedTournament}
+                style={{
+                  width: '100%',
+                  marginTop: 8,
+                  padding: '8px 0',
+                  borderRadius: 8,
+                  border: 'none',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: drawFile && selectedTournament ? 'pointer' : 'not-allowed',
+                  background: drawFile && selectedTournament ? '#8b5cf6' : '#e5e7eb',
+                  color: drawFile && selectedTournament ? '#fff' : '#9ca3af',
+                }}
+              >
+                Parse Draw
+              </button>
+            </div>
+          )}
+
+          {drawStage === 'parsing' && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 20, color: '#666', fontSize: 13 }}>
+              <Spinner />
+              Parsing draw PDF...
+            </div>
+          )}
+
+          {drawStage === 'preview' && drawParseResult && (
+            <div>
+              <div style={{ ...card, marginBottom: 12 }}>
+                <div style={sectionLabel}>
+                  Draw Preview — {drawParseResult.metadata.drawSize} slots
+                  {drawParseResult.metadata.releaseDate && (
+                    <span style={{ fontWeight: 400, color: '#888', marginLeft: 8 }}>Released {drawParseResult.metadata.releaseDate}</span>
+                  )}
+                </div>
+                <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+                  <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: '#666', width: 30 }}>#</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, color: '#666', width: 40 }}>Seed</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Player 1</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Player 2</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, color: '#666', width: 36 }}>Tag</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {drawParseResult.entries.map((entry, i) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb', borderBottom: '1px solid #f3f4f6' }}>
+                          <td style={{ padding: '5px 8px', color: '#999', fontSize: 10 }}>{entry.drawPosition}</td>
+                          <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 700, color: '#3b82f6' }}>{entry.seed ?? ''}</td>
+                          <td style={{ padding: '5px 8px', color: '#111' }}>
+                            {entry.player1Name}
+                            {entry.player1Country && <span style={{ color: '#999', marginLeft: 4 }}>({entry.player1Country})</span>}
+                          </td>
+                          <td style={{ padding: '5px 8px', color: '#111' }}>
+                            {entry.player2Name}
+                            {entry.player2Country && <span style={{ color: '#999', marginLeft: 4 }}>({entry.player2Country})</span>}
+                          </td>
+                          <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                            {entry.marker && (
+                              <span style={{
+                                fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                                background: entry.marker === 'Q' ? '#dbeafe' : entry.marker === 'WC' ? '#fef3c7' : '#f3e8ff',
+                                color: entry.marker === 'Q' ? '#1e40af' : entry.marker === 'WC' ? '#92400e' : '#6b21a8',
+                              }}>{entry.marker}</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={handleDrawReset} style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: 'white', color: '#374151' }}>
+                  Back
+                </button>
+                <button onClick={handleDrawSeed} style={{ flex: 2, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#8b5cf6', color: '#fff' }}>
+                  Seed {drawParseResult.entries.length} Draw Slots
+                </button>
+              </div>
+            </div>
+          )}
+
+          {drawStage === 'seeding' && (
+            <div style={{ textAlign: 'center', padding: 20 }}>
+              <Spinner />
+              <div style={{ fontSize: 13, color: '#555', marginTop: 8 }}>Seeding draw data...</div>
+            </div>
+          )}
+
+          {drawStage === 'done' && drawSeedResult && (
+            <div style={{ ...card }}>
+              <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>✅</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>Draw Seeded</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase' as const, fontWeight: 600 }}>Slots</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>{drawSeedResult.slots}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase' as const, fontWeight: 600 }}>Resolved</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#22c55e' }}>{drawSeedResult.resolved}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase' as const, fontWeight: 600 }}>Created</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#3b82f6' }}>{drawSeedResult.created}</div>
+                </div>
+              </div>
+              {drawSeedResult.errors.length > 0 && (
+                <div style={{ fontSize: 11, color: '#dc2626' }}>
+                  {drawSeedResult.errors.map((err, i) => <div key={i}>• {err}</div>)}
+                </div>
+              )}
+              <button onClick={handleDrawReset} style={{ width: '100%', marginTop: 8, padding: '8px 0', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', background: '#8b5cf6', color: '#fff' }}>
+                Upload Another Draw
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     )
   }
