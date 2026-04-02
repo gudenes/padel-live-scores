@@ -1,0 +1,96 @@
+// src/app/api/ops/parse-entry-list/route.ts
+// Accepts PDF file (multipart/form-data) or JSON text ({ text: string }).
+// Returns parsed teams + PDF metadata.
+// Note: middleware only covers /ops/* paths, not /api/ops/* — auth is inline here.
+
+import { parseEntryListText, extractVersion } from '@/lib/entry-list-parser'
+
+export async function POST(request: Request) {
+  // Inline auth: middleware matcher only covers /ops/*, not /api/ops/*
+  const cronSecret = process.env.CRON_SECRET
+  const authHeader = request.headers.get('authorization')
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const contentType = request.headers.get('content-type') ?? ''
+
+  let text: string
+  let metadata: {
+    filename: string | null
+    version: number | null
+    lastModified: string | null
+    pageCount: number | null
+    title: string | null
+  } = { filename: null, version: null, lastModified: null, pageCount: null, title: null }
+
+  if (contentType.includes('multipart/form-data')) {
+    // PDF upload flow
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+
+    if (!file) {
+      return Response.json({ error: 'No file provided' }, { status: 400 })
+    }
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      return Response.json({ error: 'File must be a PDF' }, { status: 400 })
+    }
+
+    metadata.filename = file.name
+    metadata.version = extractVersion(file.name)
+
+    try {
+      const { PDFParse } = await import('pdf-parse')
+      const buffer = await file.arrayBuffer()
+      const uint8 = new Uint8Array(buffer)
+      const doc = new PDFParse({ data: uint8 })
+
+      // Extract PDF metadata (creation/modification dates, title)
+      try {
+        const info = await doc.getInfo()
+        if (info) {
+          metadata.title = (info.info?.Title as string | undefined) ?? null
+          const dateNode = info.getDateNode()
+          const modDate = dateNode.ModDate ?? dateNode.CreationDate ?? null
+          if (modDate instanceof Date && !isNaN(modDate.getTime())) {
+            metadata.lastModified = modDate.toISOString()
+          }
+          metadata.pageCount = info.total ?? null
+        }
+      } catch {
+        // Metadata extraction is best-effort
+      }
+
+      const result = await doc.getText()
+      text = result?.text ?? ''
+
+      if (!text.trim()) {
+        return Response.json({
+          error: 'No text extracted from PDF. Try pasting the text instead.',
+          metadata,
+        }, { status: 422 })
+      }
+    } catch (e) {
+      return Response.json({
+        error: `PDF parsing failed: ${e instanceof Error ? e.message : String(e)}`,
+      }, { status: 422 })
+    }
+  } else {
+    // Text paste flow
+    const body = await request.json()
+    text = body.text ?? ''
+
+    if (!text.trim()) {
+      return Response.json({ error: 'No text provided' }, { status: 400 })
+    }
+  }
+
+  const teams = parseEntryListText(text)
+
+  return Response.json({
+    teams,
+    metadata,
+    playerCount: teams.length * 2,
+  })
+}
