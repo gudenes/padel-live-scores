@@ -1776,7 +1776,6 @@ export default function V3HomePage() {
           fontSize: 14,
           fontWeight: 800,
           fontFamily: 'inherit',
-          clipPath: CHUNKY.badge,
           boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
           transition: 'background 0.2s, transform 0.15s',
         }}
