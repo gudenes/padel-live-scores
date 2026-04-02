@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League Switch Animations</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0f1a; color: #e0e0e0; font-family: -apple-system, system-ui, sans-serif; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    padding: 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    text-align: center;
+    padding: 20px 16px 4px;
+    font-size: 18px;
+    color: #fff;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    padding-bottom: 12px;
+  }
+
+  .concept {
+    background: #111827;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .concept-label {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #888;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .concept-label span { color: #38c8ff; font-size: 10px; font-weight: 600; }
+
+  /* Shared phone frame */
+  .phone {
+    width: 100%;
+    aspect-ratio: 9/14;
+    background: #0d1220;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Header bar */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+  }
+  .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-logo {
+    height: 22px;
+    font-weight: 800;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: #888;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .chip:hover { background: rgba(255,255,255,0.08); }
+
+  /* Content cards */
+  .content-area { padding: 0 12px 12px; }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #666;
+    letter-spacing: 0.05em;
+    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hero-card {
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-card.premier {
+    background: linear-gradient(135deg, rgba(56,200,255,0.10), #1a2235 60%);
+    border: 1px solid rgba(56,200,255,0.25);
+  }
+  .hero-card.fip {
+    background: linear-gradient(135deg, rgba(245,158,11,0.10), #1a2235 60%);
+    border: 1px solid rgba(245,158,11,0.25);
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .badge.premier { background: rgba(56,200,255,0.15); color: #38c8ff; }
+  .badge.fip { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .card-title { font-size: 14px; font-weight: 800; margin-bottom: 3px; }
+  .card-sub { font-size: 10px; color: #888; }
+
+  .strip {
+    display: flex;
+    gap: 6px;
+    overflow: hidden;
+  }
+  .strip-item {
+    flex-shrink: 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    font-size: 9px;
+    min-width: 80px;
+  }
+  .strip-item .date { font-weight: 700; color: #666; font-size: 8px; letter-spacing: 0.04em; }
+  .strip-item .name { font-weight: 700; color: #ccc; margin-top: 2px; }
+
+  /* ── ANIMATION 1: Crossfade ── */
+  .fade-content {
+    transition: opacity 0.25s ease;
+  }
+  .fade-content.out { opacity: 0; }
+  .fade-content.in { opacity: 1; }
+
+  /* ── ANIMATION 2: Slide ── */
+  .slide-wrapper {
+    position: relative;
+    overflow: hidden;
+  }
+  .slide-content {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  .slide-content.out-left { transform: translateX(-30px); opacity: 0; }
+  .slide-content.out-right { transform: translateX(30px); opacity: 0; }
+  .slide-content.in { transform: translateX(0); opacity: 1; }
+
+  /* ── ANIMATION 3: Logo Morph ── */
+  .morph-header {
+    position: relative;
+    overflow: visible;
+  }
+  .morph-logo {
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .morph-chip-logo {
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* ── ANIMATION 4: Card Flip ── */
+  .flip-wrapper {
+    perspective: 800px;
+  }
+  .flip-content {
+    transition: transform 0.4s ease;
+    transform-style: preserve-3d;
+  }
+  .flip-content.flipping {
+    transform: rotateY(90deg);
+  }
+
+  /* ── ANIMATION 5: Scale Bounce ── */
+  .bounce-content {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+    transform-origin: center top;
+  }
+  .bounce-content.out {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  .bounce-content.in {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  /* ── ANIMATION 6: Stagger Cascade ── */
+  .stagger-item {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  .stagger-item.out {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  .stagger-item.in {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 500px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>League Switch Animations</h1>
+<p class="subtitle">Click the chip in each concept to see the animation. All auto-replay every few seconds.</p>
+
+<div class="grid">
+
+  <!-- Concept 1: Crossfade -->
+  <div class="concept">
+    <div class="concept-label">1. CROSSFADE <span>Subtle & clean</span></div>
+    <div class="phone" id="fade-phone">
+      <div class="header">
+        <div class="logo-area">
+          <div class="hero-logo" id="fade-hero">Premier Padel</div>
+        </div>
+        <div class="chip" id="fade-chip" onclick="toggleFade()">FIP Tour</div>
+      </div>
+      <div class="content-area">
+        <div class="fade-content in" id="fade-content">
+          <div class="section-label">UPCOMING</div>
+          <div class="hero-card premier" id="fade-card">
+            <div class="badge premier" id="fade-badge">NEXT UP</div>
+            <div class="card-title" id="fade-title">Newgiza P2 2026</div>
+            <div class="card-sub">New Giza &middot; Apr 13 - 18</div>
+          </div>
+          <div class="strip" id="fade-strip">
+            <div class="strip-item"><div class="date">APR 20</div><div class="name">Brussels P2</div></div>
+            <div class="strip-item"><div class="date">MAY 4</div><div class="name">Asuncion P2</div></div>
+            <div class="strip-item"><div class="date">MAY 11</div><div class="name">Buenos Aires P1</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Concept 2: Slide -->
+  <div class="concept">
+    <div class="concept-label">2. SLIDE <span>Directional swipe</span></div>
+    <div class="phone">
+      <div class="header">
+        <div class="logo-area">
+          <div class="hero-logo" id="slide-hero">Premier Padel</div>
+        </div>
+        <div class="chip" id="slide-chip" onclick="toggleSlide()">FIP Tour</div>
+      </div>
+      <div class="content-area slide-wrapper">
+        <div class="slide-content in" id="slide-content">
+          <div class="section-label">UPCOMING</div>
+          <div class="hero-card premier" id="slide-card">
+            <div class="badge premier" id="slide-badge">NEXT UP</div>
+            <div class="card-title" id="slide-title">Newgiza P2 2026</div>
+            <div class="card-sub">New Giza &middot; Apr 13 - 18</div>
+          </div>
+          <div class="strip" id="slide-strip">
+            <div class="strip-item"><div class="date">APR 20</div><div class="name">Brussels P2</div></div>
+            <div class="strip-item"><div class="date">MAY 4</div><div class="name">Asuncion P2</div></div>
+            <div class="strip-item"><div class="date">MAY 11</div><div class="name">Buenos Aires P1</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Concept 3: Logo Morph -->
+  <div class="concept">
+    <div class="concept-label">3. LOGO MORPH <span>Logos trade places</span></div>
+    <div class="phone">
+      <div class="header morph-header" style="position:relative">
+        <div class="logo-area">
+          <div class="hero-logo morph-logo" id="morph-hero" style="position:relative;z-index:2">Premier Padel</div>
+        </div>
+        <div class="chip morph-chip-logo" id="morph-chip" onclick="toggleMorph()" style="position:relative;z-index:2">FIP Tour</div>
+      </div>
+      <div class="content-area">
+        <div class="fade-content in" id="morph-content">
+          <div class="section-label">UPCOMING</div>
+          <div class="hero-card premier" id="morph-card">
+            <div class="badge premier" id="morph-badge">NEXT UP</div>
+            <div class="card-title" id="morph-title">Newgiza P2 2026</div>
+            <div class="card-sub">New Giza &middot; Apr 13 - 18</div>
+          </div>
+          <div class="strip">
+            <div class="strip-item"><div class="date">APR 20</div><div class="name">Brussels P2</div></div>
+            <div class="strip-item"><div class="date">MAY 4</div><div class="name">Asuncion P2</div></div>
+            <div class="strip-item"><div class="date">MAY 11</div><div class="name">Buenos Aires P1</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Concept 4: Card Flip -->
+  <div class="concept">
+    <div class="concept-label">4. CARD FLIP <span>3D Y-axis flip</span></div>
+    <div class="phone">
+      <div class="header">
+        <div class="logo-area">
+          <div class="hero-logo" id="flip-hero">Premier Padel</div>
+        </div>
+        <div class="chip" id="flip-chip" onclick="toggleFlip()">FIP Tour</div>
+      </div>
+      <div class="content-area flip-wrapper">
+        <div class="flip-content" id="flip-content">
+          <div class="section-label">UPCOMING</div>
+          <div class="hero-card premier" id="flip-card">
+            <div class="badge premier" id="flip-badge">NEXT UP</div>
+            <div class="card-title" id="flip-title">Newgiza P2 2026</div>
+            <div class="card-sub">New Giza &middot; Apr 13 - 18</div>
+          </div>
+          <div class="strip">
+            <div class="strip-item"><div class="date">APR 20</div><div class="name">Brussels P2</div></div>
+            <div class="strip-item"><div class="date">MAY 4</div><div class="name">Asuncion P2</div></div>
+            <div class="strip-item"><div class="date">MAY 11</div><div class="name">Buenos Aires P1</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Concept 5: Scale Bounce -->
+  <div class="concept">
+    <div class="concept-label">5. SCALE BOUNCE <span>Springy & polished</span></div>
+    <div class="phone">
+      <div class="header">
+        <div class="logo-area">
+          <div class="hero-logo" id="bounce-hero">Premier Padel</div>
+        </div>
+        <div class="chip" id="bounce-chip" onclick="toggleBounce()">FIP Tour</div>
+      </div>
+      <div class="content-area">
+        <div class="bounce-content in" id="bounce-content">
+          <div class="section-label">UPCOMING</div>
+          <div class="hero-card premier" id="bounce-card">
+            <div class="badge premier" id="bounce-badge">NEXT UP</div>
+            <div class="card-title" id="bounce-title">Newgiza P2 2026</div>
+            <div class="card-sub">New Giza &middot; Apr 13 - 18</div>
+          </div>
+          <div class="strip">
+            <div class="strip-item"><div class="date">APR 20</div><div class="name">Brussels P2</div></div>
+            <div class="strip-item"><div class="date">MAY 4</div><div class="name">Asuncion P2</div></div>
+            <div class="strip-item"><div class="date">MAY 11</div><div class="name">Buenos Aires P1</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Concept 6: Stagger Cascade -->
+  <div class="concept">
+    <div class="concept-label">6. STAGGER CASCADE <span>Piece by piece</span></div>
+    <div class="phone">
+      <div class="header">
+        <div class="logo-area">
+          <div class="hero-logo" id="stagger-hero">Premier Padel</div>
+        </div>
+        <div class="chip" id="stagger-chip" onclick="toggleStagger()">FIP Tour</div>
+      </div>
+      <div class="content-area">
+        <div class="section-label stagger-item in" id="stagger-label">UPCOMING</div>
+        <div class="hero-card premier stagger-item in" id="stagger-card" style="transition-delay:0ms">
+          <div class="badge premier" id="stagger-badge">NEXT UP</div>
+          <div class="card-title" id="stagger-title">Newgiza P2 2026</div>
+          <div class="card-sub">New Giza &middot; Apr 13 - 18</div>
+        </div>
+        <div class="strip stagger-item in" id="stagger-strip" style="transition-delay:0ms">
+          <div class="strip-item"><div class="date">APR 20</div><div class="name" id="stagger-s1">Brussels P2</div></div>
+          <div class="strip-item"><div class="date">MAY 4</div><div class="name" id="stagger-s2">Asuncion P2</div></div>
+          <div class="strip-item"><div class="date">MAY 11</div><div class="name" id="stagger-s3">Buenos Aires P1</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const PREMIER = {
+  hero: 'Premier Padel', chip: 'FIP Tour',
+  badge: 'NEXT UP', title: 'Newgiza P2 2026', cardClass: 'premier',
+  strips: ['Brussels P2', 'Asuncion P2', 'Buenos Aires P1'],
+  dates: ['APR 20', 'MAY 4', 'MAY 11'],
+};
+const FIP = {
+  hero: 'FIP Tour', chip: 'Premier Padel',
+  badge: 'LIVE NOW', title: 'FIP Gold Almaty', cardClass: 'fip',
+  strips: ['FIP Plat Albania', 'FIP Plat Paredes', 'FIP Gold Abidjan'],
+  dates: ['MAY 25', 'JUN 15', 'JUN 22'],
+};
+
+function swapData(prefix, data) {
+  const hero = document.getElementById(prefix + '-hero');
+  const chip = document.getElementById(prefix + '-chip');
+  const card = document.getElementById(prefix + '-card');
+  const badge = document.getElementById(prefix + '-badge');
+  const title = document.getElementById(prefix + '-title');
+  if (hero) hero.textContent = data.hero;
+  if (chip) chip.textContent = data.chip;
+  if (card) { card.className = 'hero-card ' + data.cardClass; }
+  if (badge) { badge.textContent = data.badge; badge.className = 'badge ' + data.cardClass; }
+  if (title) title.textContent = data.title;
+}
+
+// State tracking
+const states = { fade: 'premier', slide: 'premier', morph: 'premier', flip: 'premier', bounce: 'premier', stagger: 'premier' };
+function nextData(key) {
+  const next = states[key] === 'premier' ? FIP : PREMIER;
+  states[key] = states[key] === 'premier' ? 'fip' : 'premier';
+  return next;
+}
+
+// 1. Crossfade
+function toggleFade() {
+  const el = document.getElementById('fade-content');
+  el.classList.remove('in');
+  el.classList.add('out');
+  setTimeout(() => {
+    swapData('fade', nextData('fade'));
+    el.classList.remove('out');
+    el.classList.add('in');
+  }, 250);
+}
+
+// 2. Slide
+function toggleSlide() {
+  const el = document.getElementById('slide-content');
+  const goingToFip = states.slide === 'premier';
+  el.classList.remove('in');
+  el.classList.add(goingToFip ? 'out-left' : 'out-right');
+  setTimeout(() => {
+    swapData('slide', nextData('slide'));
+    el.classList.remove('out-left', 'out-right');
+    el.classList.add(goingToFip ? 'out-right' : 'out-left');
+    // Force reflow
+    el.offsetHeight;
+    el.classList.remove('out-left', 'out-right');
+    el.classList.add('in');
+  }, 300);
+}
+
+// 3. Logo Morph
+function toggleMorph() {
+  const hero = document.getElementById('morph-hero');
+  const chip = document.getElementById('morph-chip');
+  const content = document.getElementById('morph-content');
+
+  // Animate logos toward center
+  hero.style.transform = 'translateX(60px) scale(0.7)';
+  hero.style.opacity = '0.3';
+  chip.style.transform = 'translateX(-60px) scale(1.3)';
+  chip.style.opacity = '0.3';
+  content.classList.remove('in');
+  content.classList.add('out');
+
+  setTimeout(() => {
+    const data = nextData('morph');
+    swapData('morph', data);
+    const card = document.getElementById('morph-card');
+    if (card) card.className = 'hero-card ' + data.cardClass;
+
+    hero.style.transform = '';
+    hero.style.opacity = '';
+    chip.style.transform = '';
+    chip.style.opacity = '';
+    content.classList.remove('out');
+    content.classList.add('in');
+  }, 400);
+}
+
+// 4. Card Flip
+function toggleFlip() {
+  const el = document.getElementById('flip-content');
+  el.classList.add('flipping');
+  setTimeout(() => {
+    swapData('flip', nextData('flip'));
+    el.classList.remove('flipping');
+  }, 400);
+}
+
+// 5. Scale Bounce
+function toggleBounce() {
+  const el = document.getElementById('bounce-content');
+  el.classList.remove('in');
+  el.classList.add('out');
+  setTimeout(() => {
+    swapData('bounce', nextData('bounce'));
+    el.classList.remove('out');
+    el.classList.add('in');
+  }, 200);
+}
+
+// 6. Stagger Cascade
+function toggleStagger() {
+  const items = [
+    document.getElementById('stagger-label'),
+    document.getElementById('stagger-card'),
+    document.getElementById('stagger-strip'),
+  ];
+
+  // Stagger out
+  items.forEach((item, i) => {
+    item.style.transitionDelay = (i * 40) + 'ms';
+    item.classList.remove('in');
+    item.classList.add('out');
+  });
+
+  setTimeout(() => {
+    const data = nextData('stagger');
+    swapData('stagger', data);
+
+    // Stagger in
+    items.forEach((item, i) => {
+      item.style.transitionDelay = (i * 60) + 'ms';
+      item.classList.remove('out');
+      item.classList.add('in');
+    });
+  }, 300);
+}
+
+// Auto-replay all every 4 seconds
+let autoTimer = null;
+function autoReplay() {
+  const fns = [toggleFade, toggleSlide, toggleMorph, toggleFlip, toggleBounce, toggleStagger];
+  let i = 0;
+  function next() {
+    if (i < fns.length) {
+      setTimeout(() => { fns[i](); i++; next(); }, 150);
+    }
+  }
+  next();
+}
+
+// Start auto-replay loop
+setInterval(autoReplay, 5000);
+setTimeout(autoReplay, 1500);
+</script>
+
+</body>
+</html>

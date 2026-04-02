@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Match Detail — New Feature Mockups</title>
+<style>
+  :root {
+    --bg-base: #0B1120;
+    --bg-card: #111827;
+    --bg-card-alt: #0F1729;
+    --bg-input: #162032;
+    --border-card: rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --text-primary: #E8ECF1;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --text-faint: #475569;
+    --text-dim: #334155;
+    --color-accent: #38C8FF;
+    --color-live: #FF4455;
+    --color-success: #34D399;
+    --color-star: #F5A623;
+    --color-p1: #F59E0B;
+    --color-p2: #14B8A6;
+    --color-women: #F472B6;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #060A14; font-family: var(--font-sans); color: var(--text-primary); }
+
+  .page { max-width: 500px; margin: 0 auto; }
+
+  .section-title {
+    padding: 40px 16px 8px;
+    font-size: 10px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--color-accent);
+    border-top: 1px solid rgba(56,200,255,0.15);
+  }
+  .section-desc {
+    padding: 0 16px 16px;
+    font-size: 12px; color: var(--text-muted); line-height: 1.5;
+  }
+  .feature-label {
+    margin: 20px 16px 10px;
+    font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--color-star);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .feature-label::before {
+    content: ''; width: 8px; height: 8px; border-radius: 2px;
+    background: var(--color-star);
+  }
+
+  .card {
+    margin: 0 16px; border-radius: 12px; overflow: hidden;
+    background: var(--bg-card); border: 1px solid var(--border-card);
+  }
+
+  /* ── Page header ── */
+  .mock-header {
+    background: var(--bg-base);
+    padding: 12px 16px;
+    text-align: center;
+    border-bottom: 0.5px solid var(--border-card);
+    font-size: 22px; font-weight: 900;
+    letter-spacing: -0.5px;
+  }
+  .mock-header span { color: var(--color-star); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="mock-header">PADEL<span>NACHO</span></div>
+
+  <div style="padding: 20px 16px 10px; text-align: center;">
+    <div style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">Match Detail — Feature Proposals</div>
+    <div style="font-size: 12px; color: var(--text-muted);">New engagement features for the match page</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- FEATURE 1: MATCH PREDICTIONS -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">Feature 1 — Match Predictions</div>
+  <div class="section-desc">
+    Users predict the match winner before the match starts. After the match, show if they got it right.
+    Creates a reason to return to the app and check results. Prediction accuracy can feed into leaderboards later.
+  </div>
+
+  <!-- Pre-match state -->
+  <div class="feature-label">Pre-match — Make your prediction</div>
+  <div class="card">
+    <div style="padding: 14px 16px 10px;">
+      <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 12px;">
+        🎯 Who wins this match?
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button style="flex: 1; padding: 14px 10px; border-radius: 10px; border: 1.5px solid rgba(245,158,11,0.3); background: rgba(245,158,11,0.06); cursor: pointer; font-family: var(--font-sans);">
+          <div style="font-size: 13px; font-weight: 700; color: var(--color-p1);">Tapia / Coello</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#1 Ranked</div>
+        </button>
+        <button style="flex: 1; padding: 14px 10px; border-radius: 10px; border: 1.5px solid rgba(20,184,166,0.3); background: rgba(20,184,166,0.06); cursor: pointer; font-family: var(--font-sans);">
+          <div style="font-size: 13px; font-weight: 700; color: var(--color-p2);">Galan / Chingotto</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">#4 Ranked</div>
+        </button>
+      </div>
+      <div style="text-align: center; margin-top: 10px; font-size: 10px; color: var(--text-faint);">
+        1,247 fans have predicted · Closes at match start
+      </div>
+    </div>
+  </div>
+
+  <!-- After prediction made -->
+  <div class="feature-label">After predicting — Locked in</div>
+  <div class="card">
+    <div style="padding: 14px 16px 10px;">
+      <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 12px;">
+        🎯 Your prediction
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <div style="flex: 1; padding: 14px 10px; border-radius: 10px; border: 2px solid var(--color-p1); background: rgba(245,158,11,0.12); position: relative;">
+          <div style="position: absolute; top: -8px; right: 10px; font-size: 8px; font-weight: 700; background: var(--color-p1); color: #000; border-radius: 10px; padding: 2px 8px;">YOUR PICK</div>
+          <div style="font-size: 13px; font-weight: 700; color: var(--color-p1);">Tapia / Coello</div>
+          <div style="font-size: 20px; font-weight: 900; color: var(--text-primary); margin-top: 4px; font-family: var(--font-mono);">68%</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">852 predictions</div>
+        </div>
+        <div style="flex: 1; padding: 14px 10px; border-radius: 10px; border: 1.5px solid rgba(20,184,166,0.2); background: rgba(20,184,166,0.04);">
+          <div style="font-size: 13px; font-weight: 700; color: var(--color-p2);">Galan / Chingotto</div>
+          <div style="font-size: 20px; font-weight: 900; color: var(--text-secondary); margin-top: 4px; font-family: var(--font-mono);">32%</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">395 predictions</div>
+        </div>
+      </div>
+      <div style="height: 4px; border-radius: 2px; overflow: hidden; background: rgba(20,184,166,0.25); margin-top: 12px; display: flex;">
+        <div style="width: 68%; background: var(--color-p1); opacity: 0.8;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Post-match: correct prediction -->
+  <div class="feature-label">Post-match — Correct prediction</div>
+  <div class="card">
+    <div style="padding: 14px 16px; background: linear-gradient(135deg, rgba(52,211,153,0.08), transparent);">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <span style="font-size: 20px;">✅</span>
+        <div>
+          <div style="font-size: 13px; font-weight: 700; color: var(--color-success);">You called it!</div>
+          <div style="font-size: 10px; color: var(--text-muted);">Tapia / Coello won 2-0 — You're on a 4-match streak 🔥</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <div style="flex: 1; background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); border-radius: 8px; padding: 10px; text-align: center;">
+          <div style="font-size: 22px; font-weight: 900; color: var(--color-success); font-family: var(--font-mono);">73%</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Your accuracy</div>
+        </div>
+        <div style="flex: 1; background: rgba(56,200,255,0.06); border: 1px solid rgba(56,200,255,0.15); border-radius: 8px; padding: 10px; text-align: center;">
+          <div style="font-size: 22px; font-weight: 900; color: var(--color-accent); font-family: var(--font-mono);">4 🔥</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Win streak</div>
+        </div>
+        <div style="flex: 1; background: rgba(245,166,35,0.06); border: 1px solid rgba(245,166,35,0.15); border-radius: 8px; padding: 10px; text-align: center;">
+          <div style="font-size: 22px; font-weight: 900; color: var(--color-star); font-family: var(--font-mono);">#42</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Leaderboard</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- FEATURE 2: MATCH MOMENTUM GRAPH -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">Feature 2 — Match Momentum</div>
+  <div class="section-desc">
+    Visual graph showing who's dominating the match over time. Each game shifts the momentum.
+    Helps users quickly understand the match flow without reading every point.
+  </div>
+
+  <div class="feature-label">Live momentum graph</div>
+  <div class="card">
+    <div style="padding: 14px 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Match Momentum</span>
+        <span style="font-size: 9px; color: var(--text-faint);">Set 1</span>
+      </div>
+
+      <!-- SVG momentum chart -->
+      <div style="position: relative; height: 120px;">
+        <!-- Center line -->
+        <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: var(--border-strong);"></div>
+
+        <!-- Labels -->
+        <div style="position: absolute; top: 4px; left: 0; font-size: 9px; font-weight: 700; color: var(--color-p1); opacity: 0.6;">Tapia / Coello</div>
+        <div style="position: absolute; bottom: 4px; left: 0; font-size: 9px; font-weight: 700; color: var(--color-p2); opacity: 0.6;">Galan / Chingotto</div>
+
+        <svg viewBox="0 0 400 120" style="width: 100%; height: 100%;" preserveAspectRatio="none">
+          <!-- Grid lines -->
+          <line x1="0" y1="30" x2="400" y2="30" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+          <line x1="0" y1="90" x2="400" y2="90" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+
+          <!-- Game separators -->
+          <line x1="80" y1="0" x2="80" y2="120" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="160" y1="0" x2="160" y2="120" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="240" y1="0" x2="240" y2="120" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="3,3"/>
+          <line x1="320" y1="0" x2="320" y2="120" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="3,3"/>
+
+          <!-- Momentum area (P1 side - amber) -->
+          <path d="M0,60 L40,60 L80,35 L120,42 L160,28 L200,38 L240,60 L280,45 L320,30 L360,35 L400,25"
+                fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M0,60 L40,60 L80,35 L120,42 L160,28 L200,38 L240,60 L280,45 L320,30 L360,35 L400,25 L400,60 L0,60"
+                fill="url(#grad1)" opacity="0.3"/>
+
+          <!-- Momentum area (P2 side - teal) -->
+          <path d="M0,60 L40,60 L80,35 L120,42 L160,28 L200,38 L240,60 L280,45 L320,30 L360,35 L400,25"
+                fill="none" stroke="transparent"/>
+          <path d="M0,60 L40,60 L80,75 L120,68 L160,82 L200,72 L240,60 L280,75 L320,80 L360,72 L400,78 L400,60 L0,60"
+                fill="url(#grad2)" opacity="0.3"/>
+          <path d="M0,60 L40,60 L80,75 L120,68 L160,82 L200,72 L240,60 L280,75 L320,80 L360,72 L400,78"
+                fill="none" stroke="#14B8A6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+
+          <!-- Current point dot -->
+          <circle cx="400" cy="25" r="5" fill="#F59E0B" stroke="#0B1120" stroke-width="2">
+            <animate attributeName="r" values="4;6;4" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+
+          <defs>
+            <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="grad2" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#14B8A6" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <!-- Game labels -->
+      <div style="display: flex; justify-content: space-between; padding: 4px 0 0;">
+        <span style="font-size: 8px; color: var(--text-faint);">G1</span>
+        <span style="font-size: 8px; color: var(--text-faint);">G2</span>
+        <span style="font-size: 8px; color: var(--text-faint);">G3</span>
+        <span style="font-size: 8px; color: var(--text-faint);">G4</span>
+        <span style="font-size: 8px; color: var(--text-faint); font-weight: 700; color: var(--color-accent);">G5</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- FEATURE 3: MICRO-PREDICTIONS (IN-MATCH) -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">Feature 3 — Micro-Predictions (In-Match)</div>
+  <div class="section-desc">
+    Quick predictions during the match — who wins the next game, will there be a star point, etc.
+    Creates continuous engagement moments throughout the match. Low friction, tap-to-predict.
+  </div>
+
+  <div class="feature-label">Floating micro-prediction card</div>
+  <div class="card">
+    <div style="padding: 12px 16px; background: linear-gradient(135deg, rgba(56,200,255,0.06), transparent); border-bottom: 1px solid var(--border-card);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-size: 12px;">⚡</span>
+          <span style="font-size: 10px; font-weight: 700; color: var(--color-accent); text-transform: uppercase; letter-spacing: 0.5px;">Quick Predict</span>
+        </div>
+        <span style="font-size: 9px; color: var(--text-faint);">+5 pts</span>
+      </div>
+      <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px;">Who wins Game 6?</div>
+      <div style="display: flex; gap: 8px;">
+        <button style="flex: 1; padding: 10px; border-radius: 8px; border: 1.5px solid rgba(245,158,11,0.25); background: rgba(245,158,11,0.06); cursor: pointer; font-family: var(--font-sans); font-size: 11px; font-weight: 700; color: var(--color-p1);">
+          Tapia / Coello
+        </button>
+        <button style="flex: 1; padding: 10px; border-radius: 8px; border: 1.5px solid rgba(20,184,166,0.25); background: rgba(20,184,166,0.06); cursor: pointer; font-family: var(--font-sans); font-size: 11px; font-weight: 700; color: var(--color-p2);">
+          Galan / Chingotto
+        </button>
+      </div>
+      <div style="text-align: center; margin-top: 8px;">
+        <span style="font-size: 9px; color: var(--text-faint);">⏱ Closes when game starts · 89 predictions</span>
+      </div>
+    </div>
+
+    <!-- Other prediction types -->
+    <div style="padding: 12px 16px;">
+      <div style="font-size: 10px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px;">More predictions</div>
+      <div style="display: flex; gap: 8px; overflow-x: auto;">
+        <div style="flex-shrink: 0; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(245,166,35,0.2); background: rgba(245,166,35,0.04); text-align: center; min-width: 110px;">
+          <div style="font-size: 14px; margin-bottom: 4px;">⭐</div>
+          <div style="font-size: 10px; font-weight: 600; color: var(--text-primary);">Star point<br>this game?</div>
+          <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+            <span style="padding: 4px 12px; border-radius: 6px; background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.2); font-size: 10px; font-weight: 700; color: var(--color-success); cursor: pointer;">Yes</span>
+            <span style="padding: 4px 12px; border-radius: 6px; background: rgba(255,68,85,0.1); border: 1px solid rgba(255,68,85,0.2); font-size: 10px; font-weight: 700; color: var(--color-live); cursor: pointer;">No</span>
+          </div>
+        </div>
+        <div style="flex-shrink: 0; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(56,200,255,0.15); background: rgba(56,200,255,0.04); text-align: center; min-width: 110px;">
+          <div style="font-size: 14px; margin-bottom: 4px;">🎯</div>
+          <div style="font-size: 10px; font-weight: 600; color: var(--text-primary);">Set 1<br>winner?</div>
+          <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+            <span style="padding: 4px 8px; border-radius: 6px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); font-size: 9px; font-weight: 700; color: var(--color-p1); cursor: pointer;">T/C</span>
+            <span style="padding: 4px 8px; border-radius: 6px; background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.2); font-size: 9px; font-weight: 700; color: var(--color-p2); cursor: pointer;">G/Ch</span>
+          </div>
+        </div>
+        <div style="flex-shrink: 0; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02); text-align: center; min-width: 110px;">
+          <div style="font-size: 14px; margin-bottom: 4px;">📊</div>
+          <div style="font-size: 10px; font-weight: 600; color: var(--text-primary);">Final score<br>prediction?</div>
+          <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+            <span style="padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); font-size: 9px; font-weight: 700; color: var(--text-secondary); cursor: pointer;">2-0</span>
+            <span style="padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-strong); font-size: 9px; font-weight: 700; color: var(--text-secondary); cursor: pointer;">2-1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- FEATURE 4: PRE-MATCH CONTEXT -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">Feature 4 — Pre-Match Context</div>
+  <div class="section-desc">
+    Surface key stats before the match starts so the countdown page is useful, not just a timer.
+    Recent form, H2H headline, and ranking comparison give fans context for their predictions.
+  </div>
+
+  <div class="feature-label">Pre-match info cards</div>
+  <div class="card">
+    <div style="padding: 14px 16px;">
+      <!-- H2H headline -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--border-card);">
+        <div style="text-align: center; flex: 1;">
+          <div style="font-size: 28px; font-weight: 900; color: var(--color-p1); font-family: var(--font-mono);">3</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Tapia / Coello</div>
+        </div>
+        <div style="text-align: center; padding: 0 16px;">
+          <div style="font-size: 9px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px;">H2H</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">5 matches</div>
+        </div>
+        <div style="text-align: center; flex: 1;">
+          <div style="font-size: 28px; font-weight: 900; color: var(--color-p2); font-family: var(--font-mono);">2</div>
+          <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Galan / Chingotto</div>
+        </div>
+      </div>
+
+      <!-- Recent form -->
+      <div style="padding-top: 12px;">
+        <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-faint); margin-bottom: 10px;">Recent Form (Last 5)</div>
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+          <span style="font-size: 10px; font-weight: 600; color: var(--color-p1); width: 80px; text-align: right;">Tapia / Coello</span>
+          <div style="display: flex; gap: 3px;">
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(52,211,153,0.15); color: var(--color-success); border: 1px solid rgba(52,211,153,0.3);">W</span>
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(52,211,153,0.15); color: var(--color-success); border: 1px solid rgba(52,211,153,0.3);">W</span>
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(255,68,85,0.12); color: var(--color-live); border: 1px solid rgba(255,68,85,0.25);">L</span>
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(52,211,153,0.15); color: var(--color-success); border: 1px solid rgba(52,211,153,0.3);">W</span>
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(52,211,153,0.15); color: var(--color-success); border: 1px solid rgba(52,211,153,0.3);">W</span>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 10px; font-weight: 600; color: var(--color-p2); width: 80px; text-align: right;">Galan / Chingotto</span>
+          <div style="display: flex; gap: 3px;">
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(52,211,153,0.15); color: var(--color-success); border: 1px solid rgba(52,211,153,0.3);">W</span>
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(255,68,85,0.12); color: var(--color-live); border: 1px solid rgba(255,68,85,0.25);">L</span>
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(52,211,153,0.15); color: var(--color-success); border: 1px solid rgba(52,211,153,0.3);">W</span>
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(255,68,85,0.12); color: var(--color-live); border: 1px solid rgba(255,68,85,0.25);">L</span>
+            <span style="width: 22px; height: 22px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; background: rgba(52,211,153,0.15); color: var(--color-success); border: 1px solid rgba(52,211,153,0.3);">W</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- FEATURE 5: LIVE REACTIONS -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">Feature 5 — Live Reactions</div>
+  <div class="section-desc">
+    Lightweight alternative to chat. Users tap reactions during key moments.
+    Shows social presence without moderation overhead. Reactions float up and fade.
+  </div>
+
+  <div class="feature-label">Reaction bar — below score area</div>
+  <div class="card">
+    <div style="padding: 10px 16px; display: flex; align-items: center; gap: 6px; justify-content: center; border-bottom: 1px solid var(--border-card);">
+      <div style="display: flex; gap: 4px;">
+        <button style="width: 38px; height: 34px; border-radius: 20px; border: 1px solid var(--border-strong); background: var(--bg-card-alt); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; position: relative;">
+          🔥
+          <span style="position: absolute; top: -4px; right: -2px; font-size: 7px; font-weight: 800; background: var(--color-live); color: white; border-radius: 8px; padding: 1px 4px; min-width: 14px; text-align: center;">24</span>
+        </button>
+        <button style="width: 38px; height: 34px; border-radius: 20px; border: 1px solid var(--border-strong); background: var(--bg-card-alt); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; position: relative;">
+          😱
+          <span style="position: absolute; top: -4px; right: -2px; font-size: 7px; font-weight: 800; background: var(--color-accent); color: #000; border-radius: 8px; padding: 1px 4px; min-width: 14px; text-align: center;">12</span>
+        </button>
+        <button style="width: 38px; height: 34px; border-radius: 20px; border: 1px solid var(--border-strong); background: var(--bg-card-alt); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;">
+          👏
+        </button>
+        <button style="width: 38px; height: 34px; border-radius: 20px; border: 1px solid var(--border-strong); background: var(--bg-card-alt); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;">
+          😤
+        </button>
+        <button style="width: 38px; height: 34px; border-radius: 20px; border: 1px solid var(--border-strong); background: var(--bg-card-alt); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;">
+          💀
+        </button>
+        <button style="width: 38px; height: 34px; border-radius: 20px; border: 1px solid var(--border-strong); background: var(--bg-card-alt); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;">
+          🏆
+        </button>
+      </div>
+    </div>
+    <div style="padding: 8px 16px; text-align: center;">
+      <span style="font-size: 9px; color: var(--text-faint);">👥 342 fans watching · Tap to react</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- FEATURE 6: SHAREABLE MATCH SUMMARY -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">Feature 6 — Shareable Match Card</div>
+  <div class="section-desc">
+    Post-match: generate a visual summary card users can share to WhatsApp, Instagram Stories, etc.
+    Viral growth mechanism — each share is free marketing. Branded with PadelNacho.
+  </div>
+
+  <div class="feature-label">Share card — post-match</div>
+  <div style="margin: 0 16px;">
+    <!-- The shareable card -->
+    <div style="border-radius: 16px; overflow: hidden; background: linear-gradient(145deg, #0D1B2A 0%, #1B2838 50%, #0D1B2A 100%); border: 1px solid rgba(56,200,255,0.15); position: relative;">
+      <!-- Watermark glow -->
+      <div style="position: absolute; top: -40px; right: -40px; width: 120px; height: 120px; border-radius: 50%; background: rgba(56,200,255,0.06); filter: blur(40px);"></div>
+
+      <div style="padding: 18px 20px 14px;">
+        <!-- Tournament + round -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: var(--color-accent);">Miami P1 2026</div>
+            <div style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Finals · Mar 30, 2026</div>
+          </div>
+          <div style="font-size: 16px; font-weight: 900; color: var(--color-star); letter-spacing: -0.5px;">PADEL<span style="color: var(--text-primary);">NACHO</span></div>
+        </div>
+
+        <!-- Winner badge -->
+        <div style="text-align: center; margin-bottom: 12px;">
+          <span style="font-size: 9px; font-weight: 700; background: rgba(52,211,153,0.12); color: var(--color-success); border: 1px solid rgba(52,211,153,0.25); border-radius: 20px; padding: 3px 12px; text-transform: uppercase; letter-spacing: 0.5px;">🏆 Champions</span>
+        </div>
+
+        <!-- Score -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 14px;">
+          <div style="text-align: center;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(245,158,11,0.1); border: 2px solid var(--color-p1); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--color-p1); margin: 0 auto 6px;">TC</div>
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-primary);">Tapia / Coello</div>
+          </div>
+
+          <div style="text-align: center;">
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span style="font-size: 36px; font-weight: 900; color: var(--color-success); font-family: var(--font-mono);">2</span>
+              <span style="font-size: 16px; color: var(--text-faint);">-</span>
+              <span style="font-size: 36px; font-weight: 900; color: var(--text-muted); font-family: var(--font-mono);">1</span>
+            </div>
+            <div style="font-size: 9px; color: var(--text-faint); margin-top: 2px;">6-4 · 3-6 · 7-5</div>
+          </div>
+
+          <div style="text-align: center;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(20,184,166,0.1); border: 1.5px solid rgba(20,184,166,0.3); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: var(--color-p2); margin: 0 auto 6px;">GC</div>
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">Galan / Chingotto</div>
+          </div>
+        </div>
+
+        <!-- Quick stats -->
+        <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+          <div style="flex: 1; text-align: center; padding: 8px 0; background: rgba(255,255,255,0.02); border-radius: 8px;">
+            <div style="font-size: 16px; font-weight: 900; color: var(--text-primary); font-family: var(--font-mono);">1h42</div>
+            <div style="font-size: 8px; color: var(--text-faint); margin-top: 2px;">Duration</div>
+          </div>
+          <div style="flex: 1; text-align: center; padding: 8px 0; background: rgba(255,255,255,0.02); border-radius: 8px;">
+            <div style="font-size: 16px; font-weight: 900; color: var(--color-star); font-family: var(--font-mono);">7</div>
+            <div style="font-size: 8px; color: var(--text-faint); margin-top: 2px;">Star Points</div>
+          </div>
+          <div style="flex: 1; text-align: center; padding: 8px 0; background: rgba(255,255,255,0.02); border-radius: 8px;">
+            <div style="font-size: 16px; font-weight: 900; color: var(--color-live); font-family: var(--font-mono);">3</div>
+            <div style="font-size: 8px; color: var(--text-faint); margin-top: 2px;">Breaks</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding: 8px 20px; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 8px; color: var(--text-faint);">padelnacho.com</span>
+        <span style="font-size: 8px; color: var(--text-faint);">Live scores · Stats · Predictions</span>
+      </div>
+    </div>
+
+    <!-- Share buttons -->
+    <div style="display: flex; gap: 8px; margin-top: 12px; justify-content: center;">
+      <button style="display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px; border: none; background: #25D366; color: white; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font-sans);">
+        📱 WhatsApp
+      </button>
+      <button style="display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px; border: none; background: linear-gradient(45deg, #405DE6, #E1306C, #F56040); color: white; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font-sans);">
+        📸 Story
+      </button>
+      <button style="display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-strong); background: var(--bg-card-alt); color: var(--text-secondary); font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font-sans);">
+        📋 Copy
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- FEATURE 7: WHAT'S NEXT -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">Feature 7 — What's Next</div>
+  <div class="section-desc">
+    After a match ends, show what's coming next for each pair in the tournament.
+    Keeps users in the app and browsing rather than leaving after a result.
+  </div>
+
+  <div class="feature-label">Post-match navigation</div>
+  <div class="card">
+    <div style="padding: 14px 16px;">
+      <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 12px;">What's Next</div>
+
+      <!-- Winner's next match -->
+      <div style="padding: 12px; border-radius: 10px; background: rgba(52,211,153,0.04); border: 1px solid rgba(52,211,153,0.15); margin-bottom: 8px; cursor: pointer;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 8px; font-weight: 700; color: var(--color-success); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">🏆 Winner advances</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary);">Tapia / Coello</div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">vs TBD · Finals · Sun Mar 30</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <!-- Tournament bracket context -->
+      <div style="padding: 12px; border-radius: 10px; background: rgba(56,200,255,0.04); border: 1px solid rgba(56,200,255,0.1); cursor: pointer;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <div style="font-size: 8px; font-weight: 700; color: var(--color-accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">📊 Tournament bracket</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary);">Miami P1 2026</div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">View full draw · 4 matches remaining</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- SUMMARY -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">Summary — Priority Order</div>
+  <div style="padding: 0 16px 40px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+      <tr style="border-bottom: 1px solid var(--border-card);">
+        <td style="padding: 10px 6px; font-weight: 700; color: var(--color-accent);">#1</td>
+        <td style="padding: 10px 6px; font-weight: 600; color: var(--text-primary);">Match Predictions</td>
+        <td style="padding: 10px 6px; color: var(--text-muted); text-align: right;">High impact · Medium effort</td>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border-card);">
+        <td style="padding: 10px 6px; font-weight: 700; color: var(--color-accent);">#2</td>
+        <td style="padding: 10px 6px; font-weight: 600; color: var(--text-primary);">Pre-Match Context</td>
+        <td style="padding: 10px 6px; color: var(--text-muted); text-align: right;">Medium impact · Low effort</td>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border-card);">
+        <td style="padding: 10px 6px; font-weight: 700; color: var(--color-accent);">#3</td>
+        <td style="padding: 10px 6px; font-weight: 600; color: var(--text-primary);">Match Momentum</td>
+        <td style="padding: 10px 6px; color: var(--text-muted); text-align: right;">High impact · Medium effort</td>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border-card);">
+        <td style="padding: 10px 6px; font-weight: 700; color: var(--color-accent);">#4</td>
+        <td style="padding: 10px 6px; font-weight: 600; color: var(--text-primary);">Shareable Match Card</td>
+        <td style="padding: 10px 6px; color: var(--text-muted); text-align: right;">Medium impact · Low effort</td>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border-card);">
+        <td style="padding: 10px 6px; font-weight: 700; color: var(--color-accent);">#5</td>
+        <td style="padding: 10px 6px; font-weight: 600; color: var(--text-primary);">Live Reactions</td>
+        <td style="padding: 10px 6px; color: var(--text-muted); text-align: right;">Medium impact · Low effort</td>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border-card);">
+        <td style="padding: 10px 6px; font-weight: 700; color: var(--color-accent);">#6</td>
+        <td style="padding: 10px 6px; font-weight: 600; color: var(--text-primary);">Micro-Predictions</td>
+        <td style="padding: 10px 6px; color: var(--text-muted); text-align: right;">High impact · High effort</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 6px; font-weight: 700; color: var(--color-accent);">#7</td>
+        <td style="padding: 10px 6px; font-weight: 600; color: var(--text-primary);">What's Next</td>
+        <td style="padding: 10px 6px; color: var(--text-muted); text-align: right;">Medium impact · Low effort</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

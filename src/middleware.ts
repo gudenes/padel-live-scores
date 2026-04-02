@@ -17,11 +17,12 @@ export function middleware(request: NextRequest) {
       // Set cookie and redirect without token in URL
       const cleanUrl = new URL(pathname, request.url)
       const response = NextResponse.redirect(cleanUrl)
+      // Set cookie with path=/ so it's sent to both /ops/* and /api/ops/*
       response.cookies.set('ops_token', cronSecret, {
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: '/ops',
+        path: '/',
       })
       return response
     }

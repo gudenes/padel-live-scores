@@ -12,7 +12,38 @@ import {
   parseMatchscorerIds,
   parseDrawHtml,
   FIP_CATEGORY_IDS,
+  toIso2,
 } from '../fip-scraper'
+
+// ---------------------------------------------------------------------------
+// toIso2
+// ---------------------------------------------------------------------------
+
+describe('toIso2', () => {
+  it('converts 3-letter ISO codes to 2-letter', () => {
+    expect(toIso2('ESP')).toBe('ES')
+    expect(toIso2('ARG')).toBe('AR')
+    expect(toIso2('KAZ')).toBe('KZ')
+  })
+
+  it('passes through valid 2-letter codes unchanged', () => {
+    expect(toIso2('ES')).toBe('ES')
+    expect(toIso2('AR')).toBe('AR')
+    expect(toIso2('KZ')).toBe('KZ')
+    expect(toIso2('DE')).toBe('DE')
+  })
+
+  it('is case-insensitive', () => {
+    expect(toIso2('esp')).toBe('ES')
+    expect(toIso2('es')).toBe('ES')
+  })
+
+  it('returns null for null or unknown codes', () => {
+    expect(toIso2(null)).toBeNull()
+    expect(toIso2('XX')).toBeNull()
+    expect(toIso2('UNKNOWN')).toBeNull()
+  })
+})
 
 // ---------------------------------------------------------------------------
 // parseWpEvent

@@ -49,9 +49,18 @@ export const ISO3_TO_ISO2: Record<string, string> = {
   ESA: 'SV', NCA: 'NI', JAM: 'JM', TTO: 'TT', GUY: 'GY', SUR: 'SR',
 }
 
+/** Pre-computed set of valid 2-letter ISO codes for fast lookup */
+const ISO2_VALUES = new Set(Object.values(ISO3_TO_ISO2))
+
 export function toIso2(iso3: string | null): string | null {
   if (!iso3) return null
-  return ISO3_TO_ISO2[iso3.toUpperCase()] ?? null
+  const upper = iso3.toUpperCase()
+  // Direct 3→2 lookup
+  const mapped = ISO3_TO_ISO2[upper]
+  if (mapped) return mapped
+  // Already a valid 2-letter code? Check if it exists as a value in the map
+  if (upper.length === 2 && ISO2_VALUES.has(upper)) return upper
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -371,56 +380,48 @@ function defaultPlayer(): ParsedPlayer {
 function extractPlayerBlocks(html: string): ParsedPlayer[] {
   const players: ParsedPlayer[] = []
 
-  // Each player is in a <div class="d-flex align-items-center"> block
-  const blockRe =
-    /<div[^>]*class="[^"]*d-flex[^"]*align-items-center[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi
+  // Find each name div directly: <div class="ml-2 ..."><span>First.</span><span>Last</span></div>
+  // These are the reliable anchors — one per player. The previous approach matched the
+  // outer container div (d-flex justify-content-between align-items-center) first,
+  // consuming the first player block and only extracting the second.
+  const nameDivRe =
+    /<div[^>]*class="[^"]*(?:ml-2|ms-2)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi
   let match: RegExpExecArray | null
 
-  while ((match = blockRe.exec(html)) !== null) {
-    const block = match[0]
-    players.push(parsePlayerBlock(block))
-  }
+  while ((match = nameDivRe.exec(html)) !== null) {
+    const content = match[1]
 
-  // If above regex didn't capture enough, try wider approach
-  if (players.length === 0) {
-    const altRe =
-      /<div[^>]*class="[^"]*d-flex[^"]*align-items-center[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*d-flex[^"]*align-items-center|<\/div>\s*<\/div>)/gi
-    while ((match = altRe.exec(html)) !== null) {
-      players.push(parsePlayerBlock(match[0]))
-    }
-  }
+    // Must contain at least one <span> to be a player name div
+    const spanMatches = [...content.matchAll(/<span[^>]*>([\s\S]*?)<\/span>/gi)]
+    if (spanMatches.length === 0) continue
 
-  return players
-}
-
-function parsePlayerBlock(block: string): ParsedPlayer {
-  // Country: flag img src="/images/flags/ESP.jpg"
-  const flagMatch = /src="\/images\/flags\/([A-Z]{2,3})\.(?:jpg|png|svg)"/i.exec(block)
-  const country = flagMatch ? flagMatch[1].toUpperCase() : null
-
-  // Name: <span>J.</span><span class="">Castello Lopez</span>
-  // first span = firstName, second span = lastName
-  const nameDiv =
-    /<div[^>]*class="[^"]*(?:ml-2|ms-2)[^"]*"[^>]*>([\s\S]*?)<\/div>/i.exec(block)
-  let firstName = ''
-  let lastName = ''
-
-  if (nameDiv) {
-    const spanMatches = [...nameDiv[1].matchAll(/<span[^>]*>([\s\S]*?)<\/span>/gi)]
+    let firstName = ''
+    let lastName = ''
     if (spanMatches.length >= 2) {
       firstName = stripTags(spanMatches[0][1]).trim().replace(/\.$/, '')
       lastName = stripTags(spanMatches[1][1]).trim()
     } else if (spanMatches.length === 1) {
-      // Single span — treat as last name
       lastName = stripTags(spanMatches[0][1]).trim()
     }
+
+    if (!firstName && !lastName) continue
+
+    // Country: look backwards from this name div for the nearest flag image
+    const before = html.slice(Math.max(0, match.index - 300), match.index)
+    const flagMatch = /src="\/images\/flags\/([A-Z]{2,3})\.(?:jpg|png|svg)"/gi
+    let lastFlag: RegExpExecArray | null = null
+    let fm: RegExpExecArray | null
+    while ((fm = flagMatch.exec(before)) !== null) lastFlag = fm
+    const country = lastFlag ? lastFlag[1].toUpperCase() : null
+
+    // Seed: <small>(1)</small> inside or after the name div
+    const seedMatch = /<small[^>]*>\((\d+)\)<\/small>/i.exec(content)
+    const seed = seedMatch ? parseInt(seedMatch[1], 10) : null
+
+    players.push({ firstName, lastName, country, seed })
   }
 
-  // Seed: <small>(1)</small> or <small class="separator">(1)</small>
-  const seedMatch = /<small[^>]*>\((\d+)\)<\/small>/i.exec(block)
-  const seed = seedMatch ? parseInt(seedMatch[1], 10) : null
-
-  return { firstName, lastName, country, seed }
+  return players
 }
 
 function hasWinnerMarker(teamHtml: string): boolean {

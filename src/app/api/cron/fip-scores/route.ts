@@ -3,7 +3,7 @@
 // Schedule: every 2 hours (vercel.json)
 
 import { createClient } from '@supabase/supabase-js'
-import { PlayerResolver } from '@/lib/player-resolver'
+import { PlayerResolver, tokenSimilarity } from '@/lib/player-resolver'
 import { logOpsEvent } from '@/lib/ops-logger'
 import { fetchDrawMatches, toIso2, type ParsedMatch } from '@/lib/fip-scraper'
 
@@ -69,6 +69,14 @@ export async function GET(request: Request) {
       const resolver = new PlayerResolver(supabase)
       await resolver.load()
 
+      // Load draw data for active tournaments (for pre-resolved player IDs)
+      const tournamentIds = tournaments.map(t => t.id)
+      const { data: drawEntries } = await supabase
+        .from('tournament_draws')
+        .select('tournament_id, category, player1_name, player1_id, player2_name, player2_id')
+        .in('tournament_id', tournamentIds)
+      const draws = drawEntries ?? []
+
       let totalUpserted = 0
       let totalSkipped = 0
       let totalErrors = 0
@@ -87,7 +95,7 @@ export async function GET(request: Request) {
           for (let i = 0; i < matches.length; i++) {
             const match = matches[i]
             try {
-              const matchResult = await upsertFipMatch(match, tournament.id, resolver, i)
+              const matchResult = await upsertFipMatch(match, tournament.id, resolver, i, draws)
               if (matchResult === 'upserted') totalUpserted++
               else totalSkipped++
             } catch (e) {
@@ -118,30 +126,42 @@ export async function GET(request: Request) {
   }
 }
 
+type DrawRow = {
+  tournament_id: string
+  category: string
+  player1_name: string
+  player1_id: string | null
+  player2_name: string
+  player2_id: string | null
+}
+
 async function upsertFipMatch(
   match: ParsedMatch,
   tournamentId: string,
   resolver: PlayerResolver,
   matchIndex: number,
+  draws: DrawRow[],
 ): Promise<'upserted' | 'skipped'> {
   const externalId = buildMatchExternalId(tournamentId, match, matchIndex)
 
   const { data: existing } = await supabase
     .from('matches')
-    .select('id, status, winner_pair, finished_at')
+    .select('id, status, winner_pair, finished_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
     .eq('external_id', externalId)
     .single()
 
-  // Skip only if fully complete: finished + has winner + has finished_at timestamp
-  if (existing?.status === 'finished' && existing.winner_pair !== null && existing.finished_at !== null) {
+  // Skip only if fully complete: finished + has winner + has finished_at + all 4 players resolved
+  const hasAllPlayers = existing?.pair1_player1_id && existing?.pair1_player2_id &&
+    existing?.pair2_player1_id && existing?.pair2_player2_id
+  if (existing?.status === 'finished' && existing.winner_pair !== null && existing.finished_at !== null && hasAllPlayers) {
     return 'skipped'
   }
 
   const [p1p1, p1p2, p2p1, p2p2] = await Promise.all([
-    resolvePlayer(resolver, match.team1.player1, match.category),
-    resolvePlayer(resolver, match.team1.player2, match.category),
-    resolvePlayer(resolver, match.team2.player1, match.category),
-    resolvePlayer(resolver, match.team2.player2, match.category),
+    resolvePlayer(resolver, match.team1.player1, match.category, tournamentId, draws),
+    resolvePlayer(resolver, match.team1.player2, match.category, tournamentId, draws),
+    resolvePlayer(resolver, match.team2.player1, match.category, tournamentId, draws),
+    resolvePlayer(resolver, match.team2.player2, match.category, tournamentId, draws),
   ])
 
   // Determine winner: from HTML first, then infer from sets
@@ -223,10 +243,24 @@ async function resolvePlayer(
   resolver: PlayerResolver,
   player: { firstName: string; lastName: string; country: string | null; seed: number | null },
   category: 'men' | 'women',
+  tournamentId: string,
+  draws: DrawRow[],
 ): Promise<string | null> {
   const fullName = `${player.firstName} ${player.lastName}`.trim()
   if (!fullName || fullName === '-') return null
 
+  // 1. Check draw table for pre-resolved player
+  for (const d of draws) {
+    if (d.tournament_id !== tournamentId || d.category !== category) continue
+    if (d.player1_id && tokenSimilarity(fullName, d.player1_name) >= 0.7) {
+      return d.player1_id
+    }
+    if (d.player2_id && tokenSimilarity(fullName, d.player2_name) >= 0.7) {
+      return d.player2_id
+    }
+  }
+
+  // 2. Fall back to PlayerResolver
   try {
     const { playerId } = await resolver.resolve({
       name: fullName,

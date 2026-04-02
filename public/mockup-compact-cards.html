@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Option C Iterations</title>
+<style>
+  :root {
+    --bg-base: #0d0d0d;
+    --bg-card: #161616;
+    --bg-card-alt: #1c1c1c;
+    --text-primary: #e8e8e8;
+    --text-secondary: #b0b0b0;
+    --text-muted: #787878;
+    --text-faint: #484848;
+    --text-dim: #585858;
+    --border-card: #252525;
+    --border-inner: #222222;
+    --border-strong: #333333;
+    --color-accent: #38c8ff;
+    --color-success: #34d399;
+    --color-men: #38c8ff;
+    --color-women: #f472b6;
+    --color-live: #ef4444;
+    --font-mono: 'SF Mono', 'Menlo', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; max-width: 420px; margin: 0 auto; }
+
+  h2 { color: var(--color-accent); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; margin: 30px 0 12px; font-weight: 800; }
+  h2:first-of-type { margin-top: 10px; }
+  .label { color: var(--text-muted); font-size: 10px; margin-bottom: 8px; font-weight: 600; letter-spacing: 0.3px; }
+  .section-divider { border: none; border-top: 1px solid var(--border-strong); margin: 30px 0; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-left: 3px solid var(--color-men);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .card.women { border-left-color: var(--color-women); }
+
+  .player { font-size: 12px; font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player.loser { color: var(--text-muted); font-weight: 600; }
+  .player.winner { font-weight: 700; }
+  .flag { margin-right: 3px; }
+
+  /* Individual set scores */
+  .set-score {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 900;
+    width: 16px;
+    text-align: center;
+    line-height: 1;
+  }
+  .set-score.bright { color: var(--text-primary); }
+  .set-score.dim { color: var(--text-dim); }
+
+  /* Left column */
+  .date-col {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 8px 10px; background: rgba(255,255,255,0.025); min-width: 56px;
+  }
+  .date-col .round { font-size: 10px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .date-col .divider { width: 28px; height: 1px; background: rgba(255,255,255,0.15); margin: 4px 0; }
+  .date-col .day { font-size: 18px; font-weight: 900; color: var(--text-primary); line-height: 1; font-family: var(--font-mono); }
+  .date-col .month { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+  .date-col .status { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<h2>Option C — No dashes, spaced scores</h2>
+<p class="label">Date with subtle background. Set scores as spaced numbers — no dashes or separators.</p>
+
+<div class="card">
+  <div style="display: flex;">
+    <!-- Date column with background -->
+    <div class="date-col">
+      <span class="round">SF</span>
+      <div class="divider"></div>
+      <span class="day">15</span>
+      <span class="month">MAR</span>
+      <div class="divider"></div>
+      <span class="status">FIN</span>
+    </div>
+    <div style="flex: 1; padding: 7px 10px 7px; min-width: 0;">
+      <div style="display: flex; align-items: center; border-bottom: 1px solid var(--border-inner); padding-bottom: 3px; margin-bottom: 3px;">
+        <div style="flex: 1; min-width: 0;">
+          <div class="player loser"><span class="flag">🇪🇸</span> F. Stupaczuk</div>
+          <div class="player loser" style="margin-top: 1px;"><span class="flag">🇪🇸</span> M. Yanguas</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 2px;">
+          <span class="set-score dim">2</span>
+          <span class="set-score dim">2</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center;">
+        <div style="flex: 1; min-width: 0;">
+          <div class="player winner"><span class="flag">🇪🇸</span> A. Galan</div>
+          <div class="player winner" style="margin-top: 1px;"><span class="flag">🇦🇷</span> F. Chingotto</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 2px;">
+          <span class="set-score bright">6</span>
+          <span class="set-score bright">6</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card women">
+  <div style="display: flex;">
+    <div class="date-col">
+      <span class="round">F</span>
+      <div class="divider"></div>
+      <span class="day">16</span>
+      <span class="month">MAR</span>
+      <div class="divider"></div>
+      <span class="status">FIN</span>
+    </div>
+    <div style="flex: 1; padding: 7px 10px 7px; min-width: 0;">
+      <div style="display: flex; align-items: center; border-bottom: 1px solid var(--border-inner); padding-bottom: 3px; margin-bottom: 3px;">
+        <div style="flex: 1; min-width: 0;">
+          <div class="player winner"><span class="flag">🇪🇸</span> A. Triay</div>
+          <div class="player winner" style="margin-top: 1px;"><span class="flag">🇪🇸</span> C. Fernandez</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 2px;">
+          <span class="set-score bright">6</span>
+          <span class="set-score dim">3</span>
+          <span class="set-score bright">6</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center;">
+        <div style="flex: 1; min-width: 0;">
+          <div class="player loser"><span class="flag">🇪🇸</span> P. Josemaria</div>
+          <div class="player loser" style="margin-top: 1px;"><span class="flag">🇪🇸</span> A. Sanchez</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 2px;">
+          <span class="set-score dim">4</span>
+          <span class="set-score bright">6</span>
+          <span class="set-score dim">2</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Multiple on same day -->
+<div class="card">
+  <div style="display: flex;">
+    <div class="date-col">
+      <span class="round">F</span>
+      <div class="divider"></div>
+      <span class="day">16</span>
+      <span class="month">MAR</span>
+      <div class="divider"></div>
+      <span class="status">FIN</span>
+    </div>
+    <div style="flex: 1; padding: 7px 10px 7px; min-width: 0;">
+      <div style="display: flex; align-items: center; border-bottom: 1px solid var(--border-inner); padding-bottom: 3px; margin-bottom: 3px;">
+        <div style="flex: 1; min-width: 0;">
+          <div class="player loser"><span class="flag">🇦🇷</span> M. Gonzalez</div>
+          <div class="player loser" style="margin-top: 1px;"><span class="flag">🇪🇸</span> J. Lebron</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 2px;">
+          <span class="set-score dim">4</span>
+          <span class="set-score bright">6</span>
+          <span class="set-score dim">3</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center;">
+        <div style="flex: 1; min-width: 0;">
+          <div class="player winner"><span class="flag">🇪🇸</span> A. Tapia</div>
+          <div class="player winner" style="margin-top: 1px;"><span class="flag">🇪🇸</span> A. Coello</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 2px;">
+          <span class="set-score bright">6</span>
+          <span class="set-score dim">3</span>
+          <span class="set-score bright">6</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<hr class="section-divider">
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<h2>Live Match — Option C style</h2>
+<p class="label">Date column replaced by live indicator for active matches.</p>
+
+<div class="card">
+  <div style="display: flex;">
+    <!-- Live indicator with round -->
+    <div class="date-col" style="background: rgba(239,68,68,0.05);">
+      <span class="round">QF</span>
+      <div class="divider"></div>
+      <div style="width: 9px; height: 9px; border-radius: 50%; background: var(--color-live); animation: pulse 2s infinite; margin-top: 3px;"></div>
+      <span style="font-size: 9px; font-weight: 800; color: var(--color-live); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px;">LIVE</span>
+    </div>
+    <div style="flex: 1; padding: 7px 10px 7px; min-width: 0;">
+      <div style="display: flex; align-items: center; border-bottom: 1px solid var(--border-inner); padding-bottom: 3px; margin-bottom: 3px;">
+        <div style="flex: 1; min-width: 0;">
+          <div class="player"><span class="flag">🇪🇸</span> A. Tapia</div>
+          <div class="player" style="margin-top: 1px;"><span class="flag">🇪🇸</span> A. Coello</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 2px;">
+          <span class="set-score bright">6</span>
+          <span class="set-score bright">3</span>
+          <div style="width: 1px; height: 22px; background: var(--border-strong);"></div>
+          <span style="font-family: var(--font-mono); font-size: 22px; font-weight: 900; color: var(--color-live);">30</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center;">
+        <div style="flex: 1; min-width: 0;">
+          <div class="player"><span class="flag">🇦🇷</span> M. Gonzalez</div>
+          <div class="player" style="margin-top: 1px;"><span class="flag">🇪🇸</span> J. Lebron</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-right: 2px;">
+          <span class="set-score dim">4</span>
+          <span class="set-score dim">4</span>
+          <div style="width: 1px; height: 22px; background: var(--border-strong);"></div>
+          <span style="font-family: var(--font-mono); font-size: 22px; font-weight: 900; color: var(--color-live);">15</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+</style>
+
+<div style="height: 40px;"></div>
+</body>
+</html>

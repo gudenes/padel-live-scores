@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Selector — Tab Concepts</title>
+<style>
+  :root {
+    --bg-base: #0F1923;
+    --bg-card: #172A3A;
+    --bg-card-alt: #1E3448;
+    --border-card: rgba(255,255,255,0.08);
+    --color-accent: #38C8FF;
+    --text-primary: #E2E8F0;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --text-faint: #475569;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #080C10;
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    display: flex;
+    gap: 30px;
+    padding: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .concept {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+    text-align: center;
+  }
+  .sublabel {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    max-width: 300px;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .frame {
+    width: 370px;
+    background: var(--bg-base);
+    border-radius: 20px;
+    overflow: hidden;
+    border: 2px solid #1a2a3a;
+    padding-bottom: 16px;
+  }
+  .header {
+    display: flex; align-items: center; justify-content: center;
+    padding: 14px; border-bottom: 0.5px solid rgba(255,255,255,0.06);
+  }
+  .section-preview {
+    padding: 14px 16px 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .section-count {
+    font-size: 10px; font-weight: 600; color: var(--text-faint);
+    background: var(--bg-card-alt); border-radius: 10px; padding: 2px 8px;
+  }
+  .card-preview {
+    margin: 10px 16px 0;
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ CONCEPT 1: Weighted Tabs ═══ -->
+<div class="concept">
+  <div class="label">1 — Weighted Tabs</div>
+  <div class="sublabel">Premier Padel takes more space and has the accent treatment. FIP Tour is visually secondary.</div>
+  <div class="frame">
+    <div class="header">
+      <span style="font-size:16px; font-weight:800; color:var(--color-accent);">PADEL<span style="color:#F59E0B">NACHO</span></span>
+    </div>
+    <!-- Weighted tabs -->
+    <div style="display: flex; gap: 6px; padding: 12px 16px 4px;">
+      <button style="flex: 2; padding: 10px 0; text-align: center; font-size: 13px; font-weight: 800; letter-spacing: 0.03em; border-radius: 10px; border: none; cursor: pointer; font-family: inherit; background: var(--color-accent); color: #000;">
+        Premier Padel
+      </button>
+      <button style="flex: 1; padding: 10px 0; text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; border-radius: 10px; border: 1px solid var(--border-card); cursor: pointer; font-family: inherit; background: var(--bg-card-alt); color: var(--text-muted);">
+        FIP Tour
+      </button>
+    </div>
+    <div class="section-preview">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="section-title">Upcoming</span>
+      <span class="section-count">20 events</span>
+    </div>
+    <div class="card-preview">Content appears here...</div>
+  </div>
+</div>
+
+<!-- ═══ CONCEPT 2: Hero Label + Chip Toggle ═══ -->
+<div class="concept">
+  <div class="label">2 — Hero Label + Chip</div>
+  <div class="sublabel">Premier Padel is the page identity. FIP Tour is a small chip you can tap to switch context.</div>
+  <div class="frame">
+    <div class="header">
+      <span style="font-size:16px; font-weight:800; color:var(--color-accent);">PADEL<span style="color:#F59E0B">NACHO</span></span>
+    </div>
+    <!-- Hero label with chip -->
+    <div style="padding: 16px 16px 4px; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <h1 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0;">Premier Padel</h1>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">2026 Season</div>
+      </div>
+      <button style="padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--bg-card-alt); color: var(--text-muted); border: 1px solid var(--border-card); white-space: nowrap;">
+        FIP Tour
+      </button>
+    </div>
+    <div class="section-preview">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="section-title">Upcoming</span>
+      <span class="section-count">20 events</span>
+    </div>
+    <div class="card-preview">Content appears here...</div>
+  </div>
+</div>
+
+<!-- ═══ CONCEPT 3: Segmented with Logo ═══ -->
+<div class="concept">
+  <div class="label">3 — Segmented + Logo Mark</div>
+  <div class="sublabel">Equal tabs but Premier Padel gets a subtle crown/star icon to signal premium tier.</div>
+  <div class="frame">
+    <div class="header">
+      <span style="font-size:16px; font-weight:800; color:var(--color-accent);">PADEL<span style="color:#F59E0B">NACHO</span></span>
+    </div>
+    <!-- Segmented control with icon -->
+    <div style="display: flex; margin: 12px 16px 4px; background: var(--bg-card-alt); border-radius: 12px; padding: 3px; border: 1px solid var(--border-card);">
+      <button style="flex: 1; padding: 9px 0; text-align: center; font-size: 12px; font-weight: 700; border-radius: 10px; border: none; cursor: pointer; font-family: inherit; background: var(--color-accent); color: #000; display: flex; align-items: center; justify-content: center; gap: 5px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#000" stroke="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+        Premier Padel
+      </button>
+      <button style="flex: 1; padding: 9px 0; text-align: center; font-size: 12px; font-weight: 600; border-radius: 10px; border: none; cursor: pointer; font-family: inherit; background: transparent; color: var(--text-muted);">
+        FIP Tour
+      </button>
+    </div>
+    <div class="section-preview">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="section-title">Upcoming</span>
+      <span class="section-count">20 events</span>
+    </div>
+    <div class="card-preview">Content appears here...</div>
+  </div>
+</div>
+
+<!-- ═══ CONCEPT 4: Dropdown Tuck-away ═══ -->
+<div class="concept">
+  <div class="label">4 — Dropdown Tuck-away</div>
+  <div class="sublabel">No tabs. Premier Padel is the default. A subtle dropdown lets power users switch to FIP Tour.</div>
+  <div class="frame">
+    <div class="header">
+      <span style="font-size:16px; font-weight:800; color:var(--color-accent);">PADEL<span style="color:#F59E0B">NACHO</span></span>
+    </div>
+    <!-- Title with dropdown trigger -->
+    <div style="padding: 14px 16px 4px; display: flex; align-items: center; gap: 6px;">
+      <button style="display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; font-family: inherit; padding: 0;">
+        <h1 style="font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0;">Events</h1>
+        <div style="display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; background: rgba(56,200,255,0.1); border: 1px solid rgba(56,200,255,0.2);">
+          <span style="font-size: 11px; font-weight: 700; color: var(--color-accent);">Premier Padel</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </button>
+    </div>
+    <div class="section-preview">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="section-title">Upcoming</span>
+      <span class="section-count">20 events</span>
+    </div>
+    <div class="card-preview">Content appears here...</div>
+
+    <!-- Simulated expanded dropdown state -->
+    <div style="margin: 12px 16px; padding: 8px; border-radius: 12px; background: var(--bg-card); border: 1px solid rgba(56,200,255,0.2); box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+      <div style="font-size: 9px; font-weight: 700; color: var(--text-faint); padding: 4px 8px; text-transform: uppercase; letter-spacing: 0.06em;">Switch circuit</div>
+      <div style="padding: 8px; border-radius: 8px; background: rgba(56,200,255,0.08); display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--color-accent)" stroke="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+        <span style="font-size: 13px; font-weight: 700; color: var(--color-accent);">Premier Padel</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.5" stroke-linecap="round" style="margin-left: auto;"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div style="padding: 8px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+        <div style="width: 12px; height: 12px; border-radius: 50%; background: var(--bg-card-alt); border: 1.5px solid var(--text-faint);"></div>
+        <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">FIP Tour</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONCEPT 5: Underline Tabs with Emphasis ═══ -->
+<div class="concept">
+  <div class="label">5 — Underline with Glow</div>
+  <div class="sublabel">Clean underline tabs. Premier Padel gets a glowing accent underline and bolder text. FIP Tour is understated.</div>
+  <div class="frame">
+    <div class="header">
+      <span style="font-size:16px; font-weight:800; color:var(--color-accent);">PADEL<span style="color:#F59E0B">NACHO</span></span>
+    </div>
+    <!-- Underline tabs -->
+    <div style="display: flex; padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <button style="flex: 1; padding: 12px 0 10px; text-align: center; font-size: 14px; font-weight: 800; border: none; cursor: pointer; font-family: inherit; background: transparent; color: var(--color-accent); position: relative;">
+        Premier Padel
+        <div style="position: absolute; bottom: -1px; left: 10%; right: 10%; height: 3px; border-radius: 3px; background: var(--color-accent); box-shadow: 0 0 12px rgba(56,200,255,0.5);"></div>
+      </button>
+      <button style="flex: 1; padding: 12px 0 10px; text-align: center; font-size: 12px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; background: transparent; color: var(--text-faint);">
+        FIP Tour
+      </button>
+    </div>
+    <div class="section-preview">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="section-title">Upcoming</span>
+      <span class="section-count">20 events</span>
+    </div>
+    <div class="card-preview">Content appears here...</div>
+  </div>
+</div>
+
+<!-- ═══ CONCEPT 6: Floating Chip Row ═══ -->
+<div class="concept">
+  <div class="label">6 — Floating Chips</div>
+  <div class="sublabel">Premier Padel is a bold accent chip. FIP levels (Platinum, Gold) appear as secondary chips — all in one row.</div>
+  <div class="frame">
+    <div class="header">
+      <span style="font-size:16px; font-weight:800; color:var(--color-accent);">PADEL<span style="color:#F59E0B">NACHO</span></span>
+    </div>
+    <!-- Chip row -->
+    <div style="display: flex; gap: 6px; padding: 12px 16px 4px; overflow-x: auto;">
+      <button style="padding: 8px 18px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; background: var(--color-accent); color: #000; border: none; white-space: nowrap; box-shadow: 0 2px 8px rgba(56,200,255,0.3);">
+        Premier Padel
+      </button>
+      <button style="padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--bg-card-alt); color: var(--text-muted); border: 1px solid var(--border-card); white-space: nowrap;">
+        FIP Platinum
+      </button>
+      <button style="padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--bg-card-alt); color: var(--text-muted); border: 1px solid var(--border-card); white-space: nowrap;">
+        FIP Gold
+      </button>
+      <button style="padding: 8px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; background: var(--bg-card-alt); color: var(--text-muted); border: 1px solid var(--border-card); white-space: nowrap;">
+        FIP Tour
+      </button>
+    </div>
+    <div class="section-preview">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="section-title">Upcoming</span>
+      <span class="section-count">20 events</span>
+    </div>
+    <div class="card-preview">Content appears here...</div>
+  </div>
+</div>
+
+</body>
+</html>

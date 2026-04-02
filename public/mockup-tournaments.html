@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tournaments Page — Mockup</title>
+<style>
+  :root {
+    --bg-base: #020C18;
+    --bg-card: #061422;
+    --bg-card-alt: #040E1C;
+    --border-base: #0E2438;
+    --border-card: #132C46;
+    --border-strong: #1C3D5C;
+    --text-primary: #EEE4CE;
+    --text-secondary: #9AAEC4;
+    --text-muted: #4E6E8A;
+    --text-faint: #1A3450;
+    --color-accent: #38C8FF;
+    --color-accent-bg: rgba(56,200,255,0.08);
+    --color-accent-border: rgba(56,200,255,0.25);
+    --color-live: #FF4655;
+    --color-live-bg: rgba(255,70,85,0.10);
+    --color-live-border: rgba(255,70,85,0.35);
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    max-width: 500px;
+    margin: 0 auto;
+    padding-bottom: 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Header ───────────────────────────────────── */
+  .header {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-base);
+    border-bottom: 0.5px solid rgba(255,255,255,0.04);
+  }
+  .header-logo { height: 26px; opacity: 0.9; }
+  .header-search {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    background: var(--bg-card-alt); border: 1px solid var(--border-card);
+    border-radius: 10px; padding: 8px 12px; cursor: pointer;
+  }
+  .header-search span { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .header-profile {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--bg-card); border: 1px solid var(--border-card);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Tab bar (Premier Padel / FIP Tour) ──────── */
+  .tab-bar {
+    display: flex; gap: 4px; padding: 12px 16px 4px;
+    background: var(--bg-base);
+  }
+  .tab {
+    flex: 1; padding: 8px 0; text-align: center;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
+    border-radius: 8px; cursor: pointer; border: none;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .tab.active {
+    background: var(--color-accent); color: #000;
+  }
+  .tab.inactive {
+    background: var(--bg-card-alt); color: var(--text-muted);
+    border: 1px solid var(--border-card);
+  }
+
+  /* ── Section headers ─────────────────────────── */
+  .section-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 16px 16px 10px;
+  }
+  .section-icon { font-size: 12px; }
+  .section-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .section-count {
+    font-size: 10px; font-weight: 600; color: var(--text-faint);
+    background: var(--bg-card-alt); border-radius: 10px;
+    padding: 2px 8px;
+  }
+
+  /* ── Live hero card ──────────────────────────── */
+  .live-hero {
+    margin: 0 16px; border-radius: 14px; padding: 16px 18px;
+    background: linear-gradient(135deg, var(--bg-card) 0%, rgba(255,70,85,0.06) 100%);
+    border: 1px solid var(--color-live-border);
+    position: relative; overflow: hidden; cursor: pointer;
+  }
+  .live-hero .glow {
+    position: absolute; top: -30px; right: -30px;
+    width: 100px; height: 100px; border-radius: 50%;
+    background: rgba(255,70,85,0.08); filter: blur(30px);
+  }
+  .live-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--color-live-bg); border-radius: 6px;
+    padding: 3px 10px; font-size: 10px; font-weight: 700;
+    color: var(--color-live); letter-spacing: 0.04em;
+    margin-bottom: 10px;
+  }
+  .live-badge .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-live);
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .live-hero h3 { font-size: 17px; font-weight: 800; margin-bottom: 4px; position: relative; }
+  .live-hero .meta { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; position: relative; }
+  .live-hero .details { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; align-items: center; gap: 8px; position: relative; }
+  .live-hero .round-badge {
+    font-size: 10px; font-weight: 700; color: var(--color-live);
+    background: var(--color-live-bg); border-radius: 4px; padding: 2px 6px;
+  }
+  .live-cta {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 12px; padding: 6px 14px; border-radius: 8px;
+    background: rgba(255,70,85,0.12); border: 1px solid rgba(255,70,85,0.25);
+    font-size: 11px; font-weight: 700; color: var(--color-live);
+    position: relative;
+  }
+
+  /* ── 2-col grid ──────────────────────────────── */
+  .grid-2 {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; padding: 0 16px;
+  }
+
+  /* ── Upcoming card ───────────────────────────── */
+  .upcoming-card {
+    border-radius: 12px; padding: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    cursor: pointer; position: relative; overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .upcoming-card:hover { border-color: var(--border-strong); }
+  .upcoming-card .flag { font-size: 20px; margin-bottom: 8px; display: block; }
+  .upcoming-card .name {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    margin-bottom: 2px; line-height: 1.2;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .upcoming-card .location {
+    font-size: 11px; color: var(--text-muted); margin-bottom: 8px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .upcoming-card .date {
+    font-size: 10px; color: var(--text-secondary); font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .upcoming-card .footer { display: flex; justify-content: space-between; align-items: center; }
+  .level-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 5px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .level-finals { background: rgba(245,158,11,0.12); color: #F59E0B; }
+  .level-major { background: rgba(168,85,247,0.12); color: #A855F7; }
+  .level-p1 { background: var(--color-accent-bg); color: var(--color-accent); }
+  .level-p2 { background: rgba(129,140,248,0.12); color: #818CF8; }
+  .level-fip { background: rgba(34,197,94,0.12); color: #22c55e; }
+  .countdown {
+    font-size: 10px; font-weight: 700; color: var(--color-accent);
+    font-family: var(--font-mono);
+  }
+
+  /* ── Completed list rows ─────────────────────── */
+  .completed-list { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+  .completed-row {
+    padding: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .completed-top {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .completed-flag { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+  .completed-info { flex: 1; min-width: 0; }
+  .completed-name {
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .completed-details {
+    font-size: 11px; color: var(--text-muted); margin-top: 2px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .winners-section {
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid var(--border-base);
+  }
+  .winners-label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-faint); margin-bottom: 6px;
+  }
+  .winners-grid {
+    display: flex; gap: 12px;
+  }
+  .winner-entry {
+    flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0;
+  }
+  .winner-entry .photo-stack {
+    display: flex; flex-shrink: 0;
+  }
+  .winner-entry .photo-stack img {
+    width: 24px; height: 24px; border-radius: 50%;
+    object-fit: cover; border: 1.5px solid var(--bg-base);
+    background: var(--bg-card-alt);
+  }
+  .winner-entry .photo-stack img:not(:first-child) { margin-left: -8px; }
+  .winner-names {
+    display: flex; flex-direction: column; min-width: 0;
+  }
+  .winner-names .cat-label {
+    font-size: 8px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .winner-names .cat-label.men { color: #5BA8FF; }
+  .winner-names .cat-label.women { color: #F472B6; }
+  .winner-names .names {
+    font-size: 10px; color: var(--text-secondary); font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .chevron { color: var(--text-faint); font-size: 14px; flex-shrink: 0; }
+
+  /* ── FIP tab content ─────────────────────────── */
+  .fip-filter-row {
+    display: flex; gap: 6px; padding: 12px 16px 8px;
+    overflow-x: auto;
+  }
+  .fip-chip {
+    padding: 5px 12px; border-radius: 20px; white-space: nowrap;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border-card); font-family: inherit;
+  }
+  .fip-chip.active {
+    background: var(--color-accent); color: #000; border-color: var(--color-accent);
+  }
+  .fip-chip.inactive {
+    background: var(--bg-card-alt); color: var(--text-muted);
+  }
+
+  /* ── Bottom nav ──────────────────────────────── */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 500px;
+    background: var(--bg-base); border-top: 0.5px solid var(--border-base);
+    display: flex; z-index: 20;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 4px; padding: 12px 4px 14px; text-decoration: none;
+    border-top: 2px solid transparent;
+  }
+  .nav-item.active { border-top-color: var(--color-accent); }
+  .nav-label {
+    font-size: 10px; font-weight: 700;
+    color: var(--text-faint);
+  }
+  .nav-item.active .nav-label { color: var(--color-accent); }
+
+  /* ── Utilities ───────────────────────────────── */
+  .hidden { display: none; }
+  .fade-in { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<!-- ─── HEADER ────────────────────────────────────────────── -->
+<div class="header">
+  <div style="font-size: 18px; font-weight: 800; color: var(--text-primary); opacity: 0.9;">
+    <span style="color: var(--color-accent);">P</span>adel<span style="color: var(--color-accent);">N</span>achos
+  </div>
+  <div class="header-search">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4E6E8A" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <span>Search players, tournaments...</span>
+  </div>
+  <div class="header-profile">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4E6E8A" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+  </div>
+</div>
+
+<!-- ─── TABS: Premier Padel / FIP Tour ────────────────────── -->
+<div class="tab-bar">
+  <button class="tab active" id="tab-premier" onclick="switchTab('premier')">Premier Padel</button>
+  <button class="tab inactive" id="tab-fip" onclick="switchTab('fip')">FIP Tour</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  PREMIER PADEL TAB                                        -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="panel-premier">
+
+  <!-- ─── LIVE NOW ──────────────────────────────────────── -->
+  <div class="section-header">
+    <div class="live-badge" style="margin-bottom: 0;">
+      <div class="dot"></div> LIVE
+    </div>
+  </div>
+
+  <div class="live-hero">
+    <div class="glow"></div>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+      <div>
+        <h3>🇺🇸 Miami P1 2026</h3>
+        <div class="meta"><span>Miami, FL</span></div>
+        <div class="details">
+          <span>Mar 24 - Mar 30, 2026</span>
+          <span style="color: var(--text-secondary); font-weight: 600;">· $250,000</span>
+        </div>
+      </div>
+      <div class="round-badge">FINALS</div>
+    </div>
+    <div class="live-cta">
+      View Matches
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+
+  <!-- ─── UPCOMING ──────────────────────────────────────── -->
+  <div class="section-header">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4E6E8A" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    <span class="section-title">Upcoming</span>
+    <span class="section-count">6 events</span>
+  </div>
+
+  <div class="grid-2">
+    <div class="upcoming-card">
+      <span class="flag">🇪🇸</span>
+      <div class="name">Barcelona Finals</div>
+      <div class="location">Barcelona, Spain</div>
+      <div class="date">Dec 7 - Dec 13, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-finals">FINALS</span>
+        <span class="countdown">252d</span>
+      </div>
+    </div>
+
+    <div class="upcoming-card">
+      <span class="flag">🇲🇽</span>
+      <div class="name">Mexico Major</div>
+      <div class="location">Mexico City</div>
+      <div class="date">Nov 23 - Nov 29, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-major">MAJOR</span>
+        <span class="countdown">238d</span>
+      </div>
+    </div>
+
+    <div class="upcoming-card">
+      <span class="flag">🇫🇷</span>
+      <div class="name">Roland Garros Major</div>
+      <div class="location">Paris, France</div>
+      <div class="date">May 5 - May 11, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-major">MAJOR</span>
+        <span class="countdown">36d</span>
+      </div>
+    </div>
+
+    <div class="upcoming-card">
+      <span class="flag">🇮🇹</span>
+      <div class="name">Rome P1</div>
+      <div class="location">Rome, Italy</div>
+      <div class="date">May 19 - May 25, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-p1">P1</span>
+        <span class="countdown">50d</span>
+      </div>
+    </div>
+
+    <div class="upcoming-card">
+      <span class="flag">🇸🇪</span>
+      <div class="name">Stockholm P2</div>
+      <div class="location">Stockholm</div>
+      <div class="date">Jun 2 - Jun 8, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-p2">P2</span>
+        <span class="countdown">64d</span>
+      </div>
+    </div>
+
+    <div class="upcoming-card">
+      <span class="flag">🇬🇧</span>
+      <div class="name">London P1</div>
+      <div class="location">London, UK</div>
+      <div class="date">Jun 16 - Jun 22, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-p1">P1</span>
+        <span class="countdown">78d</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── COMPLETED ─────────────────────────────────────── -->
+  <div class="section-header">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4E6E8A" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <span class="section-title">Completed</span>
+    <span class="section-count">2026 Season</span>
+  </div>
+
+  <div class="completed-list">
+    <div class="completed-row">
+      <div class="completed-top">
+        <div class="completed-flag">🇶🇦</div>
+        <div class="completed-info">
+          <div class="completed-name">Doha P1</div>
+          <div class="completed-details"><span>Mar 17 - Mar 23</span><span>· Doha, Qatar</span></div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="winners-section">
+        <div class="winners-label">Winners</div>
+        <div class="winners-grid">
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/tapia.png" alt="Tapia">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/coello.png" alt="Coello">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label men">Men</span>
+              <span class="names">Tapia / Coello</span>
+            </div>
+          </div>
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/brea.png" alt="Brea">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/triay.png" alt="Triay">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label women">Women</span>
+              <span class="names">Brea / Triay</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="completed-row">
+      <div class="completed-top">
+        <div class="completed-flag">🇦🇪</div>
+        <div class="completed-info">
+          <div class="completed-name">Dubai P2</div>
+          <div class="completed-details"><span>Mar 10 - Mar 16</span><span>· Dubai, UAE</span></div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="winners-section">
+        <div class="winners-label">Winners</div>
+        <div class="winners-grid">
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/chingotto.png" alt="Chingotto">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/galan.png" alt="Galan">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label men">Men</span>
+              <span class="names">Chingotto / Galan</span>
+            </div>
+          </div>
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/salazar.png" alt="Salazar">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/josemaria.png" alt="Josemaria">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label women">Women</span>
+              <span class="names">Salazar / Josemaria</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="completed-row">
+      <div class="completed-top">
+        <div class="completed-flag">🇰🇼</div>
+        <div class="completed-info">
+          <div class="completed-name">Kuwait P1</div>
+          <div class="completed-details"><span>Mar 3 - Mar 9</span><span>· Kuwait City</span></div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="winners-section">
+        <div class="winners-label">Winners</div>
+        <div class="winners-grid">
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/lebron.png" alt="Lebron">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/augsburger.png" alt="Augsburger">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label men">Men</span>
+              <span class="names">Lebron / Augsburger</span>
+            </div>
+          </div>
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img style="background: #2a1a2a;" alt="Ortega">
+              <img style="background: #2a1a2a;" alt="Navarro">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label women">Women</span>
+              <span class="names">Ortega / Navarro</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="completed-row">
+      <div class="completed-top">
+        <div class="completed-flag">🇧🇭</div>
+        <div class="completed-info">
+          <div class="completed-name">Bahrain Major</div>
+          <div class="completed-details"><span>Feb 24 - Mar 2</span><span>· Manama</span></div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="winners-section">
+        <div class="winners-label">Winners</div>
+        <div class="winners-grid">
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/tapia.png" alt="Tapia">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/coello.png" alt="Coello">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label men">Men</span>
+              <span class="names">Tapia / Coello</span>
+            </div>
+          </div>
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/brea.png" alt="Brea">
+              <img src="https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/triay.png" alt="Triay">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label women">Women</span>
+              <span class="names">Brea / Triay</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="completed-row">
+      <div class="completed-top">
+        <div class="completed-flag">🇦🇷</div>
+        <div class="completed-info">
+          <div class="completed-name">Buenos Aires P1</div>
+          <div class="completed-details"><span>Feb 17 - Feb 23</span><span>· Buenos Aires</span></div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="winners-section">
+        <div class="winners-label">Winners</div>
+        <div class="winners-grid">
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img style="background: #1a2a3a;" alt="Di Nenno">
+              <img style="background: #1a2a3a;" alt="Belasteguin">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label men">Men</span>
+              <span class="names">Di Nenno / Belasteguin</span>
+            </div>
+          </div>
+          <div class="winner-entry">
+            <div class="photo-stack">
+              <img style="background: #2a1a2a;" alt="Salazar">
+              <img style="background: #2a1a2a;" alt="Josemaria">
+            </div>
+            <div class="winner-names">
+              <span class="cat-label women">Women</span>
+              <span class="names">Salazar / Josemaria</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  FIP TOUR TAB                                             -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="panel-fip" class="hidden">
+
+  <!-- ─── Level filter chips ────────────────────────────── -->
+  <div class="fip-filter-row">
+    <button class="fip-chip active" onclick="setFipFilter(this)">All</button>
+    <button class="fip-chip inactive" onclick="setFipFilter(this)">Platinum</button>
+    <button class="fip-chip inactive" onclick="setFipFilter(this)">Gold</button>
+    <button class="fip-chip inactive" onclick="setFipFilter(this)">Silver</button>
+    <button class="fip-chip inactive" onclick="setFipFilter(this)">Rise</button>
+  </div>
+
+  <!-- ─── Upcoming FIP ──────────────────────────────────── -->
+  <div class="section-header">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4E6E8A" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    <span class="section-title">Upcoming</span>
+    <span class="section-count">12 events</span>
+  </div>
+
+  <div class="grid-2">
+    <div class="upcoming-card">
+      <span class="flag">🇲🇽</span>
+      <div class="name">FIP Platinum Mexico</div>
+      <div class="location">Cancun, Mexico</div>
+      <div class="date">Nov 16 - Nov 22, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-fip">PLATINUM</span>
+        <span class="countdown">231d</span>
+      </div>
+    </div>
+
+    <div class="upcoming-card">
+      <span class="flag">🇧🇷</span>
+      <div class="name">FIP Gold Brazil</div>
+      <div class="location">Sao Paulo</div>
+      <div class="date">Apr 14 - Apr 20, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-fip">GOLD</span>
+        <span class="countdown">15d</span>
+      </div>
+    </div>
+
+    <div class="upcoming-card">
+      <span class="flag">🇵🇹</span>
+      <div class="name">FIP Platinum Portugal</div>
+      <div class="location">Lisbon</div>
+      <div class="date">Apr 21 - Apr 27, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-fip">PLATINUM</span>
+        <span class="countdown">22d</span>
+      </div>
+    </div>
+
+    <div class="upcoming-card">
+      <span class="flag">🇩🇪</span>
+      <div class="name">FIP Gold Germany</div>
+      <div class="location">Berlin</div>
+      <div class="date">May 4 - May 10, 2026</div>
+      <div class="footer">
+        <span class="level-pill level-fip">GOLD</span>
+        <span class="countdown">35d</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Completed FIP ─────────────────────────────────── -->
+  <div class="section-header">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4E6E8A" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <span class="section-title">Completed</span>
+  </div>
+
+  <div class="completed-list">
+    <div class="completed-row">
+      <div class="completed-top">
+        <div class="completed-flag">🇪🇸</div>
+        <div class="completed-info">
+          <div class="completed-name">FIP Platinum Spain</div>
+          <div class="completed-details"><span>Mar 10 - Mar 16</span><span>· Madrid</span></div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="winners-section">
+        <div class="winners-label">Winners</div>
+        <div class="winners-grid">
+          <div class="winner-entry">
+            <div class="photo-stack"><img style="background: #1a2a3a;" alt="Garcia"><img style="background: #1a2a3a;" alt="Santos"></div>
+            <div class="winner-names"><span class="cat-label men">Men</span><span class="names">Garcia / Santos</span></div>
+          </div>
+          <div class="winner-entry">
+            <div class="photo-stack"><img style="background: #2a1a2a;" alt="Martinez"><img style="background: #2a1a2a;" alt="Lopez"></div>
+            <div class="winner-names"><span class="cat-label women">Women</span><span class="names">Martinez / Lopez</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="completed-row">
+      <div class="completed-top">
+        <div class="completed-flag">🇦🇷</div>
+        <div class="completed-info">
+          <div class="completed-name">FIP Gold Argentina</div>
+          <div class="completed-details"><span>Mar 3 - Mar 9</span><span>· Rosario</span></div>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+      <div class="winners-section">
+        <div class="winners-label">Winners</div>
+        <div class="winners-grid">
+          <div class="winner-entry">
+            <div class="photo-stack"><img style="background: #1a2a3a;" alt="Fernandez"><img style="background: #1a2a3a;" alt="Ruiz"></div>
+            <div class="winner-names"><span class="cat-label men">Men</span><span class="names">Fernandez / Ruiz</span></div>
+          </div>
+          <div class="winner-entry">
+            <div class="photo-stack"><img style="background: #2a1a2a;" alt="Alvarez"><img style="background: #2a1a2a;" alt="Riera"></div>
+            <div class="winner-names"><span class="cat-label women">Women</span><span class="names">Alvarez / Riera</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── BOTTOM NAV ──────────────────────────────────────── -->
+<nav class="bottom-nav">
+  <a class="nav-item" href="#">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A3450" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span class="nav-label">Home</span>
+  </a>
+  <a class="nav-item" href="#">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A3450" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    <span class="nav-label">Matches</span>
+  </a>
+  <a class="nav-item" href="#">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A3450" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1" fill="#1A3450"/></svg>
+    <span class="nav-label">Feed</span>
+  </a>
+  <a class="nav-item" href="#">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1A3450" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+    <span class="nav-label">Ranking</span>
+  </a>
+  <a class="nav-item active" href="#">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38C8FF" stroke-width="2" stroke-linecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    <span class="nav-label" style="color: var(--color-accent);">Tournaments</span>
+  </a>
+</nav>
+
+<script>
+function switchTab(tab) {
+  const premierTab = document.getElementById('tab-premier');
+  const fipTab = document.getElementById('tab-fip');
+  const premierPanel = document.getElementById('panel-premier');
+  const fipPanel = document.getElementById('panel-fip');
+
+  if (tab === 'premier') {
+    premierTab.className = 'tab active';
+    fipTab.className = 'tab inactive';
+    premierPanel.className = 'fade-in';
+    fipPanel.className = 'hidden';
+  } else {
+    premierTab.className = 'tab inactive';
+    fipTab.className = 'tab active';
+    premierPanel.className = 'hidden';
+    fipPanel.className = 'fade-in';
+  }
+}
+
+function setFipFilter(el) {
+  document.querySelectorAll('.fip-chip').forEach(c => c.className = 'fip-chip inactive');
+  el.className = 'fip-chip active';
+}
+</script>
+
+</body>
+</html>

@@ -81,7 +81,7 @@ function tokens(name: string): Set<string> {
   return new Set(normalize(name).split(' ').filter(t => t.length > 1))
 }
 
-function tokenSimilarity(a: string, b: string): number {
+export function tokenSimilarity(a: string, b: string): number {
   const ta = tokens(a)
   const tb = tokens(b)
   if (ta.size === 0 || tb.size === 0) return 0
@@ -100,6 +100,8 @@ interface CachedPlayer {
   name: string
   country: string | null
   category: string | null
+  ranking: number | null
+  points: number | null
 }
 
 export class PlayerResolver {
@@ -123,7 +125,7 @@ export class PlayerResolver {
     while (true) {
       const { data, error } = await this.supabase
         .from('players')
-        .select('id, external_id, fip_id, name, country, category')
+        .select('id, external_id, fip_id, name, country, category, ranking, points')
         .range(offset, offset + PAGE_SIZE - 1)
 
       if (error || !data) {
@@ -144,6 +146,8 @@ export class PlayerResolver {
         name: p.name,
         country: p.country,
         category: p.category,
+        ranking: p.ranking ?? null,
+        points: p.points ?? null,
       }
       if (p.external_id) this.byExternalId.set(p.external_id, cached)
       if (p.fip_id) this.byFipId.set(p.fip_id, cached)
@@ -185,24 +189,53 @@ export class PlayerResolver {
       existing = this.byExternalId.get(input.externalId) ?? null
     }
 
-    // 3. Exact normalized name match (prefer same category)
+    // 3. Exact normalized name match (prefer same category, disambiguate by ranking/points)
     if (!existing) {
       const norm = normalize(input.name)
       const candidates = this.byNormalizedName.get(norm)
       if (candidates) {
-        // Prefer same category
-        existing = candidates.find(c => c.category === input.category) ?? candidates[0]
+        // Filter to same category if available
+        const sameCat = input.category
+          ? candidates.filter(c => c.category === input.category)
+          : candidates
+        const pool = sameCat.length > 0 ? sameCat : candidates
+
+        if (pool.length === 1) {
+          existing = pool[0]
+        } else if (pool.length > 1 && (input.ranking != null || input.points != null)) {
+          // 3b. Disambiguate by ranking+points proximity
+          let bestDistance = Infinity
+          for (const c of pool) {
+            if (c.ranking == null && c.points == null) continue
+            const rDist = (input.ranking != null && c.ranking != null)
+              ? Math.abs(input.ranking - c.ranking) / Math.max(input.ranking, c.ranking, 1)
+              : 0.5
+            const pDist = (input.points != null && c.points != null)
+              ? Math.abs(input.points - c.points) / Math.max(input.points, c.points, 1)
+              : 0.5
+            const dist = (rDist + pDist) / 2
+            if (dist < bestDistance) {
+              bestDistance = dist
+              existing = c
+            }
+          }
+          // If best distance > 0.5, none are close — don't pick a bad match
+          if (bestDistance > 0.5) existing = null
+        } else if (pool.length > 1) {
+          // No ranking/points to disambiguate — pick first (existing behavior)
+          existing = pool[0]
+        }
       }
     }
 
-    // 4. Fuzzy name match (token overlap ≥ 0.9, same category)
+    // 4. Fuzzy name match (token overlap ≥ 0.7, same category)
     if (!existing && input.category) {
       let bestScore = 0
       for (const [, players] of this.byNormalizedName) {
         for (const p of players) {
           if (p.category !== input.category) continue
           const sim = tokenSimilarity(input.name, p.name)
-          if (sim >= 0.9 && sim > bestScore) {
+          if (sim >= 0.7 && sim > bestScore) {
             // Extra check: if both have country, they must match
             if (input.country && p.country && input.country !== p.country) continue
             bestScore = sim
@@ -231,6 +264,9 @@ export class PlayerResolver {
           existing.fipId = updates.fip_id
           this.byFipId.set(updates.fip_id, existing)
         }
+        // Keep ranking/points in sync so disambiguation works within a session
+        if (input.ranking != null) existing.ranking = input.ranking
+        if (input.points != null) existing.points = input.points
 
         return { playerId: existing.id, action: 'enriched' }
       }
@@ -285,7 +321,7 @@ export class PlayerResolver {
       let fallback: { id: string } | null = null
       const { data: f1 } = await this.supabase
         .from('players')
-        .select('id, external_id, fip_id, name, country, category')
+        .select('id, external_id, fip_id, name, country, category, ranking, points')
         .eq('external_id', insertData.external_id)
         .single()
       fallback = f1
@@ -293,7 +329,7 @@ export class PlayerResolver {
       if (!fallback && insertData.fip_id) {
         const { data: f2 } = await this.supabase
           .from('players')
-          .select('id, external_id, fip_id, name, country, category')
+          .select('id, external_id, fip_id, name, country, category, ranking, points')
           .eq('fip_id', insertData.fip_id)
           .single()
         fallback = f2
@@ -308,6 +344,8 @@ export class PlayerResolver {
           name: (fallback as any).name ?? input.name,
           country: (fallback as any).country ?? null,
           category: (fallback as any).category ?? null,
+          ranking: (fallback as any).ranking ?? null,
+          points: (fallback as any).points ?? null,
         }
         if (cached.externalId) this.byExternalId.set(cached.externalId, cached)
         if (cached.fipId) this.byFipId.set(cached.fipId, cached)
@@ -329,6 +367,8 @@ export class PlayerResolver {
       name: input.name,
       country: input.country ?? null,
       category: input.category ?? null,
+      ranking: input.ranking ?? null,
+      points: input.points ?? null,
     }
     this.byExternalId.set(insertData.external_id, cached)
     if (insertData.fip_id) this.byFipId.set(insertData.fip_id, cached)
@@ -337,6 +377,16 @@ export class PlayerResolver {
     this.byNormalizedName.get(norm)!.push(cached)
 
     return { playerId: data.id, action: 'created' }
+  }
+
+  /** Find a cached player by DB id (for post-enrichment cache updates). */
+  private findCachedById(id: string): CachedPlayer | null {
+    for (const [, players] of this.byNormalizedName) {
+      for (const p of players) {
+        if (p.id === id) return p
+      }
+    }
+    return null
   }
 
   /** Build update object to enrich existing player with new non-null data. */
@@ -410,6 +460,13 @@ export class PlayerResolver {
         .from('players')
         .update(enrichFields)
         .eq('id', result.playerId)
+
+      // Update cached player ranking/points so disambiguation works within this session
+      const cached = this.findCachedById(result.playerId)
+      if (cached) {
+        if (input.ranking != null) cached.ranking = input.ranking
+        if (input.points != null) cached.points = input.points
+      }
     }
 
     return { playerId: result.playerId, action: result.action === 'created' ? 'created' : 'enriched' }

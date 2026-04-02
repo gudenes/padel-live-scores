@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nav Concept B — Streak Bar + Morphing Icons + Badge Rich</title>
+<style>
+  :root {
+    --bg-base: #0B1120;
+    --bg-card: #111827;
+    --bg-nav: #0D1526;
+    --text-primary: #F1F5F9;
+    --text-muted: #64748B;
+    --text-faint: #3B4A63;
+    --accent: #4A9EFF;
+    --accent-bg: rgba(74,158,255,0.1);
+    --live: #FF4455;
+    --teal: #14B8A6;
+    --amber: #F59E0B;
+    --streak: #F59E0B;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg-base); font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; color: var(--text-primary); }
+
+  .phone { width: 390px; height: 844px; margin: 20px auto; position: relative; overflow: hidden; border-radius: 40px; border: 2px solid #1E293B; background: var(--bg-base); }
+
+  .content { padding: 60px 16px 140px; }
+  .content h2 { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .card { background: var(--bg-card); border-radius: 12px; padding: 16px; margin-bottom: 10px; border: 0.5px solid rgba(255,255,255,0.06); }
+  .card .title { font-size: 14px; font-weight: 700; }
+  .card .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ── CONCEPT B: Streak progress bar + morphing filled icons + rich badges ── */
+  .nav-b {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--bg-nav);
+    border-top: 0.5px solid rgba(255,255,255,0.06);
+  }
+
+  /* Streak/engagement progress bar at top of nav */
+  .nav-b-streak {
+    height: 3px; background: rgba(255,255,255,0.04); position: relative; overflow: hidden;
+  }
+  .nav-b-streak-fill {
+    height: 100%; width: 65%;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--teal) 50%, var(--streak) 100%);
+    border-radius: 0 4px 4px 0;
+    position: relative;
+  }
+  .nav-b-streak-fill::after {
+    content: '';
+    position: absolute; right: 0; top: -2px; bottom: -2px; width: 12px;
+    background: var(--streak);
+    border-radius: 4px;
+    box-shadow: 0 0 8px var(--streak), 0 0 16px rgba(245,158,11,0.3);
+    animation: streak-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes streak-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Streak label */
+  .nav-b-streak-label {
+    position: absolute; right: 12px; top: 6px;
+    font-size: 8px; font-weight: 800; color: var(--streak);
+    display: flex; align-items: center; gap: 3px; letter-spacing: 0.3px;
+  }
+
+  .nav-b-tabs {
+    display: flex; padding: 8px 4px 26px; position: relative;
+  }
+
+  .nav-b-tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;
+    text-decoration: none; position: relative; cursor: pointer;
+  }
+
+  .nav-b-tab .icon-container {
+    width: 44px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+  .nav-b-tab.active .icon-container {
+    background: var(--accent-bg);
+    width: 56px;
+  }
+
+  .nav-b-tab .label {
+    font-size: 10px; font-weight: 600;
+    color: var(--text-faint); transition: all 0.2s;
+  }
+  .nav-b-tab.active .label {
+    color: var(--accent); font-weight: 800;
+  }
+
+  /* Badge styles */
+  .badge {
+    position: absolute; top: -2px; right: 0px;
+    min-width: 16px; height: 16px; border-radius: 8px;
+    font-size: 9px; font-weight: 800; line-height: 16px; text-align: center;
+    padding: 0 4px;
+  }
+  .badge-live {
+    background: var(--live); color: #fff;
+    animation: badge-bounce 2s ease-in-out infinite;
+  }
+  @keyframes badge-bounce {
+    0%, 100% { transform: scale(1); }
+    10% { transform: scale(1.2); }
+    20% { transform: scale(1); }
+  }
+
+  .badge-new {
+    background: var(--teal); color: #fff;
+    width: 6px; height: 6px; min-width: 6px; padding: 0;
+    border-radius: 50%; top: 2px; right: 6px;
+  }
+
+  /* Tournament badge — special tier icon */
+  .badge-event {
+    background: linear-gradient(135deg, var(--amber), #EF8E1C);
+    color: #000; font-size: 7px; font-weight: 900; letter-spacing: 0.3px;
+    padding: 1px 5px; top: -4px; right: -8px;
+  }
+
+  /* Avatar for profile tab */
+  .nav-b-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid var(--text-faint);
+    background: var(--bg-card);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--text-muted);
+    transition: border-color 0.2s;
+  }
+  .nav-b-tab.active .nav-b-avatar {
+    border-color: var(--accent);
+  }
+
+  .desc { text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px; max-width: 390px; margin: 0 auto; line-height: 1.6; }
+  .desc b { color: var(--text-primary); }
+  h1 { text-align: center; font-size: 18px; margin: 40px 0 8px; color: var(--text-primary); }
+</style>
+</head>
+<body>
+
+<h1>Concept B — Streak Bar + Rich Badges</h1>
+<div class="desc">
+  <b>Engagement streak bar</b> runs along the top of the nav showing daily check-in progress. Icons use <b>expanding pill highlight</b> on active (Duolingo-style). <b>Rich contextual badges</b>: live match count, new content dots, event tier labels. Profile tab uses <b>user avatar</b> instead of generic icon. Inspired by Duolingo's XP bar + Instagram's avatar tab + Bet365's live badges.
+</div>
+
+<div class="phone">
+  <div class="content">
+    <h2>Upcoming matches</h2>
+    <div class="card"><div class="title">Coello / Tapia vs Lebron / Galan</div><div class="sub">Miami P1 · Semifinals · 14:00</div></div>
+    <div class="card"><div class="title">Brea / Gonzalez vs Triay / Fernandez</div><div class="sub">Miami P1 · Semifinals · 16:00</div></div>
+    <div class="card"><div class="title">Chingotto / Galan vs Di Nenno / Navarro</div><div class="sub">Miami P1 · Quarterfinals · 18:00</div></div>
+    <h2 style="margin-top:24px">Results</h2>
+    <div class="card"><div class="title">Sanchez / Josemaria vs Ortega / Riera</div><div class="sub">Miami P1 · R16 · 6-3 7-5</div></div>
+  </div>
+
+  <div class="nav-b">
+    <!-- Streak progress bar -->
+    <div class="nav-b-streak">
+      <div class="nav-b-streak-fill"></div>
+    </div>
+    <div class="nav-b-streak-label" style="position:relative; justify-content: flex-end; padding: 4px 12px 0;">
+      <span style="font-size: 12px;">&#x1F525;</span> 5-day streak
+    </div>
+
+    <div class="nav-b-tabs">
+      <!-- Home (active) -->
+      <a class="nav-b-tab active" href="#">
+        <div class="icon-container">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(74,158,255,0.15)" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <span class="label">Home</span>
+      </a>
+
+      <!-- Scores — with live badge -->
+      <a class="nav-b-tab" href="#">
+        <div class="icon-container">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" stroke-width="2" stroke-linecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>
+          </svg>
+          <div class="badge badge-live">3</div>
+        </div>
+        <span class="label">Scores</span>
+      </a>
+
+      <!-- Feed — with new content dot -->
+      <a class="nav-b-tab" href="#">
+        <div class="icon-container">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="2" fill="var(--text-faint)"/>
+            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+          </svg>
+          <div class="badge badge-new"></div>
+        </div>
+        <span class="label">Feed</span>
+      </a>
+
+      <!-- Tournaments — with event tier badge -->
+      <a class="nav-b-tab" href="#">
+        <div class="icon-container">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" stroke-width="2" stroke-linecap="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+          </svg>
+          <div class="badge badge-event">P1</div>
+        </div>
+        <span class="label">Events</span>
+      </a>
+
+      <!-- Profile — avatar instead of icon -->
+      <a class="nav-b-tab" href="#">
+        <div class="icon-container">
+          <div class="nav-b-avatar">G</div>
+        </div>
+        <span class="label">You</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

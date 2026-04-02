@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Events Page — Carousel Concepts</title>
+<style>
+  :root {
+    --bg-base: #0F1923;
+    --bg-card: #172A3A;
+    --bg-card-alt: #1E3448;
+    --border-card: rgba(255,255,255,0.08);
+    --color-accent: #38C8FF;
+    --color-live: #FF4655;
+    --text-primary: #E2E8F0;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    --text-faint: #475569;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #080C10;
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    display: flex;
+    gap: 40px;
+    padding: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .phone {
+    width: 390px;
+    height: 780px;
+    background: var(--bg-base);
+    border-radius: 40px;
+    overflow: hidden;
+    border: 3px solid #1a2a3a;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .phone-content {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .phone-content::-webkit-scrollbar { display: none; }
+  .label {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+    letter-spacing: 0.05em;
+  }
+  .sublabel {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    max-width: 390px;
+    line-height: 1.5;
+  }
+  .concept { display: flex; flex-direction: column; align-items: center; }
+
+  /* Shared styles */
+  .header {
+    display: flex; align-items: center; justify-content: center;
+    padding: 14px; border-bottom: 0.5px solid rgba(255,255,255,0.06);
+    position: sticky; top: 0; z-index: 10; background: var(--bg-base);
+  }
+  .header img { height: 26px; }
+  .tabs {
+    display: flex; gap: 4px; padding: 12px 16px 4px;
+  }
+  .tab {
+    flex: 1; padding: 8px 0; text-align: center;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
+    border-radius: 8px; border: none; cursor: pointer; font-family: inherit;
+  }
+  .tab.active { background: var(--color-accent); color: #000; }
+  .tab.inactive { background: var(--bg-card-alt); color: var(--text-muted); border: 1px solid var(--border-card); }
+
+  .section-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 18px 16px 12px;
+  }
+  .section-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-muted);
+  }
+  .section-count {
+    font-size: 10px; font-weight: 600; color: var(--text-faint);
+    background: var(--bg-card-alt); border-radius: 10px; padding: 2px 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- CONCEPT A: Timeline Carousel -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div class="concept">
+  <div class="label">CONCEPT A — Timeline Carousel</div>
+  <div class="sublabel">
+    Horizontal scroll with the next event highlighted and centered.
+    Calendar timeline dots show the full season at a glance.
+    Completed events use a compact horizontal strip with winner avatars.
+  </div>
+  <div class="phone">
+    <div class="phone-content">
+      <div class="header">
+        <img src="/padel-nacho-logo.png" alt="PadelNacho" onerror="this.outerHTML='<span style=font-size:18px;font-weight:800;color:#38C8FF>PADEL<span style=color:#F59E0B>NACHO</span></span>'">
+      </div>
+
+      <div class="tabs">
+        <button class="tab active">Premier Padel</button>
+        <button class="tab inactive">FIP Tour</button>
+      </div>
+
+      <!-- UPCOMING — Timeline Carousel -->
+      <div class="section-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span class="section-title">Upcoming</span>
+        <span class="section-count">8 events</span>
+      </div>
+
+      <!-- Timeline dots -->
+      <div style="padding: 0 16px 10px; display: flex; align-items: center; gap: 0; position: relative;">
+        <div style="position: absolute; top: 50%; left: 16px; right: 16px; height: 2px; background: rgba(255,255,255,0.06);"></div>
+        <!-- Month labels -->
+        <div style="display: flex; justify-content: space-between; width: 100%; position: relative;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+            <div style="width: 10px; height: 10px; border-radius: 50%; background: var(--color-accent); border: 2px solid var(--bg-base); z-index: 1; box-shadow: 0 0 8px rgba(56,200,255,0.4);"></div>
+            <span style="font-size: 9px; font-weight: 700; color: var(--color-accent);">APR</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); border: 2px solid var(--bg-base); z-index: 1;"></div>
+            <span style="font-size: 9px; font-weight: 600; color: var(--text-faint);">MAY</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); border: 2px solid var(--bg-base); z-index: 1;"></div>
+            <span style="font-size: 9px; font-weight: 600; color: var(--text-faint);">JUN</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); border: 2px solid var(--bg-base); z-index: 1;"></div>
+            <span style="font-size: 9px; font-weight: 600; color: var(--text-faint);">JUL</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); border: 2px solid var(--bg-base); z-index: 1;"></div>
+            <span style="font-size: 9px; font-weight: 600; color: var(--text-faint);">AUG</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); border: 2px solid var(--bg-base); z-index: 1;"></div>
+            <span style="font-size: 9px; font-weight: 600; color: var(--text-faint);">SEP</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Carousel — horizontal scroll -->
+      <div style="display: flex; gap: 12px; padding: 4px 16px 16px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+        <!-- NEXT event — highlighted card -->
+        <div style="min-width: 280px; scroll-snap-align: center; border-radius: 16px; padding: 18px; background: linear-gradient(135deg, rgba(56,200,255,0.12) 0%, var(--bg-card) 100%); border: 1.5px solid rgba(56,200,255,0.3); position: relative; overflow: hidden;">
+          <div style="position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; border-radius: 50%; background: rgba(56,200,255,0.08); filter: blur(25px);"></div>
+          <!-- NEXT badge -->
+          <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(56,200,255,0.15); border: 1px solid rgba(56,200,255,0.3); border-radius: 6px; padding: 3px 10px; font-size: 9px; font-weight: 800; color: var(--color-accent); letter-spacing: 0.08em; margin-bottom: 12px;">
+            NEXT UP
+          </div>
+          <div style="font-size: 28px; margin-bottom: 8px;">&#x1F1EA;&#x1F1F8;</div>
+          <div style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin-bottom: 2px;">Madrid P1</div>
+          <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Madrid, Spain</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 14px;">Apr 13 - Apr 18</div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="font-size: 10px; color: var(--text-muted);">Prize:</span>
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">$264,534</span>
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 2px;">
+              <span style="font-size: 26px; font-weight: 800; color: var(--color-accent); font-family: monospace;">12</span>
+              <span style="font-size: 10px; font-weight: 600; color: var(--text-muted);">DAYS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Regular upcoming card -->
+        <div style="min-width: 220px; scroll-snap-align: center; border-radius: 14px; padding: 16px; background: var(--bg-card); border: 1px solid var(--border-card);">
+          <div style="font-size: 24px; margin-bottom: 8px;">&#x1F1E7;&#x1F1EA;</div>
+          <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">Brussels P2</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Brussels, Belgium</div>
+          <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 12px;">Apr 20 - Apr 26</div>
+          <div style="display: flex; justify-content: flex-end; align-items: baseline; gap: 2px;">
+            <span style="font-size: 20px; font-weight: 700; color: var(--text-secondary); font-family: monospace;">19</span>
+            <span style="font-size: 9px; font-weight: 600; color: var(--text-faint);">DAYS</span>
+          </div>
+        </div>
+
+        <!-- Another upcoming card -->
+        <div style="min-width: 220px; scroll-snap-align: center; border-radius: 14px; padding: 16px; background: var(--bg-card); border: 1px solid var(--border-card);">
+          <div style="font-size: 24px; margin-bottom: 8px;">&#x1F1EB;&#x1F1F7;</div>
+          <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">Bordeaux Major</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Bordeaux, France</div>
+          <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 12px;">May 5 - May 11</div>
+          <div style="display: flex; justify-content: flex-end; align-items: baseline; gap: 2px;">
+            <span style="font-size: 20px; font-weight: 700; color: var(--text-secondary); font-family: monospace;">34</span>
+            <span style="font-size: 9px; font-weight: 600; color: var(--text-faint);">DAYS</span>
+          </div>
+        </div>
+
+        <!-- Another one (partially visible) -->
+        <div style="min-width: 220px; scroll-snap-align: center; border-radius: 14px; padding: 16px; background: var(--bg-card); border: 1px solid var(--border-card);">
+          <div style="font-size: 24px; margin-bottom: 8px;">&#x1F1EE;&#x1F1F9;</div>
+          <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">Rome P1</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Rome, Italy</div>
+        </div>
+      </div>
+
+      <!-- COMPLETED — Horizontal carousel with winner highlights -->
+      <div class="section-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span class="section-title">Completed</span>
+        <span class="section-count">2026 Season</span>
+      </div>
+
+      <div style="display: flex; gap: 12px; padding: 0 16px 16px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
+        <!-- Completed card 1 — Most recent, larger -->
+        <div style="min-width: 300px; scroll-snap-align: start; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border-card); overflow: hidden;">
+          <!-- Top section with gradient -->
+          <div style="padding: 16px 16px 12px; background: linear-gradient(180deg, rgba(245,158,11,0.06) 0%, transparent 100%);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <span style="font-size: 24px;">&#x1F1FA;&#x1F1F8;</span>
+              <div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Miami P1</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Mar 24 - Mar 30 &middot; Miami</div>
+              </div>
+            </div>
+            <!-- Winners -->
+            <div style="display: flex; gap: 16px;">
+              <div style="flex: 1;">
+                <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #5BA8FF; margin-bottom: 4px;">&#x1F3C6; Men</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <div style="display: flex;">
+                    <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--bg-card-alt); border: 2px solid var(--bg-base);"></div>
+                    <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--bg-card-alt); border: 2px solid var(--bg-base); margin-left: -10px;"></div>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Galan / Chingotto</div>
+                </div>
+              </div>
+              <div style="flex: 1;">
+                <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #F472B6; margin-bottom: 4px;">&#x1F3C6; Women</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <div style="display: flex;">
+                    <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--bg-card-alt); border: 2px solid var(--bg-base);"></div>
+                    <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--bg-card-alt); border: 2px solid var(--bg-base); margin-left: -10px;"></div>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-secondary); font-weight: 500;">Triay / Fernandez</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed card 2 -->
+        <div style="min-width: 260px; scroll-snap-align: start; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border-card); overflow: hidden;">
+          <div style="padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <span style="font-size: 24px;">&#x1F1F6;&#x1F1E6;</span>
+              <div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Doha Major</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Mar 10 - Mar 16 &middot; Doha</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <div style="flex: 1;">
+                <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #5BA8FF; margin-bottom: 4px;">&#x1F3C6; Men</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">Tapia / Coello</div>
+              </div>
+              <div style="flex: 1;">
+                <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #F472B6; margin-bottom: 4px;">&#x1F3C6; Women</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">Josemaria / Sanchez</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed card 3 -->
+        <div style="min-width: 260px; scroll-snap-align: start; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border-card); overflow: hidden;">
+          <div style="padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <span style="font-size: 24px;">&#x1F1F0;&#x1F1FC;</span>
+              <div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Kuwait P2</div>
+                <div style="font-size: 11px; color: var(--text-muted);">Feb 24 - Mar 2 &middot; Kuwait</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <div style="flex: 1;">
+                <div style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #5BA8FF; margin-bottom: 4px;">&#x1F3C6; Men</div>
+                <div style="font-size: 11px; color: var(--text-secondary);">Lebron / Navarro</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Previous season collapsible (just the header) -->
+      <div style="display: flex; align-items: center; gap: 8px; padding: 14px 16px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="section-title">2025 Season</span>
+        <span class="section-count">14 events</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- CONCEPT B: Stacked Cards with Peek -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<div class="concept">
+  <div class="label">CONCEPT B — Stacked Cards with Peek</div>
+  <div class="sublabel">
+    The next event is a full-width hero card. Subsequent events peek behind it
+    in a stacked formation. Completed events use a sleek horizontal scroll
+    with a magazine-style layout showing champions.
+  </div>
+  <div class="phone">
+    <div class="phone-content">
+      <div class="header">
+        <img src="/padel-nacho-logo.png" alt="PadelNacho" onerror="this.outerHTML='<span style=font-size:18px;font-weight:800;color:#38C8FF>PADEL<span style=color:#F59E0B>NACHO</span></span>'">
+      </div>
+
+      <div class="tabs">
+        <button class="tab active">Premier Padel</button>
+        <button class="tab inactive">FIP Tour</button>
+      </div>
+
+      <!-- UPCOMING — Stacked hero -->
+      <div class="section-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span class="section-title">Upcoming</span>
+        <span class="section-count">8 events</span>
+      </div>
+
+      <!-- Stacked cards container -->
+      <div style="position: relative; padding: 0 16px; margin-bottom: 20px;">
+        <!-- Card behind (3rd) — barely visible -->
+        <div style="position: absolute; top: 8px; left: 28px; right: 28px; height: 160px; border-radius: 14px; background: var(--bg-card-alt); border: 1px solid rgba(255,255,255,0.04); opacity: 0.4;"></div>
+        <!-- Card behind (2nd) — slightly visible -->
+        <div style="position: absolute; top: 4px; left: 22px; right: 22px; height: 160px; border-radius: 14px; background: var(--bg-card); border: 1px solid rgba(255,255,255,0.06); opacity: 0.6;"></div>
+
+        <!-- Front card — NEXT event -->
+        <div style="position: relative; border-radius: 16px; padding: 20px; background: linear-gradient(135deg, rgba(56,200,255,0.10) 0%, var(--bg-card) 60%, rgba(245,158,11,0.06) 100%); border: 1.5px solid rgba(56,200,255,0.25); overflow: hidden; z-index: 2;">
+          <div style="position: absolute; top: -30px; right: -30px; width: 100px; height: 100px; border-radius: 50%; background: rgba(56,200,255,0.06); filter: blur(30px);"></div>
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; position: relative;">
+            <div>
+              <!-- NEXT badge -->
+              <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(56,200,255,0.15); border: 1px solid rgba(56,200,255,0.3); border-radius: 6px; padding: 3px 10px; font-size: 9px; font-weight: 800; color: var(--color-accent); letter-spacing: 0.08em; margin-bottom: 10px;">
+                NEXT UP
+              </div>
+              <div style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">
+                &#x1F1EA;&#x1F1F8; Madrid P1
+              </div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 2px;">Madrid, Spain</div>
+              <div style="font-size: 11px; color: var(--text-muted);">Apr 13 - Apr 18</div>
+            </div>
+            <!-- Countdown -->
+            <div style="text-align: center; padding: 8px 12px; border-radius: 12px; background: rgba(56,200,255,0.08); border: 1px solid rgba(56,200,255,0.15);">
+              <div style="font-size: 28px; font-weight: 800; color: var(--color-accent); font-family: monospace; line-height: 1;">12</div>
+              <div style="font-size: 9px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.06em;">DAYS</div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px; margin-top: 14px;">
+            <div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-muted);">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+              P1
+            </div>
+            <div style="font-size: 10px; color: var(--text-muted);">$264,534</div>
+            <div style="flex: 1;"></div>
+            <div style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border-radius: 8px; background: rgba(56,200,255,0.12); border: 1px solid rgba(56,200,255,0.25); font-size: 11px; font-weight: 700; color: var(--color-accent);">
+              View
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Swipe hint -->
+        <div style="text-align: center; margin-top: 10px;">
+          <span style="font-size: 9px; color: var(--text-faint); letter-spacing: 0.04em;">Swipe for more &rarr;</span>
+        </div>
+      </div>
+
+      <!-- Quick upcoming list (below the stacked card) -->
+      <div style="padding: 0 16px 8px;">
+        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;">
+          <div style="flex-shrink: 0; padding: 10px 14px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-card); min-width: 140px;">
+            <div style="font-size: 9px; color: var(--text-faint); font-weight: 600; margin-bottom: 4px;">APR 20</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary);">&#x1F1E7;&#x1F1EA; Brussels P2</div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">19 days</div>
+          </div>
+          <div style="flex-shrink: 0; padding: 10px 14px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-card); min-width: 140px;">
+            <div style="font-size: 9px; color: var(--text-faint); font-weight: 600; margin-bottom: 4px;">MAY 5</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary);">&#x1F1EB;&#x1F1F7; Bordeaux Major</div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">34 days</div>
+          </div>
+          <div style="flex-shrink: 0; padding: 10px 14px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border-card); min-width: 140px;">
+            <div style="font-size: 9px; color: var(--text-faint); font-weight: 600; margin-bottom: 4px;">JUN 2</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary);">&#x1F1EE;&#x1F1F9; Rome P1</div>
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">62 days</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPLETED — Magazine style carousel -->
+      <div class="section-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span class="section-title">Completed</span>
+        <span class="section-count">2026 Season</span>
+      </div>
+
+      <div style="display: flex; gap: 12px; padding: 0 16px 16px; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <!-- Completed — full card with champion spotlight -->
+        <div style="min-width: 310px; flex-shrink: 0; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border-card); overflow: hidden;">
+          <!-- Header bar with level badge -->
+          <div style="padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">&#x1F1FA;&#x1F1F8;</span>
+              <div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Miami P1</div>
+                <div style="font-size: 10px; color: var(--text-muted);">Mar 24 - Mar 30</div>
+              </div>
+            </div>
+            <div style="font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background: rgba(56,200,255,0.1); color: var(--color-accent);">P1</div>
+          </div>
+          <!-- Champions -->
+          <div style="padding: 12px 14px;">
+            <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #F59E0B; margin-bottom: 8px;">&#x1F3C6; Champions</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 4px; height: 24px; border-radius: 2px; background: #5BA8FF;"></div>
+                <div style="display: flex; margin-right: 4px;">
+                  <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--bg-card-alt); border: 1.5px solid var(--bg-base);"></div>
+                  <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--bg-card-alt); border: 1.5px solid var(--bg-base); margin-left: -8px;"></div>
+                </div>
+                <div style="font-size: 12px; color: var(--text-primary); font-weight: 600;">Galan / Chingotto</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 4px; height: 24px; border-radius: 2px; background: #F472B6;"></div>
+                <div style="display: flex; margin-right: 4px;">
+                  <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--bg-card-alt); border: 1.5px solid var(--bg-base);"></div>
+                  <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--bg-card-alt); border: 1.5px solid var(--bg-base); margin-left: -8px;"></div>
+                </div>
+                <div style="font-size: 12px; color: var(--text-primary); font-weight: 600;">Triay / Fernandez</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed card 2 -->
+        <div style="min-width: 260px; flex-shrink: 0; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border-card); overflow: hidden;">
+          <div style="padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 20px;">&#x1F1F6;&#x1F1E6;</span>
+              <div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Doha Major</div>
+                <div style="font-size: 10px; color: var(--text-muted);">Mar 10 - Mar 16</div>
+              </div>
+            </div>
+            <div style="font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px; background: rgba(245,158,11,0.1); color: #F59E0B;">MAJOR</div>
+          </div>
+          <div style="padding: 12px 14px;">
+            <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #F59E0B; margin-bottom: 8px;">&#x1F3C6; Champions</div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 4px; height: 24px; border-radius: 2px; background: #5BA8FF;"></div>
+                <div style="font-size: 12px; color: var(--text-primary); font-weight: 600;">Tapia / Coello</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 4px; height: 24px; border-radius: 2px; background: #F472B6;"></div>
+                <div style="font-size: 12px; color: var(--text-primary); font-weight: 600;">Josemaria / Sanchez</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed card 3 -->
+        <div style="min-width: 260px; flex-shrink: 0; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--border-card); overflow: hidden;">
+          <div style="padding: 12px 14px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px;">&#x1F1F0;&#x1F1FC;</span>
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">Kuwait P2</div>
+              <div style="font-size: 10px; color: var(--text-muted);">Feb 24 - Mar 2</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Previous seasons -->
+      <div style="display: flex; align-items: center; gap: 8px; padding: 14px 16px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="section-title">2025 Season</span>
+        <span class="section-count">14 events</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
