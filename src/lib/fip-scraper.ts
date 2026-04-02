@@ -315,10 +315,11 @@ function parseMatchTable(
 }
 
 function splitTeamSections(tableHtml: string): string[] {
-  // Try <!-- Team 2 --> comment split
-  const commentIdx = tableHtml.indexOf('<!-- Team 2 -->')
-  if (commentIdx !== -1) {
-    return [tableHtml.slice(0, commentIdx), tableHtml.slice(commentIdx)]
+  // Try <!-- Team 2 --> or <!-- Team 2--> comment split (with or without space)
+  const commentRe = /<!--\s*Team\s*2\s*-->/i
+  const commentMatch = commentRe.exec(tableHtml)
+  if (commentMatch) {
+    return [tableHtml.slice(0, commentMatch.index), tableHtml.slice(commentMatch.index)]
   }
 
   // Try splitting by scorebox-sep-bottom rows
@@ -627,35 +628,41 @@ export async function fetchDrawMatches(
 
   const mainHtml = await mainResp.text()
 
-  // Find nav links for draw categories
-  // Pattern: /screen/draw/{code}/{drawCode}/{roundCount}?t=tol
-  const navLinkRe =
-    new RegExp(
-      `/screen/draw/${escapeRegex(matchscorerCode)}/([A-Z]+)/(\\d+)\\?t=tol`,
-      'g'
-    )
-
   // Collect all round pages per draw code (e.g. MD/5, MD/4, MD/3, MD/2, MD/1)
+  // Pattern: /screen/draw/{code}/{drawCode}/{roundCount}?t=tol
   const drawPages: Array<{ drawCode: string; roundCount: string; category: 'men' | 'women' }> = []
   const seen = new Set<string>()
 
-  let linkMatch: RegExpExecArray | null
-  while ((linkMatch = navLinkRe.exec(mainHtml)) !== null) {
-    const drawCode = linkMatch[1]
-    const roundCount = linkMatch[2]
-    const key = `${drawCode}/${roundCount}`
-    if (seen.has(key)) continue
-    seen.add(key)
+  function collectNavLinks(html: string) {
+    const re = new RegExp(
+      `/screen/draw/${escapeRegex(matchscorerCode)}/([A-Z]+)/(\\d+)\\?t=tol`,
+      'g'
+    )
+    let linkMatch: RegExpExecArray | null
+    while ((linkMatch = re.exec(html)) !== null) {
+      const drawCode = linkMatch[1]
+      const roundCount = linkMatch[2]
+      const key = `${drawCode}/${roundCount}`
+      if (seen.has(key)) continue
+      seen.add(key)
 
-    // Skip qualifying
-    if (drawCode === 'MQ' || drawCode === 'WQ') continue
-    const category: 'men' | 'women' = drawCode.startsWith('W') ? 'women' : 'men'
-    drawPages.push({ drawCode, roundCount, category })
+      // Skip qualifying
+      if (drawCode === 'MQ' || drawCode === 'WQ') continue
+      const category: 'men' | 'women' = drawCode.startsWith('W') ? 'women' : 'men'
+      drawPages.push({ drawCode, roundCount, category })
+    }
   }
+
+  // Seed from main page (usually shows all MD rounds + only WD/5)
+  collectNavLinks(mainHtml)
 
   const allMatches: ParsedMatch[] = []
 
-  for (const { drawCode, roundCount, category } of drawPages) {
+  // Track which draw codes we've seen so we can discover missing rounds
+  const discoveredDrawCodes = new Set<string>()
+
+  for (let i = 0; i < drawPages.length; i++) {
+    const { drawCode, roundCount, category } = drawPages[i]
     const drawUrl = `${MATCHSCORER_WIDGET}/screen/draw/${matchscorerCode}/${drawCode}/${roundCount}?t=tol`
     const drawResp = await fetch(drawUrl, { headers: matchscorerHeaders })
 
@@ -664,6 +671,13 @@ export async function fetchDrawMatches(
     const drawHtml = await drawResp.text()
     const parsed = parseDrawHtml(drawHtml, category)
     allMatches.push(...parsed)
+
+    // On first page of a new draw code, re-scan for additional nav links
+    // This discovers WD rounds that only appear on WD sub-pages
+    if (!discoveredDrawCodes.has(drawCode)) {
+      discoveredDrawCodes.add(drawCode)
+      collectNavLinks(drawHtml)
+    }
 
     await delay(200)
   }
