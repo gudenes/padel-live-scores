@@ -4,6 +4,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import EntryListTab from './EntryListTab'
+import SimulatorTab from './SimulatorTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -226,7 +227,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'health' | 'data' | 'entry-lists'>('health')
+  const [tab, setTab] = useState<'health' | 'data' | 'entry-lists' | 'simulator'>('health')
 
   const poll = useCallback(async () => {
     try {
@@ -354,7 +355,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid #e5e7eb' }}>
-        {(['health', 'data', 'entry-lists'] as const).map(t => (
+        {(['health', 'data', 'entry-lists', 'simulator'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -370,7 +371,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
               marginBottom: -1,
             }}
           >
-            {t === 'health' ? 'Integration Health' : t === 'data' ? 'Data' : 'Entry Lists'}
+            {t === 'health' ? 'Integration Health' : t === 'data' ? 'Data' : t === 'entry-lists' ? 'Entry Lists' : 'Simulator'}
           </button>
         ))}
       </div>
@@ -574,6 +575,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       </>}
 
       {tab === 'entry-lists' && <EntryListTab />}
+
+      {tab === 'simulator' && <SimulatorTab />}
     </div>
     </div>
   )

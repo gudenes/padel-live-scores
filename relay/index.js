@@ -700,6 +700,244 @@ app.post('/subscribe', requireSecret, (req, res) => {
   res.json({ ok: true, subscribed: channel })
 })
 
+// ── Simulate referee scoring events (ops dashboard) ───────────
+app.post('/simulate', requireSecret, async (req, res) => {
+  const { action, matchId, externalId, data } = req.body
+
+  if (!action || !matchId) {
+    return res.status(400).json({ error: 'action and matchId are required' })
+  }
+
+  const now = new Date().toISOString()
+
+  try {
+    if (action === 'start_match') {
+      // 1. Upsert initial set
+      const { data: setRow, error: setError } = await supabase
+        .from('sets')
+        .upsert(
+          {
+            match_id: matchId,
+            set_number: 1,
+            set_score: null,
+            pair1_games: 0,
+            pair2_games: 0,
+            is_current: true,
+            score_source: 'live',
+            updated_at: now,
+          },
+          { onConflict: 'match_id, set_number' }
+        )
+        .select('id')
+        .single()
+
+      if (setError || !setRow) {
+        console.error('[Simulate] Failed to upsert initial set:', setError)
+        return res.status(500).json({ error: 'Failed to upsert initial set', detail: setError?.message })
+      }
+
+      // 2. Upsert initial game
+      const { error: gameError } = await supabase
+        .from('games')
+        .upsert(
+          {
+            set_id: setRow.id,
+            match_id: matchId,
+            game_number: 1,
+            game_score: '0-0',
+            points: ['0:0'],
+            is_current: true,
+            updated_at: now,
+          },
+          { onConflict: 'set_id, game_number' }
+        )
+
+      if (gameError) {
+        console.error('[Simulate] Failed to upsert initial game:', gameError)
+        return res.status(500).json({ error: 'Failed to upsert initial game', detail: gameError.message })
+      }
+
+      // 3. Update match status LAST
+      const { error: matchError } = await supabase
+        .from('matches')
+        .update({ status: 'live', started_at: now, updated_at: now })
+        .eq('id', matchId)
+
+      if (matchError) {
+        console.error('[Simulate] Failed to update match status:', matchError)
+        return res.status(500).json({ error: 'Failed to update match', detail: matchError.message })
+      }
+
+      console.log(`[Simulate] start_match: match ${matchId} (${externalId ?? 'no externalId'})`)
+      return res.json({ ok: true, action })
+    }
+
+    if (action === 'point' || action === 'undo_point') {
+      if (!data?.sets) {
+        return res.status(400).json({ error: 'data.sets required for point/undo_point' })
+      }
+
+      // Write all sets and games first
+      for (const set of data.sets) {
+        const { data: setRow, error: setError } = await supabase
+          .from('sets')
+          .upsert(
+            {
+              match_id: matchId,
+              set_number: set.set_number,
+              set_score: set.set_score ?? null,
+              pair1_games: set.pair1_games ?? 0,
+              pair2_games: set.pair2_games ?? 0,
+              is_current: set.is_current ?? false,
+              score_source: 'live',
+              updated_at: now,
+            },
+            { onConflict: 'match_id, set_number' }
+          )
+          .select('id')
+          .single()
+
+        if (setError || !setRow) {
+          console.error('[Simulate] Failed to upsert set:', setError)
+          return res.status(500).json({ error: 'Failed to upsert set', detail: setError?.message })
+        }
+
+        for (const game of set.games ?? []) {
+          const { error: gameError } = await supabase
+            .from('games')
+            .upsert(
+              {
+                set_id: setRow.id,
+                match_id: matchId,
+                game_number: game.game_number,
+                game_score: game.game_score ?? '0-0',
+                points: game.points ?? ['0:0'],
+                is_current: game.is_current ?? false,
+                updated_at: now,
+              },
+              { onConflict: 'set_id, game_number' }
+            )
+
+          if (gameError) {
+            console.error('[Simulate] Failed to upsert game:', gameError)
+            return res.status(500).json({ error: 'Failed to upsert game', detail: gameError.message })
+          }
+        }
+      }
+
+      // Update match status LAST
+      const { error: matchError } = await supabase
+        .from('matches')
+        .update({ status: data.status ?? 'live', updated_at: now })
+        .eq('id', matchId)
+
+      if (matchError) {
+        console.error('[Simulate] Failed to update match status:', matchError)
+        return res.status(500).json({ error: 'Failed to update match', detail: matchError.message })
+      }
+
+      console.log(`[Simulate] ${action}: match ${matchId}`)
+      return res.json({ ok: true, action })
+    }
+
+    if (action === 'finish_match') {
+      if (!data?.sets) {
+        return res.status(400).json({ error: 'data.sets required for finish_match' })
+      }
+
+      // Write all sets and games first (same as point)
+      for (const set of data.sets) {
+        const { data: setRow, error: setError } = await supabase
+          .from('sets')
+          .upsert(
+            {
+              match_id: matchId,
+              set_number: set.set_number,
+              set_score: set.set_score ?? null,
+              pair1_games: set.pair1_games ?? 0,
+              pair2_games: set.pair2_games ?? 0,
+              is_current: set.is_current ?? false,
+              score_source: 'live',
+              updated_at: now,
+            },
+            { onConflict: 'match_id, set_number' }
+          )
+          .select('id')
+          .single()
+
+        if (setError || !setRow) {
+          console.error('[Simulate] Failed to upsert set:', setError)
+          return res.status(500).json({ error: 'Failed to upsert set', detail: setError?.message })
+        }
+
+        for (const game of set.games ?? []) {
+          const { error: gameError } = await supabase
+            .from('games')
+            .upsert(
+              {
+                set_id: setRow.id,
+                match_id: matchId,
+                game_number: game.game_number,
+                game_score: game.game_score ?? '0-0',
+                points: game.points ?? [],
+                is_current: false,
+                updated_at: now,
+              },
+              { onConflict: 'set_id, game_number' }
+            )
+
+          if (gameError) {
+            console.error('[Simulate] Failed to upsert game:', gameError)
+            return res.status(500).json({ error: 'Failed to upsert game', detail: gameError.message })
+          }
+        }
+      }
+
+      // Infer winner from set scores
+      let winner_pair = null
+      let p1Sets = 0, p2Sets = 0
+      for (const set of data.sets) {
+        if (set.set_score) {
+          const parts = set.set_score.split('-')
+          const p1 = parseInt(parts[0]) || 0
+          const p2 = parseInt(parts[1]) || 0
+          if (p1 > p2) p1Sets++
+          else if (p2 > p1) p2Sets++
+        }
+      }
+      if (p1Sets >= 2) winner_pair = 1
+      else if (p2Sets >= 2) winner_pair = 2
+
+      // Update match LAST
+      const { error: matchError } = await supabase
+        .from('matches')
+        .update({
+          status: 'finished',
+          finished_at: now,
+          updated_at: now,
+          winner_pair,
+        })
+        .eq('id', matchId)
+
+      if (matchError) {
+        console.error('[Simulate] Failed to update match to finished:', matchError)
+        return res.status(500).json({ error: 'Failed to finish match', detail: matchError.message })
+      }
+
+      // Cleanup: clear is_current + compute coverage
+      await cleanupMatchFinish(matchId)
+
+      console.log(`[Simulate] finish_match: match ${matchId} — winner: pair ${winner_pair} (${p1Sets}-${p2Sets} sets)`)
+      return res.json({ ok: true, action, winner_pair })
+    }
+
+    return res.status(400).json({ error: `Unknown action: ${action}` })
+  } catch (err) {
+    console.error(`[Simulate] Unhandled error for action ${action}, match ${matchId}:`, err)
+    return res.status(500).json({ error: 'Internal server error', detail: err.message })
+  }
+})
+
 app.listen(PORT, () => {
   console.log(`[Relay] 🚀 PadelNacho Pusher Relay started on port ${PORT}`)
   console.log(`[Relay] Pusher: ${PUSHER_APP_KEY} (${PUSHER_CLUSTER})`)
