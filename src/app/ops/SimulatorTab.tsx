@@ -29,6 +29,7 @@ interface SimMatch {
   status: 'scheduled' | 'live' | 'finished'
   score: string | null
   round: string | null
+  scheduled_at: string | null
 }
 
 
@@ -125,7 +126,21 @@ export default function SimulatorTab() {
       const res = await fetch(`/api/ops/simulator/tournaments?id=${tournamentId}`)
       if (res.ok) {
         const json = await res.json()
-        setMatches(json.matches ?? [])
+        // Transform nested player objects into display names
+        const transformed = (json.matches ?? []).map((m: any) => {
+          const lastName = (p: any) => p?.name?.split(' ').pop() ?? '?'
+          return {
+            id: m.id,
+            external_id: m.external_id,
+            status: m.status,
+            round: m.round,
+            scheduled_at: m.scheduled_at,
+            pair1: `${lastName(m.pair1_player1)} / ${lastName(m.pair1_player2)}`,
+            pair2: `${lastName(m.pair2_player1)} / ${lastName(m.pair2_player2)}`,
+            score: m.sets?.filter((s: any) => s.set_score).map((s: any) => s.set_score).join(' ') || null,
+          }
+        })
+        setMatches(transformed)
       }
     } catch { /* silent */ }
     setLoadingMatches(false)
@@ -442,6 +457,7 @@ export default function SimulatorTab() {
                     <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666', width: 20 }}></th>
                     <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Pair 1</th>
                     <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Pair 2</th>
+                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Time</th>
                     <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Score</th>
                     <th style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Action</th>
                   </tr>
@@ -471,6 +487,28 @@ export default function SimulatorTab() {
                         <td style={{ padding: '8px 12px', color: '#111', lineHeight: 1.4 }}>
                           <div>{p2a}</div>
                           {p2b && <div style={{ color: '#666' }}>{p2b}</div>}
+                        </td>
+                        <td style={{ padding: '8px 12px' }}>
+                          <input
+                            type="datetime-local"
+                            value={m.scheduled_at ? m.scheduled_at.slice(0, 16) : ''}
+                            onChange={async (e) => {
+                              const val = e.target.value
+                              if (!val) return
+                              const iso = new Date(val).toISOString()
+                              // Optimistic update
+                              setMatches(prev => prev.map(x => x.id === m.id ? { ...x, scheduled_at: iso } : x))
+                              await fetch('/api/ops/simulator/tournaments', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ matchId: m.id, scheduled_at: iso }),
+                              })
+                            }}
+                            style={{
+                              padding: '3px 5px', borderRadius: 4, border: '1px solid #d1d5db',
+                              fontSize: 11, width: 155, background: 'white', color: '#555',
+                            }}
+                          />
                         </td>
                         <td style={{ padding: '8px 12px', color: '#555', fontFamily: 'monospace', fontSize: 11 }}>
                           {m.score ?? '—'}

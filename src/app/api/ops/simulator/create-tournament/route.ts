@@ -124,12 +124,15 @@ export async function POST(request: Request) {
   const matchRows = []
   for (let i = 0; i < matchCount; i++) {
     const base = i * 4
+    // Stagger match times 30min apart starting at 10:00
+    const matchTime = new Date(startsAt.getTime() + i * 30 * 60 * 1000)
     matchRows.push({
       external_id: `sim_${tournament.id}_match_${i + 1}`,
       tournament_id: tournament.id,
       status: 'scheduled',
       category,
       round: round ?? 'R32',
+      scheduled_at: matchTime.toISOString(),
       pair1_player1_id: playerIds[base],
       pair1_player2_id: playerIds[base + 1],
       pair2_player1_id: playerIds[base + 2],

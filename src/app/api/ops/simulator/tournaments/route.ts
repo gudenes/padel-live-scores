@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     const { data: matches, error } = await supabase
       .from('matches')
       .select(`
-        id, external_id, status, round,
+        id, external_id, status, round, scheduled_at,
         pair1_player1:pair1_player1_id(id, name, country),
         pair1_player2:pair1_player2_id(id, name, country),
         pair2_player1:pair2_player1_id(id, name, country),
@@ -115,4 +115,33 @@ export async function GET(request: Request) {
   }))
 
   return Response.json({ tournaments: enriched })
+}
+
+// PATCH — update match scheduled_at
+export async function PATCH(request: Request) {
+  const authError = await checkOpsAuth()
+  if (authError) return authError
+
+  let body: { matchId: string; scheduled_at: string }
+  try {
+    body = await request.json()
+  } catch {
+    return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  if (!body.matchId || !body.scheduled_at) {
+    return Response.json({ error: 'Missing matchId or scheduled_at' }, { status: 400 })
+  }
+
+  const { error } = await supabase
+    .from('matches')
+    .update({ scheduled_at: body.scheduled_at })
+    .eq('id', body.matchId)
+
+  if (error) {
+    console.error('[simulator/tournaments] PATCH error', error)
+    return Response.json({ error: 'Failed to update match' }, { status: 500 })
+  }
+
+  return Response.json({ ok: true })
 }
