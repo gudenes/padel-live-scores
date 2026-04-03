@@ -103,12 +103,14 @@ function advanceStandardGame(
 /**
  * Advance a tiebreak game after `pair` scores.
  * Points are numeric strings: "0", "1", "2", ...
+ * Service rotates: after 1st point, then every 2 points.
  */
 function advanceTiebreakGame(
   pair1Points: string,
   pair2Points: string,
   pair: 1 | 2,
-): { pair1Points: string; pair2Points: string; winner: 1 | 2 | null } {
+  state: MatchState,
+): { pair1Points: string; pair2Points: string; winner: 1 | 2 | null; newServingPair: 1 | 2 } {
   const p1 = parseInt(pair1Points, 10)
   const p2 = parseInt(pair2Points, 10)
 
@@ -120,10 +122,18 @@ function advanceTiebreakGame(
   if (newP1 >= 7 && newP1 - newP2 >= 2) winner = 1
   else if (newP2 >= 7 && newP2 - newP1 >= 2) winner = 2
 
+  // Service rotation: after 1st point, then every 2 points
+  const totalTbPoints = newP1 + newP2
+  let newServingPair: 1 | 2 = state.servingPair
+  if (totalTbPoints === 1 || (totalTbPoints > 1 && (totalTbPoints - 1) % 2 === 0)) {
+    newServingPair = state.servingPair === 1 ? 2 : 1
+  }
+
   return {
     pair1Points: String(newP1),
     pair2Points: String(newP2),
     winner,
+    newServingPair,
   }
 }
 
@@ -184,12 +194,15 @@ export function addPoint(state: MatchState, pair: 1 | 2): MatchState {
 
   // Advance the game
   let newGame: GameState
+  let tiebreakServingPair: 1 | 2 | null = null
   if (currentSet.isTiebreak) {
-    const { pair1Points, pair2Points, winner } = advanceTiebreakGame(
+    const { pair1Points, pair2Points, winner, newServingPair } = advanceTiebreakGame(
       currentGame.pair1Points,
       currentGame.pair2Points,
       pair,
+      state,
     )
+    tiebreakServingPair = newServingPair
     const pointStr = buildPointString(pair1Points, pair2Points)
     newGame = {
       ...currentGame,
@@ -386,7 +399,11 @@ export function addPoint(state: MatchState, pair: 1 | 2): MatchState {
     }
   }
 
-  // Game not yet complete
+  // Game not yet complete — use tiebreak service rotation if applicable
+  if (tiebreakServingPair !== null) {
+    newServingPair = tiebreakServingPair
+  }
+
   const finalSets = [...sets]
   finalSets[setIdx] = { ...currentSet, games: [...currentSet.games] }
   finalSets[setIdx].games[gameIdx] = newGame
@@ -423,46 +440,65 @@ export function undoPoint(
 
 /**
  * Simulate a complete game win for `pair`.
- * Generates realistic points by having the winner score 4 points.
+ * Loops until the current game/set advances, adding opponent points for realism.
  * Collects the initial state and each intermediate state in history.
  */
 export function quickGame(
   state: MatchState,
   pair: 1 | 2,
 ): { state: MatchState; history: MatchState[] } {
-  const history: MatchState[] = [state]
+  // history collects all states leading up to (but not including) the final state
+  const history: MatchState[] = []
   let current = state
 
-  const setIdx = current.currentSet - 1
-  const gameIdx = current.currentGame - 1
-  const isTiebreak = current.sets[setIdx]?.isTiebreak ?? false
+  const startGame = current.currentGame
+  const startSet = current.currentSet
+  const isTiebreak = current.sets[startSet - 1]?.isTiebreak ?? false
+  const loser: 1 | 2 = pair === 1 ? 2 : 1
 
   if (isTiebreak) {
-    // Score 7 points for the winning pair in tiebreak (minimum win 7-0)
-    for (let i = 0; i < 7; i++) {
-      const next = addPoint(current, pair)
-      history.push(next)
-      current = next
-      // Check if game ended (set won)
-      if (current.sets[setIdx]?.winner !== null) break
+    // Tiebreak: loop until set changes or match finishes, sprinkling 0-2 loser points
+    let loserPointsLeft = Math.floor(Math.random() * 3) // 0, 1, or 2
+    let pointsSinceLastLoser = 0
+    while (
+      current.currentSet === startSet &&
+      current.sets[startSet - 1]?.winner === null &&
+      current.status !== 'finished'
+    ) {
+      history.push(current)
+      // Occasionally give loser a point for realism
+      if (loserPointsLeft > 0 && pointsSinceLastLoser >= 2 && Math.random() < 0.4) {
+        current = addPoint(current, loser)
+        loserPointsLeft--
+        pointsSinceLastLoser = 0
+      } else {
+        current = addPoint(current, pair)
+        pointsSinceLastLoser++
+      }
     }
   } else {
-    // Standard game: score 4 points — love game for the winner
-    for (let i = 0; i < 4; i++) {
-      const next = addPoint(current, pair)
-      history.push(next)
-      current = next
-      // Check if game is complete
-      const gameComplete = current.sets[setIdx]?.games.length > gameIdx + 1 ||
-        current.currentSet !== state.currentSet
-      if (gameComplete) break
+    // Standard game: loop until game or set advances, sprinkling 0-2 loser points
+    let loserPointsLeft = Math.floor(Math.random() * 3) // 0, 1, or 2
+    let pointsSinceLastLoser = 0
+    while (
+      current.currentGame === startGame &&
+      current.currentSet === startSet &&
+      current.status !== 'finished'
+    ) {
+      history.push(current)
+      // Occasionally give loser a point for realism
+      if (loserPointsLeft > 0 && pointsSinceLastLoser >= 2 && Math.random() < 0.4) {
+        current = addPoint(current, loser)
+        loserPointsLeft--
+        pointsSinceLastLoser = 0
+      } else {
+        current = addPoint(current, pair)
+        pointsSinceLastLoser++
+      }
     }
   }
 
-  // history contains initial + all intermediate states
-  // Return all states except last as history, last as state
-  const finalState = current
-  return { state: finalState, history: history.slice(0, -1) }
+  return { state: current, history }
 }
 
 // ---------------------------------------------------------------------------
@@ -549,7 +585,7 @@ export function stateToDbFormat(state: MatchState): {
       let p2GamesAtStart = 0
       const currentGameNumber = set.setNumber === currentSetNumber ? state.currentGame : null
 
-      const games = set.games.map((game, idx) => {
+      const games = set.games.map((game) => {
         const gameScore = `${p1GamesAtStart}-${p2GamesAtStart}`
         const isCurrentGame = isCurrentSet && game.gameNumber === currentGameNumber
 

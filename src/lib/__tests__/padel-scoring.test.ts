@@ -500,6 +500,15 @@ describe('quickGame', () => {
     expect(state).not.toBe(initial)
     expect(state.sets[0].pair1Games + state.sets[0].pair2Games).toBeGreaterThan(0)
   })
+
+  it('completes a game already in progress (mid-game, no bleed)', () => {
+    let state = createInitialState()
+    state = addPoint(state, 1) // 15:0
+    state = addPoint(state, 1) // 30:0
+    const result = quickGame(state, 1)
+    // Should complete this game, not bleed into next
+    expect(result.state.sets[0].pair1Games).toBe(1)
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -606,6 +615,20 @@ describe('stateToDbFormat', () => {
     for (let i = 0; i < 7; i++) state = addPoint(state, 1)
     const db = stateToDbFormat(state)
     expect(db.sets[0].set_score).toBe('7-6(0)')
+  })
+
+  it('formats tiebreak set score with non-zero loser points (7-4 tiebreak)', () => {
+    let state = createInitialState()
+    // Play to 6-6 by alternating game wins
+    for (let g = 0; g < 6; g++) {
+      for (let p = 0; p < 4; p++) state = addPoint(state, 1)
+      for (let p = 0; p < 4; p++) state = addPoint(state, 2)
+    }
+    // Tiebreak: pair 2 scores 4 points, pair 1 scores 7 to win 7-4
+    for (let i = 0; i < 4; i++) state = addPoint(state, 2)
+    for (let i = 0; i < 7; i++) state = addPoint(state, 1)
+    const db = stateToDbFormat(state)
+    expect(db.sets[0].set_score).toBe('7-6(4)')
   })
 
   it('completed game has winner_pair set', () => {
