@@ -3,7 +3,7 @@
 // V3 Scores — Live / Upcoming / Results with tournament-grouped matches.
 // Chunky clip-path brand language, no border-radius anywhere.
 
-import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, isWarmingUp } from '@/types/match'
@@ -144,15 +144,29 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   qualifying: { label: 'QUALIFYING', color: ORANGE, bg: 'rgba(245,166,35,0.15)' },
 }
 
+// ── Point ordinal for score-change detection ─────────────────
+const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'AD': 4 }
+// Module-level map so score tracking survives component remounts
+const _prevScores = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
+// Track when matches finish so they linger in the Live tab
+const _finishedAt = new Map<string, number>()
+const _prevLiveIds = new Set<string>()
+const LINGER_MS = 2 * 60 * 1000 // 2 minutes
+
 // ── Inline match row (replaces MatchCard for v3) ──────────────
 
 function V3MatchRow({ match }: { match: Match }) {
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
   const currentSet = sets.find(s => s.is_current)
   const currentGame = currentSet?.games?.find(g => g.is_current)
-  const gamePoints = currentGame?.game_score ?? ''
+  // game_score can be "0-0", "15:30", "30-15", etc. — normalise separator
+  const rawGameScore = currentGame?.game_score ?? ''
+  const gamePointsParts = rawGameScore.split(/[:\-]/)
+  const p1GamePts = gamePointsParts[0] ?? ''
+  const p2GamePts = gamePointsParts[1] ?? ''
   const isLive = match.status === 'live'
   const isFinished = ['finished', 'retired', 'walkover'].includes(match.status)
+  const isLingering = isFinished && _finishedAt.has(match.id)
   const category = (match as any).category as string | null
   const genderColor = category === 'women' ? WOMEN_PURPLE : category === 'men' ? MEN_BLUE : MUTED
 
@@ -167,6 +181,53 @@ function V3MatchRow({ match }: { match: Match }) {
   const timeStr = match.scheduled_at
     ? new Date(match.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
     : ''
+
+  // ── Score-change flash animation ──────────────────────────
+  const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
+  const flashKeyRef = useRef(0)
+
+  const p1TotalGames = useMemo(() => sets.reduce((s, st) => s + (st.pair1_games ?? 0), 0), [sets])
+  const p2TotalGames = useMemo(() => sets.reduce((s, st) => s + (st.pair2_games ?? 0), 0), [sets])
+
+  useEffect(() => {
+    if (!isLive) { _prevScores.delete(match.id); return }
+
+    const cur = { p1Games: p1TotalGames, p2Games: p2TotalGames, p1Pts: p1GamePts, p2Pts: p2GamePts }
+    const prev = _prevScores.get(match.id)
+
+    if (prev && (prev.p1Games !== cur.p1Games || prev.p2Games !== cur.p2Games || prev.p1Pts !== cur.p1Pts || prev.p2Pts !== cur.p2Pts)) {
+      let scorer: 1 | 2 | null = null
+
+      // Check if games changed first (most reliable signal)
+      if (cur.p1Games > prev.p1Games) scorer = 1
+      else if (cur.p2Games > prev.p2Games) scorer = 2
+      else {
+        // Games same — check point change direction
+        const curP1 = PT_ORD[cur.p1Pts] ?? 0
+        const curP2 = PT_ORD[cur.p2Pts] ?? 0
+        const prevP1 = PT_ORD[prev.p1Pts] ?? 0
+        const prevP2 = PT_ORD[prev.p2Pts] ?? 0
+
+        if (curP1 > prevP1) scorer = 1
+        else if (curP2 > prevP2) scorer = 2
+        // Advantage lost → other pair scored (deuce scenarios)
+        else if (prevP1 > prevP2 && curP1 <= curP2) scorer = 2
+        else if (prevP2 > prevP1 && curP2 <= curP1) scorer = 1
+      }
+
+      // Always update before any early return
+      _prevScores.set(match.id, cur)
+
+      if (scorer) {
+        flashKeyRef.current += 1
+        setFlashPair(scorer)
+        const t = setTimeout(() => setFlashPair(null), 2800)
+        return () => clearTimeout(t)
+      }
+    } else {
+      _prevScores.set(match.id, cur)
+    }
+  }, [isLive, match.id, p1TotalGames, p2TotalGames, p1GamePts, p2GamePts])
 
   return (
     <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
@@ -228,13 +289,23 @@ function V3MatchRow({ match }: { match: Match }) {
                 <span style={{ fontSize: 8, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>LIVE</span>
               </div>
             )}
+            {isLingering && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: GREEN,
+                padding: '2px 8px',
+                clipPath: CHUNKY.badge,
+              }}>
+                <span style={{ fontSize: 8, fontWeight: 800, color: '#000', letterSpacing: 0.5 }}>FINAL</span>
+              </div>
+            )}
             {!isLive && !isFinished && timeStr && (
               <span style={{ fontSize: 10, fontWeight: 700, color: GREEN }}>{timeStr}</span>
             )}
-            {isFinished && (match as any).status === 'retired' && (
+            {isFinished && !isLingering && (match as any).status === 'retired' && (
               <span style={{ fontSize: 9, fontWeight: 700, color: ORANGE }}>RET</span>
             )}
-            {isFinished && (match as any).status === 'walkover' && (
+            {isFinished && !isLingering && (match as any).status === 'walkover' && (
               <span style={{ fontSize: 9, fontWeight: 700, color: ORANGE }}>W/O</span>
             )}
           </div>
@@ -247,6 +318,8 @@ function V3MatchRow({ match }: { match: Match }) {
         ].map(({ pair, flag, pairNum }) => {
           const isWinner = match.winner_pair === pairNum
           const isLoser = match.winner_pair && match.winner_pair !== pairNum
+          const isRolling = flashPair === pairNum
+          const pts = pairNum === 1 ? p1GamePts : p2GamePts
           return (
             <div key={pairNum} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -269,23 +342,34 @@ function V3MatchRow({ match }: { match: Match }) {
                   const oppGames = pairNum === 1 ? (parsed?.p2 ?? s.pair2_games) : (parsed?.p1 ?? s.pair1_games)
                   const isCurrent = s.is_current
                   const wonSet = games > oppGames
+                  const showTb = parsed?.tb != null && !wonSet
                   return (
                     <span key={s.id} style={{
+                      position: 'relative',
                       fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
                       color: isCurrent && isLive ? GREEN : wonSet ? '#fff' : '#888',
                       minWidth: 14, textAlign: 'center',
                     }}>
                       {games}
+                      {showTb && (
+                        <sup style={{ fontSize: 8, color: MUTED, position: 'absolute', top: -2, right: -4 }}>{parsed!.tb}</sup>
+                      )}
                     </span>
                   )
                 })}
-                {isLive && gamePoints && (
-                  <span style={{
-                    fontSize: 16, fontWeight: 800, fontFamily: 'monospace',
-                    color: LIVE_RED, minWidth: 18, textAlign: 'center',
-                    marginLeft: 2,
-                  }}>
-                    {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
+                {isLive && (p1GamePts || p2GamePts) && (
+                  <span
+                    key={isRolling ? `${pts}-${flashKeyRef.current}` : pts}
+                    style={{
+                      display: 'inline-block',
+                      fontSize: 16, fontWeight: 800, fontFamily: 'monospace',
+                      color: LIVE_RED, minWidth: 18, textAlign: 'center',
+                      marginLeft: 2,
+                      overflow: 'hidden',
+                      ...(isRolling ? { animation: 'v3-score-roll 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both' } : {}),
+                    }}
+                  >
+                    {pts}
                   </span>
                 )}
               </div>
@@ -471,18 +555,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {titleCase(tournament.name)}
                 </span>
-                {statusCfg && (
-                  <span style={{
-                    fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
-                    padding: '2px 6px',
-                    clipPath: CHUNKY.badge,
-                    color: statusCfg.color, background: statusCfg.bg,
-                    flexShrink: 0, lineHeight: '12px',
-                    animation: status === 'live' ? 'v3-scores-pulse 2s infinite' : undefined,
-                  }}>
-                    {statusCfg.label}
-                  </span>
-                )}
+                {/* tournament status badge removed */}
               </div>
               {(badge || dateRange) && (
                 <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 2 }}>
@@ -523,6 +596,14 @@ function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
 
 const KEYFRAMES = `
 @keyframes v3-scores-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes v3-score-roll {
+  0%   { transform: translateY(-120%); opacity: 0; }
+  15%  { transform: translateY(-120%); opacity: 0; }
+  45%  { transform: translateY(6%); opacity: 1; }
+  65%  { transform: translateY(-3%); }
+  80%  { transform: translateY(1%); }
+  100% { transform: translateY(0); }
+}
 `
 
 // ── Main page ─────────────────────────────────────────────────
@@ -571,8 +652,10 @@ function V3ScoresPage() {
   const sortSets = (data: any[]) =>
     data.map(m => ({ ...m, sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number) }))
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
+  const initialLoadDone = useRef(false)
+
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const [liveRes, scheduledRes, recentRes] = await Promise.all([
         supabase.from('matches').select(matchSelect)
@@ -597,13 +680,16 @@ function V3ScoresPage() {
       setHasMore(true)
       pageRef.current = 0
 
-      // Auto-select tab
-      const hasLive = (liveRes.data?.length ?? 0) > 0
-      const hasLiveScheduled = (scheduledRes.data ?? []).some((m: any) =>
-        m.tournament?.starts_at && new Date(m.tournament.starts_at) <= new Date()
-      )
-      if (hasLive || hasLiveScheduled) setTab('live')
-      else setTab('upcoming')
+      // Auto-select tab only on first load
+      if (!initialLoadDone.current) {
+        const hasLive = (liveRes.data?.length ?? 0) > 0
+        const hasLiveScheduled = (scheduledRes.data ?? []).some((m: any) =>
+          m.tournament?.starts_at && new Date(m.tournament.starts_at) <= new Date()
+        )
+        if (hasLive || hasLiveScheduled) setTab('live')
+        else setTab('upcoming')
+        initialLoadDone.current = true
+      }
     } catch (e) {
       console.error('[V3 Scores] fetchData error:', e)
     } finally {
@@ -636,12 +722,12 @@ function V3ScoresPage() {
     fetchData()
   }, [fetchData, searchParams])
 
-  // Realtime subscription
+  // Realtime subscription — silent refresh (no spinner)
   const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const handleChange = () => {
       if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
-      realtimeDebounceRef.current = setTimeout(() => fetchData(), 500)
+      realtimeDebounceRef.current = setTimeout(() => fetchData(true), 500)
     }
     const ch = supabase
       .channel('v3-scores-feed')
@@ -653,31 +739,66 @@ function V3ScoresPage() {
     }
   }, [fetchData])
 
-  // Auto-refresh for live tab
+  // Auto-refresh for live tab — silent
   useEffect(() => {
     if (tab !== 'live') return
-    const interval = setInterval(() => fetchData(), 30000)
+    const interval = setInterval(() => fetchData(true), 30000)
     return () => clearInterval(interval)
   }, [tab, fetchData])
+
+  // Detect live→finished transitions and track linger timestamps
+  useEffect(() => {
+    const currentLiveIds = new Set(liveMatches.map(m => m.id))
+    // Matches that were live but no longer → just finished
+    for (const id of _prevLiveIds) {
+      if (!currentLiveIds.has(id) && !_finishedAt.has(id)) {
+        _finishedAt.set(id, Date.now())
+      }
+    }
+    _prevLiveIds.clear()
+    for (const id of currentLiveIds) _prevLiveIds.add(id)
+    // Prune expired entries
+    const now = Date.now()
+    for (const [id, ts] of _finishedAt) {
+      if (now - ts > LINGER_MS) _finishedAt.delete(id)
+    }
+  }, [liveMatches])
+
+  // Track lingering match IDs in state (client-only, avoids hydration mismatch)
+  const [lingeringIds, setLingeringIds] = useState<Set<string>>(new Set())
+
+  // Sync lingering IDs from module-level map whenever matches change
+  useEffect(() => {
+    const update = () => {
+      const now = Date.now()
+      const ids = new Set<string>()
+      for (const [mid, ts] of _finishedAt) {
+        if (now - ts < LINGER_MS) ids.add(mid)
+        else _finishedAt.delete(mid)
+      }
+      setLingeringIds(ids)
+    }
+    update()
+    // Keep checking while there are lingering matches
+    if (_finishedAt.size === 0) return
+    const interval = setInterval(update, 10000)
+    return () => clearInterval(interval)
+  }, [liveMatches, recentMatches])
 
   // Gender filter
   const gf = (matches: Match[]) =>
     genderFilter === 'all' ? matches : matches.filter(m => (m as any).category === genderFilter)
 
-  // Scheduled matches from started tournaments → treat as live
-  const now = new Date()
-  const liveScheduled = scheduledMatches.filter(m => {
-    const t = (m as any).tournament
-    return t?.starts_at && new Date(t.starts_at) <= now
-  })
+  // Recently finished matches still lingering in the live tab
+  const lingeringMatches = recentMatches.filter(m => lingeringIds.has(m.id))
 
-  // Current tab data
-  const currentMatches = tab === 'live' ? gf([...liveMatches, ...liveScheduled.filter(hasPlayers)])
+  // Current tab data — live tab includes lingering recently-finished matches
+  const currentMatches = tab === 'live' ? gf([...liveMatches, ...lingeringMatches])
     : tab === 'upcoming' ? gf(scheduledMatches.filter(hasPlayers))
     : gf(recentMatches)
   const grouped = groupByTournament(currentMatches)
 
-  const liveCount = gf([...liveMatches, ...liveScheduled]).filter(m => !isWarmingUp(m)).length
+  const liveCount = gf(liveMatches).filter(m => !isWarmingUp(m)).length
 
   const tabs: { key: typeof tab; label: string; isLive?: boolean }[] = [
     { key: 'live', label: 'Live', isLive: true },
@@ -745,14 +866,7 @@ function V3ScoresPage() {
                       letterSpacing: 0.3,
                     }}
                   >
-                    {t.isLive && (
-                      <span style={{
-                        width: 6, height: 6, borderRadius: '50%',
-                        background: active ? '#fff' : LIVE_RED,
-                        flexShrink: 0,
-                        animation: liveCount > 0 ? 'v3-scores-pulse 2s infinite' : undefined,
-                      }} />
-                    )}
+                    {/* live dot removed */}
                     {t.label}
                     {t.isLive && liveCount > 0 && (
                       <span style={{

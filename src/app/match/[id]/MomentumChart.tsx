@@ -148,15 +148,15 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
 
   // ── SVG layout ──
   const svgW = 600
-  const svgH = 180
+  const svgH = 234  // 180 × 1.3 = 234 (30% taller)
   const centerY = svgH / 2
-  const pad = { left: 4, right: 4, top: 18, bottom: 6 }
+  const pad = { left: 4, right: 4, top: 24, bottom: 8 }
   const chartW = svgW - pad.left - pad.right
   const chartH = svgH - pad.top - pad.bottom
   // Fixed width: assume max 3 sets × 13 games = 39 games
   const maxGames = 39
   const barGap = 3
-  const barWidth = Math.max(6, (chartW - barGap * (maxGames - 1)) / maxGames)
+  const barWidth = Math.max(6, (chartW - barGap * (maxGames - 1)) / maxGames) * 1.15  // 15% wider
   const totalGames = allGames.length
   const totalBarsW = totalGames * barWidth + (totalGames - 1) * barGap
   const barsStartX = pad.left
@@ -191,7 +191,7 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-dim)' }}>
-            Game Journey
+            Match Journey
           </span>
         </div>
       </div>
@@ -219,7 +219,7 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
         </div>
 
         {/* SVG Chart */}
-        <div style={{ flex: 1, height: 160 }}>
+        <div style={{ flex: 1, height: 208 }}>
           <svg viewBox={`0 0 ${svgW} ${svgH}`} style={{ width: '100%', height: '100%' }} preserveAspectRatio="xMidYMid meet">
             <defs>
               <linearGradient id="barP1g" x1="0" y1="0" x2="0" y2="1">
@@ -230,32 +230,37 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
                 <stop offset="0%" stopColor={P2_COLOR} stopOpacity={0.85} />
                 <stop offset="100%" stopColor={P2_COLOR} stopOpacity={0.25} />
               </linearGradient>
+              {/* Chunky clip-path for bars — slight angular cut */}
+              <clipPath id="chunkyBarUp" clipPathUnits="objectBoundingBox">
+                <polygon points="0.03,0.05 0.97,0 1,0.95 0,1" />
+              </clipPath>
+              <clipPath id="chunkyBarDown" clipPathUnits="objectBoundingBox">
+                <polygon points="0,0.05 1,0 0.97,0.95 0.03,1" />
+              </clipPath>
             </defs>
 
             {/* Center line */}
             <line x1={pad.left} y1={centerY} x2={svgW - pad.right} y2={centerY} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
 
-            {/* Set boundary lines with winner nudge */}
+            {/* Set boundary lines with large score at top (pair1 won) or bottom (pair2 won) */}
             {setBoundaries.map((b, i) => {
               const color = b.winner === 1 ? P1_COLOR : b.winner === 2 ? P2_COLOR : '#64748B'
-              const nudgeY = b.winner === 1 ? centerY - 8 : b.winner === 2 ? centerY + 8 : centerY
+              // Position score at top of chart if pair1 won, bottom if pair2 won
+              const scoreY = b.winner === 1 ? pad.top + 6 : b.winner === 2 ? svgH - pad.bottom - 6 : centerY
+              const anchor = b.winner === 1 ? 'hanging' : b.winner === 2 ? 'auto' : 'middle'
               return (
                 <g key={`setb-${i}`}>
                   <line x1={b.x} y1={pad.top} x2={b.x} y2={svgH - pad.bottom} stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
-                  {/* Set score positioned toward the winner's side */}
-                  <text x={b.x} y={nudgeY} textAnchor="middle" dominantBaseline="middle" fontSize={9} fontWeight={700} fontFamily="var(--font-mono), monospace" fill={color}>
+                  {/* Large set score — 2x size (was 9, now 20) */}
+                  <text
+                    x={b.x} y={scoreY}
+                    textAnchor="middle" dominantBaseline={anchor}
+                    fontSize={20} fontWeight={900}
+                    fontFamily="var(--font-mono), monospace"
+                    fill={color} opacity={0.85}
+                  >
                     {b.score}
                   </text>
-                  {/* Small triangle pointing to winner */}
-                  {b.winner && (
-                    <polygon
-                      points={b.winner === 1
-                        ? `${b.x - 4},${nudgeY - 9} ${b.x + 4},${nudgeY - 9} ${b.x},${nudgeY - 14}`
-                        : `${b.x - 4},${nudgeY + 9} ${b.x + 4},${nudgeY + 9} ${b.x},${nudgeY + 14}`}
-                      fill={color}
-                      opacity={0.7}
-                    />
-                  )}
                 </g>
               )
             })}
@@ -279,22 +284,24 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
                   {game.p1Points > 0 && (
                     <rect
                       x={x} y={centerY - p1H} width={barWidth} height={p1H}
-                      rx={2} fill="url(#barP1g)"
+                      fill="url(#barP1g)"
                       opacity={game.isCurrent ? 0.5 : 0.6}
+                      clipPath="url(#chunkyBarUp)"
                     />
                   )}
                   {game.p2Points > 0 && (
                     <rect
                       x={x} y={centerY} width={barWidth} height={p2H}
-                      rx={2} fill="url(#barP2g)"
+                      fill="url(#barP2g)"
                       opacity={game.isCurrent ? 0.5 : 0.6}
+                      clipPath="url(#chunkyBarDown)"
                     />
                   )}
                 </g>
               )
             })}
 
-            {/* Red live marker line — vertical line at current position */}
+            {/* Red live marker line + right-side Set/Game indicator */}
             {isLive && hasCurrentGame && (
               <g>
                 <line
@@ -305,22 +312,29 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
                 >
                   <animate attributeName="opacity" values="0.9;0.4;0.9" dur="1.5s" repeatCount="indefinite" />
                 </line>
-                {/* Set/Game label above marker */}
+                {/* Label right next to the marker line: "Set X" / "Game Y" */}
                 {markerGame && (
                   <g>
-                    <rect
-                      x={markerX - 30} y={0}
-                      width={60} height={18}
-                      rx={4} fill={LIVE_RED}
-                    >
-                      <animate attributeName="opacity" values="0.9;0.5;0.9" dur="1.5s" repeatCount="indefinite" />
-                    </rect>
+                    <polygon
+                      points={`${markerX + 4},${centerY - 24} ${markerX + 75},${centerY - 25} ${markerX + 74},${centerY + 23} ${markerX + 3},${centerY + 24}`}
+                      fill={LIVE_RED} opacity={0.15}
+                    />
                     <text
-                      x={markerX} y={13}
-                      textAnchor="middle" fontSize={12} fontWeight={800}
-                      fontFamily="var(--font-mono), monospace" fill="#fff"
+                      x={markerX + 40} y={centerY - 6}
+                      textAnchor="middle" dominantBaseline="auto"
+                      fontSize={13} fontWeight={800}
+                      fontFamily="var(--font-mono), monospace" fill={LIVE_RED}
                     >
-                      {`S${markerGame.setNumber} G${markerGame.gameNumber}`}
+                      {`Set ${markerGame.setNumber}`}
+                      <animate attributeName="opacity" values="1;0.6;1" dur="1.5s" repeatCount="indefinite" />
+                    </text>
+                    <text
+                      x={markerX + 40} y={centerY + 14}
+                      textAnchor="middle" dominantBaseline="auto"
+                      fontSize={13} fontWeight={800}
+                      fontFamily="var(--font-mono), monospace" fill={LIVE_RED}
+                    >
+                      {`Game ${markerGame.gameNumber}`}
                       <animate attributeName="opacity" values="1;0.6;1" dur="1.5s" repeatCount="indefinite" />
                     </text>
                   </g>
@@ -334,11 +348,11 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
       {/* Legend */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '6px 0 2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <div style={{ width: 10, height: 6, background: P1_COLOR, borderRadius: 2, opacity: 0.6 }} />
+          <div style={{ width: 10, height: 6, background: P1_COLOR, clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)', opacity: 0.6 }} />
           <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>{p1Names.join(' / ')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <div style={{ width: 10, height: 6, background: P2_COLOR, borderRadius: 2, opacity: 0.6 }} />
+          <div style={{ width: 10, height: 6, background: P2_COLOR, clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)', opacity: 0.6 }} />
           <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>{p2Names.join(' / ')}</span>
         </div>
       </div>
@@ -396,6 +410,12 @@ export function CompactMomentum({ sets, isLive }: CompactMomentumProps) {
             <stop offset="0%" stopColor={P2_COLOR} stopOpacity={0.8} />
             <stop offset="100%" stopColor={P2_COLOR} stopOpacity={0.2} />
           </linearGradient>
+          <clipPath id="chunkyBarUpC" clipPathUnits="objectBoundingBox">
+            <polygon points="0.03,0.05 0.97,0 1,0.95 0,1" />
+          </clipPath>
+          <clipPath id="chunkyBarDownC" clipPathUnits="objectBoundingBox">
+            <polygon points="0,0.05 1,0 0.97,0.95 0.03,1" />
+          </clipPath>
         </defs>
 
         {/* Center line */}
@@ -409,10 +429,10 @@ export function CompactMomentum({ sets, isLive }: CompactMomentumProps) {
           return (
             <g key={`cb-${i}`}>
               {game.p1Points > 0 && (
-                <rect x={x} y={centerY - p1H} width={barWidth} height={p1H} rx={1} fill="url(#barP1gc)" opacity={0.6} />
+                <rect x={x} y={centerY - p1H} width={barWidth} height={p1H} fill="url(#barP1gc)" opacity={0.6} clipPath="url(#chunkyBarUpC)" />
               )}
               {game.p2Points > 0 && (
-                <rect x={x} y={centerY} width={barWidth} height={p2H} rx={1} fill="url(#barP2gc)" opacity={0.6} />
+                <rect x={x} y={centerY} width={barWidth} height={p2H} fill="url(#barP2gc)" opacity={0.6} clipPath="url(#chunkyBarDownC)" />
               )}
             </g>
           )
