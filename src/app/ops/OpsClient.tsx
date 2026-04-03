@@ -227,7 +227,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'health' | 'data' | 'entry-lists' | 'simulator'>('health')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'entry-lists' | 'simulator'>('ongoing')
 
   const poll = useCallback(async () => {
     try {
@@ -265,119 +265,172 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
     )
   }
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#f8f9fa', overflow: 'auto' }}>
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 20px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>PadelNacho Ops</div>
-          <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Auto-refreshes every 30s</div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
-          <span style={{ fontSize: 11, color: '#888' }}>Updated {fetchAgo}</span>
-        </div>
-      </div>
+  const liveCount = data.ongoing.reduce((n, e) => n + e.live, 0)
 
-      {/* Ongoing Events — always visible at top */}
-      {data.ongoing.length > 0 && (
-        <>
-          <div style={sectionLabel}>Ongoing Events</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, marginBottom: 24 }}>
-            {data.ongoing.map(evt => {
-              const progress = evt.total > 0 ? Math.round(((evt.finished) / evt.total) * 100) : 0
-              const hasLive = evt.live > 0
-              const isQualifying = (evt as any).qualifying === true
-              return (
-                <div key={evt.tournament_id} style={{
-                  ...card,
-                  borderLeft: hasLive ? '3px solid #22c55e' : isQualifying ? '3px solid #f59e0b' : '3px solid #3b82f6',
-                  padding: 14,
+  const navGroups = [
+    {
+      label: null,
+      items: [
+        { key: 'ongoing' as const, label: 'Ongoing Events', badge: liveCount > 0 ? `${liveCount} live` : data.ongoing.length > 0 ? `${data.ongoing.length}` : null },
+      ],
+    },
+    {
+      label: 'Platform Health',
+      items: [
+        { key: 'health' as const, label: 'Integration Health', badge: null },
+        { key: 'data' as const, label: 'Data Quality', badge: null },
+      ],
+    },
+    {
+      label: 'Tournament Manager',
+      items: [
+        { key: 'entry-lists' as const, label: 'Entry Lists', badge: null },
+        { key: 'simulator' as const, label: 'Simulator', badge: null },
+      ],
+    },
+  ]
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#f8f9fa', display: 'flex' }}>
+      {/* ── Sidebar ── */}
+      <nav style={{
+        width: 220, flexShrink: 0, background: '#fff', borderRight: '1px solid #e5e7eb',
+        display: 'flex', flexDirection: 'column', overflow: 'auto',
+      }}>
+        {/* Logo / Title */}
+        <div style={{ padding: '20px 16px 12px' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>PadelNacho Ops</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e' }} />
+            <span style={{ fontSize: 10, color: '#999' }}>Updated {fetchAgo}</span>
+          </div>
+        </div>
+
+        {/* Nav groups */}
+        <div style={{ flex: 1, padding: '4px 0' }}>
+          {navGroups.map((group, gi) => (
+            <div key={gi} style={{ marginBottom: 4 }}>
+              {group.label && (
+                <div style={{
+                  fontSize: 9, fontWeight: 700, color: '#999', textTransform: 'uppercase',
+                  letterSpacing: '0.8px', padding: '12px 16px 4px',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#111', lineHeight: 1.3 }}>{evt.name}</div>
-                      <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>
-                        {[evt.level, evt.country, ...evt.categories].filter(Boolean).join(' · ')}
+                  {group.label}
+                </div>
+              )}
+              {group.items.map(item => {
+                const active = tab === item.key
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => setTab(item.key)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      width: '100%', padding: '8px 16px', border: 'none', cursor: 'pointer',
+                      fontSize: 13, fontWeight: active ? 600 : 400,
+                      color: active ? '#111' : '#555',
+                      background: active ? '#f3f4f6' : 'transparent',
+                      borderLeft: active ? '3px solid #111' : '3px solid transparent',
+                      textAlign: 'left',
+                    }}
+                  >
+                    {item.label}
+                    {item.badge && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 8,
+                        background: item.badge.includes('live') ? '#dcfce7' : '#f3f4f6',
+                        color: item.badge.includes('live') ? '#166534' : '#666',
+                      }}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      </nav>
+
+      {/* ── Main content ── */}
+      <div style={{ flex: 1, overflow: 'auto', padding: '24px 28px' }}>
+      <div style={{ maxWidth: 1000 }}>
+
+      {/* Ongoing Events page */}
+      {tab === 'ongoing' && (
+        <>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Ongoing Events</div>
+          {data.ongoing.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+              {data.ongoing.map(evt => {
+                const progress = evt.total > 0 ? Math.round(((evt.finished) / evt.total) * 100) : 0
+                const hasLive = evt.live > 0
+                const isQualifying = (evt as any).qualifying === true
+                return (
+                  <div key={evt.tournament_id} style={{
+                    ...card,
+                    borderLeft: hasLive ? '3px solid #22c55e' : isQualifying ? '3px solid #f59e0b' : '3px solid #3b82f6',
+                    padding: 14,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#111', lineHeight: 1.3 }}>{evt.name}</div>
+                        <div style={{ fontSize: 10, color: '#999', marginTop: 2 }}>
+                          {[evt.level, evt.country, ...evt.categories].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                      {hasLive ? (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, color: '#fff', background: '#22c55e',
+                          padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', flexShrink: 0, marginLeft: 8,
+                        }}>LIVE</span>
+                      ) : isQualifying ? (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, color: '#92400e', background: 'rgba(245,158,11,0.15)',
+                          padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', flexShrink: 0, marginLeft: 8,
+                        }}>QUALIFYING</span>
+                      ) : null}
+                    </div>
+                    <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: hasLive ? '#166534' : '#666' }}>{evt.live}</div>
+                        <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Live</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#1e40af' }}>{evt.scheduled}</div>
+                        <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Scheduled</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#666' }}>{evt.finished}</div>
+                        <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Finished</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>{evt.total}</div>
+                        <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Total</div>
                       </div>
                     </div>
-                    {hasLive ? (
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, color: '#fff', background: '#22c55e',
-                        padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', flexShrink: 0, marginLeft: 8,
-                      }}>LIVE</span>
-                    ) : isQualifying ? (
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, color: '#92400e', background: 'rgba(245,158,11,0.15)',
-                        padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', flexShrink: 0, marginLeft: 8,
-                      }}>QUALIFYING</span>
-                    ) : null}
+                    <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginTop: 8 }}>
+                      <div style={{
+                        height: '100%', borderRadius: 2,
+                        width: `${progress}%`,
+                        background: progress === 100 ? '#22c55e' : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                      }} />
+                    </div>
+                    <div style={{ fontSize: 9, color: '#999', marginTop: 3, textAlign: 'right' }}>{progress}% complete</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: hasLive ? '#166534' : '#666' }}>{evt.live}</div>
-                      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Live</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: '#1e40af' }}>{evt.scheduled}</div>
-                      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Scheduled</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: '#666' }}>{evt.finished}</div>
-                      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Finished</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: '#111' }}>{evt.total}</div>
-                      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' }}>Total</div>
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  <div style={{ height: 4, background: '#f0f0f0', borderRadius: 2, marginTop: 8 }}>
-                    <div style={{
-                      height: '100%', borderRadius: 2,
-                      width: `${progress}%`,
-                      background: progress === 100 ? '#22c55e' : 'linear-gradient(90deg, #3b82f6, #60a5fa)',
-                    }} />
-                  </div>
-                  <div style={{ fontSize: 9, color: '#999', marginTop: 3, textAlign: 'right' }}>{progress}% complete</div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{ ...card, textAlign: 'center', color: '#999', fontSize: 12 }}>
+              No ongoing events — all tournaments are between rounds
+            </div>
+          )}
         </>
       )}
-      {data.ongoing.length === 0 && (
-        <div style={{ ...card, marginBottom: 24, textAlign: 'center', color: '#999', fontSize: 12 }}>
-          No ongoing events — all tournaments are between rounds
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid #e5e7eb' }}>
-        {(['health', 'data', 'entry-lists', 'simulator'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            style={{
-              padding: '8px 20px',
-              fontSize: 13,
-              fontWeight: tab === t ? 700 : 500,
-              color: tab === t ? '#111' : '#888',
-              background: 'none',
-              border: 'none',
-              borderBottom: tab === t ? '2px solid #111' : '2px solid transparent',
-              cursor: 'pointer',
-              marginBottom: -1,
-            }}
-          >
-            {t === 'health' ? 'Integration Health' : t === 'data' ? 'Data' : t === 'entry-lists' ? 'Entry Lists' : 'Simulator'}
-          </button>
-        ))}
-      </div>
 
       {tab === 'health' && <>
-      {/* Section 1: Integration Health */}
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Integration Health</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 20 }}>
         {TILES.map(tile => {
           const h = data.health[tile.key]
@@ -496,7 +549,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       </>}
 
       {tab === 'data' && <>
-      {/* Section 2: Data Freshness */}
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Data Quality</div>
       <div style={sectionLabel}>Data Freshness</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 20 }}>
         <div style={card}>
@@ -574,10 +627,18 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
       </>}
 
-      {tab === 'entry-lists' && <EntryListTab />}
+      {tab === 'entry-lists' && <>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Entry Lists</div>
+        <EntryListTab />
+      </>}
 
-      {tab === 'simulator' && <SimulatorTab />}
-    </div>
+      {tab === 'simulator' && <>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Simulator</div>
+        <SimulatorTab />
+      </>}
+
+      </div>
+      </div>
     </div>
   )
 }

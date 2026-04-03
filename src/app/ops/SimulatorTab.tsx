@@ -29,14 +29,9 @@ interface SimMatch {
   status: 'scheduled' | 'live' | 'finished'
   score: string | null
   round: string | null
+  scheduled_at: string | null
 }
 
-interface SimPlayer {
-  id: string
-  name: string
-  country: string | null
-  ranking: number | null
-}
 
 // ── Shared styles ─────────────────────────────────────────────────
 
@@ -95,10 +90,7 @@ export default function SimulatorTab() {
   const [newCategory, setNewCategory] = useState<'men' | 'women'>('men')
   const [newMatchCount, setNewMatchCount] = useState(4)
   const [newRound, setNewRound] = useState('R16')
-  const [availablePlayers, setAvailablePlayers] = useState<SimPlayer[]>([])
-  const [playerSearch, setPlayerSearch] = useState('')
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
-  const [loadingPlayers, setLoadingPlayers] = useState(false)
+  const [newDate, setNewDate] = useState(() => new Date().toISOString().split('T')[0])
   const [creating, setCreating] = useState(false)
 
   // Purge modal
@@ -134,22 +126,24 @@ export default function SimulatorTab() {
       const res = await fetch(`/api/ops/simulator/tournaments?id=${tournamentId}`)
       if (res.ok) {
         const json = await res.json()
-        setMatches(json.matches ?? [])
+        // Transform nested player objects into display names
+        const transformed = (json.matches ?? []).map((m: any) => {
+          const lastName = (p: any) => p?.name?.split(' ').pop() ?? '?'
+          return {
+            id: m.id,
+            external_id: m.external_id,
+            status: m.status,
+            round: m.round,
+            scheduled_at: m.scheduled_at,
+            pair1: `${lastName(m.pair1_player1)} / ${lastName(m.pair1_player2)}`,
+            pair2: `${lastName(m.pair2_player1)} / ${lastName(m.pair2_player2)}`,
+            score: m.sets?.filter((s: any) => s.set_score).map((s: any) => s.set_score).join(' ') || null,
+          }
+        })
+        setMatches(transformed)
       }
     } catch { /* silent */ }
     setLoadingMatches(false)
-  }, [])
-
-  const fetchPlayers = useCallback(async (category: string) => {
-    setLoadingPlayers(true)
-    try {
-      const res = await fetch(`/api/ops/simulator/tournaments?players=${category}`)
-      if (res.ok) {
-        const json = await res.json()
-        setAvailablePlayers(json.players ?? [])
-      }
-    } catch { /* silent */ }
-    setLoadingPlayers(false)
   }, [])
 
   useEffect(() => { fetchTournaments() }, [fetchTournaments])
@@ -158,13 +152,6 @@ export default function SimulatorTab() {
     if (selectedTournamentId) fetchMatches(selectedTournamentId)
     else setMatches([])
   }, [selectedTournamentId, fetchMatches])
-
-  useEffect(() => {
-    if (showNewForm) {
-      fetchPlayers(newCategory)
-      setSelectedPlayerIds([])
-    }
-  }, [showNewForm, newCategory, fetchPlayers])
 
   // ── Actions ────────────────────────────────────────────────────
 
@@ -180,7 +167,7 @@ export default function SimulatorTab() {
           category: newCategory,
           matchCount: newMatchCount,
           round: newRound,
-          playerIds: selectedPlayerIds,
+          date: newDate,
         }),
       })
       if (res.ok) {
@@ -189,7 +176,9 @@ export default function SimulatorTab() {
         setSelectedTournamentId(json.tournament?.id ?? '')
         setShowNewForm(false)
         setNewName('')
-        setSelectedPlayerIds([])
+      } else {
+        const json = await res.json()
+        console.error('[Simulator] Create failed:', json.error)
       }
     } catch { /* silent */ }
     setCreating(false)
@@ -294,17 +283,6 @@ export default function SimulatorTab() {
 
   // ── Derived values ─────────────────────────────────────────────
 
-  const neededPlayers = newMatchCount * 4
-  const filteredPlayers = availablePlayers.filter(p =>
-    p.name.toLowerCase().includes(playerSearch.toLowerCase())
-  )
-
-  function togglePlayer(id: string) {
-    setSelectedPlayerIds(ids =>
-      ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]
-    )
-  }
-
   const currentSetState = matchState.sets[matchState.currentSet - 1]
   const currentGameState = currentSetState?.games[matchState.currentGame - 1]
   const setsWonP1 = matchState.sets.filter(s => s.winner === 1).length
@@ -373,9 +351,12 @@ export default function SimulatorTab() {
               <div style={{ fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 10 }}>
                 New Simulated Tournament
               </div>
+              <div style={{ fontSize: 10, color: '#999', marginBottom: 12 }}>
+                Players are auto-picked from top-ranked players and randomly paired into matches.
+              </div>
 
-              {/* Row 1: name + round */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 10, marginBottom: 10 }}>
+              {/* Row 1: name + date */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 10, marginBottom: 10 }}>
                 <div>
                   <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Name</label>
                   <input
@@ -387,21 +368,18 @@ export default function SimulatorTab() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Round</label>
-                  <select
-                    value={newRound}
-                    onChange={e => setNewRound(e.target.value)}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, background: 'white' }}
-                  >
-                    {['QF', 'SF', 'F', 'R16', 'R32', 'RR'].map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
+                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Date</label>
+                  <input
+                    type="date"
+                    value={newDate}
+                    onChange={e => setNewDate(e.target.value)}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, boxSizing: 'border-box' }}
+                  />
                 </div>
               </div>
 
-              {/* Row 2: category + match count */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 10, marginBottom: 12 }}>
+              {/* Row 2: category + round + match count */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 10, marginBottom: 12 }}>
                 <div>
                   <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Category</label>
                   <select
@@ -414,7 +392,19 @@ export default function SimulatorTab() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Match count</label>
+                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Round</label>
+                  <select
+                    value={newRound}
+                    onChange={e => setNewRound(e.target.value)}
+                    style={{ width: '100%', padding: '6px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, background: 'white' }}
+                  >
+                    {['R32', 'R16', 'QF', 'SF', 'F'].map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Matches</label>
                   <input
                     type="number"
                     min={1}
@@ -426,86 +416,11 @@ export default function SimulatorTab() {
                 </div>
               </div>
 
-              {/* Player picker */}
-              <div>
-                <div style={{ fontSize: 11, color: '#666', marginBottom: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Players</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <button
-                      style={{ ...btnGray, padding: '3px 10px', fontSize: 10 }}
-                      onClick={() => {
-                        // Shuffle and pick random players
-                        const shuffled = [...availablePlayers].sort(() => Math.random() - 0.5)
-                        setSelectedPlayerIds(shuffled.slice(0, neededPlayers).map(p => p.id))
-                      }}
-                      disabled={availablePlayers.length < neededPlayers}
-                    >
-                      🎲 Random {neededPlayers}
-                    </button>
-                    <span style={{ color: selectedPlayerIds.length >= neededPlayers ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>
-                      {selectedPlayerIds.length} / {neededPlayers} needed
-                    </span>
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search players..."
-                  value={playerSearch}
-                  onChange={e => setPlayerSearch(e.target.value)}
-                  style={{ width: '100%', padding: '5px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, marginBottom: 6, boxSizing: 'border-box' }}
-                />
-                {loadingPlayers ? (
-                  <div style={{ fontSize: 11, color: '#aaa', padding: '8px 0' }}>Loading players...</div>
-                ) : (
-                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: 5, background: 'white' }}>
-                    {filteredPlayers.length === 0 && (
-                      <div style={{ fontSize: 11, color: '#aaa', padding: 10 }}>No players found</div>
-                    )}
-                    {filteredPlayers.map(p => {
-                      const selected = selectedPlayerIds.includes(p.id)
-                      return (
-                        <div
-                          key={p.id}
-                          onClick={() => togglePlayer(p.id)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            padding: '6px 10px',
-                            cursor: 'pointer',
-                            background: selected ? 'rgba(34,197,94,0.08)' : 'transparent',
-                            borderBottom: '1px solid #f3f4f6',
-                            transition: 'background 0.1s',
-                          }}
-                        >
-                          <div style={{
-                            width: 14, height: 14, borderRadius: 3,
-                            border: `2px solid ${selected ? '#22c55e' : '#d1d5db'}`,
-                            background: selected ? '#22c55e' : 'transparent',
-                            flexShrink: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            {selected && <span style={{ color: 'white', fontSize: 9, lineHeight: 1 }}>✓</span>}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 500, color: '#111' }}>{p.name}</div>
-                          </div>
-                          <div style={{ fontSize: 10, color: '#999', display: 'flex', gap: 6, flexShrink: 0 }}>
-                            {p.country && <span>{p.country}</span>}
-                            {p.ranking && <span>#{p.ranking}</span>}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
               {/* Form actions */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button
                   style={btnGray}
-                  onClick={() => { setShowNewForm(false); setNewName(''); setSelectedPlayerIds([]) }}
+                  onClick={() => { setShowNewForm(false); setNewName('') }}
                 >
                   Cancel
                 </button>
@@ -514,7 +429,7 @@ export default function SimulatorTab() {
                   disabled={!newName.trim() || creating}
                   onClick={handleCreateTournament}
                 >
-                  {creating ? 'Creating...' : 'Create'}
+                  {creating ? 'Creating...' : `Create (${newMatchCount * 4} players auto-picked)`}
                 </button>
               </div>
             </div>
@@ -542,6 +457,7 @@ export default function SimulatorTab() {
                     <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666', width: 20 }}></th>
                     <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Pair 1</th>
                     <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Pair 2</th>
+                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Time</th>
                     <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Score</th>
                     <th style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Action</th>
                   </tr>
@@ -571,6 +487,28 @@ export default function SimulatorTab() {
                         <td style={{ padding: '8px 12px', color: '#111', lineHeight: 1.4 }}>
                           <div>{p2a}</div>
                           {p2b && <div style={{ color: '#666' }}>{p2b}</div>}
+                        </td>
+                        <td style={{ padding: '8px 12px' }}>
+                          <input
+                            type="datetime-local"
+                            value={m.scheduled_at ? m.scheduled_at.slice(0, 16) : ''}
+                            onChange={async (e) => {
+                              const val = e.target.value
+                              if (!val) return
+                              const iso = new Date(val).toISOString()
+                              // Optimistic update
+                              setMatches(prev => prev.map(x => x.id === m.id ? { ...x, scheduled_at: iso } : x))
+                              await fetch('/api/ops/simulator/tournaments', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ matchId: m.id, scheduled_at: iso }),
+                              })
+                            }}
+                            style={{
+                              padding: '3px 5px', borderRadius: 4, border: '1px solid #d1d5db',
+                              fontSize: 11, width: 155, background: 'white', color: '#555',
+                            }}
+                          />
                         </td>
                         <td style={{ padding: '8px 12px', color: '#555', fontFamily: 'monospace', fontSize: 11 }}>
                           {m.score ?? '—'}
