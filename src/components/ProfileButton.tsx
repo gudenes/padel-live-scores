@@ -15,7 +15,7 @@ export default function ProfileButton() {
 
   const handleClick = () => {
     if (user) {
-      router.push('/v2/profile')
+      router.push('/v3/profile')
     } else {
       setLoginOpen(true)
     }
@@ -30,12 +30,12 @@ export default function ProfileButton() {
         onClick={handleClick}
         style={{
           width: 34, height: 34, borderRadius: '50%',
-          border: isLoggedIn ? '2px solid #f59e0b' : '1.5px solid var(--border-strong)',
+          border: isLoggedIn ? '2px solid #F5A623' : '1.5px solid rgba(255,255,255,0.06)',
           cursor: 'pointer',
-          background: isLoggedIn ? 'transparent' : 'var(--bg-card-alt)',
+          background: isLoggedIn ? 'transparent' : 'rgba(255,255,255,0.08)',
           flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'var(--text-muted)',
+          color: '#6B7280',
           overflow: 'hidden', padding: 0,
         }}
       >

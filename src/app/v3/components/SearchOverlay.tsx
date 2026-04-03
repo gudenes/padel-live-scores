@@ -210,7 +210,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         matchesRes = await supabase
           .from('matches')
           .select(`
-            id, started_at,
+            id, started_at, scheduled_at,
             pair1_player1:players!matches_pair1_player1_id_fkey(id, name),
             pair1_player2:players!matches_pair1_player2_id_fkey(id, name),
             pair2_player1:players!matches_pair2_player1_id_fkey(id, name),
@@ -219,9 +219,9 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
             round, status
           `)
           .or(playerIds.map((id: string) => `pair1_player1_id.eq.${id},pair1_player2_id.eq.${id},pair2_player1_id.eq.${id},pair2_player2_id.eq.${id}`).join(','))
-          .in('status', ['finished', 'live', 'scheduled'])
-          .order('started_at', { ascending: false })
-          .limit(4)
+          .in('status', ['live', 'finished', 'scheduled'])
+          .order('scheduled_at', { ascending: false, nullsFirst: false })
+          .limit(6)
       }
 
       const items: SearchResult[] = []
@@ -246,10 +246,17 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           href: `/v3/tournaments/${t.id}`,
         })
       }
-      for (const m of (matchesRes.data ?? []) as any[]) {
+      // Sort: live first, then by date descending (already from query)
+      const matchData = [...(matchesRes.data ?? [])].sort((a: any, b: any) => {
+        if (a.status === 'live' && b.status !== 'live') return -1
+        if (b.status === 'live' && a.status !== 'live') return 1
+        return 0
+      })
+      for (const m of matchData as any[]) {
         const p1 = [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).join(' / ')
         const p2 = [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).join(' / ')
-        const date = m.started_at ? new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(m.started_at)) : ''
+        const matchDate = m.started_at ?? m.scheduled_at
+        const date = matchDate ? new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(matchDate)) : ''
         const statusLabel = m.status === 'live' ? 'LIVE' : m.status === 'finished' ? 'Finished' : 'Scheduled'
         items.push({
           type: 'match', id: m.id,
@@ -443,7 +450,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           )}
 
           {/* Grouped results */}
-          {(['player', 'tournament', 'match'] as const).map(type => {
+          {(['player', 'match', 'tournament'] as const).map(type => {
             const items = grouped[type]
             if (items.length === 0) return null
             const meta = TYPE_META[type]

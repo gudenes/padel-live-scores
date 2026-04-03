@@ -6,7 +6,7 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
-import BottomNav from '@/app/components/BottomNav'
+import BottomNav from '@/app/v3/components/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -146,9 +146,9 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
       {/* Header — back arrow + title */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 14px',
-        borderBottom: `0.5px solid ${BORDER}`,
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 16px',
+        borderBottom: `1px solid ${BORDER}`,
         position: 'sticky', top: 0, zIndex: 10,
         background: BG_BASE,
       }}>
@@ -156,20 +156,20 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           onClick={handleBack}
           style={{
             width: 36, height: 36, border: 'none', cursor: 'pointer',
-            background: 'transparent',
+            clipPath: CHUNKY.badge,
+            background: 'rgba(255,255,255,0.06)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: MUTED,
+            color: '#fff',
           }}
           aria-label="Go back"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
+            <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
           </svg>
         </button>
-        <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600 }}>
-          Player
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', textTransform: 'uppercase' as const }}>Player</div>
         </div>
-        <div style={{ width: 36 }} />
       </div>
 
       {/* Hero */}
