@@ -199,7 +199,11 @@ export default function SimulatorTab() {
     if (purgeText !== 'PURGE') return
     setPurging(true)
     try {
-      const res = await fetch('/api/ops/simulator/purge', { method: 'POST' })
+      const res = await fetch('/api/ops/simulator/purge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: purgeText }),
+      })
       if (res.ok) {
         await fetchTournaments()
         setSelectedTournamentId('')
@@ -424,11 +428,24 @@ export default function SimulatorTab() {
 
               {/* Player picker */}
               <div>
-                <div style={{ fontSize: 11, color: '#666', marginBottom: 5, display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ fontSize: 11, color: '#666', marginBottom: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Players</span>
-                  <span style={{ color: selectedPlayerIds.length === neededPlayers ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>
-                    {selectedPlayerIds.length} / {neededPlayers} needed
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      style={{ ...btnGray, padding: '3px 10px', fontSize: 10 }}
+                      onClick={() => {
+                        // Shuffle and pick random players
+                        const shuffled = [...availablePlayers].sort(() => Math.random() - 0.5)
+                        setSelectedPlayerIds(shuffled.slice(0, neededPlayers).map(p => p.id))
+                      }}
+                      disabled={availablePlayers.length < neededPlayers}
+                    >
+                      🎲 Random {neededPlayers}
+                    </button>
+                    <span style={{ color: selectedPlayerIds.length >= neededPlayers ? '#22c55e' : '#f59e0b', fontWeight: 600 }}>
+                      {selectedPlayerIds.length} / {neededPlayers} needed
+                    </span>
+                  </div>
                 </div>
                 <input
                   type="text"
