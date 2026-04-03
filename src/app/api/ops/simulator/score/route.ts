@@ -32,6 +32,7 @@ export async function POST(request: Request) {
   let body: unknown
   try {
     body = await request.json()
+    console.log('[simulator/score] body keys:', Object.keys(body as Record<string, unknown>))
   } catch {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -47,6 +48,9 @@ export async function POST(request: Request) {
     })
 
     const data = await relayResponse.json()
+    if (!relayResponse.ok) {
+      console.error('[simulator/score] relay returned', relayResponse.status, data)
+    }
     return Response.json(data, { status: relayResponse.status })
   } catch (err) {
     console.error('[simulator/score] relay request failed', err)

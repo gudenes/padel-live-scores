@@ -515,23 +515,35 @@ export function stateToRelayPayload(
     matchId,
     externalId,
     action,
-    status: state.status,
-    servingPair: state.servingPair,
-    winner: state.winner,
-    sets: state.sets.map(set => ({
-      setNumber: set.setNumber,
-      pair1Games: set.pair1Games,
-      pair2Games: set.pair2Games,
-      isTiebreak: set.isTiebreak,
-      winner: set.winner,
-      games: set.games.map(game => ({
-        gameNumber: game.gameNumber,
-        pair1Points: game.pair1Points,
-        pair2Points: game.pair2Points,
-        points: game.points,
-        winner: game.winner,
-      })),
-    })),
+    data: {
+      status: state.status,
+      servingPair: state.servingPair,
+      winner: state.winner,
+      sets: state.sets.map((set, i) => {
+        // Build set_score: null if in progress, "X-Y" or "X-Y(Z)" if done
+        let set_score: string | null = null
+        if (set.winner !== null) {
+          set_score = `${set.pair1Games}-${set.pair2Games}`
+          if (set.isTiebreak) {
+            const loserTbPoints = set.winner === 1 ? set.pair2Games : set.pair1Games
+            set_score = `${set.pair1Games}-${set.pair2Games}(${loserTbPoints})`
+          }
+        }
+        return {
+          set_number: set.setNumber,
+          set_score,
+          pair1_games: set.pair1Games,
+          pair2_games: set.pair2Games,
+          is_current: i === state.currentSet - 1,
+          games: set.games.map((game, gi) => ({
+            game_number: game.gameNumber,
+            game_score: `${game.pair1Points}-${game.pair2Points}`,
+            points: game.points.length > 0 ? game.points : ['0:0'],
+            is_current: i === state.currentSet - 1 && gi === set.games.length - 1 && game.winner === null,
+          })),
+        }
+      }),
+    },
   }
 }
 

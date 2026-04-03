@@ -2,7 +2,7 @@
 // src/app/match/[id]/page.tsx
 // V3 Match Detail — chunky clip-path brand language, no border-radius except circles.
 
-import { useState, useEffect, useCallback, use, useRef } from 'react'
+import { useState, useEffect, useCallback, use, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -57,6 +57,10 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
     />
   )
 }
+
+// ── Score-flash tracking (module-level, survives remounts) ──────────────────
+const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4 }
+const _matchPrevScores = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
 
 // ── Point extraction from a game's points array ─────────────────────────────
 function extractGamePoints(game: Game): { scorer: 1 | 2; score: string; isSP: boolean }[] {
@@ -289,6 +293,47 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     }
   }
 
+  // ── Score-change flash animation (hooks must be before early returns) ─────
+  const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
+  const flashKeyRef = useRef(0)
+  const matchSets = match?.sets ?? []
+  const p1TotalGames = useMemo(() => matchSets.reduce((s, st) => s + (parseSetScore(st.set_score)?.p1 ?? 0), 0), [matchSets])
+  const p2TotalGames = useMemo(() => matchSets.reduce((s, st) => s + (parseSetScore(st.set_score)?.p2 ?? 0), 0), [matchSets])
+  // Extract current point for flash detection (same logic used below for display)
+  const _cg = match ? getCurrentScore(match).currentGame : null
+  const _cp = _cg?.points?.filter(p => p !== '0:0').slice(-1)[0] ?? null
+  const _p1Pt = _cp ? _cp.split(':')[0] : '0'
+  const _p2Pt = _cp ? _cp.split(':')[1] : '0'
+  const _isLive = match?.status === 'live'
+
+  useEffect(() => {
+    if (!_isLive) { _matchPrevScores.delete(id); return }
+    const cur = { p1Games: p1TotalGames, p2Games: p2TotalGames, p1Pts: _p1Pt, p2Pts: _p2Pt }
+    const prev = _matchPrevScores.get(id)
+    if (prev && (prev.p1Games !== cur.p1Games || prev.p2Games !== cur.p2Games || prev.p1Pts !== cur.p1Pts || prev.p2Pts !== cur.p2Pts)) {
+      let scorer: 1 | 2 | null = null
+      if (cur.p1Games > prev.p1Games) scorer = 1
+      else if (cur.p2Games > prev.p2Games) scorer = 2
+      else {
+        const curP1 = PT_ORD[cur.p1Pts] ?? 0, curP2 = PT_ORD[cur.p2Pts] ?? 0
+        const prevP1 = PT_ORD[prev.p1Pts] ?? 0, prevP2 = PT_ORD[prev.p2Pts] ?? 0
+        if (curP1 > prevP1) scorer = 1
+        else if (curP2 > prevP2) scorer = 2
+        else if (prevP1 > prevP2 && curP1 <= curP2) scorer = 2
+        else if (prevP2 > prevP1 && curP2 <= curP1) scorer = 1
+      }
+      _matchPrevScores.set(id, cur)
+      if (scorer) {
+        flashKeyRef.current += 1
+        setFlashPair(scorer)
+        const t = setTimeout(() => setFlashPair(null), 2800)
+        return () => clearTimeout(t)
+      }
+    } else {
+      _matchPrevScores.set(id, cur)
+    }
+  }, [_isLive, id, p1TotalGames, p2TotalGames, _p1Pt, _p2Pt])
+
   if (loading) return (
     <>
     <main style={{ background: BG_BASE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -345,6 +390,16 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <>
+    <style>{`
+      @keyframes pn-score-roll {
+        0%   { transform: translateY(-120%); opacity: 0; }
+        15%  { transform: translateY(-120%); opacity: 0; }
+        45%  { transform: translateY(6%); opacity: 1; }
+        65%  { transform: translateY(-3%); }
+        80%  { transform: translateY(1%); }
+        100% { transform: translateY(0); }
+      }
+    `}</style>
     <main style={{ background: BG_BASE, minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
 
       {/* ── Nav bar ───────────────────────────────────────────────────── */}
@@ -547,7 +602,15 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               })}
               <span style={{ width: 8 }} />
               {!isFinished && (
-                <span style={{ fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1, color: starPoint ? ORANGE : LIVE_RED }}>
+                <span
+                  key={flashPair === 1 ? `p1-${flashKeyRef.current}` : 'p1'}
+                  style={{
+                    display: 'inline-block',
+                    fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1,
+                    color: starPoint ? ORANGE : LIVE_RED,
+                    ...(flashPair === 1 ? { animation: 'pn-score-roll 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both' } : {}),
+                  }}
+                >
                   {p1Point ?? pair1Sets}
                 </span>
               )}
@@ -555,12 +618,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           )}
         </div>
 
-        {/* Game divider (live only) */}
-        {isLive && currentGame && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
-            <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
-            {starPoint && <span style={{ color: ORANGE, fontSize: 9, fontWeight: 700, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.3)', clipPath: CHUNKY.badge, padding: '2px 6px' }}>Star point</span>}
-            <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+        {/* Star point indicator (no divider line) */}
+        {isLive && currentGame && starPoint && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 0' }}>
+            <span style={{ color: ORANGE, fontSize: 9, fontWeight: 700, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.3)', clipPath: CHUNKY.badge, padding: '2px 6px' }}>Star point</span>
           </div>
         )}
         {/* VS divider (scheduled) or spacer (finished) */}
@@ -597,7 +658,15 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               })}
               <span style={{ width: 8 }} />
               {!isFinished && (
-                <span style={{ fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1, color: starPoint ? 'rgba(245,166,35,0.3)' : '#333' }}>
+                <span
+                  key={flashPair === 2 ? `p2-${flashKeyRef.current}` : 'p2'}
+                  style={{
+                    display: 'inline-block',
+                    fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1,
+                    color: starPoint ? ORANGE : LIVE_RED,
+                    ...(flashPair === 2 ? { animation: 'pn-score-roll 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both' } : {}),
+                  }}
+                >
                   {p2Point ?? pair2Sets}
                 </span>
               )}
