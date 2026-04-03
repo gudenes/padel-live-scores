@@ -118,6 +118,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [loading, setLoading] = useState(true)
   const [subTab, setSubTab] = useState<SubTab>('live')
   const [h2hMatches, setH2hMatches] = useState<any[]>([])
+  const [pair1Recent, setPair1Recent] = useState<any[]>([])
+  const [pair2Recent, setPair2Recent] = useState<any[]>([])
   const [h2hLoading, setH2hLoading] = useState(false)
   const [heroHidden, setHeroHidden] = useState(false)
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -195,10 +197,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     setH2hLoading(true)
 
     const allIds = [...p1Ids, ...p2Ids]
-    const { data } = await supabase
+    const { data: rawData } = await supabase
       .from('matches')
       .select(`
-        id, external_id, status, round, started_at, winner_pair,
+        id, external_id, status, round, started_at, finished_at, scheduled_at, winner_pair,
         tournament:tournaments(name),
         pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country),
         pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country),
@@ -209,8 +211,15 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       .or(`pair1_player1_id.in.(${allIds.join(',')}),pair2_player1_id.in.(${allIds.join(',')})`)
       .eq('status', 'finished')
       .neq('id', m.id)
-      .order('started_at', { ascending: false })
+      .order('finished_at', { ascending: false, nullsFirst: false })
       .limit(80)
+
+    // Sort by best available date: finished_at > started_at > scheduled_at
+    const data = rawData?.sort((a: any, b: any) => {
+      const dateA = a.finished_at ?? a.started_at ?? a.scheduled_at ?? ''
+      const dateB = b.finished_at ?? b.started_at ?? b.scheduled_at ?? ''
+      return dateB.localeCompare(dateA)
+    }) ?? null
 
     if (data) {
       const filtered = data.filter((hm: any) => {
@@ -223,6 +232,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         return fwd || rev
       }).slice(0, 10)
       setH2hMatches(filtered)
+
+      // Extract last 5 matches per pair (any opponent, from the broader dataset)
+      const p1Recent = data.filter((hm: any) => {
+        const ids = [hm.pair1_player1?.id, hm.pair1_player2?.id, hm.pair2_player1?.id, hm.pair2_player2?.id]
+        return p1Ids.every(pid => ids.includes(pid))
+      }).slice(0, 5)
+      const p2Recent = data.filter((hm: any) => {
+        const ids = [hm.pair1_player1?.id, hm.pair1_player2?.id, hm.pair2_player1?.id, hm.pair2_player2?.id]
+        return p2Ids.every(pid => ids.includes(pid))
+      }).slice(0, 5)
+      setPair1Recent(p1Recent)
+      setPair2Recent(p2Recent)
     }
     setH2hLoading(false)
   }, [])
@@ -433,10 +454,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', textTransform: 'uppercase' as const }}>Match Detail</div>
         </div>
+        {isLive && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,68,85,0.15)', border: '1px solid rgba(255,68,85,0.4)', clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.2s ease-in-out infinite' }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: LIVE_RED, letterSpacing: '0.5px' }}>LIVE</span>
+          </div>
+        )}
       </div>
-
-      {/* ── Live banner ──────────────────────────────────────────────── */}
-      {isLive && <LiveBanner match={match} currentSet={currentSet} currentGame={currentGame} />}
 
       {/* ── Winner banner ────────────────────────────────────────────── */}
       {isFinished && winnerPair && (
@@ -459,6 +483,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </svg>
         </Link>
       )}
+
+      {/* ── Separator between tournament info and scoring ────────────── */}
+      <div style={{ height: 6, background: BG_BASE }} />
 
       {/* ── Compact sticky score (appears when hero scrolls away) ────── */}
       <div style={{
@@ -694,7 +721,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         </>
       )}
 
-      {/* ── Game Journey chart ────────────────────────────────────── */}
+      {/* ── Match Journey chart ───────────────────────────────────── */}
       {!isScheduled && (match.sets ?? []).length > 0 && (
         <MomentumChart
           sets={match.sets ?? []}
@@ -753,7 +780,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               </div>
             )}
             {subTab === 'h2h' && (
-              <H2HTab match={match} h2hMatches={h2hMatches} h2hLoading={h2hLoading} pair1Label={pair1Label} pair2Label={pair2Label} />
+              <H2HTab match={match} h2hMatches={h2hMatches} h2hLoading={h2hLoading} pair1Label={pair1Label} pair2Label={pair2Label} pair1Recent={pair1Recent} pair2Recent={pair2Recent} />
             )}
           </div>
         </>
@@ -782,32 +809,9 @@ function PlayerNameLink({ player, dim, muted, bold, router, style }: {
   )
 }
 
-// ── Live Banner ─────────────────────────────────────────────────────────────
-function LiveBanner({ match, currentSet, currentGame }: { match: Match; currentSet: any; currentGame: any }) {
-  return (
-    <div style={{ background: 'linear-gradient(135deg, #1a0808, #200d0a)', borderBottom: '0.5px solid rgba(255,68,85,0.25)', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,68,85,0.15)', border: '1px solid rgba(255,68,85,0.4)', clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.2s ease-in-out infinite' }} />
-        <span style={{ fontSize: 11, fontWeight: 800, color: LIVE_RED, letterSpacing: '0.5px' }}>LIVE</span>
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#ff7788', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-          {currentSet ? `SET ${currentSet.set_number} IN PROGRESS` : 'MATCH IN PROGRESS'}
-          {currentGame ? ` — GAME ${currentGame.game_number}` : ''}
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: 3 }}>
-        {[1, 2, 3].map(n => {
-          const cur = currentSet?.set_number
-          const isCurrent = cur === n
-          const isDone = cur != null && n < cur
-          return (
-            <span key={n} style={{ width: 8, height: 8, display: 'inline-block', background: isCurrent ? LIVE_RED : isDone ? 'rgba(255,68,85,0.45)' : 'rgba(255,68,85,0.12)', border: `0.5px solid ${isCurrent || isDone ? 'rgba(255,68,85,0.6)' : 'rgba(255,68,85,0.2)'}`, animation: isCurrent ? 'blink 1.2s ease-in-out infinite' : undefined, clipPath: CHUNKY.badge }} />
-          )
-        })}
-      </div>
-    </div>
-  )
+// ── Live Banner (unused — LIVE badge now in nav bar) ───────────────────────
+function LiveBanner(_props: { match: Match; currentSet: any; currentGame: any }) {
+  return null
 }
 
 // ── Winner Banner ───────────────────────────────────────────────────────────
@@ -1191,9 +1195,10 @@ function FinishedStatsSection({ match, pair1Label, pair2Label }: { match: Match;
 function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
   match: Match; pair1Label: string; pair2Label: string; isLive: boolean
 }) {
-  const sets = [...(match.sets ?? [])].sort((a, b) => b.set_number - a.set_number) // newest set first
+  const allSets = [...(match.sets ?? [])].sort((a, b) => b.set_number - a.set_number) // newest set first
+  const [setFilter, setSetFilter] = useState<number | 'all'>('all')
 
-  if (sets.length === 0 || sets.every(s => (s.games ?? []).length === 0)) {
+  if (allSets.length === 0 || allSets.every(s => (s.games ?? []).length === 0)) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 16px', color: MUTED, fontSize: 12 }}>
         {isLive ? 'Waiting for first point...' : 'No point data available'}
@@ -1201,8 +1206,52 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
     )
   }
 
+  const sets = setFilter === 'all' ? allSets : allSets.filter(s => s.set_number === setFilter)
+
   return (
     <div>
+      {/* Set filter sub-tabs */}
+      {allSets.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: `0.5px solid ${BORDER}`, background: 'rgba(0,0,0,0.2)', overflowX: 'auto' }}>
+          <button
+            onClick={() => setSetFilter('all')}
+            style={{
+              fontSize: 10, fontWeight: setFilter === 'all' ? 700 : 500,
+              padding: '4px 12px',
+              background: setFilter === 'all' ? 'rgba(126,211,33,0.12)' : 'rgba(255,255,255,0.04)',
+              border: `0.5px solid ${setFilter === 'all' ? 'rgba(126,211,33,0.3)' : BORDER}`,
+              color: setFilter === 'all' ? GREEN : MUTED,
+              clipPath: CHUNKY.badge,
+              cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+            }}
+          >
+            All Sets
+          </button>
+          {[...allSets].reverse().map(s => {
+            const active = setFilter === s.set_number
+            const parsed = parseSetScore(s.set_score)
+            const scoreLabel = parsed ? ` (${parsed.p1}-${parsed.p2})` : s.is_current ? ' ·  Live' : ''
+            return (
+              <button
+                key={s.set_number}
+                onClick={() => setSetFilter(s.set_number)}
+                style={{
+                  fontSize: 10, fontWeight: active ? 700 : 500,
+                  padding: '4px 12px',
+                  background: active ? 'rgba(126,211,33,0.12)' : 'rgba(255,255,255,0.04)',
+                  border: `0.5px solid ${active ? 'rgba(126,211,33,0.3)' : BORDER}`,
+                  color: active ? GREEN : MUTED,
+                  clipPath: CHUNKY.badge,
+                  cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+                }}
+              >
+                Set {s.set_number}{scoreLabel}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {sets.map((set) => {
         const sortedGames = [...(set.games ?? [])].sort((a, b) => a.game_number - b.game_number)
         const reversedGames = [...sortedGames].reverse()
@@ -1261,9 +1310,8 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
                       <div key={ptIdx} style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         padding: '5px 16px 5px 28px',
-                        borderLeft: `2px solid ${pt.scorer === 1 ? PAIR1_BORDER : PAIR2_BORDER}`,
+                        borderLeft: `2px solid ${isLatest ? LIVE_RED : pt.scorer === 1 ? PAIR1_BORDER : PAIR2_BORDER}`,
                         background: isLatest ? 'rgba(255,70,85,0.06)' : pt.isSP ? 'rgba(245,166,35,0.04)' : 'transparent',
-                        ...(isLatest ? { borderLeftColor: LIVE_RED } : {}),
                       }}>
                         <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: pt.scorer === 1 ? PAIR1_COLOR : PAIR2_COLOR }} />
                         <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', width: 58, flexShrink: 0, color: pt.scorer === 1 ? PAIR1_COLOR : PAIR2_COLOR }}>
@@ -1292,8 +1340,8 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
 }
 
 // ── H2H Tab ─────────────────────────────────────────────────────────────────
-function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
-  match: Match; h2hMatches: any[]; h2hLoading: boolean; pair1Label: string; pair2Label: string
+function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Recent, pair2Recent }: {
+  match: Match; h2hMatches: any[]; h2hLoading: boolean; pair1Label: string; pair2Label: string; pair1Recent: any[]; pair2Recent: any[]
 }) {
   const p1Ids = [match.pair1_player1?.id, match.pair1_player2?.id].filter(Boolean) as string[]
 
@@ -1367,12 +1415,12 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
         const ourWon = (ourPairIsMatch1 && m.winner_pair === 1) || (!ourPairIsMatch1 && m.winner_pair === 2)
 
         const scores = formatSetScores(m)
-        const date = formatDate(m.started_at)
+        const date = formatDate(m.finished_at ?? m.started_at)
         const tournamentName = (m.tournament as any)?.name ?? '\u2014'
         const round = m.round ?? ''
 
         return (
-          <div key={m.id} style={{ padding: '10px 16px', borderBottom: `0.5px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 8, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.1)' }}>
+          <Link key={m.id} href={`/match/${m.id}`} style={{ padding: '10px 16px', borderBottom: `0.5px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 8, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.1)', textDecoration: 'none' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {tournamentName}
@@ -1388,9 +1436,101 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
             <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: ourWon ? PAIR1_BG : PAIR2_BG, border: `0.5px solid ${ourWon ? PAIR1_BORDER : PAIR2_BORDER}`, clipPath: CHUNKY.badge }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: ourWon ? PAIR1_COLOR : PAIR2_COLOR }}>{ourWon ? 'W' : 'L'}</span>
             </div>
-          </div>
+          </Link>
         )
       })}
+
+      {/* ── Last 5 Matches per pair ───────────────────────────────── */}
+      {(pair1Recent.length > 0 || pair2Recent.length > 0) && (
+        <>
+          {/* Section header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 8px' }}>
+            <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px' }}>Last 5 Matches</span>
+            <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+          </div>
+
+          {/* Two-column layout */}
+          <div style={{ display: 'flex', gap: 0 }}>
+            {/* Pair 1 column */}
+            <div style={{ flex: 1, borderRight: `0.5px solid ${BORDER}` }}>
+              <div style={{ padding: '6px 10px 4px', borderBottom: `0.5px solid ${BORDER}`, background: PAIR1_BG }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: PAIR1_COLOR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pair1Label}</div>
+              </div>
+              {pair1Recent.length === 0 ? (
+                <div style={{ padding: '16px 10px', fontSize: 10, color: MUTED, textAlign: 'center' }}>No recent data</div>
+              ) : pair1Recent.map((m, idx) => {
+                const isPair1InSlot1 = pairMatchesIds(m.pair1_player1?.id, m.pair1_player2?.id, p1Ids)
+                const won = (isPair1InSlot1 && m.winner_pair === 1) || (!isPair1InSlot1 && m.winner_pair === 2)
+                const opponentNames = isPair1InSlot1
+                  ? [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
+                  : [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
+                const scores = formatSetScores(m)
+                return (
+                  <Link key={m.id} href={`/match/${m.id}`} style={{ display: 'block', padding: '6px 10px', borderBottom: `0.5px solid ${BORDER}`, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.08)', textDecoration: 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                      <div style={{
+                        width: 18, height: 18, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: won ? 'rgba(126,211,33,0.15)' : 'rgba(255,68,85,0.15)',
+                        border: `0.5px solid ${won ? 'rgba(126,211,33,0.3)' : 'rgba(255,68,85,0.3)'}`,
+                        clipPath: CHUNKY.badge,
+                      }}>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: won ? GREEN : LIVE_RED }}>{won ? 'W' : 'L'}</span>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                        {opponentNames || 'TBD'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', color: MUTED, paddingLeft: 22 }}>
+                      {scores || '\u2014'}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Pair 2 column */}
+            <div style={{ flex: 1 }}>
+              <div style={{ padding: '6px 10px 4px', borderBottom: `0.5px solid ${BORDER}`, background: PAIR2_BG }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: PAIR2_COLOR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pair2Label}</div>
+              </div>
+              {pair2Recent.length === 0 ? (
+                <div style={{ padding: '16px 10px', fontSize: 10, color: MUTED, textAlign: 'center' }}>No recent data</div>
+              ) : pair2Recent.map((m, idx) => {
+                const p2Ids = [match.pair2_player1?.id, match.pair2_player2?.id].filter(Boolean) as string[]
+                const isPair2InSlot1 = pairMatchesIds(m.pair1_player1?.id, m.pair1_player2?.id, p2Ids)
+                const won = (isPair2InSlot1 && m.winner_pair === 1) || (!isPair2InSlot1 && m.winner_pair === 2)
+                const opponentNames = isPair2InSlot1
+                  ? [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
+                  : [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
+                const scores = formatSetScores(m)
+                return (
+                  <Link key={m.id} href={`/match/${m.id}`} style={{ display: 'block', padding: '6px 10px', borderBottom: `0.5px solid ${BORDER}`, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.08)', textDecoration: 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                      <div style={{
+                        width: 18, height: 18, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: won ? 'rgba(126,211,33,0.15)' : 'rgba(255,68,85,0.15)',
+                        border: `0.5px solid ${won ? 'rgba(126,211,33,0.3)' : 'rgba(255,68,85,0.3)'}`,
+                        clipPath: CHUNKY.badge,
+                      }}>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: won ? GREEN : LIVE_RED }}>{won ? 'W' : 'L'}</span>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#ccc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                        {opponentNames || 'TBD'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 9, fontWeight: 600, fontFamily: 'monospace', color: MUTED, paddingLeft: 22 }}>
+                      {scores || '\u2014'}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }
