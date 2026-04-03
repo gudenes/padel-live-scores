@@ -4,13 +4,16 @@
 
 import { useState, useEffect, useCallback, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toShortName } from '@/types/match'
 import MomentumChart from './MomentumChart'
-import BottomNav from '@/app/components/BottomNav'
+import BottomNav from '@/app/v3/components/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
+import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
+import { useMatchRating } from '@/hooks/useMatchRating'
 
-type SubTab = 'live' | 'players' | 'h2h'
+type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
 // ── V3 Brand colors ─────────────────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -113,10 +116,43 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [h2hMatches, setH2hMatches] = useState<any[]>([])
   const [h2hLoading, setH2hLoading] = useState(false)
   const [heroHidden, setHeroHidden] = useState(false)
-  const [navHidden, setNavHidden] = useState(false)
+  const [headerVisible, setHeaderVisible] = useState(true)
   const lastScrollY = useRef(0)
   const heroSentinelRef = useRef<HTMLDivElement>(null)
   const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 })
+  const [nextMatchId, setNextMatchId] = useState<string | null>(null)
+  const { prediction, setPrediction, clearPrediction } = useMatchPrediction(id)
+  const [predStep, setPredStep] = useState<'pick' | 'margin' | 'done'>('pick')
+  const { rating, setRating, avgRating, ratingCount } = useMatchRating(
+    id,
+    (match as any)?.avg_rating ?? null,
+    (match as any)?.rating_count ?? 0
+  )
+
+  const fetchNextMatch = useCallback(async (m: Match) => {
+    const wp = (m as any).winner_pair as number | null
+    if (!wp) return
+    const winnerP1 = wp === 1 ? m.pair1_player1?.id : m.pair2_player1?.id
+    const tournamentId = (m as any).tournament?.id
+    if (!winnerP1 || !tournamentId) return
+
+    // Find matches in the same tournament/category where winning player1 appears
+    const { data } = await supabase
+      .from('matches')
+      .select('id, scheduled_at')
+      .eq('tournament_id', tournamentId)
+      .eq('category', (m as any).category)
+      .neq('id', m.id)
+      .or(`pair1_player1_id.eq.${winnerP1},pair1_player2_id.eq.${winnerP1},pair2_player1_id.eq.${winnerP1},pair2_player2_id.eq.${winnerP1}`)
+      .order('scheduled_at', { ascending: true })
+      .limit(10)
+
+    if (!data || data.length === 0) return
+    // Pick the match scheduled after the current one (next round)
+    const currentDate = m.scheduled_at ?? m.started_at ?? ''
+    const next = data.find(d => (d.scheduled_at ?? '') > currentDate) ?? data[data.length - 1]
+    if (next) setNextMatchId(next.id)
+  }, [id])
 
   const fetchMatch = useCallback(async () => {
     const { data, error } = await supabase
@@ -212,13 +248,26 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY
-      if (y > lastScrollY.current && y > 60) setNavHidden(true)
-      else setNavHidden(false)
+      if (y < 10) setHeaderVisible(true)
+      else if (y > lastScrollY.current + 4) setHeaderVisible(false)
+      else if (y < lastScrollY.current - 4) setHeaderVisible(true)
       lastScrollY.current = y
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  useEffect(() => {
+    if (match && match.status === 'finished' && (match as any).winner_pair) fetchNextMatch(match)
+  }, [match, fetchNextMatch])
+
+  useEffect(() => {
+    if (prediction) setPredStep('done')
+  }, [prediction])
+
+  useEffect(() => {
+    if (match?.status === 'finished') setSubTab('recap')
+  }, [match?.status])
 
   useEffect(() => {
     if (!match || match.status !== 'scheduled') return
@@ -300,32 +349,35 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
       {/* ── Nav bar ───────────────────────────────────────────────────── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 14px',
-        borderBottom: `0.5px solid ${BORDER}`,
-        position: 'sticky', top: navHidden ? -49 : 0, zIndex: 10,
-        background: BG_BASE,
-        transition: 'top 0.25s ease',
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 16px',
+        borderBottom: `1px solid ${BORDER}`,
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(10,10,10,0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
+        transition: 'transform 0.3s ease',
       }}>
         <button
           onClick={handleBack}
           style={{
-            width: 36, height: 36, border: 'none', cursor: 'pointer',
-            background: 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: MUTED,
+            width: 36, height: 36,
+            clipPath: CHUNKY.badge,
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', cursor: 'pointer',
           }}
-          aria-label="Go back"
+          aria-label="Back"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6"/>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', textTransform: 'uppercase' as const }}>Match Detail</div>
         </div>
-        {/* spacer to balance back button */}
-        <div style={{ width: 36, height: 36 }} />
       </div>
 
       {/* ── Live banner ──────────────────────────────────────────────── */}
@@ -333,18 +385,35 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
       {/* ── Winner banner ────────────────────────────────────────────── */}
       {isFinished && winnerPair && (
-        <WinnerBanner match={match} winnerPair={winnerPair} pair1Label={pair1Label} pair2Label={pair2Label} />
+        <WinnerBanner match={match} winnerPair={winnerPair} pair1Label={pair1Label} pair2Label={pair2Label} nextMatchId={nextMatchId} />
+      )}
+
+      {/* ── Tournament link ──────────────────────────────────────────── */}
+      {(match as any).tournament?.id && (
+        <Link href={`/v3/tournaments/${(match as any).tournament.id}`} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 16px', background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`,
+          textDecoration: 'none',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', flexShrink: 0 }}>Tournament</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(match as any).tournament.name}</span>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </Link>
       )}
 
       {/* ── Compact sticky score (appears when hero scrolls away) ────── */}
       <div style={{
-        position: 'sticky', top: navHidden ? 0 : 49, zIndex: 8,
+        position: 'sticky', top: headerVisible ? 49 : 0, zIndex: 8,
         background: BG_CARD,
         borderBottom: `0.5px solid ${BORDER}`,
         overflow: 'hidden',
         maxHeight: heroHidden ? 68 : 0,
         opacity: heroHidden ? 1 : 0,
-        transition: 'top 0.25s ease, max-height 0.25s ease, opacity 0.2s ease',
+        transition: 'top 0.3s ease, max-height 0.25s ease, opacity 0.2s ease',
       }}>
         <div style={{ padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Avatars + Names column */}
@@ -423,6 +492,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <span style={{ fontSize: 10, color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{match.court ?? ''}</span>
           {match.court && match.round && <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />}
           <span style={{ fontSize: 10, color: '#777' }}>{match.round ?? ''}</span>
+          {duration && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />
+              <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, background: 'rgba(255,255,255,0.06)', clipPath: CHUNKY.badge, padding: '2px 7px' }}>{duration}</span>
+            </>
+          )}
           <span style={{ flex: 1 }} />
           {matchDate && !isScheduled && <span style={{ fontSize: 10, color: '#666' }}>{matchDate}</span>}
         </div>
@@ -476,9 +551,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   {p1Point ?? pair1Sets}
                 </span>
               )}
-              {isFinished && p1Won && (
-                <span style={{ fontSize: 11, fontWeight: 800, color: GREEN, marginLeft: 4, clipPath: CHUNKY.badge, background: GREEN_DIM, padding: '2px 6px' }}>W</span>
-              )}
             </div>
           )}
         </div>
@@ -529,9 +601,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   {p2Point ?? pair2Sets}
                 </span>
               )}
-              {isFinished && p2Won && (
-                <span style={{ fontSize: 11, fontWeight: 800, color: GREEN, marginLeft: 4, clipPath: CHUNKY.badge, background: GREEN_DIM, padding: '2px 6px' }}>W</span>
-              )}
             </div>
           )}
         </div>
@@ -539,33 +608,21 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <div ref={heroSentinelRef} style={{ height: 0 }} />
       </div>
 
-      {/* ── SCHEDULED: notify CTAs + countdown + info ────────────────── */}
+      {/* ── SCHEDULED: prediction + countdown + info ─────────────────── */}
       {isScheduled && (
-        <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
-      )}
-
-      {/* ── FINISHED: fan support poll ───────────────────────────────── */}
-      {isFinished && (
-        <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '12px 16px' }}>
-          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: MUTED, textAlign: 'center', marginBottom: 10 }}>
-            {isFinished ? 'Who did you root for?' : 'Who are you rooting for?'}
-          </div>
-          <div style={{ display: 'flex', overflow: 'hidden', border: `0.5px solid ${BORDER}`, clipPath: CHUNKY.card }}>
-            <div style={{ flex: 1, background: PAIR1_BG, borderRight: `0.5px solid ${BORDER}`, padding: '10px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              <div style={{ fontSize: 24, fontWeight: 900, fontFamily: 'monospace', color: PAIR1_COLOR, lineHeight: 1 }}>62%</div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#ccc', textAlign: 'center', lineHeight: 1.3 }}>{pair1Label}</div>
-            </div>
-            <div style={{ flex: 1, background: PAIR2_BG, padding: '10px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              <div style={{ fontSize: 24, fontWeight: 900, fontFamily: 'monospace', color: PAIR2_COLOR, lineHeight: 1 }}>38%</div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#ccc', textAlign: 'center', lineHeight: 1.3 }}>{pair2Label}</div>
-            </div>
-          </div>
-          <div style={{ height: 4, overflow: 'hidden', background: BORDER, display: 'flex', marginTop: 8, clipPath: CHUNKY.badge }}>
-            <div style={{ width: '62%', background: PAIR1_COLOR, opacity: 0.7 }} />
-            <div style={{ flex: 1, background: PAIR2_COLOR, opacity: 0.7 }} />
-          </div>
-          <div style={{ fontSize: 9, color: MUTED, textAlign: 'center', marginTop: 6 }}>3,779 fans voted</div>
-        </div>
+        <>
+          <PredictionSection
+            match={match}
+            pair1Label={pair1Label}
+            pair2Label={pair2Label}
+            prediction={prediction}
+            predStep={predStep}
+            setPredStep={setPredStep}
+            setPrediction={setPrediction}
+            clearPrediction={clearPrediction}
+          />
+          <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
+        </>
       )}
 
       {/* ── Game Journey chart ────────────────────────────────────── */}
@@ -593,20 +650,23 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         />
       )}
 
-      {/* ── FINISHED: match stats ─────────────────────────────────────── */}
-      {isFinished && <FinishedStatsSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} />}
-
       {/* ── LIVE / FINISHED: sub-tabs ─────────────────────────────────── */}
       {!isScheduled && (
         <>
+          {isFinished && (
+            <MatchRatingCard rating={rating} setRating={setRating} avgRating={avgRating} ratingCount={ratingCount} />
+          )}
           <div style={{ display: 'flex', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
-            {(['live', 'players', 'h2h'] as SubTab[]).map(tab => (
+            {(isFinished ? ['recap', 'live', 'players', 'h2h'] as SubTab[] : ['live', 'players', 'h2h'] as SubTab[]).map(tab => (
               <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? GREEN : MUTED, borderBottom: subTab === tab ? `2px solid ${GREEN}` : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                {tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
+                {tab === 'recap' ? 'Score Recap' : tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
               </button>
             ))}
           </div>
           <div style={{ background: BG_CARD, minHeight: 300 }}>
+            {subTab === 'recap' && isFinished && (
+              <FinishedStatsSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+            )}
             {subTab === 'live' && (
               <LiveFeedTab match={match} pair1Label={pair1Label} pair2Label={pair2Label} isLive={isLive} />
             )}
@@ -682,12 +742,13 @@ function LiveBanner({ match, currentSet, currentGame }: { match: Match; currentS
 }
 
 // ── Winner Banner ───────────────────────────────────────────────────────────
-function WinnerBanner({ match, winnerPair, pair1Label, pair2Label }: { match: Match; winnerPair: number; pair1Label: string; pair2Label: string }) {
+function WinnerBanner({ match, winnerPair, pair1Label, pair2Label, nextMatchId }: { match: Match; winnerPair: number; pair1Label: string; pair2Label: string; nextMatchId: string | null }) {
   const winnerLabel = winnerPair === 1 ? pair1Label : pair2Label
   const round = (match.round ?? '').toLowerCase()
+  const isFinal = round.includes('final') && !round.includes('semifinal') && !round.includes('quarter')
   const advancement = round.includes('semifinal') ? { badge: 'Finals', text: 'Advances to the Finals' }
     : round.includes('quarter') ? { badge: 'Semifinals', text: 'Advances to the Semifinals' }
-    : round.includes('final') ? { badge: 'Champion', text: 'Tournament Champion!' }
+    : isFinal ? { badge: 'Champion', text: 'Tournament Champion!' }
     : null
   return (
     <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, rgba(126,211,33,0.04), rgba(126,211,33,0.01))', borderBottom: `0.5px solid rgba(126,211,33,0.2)`, position: 'relative', overflow: 'hidden' }}>
@@ -706,8 +767,133 @@ function WinnerBanner({ match, winnerPair, pair1Label, pair2Label }: { match: Ma
           </div>
         )}
       </div>
-      {advancement && (
+      {!isFinal && nextMatchId && (
+        <Link href={`/match/${nextMatchId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 42, marginTop: 8, textDecoration: 'none' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>{advancement ? advancement.text : 'Next match'}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14" /><polyline points="12 5 19 12 12 19" />
+          </svg>
+        </Link>
+      )}
+      {isFinal && advancement && (
         <div style={{ fontSize: 10, color: 'rgba(126,211,33,0.4)', paddingLeft: 42, marginTop: 6 }}>{advancement.text}</div>
+      )}
+    </div>
+  )
+}
+
+// ── Prediction Section (Scheduled matches) ─────────────────────────────────
+function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep, setPredStep, setPrediction, clearPrediction }: {
+  match: Match; pair1Label: string; pair2Label: string
+  prediction: Prediction | null
+  predStep: 'pick' | 'margin' | 'done'
+  setPredStep: (s: 'pick' | 'margin' | 'done') => void
+  setPrediction: (p: Prediction) => void
+  clearPrediction: () => void
+}) {
+  const [selectedPair, setSelectedPair] = useState<1 | 2 | null>(prediction?.pair ?? null)
+
+  const handlePickPair = (pair: 1 | 2) => {
+    setSelectedPair(pair)
+    setPredStep('margin')
+  }
+
+  const handlePickMargin = (margin: '2-0' | '2-1') => {
+    if (!selectedPair) return
+    setPrediction({ pair: selectedPair, margin })
+    setPredStep('done')
+  }
+
+  const handleChange = () => {
+    clearPrediction()
+    setSelectedPair(null)
+    setPredStep('pick')
+  }
+
+  const p1Short = pair1Label.split(' / ').map(n => n.split(' ').pop()).join(' / ')
+  const p2Short = pair2Label.split(' / ').map(n => n.split(' ').pop()).join(' / ')
+
+  return (
+    <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '16px' }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center', marginBottom: 14 }}>
+        Make your prediction
+      </div>
+
+      {/* Step 1: Pick the winner */}
+      {predStep === 'pick' && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([1, 2] as const).map(pair => {
+            const label = pair === 1 ? p1Short : p2Short
+            const color = pair === 1 ? PAIR1_COLOR : PAIR2_COLOR
+            const bg = pair === 1 ? PAIR1_BG : PAIR2_BG
+            const border = pair === 1 ? PAIR1_BORDER : PAIR2_BORDER
+            const p1 = pair === 1 ? match.pair1_player1 : match.pair2_player1
+            const p2 = pair === 1 ? match.pair1_player2 : match.pair2_player2
+            return (
+              <button key={pair} onClick={() => handlePickPair(pair)} style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                padding: '14px 8px', clipPath: CHUNKY.card,
+                background: bg, border: `1px solid ${border}`,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <PlayerAvatar player={p1} size={28} />
+                  <PlayerAvatar player={p2} size={28} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color, textAlign: 'center', lineHeight: 1.3 }}>{label}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Step 2: Pick the margin */}
+      {predStep === 'margin' && selectedPair && (
+        <div>
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: selectedPair === 1 ? PAIR1_COLOR : PAIR2_COLOR }}>
+              {selectedPair === 1 ? p1Short : p2Short}
+            </span>
+            <span style={{ fontSize: 11, color: MUTED }}> wins...</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => handlePickMargin('2-0')} style={{
+              flex: 1, padding: '12px 8px', clipPath: CHUNKY.button,
+              background: GREEN_DIM, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: GREEN, fontFamily: 'monospace' }}>2-0</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(126,211,33,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Straight sets</span>
+            </button>
+            <button onClick={() => handlePickMargin('2-1')} style={{
+              flex: 1, padding: '12px 8px', clipPath: CHUNKY.button,
+              background: 'rgba(245,166,35,0.08)', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: ORANGE, fontFamily: 'monospace' }}>2-1</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(245,166,35,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>3-set battle</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Confirmation */}
+      {predStep === 'done' && prediction && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(126,211,33,0.04)', border: `0.5px solid rgba(126,211,33,0.15)`, clipPath: CHUNKY.card }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(126,211,33,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 4 }}>Your prediction</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: GREEN }}>
+              {prediction.pair === 1 ? p1Short : p2Short} win {prediction.margin}
+            </div>
+          </div>
+          <button onClick={handleChange} style={{
+            background: 'transparent', border: `0.5px solid rgba(126,211,33,0.2)`, clipPath: CHUNKY.badge,
+            padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: 9, fontWeight: 700, color: GREEN,
+          }}>
+            Change
+          </button>
+        </div>
       )}
     </div>
   )
@@ -722,19 +908,6 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
   const tournamentName = ((match as any).tournament)?.name ?? null
   return (
     <>
-      {/* Notify CTAs */}
-      <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', marginBottom: 10 }}>Don&apos;t miss it</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 8px', clipPath: CHUNKY.button, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: GREEN_DIM, border: 'none', color: GREEN, fontFamily: 'inherit' }}>
-            Notify me
-          </button>
-          <button style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 8px', clipPath: CHUNKY.button, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'rgba(245,166,35,0.08)', border: 'none', color: ORANGE, fontFamily: 'inherit' }}>
-            Save match
-          </button>
-        </div>
-      </div>
-
       {/* Countdown */}
       <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', textAlign: 'center' }}>
         <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Starts in</div>
@@ -766,6 +939,141 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
         ))}
       </div>
     </>
+  )
+}
+
+// ── Match Rating Card ───────────────────────────────────────────────────────
+const REACTION_LABELS: Record<number, string> = { 1: 'Boring', 2: 'Meh', 3: 'Decent', 4: 'Great match!', 5: 'Epic' }
+
+function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
+  rating: number | null
+  setRating: (n: number) => void
+  avgRating: number | null
+  ratingCount: number
+}) {
+  const [justRated, setJustRated] = useState<number | null>(null)
+  const [collapsed, setCollapsed] = useState(rating != null)
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([])
+
+  const handleRate = (n: number) => {
+    setRating(n)
+    setJustRated(n)
+
+    // Generate particles
+    const colors = [GREEN, ORANGE, GREEN, '#fff', ORANGE, GREEN, ORANGE, GREEN]
+    const newParticles = colors.map((color, i) => ({
+      id: i,
+      x: (Math.random() - 0.5) * 80,
+      y: (Math.random() - 0.5) * 80,
+      color,
+    }))
+    setParticles(newParticles)
+
+    // Collapse after 2s
+    setTimeout(() => {
+      setCollapsed(true)
+      setJustRated(null)
+      setParticles([])
+    }, 2000)
+  }
+
+  // Already rated on a previous visit — show compact immediately
+  if (collapsed || (rating != null && justRated == null)) {
+    return (
+      <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <div style={{
+            width: 36, height: 36, clipPath: CHUNKY.badge, background: GREEN,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: '#000' }}>{rating}</span>
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(126,211,33,0.7)' }}>
+            {REACTION_LABELS[rating!]}
+          </span>
+          {ratingCount >= 10 && avgRating != null && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />
+              <span style={{ fontSize: 10, color: MUTED }}>avg {avgRating}</span>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Celebration burst state (just tapped)
+  if (justRated != null) {
+    return (
+      <div style={{ padding: '20px 16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <style>{`
+          @keyframes pn-burst {
+            0% { transform: translate(0,0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+          }
+          @keyframes pn-scale-up {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.4); }
+            100% { transform: scale(1.3); }
+          }
+          @keyframes pn-fade-in {
+            0% { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          {/* Particles */}
+          {particles.map(p => (
+            <div key={p.id} style={{
+              position: 'absolute', top: '50%', left: '50%',
+              width: 6, height: 6, borderRadius: '50%', background: p.color,
+              '--tx': `${p.x}px`, '--ty': `${p.y}px`,
+              animation: 'pn-burst 0.6s ease-out forwards',
+              pointerEvents: 'none',
+            } as React.CSSProperties} />
+          ))}
+          {/* Badge */}
+          <div style={{
+            width: 48, height: 48, clipPath: CHUNKY.badge, background: GREEN,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'pn-scale-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+          }}>
+            <span style={{ fontSize: 20, fontWeight: 900, color: '#000' }}>{justRated}</span>
+          </div>
+        </div>
+        <div style={{
+          fontSize: 14, fontWeight: 900, color: GREEN, marginTop: 10,
+          animation: 'pn-fade-in 0.3s ease 0.15s both',
+        }}>
+          {REACTION_LABELS[justRated]}
+        </div>
+      </div>
+    )
+  }
+
+  // Unrated state — show picker
+  return (
+    <div style={{ padding: '16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center', marginBottom: 14 }}>
+        Rate this match
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>Boring</span>
+        {[1, 2, 3, 4, 5].map(n => (
+          <button key={n} onClick={() => handleRate(n)} style={{
+            width: 36, height: 36,
+            clipPath: CHUNKY.badge,
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.15s ease',
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: MUTED }}>{n}</span>
+          </button>
+        ))}
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>Epic</span>
+      </div>
+    </div>
   )
 }
 
