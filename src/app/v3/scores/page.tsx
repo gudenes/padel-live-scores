@@ -1,14 +1,858 @@
 'use client'
-// src/app/v3/scores/page.tsx — placeholder for V3 scores page
+// src/app/v3/scores/page.tsx
+// V3 Scores — Live / Upcoming / Results with tournament-grouped matches.
+// Chunky clip-path brand language, no border-radius anywhere.
 
-export default function V3ScoresPage() {
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { Match, countryFlag, pairName, parseSetScore, isWarmingUp } from '@/types/match'
+import Link from 'next/link'
+import Spinner from '../../components/Spinner'
+
+// ── Brand colors ───────────────────────────────────────────────
+const GREEN = '#7ED321'
+const ORANGE = '#F5A623'
+const LIVE_RED = '#FF4655'
+const BG_BASE = '#0A0A0A'
+const BG_CARD = '#141414'
+const MUTED = '#6B7280'
+const BORDER = 'rgba(255,255,255,0.06)'
+const MEN_BLUE = '#4A9EFF'
+const WOMEN_PURPLE = '#D966FF'
+
+// ── Chunky clip-path presets ───────────────────────────────────
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+
+const KEEP_UPPER = new Set(['FIP', 'P1', 'P2', 'WPT', 'APT', 'A1', 'II', 'III', 'IV', 'BNL'])
+function titleCase(name: string): string {
+  return name.split(' ').map(word => {
+    if (KEEP_UPPER.has(word.toUpperCase())) return word.toUpperCase()
+    if (word.length <= 1) return word.toUpperCase()
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  }).join(' ')
+}
+
+function levelLabel(level: string | null): string {
+  const map: Record<string, string> = {
+    finals: 'Finals', major: 'Major', p1: 'P1', p2: 'P2',
+    fip_platinum: 'FIP Platinum', fip_gold: 'FIP Gold', fip_other: 'FIP Tour',
+  }
+  return level ? (map[level] ?? level) : ''
+}
+
+function hasPlayers(m: Match): boolean {
+  const a = m as any
+  return !!(a.pair1_player1 || a.pair1_player2 || a.pair2_player1 || a.pair2_player2)
+}
+
+function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
+  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
+  const code = country.toLowerCase()
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', padding: '60px 20px', textAlign: 'center' }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>&#127934;</div>
-      <h1 style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Scores</h1>
-      <p style={{ fontSize: 14, color: '#6B7280' }}>
-        Live scores, upcoming matches, and results — coming soon.
-      </p>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/w40/${code}.png`}
+      alt={country}
+      width={size}
+      height={size * 0.75}
+      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
+    />
+  )
+}
+
+function shortName(fullName: string | null): string {
+  if (!fullName) return '\u2014'
+  const parts = fullName.trim().split(' ')
+  return parts[parts.length - 1]
+}
+
+function groupByTournament(matches: Match[]): { tournament: any; matches: Match[] }[] {
+  const groups: { tournament: any; matches: Match[] }[] = []
+  for (const m of matches) {
+    const t = (m as any).tournament
+    const tid = t?.id ?? 'unknown'
+    let group = groups.find(g => (g.tournament?.id ?? 'unknown') === tid)
+    if (!group) {
+      group = { tournament: t, matches: [] }
+      groups.push(group)
+    }
+    group.matches.push(m)
+  }
+  groups.sort((a, b) => {
+    const aHasLive = a.matches.some(m => m.status === 'live')
+    const bHasLive = b.matches.some(m => m.status === 'live')
+    if (aHasLive !== bHasLive) return aHasLive ? -1 : 1
+    const aDate = a.tournament?.starts_at ?? ''
+    const bDate = b.tournament?.starts_at ?? ''
+    return bDate.localeCompare(aDate)
+  })
+  return groups
+}
+
+function tournamentStatus(matches: Match[], tournament?: any): 'live' | 'finished' | 'upcoming' | 'qualifying' | null {
+  if (matches.length === 0) return null
+  const hasLive = matches.some(m => m.status === 'live')
+  if (hasLive) return 'live'
+  const allDone = matches.every(m => ['finished', 'retired', 'walkover'].includes(m.status))
+  if (allDone) return 'finished'
+  const hasScheduled = matches.some(m => m.status === 'scheduled')
+  if (hasScheduled && tournament?.starts_at) {
+    const now = new Date()
+    const start = new Date(tournament.starts_at)
+    if (start <= now) {
+      if (tournament.source === 'fip' && matches.every((m: any) => m.status === 'scheduled')) {
+        return 'qualifying'
+      }
+      return 'live'
+    }
+  }
+  if (hasScheduled && matches.every(m => m.status === 'scheduled')) return 'upcoming'
+  return null
+}
+
+function getChampions(matches: Match[], category: string): { player1: string | null; player2: string | null; avatar1: string | null; avatar2: string | null } | null {
+  const finals = matches.filter(m => {
+    const a = m as any
+    const r = (a.round ?? '').toLowerCase()
+    const isFinal = r === 'f' || r === 'final' || r === 'finals'
+    return a.category === category && isFinal && a.winner_pair
+  })
+  if (finals.length === 0) return null
+  const f = finals[0] as any
+  const isP1 = f.winner_pair === 1
+  return {
+    player1: isP1 ? f.pair1_player1?.name : f.pair2_player1?.name,
+    player2: isP1 ? f.pair1_player2?.name : f.pair2_player2?.name,
+    avatar1: isP1 ? f.pair1_player1?.avatar_url : f.pair2_player1?.avatar_url,
+    avatar2: isP1 ? f.pair1_player2?.avatar_url : f.pair2_player2?.avatar_url,
+  }
+}
+
+// ── Status config for tournament badges ───────────────────────
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  live: { label: 'LIVE', color: '#fff', bg: LIVE_RED },
+  finished: { label: 'FINISHED', color: MUTED, bg: 'rgba(255,255,255,0.06)' },
+  upcoming: { label: 'UPCOMING', color: GREEN, bg: 'rgba(126,211,33,0.12)' },
+  qualifying: { label: 'QUALIFYING', color: ORANGE, bg: 'rgba(245,166,35,0.15)' },
+}
+
+// ── Inline match row (replaces MatchCard for v3) ──────────────
+
+function V3MatchRow({ match }: { match: Match }) {
+  const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
+  const currentSet = sets.find(s => s.is_current)
+  const currentGame = currentSet?.games?.find(g => g.is_current)
+  const gamePoints = currentGame?.game_score ?? ''
+  const isLive = match.status === 'live'
+  const isFinished = ['finished', 'retired', 'walkover'].includes(match.status)
+  const category = (match as any).category as string | null
+  const genderColor = category === 'women' ? WOMEN_PURPLE : category === 'men' ? MEN_BLUE : MUTED
+
+  const pair1Name = pairName(match.pair1_player1, match.pair1_player2)
+  const pair2Name = pairName(match.pair2_player1, match.pair2_player2)
+  const flag1 = match.pair1_player1?.country || match.pair1_player2?.country || null
+  const flag2 = match.pair2_player1?.country || match.pair2_player2?.country || null
+
+  const roundLabel = match.round ?? ''
+  const courtLabel = match.court ?? ''
+
+  const timeStr = match.scheduled_at
+    ? new Date(match.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    : ''
+
+  return (
+    <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+      <div style={{
+        position: 'relative',
+        padding: '12px 14px 12px 17px',
+        borderBottom: `1px solid ${BORDER}`,
+        overflow: 'hidden',
+      }}>
+        {/* Gender accent bar (left) */}
+        <div style={{
+          position: 'absolute',
+          top: 4, left: 0, bottom: 4,
+          width: 3,
+          background: genderColor,
+        }} />
+
+        {/* Top row: round + court + status/time */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {roundLabel && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, color: MUTED,
+                padding: '2px 7px',
+                background: 'rgba(255,255,255,0.04)',
+                clipPath: CHUNKY.badge,
+                textTransform: 'uppercase',
+                letterSpacing: 0.3,
+              }}>
+                {roundLabel}
+              </span>
+            )}
+            {courtLabel && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, color: MUTED,
+                padding: '2px 7px',
+                background: 'rgba(255,255,255,0.04)',
+                clipPath: CHUNKY.badge,
+                textTransform: 'uppercase',
+                letterSpacing: 0.3,
+              }}>
+                {courtLabel}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isLive && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: LIVE_RED,
+                padding: '2px 8px',
+                clipPath: CHUNKY.badge,
+              }}>
+                <span style={{
+                  width: 5, height: 5, borderRadius: '50%', background: '#fff',
+                  animation: 'v3-scores-pulse 2s infinite',
+                  flexShrink: 0,
+                }} />
+                <span style={{ fontSize: 8, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>LIVE</span>
+              </div>
+            )}
+            {!isLive && !isFinished && timeStr && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: GREEN }}>{timeStr}</span>
+            )}
+            {isFinished && (match as any).status === 'retired' && (
+              <span style={{ fontSize: 9, fontWeight: 700, color: ORANGE }}>RET</span>
+            )}
+            {isFinished && (match as any).status === 'walkover' && (
+              <span style={{ fontSize: 9, fontWeight: 700, color: ORANGE }}>W/O</span>
+            )}
+          </div>
+        </div>
+
+        {/* Pair rows with scores */}
+        {[
+          { pair: pair1Name, flag: flag1, pairNum: 1 },
+          { pair: pair2Name, flag: flag2, pairNum: 2 },
+        ].map(({ pair, flag, pairNum }) => {
+          const isWinner = match.winner_pair === pairNum
+          const isLoser = match.winner_pair && match.winner_pair !== pairNum
+          return (
+            <div key={pairNum} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '4px 0',
+              opacity: isLoser ? 0.4 : 1,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                <FlagImg country={flag} size={14} />
+                <span style={{
+                  fontSize: 13, fontWeight: 700, color: isWinner ? '#fff' : '#e0e0e0',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {pair}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {sets.map(s => {
+                  const parsed = parseSetScore(s.set_score)
+                  const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
+                  const oppGames = pairNum === 1 ? (parsed?.p2 ?? s.pair2_games) : (parsed?.p1 ?? s.pair1_games)
+                  const isCurrent = s.is_current
+                  const wonSet = games > oppGames
+                  return (
+                    <span key={s.id} style={{
+                      fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
+                      color: isCurrent && isLive ? GREEN : wonSet ? '#fff' : '#888',
+                      minWidth: 14, textAlign: 'center',
+                    }}>
+                      {games}
+                    </span>
+                  )
+                })}
+                {isLive && gamePoints && (
+                  <span style={{
+                    fontSize: 16, fontWeight: 800, fontFamily: 'monospace',
+                    color: LIVE_RED, minWidth: 18, textAlign: 'center',
+                    marginLeft: 2,
+                  }}>
+                    {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </Link>
+  )
+}
+
+// ── Champion row for finished tournaments ──────────────────────
+
+function ChampionRow({ champions, color }: { champions: { player1: string | null; player2: string | null; avatar1: string | null; avatar2: string | null }; color: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ width: 3, height: 22, background: color, flexShrink: 0 }} />
+      <div style={{ display: 'flex', flexShrink: 0 }}>
+        {champions.avatar1 && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={champions.avatar1} alt="" style={{
+            width: 22, height: 22, objectFit: 'cover',
+            clipPath: 'circle(50%)',
+            border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
+          }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        )}
+        {champions.avatar2 && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={champions.avatar2} alt="" style={{
+            width: 22, height: 22, objectFit: 'cover',
+            clipPath: 'circle(50%)',
+            border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
+            marginLeft: -6,
+          }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        )}
+      </div>
+      <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
+        {shortName(champions.player1)} / {shortName(champions.player2)}
+      </span>
     </div>
+  )
+}
+
+// ── Tournament group ──────────────────────────────────────────
+
+function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
+  tournament: any
+  matches: Match[]
+  defaultOpen: boolean
+  genderFilter: string
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const badge = tournament?.level ? levelLabel(tournament.level) : null
+  const status = tournamentStatus(matches, tournament)
+  const statusCfg = status ? STATUS_CONFIG[status] : null
+  const isFinished = status === 'finished'
+
+  const menChampions = isFinished ? getChampions(matches, 'men') : null
+  const womenChampions = isFinished ? getChampions(matches, 'women') : null
+  const showMen = genderFilter === 'all' || genderFilter === 'men'
+  const showWomen = genderFilter === 'all' || genderFilter === 'women'
+  const hasChampions = (showMen && menChampions) || (showWomen && womenChampions)
+
+  const dateRange = tournament?.starts_at
+    ? new Date(tournament.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      + (tournament.ends_at ? ` \u2013 ${new Date(tournament.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '')
+    : ''
+
+  // Finished tournament → compact card linking to tournament page
+  if (isFinished) {
+    return (
+      <Link href={`/v3/tournaments/${tournament?.id}?tab=recap`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <div style={{
+          clipPath: CHUNKY.card,
+          overflow: 'hidden',
+          border: `1px solid ${BORDER}`,
+          background: BG_CARD,
+        }}>
+          <div style={{ padding: '12px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasChampions ? 10 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                {tournament?.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={tournament.logo_url} alt="" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
+                ) : tournament?.country ? (
+                  <FlagImg country={tournament.country} size={20} />
+                ) : null}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {titleCase(tournament?.name ?? '')}
+                    </span>
+                    {statusCfg && (
+                      <span style={{
+                        fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
+                        padding: '2px 6px',
+                        clipPath: CHUNKY.badge,
+                        color: statusCfg.color, background: statusCfg.bg,
+                        flexShrink: 0, lineHeight: '12px',
+                      }}>
+                        {statusCfg.label}
+                      </span>
+                    )}
+                  </div>
+                  {(badge || dateRange) && (
+                    <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 2 }}>
+                      {badge}{badge && dateRange ? ' \u00B7 ' : ''}{dateRange}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>{matches.length}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+            </div>
+
+            {hasChampions && (
+              <div style={{
+                borderTop: `1px solid ${BORDER}`,
+                paddingTop: 10,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{
+                    fontSize: 8, fontWeight: 700, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', color: ORANGE,
+                  }}>
+                    Champions
+                  </div>
+                  {showMen && menChampions && <ChampionRow champions={menChampions} color={MEN_BLUE} />}
+                  {showWomen && womenChampions && <ChampionRow champions={womenChampions} color={WOMEN_PURPLE} />}
+                </div>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, color: GREEN,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  flexShrink: 0,
+                }}>
+                  View
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </Link>
+    )
+  }
+
+  // Live / upcoming — collapsible with match rows
+  return (
+    <div style={{
+      clipPath: CHUNKY.card,
+      overflow: 'hidden',
+      border: `1px solid ${status === 'live' ? 'rgba(255,70,85,0.2)' : BORDER}`,
+      background: BG_CARD,
+    }}>
+      {tournament && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 0, width: '100%',
+          borderBottom: open ? `1px solid ${BORDER}` : 'none',
+        }}>
+          <Link
+            href={`/v3/tournaments/${tournament.id}`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0,
+              padding: '10px 0 10px 14px',
+              textDecoration: 'none', color: 'inherit',
+            }}
+          >
+            {tournament.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={tournament.logo_url} alt="" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
+            ) : tournament.country ? (
+              <FlagImg country={tournament.country} size={20} />
+            ) : null}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {titleCase(tournament.name)}
+                </span>
+                {statusCfg && (
+                  <span style={{
+                    fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
+                    padding: '2px 6px',
+                    clipPath: CHUNKY.badge,
+                    color: statusCfg.color, background: statusCfg.bg,
+                    flexShrink: 0, lineHeight: '12px',
+                    animation: status === 'live' ? 'v3-scores-pulse 2s infinite' : undefined,
+                  }}>
+                    {statusCfg.label}
+                  </span>
+                )}
+              </div>
+              {(badge || dateRange) && (
+                <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 2 }}>
+                  {badge}{badge && dateRange ? ' \u00B7 ' : ''}{dateRange}
+                </div>
+              )}
+            </div>
+          </Link>
+          <button
+            onClick={() => setOpen(o => !o)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '10px 14px 10px 8px',
+              background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>{matches.length}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+            >
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+      )}
+      {open && (
+        <div>
+          {matches.map(m => (
+            <V3MatchRow key={m.id} match={m} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Keyframes ─────────────────────────────────────────────────
+
+const KEYFRAMES = `
+@keyframes v3-scores-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+`
+
+// ── Main page ─────────────────────────────────────────────────
+
+export default function V3ScoresPageWrapper() {
+  return (
+    <Suspense fallback={<Spinner fullHeight />}>
+      <V3ScoresPage />
+    </Suspense>
+  )
+}
+
+function V3ScoresPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  // Legacy redirect
+  useEffect(() => {
+    const tid = searchParams.get('tournament')
+    if (tid) {
+      const round = searchParams.get('round')
+      router.replace(`/v3/tournaments/${tid}${round ? `?round=${round}` : ''}`)
+    }
+  }, [searchParams, router])
+
+  const [liveMatches, setLiveMatches] = useState<Match[]>([])
+  const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
+  const [recentMatches, setRecentMatches] = useState<Match[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [tab, setTab] = useState<'live' | 'upcoming' | 'results'>('live')
+  const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all')
+  const pageRef = useRef(0)
+
+  const matchSelect = `
+    *,
+    tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url, source),
+    pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, avatar_url, side),
+    pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, avatar_url, side),
+    pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, avatar_url, side),
+    pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, avatar_url, side),
+    sets(*, games(*))
+  `
+
+  const sortSets = (data: any[]) =>
+    data.map(m => ({ ...m, sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number) }))
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [liveRes, scheduledRes, recentRes] = await Promise.all([
+        supabase.from('matches').select(matchSelect)
+          .eq('status', 'live')
+          .order('court_order', { ascending: true }),
+
+        supabase.from('matches').select(matchSelect)
+          .eq('status', 'scheduled')
+          .order('scheduled_at', { ascending: true })
+          .limit(50),
+
+        supabase.from('matches').select(matchSelect)
+          .in('status', ['finished', 'retired', 'walkover'])
+          .not('finished_at', 'is', null)
+          .gte('finished_at', `${new Date().getFullYear()}-01-01`)
+          .order('finished_at', { ascending: false }),
+      ])
+
+      setLiveMatches(sortSets((liveRes.data as any) ?? []))
+      setScheduledMatches(sortSets((scheduledRes.data as any) ?? []))
+      setRecentMatches(sortSets((recentRes.data as any) ?? []))
+      setHasMore(true)
+      pageRef.current = 0
+
+      // Auto-select tab
+      const hasLive = (liveRes.data?.length ?? 0) > 0
+      const hasLiveScheduled = (scheduledRes.data ?? []).some((m: any) =>
+        m.tournament?.starts_at && new Date(m.tournament.starts_at) <= new Date()
+      )
+      if (hasLive || hasLiveScheduled) setTab('live')
+      else setTab('upcoming')
+    } catch (e) {
+      console.error('[V3 Scores] fetchData error:', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchMoreResults = useCallback(async () => {
+    setLoadingMore(true)
+    const nextPage = pageRef.current + 1
+    const from = nextPage * 50
+    const to = from + 49
+
+    const { data } = await supabase.from('matches').select(matchSelect)
+      .in('status', ['finished', 'retired', 'walkover'])
+      .not('finished_at', 'is', null)
+      .lt('finished_at', `${new Date().getFullYear()}-01-01`)
+      .order('finished_at', { ascending: false })
+      .range(from, to)
+
+    const sorted = sortSets((data as any) ?? [])
+    setRecentMatches(prev => [...prev, ...sorted])
+    setHasMore(sorted.length >= 50)
+    pageRef.current = nextPage
+    setLoadingMore(false)
+  }, [])
+
+  useEffect(() => {
+    if (searchParams.get('tournament')) return
+    fetchData()
+  }, [fetchData, searchParams])
+
+  // Realtime subscription
+  const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const handleChange = () => {
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
+      realtimeDebounceRef.current = setTimeout(() => fetchData(), 500)
+    }
+    const ch = supabase
+      .channel('v3-scores-feed')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, handleChange)
+      .subscribe()
+    return () => {
+      supabase.removeChannel(ch)
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
+    }
+  }, [fetchData])
+
+  // Auto-refresh for live tab
+  useEffect(() => {
+    if (tab !== 'live') return
+    const interval = setInterval(() => fetchData(), 30000)
+    return () => clearInterval(interval)
+  }, [tab, fetchData])
+
+  // Gender filter
+  const gf = (matches: Match[]) =>
+    genderFilter === 'all' ? matches : matches.filter(m => (m as any).category === genderFilter)
+
+  // Scheduled matches from started tournaments → treat as live
+  const now = new Date()
+  const liveScheduled = scheduledMatches.filter(m => {
+    const t = (m as any).tournament
+    return t?.starts_at && new Date(t.starts_at) <= now
+  })
+
+  // Current tab data
+  const currentMatches = tab === 'live' ? gf([...liveMatches, ...liveScheduled.filter(hasPlayers)])
+    : tab === 'upcoming' ? gf(scheduledMatches.filter(hasPlayers))
+    : gf(recentMatches)
+  const grouped = groupByTournament(currentMatches)
+
+  const liveCount = gf([...liveMatches, ...liveScheduled]).filter(m => !isWarmingUp(m)).length
+
+  const tabs: { key: typeof tab; label: string; isLive?: boolean }[] = [
+    { key: 'live', label: 'Live', isLive: true },
+    { key: 'upcoming', label: 'Upcoming' },
+    { key: 'results', label: 'Results' },
+  ]
+
+  return (
+    <main style={{
+      background: BG_BASE, minHeight: '100vh',
+      maxWidth: 500, margin: '0 auto',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      borderLeft: `0.5px solid ${BORDER}`,
+      borderRight: `0.5px solid ${BORDER}`,
+    }}>
+      <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
+
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '12px 16px',
+        borderBottom: `1px solid ${BORDER}`,
+        position: 'sticky', top: 0, zIndex: 10,
+        background: 'rgba(10, 10, 10, 0.9)',
+        backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+      }}>
+        <Link href="/v3" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          width: 36, height: 36, background: 'none', color: '#fff',
+          textDecoration: 'none', flexShrink: 0,
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </Link>
+        <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', flex: 1, letterSpacing: -0.3 }}>
+          Scores
+        </span>
+      </div>
+
+      {loading ? (
+        <Spinner fullHeight />
+      ) : (
+        <>
+          {/* Tab bar + gender toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px 10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+              {tabs.map(t => {
+                const active = tab === t.key
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setTab(t.key)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '7px 16px',
+                      clipPath: CHUNKY.button,
+                      border: 'none',
+                      background: active
+                        ? (t.isLive ? LIVE_RED : GREEN)
+                        : 'rgba(255,255,255,0.05)',
+                      color: active ? (t.isLive ? '#fff' : '#000') : MUTED,
+                      fontSize: 12, fontWeight: 800, fontFamily: 'inherit',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    {t.isLive && (
+                      <span style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: active ? '#fff' : LIVE_RED,
+                        flexShrink: 0,
+                        animation: liveCount > 0 ? 'v3-scores-pulse 2s infinite' : undefined,
+                      }} />
+                    )}
+                    {t.label}
+                    {t.isLive && liveCount > 0 && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 800,
+                        color: active ? 'rgba(255,255,255,0.7)' : LIVE_RED,
+                        marginLeft: -2,
+                      }}>
+                        {liveCount}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Gender toggle */}
+            <div
+              onClick={() => setGenderFilter(g => g === 'men' ? 'all' : g === 'all' ? 'women' : 'men')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
+                background: 'rgba(255,255,255,0.04)',
+                clipPath: CHUNKY.badge,
+                padding: 3, position: 'relative', flexShrink: 0,
+              }}
+            >
+              <div style={{
+                position: 'absolute', top: 3,
+                left: genderFilter === 'men' ? 3 : genderFilter === 'all' ? 27 : 51,
+                width: 22, height: 22,
+                background: genderFilter === 'women' ? WOMEN_PURPLE : genderFilter === 'men' ? MEN_BLUE : GREEN,
+                clipPath: CHUNKY.badge,
+                transition: 'left 0.2s ease, background 0.2s ease',
+              }} />
+              {(['men', 'all', 'women'] as const).map(g => (
+                <span
+                  key={g}
+                  style={{
+                    width: 24, textAlign: 'center', fontSize: 10, fontWeight: 700,
+                    position: 'relative', zIndex: 1,
+                    color: genderFilter === g ? (g === 'all' ? '#000' : '#fff') : 'rgba(255,255,255,0.25)',
+                    transition: 'color 0.2s',
+                    lineHeight: '22px',
+                  }}
+                >{g === 'all' ? 'All' : g === 'men' ? 'M' : 'W'}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Grouped matches */}
+          <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
+            {grouped.length > 0 ? grouped.map((group, idx) => (
+              <TournamentGroup
+                key={group.tournament?.id ?? idx}
+                tournament={group.tournament}
+                matches={group.matches}
+                defaultOpen={tab === 'live'}
+                genderFilter={genderFilter}
+              />
+            )) : (
+              <div style={{
+                clipPath: CHUNKY.card,
+                background: BG_CARD,
+                border: `1px solid ${BORDER}`,
+                padding: '28px 20px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>&#127934;</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
+                  {tab === 'live' ? 'No live matches right now' : tab === 'upcoming' ? 'No upcoming matches' : 'No recent results'}
+                </div>
+                <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.5 }}>
+                  {tab === 'live' ? 'Check back during tournament days' : tab === 'upcoming' ? 'Schedules will appear closer to match day' : 'Results will appear after matches finish'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Load more for results */}
+          {tab === 'results' && hasMore && (
+            <div style={{ padding: '0 16px 32px', textAlign: 'center' }}>
+              <button
+                onClick={fetchMoreResults}
+                disabled={loadingMore}
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${BORDER}`,
+                  clipPath: CHUNKY.button,
+                  padding: '10px 28px',
+                  fontSize: 12, fontWeight: 700,
+                  color: loadingMore ? MUTED : GREEN,
+                  cursor: loadingMore ? 'default' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {loadingMore ? <Spinner size={16} /> : 'Load previous seasons'}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </main>
   )
 }
