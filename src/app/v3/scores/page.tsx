@@ -674,9 +674,10 @@ function V3ScoresPage() {
           .order('finished_at', { ascending: false }),
       ])
 
-      setLiveMatches(sortSets((liveRes.data as any) ?? []))
-      setScheduledMatches(sortSets((scheduledRes.data as any) ?? []))
-      setRecentMatches(sortSets((recentRes.data as any) ?? []))
+      const notSimulated = (m: any) => !(m.external_id ?? '').startsWith('sim_')
+      setLiveMatches(sortSets(((liveRes.data as any) ?? []).filter(notSimulated)))
+      setScheduledMatches(sortSets(((scheduledRes.data as any) ?? []).filter(notSimulated)))
+      setRecentMatches(sortSets(((recentRes.data as any) ?? []).filter(notSimulated)))
       setHasMore(true)
       pageRef.current = 0
 

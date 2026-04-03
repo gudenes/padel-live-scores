@@ -1732,12 +1732,13 @@ export default function V3HomePage() {
         supabase.from('articles').select('id, title, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(10),
       ])
 
-      setLiveMatches((liveRes.data as any) ?? [])
-      setScheduledMatches((scheduledRes.data as any) ?? [])
+      const notSimulated = (m: any) => !(m.external_id ?? '').startsWith('sim_')
+      setLiveMatches(((liveRes.data as any) ?? []).filter(notSimulated))
+      setScheduledMatches(((scheduledRes.data as any) ?? []).filter(notSimulated))
       setUpcomingTournaments((tournamentRes.data as any) ?? [])
       setTopMen((menRes.data as any) ?? [])
       setTopWomen((womenRes.data as any) ?? [])
-      setRecentMatches((recentRes.data as any) ?? [])
+      setRecentMatches(((recentRes.data as any) ?? []).filter(notSimulated))
       setHighlights((highlightsRes.data as any) ?? [])
       setLatestNews((newsRes.data as any) ?? [])
     } catch (e) {
