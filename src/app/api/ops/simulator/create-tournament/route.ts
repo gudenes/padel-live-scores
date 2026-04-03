@@ -65,7 +65,6 @@ export async function POST(request: Request) {
     .insert({
       external_id: 'sim_' + Date.now(),
       name,
-      category,
       source: 'simulated',
       level: 'simulated',
       starts_at: now.toISOString(),

@@ -76,7 +76,7 @@ export async function GET(request: Request) {
   // Default: list all simulated tournaments with match status counts
   const { data: tournaments, error: tournError } = await supabase
     .from('tournaments')
-    .select('id, name, category, created_at')
+    .select('id, name, level, created_at')
     .eq('source', 'simulated')
     .order('created_at', { ascending: false })
 
