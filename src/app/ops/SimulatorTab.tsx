@@ -619,7 +619,7 @@ export default function SimulatorTab() {
 
               {/* Pair 1 scores */}
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${matchState.sets.length + 1}, 1fr)`, gap: 4, textAlign: 'center', marginBottom: 4 }}>
-                <div style={{ fontSize: 11, color: '#b45309', fontWeight: 700, textAlign: 'left' }}>P1</div>
+                <div style={{ fontSize: 11, color: '#b45309', fontWeight: 700, textAlign: 'left' }}>{scoringMatch.pair1}</div>
                 {matchState.sets.map((s, i) => (
                   <div key={i} style={{
                     fontSize: 20,
@@ -637,7 +637,7 @@ export default function SimulatorTab() {
 
               {/* Pair 2 scores */}
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${matchState.sets.length + 1}, 1fr)`, gap: 4, textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#0d9488', fontWeight: 700, textAlign: 'left' }}>P2</div>
+                <div style={{ fontSize: 11, color: '#0d9488', fontWeight: 700, textAlign: 'left' }}>{scoringMatch.pair2}</div>
                 {matchState.sets.map((s, i) => (
                   <div key={i} style={{
                     fontSize: 20,
