@@ -62,6 +62,39 @@ async function migrateLocalBookmarks(userId: string) {
   }
 }
 
+async function migrateLocalRatings(accessToken: string) {
+  try {
+    const { readAllRatings, RATINGS_KEY, DEVICE_ID_KEY } = await import('@/hooks/useMatchRating')
+    const ratings = readAllRatings()
+    const entries = Object.entries(ratings)
+    if (!entries.length) return
+
+    const deviceId = localStorage.getItem(DEVICE_ID_KEY)
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    }
+
+    const results = await Promise.allSettled(
+      entries.map(([matchId, rating]) =>
+        fetch('/api/match-rating', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ matchId, rating, deviceId }),
+        })
+      )
+    )
+
+    const allOk = results.every(r => r.status === 'fulfilled' && (r.value as Response).ok)
+    if (allOk) {
+      localStorage.removeItem(RATINGS_KEY)
+      console.log(`[Auth] Migrated ${entries.length} ratings to Supabase`)
+    }
+  } catch (e) {
+    console.error('[Auth] Rating migration failed:', e)
+  }
+}
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   try {
     const { data, error } = await supabase
@@ -106,6 +139,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Migrate localStorage bookmarks on first sign-in
           if (event === 'SIGNED_IN') {
             await migrateLocalBookmarks(s.user.id)
+            if (s.access_token) {
+              await migrateLocalRatings(s.access_token)
+            }
           }
         } else {
           setProfile(null)

@@ -1,11 +1,24 @@
 'use client'
 // src/components/LoginSheet.tsx
 // Bottom sheet for sign-in: Google OAuth + magic link email fallback.
-// Slides up from bottom with dimmed backdrop.
+// Slides up from bottom with dimmed backdrop. V3 brand styling.
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '@/lib/supabase'
+
+// ── V3 Brand constants ────────────────────────────────────────
+const GREEN = '#7ED321'
+const ORANGE = '#F5A623'
+const BG_BASE = '#0A0A0A'
+const BG_CARD = '#141414'
+const MUTED = '#6B7280'
+const BORDER = 'rgba(255,255,255,0.06)'
+
+const CLIP = {
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+}
 
 interface LoginSheetProps {
   open: boolean
@@ -58,7 +71,8 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 100,
-        background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
@@ -66,32 +80,36 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
         onClick={e => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 500,
-          background: 'var(--bg-card)', borderRadius: '20px 20px 0 0',
-          padding: '24px 20px 32px',
-          borderTop: '1px solid var(--border-card)',
-          animation: 'slideUp 0.3s ease-out',
+          background: BG_CARD,
+          clipPath: 'polygon(0% 3%, 100% 0%, 100% 100%, 0% 100%)',
+          padding: '32px 20px 36px',
+          borderTop: `2px solid ${GREEN}`,
+          animation: 'loginSlideUp 0.3s ease-out',
         }}
       >
         {/* Drag handle */}
         <div style={{
-          width: 36, height: 4, background: 'rgba(255,255,255,0.2)',
-          borderRadius: 2, margin: '0 auto 20px',
+          width: 36, height: 4, background: 'rgba(255,255,255,0.12)',
+          borderRadius: 2, margin: '0 auto 24px',
         }} />
 
-        <div style={{ textAlign: 'center', color: 'var(--text-primary)', fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
-          Sign in to PadelNacho
+        <div style={{ textAlign: 'center', color: '#fff', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+          Sign in to PadelNachos
         </div>
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, marginBottom: 24 }}>
+        <div style={{ textAlign: 'center', color: MUTED, fontSize: 12, marginBottom: 28 }}>
           Sync bookmarks & get match notifications
         </div>
 
         {sent ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>✉️</div>
-            <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500, marginBottom: 4 }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <polyline points="22,4 12,13 2,4" />
+            </svg>
+            <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
               Check your email
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+            <div style={{ color: MUTED, fontSize: 12 }}>
               We sent a sign-in link to {email}
             </div>
           </div>
@@ -101,9 +119,10 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
             <button
               onClick={handleGoogle}
               style={{
-                width: '100%', background: '#fff', color: '#333', borderRadius: 12,
+                width: '100%', background: '#fff', color: '#1a1a1a',
+                clipPath: CLIP.button,
                 padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 10, fontWeight: 600, fontSize: 14, cursor: 'pointer', border: 'none',
+                gap: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', border: 'none',
                 fontFamily: 'inherit',
               }}
             >
@@ -117,10 +136,10 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
             </button>
 
             {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0' }}>
-              <div style={{ flex: 1, height: 1, background: 'var(--border-card)' }} />
-              <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>or</div>
-              <div style={{ flex: 1, height: 1, background: 'var(--border-card)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+              <div style={{ flex: 1, height: 1, background: BORDER }} />
+              <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, letterSpacing: '0.5px' }}>or</div>
+              <div style={{ flex: 1, height: 1, background: BORDER }} />
             </div>
 
             {/* Magic link email */}
@@ -132,9 +151,10 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleMagicLink()}
                 style={{
-                  flex: 1, background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid var(--border-card)', borderRadius: 10,
-                  padding: '12px 14px', color: 'var(--text-primary)', fontSize: 13,
+                  flex: 1, background: BG_BASE,
+                  border: `1px solid ${BORDER}`,
+                  clipPath: CLIP.button,
+                  padding: '12px 14px', color: '#fff', fontSize: 13,
                   outline: 'none', fontFamily: 'inherit',
                 }}
               />
@@ -142,8 +162,9 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
                 onClick={handleMagicLink}
                 disabled={sending || !email.trim()}
                 style={{
-                  background: '#f59e0b', color: '#000', borderRadius: 10,
-                  padding: '12px 16px', fontWeight: 600, fontSize: 13,
+                  background: ORANGE, color: '#000',
+                  clipPath: CLIP.button,
+                  padding: '12px 16px', fontWeight: 700, fontSize: 13,
                   whiteSpace: 'nowrap', cursor: 'pointer', border: 'none',
                   fontFamily: 'inherit',
                   opacity: sending || !email.trim() ? 0.5 : 1,
@@ -153,19 +174,19 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
               </button>
             </div>
 
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, marginTop: 12 }}>
-              We'll email you a sign-in link — no password needed
+            <div style={{ textAlign: 'center', color: MUTED, fontSize: 10, marginTop: 14 }}>
+              We&apos;ll email you a sign-in link — no password needed
             </div>
 
             {error && (
-              <div style={{ textAlign: 'center', color: '#ef4444', fontSize: 12, marginTop: 8 }}>{error}</div>
+              <div style={{ textAlign: 'center', color: '#FF4655', fontSize: 12, fontWeight: 600, marginTop: 8 }}>{error}</div>
             )}
           </>
         )}
       </div>
 
       <style>{`
-        @keyframes slideUp {
+        @keyframes loginSlideUp {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }

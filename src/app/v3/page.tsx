@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../components/Spinner'
+import SearchOverlay from './components/SearchOverlay'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -541,7 +542,7 @@ function TournamentSpotlight({ tournament, matchCount }: { tournament: Tournamen
       )}
 
       <Link
-        href={`/v2/tournaments/${tournament.id}`}
+        href={`/v3/tournaments/${tournament.id}`}
         style={{
           display: 'inline-block',
           marginTop: 14,
@@ -1346,7 +1347,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
               <SectionTitle>{heroIsLive ? 'Live Now' : 'Upcoming'}</SectionTitle>
 
               {/* Hero card */}
-              <Link href={`/v2/tournaments/${hero.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link href={`/v3/tournaments/${hero.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div style={{
                   margin: '0 16px 12px', padding: 20, position: 'relative', overflow: 'hidden',
                   clipPath: CHUNKY.card,
@@ -1441,7 +1442,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                     const d = daysUntil(t.starts_at)
                     const dateLabel = new Date(t.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
                     return (
-                      <Link key={t.id} href={`/v2/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+                      <Link key={t.id} href={`/v3/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
                         <div style={{
                           padding: '10px 14px', clipPath: CHUNKY.card,
                           background: BG_CARD, border: `1px solid ${BORDER}`,
@@ -1480,7 +1481,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                   const menW = t.winners.find(w => w.category === 'men')
                   const womenW = t.winners.find(w => w.category === 'women')
                   return (
-                    <Link key={t.id} href={`/v2/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+                    <Link key={t.id} href={`/v3/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
                       <div style={{
                         minWidth: 270, clipPath: CHUNKY.card,
                         background: BG_CARD, border: `1px solid ${BORDER}`,
@@ -1626,7 +1627,7 @@ function CollapsibleSeasonV3({ year, tournaments }: { year: number; tournaments:
           WebkitOverflowScrolling: 'touch',
         }}>
           {tournaments.map(t => (
-            <Link key={t.id} href={`/v2/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+            <Link key={t.id} href={`/v3/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
               <div style={{
                 minWidth: 200, clipPath: CHUNKY.card, padding: '12px 14px',
                 background: BG_CARD, border: `1px solid ${BORDER}`,
@@ -1673,6 +1674,7 @@ export default function V3HomePage() {
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [latestNews, setLatestNews] = useState<NewsItem[]>([])
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
     try {
@@ -1799,7 +1801,9 @@ export default function V3HomePage() {
         height: 52,
       }}>
         {/* Search icon */}
-        <button style={{
+        <button
+          onClick={() => setSearchOpen(true)}
+          style={{
           background: 'none', border: 'none', padding: 6, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
@@ -1899,7 +1903,7 @@ export default function V3HomePage() {
       )}
 
       {/* ── RANKINGS ────────────────────────────────────────── */}
-      <SectionTitle action="Full Rankings" href="/v2/ranking">Rankings</SectionTitle>
+      <SectionTitle action="Full Rankings" href="/v3/ranking">Rankings</SectionTitle>
       <RankingsSection men={topMen} women={topWomen} gender={gender} />
 
       {/* ── LATEST RESULTS ──────────────────────────────────── */}
@@ -1913,6 +1917,9 @@ export default function V3HomePage() {
 
       {/* Bottom spacing */}
       <div style={{ height: 30 }} />
+
+      {/* Search overlay */}
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   )
 }

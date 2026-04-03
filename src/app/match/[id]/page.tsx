@@ -1,18 +1,64 @@
 'use client'
 // src/app/match/[id]/page.tsx
+// V3 Match Detail — chunky clip-path brand language, no border-radius except circles.
 
 import { useState, useEffect, useCallback, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Match, Game, getCurrentScore, pairName, isStarPoint, countryFlag, parseSetScore, toShortName } from '@/types/match'
+import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toShortName } from '@/types/match'
 import MomentumChart from './MomentumChart'
-import SearchOverlay from '@/app/v2/SearchOverlay'
-import BottomNav from '@/app/components/BottomNav'
+import BottomNav from '@/app/v3/components/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
+import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
+import { useMatchRating } from '@/hooks/useMatchRating'
 
-type SubTab = 'live' | 'players' | 'h2h'
+type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
-// ── Point extraction from a game's points array ───────────────────────────────
+// ── V3 Brand colors ─────────────────────────────────────────────────────────
+const GREEN = '#7ED321'
+const GREEN_DIM = 'rgba(126,211,33,0.15)'
+const ORANGE = '#F5A623'
+const LIVE_RED = '#FF4655'
+const BG_BASE = '#0A0A0A'
+const BG_CARD = '#141414'
+const MUTED = '#6B7280'
+const BORDER = 'rgba(255,255,255,0.06)'
+const MEN_BLUE = '#4A9EFF'
+const WOMEN_PURPLE = '#D966FF'
+
+// ── Pair identity colors ────────────────────────────────────────────────────
+const PAIR1_COLOR = '#F59E0B'         // amber
+const PAIR2_COLOR = '#14B8A6'         // teal
+const PAIR1_BG    = 'rgba(245,158,11,0.08)'
+const PAIR2_BG    = 'rgba(20,184,166,0.08)'
+const PAIR1_BORDER = 'rgba(245,158,11,0.28)'
+const PAIR2_BORDER = 'rgba(20,184,166,0.28)'
+
+// ── Chunky clip-path presets ────────────────────────────────────────────────
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
+
+// ── FlagImg (replaces emoji flags) ──────────────────────────────────────────
+function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
+  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
+  const code = country.toLowerCase()
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/w40/${code}.png`}
+      alt={country}
+      width={size}
+      height={size * 0.75}
+      style={{ objectFit: 'cover', display: 'inline-block', flexShrink: 0, verticalAlign: 'middle' }}
+    />
+  )
+}
+
+// ── Point extraction from a game's points array ─────────────────────────────
 function extractGamePoints(game: Game): { scorer: 1 | 2; score: string; isSP: boolean }[] {
   const pts = (game.points ?? []).filter(p => p !== '0:0')
   const result: { scorer: 1 | 2; score: string; isSP: boolean }[] = []
@@ -39,7 +85,7 @@ function extractGamePoints(game: Game): { scorer: 1 | 2; score: string; isSP: bo
   return result
 }
 
-// ── Compute game winner from its score vs the previous game's score ───────────
+// ── Compute game winner from its score vs the previous game's score ─────────
 function computeGameWinner(games: any[], idx: number): 1 | 2 | null {
   const game = games[idx]
   const score = game?.game_score
@@ -54,35 +100,59 @@ function computeGameWinner(games: any[], idx: number): 1 | 2 | null {
   return null
 }
 
-// ── Pair match checker for H2H filtering ─────────────────────────────────────
+// ── Pair match checker for H2H filtering ────────────────────────────────────
 function pairMatchesIds(p1Id: string | null, p2Id: string | null, targetIds: string[]): boolean {
   return targetIds.includes(p1Id ?? '') && targetIds.includes(p2Id ?? '')
 }
-
-// ── Pair identity colors (distinct from gender blue/pink) ────────────────────
-const PAIR1_COLOR = '#F59E0B'         // amber  (Option A)
-const PAIR2_COLOR = '#14B8A6'         // teal   (Option A)
-const PAIR1_BG    = 'rgba(245,158,11,0.08)'
-const PAIR2_BG    = 'rgba(20,184,166,0.08)'
-const PAIR1_BORDER = 'rgba(245,158,11,0.28)'
-const PAIR2_BORDER = 'rgba(20,184,166,0.28)'
 
 export default function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
-  const [searchOpen, setSearchOpen] = useState(false)
   const [match, setMatch] = useState<Match | null>(null)
   const [loading, setLoading] = useState(true)
   const [subTab, setSubTab] = useState<SubTab>('live')
   const [h2hMatches, setH2hMatches] = useState<any[]>([])
   const [h2hLoading, setH2hLoading] = useState(false)
   const [heroHidden, setHeroHidden] = useState(false)
-  const [navHidden, setNavHidden] = useState(false)
+  const [headerVisible, setHeaderVisible] = useState(true)
   const lastScrollY = useRef(0)
   const heroSentinelRef = useRef<HTMLDivElement>(null)
   const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 })
+  const [nextMatchId, setNextMatchId] = useState<string | null>(null)
+  const { prediction, setPrediction, clearPrediction } = useMatchPrediction(id)
+  const [predStep, setPredStep] = useState<'pick' | 'margin' | 'done'>('pick')
+  const { rating, setRating, avgRating, ratingCount } = useMatchRating(
+    id,
+    (match as any)?.avg_rating ?? null,
+    (match as any)?.rating_count ?? 0
+  )
+
+  const fetchNextMatch = useCallback(async (m: Match) => {
+    const wp = (m as any).winner_pair as number | null
+    if (!wp) return
+    const winnerP1 = wp === 1 ? m.pair1_player1?.id : m.pair2_player1?.id
+    const tournamentId = (m as any).tournament?.id
+    if (!winnerP1 || !tournamentId) return
+
+    // Find matches in the same tournament/category where winning player1 appears
+    const { data } = await supabase
+      .from('matches')
+      .select('id, scheduled_at')
+      .eq('tournament_id', tournamentId)
+      .eq('category', (m as any).category)
+      .neq('id', m.id)
+      .or(`pair1_player1_id.eq.${winnerP1},pair1_player2_id.eq.${winnerP1},pair2_player1_id.eq.${winnerP1},pair2_player2_id.eq.${winnerP1}`)
+      .order('scheduled_at', { ascending: true })
+      .limit(10)
+
+    if (!data || data.length === 0) return
+    // Pick the match scheduled after the current one (next round)
+    const currentDate = m.scheduled_at ?? m.started_at ?? ''
+    const next = data.find(d => (d.scheduled_at ?? '') > currentDate) ?? data[data.length - 1]
+    if (next) setNextMatchId(next.id)
+  }, [id])
 
   const fetchMatch = useCallback(async () => {
     const { data, error } = await supabase
@@ -178,13 +248,26 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     const onScroll = () => {
       const y = window.scrollY
-      if (y > lastScrollY.current && y > 60) setNavHidden(true)
-      else setNavHidden(false)
+      if (y < 10) setHeaderVisible(true)
+      else if (y > lastScrollY.current + 4) setHeaderVisible(false)
+      else if (y < lastScrollY.current - 4) setHeaderVisible(true)
       lastScrollY.current = y
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  useEffect(() => {
+    if (match && match.status === 'finished' && (match as any).winner_pair) fetchNextMatch(match)
+  }, [match, fetchNextMatch])
+
+  useEffect(() => {
+    if (prediction) setPredStep('done')
+  }, [prediction])
+
+  useEffect(() => {
+    if (match?.status === 'finished') setSubTab('recap')
+  }, [match?.status])
 
   useEffect(() => {
     if (!match || match.status !== 'scheduled') return
@@ -208,7 +291,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   if (loading) return (
     <>
-    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <main style={{ background: BG_BASE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <Spinner fullHeight />
     </main>
     <BottomNav />
@@ -216,10 +299,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   )
   if (!match) return (
     <>
-    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <main style={{ background: BG_BASE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
-        <div style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 16 }}>Match not found</div>
-        <button onClick={handleBack} style={{ color: 'var(--color-accent)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Go back</button>
+        <div style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Match not found</div>
+        <button onClick={handleBack} style={{ color: GREEN, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Go back</button>
       </div>
     </main>
     <BottomNav />
@@ -255,57 +338,46 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   // ── Shared styles ──────────────────────────────────────────────────────────
   const scoreNumStyle = (won: boolean, dim: boolean): React.CSSProperties => ({
     fontSize: 28, fontWeight: 900, width: 28, textAlign: 'center',
-    fontFamily: 'var(--font-mono)', lineHeight: 1,
-    color: won ? 'var(--text-primary)' : dim ? '#444' : '#555',
+    fontFamily: 'monospace', lineHeight: 1,
+    color: won ? '#fff' : dim ? '#444' : '#555',
     position: 'relative',
   })
 
   return (
     <>
-    <main style={{ background: 'var(--bg-base)', minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
-
-      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+    <main style={{ background: BG_BASE, minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
 
       {/* ── Nav bar ───────────────────────────────────────────────────── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 14px',
-        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
-        position: 'sticky', top: navHidden ? -49 : 0, zIndex: 10,
-        background: 'var(--bg-base)',
-        transition: 'top 0.25s ease',
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 16px',
+        borderBottom: `1px solid ${BORDER}`,
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(10,10,10,0.92)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
+        transition: 'transform 0.3s ease',
       }}>
         <button
           onClick={handleBack}
           style={{
-            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--text-muted)',
+            width: 36, height: 36,
+            clipPath: CHUNKY.badge,
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', cursor: 'pointer',
           }}
-          aria-label="Go back"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6"/>
-          </svg>
-        </button>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
-        </div>
-        <button
-          onClick={() => setSearchOpen(true)}
-          style={{
-            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
-            background: 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--text-muted)',
-          }}
-          aria-label="Search"
+          aria-label="Back"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
+
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', textTransform: 'uppercase' as const }}>Match Detail</div>
+        </div>
       </div>
 
       {/* ── Live banner ──────────────────────────────────────────────── */}
@@ -313,37 +385,54 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
       {/* ── Winner banner ────────────────────────────────────────────── */}
       {isFinished && winnerPair && (
-        <WinnerBanner match={match} winnerPair={winnerPair} pair1Label={pair1Label} pair2Label={pair2Label} />
+        <WinnerBanner match={match} winnerPair={winnerPair} pair1Label={pair1Label} pair2Label={pair2Label} nextMatchId={nextMatchId} />
+      )}
+
+      {/* ── Tournament link ──────────────────────────────────────────── */}
+      {(match as any).tournament?.id && (
+        <Link href={`/v3/tournaments/${(match as any).tournament.id}`} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 16px', background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`,
+          textDecoration: 'none',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', flexShrink: 0 }}>Tournament</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(match as any).tournament.name}</span>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </Link>
       )}
 
       {/* ── Compact sticky score (appears when hero scrolls away) ────── */}
       <div style={{
-        position: 'sticky', top: navHidden ? 0 : 49, zIndex: 8,
-        background: 'var(--bg-card)',
-        borderBottom: '0.5px solid var(--border-card)',
+        position: 'sticky', top: headerVisible ? 49 : 0, zIndex: 8,
+        background: BG_CARD,
+        borderBottom: `0.5px solid ${BORDER}`,
         overflow: 'hidden',
         maxHeight: heroHidden ? 68 : 0,
         opacity: heroHidden ? 1 : 0,
-        transition: 'top 0.25s ease, max-height 0.25s ease, opacity 0.2s ease',
+        transition: 'top 0.3s ease, max-height 0.25s ease, opacity 0.2s ease',
       }}>
         <div style={{ padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Avatars + Names column */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ display: 'flex', flexShrink: 0 }}>
-                <img src={match.pair1_player1?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                <img src={match.pair1_player2?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)', marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={match.pair1_player1?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${BG_CARD}` }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={match.pair1_player2?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${BG_CARD}`, marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
               </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: p2Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: p2Won ? '#666' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {pair1Label}
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ display: 'flex', flexShrink: 0 }}>
-                <img src={match.pair2_player1?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                <img src={match.pair2_player2?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid var(--bg-card)', marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={match.pair2_player1?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${BG_CARD}` }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                <img src={match.pair2_player2?.avatar_url ?? ''} alt="" style={{ width: 18, height: 18, borderRadius: '50%', objectFit: 'cover', border: `1.5px solid ${BG_CARD}`, marginLeft: -6 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
               </div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: p1Won ? '#666' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: p1Won ? '#666' : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {pair2Label}
               </div>
             </div>
@@ -351,8 +440,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           {/* Live indicator column */}
           {isLive && currentSet && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, gap: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-live)', display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite', flexShrink: 0 }} />
-              <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--color-live)', textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite', flexShrink: 0 }} />
+              <span style={{ fontSize: 8, fontWeight: 700, color: LIVE_RED, textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
                 Set {currentSet.set_number} · Game {currentGame?.game_number ?? 1}
               </span>
             </div>
@@ -364,13 +453,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const parsed = parseSetScore(set.set_score)
                 const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                 return (
-                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'var(--font-mono)', color: p1WonSet && !set.is_current ? 'var(--text-primary)' : '#555' }}>
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: p1WonSet && !set.is_current ? '#fff' : '#555' }}>
                     {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
                   </span>
                 )
               })}
               {!isFinished && (
-                <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', color: starPoint ? 'var(--color-star)' : 'var(--color-live)', marginLeft: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'monospace', color: starPoint ? ORANGE : LIVE_RED, marginLeft: 4 }}>
                   {p1Point ?? '0'}
                 </span>
               )}
@@ -380,13 +469,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const parsed = parseSetScore(set.set_score)
                 const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                 return (
-                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'var(--font-mono)', color: p2WonSet && !set.is_current ? 'var(--text-primary)' : '#555' }}>
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: p2WonSet && !set.is_current ? '#fff' : '#555' }}>
                     {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
                   </span>
                 )
               })}
               {!isFinished && (
-                <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'var(--font-mono)', color: starPoint ? 'var(--color-star)' : 'var(--color-live)', marginLeft: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'monospace', color: starPoint ? ORANGE : LIVE_RED, marginLeft: 4 }}>
                   {p2Point ?? '0'}
                 </span>
               )}
@@ -396,24 +485,30 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--bg-card)', padding: '14px 16px 0', borderBottom: '0.5px solid var(--border-card)' }}>
+      <div style={{ background: BG_CARD, padding: '14px 16px 0', borderBottom: `0.5px solid ${BORDER}` }}>
 
         {/* Court + round + date */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: isScheduled ? 14 : 12 }}>
           <span style={{ fontSize: 10, color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{match.court ?? ''}</span>
           {match.court && match.round && <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />}
           <span style={{ fontSize: 10, color: '#777' }}>{match.round ?? ''}</span>
+          {duration && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />
+              <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, background: 'rgba(255,255,255,0.06)', clipPath: CHUNKY.badge, padding: '2px 7px' }}>{duration}</span>
+            </>
+          )}
           <span style={{ flex: 1 }} />
           {matchDate && !isScheduled && <span style={{ fontSize: 10, color: '#666' }}>{matchDate}</span>}
         </div>
 
         {/* Scheduled: big time display */}
         {isScheduled && scheduledTimeStr && (
-          <div style={{ textAlign: 'center', padding: '10px 0 16px', background: 'linear-gradient(180deg, rgba(74,158,255,0.04) 0%, transparent 100%)' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--color-accent)', marginBottom: 6 }}>Match starts at</div>
-            <div style={{ fontSize: 52, fontWeight: 900, letterSpacing: '-2px', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>{scheduledTimeStr}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 5 }}>{scheduledDateStr} · {tz.replace('_', ' ')}</div>
-            {match.court && <div style={{ fontSize: 10, color: 'var(--color-accent)', fontWeight: 600, marginTop: 6 }}>📍 {match.court}</div>}
+          <div style={{ textAlign: 'center', padding: '10px 0 16px', background: 'linear-gradient(180deg, rgba(126,211,33,0.04) 0%, transparent 100%)' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: GREEN, marginBottom: 6 }}>Match starts at</div>
+            <div style={{ fontSize: 52, fontWeight: 900, letterSpacing: '-2px', color: '#fff', fontFamily: 'monospace', lineHeight: 1 }}>{scheduledTimeStr}</div>
+            <div style={{ fontSize: 11, color: MUTED, marginTop: 5 }}>{scheduledDateStr} · {tz.replace('_', ' ')}</div>
+            {match.court && <div style={{ fontSize: 10, color: GREEN, fontWeight: 600, marginTop: 6 }}>{match.court}</div>}
           </div>
         )}
 
@@ -421,15 +516,15 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {!isScheduled && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginBottom: 4, paddingRight: 2 }}>
             {(match.sets ?? []).map(set => (
-              <span key={set.set_number} style={{ fontSize: 9, width: 28, textAlign: 'center', color: set.is_current ? 'var(--color-accent)' : '#555', fontWeight: 700 }}>S{set.set_number}</span>
+              <span key={set.set_number} style={{ fontSize: 9, width: 28, textAlign: 'center', color: set.is_current ? GREEN : '#555', fontWeight: 700 }}>S{set.set_number}</span>
             ))}
             <span style={{ width: 8 }} />
-            {!isFinished && <span style={{ fontSize: 9, width: 36, textAlign: 'center', color: 'var(--text-dim)', fontWeight: 700 }}>Pts</span>}
+            {!isFinished && <span style={{ fontSize: 9, width: 36, textAlign: 'center', color: MUTED, fontWeight: 700 }}>Pts</span>}
           </div>
         )}
 
         {/* Pair 1 row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, ...(!isLive && !isScheduled ? { borderBottom: '0.5px solid var(--border-card)' } : {}) }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, ...(!isLive && !isScheduled ? { borderBottom: `0.5px solid ${BORDER}` } : {}) }}>
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
             <PlayerSquare player={match.pair1_player1} winner={p1Won} router={router} />
             <PlayerSquare player={match.pair1_player2} winner={p1Won} router={router} />
@@ -446,17 +541,16 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 return (
                   <span key={set.set_number} style={{ ...scoreNumStyle(p1WonSet && !set.is_current, set.is_current || (!!parsed && !p1WonSet)), position: 'relative' }}>
                     {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
-                    {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 10, color: 'var(--text-dim)', position: 'absolute', top: 2, right: -2 }}>{parsed.tb}</sup>}
+                    {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 10, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{parsed.tb}</sup>}
                   </span>
                 )
               })}
               <span style={{ width: 8 }} />
               {!isFinished && (
-                <span style={{ fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: starPoint ? 'var(--color-star)' : 'var(--color-live)' }}>
+                <span style={{ fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1, color: starPoint ? ORANGE : LIVE_RED }}>
                   {p1Point ?? pair1Sets}
                 </span>
               )}
-              {isFinished && p1Won && <span style={{ fontSize: 16, marginLeft: 4 }}>✓</span>}
             </div>
           )}
         </div>
@@ -464,17 +558,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {/* Game divider (live only) */}
         {isLive && currentGame && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
-            <div style={{ flex: 1, height: '0.5px', background: 'var(--border-card)' }} />
-            {starPoint && <span style={{ color: 'var(--color-star)', fontSize: 9, fontWeight: 700, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.3)', borderRadius: 4, padding: '1px 5px' }}>★ Star point</span>}
-            <div style={{ flex: 1, height: '0.5px', background: 'var(--border-card)' }} />
+            <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+            {starPoint && <span style={{ color: ORANGE, fontSize: 9, fontWeight: 700, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.3)', clipPath: CHUNKY.badge, padding: '2px 6px' }}>Star point</span>}
+            <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
           </div>
         )}
         {/* VS divider (scheduled) or spacer (finished) */}
         {isScheduled && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
-            <div style={{ flex: 1, height: '0.5px', background: 'var(--border-card)' }} />
-            <span style={{ fontSize: 10, fontWeight: 900, color: 'var(--text-dim)', letterSpacing: '2px' }}>VS</span>
-            <div style={{ flex: 1, height: '0.5px', background: 'var(--border-card)' }} />
+            <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+            <span style={{ fontSize: 10, fontWeight: 900, color: MUTED, letterSpacing: '2px' }}>VS</span>
+            <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
           </div>
         )}
         {isFinished && <div style={{ height: 12 }} />}
@@ -497,17 +591,16 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 return (
                   <span key={set.set_number} style={{ ...scoreNumStyle(p2WonSet && !set.is_current, set.is_current || (!!parsed && !p2WonSet)), position: 'relative' }}>
                     {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
-                    {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 10, color: 'var(--text-dim)', position: 'absolute', top: 2, right: -2 }}>{parsed.tb}</sup>}
+                    {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 10, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{parsed.tb}</sup>}
                   </span>
                 )
               })}
               <span style={{ width: 8 }} />
               {!isFinished && (
-                <span style={{ fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, color: starPoint ? 'rgba(245,166,35,0.3)' : '#333' }}>
+                <span style={{ fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1, color: starPoint ? 'rgba(245,166,35,0.3)' : '#333' }}>
                   {p2Point ?? pair2Sets}
                 </span>
               )}
-              {isFinished && p2Won && <span style={{ fontSize: 16, marginLeft: 4 }}>✓</span>}
             </div>
           )}
         </div>
@@ -515,33 +608,21 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <div ref={heroSentinelRef} style={{ height: 0 }} />
       </div>
 
-      {/* ── SCHEDULED: notify CTAs + countdown + info ────────────────── */}
+      {/* ── SCHEDULED: prediction + countdown + info ─────────────────── */}
       {isScheduled && (
-        <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
-      )}
-
-      {/* ── FINISHED: fan support poll ───────────────────────────────── */}
-      {isFinished && (
-        <div style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)', padding: '12px 16px' }}>
-          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-dim)', textAlign: 'center', marginBottom: 10 }}>
-            {isFinished ? 'Who did you root for?' : 'Who are you rooting for?'}
-          </div>
-          <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '0.5px solid var(--border-card)' }}>
-            <div style={{ flex: 1, background: PAIR1_BG, borderRight: '0.5px solid var(--border-card)', padding: '10px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              <div style={{ fontSize: 24, fontWeight: 900, fontFamily: 'var(--font-mono)', color: PAIR1_COLOR, lineHeight: 1 }}>62%</div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.3 }}>{pair1Label}</div>
-            </div>
-            <div style={{ flex: 1, background: PAIR2_BG, padding: '10px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              <div style={{ fontSize: 24, fontWeight: 900, fontFamily: 'var(--font-mono)', color: PAIR2_COLOR, lineHeight: 1 }}>38%</div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.3 }}>{pair2Label}</div>
-            </div>
-          </div>
-          <div style={{ height: 4, borderRadius: 2, overflow: 'hidden', background: 'var(--border-card)', display: 'flex', marginTop: 8 }}>
-            <div style={{ width: '62%', background: PAIR1_COLOR, opacity: 0.7 }} />
-            <div style={{ flex: 1, background: PAIR2_COLOR, opacity: 0.7 }} />
-          </div>
-          <div style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', marginTop: 6 }}>3,779 fans voted</div>
-        </div>
+        <>
+          <PredictionSection
+            match={match}
+            pair1Label={pair1Label}
+            pair2Label={pair2Label}
+            prediction={prediction}
+            predStep={predStep}
+            setPredStep={setPredStep}
+            setPrediction={setPrediction}
+            clearPrediction={clearPrediction}
+          />
+          <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
+        </>
       )}
 
       {/* ── Game Journey chart ────────────────────────────────────── */}
@@ -561,7 +642,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               const el = document.getElementById(`game-s${setNum}-g${gameNum}`)
               if (el) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                el.style.background = 'rgba(56,200,255,0.08)'
+                el.style.background = 'rgba(126,211,33,0.08)'
                 setTimeout(() => { el.style.background = '' }, 1500)
               }
             }, 100)
@@ -569,20 +650,23 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         />
       )}
 
-      {/* ── FINISHED: match stats ─────────────────────────────────────── */}
-      {isFinished && <FinishedStatsSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} />}
-
       {/* ── LIVE / FINISHED: sub-tabs ─────────────────────────────────── */}
       {!isScheduled && (
         <>
-          <div style={{ display: 'flex', borderBottom: '0.5px solid var(--border-card)', background: 'var(--bg-card-alt)' }}>
-            {(['live', 'players', 'h2h'] as SubTab[]).map(tab => (
-              <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? 'var(--color-accent)' : 'var(--text-dim)', borderBottom: subTab === tab ? '2px solid var(--color-accent)' : '2px solid transparent', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
-                {tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
+          {isFinished && (
+            <MatchRatingCard rating={rating} setRating={setRating} avgRating={avgRating} ratingCount={ratingCount} />
+          )}
+          <div style={{ display: 'flex', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
+            {(isFinished ? ['recap', 'live', 'players', 'h2h'] as SubTab[] : ['live', 'players', 'h2h'] as SubTab[]).map(tab => (
+              <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? GREEN : MUTED, borderBottom: subTab === tab ? `2px solid ${GREEN}` : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+                {tab === 'recap' ? 'Score Recap' : tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
               </button>
             ))}
           </div>
-          <div style={{ background: 'var(--bg-card-alt)', minHeight: 300 }}>
+          <div style={{ background: BG_CARD, minHeight: 300 }}>
+            {subTab === 'recap' && isFinished && (
+              <FinishedStatsSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+            )}
             {subTab === 'live' && (
               <LiveFeedTab match={match} pair1Label={pair1Label} pair2Label={pair2Label} isLive={isLive} />
             )}
@@ -591,9 +675,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 {match.pair1_player1 && <PlayerCard player={match.pair1_player1} winner={p1Won} accent={PAIR1_COLOR} />}
                 {match.pair1_player2 && <PlayerCard player={match.pair1_player2} winner={p1Won} accent={PAIR1_COLOR} />}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-                  <div style={{ flex: 1, height: '0.5px', background: '#1A2E3A' }} />
-                  <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-dim)', letterSpacing: '2px' }}>VS</span>
-                  <div style={{ flex: 1, height: '0.5px', background: '#1A2E3A' }} />
+                  <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+                  <span style={{ fontSize: 10, fontWeight: 800, color: MUTED, letterSpacing: '2px' }}>VS</span>
+                  <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
                 </div>
                 {match.pair2_player1 && <PlayerCard player={match.pair2_player1} winner={p2Won} accent={PAIR2_COLOR} />}
                 {match.pair2_player2 && <PlayerCard player={match.pair2_player2} winner={p2Won} accent={PAIR2_COLOR} />}
@@ -611,31 +695,31 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   )
 }
 
-// ── Clickable player name in hero ─────────────────────────────────────────────
+// ── Clickable player name in hero ───────────────────────────────────────────
 function PlayerNameLink({ player, dim, muted, bold, router, style }: {
   player: any; dim?: boolean; muted?: boolean; bold?: boolean
   router: ReturnType<typeof import('next/navigation').useRouter>
   style?: React.CSSProperties
 }) {
-  const color = dim ? '#555' : muted ? '#aaa' : 'var(--text-primary)'
+  const color = dim ? '#555' : muted ? '#aaa' : '#fff'
   return (
     <div
       onClick={player?.id ? () => router.push(`/player/${player.id}`) : undefined}
-      style={{ fontSize: 13, fontWeight: bold ? 700 : 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: player?.id ? 'pointer' : 'default', ...style }}
+      style={{ fontSize: 13, fontWeight: bold ? 700 : 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: player?.id ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 4, ...style }}
     >
-      {player?.country && <span style={{ marginRight: 3 }}>{countryFlag(player.country)}</span>}
+      {player?.country && <FlagImg country={player.country} size={14} />}
       {toShortName(player?.name ?? 'TBD')}
     </div>
   )
 }
 
-// ── Live Banner ───────────────────────────────────────────────────────────────
+// ── Live Banner ─────────────────────────────────────────────────────────────
 function LiveBanner({ match, currentSet, currentGame }: { match: Match; currentSet: any; currentGame: any }) {
   return (
     <div style={{ background: 'linear-gradient(135deg, #1a0808, #200d0a)', borderBottom: '0.5px solid rgba(255,68,85,0.25)', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,68,85,0.15)', border: '1px solid rgba(255,68,85,0.4)', borderRadius: 20, padding: '4px 10px', flexShrink: 0 }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff4455', display: 'inline-block', animation: 'blink 1.2s ease-in-out infinite' }} />
-        <span style={{ fontSize: 11, fontWeight: 800, color: '#ff4455', letterSpacing: '0.5px' }}>LIVE</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,68,85,0.15)', border: '1px solid rgba(255,68,85,0.4)', clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.2s ease-in-out infinite' }} />
+        <span style={{ fontSize: 11, fontWeight: 800, color: LIVE_RED, letterSpacing: '0.5px' }}>LIVE</span>
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: '#ff7788', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
@@ -649,7 +733,7 @@ function LiveBanner({ match, currentSet, currentGame }: { match: Match; currentS
           const isCurrent = cur === n
           const isDone = cur != null && n < cur
           return (
-            <span key={n} style={{ width: 8, height: 8, borderRadius: 2, display: 'inline-block', background: isCurrent ? '#ff4455' : isDone ? 'rgba(255,68,85,0.45)' : 'rgba(255,68,85,0.12)', border: `0.5px solid ${isCurrent || isDone ? 'rgba(255,68,85,0.6)' : 'rgba(255,68,85,0.2)'}`, animation: isCurrent ? 'blink 1.2s ease-in-out infinite' : undefined }} />
+            <span key={n} style={{ width: 8, height: 8, display: 'inline-block', background: isCurrent ? LIVE_RED : isDone ? 'rgba(255,68,85,0.45)' : 'rgba(255,68,85,0.12)', border: `0.5px solid ${isCurrent || isDone ? 'rgba(255,68,85,0.6)' : 'rgba(255,68,85,0.2)'}`, animation: isCurrent ? 'blink 1.2s ease-in-out infinite' : undefined, clipPath: CHUNKY.badge }} />
           )
         })}
       </div>
@@ -657,37 +741,165 @@ function LiveBanner({ match, currentSet, currentGame }: { match: Match; currentS
   )
 }
 
-// ── Winner Banner ─────────────────────────────────────────────────────────────
-function WinnerBanner({ match, winnerPair, pair1Label, pair2Label }: { match: Match; winnerPair: number; pair1Label: string; pair2Label: string }) {
+// ── Winner Banner ───────────────────────────────────────────────────────────
+function WinnerBanner({ match, winnerPair, pair1Label, pair2Label, nextMatchId }: { match: Match; winnerPair: number; pair1Label: string; pair2Label: string; nextMatchId: string | null }) {
   const winnerLabel = winnerPair === 1 ? pair1Label : pair2Label
   const round = (match.round ?? '').toLowerCase()
-  const advancement = round.includes('semifinal') ? { badge: '→ Finals', text: 'Advances to the Finals' }
-    : round.includes('quarter') ? { badge: '→ Semifinals', text: 'Advances to the Semifinals' }
-    : round.includes('final') ? { badge: '🏆 Champion', text: 'Tournament Champion!' }
+  const isFinal = round.includes('final') && !round.includes('semifinal') && !round.includes('quarter')
+  const advancement = round.includes('semifinal') ? { badge: 'Finals', text: 'Advances to the Finals' }
+    : round.includes('quarter') ? { badge: 'Semifinals', text: 'Advances to the Semifinals' }
+    : isFinal ? { badge: 'Champion', text: 'Tournament Champion!' }
     : null
   return (
-    <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, #061210, #081510)', borderBottom: '0.5px solid rgba(52,211,153,0.2)', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% -20%, rgba(52,211,153,0.09) 0%, transparent 65%)', pointerEvents: 'none' }} />
+    <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, rgba(126,211,33,0.04), rgba(126,211,33,0.01))', borderBottom: `0.5px solid rgba(126,211,33,0.2)`, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 50% -20%, rgba(126,211,33,0.09) 0%, transparent 65%)', pointerEvents: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ fontSize: 22, flexShrink: 0 }}>🏆</div>
+        <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: GREEN_DIM, clipPath: CHUNKY.badge, flexShrink: 0 }}>
+          <span style={{ fontSize: 16, color: GREEN, fontWeight: 900 }}>W</span>
+        </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(52,211,153,0.6)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 3 }}>Winner</div>
-          <div style={{ fontSize: 17, fontWeight: 900, color: '#34d399', lineHeight: 1.2 }}>{winnerLabel}</div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(126,211,33,0.6)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 3 }}>Winner</div>
+          <div style={{ fontSize: 17, fontWeight: 900, color: GREEN, lineHeight: 1.2 }}>{winnerLabel}</div>
         </div>
         {advancement && (
-          <div style={{ background: 'rgba(52,211,153,0.08)', border: '0.5px solid rgba(52,211,153,0.25)', borderRadius: 20, padding: '4px 10px', flexShrink: 0 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#34d399' }}>{advancement.badge}</span>
+          <div style={{ background: GREEN_DIM, border: `0.5px solid rgba(126,211,33,0.25)`, clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: GREEN }}>{advancement.badge}</span>
           </div>
         )}
       </div>
-      {advancement && (
-        <div style={{ fontSize: 10, color: 'rgba(52,211,153,0.4)', paddingLeft: 32, marginTop: 6 }}>{advancement.text}</div>
+      {!isFinal && nextMatchId && (
+        <Link href={`/match/${nextMatchId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 42, marginTop: 8, textDecoration: 'none' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>{advancement ? advancement.text : 'Next match'}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14" /><polyline points="12 5 19 12 12 19" />
+          </svg>
+        </Link>
+      )}
+      {isFinal && advancement && (
+        <div style={{ fontSize: 10, color: 'rgba(126,211,33,0.4)', paddingLeft: 42, marginTop: 6 }}>{advancement.text}</div>
       )}
     </div>
   )
 }
 
-// ── Scheduled Section ─────────────────────────────────────────────────────────
+// ── Prediction Section (Scheduled matches) ─────────────────────────────────
+function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep, setPredStep, setPrediction, clearPrediction }: {
+  match: Match; pair1Label: string; pair2Label: string
+  prediction: Prediction | null
+  predStep: 'pick' | 'margin' | 'done'
+  setPredStep: (s: 'pick' | 'margin' | 'done') => void
+  setPrediction: (p: Prediction) => void
+  clearPrediction: () => void
+}) {
+  const [selectedPair, setSelectedPair] = useState<1 | 2 | null>(prediction?.pair ?? null)
+
+  const handlePickPair = (pair: 1 | 2) => {
+    setSelectedPair(pair)
+    setPredStep('margin')
+  }
+
+  const handlePickMargin = (margin: '2-0' | '2-1') => {
+    if (!selectedPair) return
+    setPrediction({ pair: selectedPair, margin })
+    setPredStep('done')
+  }
+
+  const handleChange = () => {
+    clearPrediction()
+    setSelectedPair(null)
+    setPredStep('pick')
+  }
+
+  const p1Short = pair1Label.split(' / ').map(n => n.split(' ').pop()).join(' / ')
+  const p2Short = pair2Label.split(' / ').map(n => n.split(' ').pop()).join(' / ')
+
+  return (
+    <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '16px' }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center', marginBottom: 14 }}>
+        Make your prediction
+      </div>
+
+      {/* Step 1: Pick the winner */}
+      {predStep === 'pick' && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([1, 2] as const).map(pair => {
+            const label = pair === 1 ? p1Short : p2Short
+            const color = pair === 1 ? PAIR1_COLOR : PAIR2_COLOR
+            const bg = pair === 1 ? PAIR1_BG : PAIR2_BG
+            const border = pair === 1 ? PAIR1_BORDER : PAIR2_BORDER
+            const p1 = pair === 1 ? match.pair1_player1 : match.pair2_player1
+            const p2 = pair === 1 ? match.pair1_player2 : match.pair2_player2
+            return (
+              <button key={pair} onClick={() => handlePickPair(pair)} style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                padding: '14px 8px', clipPath: CHUNKY.card,
+                background: bg, border: `1px solid ${border}`,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <PlayerAvatar player={p1} size={28} />
+                  <PlayerAvatar player={p2} size={28} />
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color, textAlign: 'center', lineHeight: 1.3 }}>{label}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Step 2: Pick the margin */}
+      {predStep === 'margin' && selectedPair && (
+        <div>
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: selectedPair === 1 ? PAIR1_COLOR : PAIR2_COLOR }}>
+              {selectedPair === 1 ? p1Short : p2Short}
+            </span>
+            <span style={{ fontSize: 11, color: MUTED }}> wins...</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => handlePickMargin('2-0')} style={{
+              flex: 1, padding: '12px 8px', clipPath: CHUNKY.button,
+              background: GREEN_DIM, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: GREEN, fontFamily: 'monospace' }}>2-0</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(126,211,33,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Straight sets</span>
+            </button>
+            <button onClick={() => handlePickMargin('2-1')} style={{
+              flex: 1, padding: '12px 8px', clipPath: CHUNKY.button,
+              background: 'rgba(245,166,35,0.08)', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: ORANGE, fontFamily: 'monospace' }}>2-1</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(245,166,35,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>3-set battle</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Confirmation */}
+      {predStep === 'done' && prediction && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(126,211,33,0.04)', border: `0.5px solid rgba(126,211,33,0.15)`, clipPath: CHUNKY.card }}>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(126,211,33,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 4 }}>Your prediction</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: GREEN }}>
+              {prediction.pair === 1 ? p1Short : p2Short} win {prediction.margin}
+            </div>
+          </div>
+          <button onClick={handleChange} style={{
+            background: 'transparent', border: `0.5px solid rgba(126,211,33,0.2)`, clipPath: CHUNKY.badge,
+            padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: 9, fontWeight: 700, color: GREEN,
+          }}>
+            Change
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Scheduled Section ───────────────────────────────────────────────────────
 function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
   match: Match; pair1Label: string; pair2Label: string
   countdown: { h: number; m: number; s: number }; tz: string
@@ -696,29 +908,16 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
   const tournamentName = ((match as any).tournament)?.name ?? null
   return (
     <>
-      {/* Notify CTAs */}
-      <div style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)', padding: '14px 16px' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center', marginBottom: 10 }}>Don't miss it</div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 8px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'rgba(74,158,255,0.1)', border: '0.5px solid rgba(74,158,255,0.3)', color: 'var(--color-accent)', fontFamily: 'var(--font-sans)' }}>
-            🔔 Notify me
-          </button>
-          <button style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '11px 8px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: 'rgba(245,166,35,0.08)', border: '0.5px solid rgba(245,166,35,0.25)', color: '#f5a623', fontFamily: 'var(--font-sans)' }}>
-            ★ Save match
-          </button>
-        </div>
-      </div>
-
       {/* Countdown */}
-      <div style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)', padding: '14px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Starts in</div>
+      <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Starts in</div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
           {[{ n: countdown.h, l: 'HRS' }, { n: countdown.m, l: 'MIN' }, { n: countdown.s, l: 'SEC' }].map(({ n, l }, i) => (
             <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {i > 0 && <span style={{ fontSize: 22, fontWeight: 900, color: 'var(--border-strong)', marginTop: -6 }}>:</span>}
+              {i > 0 && <span style={{ fontSize: 22, fontWeight: 900, color: BORDER, marginTop: -6 }}>:</span>}
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'var(--font-mono)', color: 'var(--color-accent)', lineHeight: 1 }}>{pad(n)}</div>
-                <div style={{ fontSize: 8, color: 'var(--text-dim)', marginTop: 2, letterSpacing: '0.5px' }}>{l}</div>
+                <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'monospace', color: GREEN, lineHeight: 1 }}>{pad(n)}</div>
+                <div style={{ fontSize: 8, color: MUTED, marginTop: 2, letterSpacing: '0.5px' }}>{l}</div>
               </div>
             </div>
           ))}
@@ -726,16 +925,16 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
       </div>
 
       {/* Tournament info */}
-      <div style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)' }}>
+      <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}` }}>
         {[
           tournamentName && { key: 'Tournament', val: tournamentName },
           match.round && { key: 'Round', val: match.round },
           match.court && { key: 'Court', val: match.court },
           { key: 'Timezone', val: tz.replace(/_/g, ' ') },
         ].filter(Boolean).map((row: any) => (
-          <div key={row.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', borderBottom: '0.5px solid var(--border-card)' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600 }}>{row.key}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>{row.val}</span>
+          <div key={row.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', borderBottom: `0.5px solid ${BORDER}` }}>
+            <span style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>{row.key}</span>
+            <span style={{ fontSize: 11, color: '#ccc', fontWeight: 600 }}>{row.val}</span>
           </div>
         ))}
       </div>
@@ -743,7 +942,142 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
   )
 }
 
-// ── Finished Stats Section ────────────────────────────────────────────────────
+// ── Match Rating Card ───────────────────────────────────────────────────────
+const REACTION_LABELS: Record<number, string> = { 1: 'Boring', 2: 'Meh', 3: 'Decent', 4: 'Great match!', 5: 'Epic' }
+
+function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
+  rating: number | null
+  setRating: (n: number) => void
+  avgRating: number | null
+  ratingCount: number
+}) {
+  const [justRated, setJustRated] = useState<number | null>(null)
+  const [collapsed, setCollapsed] = useState(rating != null)
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([])
+
+  const handleRate = (n: number) => {
+    setRating(n)
+    setJustRated(n)
+
+    // Generate particles
+    const colors = [GREEN, ORANGE, GREEN, '#fff', ORANGE, GREEN, ORANGE, GREEN]
+    const newParticles = colors.map((color, i) => ({
+      id: i,
+      x: (Math.random() - 0.5) * 80,
+      y: (Math.random() - 0.5) * 80,
+      color,
+    }))
+    setParticles(newParticles)
+
+    // Collapse after 2s
+    setTimeout(() => {
+      setCollapsed(true)
+      setJustRated(null)
+      setParticles([])
+    }, 2000)
+  }
+
+  // Already rated on a previous visit — show compact immediately
+  if (collapsed || (rating != null && justRated == null)) {
+    return (
+      <div style={{ padding: '12px 16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <div style={{
+            width: 36, height: 36, clipPath: CHUNKY.badge, background: GREEN,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: '#000' }}>{rating}</span>
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(126,211,33,0.7)' }}>
+            {REACTION_LABELS[rating!]}
+          </span>
+          {ratingCount >= 10 && avgRating != null && (
+            <>
+              <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />
+              <span style={{ fontSize: 10, color: MUTED }}>avg {avgRating}</span>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Celebration burst state (just tapped)
+  if (justRated != null) {
+    return (
+      <div style={{ padding: '20px 16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <style>{`
+          @keyframes pn-burst {
+            0% { transform: translate(0,0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+          }
+          @keyframes pn-scale-up {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.4); }
+            100% { transform: scale(1.3); }
+          }
+          @keyframes pn-fade-in {
+            0% { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          {/* Particles */}
+          {particles.map(p => (
+            <div key={p.id} style={{
+              position: 'absolute', top: '50%', left: '50%',
+              width: 6, height: 6, borderRadius: '50%', background: p.color,
+              '--tx': `${p.x}px`, '--ty': `${p.y}px`,
+              animation: 'pn-burst 0.6s ease-out forwards',
+              pointerEvents: 'none',
+            } as React.CSSProperties} />
+          ))}
+          {/* Badge */}
+          <div style={{
+            width: 48, height: 48, clipPath: CHUNKY.badge, background: GREEN,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'pn-scale-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+          }}>
+            <span style={{ fontSize: 20, fontWeight: 900, color: '#000' }}>{justRated}</span>
+          </div>
+        </div>
+        <div style={{
+          fontSize: 14, fontWeight: 900, color: GREEN, marginTop: 10,
+          animation: 'pn-fade-in 0.3s ease 0.15s both',
+        }}>
+          {REACTION_LABELS[justRated]}
+        </div>
+      </div>
+    )
+  }
+
+  // Unrated state — show picker
+  return (
+    <div style={{ padding: '16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center', marginBottom: 14 }}>
+        Rate this match
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>Boring</span>
+        {[1, 2, 3, 4, 5].map(n => (
+          <button key={n} onClick={() => handleRate(n)} style={{
+            width: 36, height: 36,
+            clipPath: CHUNKY.badge,
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.15s ease',
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 900, color: MUTED }}>{n}</span>
+          </button>
+        ))}
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>Epic</span>
+      </div>
+    </div>
+  )
+}
+
+// ── Finished Stats Section ──────────────────────────────────────────────────
 function FinishedStatsSection({ match, pair1Label, pair2Label }: { match: Match; pair1Label: string; pair2Label: string }) {
   const sets = [...(match.sets ?? [])].sort((a, b) => a.set_number - b.set_number)
   const p1Games = sets.reduce((s, set) => s + (parseSetScore(set.set_score)?.p1 ?? 0), 0)
@@ -754,21 +1088,21 @@ function FinishedStatsSection({ match, pair1Label, pair2Label }: { match: Match;
     const total = p1 + p2 || 1
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, width: 28, textAlign: 'right', fontFamily: 'var(--font-mono)', color: PAIR1_COLOR }}>{p1}</span>
-        <div style={{ flex: 1, display: 'flex', gap: 2, height: 4, borderRadius: 3, overflow: 'hidden' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, width: 28, textAlign: 'right', fontFamily: 'monospace', color: PAIR1_COLOR }}>{p1}</span>
+        <div style={{ flex: 1, display: 'flex', gap: 2, height: 4, overflow: 'hidden', clipPath: CHUNKY.badge }}>
           <div style={{ flex: p1 / total, background: PAIR1_COLOR, opacity: 0.8 }} />
           <div style={{ flex: p2 / total, background: PAIR2_COLOR, opacity: 0.8 }} />
         </div>
-        <span style={{ fontSize: 11, fontWeight: 700, width: 28, fontFamily: 'var(--font-mono)', color: PAIR2_COLOR }}>{p2}</span>
-        <span style={{ fontSize: 9, color: 'var(--text-dim)', width: 72, flexShrink: 0 }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, width: 28, fontFamily: 'monospace', color: PAIR2_COLOR }}>{p2}</span>
+        <span style={{ fontSize: 9, color: MUTED, width: 72, flexShrink: 0 }}>{label}</span>
       </div>
     )
   }
 
   return (
-    <div style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)', padding: '12px 16px' }}>
+    <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '12px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px' }}>Match stats</span>
+        <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px' }}>Match stats</span>
         <div style={{ display: 'flex', gap: 10 }}>
           <span style={{ fontSize: 9, fontWeight: 700, color: PAIR1_COLOR }}>{pair1Label.split(' / ')[0]}</span>
           <span style={{ fontSize: 9, fontWeight: 700, color: PAIR2_COLOR }}>{pair2Label.split(' / ')[0]}</span>
@@ -784,7 +1118,7 @@ function FinishedStatsSection({ match, pair1Label, pair2Label }: { match: Match;
   )
 }
 
-// ── Live Feed Tab ─────────────────────────────────────────────────────────────
+// ── Live Feed Tab ───────────────────────────────────────────────────────────
 function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
   match: Match; pair1Label: string; pair2Label: string; isLive: boolean
 }) {
@@ -792,7 +1126,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
 
   if (sets.length === 0 || sets.every(s => (s.games ?? []).length === 0)) {
     return (
-      <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-dim)', fontSize: 12 }}>
+      <div style={{ textAlign: 'center', padding: '40px 16px', color: MUTED, fontSize: 12 }}>
         {isLive ? 'Waiting for first point...' : 'No point data available'}
       </div>
     )
@@ -808,11 +1142,11 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
           <div key={set.set_number}>
             {/* Set header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px 4px' }}>
-              <div style={{ flex: 1, height: '0.5px', background: 'var(--border-card)' }} />
-              <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+              <span style={{ fontSize: 9, fontWeight: 700, color: GREEN, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Set {set.set_number}{set.set_score ? ` · ${set.set_score}` : ' · In progress'}
               </span>
-              <div style={{ flex: 1, height: '0.5px', background: 'var(--border-card)' }} />
+              <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
             </div>
 
             {reversedGames.map((game, revIdx) => {
@@ -830,15 +1164,15 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
               }
 
               return (
-                <div key={game.id} id={`game-s${set.set_number}-g${game.game_number}`} style={{ borderTop: '0.5px solid var(--border-card)' }}>
+                <div key={game.id} id={`game-s${set.set_number}-g${game.game_number}`} style={{ borderTop: `0.5px solid ${BORDER}` }}>
                   {/* Game header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 16px 4px', background: 'rgba(0,0,0,0.15)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-dim)' }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: MUTED }}>
                         Game {game.game_number}
                       </span>
                       {isCurrent && isLive
-                        ? <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-live)' }}>● In progress</span>
+                        ? <span style={{ fontSize: 10, fontWeight: 700, color: LIVE_RED }}>In progress</span>
                         : winner === 1
                         ? <span style={{ fontSize: 10, fontWeight: 700, color: PAIR1_COLOR }}>{pair1Label} won</span>
                         : winner === 2
@@ -846,7 +1180,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
                         : null
                       }
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', color: MUTED }}>
                       {p1Before} – {p2Before}
                     </span>
                   </div>
@@ -860,23 +1194,23 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
                         padding: '5px 16px 5px 28px',
                         borderLeft: `2px solid ${pt.scorer === 1 ? PAIR1_BORDER : PAIR2_BORDER}`,
                         background: isLatest ? 'rgba(255,70,85,0.06)' : pt.isSP ? 'rgba(245,166,35,0.04)' : 'transparent',
-                        ...(isLatest ? { borderLeftColor: 'var(--color-live)' } : {}),
+                        ...(isLatest ? { borderLeftColor: LIVE_RED } : {}),
                       }}>
                         <div style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: pt.scorer === 1 ? PAIR1_COLOR : PAIR2_COLOR }} />
-                        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', width: 58, flexShrink: 0, color: pt.scorer === 1 ? PAIR1_COLOR : PAIR2_COLOR }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', width: 58, flexShrink: 0, color: pt.scorer === 1 ? PAIR1_COLOR : PAIR2_COLOR }}>
                           {pt.score}
                         </span>
-                        <span style={{ flex: 1, fontSize: 10, color: 'var(--text-dim)' }}>
+                        <span style={{ flex: 1, fontSize: 10, color: MUTED }}>
                           {pt.scorer === 1 ? pair1Label : pair2Label}
                         </span>
-                        {isLatest && <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--color-live)', letterSpacing: '0.5px' }}>● now</span>}
-                        {pt.isSP && !isLatest && <span style={{ fontSize: 8, fontWeight: 700, color: 'var(--color-star)', background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.25)', borderRadius: 3, padding: '1px 4px' }}>★ SP</span>}
+                        {isLatest && <span style={{ fontSize: 8, fontWeight: 700, color: LIVE_RED, letterSpacing: '0.5px' }}>now</span>}
+                        {pt.isSP && !isLatest && <span style={{ fontSize: 8, fontWeight: 700, color: ORANGE, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 5px' }}>SP</span>}
                       </div>
                     )
                   })}
 
                   {points.length === 0 && isCurrent && (
-                    <div style={{ padding: '8px 28px', fontSize: 10, color: 'var(--text-dim)' }}>Waiting for first point...</div>
+                    <div style={{ padding: '8px 28px', fontSize: 10, color: MUTED }}>Waiting for first point...</div>
                   )}
                 </div>
               )
@@ -888,7 +1222,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
   )
 }
 
-// ── H2H Tab ───────────────────────────────────────────────────────────────────
+// ── H2H Tab ─────────────────────────────────────────────────────────────────
 function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
   match: Match; h2hMatches: any[]; h2hLoading: boolean; pair1Label: string; pair2Label: string
 }) {
@@ -924,18 +1258,18 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
   return (
     <div>
       {/* Fixed summary header */}
-      <div style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)', padding: '14px 16px 12px', position: 'sticky', top: 95, zIndex: 8 }}>
+      <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px 12px', position: 'sticky', top: 95, zIndex: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'var(--font-mono)', color: PAIR1_COLOR, lineHeight: 1 }}>{p1Wins}</div>
+            <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'monospace', color: PAIR1_COLOR, lineHeight: 1 }}>{p1Wins}</div>
             <div style={{ fontSize: 10, fontWeight: 600, color: PAIR1_COLOR, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pair1Label}</div>
           </div>
           <div style={{ textAlign: 'center', flexShrink: 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px' }}>H2H</div>
-            <div style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 2 }}>{h2hMatches.length} matches</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px' }}>H2H</div>
+            <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{h2hMatches.length} matches</div>
           </div>
           <div style={{ flex: 1, textAlign: 'center' }}>
-            <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'var(--font-mono)', color: PAIR2_COLOR, lineHeight: 1 }}>{p2Wins}</div>
+            <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'monospace', color: PAIR2_COLOR, lineHeight: 1 }}>{p2Wins}</div>
             <div style={{ fontSize: 10, fontWeight: 600, color: PAIR2_COLOR, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pair2Label}</div>
           </div>
         </div>
@@ -943,16 +1277,16 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
 
       {/* Column headers */}
       {h2hMatches.length > 0 && (
-        <div style={{ display: 'flex', padding: '7px 16px', background: 'var(--bg-card-alt)', borderBottom: '0.5px solid var(--border-card)' }}>
-          <span style={{ flex: 1, fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tournament · Round</span>
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: 48 }}>Score</span>
-          <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', width: 28, textAlign: 'center' }}>W/L</span>
+        <div style={{ display: 'flex', padding: '7px 16px', background: BG_CARD, borderBottom: `0.5px solid ${BORDER}` }}>
+          <span style={{ flex: 1, fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tournament · Round</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: 48 }}>Score</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', width: 28, textAlign: 'center' }}>W/L</span>
         </div>
       )}
 
       {/* Match list */}
       {h2hMatches.length === 0 && !h2hLoading && (
-        <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-dim)', fontSize: 12 }}>
+        <div style={{ textAlign: 'center', padding: '40px 16px', color: MUTED, fontSize: 12 }}>
           No previous meetings found
         </div>
       )}
@@ -965,24 +1299,24 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
 
         const scores = formatSetScores(m)
         const date = formatDate(m.started_at)
-        const tournamentName = (m.tournament as any)?.name ?? '—'
+        const tournamentName = (m.tournament as any)?.name ?? '\u2014'
         const round = m.round ?? ''
 
         return (
-          <div key={m.id} style={{ padding: '10px 16px', borderBottom: '0.5px solid var(--border-card)', display: 'flex', alignItems: 'center', gap: 8, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.1)' }}>
+          <div key={m.id} style={{ padding: '10px 16px', borderBottom: `0.5px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 8, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.1)' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {tournamentName}
               </div>
-              <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span>{round}</span>
-                {date && <><span style={{ width: 2, height: 2, borderRadius: '50%', background: 'var(--text-dim)', display: 'inline-block' }} /><span>{date}</span></>}
+                {date && <><span style={{ width: 2, height: 2, borderRadius: '50%', background: MUTED, display: 'inline-block' }} /><span>{date}</span></>}
               </div>
             </div>
-            <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flexShrink: 0, textAlign: 'right', marginRight: 12 }}>
-              {scores || '—'}
+            <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', color: MUTED, flexShrink: 0, textAlign: 'right', marginRight: 12 }}>
+              {scores || '\u2014'}
             </div>
-            <div style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: ourWon ? PAIR1_BG : PAIR2_BG, border: `0.5px solid ${ourWon ? PAIR1_BORDER : PAIR2_BORDER}` }}>
+            <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: ourWon ? PAIR1_BG : PAIR2_BG, border: `0.5px solid ${ourWon ? PAIR1_BORDER : PAIR2_BORDER}`, clipPath: CHUNKY.badge }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: ourWon ? PAIR1_COLOR : PAIR2_COLOR }}>{ourWon ? 'W' : 'L'}</span>
             </div>
           </div>
@@ -992,33 +1326,33 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label }: {
   )
 }
 
-// ── PlayerCard ────────────────────────────────────────────────────────────────
+// ── PlayerCard ──────────────────────────────────────────────────────────────
 function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean; accent?: string }) {
   return (
-    <div style={{ background: 'var(--bg-card)', borderRadius: 10, overflow: 'hidden', border: winner ? `0.5px solid ${accent ?? 'rgba(255,255,255,0.15)'}` : '0.5px solid var(--border-card)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '0.5px solid var(--border-card)', gap: 8 }}>
+    <div style={{ background: BG_CARD, overflow: 'hidden', border: winner ? `0.5px solid ${accent ?? 'rgba(255,255,255,0.15)'}` : `0.5px solid ${BORDER}`, clipPath: CHUNKY.card }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: `0.5px solid ${BORDER}`, gap: 8 }}>
         <PlayerAvatar player={player} size={36} winner={winner} accent={accent} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: winner ? 'var(--text-primary)' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {player.country && <span style={{ marginRight: 4 }}>{countryFlag(player.country)}</span>}
+          <div style={{ fontSize: 13, fontWeight: 700, color: winner ? '#fff' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+            {player.country && <FlagImg country={player.country} size={14} />}
             {toShortName(player.name)}
           </div>
-          {player.side && <div style={{ fontSize: 10, color: accent ?? 'var(--text-dim)', marginTop: 1 }}>{player.side === 'drive' ? 'Drive' : 'Backhand'}</div>}
+          {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{player.side === 'drive' ? 'Drive' : 'Backhand'}</div>}
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-accent)' }}>{player.ranking ? `#${player.ranking}` : '—'}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>{player.ranking ? `#${player.ranking}` : '\u2014'}</div>
           <div style={{ fontSize: 10, color: '#666' }}>Rank</div>
         </div>
-        <div style={{ width: '0.5px', height: 28, background: 'var(--border-card)' }} />
+        <div style={{ width: '0.5px', height: 28, background: BORDER }} />
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-success)' }}>{player.win_rate ? `${player.win_rate}%` : '—'}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>{player.win_rate ? `${player.win_rate}%` : '\u2014'}</div>
           <div style={{ fontSize: 10, color: '#666' }}>Win rate</div>
         </div>
-        <div style={{ width: '0.5px', height: 28, background: 'var(--border-card)' }} />
+        <div style={{ width: '0.5px', height: 28, background: BORDER }} />
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#aaa' }}>{player.total_matches ?? '—'}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#aaa' }}>{player.total_matches ?? '\u2014'}</div>
           <div style={{ fontSize: 10, color: '#666' }}>Matches</div>
         </div>
       </div>
@@ -1026,33 +1360,33 @@ function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean;
   )
 }
 
-// ── PlayerAvatar ──────────────────────────────────────────────────────────────
+// ── PlayerAvatar ────────────────────────────────────────────────────────────
 function PlayerAvatar({ player, size, winner, accent }: { player: any; size: number; winner?: boolean; accent?: string }) {
   const [imgError, setImgError] = useState(false)
-  const borderColor = winner ? (accent ?? 'rgba(255,255,255,0.4)') : 'var(--border-strong)'
-  if (!player) return <div style={{ width: size, height: size, borderRadius: size / 3, background: 'var(--border-strong)', flexShrink: 0 }} />
+  const borderColor = winner ? (accent ?? 'rgba(255,255,255,0.4)') : BORDER
+  if (!player) return <div style={{ width: size, height: size, borderRadius: '50%', background: BORDER, flexShrink: 0 }} />
   return player.avatar_url && !imgError ? (
-    <img src={player.avatar_url} alt={player.name} style={{ width: size, height: size, borderRadius: size / 3, objectFit: 'cover', flexShrink: 0, border: `1.5px solid ${borderColor}` }} onError={() => setImgError(true)} />
+    <img src={player.avatar_url} alt={player.name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `1.5px solid ${borderColor}` }} onError={() => setImgError(true)} />
   ) : (
-    <div style={{ width: size, height: size, borderRadius: size / 3, background: '#0D2540', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.35, color: 'var(--text-secondary)', fontWeight: 700, border: `1.5px solid ${borderColor}` }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: '#0D2540', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.35, color: '#ccc', fontWeight: 700, border: `1.5px solid ${borderColor}` }}>
       {player.name?.[0]}
     </div>
   )
 }
 
-// ── PlayerSquare (hero photos) ────────────────────────────────────────────────
+// ── PlayerSquare (hero photos) ──────────────────────────────────────────────
 function PlayerSquare({ player, winner, router }: { player: any; winner?: boolean; router: ReturnType<typeof import('next/navigation').useRouter> }) {
   const [imgError, setImgError] = useState(false)
   const initials = player?.name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') ?? '?'
-  const border = winner ? '2px solid rgba(255,255,255,0.5)' : '1.5px solid var(--border-strong)'
-  const bg = winner ? 'rgba(255,255,255,0.05)' : '#0A1A2A'
+  const border = winner ? `2px solid rgba(126,211,33,0.5)` : `1.5px solid ${BORDER}`
+  const bg = winner ? 'rgba(126,211,33,0.05)' : '#0A1A2A'
   const handleClick = player?.id ? (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/player/${player.id}`) } : undefined
   const cursor = player?.id ? 'pointer' : 'default'
-  if (!player) return <div style={{ width: 56, height: 56, borderRadius: 10, background: bg, border, flexShrink: 0 }} />
+  if (!player) return <div style={{ width: 56, height: 56, clipPath: CHUNKY.card, background: bg, border, flexShrink: 0 }} />
   return player.avatar_url && !imgError ? (
-    <img onClick={handleClick} src={player.avatar_url} alt={player.name} style={{ width: 56, height: 56, borderRadius: 10, objectFit: 'cover', flexShrink: 0, border, cursor }} onError={() => setImgError(true)} />
+    <img onClick={handleClick} src={player.avatar_url} alt={player.name} style={{ width: 56, height: 56, clipPath: CHUNKY.card, objectFit: 'cover', flexShrink: 0, border, cursor }} onError={() => setImgError(true)} />
   ) : (
-    <div onClick={handleClick} style={{ width: 56, height: 56, borderRadius: 10, background: bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: winner ? 'rgba(255,255,255,0.7)' : '#4A6A8A', fontWeight: 700, border, cursor }}>
+    <div onClick={handleClick} style={{ width: 56, height: 56, clipPath: CHUNKY.card, background: bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: winner ? 'rgba(126,211,33,0.7)' : '#4A6A8A', fontWeight: 700, border, cursor }}>
       {initials}
     </div>
   )
