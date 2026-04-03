@@ -4,12 +4,13 @@
 // Sections: Header → Live Now → Coming Up → Tournament Spotlight →
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../components/Spinner'
 import SearchOverlay from './components/SearchOverlay'
+import ProfileButton from '@/components/ProfileButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1676,6 +1677,43 @@ export default function V3HomePage() {
   const [latestNews, setLatestNews] = useState<NewsItem[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
 
+  // Rotating search hints
+  const SEARCH_HINTS = [
+    'Search players, events, matches...',
+    'Try "Arturo Coello"',
+    'Try "Miami P1"',
+    'Try "Live matches"',
+    'Try "Gemma Triay"',
+  ]
+  const [hintIdx, setHintIdx] = useState(0)
+  const [hintFading, setHintFading] = useState(false)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHintFading(true)
+      setTimeout(() => {
+        setHintIdx(i => (i + 1) % SEARCH_HINTS.length)
+        setHintFading(false)
+      }, 300)
+    }, 3000)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Hide header on scroll down, show on scroll up
+  const [headerVisible, setHeaderVisible] = useState(true)
+  const lastScrollY = useRef(0)
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY
+      if (y < 10) { setHeaderVisible(true) }
+      else if (y > lastScrollY.current + 4) { setHeaderVisible(false) }
+      else if (y < lastScrollY.current - 4) { setHeaderVisible(true) }
+      lastScrollY.current = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   const fetchData = useCallback(async () => {
     try {
       const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes, highlightsRes, newsRes] = await Promise.all([
@@ -1799,40 +1837,53 @@ export default function V3HomePage() {
         justifyContent: 'space-between',
         padding: '10px 16px',
         height: 52,
+        transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
+        transition: 'transform 0.3s ease',
       }}>
-        {/* Search icon */}
-        <button
-          onClick={() => setSearchOpen(true)}
-          style={{
-          background: 'none', border: 'none', padding: 6, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-        </button>
-
         {/* Logo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/padelnachos-logo.png"
+          src="/padelnachos-logo-v2.png"
           alt="PadelNachos"
-          style={{ height: 32, objectFit: 'contain' }}
+          style={{ height: 43, objectFit: 'contain', flexShrink: 0 }}
         />
 
-        {/* Profile avatar */}
-        <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.08)',
-          border: `1px solid ${BORDER}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
+        {/* Search bar */}
+        <div
+          onClick={() => setSearchOpen(true)}
+          style={{
+            flex: 1,
+            height: 34,
+            background: 'rgba(255,255,255,0.06)',
+            border: `1px solid rgba(255,255,255,0.08)`,
+            clipPath: CHUNKY.button,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '0 12px',
+            cursor: 'pointer',
+            marginLeft: 10,
+            marginRight: 6,
+            maxWidth: 260,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
+          <span style={{
+            color: MUTED,
+            fontSize: 11,
+            fontWeight: 500,
+            opacity: hintFading ? 0 : 1,
+            transform: hintFading ? 'translateY(-4px)' : 'translateY(0)',
+            transition: 'opacity 0.3s, transform 0.3s',
+          }}>
+            {SEARCH_HINTS[hintIdx]}
+          </span>
         </div>
+
+        {/* Profile / Login */}
+        <ProfileButton />
       </header>
 
       {/* ── LIVE NOW ────────────────────────────────────────── */}

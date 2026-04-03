@@ -202,7 +202,7 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
 
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>
-          {pts != null ? pts.toLocaleString() : '--'}
+          {pts != null ? pts : '--'}
         </div>
         <div style={{ fontSize: 9, color: MUTED, marginTop: 2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           PTS
