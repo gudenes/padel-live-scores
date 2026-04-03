@@ -56,6 +56,8 @@ export interface Match {
   pair2_player2: Player | null
   sets?: Set[]
   viewer_count?: number
+  avg_rating?: number | null
+  rating_count?: number
 }
 
 // ── Warmup detection ──────────────────────────────────────────
