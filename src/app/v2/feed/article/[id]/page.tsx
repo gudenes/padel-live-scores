@@ -1,7 +1,7 @@
 'use client'
 // src/app/v2/feed/article/[id]/page.tsx
 // Article wrapper page — shows article info on our domain and links out to source.
-// When shared, the URL points to PadelNacho. When users close the article, they're on our site.
+// When shared, the URL points to Padel Nachos. When users close the article, they're on our site.
 
 import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -106,7 +106,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
           </svg>
         </a>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="PadelNacho" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+          <img src="/padelnachos-logo-v2.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
         <ProfileButton />
       </div>

@@ -484,7 +484,7 @@ let countryTermCache: Map<number, string> | null = null
 // ---------------------------------------------------------------------------
 
 const DEFAULT_HEADERS = {
-  'User-Agent': 'padel-nacho/1.0',
+  'User-Agent': 'PadelNachos/1.0',
   Accept: 'application/json',
 }
 
@@ -548,7 +548,7 @@ export async function fetchEventPageData(
 ): Promise<{ dates: EventDates; matchscorer: MatchscorerIds | null }> {
   const url = `${FIP_WP_BASE}/events/${slug}/`
   const resp = await fetch(url, {
-    headers: { 'User-Agent': 'padel-nacho/1.0' },
+    headers: { 'User-Agent': 'PadelNachos/1.0' },
   })
 
   if (!resp.ok) throw new Error(`Failed to fetch event page: ${resp.status} ${url}`)

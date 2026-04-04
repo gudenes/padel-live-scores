@@ -456,7 +456,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             {/* Logo centered */}
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/padelnachos-logo.png" alt="PadelNachos" style={{ height: 26, width: 'auto', objectFit: 'contain' }} />
+              <img src="/padelnachos-logo-v2.png" alt="Padel Nachos" style={{ height: 26, width: 'auto', objectFit: 'contain' }} />
             </div>
 
             {/* Gender toggle pill */}

@@ -118,7 +118,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
           </svg>
         </a>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="PadelNacho" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+          <img src="/padelnachos-logo-v2.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
         <div style={{ width: 36 }} />
       </div>

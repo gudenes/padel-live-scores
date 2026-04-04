@@ -94,7 +94,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
         }} />
 
         <div style={{ textAlign: 'center', color: '#fff', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
-          Sign in to PadelNachos
+          Sign in to Padel Nachos
         </div>
         <div style={{ textAlign: 'center', color: MUTED, fontSize: 12, marginBottom: 28 }}>
           Sync bookmarks & get match notifications

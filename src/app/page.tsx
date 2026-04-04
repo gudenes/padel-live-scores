@@ -221,7 +221,7 @@ export default function HomePage() {
 
           {/* Logo + clock + live badge */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <img src="/padel-nacho-logo.png" alt="Padel Nacho" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
+            <img src="/padelnachos-logo-v2.png" alt="Padel Nachos" style={{ height: 36, width: 'auto', objectFit: 'contain' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {localClock && (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'transparent', border: '0.5px solid var(--border-strong)', borderRadius: 20, padding: '4px 12px', gap: 1 }}>

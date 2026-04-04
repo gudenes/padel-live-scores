@@ -108,7 +108,7 @@ async function fetchOgMeta(url: string): Promise<{ image: string | null; descrip
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 5000)
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+      headers: { 'User-Agent': 'PadelNachos/1.0 (+https://padelnachos.com)' },
       redirect: 'follow',
       signal: controller.signal,
     })
@@ -147,7 +147,7 @@ async function fetchOgImage(url: string): Promise<string | null> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 5000)
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+      headers: { 'User-Agent': 'PadelNachos/1.0 (+https://padelnachos.com)' },
       redirect: 'follow',
       signal: controller.signal,
     })
@@ -192,7 +192,7 @@ interface ArticleRow {
 
 const parser = new Parser({
   timeout: 15000,
-  headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+  headers: { 'User-Agent': 'PadelNachos/1.0 (+https://padelnachos.com)' },
 })
 
 // For Google News feeds: fetch raw XML and extract <source url="...">name</source>
@@ -202,7 +202,7 @@ async function fetchGoogleNewsSourceMap(feedUrl: string): Promise<Map<string, st
   const map = new Map<string, string>()
   try {
     const res = await fetch(feedUrl, {
-      headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+      headers: { 'User-Agent': 'PadelNachos/1.0 (+https://padelnachos.com)' },
     })
     if (!res.ok) return map
     const xml = await res.text()
@@ -299,7 +299,7 @@ interface WPPost {
 
 async function fetchFIP(source: ArticleSource): Promise<ArticleRow[]> {
   const res = await fetch(source.url, {
-    headers: { 'User-Agent': 'PadelNacho/1.0' },
+    headers: { 'User-Agent': 'PadelNachos/1.0 (+https://padelnachos.com)' },
   })
   if (!res.ok) throw new Error(`FIP API ${res.status}: ${await res.text()}`)
   const posts = (await res.json()) as WPPost[]
