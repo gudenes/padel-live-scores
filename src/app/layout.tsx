@@ -42,6 +42,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'Padel Nachos',
   },
+  verification: {
+    google: '8IikbOTQM3xnjHsanK2iCR8B6tVQeSzCT5HMXyiyHlM',
+  },
   other: {
     'mobile-web-app-capable': 'yes',
     'theme-color': '#020C18',
