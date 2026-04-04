@@ -31,7 +31,7 @@ async function buildSourceDomainMap(): Promise<Map<string, string>> {
   const results = await Promise.allSettled(
     GOOGLE_NEWS_FEEDS.map(async (feedUrl) => {
       const res = await fetch(feedUrl, {
-        headers: { 'User-Agent': 'PadelNacho/1.0 (+https://padel-live-scores.vercel.app)' },
+        headers: { 'User-Agent': 'PadelNachos/1.0 (+https://padelnachos.com)' },
       })
       if (!res.ok) return
       const xml = await res.text()

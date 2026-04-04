@@ -299,7 +299,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       }}>
         {/* Logo / Title */}
         <div style={{ padding: '20px 16px 12px' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>PadelNacho Ops</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>Padel Nachos Ops</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
             <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e' }} />
             <span style={{ fontSize: 10, color: '#999' }}>Updated {fetchAgo}</span>

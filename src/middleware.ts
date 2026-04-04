@@ -4,6 +4,11 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // ── Root → V3 redirect ─────────────────────────────────────
+  if (pathname === '/') {
+    return NextResponse.redirect(new URL('/v3', request.url), 308)
+  }
+
   // ── Ops dashboard auth ──────────────────────────────────────
   if (pathname.startsWith('/ops')) {
     const cronSecret = process.env.CRON_SECRET
@@ -51,5 +56,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/v2/:path*', '/ops/:path*'],
+  matcher: ['/', '/v2/:path*', '/ops/:path*'],
 }

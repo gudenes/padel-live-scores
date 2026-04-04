@@ -294,7 +294,7 @@ export default function RankingPage() {
         transition: 'box-shadow 0.2s',
       }}>
         <div style={{ width: 36 }} />
-        <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+        <img src="/padelnachos-logo-v2.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         <button
           onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
           style={{

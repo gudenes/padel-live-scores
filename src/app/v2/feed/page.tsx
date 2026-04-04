@@ -398,7 +398,7 @@ function NewsCard({ item, visited, onClickArticle, bookmarked, onToggleBookmark,
   bookmarked?: boolean; onToggleBookmark?: (id: string) => void;
   onHide?: (id: string) => void;
 }) {
-  // Build our app URL for sharing (so users land on PadelNacho, not the source)
+  // Build our app URL for sharing (so users land on Padel Nachos, not the source)
   const articleUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/v2/feed/article/${item.id}`
     : `/v2/feed/article/${item.id}`
@@ -873,7 +873,7 @@ function FeedPage() {
           </svg>
         </button>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-          <img src="/padel-nacho-logo.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
+          <img src="/padelnachos-logo-v2.png" alt="Padel Nachos" style={{ height: 28, width: 'auto', objectFit: 'contain' }} />
         </div>
         <ProfileButton />
       </div>
