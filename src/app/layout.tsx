@@ -5,13 +5,13 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: 'Padel Nachos — Live Padel Scores, Rankings & News',
+    default: 'Padel Nachos — Live Padel Scores & Results',
     template: '%s | Padel Nachos',
   },
-  description: 'Real-time padel scores, live match tracking, player rankings, tournament brackets, and news from Premier Padel, FIP, and more. Your go-to padel companion.',
+  description: 'Follow every point live. Real-time scores, player rankings, tournament draws, highlights, and breaking news from Premier Padel and FIP — all in one app.',
   metadataBase: new URL('https://padelnachos.com'),
   applicationName: 'Padel Nachos',
-  keywords: ['padel', 'live scores', 'padel scores', 'Premier Padel', 'FIP', 'padel rankings', 'padel tournaments', 'padel news', 'padel results', 'world padel tour'],
+  keywords: ['padel', 'live scores', 'padel scores', 'padel results', 'Premier Padel', 'FIP', 'padel rankings', 'padel tournaments', 'padel news', 'world padel tour', 'padel live', 'padel app'],
   authors: [{ name: 'Padel Nachos' }],
   creator: 'Padel Nachos',
   openGraph: {
@@ -19,14 +19,14 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://padelnachos.com',
     siteName: 'Padel Nachos',
-    title: 'Padel Nachos — Live Padel Scores, Rankings & News',
-    description: 'Real-time padel scores, live match tracking, player rankings, tournament brackets, and news from Premier Padel, FIP, and more.',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Padel Nachos' }],
+    title: 'Padel Nachos — Live Padel Scores & Results',
+    description: 'Follow every point live. Real-time scores, player rankings, tournament draws, highlights, and breaking news from Premier Padel and FIP.',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Padel Nachos — Live Padel Scores & Results' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Padel Nachos — Live Padel Scores, Rankings & News',
-    description: 'Real-time padel scores, live match tracking, player rankings, and tournament news.',
+    title: 'Padel Nachos — Live Padel Scores & Results',
+    description: 'Follow every point live. Real-time scores, rankings, tournament draws, and news from Premier Padel and FIP.',
     images: ['/og-image.png'],
   },
   manifest: '/manifest.json',
@@ -49,6 +49,34 @@ export const metadata: Metadata = {
   },
 };
 
+// JSON-LD structured data for Google rich results
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': 'https://padelnachos.com/#website',
+      url: 'https://padelnachos.com',
+      name: 'Padel Nachos',
+      description: 'Follow every point live. Real-time scores, player rankings, tournament draws, highlights, and breaking news from Premier Padel and FIP.',
+      inLanguage: 'en',
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': 'https://padelnachos.com/#app',
+      name: 'Padel Nachos',
+      url: 'https://padelnachos.com',
+      applicationCategory: 'SportsApplication',
+      operatingSystem: 'Any',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+    },
+  ],
+}
+
 function ServiceWorkerRegistration() {
   return (
     <script
@@ -68,7 +96,14 @@ function ServiceWorkerRegistration() {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en"><body>
+    <html lang="en">
+    <head>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+    </head>
+    <body>
       <ServiceWorkerRegistration />
       <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
         <div style={{ maxWidth: 500, margin: '0 auto', minHeight: '100vh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
