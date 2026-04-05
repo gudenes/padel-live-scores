@@ -749,9 +749,10 @@ function V3FeedPage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '12px 16px',
-        borderBottom: `1px solid ${BORDER}`,
+        borderBottom: '2px solid #7ED321',
         position: 'sticky', top: 0, zIndex: 10,
-        background: BG_BASE,
+        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
+        height: 62,
       }}>
         <Link
           href="/v3"

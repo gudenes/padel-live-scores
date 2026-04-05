@@ -429,7 +429,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
         {/* ── Sticky header ── */}
         <div style={{
-          background: BG_BASE, borderBottom: `1px solid ${BORDER}`,
+          background: 'linear-gradient(180deg, #161616 0%, #111111 100%)', borderBottom: '2px solid #7ED321',
           position: 'sticky', top: 0, zIndex: 10,
         }}>
 

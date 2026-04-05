@@ -318,9 +318,10 @@ export default function V3RankingPage() {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 16px',
-        borderBottom: `1px solid ${BORDER}`,
+        borderBottom: '2px solid #7ED321',
         position: 'sticky', top: 0, zIndex: 20,
-        background: BG_BASE,
+        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
+        height: 62,
       }}>
         <button
           onClick={() => router.push('/v3')}

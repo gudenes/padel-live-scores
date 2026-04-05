@@ -137,9 +137,10 @@ export default function ProfilePage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 14px',
-        borderBottom: `0.5px solid ${V3.BORDER}`,
+        borderBottom: '2px solid #7ED321',
         position: 'sticky', top: 0, zIndex: 10,
-        background: V3.BG_BASE,
+        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
+        height: 62,
       }}>
         <button
           onClick={() => router.back()}

@@ -428,11 +428,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '12px 16px',
-        borderBottom: `1px solid ${BORDER}`,
+        borderBottom: '2px solid #7ED321',
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(10,10,10,0.92)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
+        height: 62,
         transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
         transition: 'transform 0.3s ease',
       }}>
