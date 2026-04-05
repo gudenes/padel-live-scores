@@ -1713,7 +1713,7 @@ function CollapsibleSeasonV3({ year, tournaments }: { year: number; tournaments:
 export default function V3HomePage() {
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'home' | 'tournaments'>('home')
-  const [gender, setGender] = useState<'all' | 'men' | 'women'>('all')
+  const gender = 'all' as const
   const [liveMatches, setLiveMatches] = useState<Match[]>([])
   const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([])
@@ -1828,8 +1828,6 @@ export default function V3HomePage() {
   const spotlightTournament = upcomingTournaments[0] ?? null
   const liveMatchCount = liveMatches.length
 
-  const cycleGender = () => setGender(g => g === 'all' ? 'men' : g === 'men' ? 'women' : 'all')
-
   if (view === 'tournaments') {
     return (
       <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
@@ -1842,34 +1840,6 @@ export default function V3HomePage() {
   return (
     <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
       <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
-
-      {/* ── Floating gender toggle ──────────────────────────── */}
-      <button
-        onClick={cycleGender}
-        style={{
-          position: 'fixed',
-          bottom: 90,
-          right: 16,
-          zIndex: 150,
-          width: 42,
-          height: 42,
-          clipPath: CHUNKY.badge,
-          border: 'none',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: gender === 'men' ? MEN_BLUE : gender === 'women' ? WOMEN_PURPLE : GREEN,
-          color: '#000',
-          fontSize: 14,
-          fontWeight: 800,
-          fontFamily: 'inherit',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-          transition: 'background 0.2s, transform 0.15s',
-        }}
-      >
-        {gender === 'all' ? 'All' : gender === 'men' ? 'M' : 'W'}
-      </button>
 
       {/* ── Header ──────────────────────────────────────────── */}
       <header style={{
@@ -2011,6 +1981,13 @@ export default function V3HomePage() {
       {/* ── FANTASY TEASER ──────────────────────────────────── */}
       <div style={{ paddingTop: 20 }}>
         <FantasyTeaser />
+      </div>
+
+      {/* Footer links */}
+      <div style={{ padding: '20px 16px 8px', display: 'flex', justifyContent: 'center', gap: 16 }}>
+        <Link href="/privacy" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</Link>
+        <span style={{ color: '#333' }}>|</span>
+        <Link href="/terms" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>Terms of Service</Link>
       </div>
 
       {/* Bottom spacing */}
