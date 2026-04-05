@@ -44,6 +44,14 @@ function HomeIcon({ color }: { color: string }) {
   )
 }
 
+function FollowingIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  )
+}
+
 // ── Colors ──────────────────────────────────────────────────────
 const GREEN = '#7ED321'
 const GREEN_DIM = 'rgba(126,211,33,0.15)'
@@ -52,9 +60,10 @@ const LIVE_RED = '#FF4655'
 
 // ── Tabs ────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'scores', label: 'Matches', href: '/v3/scores', icon: ScoresIcon },
-  { key: 'home',   label: 'Home',   href: '/v3',        icon: null },
-  { key: 'feed',   label: 'Feed',   href: '/v3/feed',   icon: FeedIcon },
+  { key: 'scores',    label: 'Matches',   href: '/v3/scores',     icon: ScoresIcon },
+  { key: 'home',      label: 'Home',      href: '/v3',            icon: null },
+  { key: 'following', label: 'Following', href: '/v3/following',  icon: FollowingIcon },
+  { key: 'feed',      label: 'Feed',      href: '/v3/feed',       icon: FeedIcon },
 ] as const
 
 export default function BottomNavV3() {
@@ -65,6 +74,7 @@ export default function BottomNavV3() {
   const activeKey =
     pathname === '/v3' || pathname === '/v3/' ? 'home' :
     pathname.startsWith('/v3/scores') ? 'scores' :
+    pathname.startsWith('/v3/following') ? 'following' :
     pathname.startsWith('/v3/feed') ? 'feed' :
     'home'
 
@@ -118,7 +128,7 @@ export default function BottomNavV3() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 2,
-                padding: '6px 24px',
+                padding: '6px 16px',
                 position: 'relative',
                 textDecoration: 'none',
                 WebkitTapHighlightColor: 'transparent',
