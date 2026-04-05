@@ -1,5 +1,5 @@
 'use client'
-// src/app/v3/ranking/page.tsx
+// src/app/(app)/rankings/page.tsx
 // V3 Rankings — FIP Official & Race rankings with chunky brand styling.
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
@@ -324,7 +324,7 @@ export default function V3RankingPage() {
         height: 62,
       }}>
         <button
-          onClick={() => router.push('/v3')}
+          onClick={() => router.push('/home')}
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
             color: '#E2E8F0', padding: 4, display: 'flex', alignItems: 'center',

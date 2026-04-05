@@ -1,5 +1,5 @@
 'use client'
-// src/app/v3/following/page.tsx
+// src/app/(app)/following/page.tsx
 // Following page — Smart Sections layout showing bookmarked matches,
 // followed players, followed tournaments, and news sources.
 
@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useFollowing } from '@/hooks/useFollowing'
 import FollowButton from '@/components/FollowButton'
-import SearchOverlay from '@/app/v3/components/SearchOverlay'
+import SearchOverlay from '@/components/nav/SearchOverlay'
 import { pairName, parseSetScore } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -373,7 +373,7 @@ function TournamentCard({ tournament }: { tournament: TournamentData }) {
 
   return (
     <Link
-      href={`/v3/tournaments/${tournament.id}`}
+      href={`/tournaments/${tournament.id}`}
       style={{ display: 'block', scrollSnapAlign: 'start', textDecoration: 'none', flexShrink: 0 }}
     >
       <div style={{
@@ -538,7 +538,7 @@ function EmptyState({ onOpen }: { onOpen: () => void }) {
       </div>
 
       <Link
-        href="/v3/ranking"
+        href="/rankings"
         style={{
           display: 'inline-block',
           marginTop: 8,
@@ -729,7 +729,7 @@ export default function FollowingPage() {
           <SectionHeader
             title="Players"
             action="Rankings"
-            href="/v3/ranking"
+            href="/rankings"
           />
           <ScrollRow>
             {players.map(p => (
@@ -750,7 +750,7 @@ export default function FollowingPage() {
           <SectionHeader
             title="Tournaments"
             action="All"
-            href="/v3/tournaments"
+            href="/tournaments"
           />
           <ScrollRow>
             {tournaments.map(t => (

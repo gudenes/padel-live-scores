@@ -1,5 +1,5 @@
 'use client'
-// src/app/v3/page.tsx
+// src/app/(app)/home/page.tsx
 // V3 Home — redesigned hub with PadelNachos brand identity.
 // Sections: Header → Live Now → Coming Up → Tournament Spotlight →
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
@@ -8,8 +8,8 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
-import Spinner from '../components/Spinner'
-import SearchOverlay from './components/SearchOverlay'
+import Spinner from '@/app/components/Spinner'
+import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
 
@@ -549,7 +549,7 @@ function TournamentSpotlight({ tournament, matchCount }: { tournament: Tournamen
       )}
 
       <Link
-        href={`/v3/tournaments/${tournament.id}`}
+        href={`/tournaments/${tournament.id}`}
         style={{
           display: 'inline-block',
           marginTop: 14,
@@ -904,7 +904,7 @@ function ResultsSection({ matches }: { matches: Match[] }) {
                   {group.tournament.country && (
                     <FlagImg country={group.tournament.country} size={30} />
                   )}
-                  <Link href={`/v3/tournaments/${tid}`} style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
+                  <Link href={`/tournaments/${tid}`} style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
                         {titleCase(group.tournament.name)}
@@ -1395,7 +1395,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
               <SectionTitle>{heroIsLive ? 'Live Now' : 'Upcoming'}</SectionTitle>
 
               {/* Hero card */}
-              <Link href={`/v3/tournaments/${hero.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link href={`/tournaments/${hero.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div style={{
                   margin: '0 16px 12px', padding: 20, position: 'relative', overflow: 'hidden',
                   clipPath: CHUNKY.card,
@@ -1490,7 +1490,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                     const d = daysUntil(t.starts_at)
                     const dateLabel = new Date(t.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
                     return (
-                      <Link key={t.id} href={`/v3/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+                      <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
                         <div style={{
                           padding: '10px 14px', clipPath: CHUNKY.card,
                           background: BG_CARD, border: `1px solid ${BORDER}`,
@@ -1529,7 +1529,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                   const menW = t.winners.find(w => w.category === 'men')
                   const womenW = t.winners.find(w => w.category === 'women')
                   return (
-                    <Link key={t.id} href={`/v3/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+                    <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
                       <div style={{
                         minWidth: 270, clipPath: CHUNKY.card,
                         background: BG_CARD, border: `1px solid ${BORDER}`,
@@ -1675,7 +1675,7 @@ function CollapsibleSeasonV3({ year, tournaments }: { year: number; tournaments:
           WebkitOverflowScrolling: 'touch',
         }}>
           {tournaments.map(t => (
-            <Link key={t.id} href={`/v3/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+            <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
               <div style={{
                 minWidth: 200, clipPath: CHUNKY.card, padding: '12px 14px',
                 background: BG_CARD, border: `1px solid ${BORDER}`,
@@ -1906,7 +1906,7 @@ export default function V3HomePage() {
       {/* ── LIVE NOW ────────────────────────────────────────── */}
       {liveScorable.length > 0 && (
         <>
-          <SectionTitle action="All Scores" href="/v3/scores">Live Now</SectionTitle>
+          <SectionTitle action="All Scores" href="/matches">Live Now</SectionTitle>
           <div style={{
             display: 'flex',
             gap: 12,
@@ -1929,7 +1929,7 @@ export default function V3HomePage() {
       {/* ── COMING UP ───────────────────────────────────────── */}
       {upcoming.length > 0 && (
         <>
-          <SectionTitle action="All Scores" href="/v3/scores">
+          <SectionTitle action="All Scores" href="/matches">
             Coming Up
           </SectionTitle>
           <div style={{
@@ -1954,7 +1954,7 @@ export default function V3HomePage() {
       {/* ── HIGHLIGHTS & NEWS ───────────────────────────────── */}
       {(highlights.length > 0 || latestNews.length > 0) && (
         <>
-          <SectionTitle action="See All" href="/v3/feed">Highlights &amp; News</SectionTitle>
+          <SectionTitle action="See All" href="/feed">Highlights &amp; News</SectionTitle>
           <HighlightsPreview highlights={highlights} news={latestNews} />
         </>
       )}
@@ -1971,11 +1971,11 @@ export default function V3HomePage() {
       )}
 
       {/* ── RANKINGS ────────────────────────────────────────── */}
-      <SectionTitle action="Full Rankings" href="/v3/ranking">Rankings</SectionTitle>
+      <SectionTitle action="Full Rankings" href="/rankings">Rankings</SectionTitle>
       <RankingsSection men={topMen} women={topWomen} gender={gender} />
 
       {/* ── LATEST RESULTS ──────────────────────────────────── */}
-      <SectionTitle action="All Results" href="/v3/scores">Latest Results</SectionTitle>
+      <SectionTitle action="All Results" href="/matches">Latest Results</SectionTitle>
       <ResultsSection matches={filteredRecent} />
 
       {/* ── FANTASY TEASER ──────────────────────────────────── */}

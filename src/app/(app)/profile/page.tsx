@@ -1,6 +1,6 @@
 'use client'
-// src/app/v2/profile/page.tsx
-// User profile: avatar, name, notification toggle, bookmarks, sign out.
+// src/app/(app)/profile/page.tsx
+// User profile — v3 brand styling with chunky clip-path shapes.
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -9,6 +9,21 @@ import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import Spinner from '../../components/Spinner'
+
+const V3 = {
+  GREEN: '#7ED321',
+  ORANGE: '#F5A623',
+  LIVE_RED: '#FF4655',
+  BG_BASE: '#1A1A1A',
+  BG_CARD: '#141414',
+  MUTED: '#6B7280',
+  BORDER: 'rgba(255,255,255,0.06)',
+  clip: {
+    badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+    card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+    button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+  },
+} as const
 
 interface BookmarkedMatch {
   id: string
@@ -37,7 +52,7 @@ export default function ProfilePage() {
 
   // Redirect if not logged in
   useEffect(() => {
-    if (!authLoading && !user) router.replace('/v2')
+    if (!authLoading && !user) router.replace('/home')
   }, [authLoading, user, router])
 
   // Fetch bookmarked data
@@ -45,7 +60,6 @@ export default function ProfilePage() {
     if (!user) return
 
     async function fetchBookmarks() {
-      // Fetch bookmarked match IDs (table may not exist yet before migration)
       const { data: matchBookmarks, error: matchErr } = await supabase
         .from('user_bookmarks')
         .select('target_id')
@@ -54,14 +68,12 @@ export default function ProfilePage() {
 
       if (matchErr) { setLoadingData(false); return }
 
-      // Fetch bookmarked player IDs
       const { data: playerBookmarks } = await supabase
         .from('user_bookmarks')
         .select('target_id')
         .eq('user_id', user!.id)
         .eq('bookmark_type', 'player')
 
-      // Fetch match details
       const matchIds = (matchBookmarks ?? []).map(b => b.target_id)
       if (matchIds.length > 0) {
         const { data: matchData } = await supabase
@@ -90,7 +102,6 @@ export default function ProfilePage() {
         })))
       }
 
-      // Fetch player details
       const playerIds = (playerBookmarks ?? []).map(b => b.target_id)
       if (playerIds.length > 0) {
         const { data: playerData } = await supabase
@@ -111,48 +122,49 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => {
     await signOut()
-    router.replace('/v2')
+    router.replace('/home')
   }
 
   const statusColor: Record<string, string> = {
-    live: '#22c55e',
-    scheduled: '#6b7280',
+    live: V3.LIVE_RED,
+    scheduled: V3.MUTED,
     finished: '#9ca3af',
   }
 
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 80 }}>
+    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 80, background: V3.BG_BASE, minHeight: '100dvh' }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 14px',
-        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: 'var(--bg-base)',
+        background: '#0A0A0A',
+        height: 62,
       }}>
         <button
-          onClick={() => router.back()}
+          onClick={() => { if (window.history.length > 1) router.back(); else router.push('/home') }}
           style={{
-            width: 36, height: 36, borderRadius: '50%', border: 'none', cursor: 'pointer',
+            width: 36, height: 36, border: 'none', cursor: 'pointer',
             background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--text-muted)',
+            color: V3.MUTED,
           }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div style={{ flex: 1, textAlign: 'center', color: 'var(--text-primary)', fontSize: 14, fontWeight: 600 }}>
+        <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600 }}>
           Profile
         </div>
         <div style={{ width: 36 }} />
       </div>
 
       {/* User info */}
-      <div style={{ padding: '24px 16px 16px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ padding: '24px 16px 16px', textAlign: 'center', borderBottom: `1px solid ${V3.BORDER}` }}>
         <div style={{
           width: 64, height: 64, borderRadius: '50%',
-          margin: '0 auto 12px', border: '3px solid #f59e0b',
+          margin: '0 auto 12px', border: `3px solid ${V3.ORANGE}`,
           overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {profile?.avatar_url ? (
@@ -160,18 +172,18 @@ export default function ProfilePage() {
           ) : (
             <div style={{
               width: '100%', height: '100%',
-              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              background: `linear-gradient(135deg, ${V3.GREEN}, ${V3.ORANGE})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: 24, fontWeight: 700,
+              color: '#000', fontSize: 24, fontWeight: 700,
             }}>
               {(profile?.display_name ?? 'U').charAt(0).toUpperCase()}
             </div>
           )}
         </div>
-        <div style={{ color: 'var(--text-primary)', fontSize: 16, fontWeight: 600 }}>
+        <div style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>
           {profile?.display_name ?? 'User'}
         </div>
-        <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 2 }}>
+        <div style={{ color: V3.MUTED, fontSize: 12, marginTop: 2 }}>
           {user.email}
         </div>
       </div>
@@ -179,13 +191,16 @@ export default function ProfilePage() {
       {/* Notification toggle */}
       <div style={{
         padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        borderBottom: `1px solid rgba(255,255,255,0.04)`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 16 }}>🔔</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={V3.ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
           <div>
-            <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 500 }}>Match Notifications</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+            <div style={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>Match Notifications</div>
+            <div style={{ color: V3.MUTED, fontSize: 11 }}>
               {permission === 'denied'
                 ? 'Notifications blocked in browser settings'
                 : 'Get notified when bookmarked matches go live'}
@@ -196,16 +211,17 @@ export default function ProfilePage() {
           onClick={togglePush}
           disabled={!supported || permission === 'denied'}
           style={{
-            width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-            background: enabled ? '#f59e0b' : 'rgba(255,255,255,0.15)',
+            width: 44, height: 24, border: 'none', cursor: 'pointer',
+            background: enabled ? V3.GREEN : 'rgba(255,255,255,0.15)',
             position: 'relative', transition: 'background 0.2s',
             opacity: !supported || permission === 'denied' ? 0.4 : 1,
+            clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
           }}
         >
           <div style={{
-            width: 20, height: 20, borderRadius: '50%', background: '#fff',
-            position: 'absolute', top: 2,
-            left: enabled ? 22 : 2,
+            width: 18, height: 18, borderRadius: '50%', background: '#fff',
+            position: 'absolute', top: 3,
+            left: enabled ? 23 : 3,
             transition: 'left 0.2s',
           }} />
         </button>
@@ -214,15 +230,15 @@ export default function ProfilePage() {
       {/* Bookmarked Matches */}
       <div style={{ padding: '14px 16px' }}>
         <div style={{
-          color: 'var(--text-muted)', fontSize: 11, fontWeight: 600,
-          textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
+          color: V3.ORANGE, fontSize: 11, fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
         }}>
           Bookmarked Matches ({matches.length})
         </div>
         {loadingData ? (
           <Spinner />
         ) : matches.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '10px 0' }}>
+          <div style={{ color: V3.MUTED, fontSize: 12, padding: '10px 0' }}>
             No bookmarked matches yet. Tap the bookmark icon on any match to save it here.
           </div>
         ) : (
@@ -232,22 +248,26 @@ export default function ProfilePage() {
                 key={m.id}
                 href={`/match/${m.id}`}
                 style={{
-                  background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '10px 12px',
+                  background: V3.BG_CARD, padding: '10px 12px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   textDecoration: 'none',
+                  clipPath: V3.clip.card,
                 }}
               >
                 <div>
-                  <div style={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 500 }}>
+                  <div style={{ color: '#fff', fontSize: 12, fontWeight: 500 }}>
                     {m.pair1_player1_name ?? '?'}/{m.pair1_player2_name ?? '?'} vs {m.pair2_player1_name ?? '?'}/{m.pair2_player2_name ?? '?'}
                   </div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+                  <div style={{ color: V3.MUTED, fontSize: 10 }}>
                     {m.tournament_name}{m.round ? ` - ${m.round}` : ''}
                   </div>
                 </div>
                 <div style={{
-                  color: statusColor[m.status] ?? '#6b7280',
-                  fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+                  color: statusColor[m.status] ?? V3.MUTED,
+                  fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                  background: 'rgba(255,255,255,0.05)',
+                  padding: '2px 8px',
+                  clipPath: V3.clip.badge,
                 }}>
                   {m.status}
                 </div>
@@ -260,13 +280,13 @@ export default function ProfilePage() {
       {/* Bookmarked Players */}
       <div style={{ padding: '0 16px 14px' }}>
         <div style={{
-          color: 'var(--text-muted)', fontSize: 11, fontWeight: 600,
-          textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10,
+          color: V3.ORANGE, fontSize: 11, fontWeight: 700,
+          textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
         }}>
           Bookmarked Players ({players.length})
         </div>
         {players.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: '10px 0' }}>
+          <div style={{ color: V3.MUTED, fontSize: 12, padding: '10px 0' }}>
             No bookmarked players yet.
           </div>
         ) : (
@@ -276,8 +296,9 @@ export default function ProfilePage() {
                 key={p.id}
                 href={`/player/${p.id}`}
                 style={{
-                  background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '10px 14px',
+                  background: V3.BG_CARD, padding: '10px 14px',
                   textAlign: 'center', textDecoration: 'none', minWidth: 80,
+                  clipPath: V3.clip.card,
                 }}
               >
                 <div style={{
@@ -288,7 +309,7 @@ export default function ProfilePage() {
                     <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )}
                 </div>
-                <div style={{ color: 'var(--text-primary)', fontSize: 11, fontWeight: 500 }}>
+                <div style={{ color: '#fff', fontSize: 11, fontWeight: 500 }}>
                   {p.name.split(' ').pop()}
                 </div>
               </Link>
@@ -298,13 +319,14 @@ export default function ProfilePage() {
       </div>
 
       {/* Sign out */}
-      <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ padding: '14px 16px', borderTop: `1px solid ${V3.BORDER}` }}>
         <button
           onClick={handleSignOut}
           style={{
-            width: '100%', textAlign: 'center', color: '#ef4444', fontSize: 13, fontWeight: 500,
-            cursor: 'pointer', background: 'none', border: 'none', padding: 12,
+            width: '100%', textAlign: 'center', color: V3.LIVE_RED, fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', background: 'rgba(255,70,85,0.08)', border: 'none', padding: 12,
             fontFamily: 'inherit',
+            clipPath: V3.clip.button,
           }}
         >
           Sign Out

@@ -1,5 +1,5 @@
 'use client'
-// src/app/v3/components/SearchOverlay.tsx
+// src/components/nav/SearchOverlay.tsx
 // V3 Search overlay — full rewrite with PadelNachos brand language.
 // Functionality preserved: player/tournament/match search, debounced queries,
 // recent searches in localStorage, popular section.
@@ -161,7 +161,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           subtitle: `${levelLabel(t.level)}${dateStr}`,
           country: t.country ?? null,
           imageUrl: null,
-          href: `/v3/tournaments/${t.id}`,
+          href: `/tournaments/${t.id}`,
         })
       }
       const topIds = new Set(items.filter(i => i.type === 'player').map(i => i.id))
@@ -243,7 +243,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           subtitle: `${levelLabel(t.level)}${dateStr}`,
           country: t.country ?? null,
           imageUrl: null,
-          href: `/v3/tournaments/${t.id}`,
+          href: `/tournaments/${t.id}`,
         })
       }
       // Sort: live first, then by date descending (already from query)

@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toShortName } from '@/types/match'
 import MomentumChart from './MomentumChart'
-import BottomNav from '@/app/v3/components/BottomNavV3'
+import BottomNav from '@/components/nav/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
 import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
@@ -518,7 +518,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
       {/* ── Tournament link ──────────────────────────────────────────── */}
       {(match as any).tournament?.id && (
-        <Link href={`/v3/tournaments/${(match as any).tournament.id}`} style={{
+        <Link href={`/tournaments/${(match as any).tournament.id}`} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 16px', background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`,
           textDecoration: 'none',

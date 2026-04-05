@@ -15,7 +15,7 @@ export default function ProfileButton() {
 
   const handleClick = () => {
     if (user) {
-      router.push('/v3/profile')
+      router.push('/profile')
     } else {
       setLoginOpen(true)
     }

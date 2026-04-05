@@ -1,7 +1,7 @@
 'use client'
 // src/app/auth/callback/page.tsx
 // Handles OAuth and magic link redirects.
-// Exchanges the ?code= param for a session, then redirects to /v3.
+// Exchanges the ?code= param for a session, then redirects to /home.
 // Uses polling + auth listener + URL code exchange to handle all timing scenarios.
 
 import { useEffect, useState } from 'react'
@@ -26,7 +26,7 @@ export default function AuthCallback() {
   const doRedirect = () => {
     if (redirected) return
     setRedirected(true)
-    router.replace('/v3')
+    router.replace('/home')
   }
 
   useEffect(() => {

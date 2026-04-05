@@ -1,5 +1,5 @@
 'use client'
-// src/app/v3/feed/page.tsx
+// src/app/(app)/feed/page.tsx
 // V3 Feed — videos + news with chunky brand styling, no border-radius.
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
@@ -302,8 +302,8 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
     e.preventDefault()
     e.stopPropagation()
     const articleUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/v3/feed/article/${item.id}`
-      : `/v3/feed/article/${item.id}`
+      ? `${window.location.origin}/feed/article/${item.id}`
+      : `/feed/article/${item.id}`
     if (navigator.share) {
       try { await navigator.share({ title: item.title, text: item.snippet ?? item.title, url: articleUrl }) } catch {}
     } else {
@@ -757,7 +757,7 @@ function V3FeedPage() {
         height: 62,
       }}>
         <Link
-          href="/v3"
+          href="/home"
           style={{
             width: 36, height: 36, clipPath: CHUNKY.badge,
             background: 'rgba(255,255,255,0.06)', border: 'none',

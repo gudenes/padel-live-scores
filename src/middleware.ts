@@ -4,9 +4,32 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // ── Root → V3 redirect ─────────────────────────────────────
+  // ── Root → Home redirect ────────────────────────────────────
   if (pathname === '/') {
-    return NextResponse.redirect(new URL('/v3', request.url), 308)
+    return NextResponse.redirect(new URL('/home', request.url), 308)
+  }
+
+  // ── Legacy /v3/* redirects ─────────────────────────────────
+  if (pathname === '/v3' || pathname === '/v3/') {
+    return NextResponse.redirect(new URL('/home', request.url), 308)
+  }
+  if (pathname.startsWith('/v3/scores')) {
+    return NextResponse.redirect(new URL(pathname.replace('/v3/scores', '/matches'), request.url), 308)
+  }
+  if (pathname.startsWith('/v3/ranking')) {
+    return NextResponse.redirect(new URL(pathname.replace('/v3/ranking', '/rankings'), request.url), 308)
+  }
+  if (pathname.startsWith('/v3/feed')) {
+    return NextResponse.redirect(new URL(pathname.replace('/v3/feed', '/feed'), request.url), 308)
+  }
+  if (pathname.startsWith('/v3/following')) {
+    return NextResponse.redirect(new URL(pathname.replace('/v3/following', '/following'), request.url), 308)
+  }
+  if (pathname.startsWith('/v3/profile')) {
+    return NextResponse.redirect(new URL(pathname.replace('/v3/profile', '/profile'), request.url), 308)
+  }
+  if (pathname.startsWith('/v3/tournaments')) {
+    return NextResponse.redirect(new URL(pathname.replace('/v3/tournaments', '/tournaments'), request.url), 308)
   }
 
   // ── Ops dashboard auth ──────────────────────────────────────
@@ -56,5 +79,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/v2/:path*', '/ops/:path*'],
+  matcher: ['/', '/v3/:path*', '/ops/:path*'],
 }

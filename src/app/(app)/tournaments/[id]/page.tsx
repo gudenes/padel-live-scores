@@ -1,5 +1,5 @@
 'use client'
-// src/app/v3/tournaments/[id]/page.tsx
+// src/app/(app)/tournaments/[id]/page.tsx
 // V3 Tournament Detail — matches by round with gender toggle, stage selector,
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
@@ -440,7 +440,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             height: 62,
           }}>
             <button
-              onClick={() => { if (window.history.length > 1) router.back(); else router.push('/v3') }}
+              onClick={() => { if (window.history.length > 1) router.back(); else router.push('/home') }}
               style={{
                 width: 36, height: 36, border: 'none', cursor: 'pointer',
                 background: 'none',

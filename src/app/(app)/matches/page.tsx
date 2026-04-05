@@ -1,5 +1,5 @@
 'use client'
-// src/app/v3/scores/page.tsx
+// src/app/(app)/matches/page.tsx
 // V3 Scores — Live / Upcoming / Results with tournament-grouped matches.
 // Chunky clip-path brand language, no border-radius anywhere.
 
@@ -442,7 +442,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
   // Finished tournament → compact card linking to tournament page
   if (isFinished) {
     return (
-      <Link href={`/v3/tournaments/${tournament?.id}?tab=recap`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <Link href={`/tournaments/${tournament?.id}?tab=recap`} style={{ textDecoration: 'none', color: 'inherit' }}>
         <div style={{
           clipPath: CHUNKY.card,
           overflow: 'hidden',
@@ -562,7 +562,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
           borderBottom: visibleMatches.length > 0 ? `1px solid ${BORDER}` : 'none',
         }}>
           <Link
-            href={`/v3/tournaments/${tournament.id}`}
+            href={`/tournaments/${tournament.id}`}
             style={{
               display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0,
               padding: '10px 0 10px 14px',
@@ -674,7 +674,7 @@ function V3ScoresPage() {
     const tid = searchParams.get('tournament')
     if (tid) {
       const round = searchParams.get('round')
-      router.replace(`/v3/tournaments/${tid}${round ? `?round=${round}` : ''}`)
+      router.replace(`/tournaments/${tid}${round ? `?round=${round}` : ''}`)
     }
   }, [searchParams, router])
 
@@ -872,7 +872,7 @@ function V3ScoresPage() {
         position: 'sticky', top: 0, zIndex: 10,
         background: '#0A0A0A',
       }}>
-        <Link href="/v3" style={{
+        <Link href="/home" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           width: 36, height: 36, background: 'none', color: '#fff',
           textDecoration: 'none', flexShrink: 0,

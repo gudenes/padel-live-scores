@@ -1,5 +1,5 @@
 'use client'
-// src/app/v3/components/BottomNavV3.tsx
+// src/components/nav/BottomNavV3.tsx
 // Redesigned 3-tab bottom nav: Scores / Home (brand icon) / Feed
 // Uses PadelNachos brand language: chunky shapes, green active state.
 
@@ -60,32 +60,35 @@ const LIVE_RED = '#FF4655'
 
 // ── Tabs ────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'home',      label: 'Home',      href: '/v3',            icon: null },
-  { key: 'scores',    label: 'Matches',   href: '/v3/scores',     icon: ScoresIcon },
-  { key: 'following', label: 'Following', href: '/v3/following',  icon: FollowingIcon },
-  { key: 'feed',      label: 'Feed',      href: '/v3/feed',       icon: FeedIcon },
+  { key: 'home',      label: 'Home',      href: '/home',       icon: null },
+  { key: 'scores',    label: 'Matches',   href: '/matches',    icon: ScoresIcon },
+  { key: 'following', label: 'Following', href: '/following',  icon: FollowingIcon },
+  { key: 'feed',      label: 'Feed',      href: '/feed',       icon: FeedIcon },
 ] as const
 
 export default function BottomNavV3() {
   const pathname = usePathname()
   const [liveCount, setLiveCount] = useState(0)
+  const [newsCount, setNewsCount] = useState(0)
 
   // Determine active tab
   const activeKey =
-    pathname === '/v3' || pathname === '/v3/' ? 'home' :
-    pathname.startsWith('/v3/scores') ? 'scores' :
-    pathname.startsWith('/v3/following') ? 'following' :
-    pathname.startsWith('/v3/feed') ? 'feed' :
+    pathname === '/home' || pathname === '/home/' ? 'home' :
+    pathname.startsWith('/matches') ? 'scores' :
+    pathname.startsWith('/following') ? 'following' :
+    pathname.startsWith('/feed') ? 'feed' :
     'home'
 
-  // Fetch live match count for badge
+  // Fetch badge counts
   const fetchBadges = useCallback(async () => {
     try {
-      const { count } = await supabase
-        .from('matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'live')
-      setLiveCount(count ?? 0)
+      const [liveRes, newsRes] = await Promise.all([
+        supabase.from('matches').select('*', { count: 'exact', head: true }).eq('status', 'live'),
+        supabase.from('articles').select('*', { count: 'exact', head: true }).eq('status', 'active')
+          .gte('published_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+      ])
+      setLiveCount(liveRes.count ?? 0)
+      setNewsCount(newsRes.count ?? 0)
     } catch { /* silent */ }
   }, [])
 
@@ -160,6 +163,10 @@ export default function BottomNavV3() {
                 {/* Live badge on scores */}
                 {tab.key === 'scores' && liveCount > 0 && (
                   <div className="v3-nav-badge">{liveCount}</div>
+                )}
+                {/* News count badge on feed */}
+                {tab.key === 'feed' && newsCount > 0 && (
+                  <div className="v3-nav-badge">{newsCount > 9 ? '9+' : newsCount}</div>
                 )}
               </div>
 
