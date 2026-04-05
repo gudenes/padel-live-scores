@@ -2,7 +2,7 @@
 // src/app/(app)/feed/page.tsx
 // V3 Feed — videos + news with chunky brand styling, no border-radius.
 
-import { Suspense, useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useHiddenFeedItems } from '@/hooks/useHiddenFeedItems'
 import { useFeedPreferences } from '@/hooks/useFeedPreferences'
@@ -640,6 +640,9 @@ function V3FeedPage() {
     setBrokenThumbs(prev => { const s = new Set(prev); s.add(id); return s })
   }, [])
 
+  const impressionBuffer = useRef<Set<string>>(new Set())
+  const observerRef = useRef<IntersectionObserver | null>(null)
+
   const setPlaying = useCallback((v: Highlight | null) => {
     setPlayingRaw(v)
     if (v) trackVideoPlay(v.channel_name, v.category)
@@ -742,6 +745,42 @@ function V3FeedPage() {
     setBookmarkedArticles(getBookmarkedArticles())
   }, [])
 
+  useEffect(() => {
+    const flush = () => {
+      if (impressionBuffer.current.size === 0) return
+      const items = Array.from(impressionBuffer.current).map(key => {
+        const [type, id] = key.split(':')
+        return { id, type: type as 'article' | 'video' }
+      })
+      impressionBuffer.current.clear()
+      fetch('/api/feed/impressions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      }).catch(() => {})
+    }
+
+    const interval = setInterval(flush, 30000)
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const key = (entry.target as HTMLElement).dataset.impressionKey
+            if (key) impressionBuffer.current.add(key)
+          }
+        }
+      },
+      { threshold: 0.5 },
+    )
+
+    return () => {
+      clearInterval(interval)
+      flush()
+      observerRef.current?.disconnect()
+    }
+  }, [])
+
   // Filter items
   const availableHighlights = highlights.filter(h =>
     !brokenThumbs.has(h.id) && isAvailableInCountry(h, userCountry) && !isHidden(h.id)
@@ -828,7 +867,11 @@ function V3FeedPage() {
             if (item.type === 'video') {
               const v = item.data as Highlight
               return (
-                <div key={`v-${v.id}`}>
+                <div
+                  key={`v-${v.id}`}
+                  data-impression-key={`video:${v.id}`}
+                  ref={(el) => { if (el && observerRef.current) observerRef.current.observe(el) }}
+                >
                   <VideoCard
                     item={v}
                     onPlay={setPlaying}
@@ -850,7 +893,11 @@ function V3FeedPage() {
 
             const a = item.data as NewsItem
             return (
-              <div key={`n-${a.id}`}>
+              <div
+                key={`n-${a.id}`}
+                data-impression-key={`article:${a.id}`}
+                ref={(el) => { if (el && observerRef.current) observerRef.current.observe(el) }}
+              >
                 <NewsCard
                   item={a}
                   onClickArticle={handleArticleClick}
