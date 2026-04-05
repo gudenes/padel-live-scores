@@ -4,7 +4,7 @@
 // Exchanges the ?code= param for a session, then redirects to /home.
 // Uses polling + auth listener + URL code exchange to handle all timing scenarios.
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -17,7 +17,7 @@ const HINTS = [
   'Connecting to live scores...',
 ]
 
-export default function AuthCallback() {
+function AuthCallbackInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [hintIdx, setHintIdx] = useState(0)
@@ -144,5 +144,13 @@ export default function AuthCallback() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#1A1A1A' }} />}>
+      <AuthCallbackInner />
+    </Suspense>
   )
 }
