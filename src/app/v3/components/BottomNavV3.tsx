@@ -60,8 +60,8 @@ const LIVE_RED = '#FF4655'
 
 // ── Tabs ────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'scores',    label: 'Matches',   href: '/v3/scores',     icon: ScoresIcon },
   { key: 'home',      label: 'Home',      href: '/v3',            icon: null },
+  { key: 'scores',    label: 'Matches',   href: '/v3/scores',     icon: ScoresIcon },
   { key: 'following', label: 'Following', href: '/v3/following',  icon: FollowingIcon },
   { key: 'feed',      label: 'Feed',      href: '/v3/feed',       icon: FeedIcon },
 ] as const

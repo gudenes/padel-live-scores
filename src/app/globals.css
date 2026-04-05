@@ -4,17 +4,17 @@
   /* ── Forge Dark v2 ───────────────────────────────────────────────── */
 
   /* Backgrounds */
-  --bg-base:     #020C18;
-  --bg-card:     #061422;
-  --bg-card-alt: #040E1C;
-  --bg-input:    #040E1C;
-  --bg-subtle:   #050F20;
+  --bg-base:     #1A1A1A;
+  --bg-card:     #1F1F1F;
+  --bg-card-alt: #1C1C1C;
+  --bg-input:    #1C1C1C;
+  --bg-subtle:   #1E1E1E;
 
-  /* Borders — metallic navy */
-  --border-base:   #0E2438;
-  --border-card:   #132C46;
-  --border-strong: #1C3D5C;
-  --border-inner:  #0B1E30;
+  /* Borders — neutral dark */
+  --border-base:   #2A2A2A;
+  --border-card:   #2E2E2E;
+  --border-strong: #383838;
+  --border-inner:  #252525;
 
   /* Text — warm parchment hierarchy (improved contrast) */
   --text-primary:   #EEE4CE;
