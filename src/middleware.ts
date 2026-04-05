@@ -64,6 +64,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ── Admin routes — auth checked client-side and in API routes ──
+  if (pathname.startsWith('/admin')) {
+    return NextResponse.next()
+  }
+
   // ── Geo-country cookie (existing) ───────────────────────────
   const response = NextResponse.next()
   const country = request.headers.get('x-vercel-ip-country') ?? ''
@@ -79,5 +84,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/v3/:path*', '/ops/:path*'],
+  matcher: ['/', '/v3/:path*', '/ops/:path*', '/admin/:path*'],
 }
