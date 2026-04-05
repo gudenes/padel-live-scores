@@ -120,6 +120,10 @@ export function scoreItem(item: ScoredItem, ctx: ScoringContext): number {
   if (item.type === 'video') {
     score = baseScore(item.published_at, Math.floor(item.view_count / 100), 1.0)
     score *= channelBoost(item.channel_name, prefs.channelPlays)
+    // Low view count penalty — videos under 1K views are likely low quality
+    if (item.view_count < 500) score *= 0.2
+    else if (item.view_count < 1000) score *= 0.4
+    else if (item.view_count < 2000) score *= 0.7
     // Server-computed channel quality (engagement rate + priority status)
     if (item.channel_quality_score && item.channel_quality_score !== 1.0) {
       score *= item.channel_quality_score
