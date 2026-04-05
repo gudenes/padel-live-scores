@@ -206,6 +206,75 @@ baseScore = freshness × popularity × effectiveWeight
 
 ---
 
+## Phase 3: Quality Dashboard
+
+### Location
+
+Standalone page at `/admin/feed`, protected by `CRON_SECRET` (same auth pattern as `/ops`).
+
+### Dashboard Sections
+
+**1. Feed Health Overview (top cards)**
+- Total articles (last 24h / 7d)
+- Total videos (last 24h / 7d)
+- Average quality score (articles / videos)
+- Total impressions (last 24h)
+- Overall CTR (clicks / impressions, last 24h)
+
+**2. Source Performance Table**
+Sortable table showing per-source metrics:
+
+| Column | Description |
+|--------|-------------|
+| Source | Source name / channel name |
+| Type | Article / Video |
+| Items (7d) | Count of items published in last 7 days |
+| Avg Quality | Average quality_score for this source |
+| Total Clicks | Sum of click_count |
+| Total Impressions | Sum of impression_count |
+| CTR | clicks / impressions (percentage) |
+| Avg Freshness | Average hours old at first click |
+
+Highlight rows: green if CTR > global avg, red if quality_score < 0.8.
+
+**3. Low Quality Items**
+List of articles/videos with quality_score < 0.8 from the last 7 days:
+- Title, source, quality_score, reason (which signals penalized it)
+- Quick action: "Hide" button to set status = 'hidden'
+
+**4. Content Mix Chart**
+Simple bar chart (last 7 days, per day):
+- Stacked bars showing video count vs article count
+- Line overlay showing average quality score per day
+
+**5. Top Performing Items**
+Top 10 items by CTR (min 10 impressions) from last 7 days:
+- Title, type, source, CTR, clicks, impressions, quality_score
+
+### API Route
+
+**`/api/admin/feed-quality`** — returns dashboard data. Protected by `Authorization: Bearer {CRON_SECRET}`.
+
+Queries:
+- Aggregate stats from articles + highlights tables
+- Group by source for the performance table
+- Filter low-quality items
+- Daily counts for the mix chart
+
+### Auth Pattern
+
+Same as ops dashboard — middleware checks for `CRON_SECRET` token via cookie or header. Access via `/admin/feed?token=<CRON_SECRET>`.
+
+### Files
+
+| File | Action |
+|------|--------|
+| `src/app/admin/feed/page.tsx` | Create — dashboard UI |
+| `src/app/api/admin/feed-quality/route.ts` | Create — dashboard data API |
+| `src/middleware.ts` | Modify — add `/admin/*` route protection |
+
+---
+
 ## Out of Scope
 
 - ML-based content scoring
