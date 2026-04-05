@@ -724,7 +724,7 @@ function V3FeedPage() {
           .limit(50),
         supabase
           .from('articles')
-          .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url, quality_score')
+          .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url')
           .eq('status', 'active')
           .order('published_at', { ascending: false })
           .limit(50),
@@ -847,6 +847,96 @@ function V3FeedPage() {
           </div>
         </div>
       </div>
+
+      {/* ── News Carousel ──────────────────────────────────── */}
+      {!loading && visibleNews.length > 0 && (
+        <div style={{ paddingTop: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 16px 8px' }}>
+            <span style={{
+              fontSize: 11, fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase',
+              padding: '4px 10px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', color: '#fff',
+            }}>Latest News</span>
+          </div>
+          <div style={{
+            display: 'flex', gap: 10, padding: '0 16px', overflowX: 'auto',
+            scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: 'none', scrollbarWidth: 'none',
+          }}>
+            {visibleNews.slice(0, 8).map(article => {
+              let faviconUrl = article.favicon_url ?? ''
+              try { if (!faviconUrl) faviconUrl = `https://www.google.com/s2/favicons?domain=${new URL(article.url).hostname}&sz=32` } catch { /* invalid URL */ }
+              const timeAgo = (() => {
+                const h = Math.floor((Date.now() - new Date(article.published_at).getTime()) / 3600000)
+                if (h < 1) return 'Just now'
+                if (h < 24) return `${h}h ago`
+                const d = Math.floor(h / 24)
+                return d === 1 ? 'Yesterday' : `${d}d ago`
+              })()
+              return (
+                <a
+                  key={article.id}
+                  href={article.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => handleArticleClick(article.id)}
+                  style={{
+                    flexShrink: 0, width: 200, scrollSnapAlign: 'start',
+                    textDecoration: 'none', color: 'inherit',
+                  }}
+                >
+                  <div style={{
+                    background: BG_CARD, clipPath: CHUNKY.card,
+                    overflow: 'hidden', height: 200,
+                    position: 'relative',
+                  }}>
+                    {/* Image */}
+                    {article.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={article.image_url}
+                        alt=""
+                        style={{ width: '100%', height: 110, objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{ width: '100%', height: 110, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 28 }}>📰</span>
+                      </div>
+                    )}
+                    {/* Favicon badge */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={faviconUrl}
+                      alt=""
+                      style={{
+                        position: 'absolute', top: 90, right: 8,
+                        width: 24, height: 24, borderRadius: '50%',
+                        background: '#fff', padding: 2, objectFit: 'contain',
+                      }}
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                    {/* Text content */}
+                    <div style={{ padding: '8px 10px' }}>
+                      <div style={{
+                        fontSize: 11, fontWeight: 600, color: '#fff',
+                        lineHeight: 1.3,
+                        display: '-webkit-box', WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
+                      }}>
+                        {article.title}
+                      </div>
+                      <div style={{ fontSize: 9, color: MUTED, marginTop: 4, display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <span style={{ color: ORANGE, fontWeight: 700 }}>{article.source_name}</span>
+                        <span>·</span>
+                        <span>{timeAgo}</span>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Feed content */}
       {loading ? (
