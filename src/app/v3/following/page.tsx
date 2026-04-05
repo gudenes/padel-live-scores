@@ -20,13 +20,29 @@ const BG_CARD     = 'rgba(255,255,255,0.03)'
 const LIVE_RED    = '#FF4655'
 const MEN_BLUE    = '#4A9EFF'
 const WOMEN_PURPLE = '#D966FF'
-const BG_BASE     = '#0A0A0A'
+const BG_BASE     = '#1A1A1A'
 
 // ── Chunky clip-path shapes ────────────────────────────────────
 const CHUNKY = {
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
+
+// ── Flag helper ───────────────────────────────────────────────
+function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
+  if (!country) return null
+  const code = country.toLowerCase()
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`https://flagcdn.com/w40/${code}.png`}
+      alt={country}
+      width={size}
+      height={size * 0.75}
+      style={{ borderRadius: 2, objectFit: 'cover', display: 'block', flexShrink: 0 }}
+    />
+  )
 }
 
 // ── Types ──────────────────────────────────────────────────────
@@ -226,14 +242,20 @@ function MatchCard({ match }: { match: MatchRow }) {
           {match.tournament?.name ?? 'Unknown'}{match.round ? ` · ${match.round}` : ''}
         </div>
 
-        {/* Players */}
-        <div style={{ fontSize: 12, color: '#fff', fontWeight: 700, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {p1}
-        </div>
-        <div style={{ fontSize: 11, color: MUTED, marginBottom: 6 }}>vs</div>
-        <div style={{ fontSize: 12, color: '#fff', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {p2}
-        </div>
+        {/* Players with flags */}
+        {[match.pair1_player1, match.pair1_player2].map((p, i) => (
+          <div key={`p1-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
+            <FlagImg country={p?.country ?? null} size={13} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name ?? 'TBD'}</span>
+          </div>
+        ))}
+        <div style={{ fontSize: 9, color: MUTED, margin: '2px 0', paddingLeft: 2 }}>vs</div>
+        {[match.pair2_player1, match.pair2_player2].map((p, i) => (
+          <div key={`p2-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
+            <FlagImg country={p?.country ?? null} size={13} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name ?? 'TBD'}</span>
+          </div>
+        ))}
 
         {/* Score / time */}
         <div style={{
@@ -639,12 +661,14 @@ export default function FollowingPage() {
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <div style={{
-        background: 'linear-gradient(135deg, #4A0D0D 0%, #5C1212 50%, #6B1A1A 100%)',
-        borderBottom: '1px solid rgba(255,69,85,0.3)',
-        padding: '16px 16px 14px',
+        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
+        borderBottom: '2px solid #7ED321',
+        padding: '12px 16px',
+        height: 62,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
+        position: 'sticky', top: 0, zIndex: 10,
       }}>
         <h1 style={{
           margin: 0,

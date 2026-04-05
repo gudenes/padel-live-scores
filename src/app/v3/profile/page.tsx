@@ -14,7 +14,7 @@ const V3 = {
   GREEN: '#7ED321',
   ORANGE: '#F5A623',
   LIVE_RED: '#FF4655',
-  BG_BASE: '#0A0A0A',
+  BG_BASE: '#1A1A1A',
   BG_CARD: '#141414',
   MUTED: '#6B7280',
   BORDER: 'rgba(255,255,255,0.06)',
