@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PadelNachos — Favorites Tab Concepts</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #111; color: #fff; padding: 20px; }
+
+  h1 { text-align: center; font-size: 18px; color: #aaa; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #555; font-size: 12px; margin-bottom: 28px; }
+
+  .concepts { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+
+  .concept-label { text-align: center; padding: 10px 0 4px; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #888; }
+  .concept-desc { text-align: center; font-size: 11px; color: #555; padding: 0 16px 12px; line-height: 1.4; }
+
+  /* Phone frame */
+  .phone { width: 375px; border-radius: 36px; overflow: hidden; border: 3px solid #333; background: #0a0a0a; flex-shrink: 0; }
+
+  /* Shared colors */
+  :root {
+    --green: #7ED321;
+    --green-dim: rgba(126,211,33,0.15);
+    --muted: #6B7280;
+    --bg-card: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.06);
+    --red-header: linear-gradient(135deg, #4A0D0D 0%, #5C1212 50%, #6B1A1A 100%);
+  }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; height: 62px;
+    background: var(--red-header);
+    border-bottom: 1px solid rgba(255,69,85,0.3);
+  }
+  .header .logo { height: 40px; object-fit: contain; }
+  .header .page-title { font-size: 18px; font-weight: 800; letter-spacing: 0.5px; }
+
+  /* Bottom nav */
+  .bottom-nav {
+    display: flex; justify-content: space-around; align-items: center;
+    padding: 6px 0 20px; border-top: 1px solid rgba(255,255,255,0.04);
+    background: rgba(10,10,10,0.95); position: relative;
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-size: 9px; font-weight: 700; color: #4B5563; text-transform: uppercase; letter-spacing: 0.3px;
+    position: relative; padding: 4px 12px;
+  }
+  .nav-item.active { color: var(--green); }
+  .nav-item .indicator {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 32px; height: 3px; background: var(--green);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .nav-item svg { width: 20px; height: 20px; }
+
+  /* Body content */
+  .body { min-height: 480px; padding: 0; background: #0a0a0a; }
+
+  /* ── Concept A: Tabbed Favorites ── */
+  .fav-tabs {
+    display: flex; gap: 0; padding: 0 16px; border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .fav-tab {
+    padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--muted); white-space: nowrap; position: relative;
+    cursor: pointer;
+  }
+  .fav-tab.active { color: var(--green); }
+  .fav-tab.active::after {
+    content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 24px; height: 2px; background: var(--green); border-radius: 1px;
+  }
+
+  /* Player row */
+  .player-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .player-avatar {
+    width: 36px; height: 36px; border-radius: 50%; background: #222;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700;
+    color: var(--green); flex-shrink: 0;
+  }
+  .player-info { flex: 1; min-width: 0; }
+  .player-name { font-size: 13px; font-weight: 600; }
+  .player-meta { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .follow-btn {
+    font-size: 9px; font-weight: 700; padding: 5px 10px;
+    border-radius: 4px; border: none; cursor: pointer; text-transform: uppercase;
+  }
+  .follow-btn.following {
+    background: var(--green-dim); color: var(--green);
+  }
+
+  /* Match row compact */
+  .match-row {
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .match-row .left-bar { width: 3px; height: 40px; border-radius: 2px; background: #3B82F6; flex-shrink: 0; }
+  .match-row .match-info { flex: 1; min-width: 0; }
+  .match-row .teams { font-size: 12px; font-weight: 600; }
+  .match-row .teams span { color: var(--muted); font-weight: 400; font-size: 10px; }
+  .match-row .tournament-label { font-size: 9px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .match-row .time-badge {
+    font-size: 10px; font-weight: 600; color: var(--green); text-align: center; min-width: 50px;
+  }
+  .star-btn { background: none; border: none; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+
+  /* Tournament row */
+  .tournament-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tournament-icon {
+    width: 36px; height: 36px; border-radius: 8px; background: rgba(126,211,33,0.08);
+    display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+  }
+  .tournament-info { flex: 1; }
+  .tournament-name { font-size: 13px; font-weight: 600; }
+  .tournament-meta { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+  /* News brand row */
+  .brand-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand-icon {
+    width: 32px; height: 32px; border-radius: 50%; background: #222;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+    color: #fff; flex-shrink: 0;
+  }
+
+  /* ── Concept B: Unified Feed ── */
+  .feed-card {
+    margin: 8px 16px; padding: 12px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; position: relative;
+  }
+  .feed-card .feed-type {
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--muted); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+  }
+  .feed-card .feed-type .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .feed-card .feed-content { font-size: 12px; font-weight: 500; line-height: 1.4; }
+  .feed-card .feed-time { font-size: 9px; color: var(--muted); margin-top: 6px; }
+
+  /* ── Concept C: Smart Sections ── */
+  .section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px 6px;
+  }
+  .section-title {
+    font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+    display: inline-block; padding: 4px 10px; border-radius: 4px; background: rgba(255,255,255,0.04);
+  }
+  .section-link { font-size: 11px; font-weight: 700; color: var(--green); text-decoration: none; }
+
+  .scroll-row { display: flex; gap: 8px; padding: 8px 16px; overflow-x: auto; }
+  .scroll-row::-webkit-scrollbar { display: none; }
+
+  .mini-card {
+    flex-shrink: 0; width: 130px; padding: 10px; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 8px; text-align: center;
+  }
+  .mini-card .mc-avatar {
+    width: 40px; height: 40px; border-radius: 50%; background: #222; margin: 0 auto 6px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: var(--green);
+  }
+  .mini-card .mc-name { font-size: 11px; font-weight: 600; }
+  .mini-card .mc-meta { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+  .inline-match {
+    flex-shrink: 0; width: 200px; padding: 10px; background: var(--bg-card);
+    border: 1px solid var(--border); border-radius: 8px; border-left: 3px solid #3B82F6;
+  }
+  .inline-match .im-tournament { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+  .inline-match .im-player { font-size: 11px; font-weight: 600; margin: 1px 0; }
+  .inline-match .im-vs { font-size: 9px; color: var(--muted); }
+  .inline-match .im-time { font-size: 10px; color: var(--green); margin-top: 4px; font-weight: 600; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 40px 30px; color: var(--muted);
+  }
+  .empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state .empty-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .empty-state .empty-desc { font-size: 12px; line-height: 1.5; }
+
+  /* Inline follow buttons shown in context */
+  .inline-actions { margin-top: 16px; padding: 16px; border-top: 1px solid var(--border); }
+  .inline-actions .ia-title { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+  @media (max-width: 1200px) { .concepts { flex-direction: column; align-items: center; } }
+</style>
+</head>
+<body>
+  <h1>Favorites Tab Concepts</h1>
+  <p class="subtitle">3 approaches for a Favorites section in the bottom nav &mdash; follow players, matches, tournaments, and news brands</p>
+
+  <div class="concepts">
+
+    <!-- ═══════ CONCEPT A: Tabbed Categories ═══════ -->
+    <div>
+      <div class="concept-label">A &mdash; Tabbed Categories</div>
+      <div class="concept-desc">
+        Like Flashscore/Sofascore. Separate tabs for each entity type.<br>
+        Familiar sports app pattern. Clear organization.
+      </div>
+      <div class="phone">
+        <div class="header">
+          <span class="page-title">Favorites</span>
+          <span style="font-size: 12px; color: rgba(255,255,255,0.5);">Edit</span>
+        </div>
+        <div class="body">
+          <!-- Tabs -->
+          <div class="fav-tabs">
+            <div class="fav-tab active">Players</div>
+            <div class="fav-tab">Matches</div>
+            <div class="fav-tab">Events</div>
+            <div class="fav-tab">News</div>
+          </div>
+
+          <!-- Player list -->
+          <div class="player-row">
+            <div class="player-avatar">AC</div>
+            <div class="player-info">
+              <div class="player-name">Arturo Coello</div>
+              <div class="player-meta">#1 &bull; Spain &bull; Next: Apr 8 vs Galan</div>
+            </div>
+            <button class="follow-btn following">Following</button>
+          </div>
+          <div class="player-row">
+            <div class="player-avatar">GT</div>
+            <div class="player-info">
+              <div class="player-name">Gemma Triay</div>
+              <div class="player-meta">#2 &bull; Spain &bull; Playing now</div>
+            </div>
+            <button class="follow-btn following">Following</button>
+          </div>
+          <div class="player-row">
+            <div class="player-avatar">AL</div>
+            <div class="player-info">
+              <div class="player-name">Ale Galan</div>
+              <div class="player-meta">#3 &bull; Spain &bull; Next: Apr 9</div>
+            </div>
+            <button class="follow-btn following">Following</button>
+          </div>
+          <div class="player-row">
+            <div class="player-avatar">FN</div>
+            <div class="player-info">
+              <div class="player-name">Franco Stupaczuk</div>
+              <div class="player-meta">#8 &bull; Argentina &bull; Finished today</div>
+            </div>
+            <button class="follow-btn following">Following</button>
+          </div>
+
+          <!-- Inline actions hint -->
+          <div class="inline-actions">
+            <div class="ia-title">How to follow</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <span style="font-size: 10px; color: #aaa; background: rgba(255,255,255,0.04); padding: 4px 8px; border-radius: 4px;">&#9734; on match cards</span>
+              <span style="font-size: 10px; color: #aaa; background: rgba(255,255,255,0.04); padding: 4px 8px; border-radius: 4px;">&#9825; on player profiles</span>
+              <span style="font-size: 10px; color: #aaa; background: rgba(255,255,255,0.04); padding: 4px 8px; border-radius: 4px;">+ on tournaments</span>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M4.5 7.5C7 7 9.5 9 10 12c0.3 2-0.5 4.5-1.5 6.5"/><path d="M19.5 16.5C17 17 14.5 15 14 12c-0.3-2 0.5-4.5 1.5-6.5"/></svg>Matches</div>
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Home</div>
+          <div class="nav-item active"><div class="indicator"></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Favorites</div>
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>Feed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ CONCEPT B: Personalized Feed ═══════ -->
+    <div>
+      <div class="concept-label">B &mdash; Personalized Feed</div>
+      <div class="concept-desc">
+        Like theScore/ESPN. All followed items in one timeline.<br>
+        Updates from your followed players, matches, events mixed together.
+      </div>
+      <div class="phone">
+        <div class="header">
+          <span class="page-title">My Feed</span>
+          <span style="font-size: 12px; color: rgba(255,255,255,0.5);">Manage</span>
+        </div>
+        <div class="body">
+          <!-- Feed cards -->
+          <div class="feed-card">
+            <div class="feed-type"><div class="dot" style="background: #FF4655;"></div> LIVE MATCH</div>
+            <div class="feed-content">
+              <strong>Gemma Triay / Claudia Jensen</strong> vs Ariana Sanchez / P. Josemaria<br>
+              <span style="color: var(--green); font-weight: 700; font-size: 14px;">6-3 &nbsp; 4-2</span>
+            </div>
+            <div class="feed-time">FIP Gold Almaty &bull; Semi-final &bull; Set 2</div>
+          </div>
+
+          <div class="feed-card">
+            <div class="feed-type"><div class="dot" style="background: #3B82F6;"></div> UPCOMING</div>
+            <div class="feed-content">
+              <strong>Arturo Coello / Agustin Tapia</strong> vs Ale Galan / F. Navarro<br>
+              <span style="color: var(--muted);">Tomorrow 14:00</span>
+            </div>
+            <div class="feed-time">FIP Gold Almaty &bull; Final</div>
+          </div>
+
+          <div class="feed-card">
+            <div class="feed-type"><div class="dot" style="background: #F59E0B;"></div> NEWS</div>
+            <div class="feed-content">
+              Arturo Coello announces new racket partnership with Nox for 2026 season
+            </div>
+            <div class="feed-time">Padel Addict &bull; 2h ago</div>
+          </div>
+
+          <div class="feed-card">
+            <div class="feed-type"><div class="dot" style="background: #8B5CF6;"></div> TOURNAMENT</div>
+            <div class="feed-content">
+              Premier Padel Miami P1 &mdash; Draw released. Your player <strong>Coello</strong> seeded #1.
+            </div>
+            <div class="feed-time">Starts Apr 14 &bull; Miami, USA</div>
+          </div>
+
+          <div class="feed-card">
+            <div class="feed-type"><div class="dot" style="background: var(--green);"></div> RESULT</div>
+            <div class="feed-content">
+              <strong>Franco Stupaczuk / M. Di Nenno</strong> won 6-4, 7-5<br>
+              vs J. Leal / P. Lijo
+            </div>
+            <div class="feed-time">FIP Gold Almaty &bull; Quarter-final &bull; 1h ago</div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M4.5 7.5C7 7 9.5 9 10 12c0.3 2-0.5 4.5-1.5 6.5"/><path d="M19.5 16.5C17 17 14.5 15 14 12c-0.3-2 0.5-4.5 1.5-6.5"/></svg>Matches</div>
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Home</div>
+          <div class="nav-item active"><div class="indicator"></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>My Feed</div>
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>Feed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════ CONCEPT C: Smart Sections ═══════ -->
+    <div>
+      <div class="concept-label">C &mdash; Smart Sections</div>
+      <div class="concept-desc">
+        Like FotMob. Horizontal scrolling sections per entity type.<br>
+        Quick overview of everything you follow. Best of both worlds.
+      </div>
+      <div class="phone">
+        <div class="header">
+          <span class="page-title">Following</span>
+          <span style="font-size: 12px; color: rgba(255,255,255,0.5);">+ Add</span>
+        </div>
+        <div class="body">
+          <!-- Live/Upcoming from followed -->
+          <div class="section-header">
+            <span class="section-title">&#9679; Live & Upcoming</span>
+            <span class="section-link">All &rsaquo;</span>
+          </div>
+          <div class="scroll-row">
+            <div class="inline-match" style="border-left-color: #FF4655;">
+              <div class="im-tournament">FIP Gold &bull; SF</div>
+              <div class="im-player">G. Triay / C. Jensen</div>
+              <div class="im-vs">vs</div>
+              <div class="im-player">A. Sanchez / P. Josemaria</div>
+              <div class="im-time" style="color: #FF4655;">LIVE &bull; 6-3 4-2</div>
+            </div>
+            <div class="inline-match">
+              <div class="im-tournament">FIP Gold &bull; F</div>
+              <div class="im-player">A. Coello / A. Tapia</div>
+              <div class="im-vs">vs</div>
+              <div class="im-player">A. Galan / F. Navarro</div>
+              <div class="im-time">Tomorrow 14:00</div>
+            </div>
+          </div>
+
+          <!-- Players -->
+          <div class="section-header">
+            <span class="section-title">Players</span>
+            <span class="section-link">See All &rsaquo;</span>
+          </div>
+          <div class="scroll-row">
+            <div class="mini-card">
+              <div class="mc-avatar">AC</div>
+              <div class="mc-name">A. Coello</div>
+              <div class="mc-meta">#1 &bull; Spain</div>
+            </div>
+            <div class="mini-card">
+              <div class="mc-avatar">GT</div>
+              <div class="mc-name">G. Triay</div>
+              <div class="mc-meta">#2 &bull; Spain</div>
+            </div>
+            <div class="mini-card">
+              <div class="mc-avatar">AG</div>
+              <div class="mc-name">A. Galan</div>
+              <div class="mc-meta">#3 &bull; Spain</div>
+            </div>
+            <div class="mini-card" style="border: 1px dashed rgba(126,211,33,0.3); background: transparent;">
+              <div class="mc-avatar" style="background: transparent; border: 1px dashed rgba(126,211,33,0.3);">+</div>
+              <div class="mc-name" style="color: var(--green);">Add Player</div>
+              <div class="mc-meta">Search or browse</div>
+            </div>
+          </div>
+
+          <!-- Tournaments -->
+          <div class="section-header">
+            <span class="section-title">Tournaments</span>
+            <span class="section-link">See All &rsaquo;</span>
+          </div>
+          <div class="scroll-row">
+            <div class="mini-card" style="width: 150px;">
+              <div class="mc-avatar" style="border-radius: 8px; font-size: 20px;">&#127942;</div>
+              <div class="mc-name">FIP Gold Almaty</div>
+              <div class="mc-meta" style="color: #FF4655;">Live &bull; Semi-finals</div>
+            </div>
+            <div class="mini-card" style="width: 150px;">
+              <div class="mc-avatar" style="border-radius: 8px; font-size: 20px;">&#127941;</div>
+              <div class="mc-name">PP Miami P1</div>
+              <div class="mc-meta">Starts Apr 14</div>
+            </div>
+          </div>
+
+          <!-- News brands -->
+          <div class="section-header">
+            <span class="section-title">News Sources</span>
+            <span class="section-link">Manage &rsaquo;</span>
+          </div>
+          <div class="scroll-row" style="padding-bottom: 16px;">
+            <div class="mini-card" style="width: 110px;">
+              <div class="mc-avatar" style="background: #E53E3E; font-size: 11px; color: #fff;">PA</div>
+              <div class="mc-name" style="font-size: 10px;">Padel Addict</div>
+              <div class="mc-meta">12 articles/wk</div>
+            </div>
+            <div class="mini-card" style="width: 110px;">
+              <div class="mc-avatar" style="background: #3182CE; font-size: 11px; color: #fff;">PM</div>
+              <div class="mc-name" style="font-size: 10px;">Padel Magazine</div>
+              <div class="mc-meta">8 articles/wk</div>
+            </div>
+            <div class="mini-card" style="width: 110px;">
+              <div class="mc-avatar" style="background: #38A169; font-size: 11px; color: #fff;">PN</div>
+              <div class="mc-name" style="font-size: 10px;">PadelNachos</div>
+              <div class="mc-meta">5 articles/wk</div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-nav">
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M4.5 7.5C7 7 9.5 9 10 12c0.3 2-0.5 4.5-1.5 6.5"/><path d="M19.5 16.5C17 17 14.5 15 14 12c-0.3-2 0.5-4.5 1.5-6.5"/></svg>Matches</div>
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Home</div>
+          <div class="nav-item active"><div class="indicator"></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Following</div>
+          <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>Feed</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
