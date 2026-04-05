@@ -22,6 +22,13 @@ const MEN_BLUE    = '#4A9EFF'
 const WOMEN_PURPLE = '#D966FF'
 const BG_BASE     = '#0A0A0A'
 
+// ── Chunky clip-path shapes ────────────────────────────────────
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
+
 // ── Types ──────────────────────────────────────────────────────
 
 interface SetRow {
@@ -198,10 +205,9 @@ function MatchCard({ match }: { match: MatchRow }) {
     >
       <div style={{
         width: 200,
-        background: BG_CARD,
-        border: `1px solid ${BORDER}`,
-        borderLeft: isLive ? `3px solid ${LIVE_RED}` : `3px solid ${GREEN}`,
-        borderRadius: 8,
+        background: isLive ? 'rgba(255,70,85,0.07)' : BG_CARD,
+        borderTop: `2px solid ${isLive ? LIVE_RED : GREEN}`,
+        clipPath: CHUNKY.card,
         padding: '10px 12px',
         position: 'relative',
       }}>
@@ -244,7 +250,7 @@ function MatchCard({ match }: { match: MatchRow }) {
                 color: LIVE_RED,
                 background: 'rgba(255,70,85,0.12)',
                 padding: '2px 6px',
-                borderRadius: 3,
+                clipPath: CHUNKY.badge,
                 textTransform: 'uppercase',
                 letterSpacing: 0.5,
               }}>
@@ -282,8 +288,7 @@ function PlayerCard({ player }: { player: PlayerData }) {
       <div style={{
         width: 110,
         background: BG_CARD,
-        border: `1px solid ${BORDER}`,
-        borderRadius: 10,
+        clipPath: CHUNKY.card,
         padding: '12px 8px',
         display: 'flex',
         flexDirection: 'column',
@@ -352,8 +357,7 @@ function TournamentCard({ tournament }: { tournament: TournamentData }) {
       <div style={{
         width: 140,
         background: BG_CARD,
-        border: `1px solid ${BORDER}`,
-        borderRadius: 10,
+        clipPath: CHUNKY.card,
         padding: '12px 10px',
         display: 'flex',
         flexDirection: 'column',
@@ -385,7 +389,7 @@ function TournamentCard({ tournament }: { tournament: TournamentData }) {
           color: isLive ? LIVE_RED : GREEN,
           background: isLive ? 'rgba(255,70,85,0.12)' : GREEN_DIM,
           padding: '2px 8px',
-          borderRadius: 3,
+          clipPath: CHUNKY.badge,
           textTransform: 'uppercase',
           letterSpacing: 0.3,
         }}>
@@ -451,9 +455,8 @@ function AddPlayerCard({ onOpen }: { onOpen: () => void }) {
         width: 110,
         scrollSnapAlign: 'start',
         flexShrink: 0,
-        background: 'none',
-        border: `1.5px dashed ${GREEN}`,
-        borderRadius: 10,
+        background: GREEN_DIM,
+        clipPath: CHUNKY.card,
         padding: '12px 8px',
         display: 'flex',
         flexDirection: 'column',
@@ -520,7 +523,7 @@ function EmptyState({ onOpen }: { onOpen: () => void }) {
           padding: '10px 24px',
           background: GREEN,
           color: '#000',
-          borderRadius: 6,
+          clipPath: CHUNKY.button,
           fontSize: 13,
           fontWeight: 800,
           textDecoration: 'none',
@@ -663,7 +666,7 @@ export default function FollowingPage() {
             background: GREEN,
             color: '#000',
             border: 'none',
-            borderRadius: 6,
+            clipPath: CHUNKY.button,
             fontSize: 12,
             fontWeight: 800,
             cursor: 'pointer',
