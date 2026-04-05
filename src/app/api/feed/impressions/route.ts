@@ -14,14 +14,12 @@ export async function POST(request: NextRequest) {
     const articleIds = items.filter(i => i.type === 'article').map(i => i.id)
     const videoIds = items.filter(i => i.type === 'video').map(i => i.id)
 
-    const promises: Promise<any>[] = []
     if (articleIds.length > 0) {
-      promises.push(supabase.rpc('increment_impressions_articles', { article_ids: articleIds }))
+      await supabase.rpc('increment_impressions_articles', { article_ids: articleIds })
     }
     if (videoIds.length > 0) {
-      promises.push(supabase.rpc('increment_impressions_highlights', { highlight_ids: videoIds }))
+      await supabase.rpc('increment_impressions_highlights', { highlight_ids: videoIds })
     }
-    await Promise.all(promises)
 
     return NextResponse.json({ ok: true })
   } catch {
