@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import AppHeader from '@/components/AppHeader'
 import { useFollowing } from '@/hooks/useFollowing'
 import FollowButton from '@/components/FollowButton'
 import SearchOverlay from '@/components/nav/SearchOverlay'
@@ -660,51 +661,7 @@ export default function FollowingPage() {
     <div style={{ background: BG_BASE, minHeight: '100dvh', maxWidth: 500, margin: '0 auto' }}>
 
       {/* ── Header ─────────────────────────────────────────────── */}
-      <div style={{
-        background: '#0A0A0A',
-        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
-        padding: '12px 16px',
-        height: 62,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
-        <h1 style={{
-          margin: 0,
-          fontSize: 20,
-          fontWeight: 900,
-          color: '#fff',
-          letterSpacing: -0.3,
-        }}>
-          Following
-        </h1>
-
-        <button
-          onClick={() => setSearchOpen(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '7px 14px',
-            background: GREEN,
-            color: '#000',
-            border: 'none',
-            clipPath: CHUNKY.button,
-            fontSize: 12,
-            fontWeight: 800,
-            cursor: 'pointer',
-            letterSpacing: 0.3,
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="6" y1="1" x2="6" y2="11" />
-            <line x1="1" y1="6" x2="11" y2="6" />
-          </svg>
-          Add
-        </button>
-      </div>
+      <AppHeader onSearchOpen={() => setSearchOpen(true)} />
 
       {/* ── Empty state ─────────────────────────────────────────── */}
       {loaded && totalFollows === 0 && (

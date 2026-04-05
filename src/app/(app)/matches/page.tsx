@@ -10,6 +10,7 @@ import { Match, countryFlag, pairName, parseSetScore, isWarmingUp } from '@/type
 import Link from 'next/link'
 import Spinner from '../../components/Spinner'
 import FollowButton from '@/components/FollowButton'
+import AppHeader from '@/components/AppHeader'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -864,27 +865,7 @@ function V3ScoresPage() {
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
 
       {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '12px 16px',
-        height: 62,
-        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
-        position: 'sticky', top: 0, zIndex: 10,
-        background: '#0A0A0A',
-      }}>
-        <Link href="/home" style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          width: 36, height: 36, background: 'none', color: '#fff',
-          textDecoration: 'none', flexShrink: 0,
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </Link>
-        <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', flex: 1, letterSpacing: -0.3 }}>
-          Matches
-        </span>
-      </div>
+      <AppHeader />
 
       {loading ? (
         <Spinner fullHeight />
