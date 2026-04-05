@@ -11,13 +11,14 @@ import Link from 'next/link'
 import Spinner from '../components/Spinner'
 import SearchOverlay from './components/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
 const GREEN_DIM = 'rgba(126,211,33,0.15)'
 const ORANGE = '#F5A623'
 const LIVE_RED = '#FF4655'
-const BG_BASE = '#0A0A0A'
+const BG_BASE = '#1A1A1A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
@@ -370,15 +371,17 @@ function UpcomingMatchCard({ match }: { match: Match }) {
   }
 
   return (
-    <div style={{
+    <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <div style={{
       background: BG_CARD,
       border: `1px solid ${BORDER}`,
       clipPath: CHUNKY.card,
-      padding: '14px 16px',
+      padding: '10px 14px',
       width: 260,
       flexShrink: 0,
       position: 'relative',
       overflow: 'hidden',
+      cursor: 'pointer',
     }}>
       {/* Left accent bar — gender color */}
       <div style={{
@@ -387,7 +390,7 @@ function UpcomingMatchCard({ match }: { match: Match }) {
         width: 3,
         background: genderColor ?? GREEN,
       }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {tournament && (
             <span style={{ ...pillStyle, background: 'rgba(255,255,255,0.06)', color: MUTED, fontSize: 9 }}>
@@ -398,7 +401,7 @@ function UpcomingMatchCard({ match }: { match: Match }) {
             {match.round ?? ''}
           </span>
         </div>
-        <span />
+        <FollowButton type="match" targetId={match.id} variant="star" size={14} />
       </div>
       {/* Players + date/time two-column layout */}
       {(() => {
@@ -411,23 +414,23 @@ function UpcomingMatchCard({ match }: { match: Match }) {
           match.pair2_player2?.ranking ?? 9999
         )
         return (
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
             {/* Left: players */}
             <div style={{ flex: 1, minWidth: 0 }}>
               {[match.pair1_player1, match.pair1_player2].map((p, i) => (
-                <div key={`p1-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
-                  <FlagImg country={p?.country ?? null} size={14} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name ?? 'TBD'}</span>
+                <div key={`p1-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '1px 0' }}>
+                  <FlagImg country={p?.country ?? null} size={13} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name ?? 'TBD'}</span>
                   {i === 0 && seed1 < 9999 && (
                     <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, opacity: 0.7 }}>#{seed1}</span>
                   )}
                 </div>
               ))}
-              <div style={{ fontSize: 10, color: MUTED, margin: '4px 0', paddingLeft: 2 }}>vs</div>
+              <div style={{ fontSize: 9, color: MUTED, margin: '2px 0', paddingLeft: 2 }}>vs</div>
               {[match.pair2_player1, match.pair2_player2].map((p, i) => (
-                <div key={`p2-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
-                  <FlagImg country={p?.country ?? null} size={14} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name ?? 'TBD'}</span>
+                <div key={`p2-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '1px 0' }}>
+                  <FlagImg country={p?.country ?? null} size={13} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name ?? 'TBD'}</span>
                   {i === 0 && seed2 < 9999 && (
                     <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, opacity: 0.7 }}>#{seed2}</span>
                   )}
@@ -435,7 +438,7 @@ function UpcomingMatchCard({ match }: { match: Match }) {
               ))}
             </div>
             {/* Right: date/time centered */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: `1px solid ${BORDER}`, paddingLeft: 10, minWidth: 70 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: `1px solid ${BORDER}`, paddingLeft: 8, minWidth: 65 }}>
               <span style={{ fontSize: 10, fontWeight: 600, textAlign: 'center', lineHeight: 1.4 }}>
                 {date && time
                   ? <><span style={{ color: GREEN }}>{date}</span><br /><span style={{ color: GREEN, fontFamily: 'monospace', fontWeight: 700 }}>{time}</span></>
@@ -446,7 +449,8 @@ function UpcomingMatchCard({ match }: { match: Match }) {
           </div>
         )
       })()}
-    </div>
+      </div>
+    </Link>
   )
 }
 
@@ -479,6 +483,8 @@ function TournamentSpotlight({ tournament, matchCount }: { tournament: Tournamen
           ? 'radial-gradient(circle, rgba(126,211,33,0.08) 0%, transparent 70%)'
           : 'radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%)',
       }} />
+
+      <FollowButton type="tournament" targetId={tournament.id} variant="star" size={14} style={{ position: 'absolute', top: 12, right: 12 }} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
         <div style={{ flex: 1 }}>
@@ -809,7 +815,8 @@ function ResultCard({ match }: { match: Match }) {
 // ── Results Section ────────────────────────────────────────────
 
 function ResultsSection({ matches }: { matches: Match[] }) {
-  const [expandedTournaments, setExpandedTournaments] = useState<Record<string, boolean>>({})
+  // 3-state: undefined = default (show 3), 'collapsed' = hide all, 'expanded' = show all
+  const [tournamentState, setTournamentState] = useState<Record<string, 'collapsed' | 'expanded'>>({})
 
   const filtered = matches
     .filter(m => hasPlayers(m))
@@ -833,8 +840,27 @@ function ResultsSection({ matches }: { matches: Match[] }) {
     group.matches.push(m)
   }
 
-  const toggleTournament = (tid: string) => {
-    setExpandedTournaments(prev => ({ ...prev, [tid]: !prev[tid] }))
+  const cycleState = (tid: string) => {
+    setTournamentState(prev => {
+      const current = prev[tid]
+      if (!current) return { ...prev, [tid]: 'expanded' }       // default → expanded
+      if (current === 'expanded') return { ...prev, [tid]: 'collapsed' } // expanded → collapsed
+      const { [tid]: _, ...rest } = prev; return rest            // collapsed → default
+    })
+  }
+
+  // Derive the most advanced round from a group's matches
+  const ROUND_ORDER = ['F', 'Final', 'SF', 'Semi-final', 'QF', 'Quarter-final', 'R16', 'R32', 'R64', 'R128']
+  const stageLabel = (group: { matches: Match[] }): string | null => {
+    let best = 999
+    for (const m of group.matches) {
+      const r = m.round ?? ''
+      const idx = ROUND_ORDER.findIndex(x => r.toLowerCase().startsWith(x.toLowerCase()))
+      if (idx >= 0 && idx < best) best = idx
+    }
+    if (best === 999) return null
+    const labels: Record<string, string> = { 'F': 'Final', 'Final': 'Final', 'SF': 'Semis', 'Semi-final': 'Semis', 'QF': 'Quarters', 'Quarter-final': 'Quarters', 'R16': 'R16', 'R32': 'R32', 'R64': 'R64', 'R128': 'R128' }
+    return labels[ROUND_ORDER[best]] ?? ROUND_ORDER[best]
   }
 
   // Format date range
@@ -857,9 +883,10 @@ function ResultsSection({ matches }: { matches: Match[] }) {
       <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {grouped.map((group) => {
           const tid = group.tournament?.id ?? 'unknown'
-          const isExpanded = expandedTournaments[tid] ?? false
+          const state = tournamentState[tid] // undefined = default
           const matchCount = group.matches.length
-          const visibleMatches = isExpanded ? group.matches : group.matches.slice(0, 2)
+          const visibleMatches = state === 'collapsed' ? [] : state === 'expanded' ? group.matches : group.matches.slice(0, 3)
+          const stage = stageLabel(group)
 
           return (
             <div key={tid} style={{
@@ -868,22 +895,30 @@ function ResultsSection({ matches }: { matches: Match[] }) {
               padding: '14px 14px 10px',
               border: `1px solid ${BORDER}`,
             }}>
-              {/* Tournament header — clickable to expand/collapse */}
+              {/* Tournament header — name links to detail, chevron toggles collapse */}
               {group.tournament && (
-                <button
-                  onClick={() => toggleTournament(tid)}
-                  style={{
-                    width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '0 0 10px', display: 'flex', alignItems: 'center', gap: 10,
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '0 0 10px',
+                }}>
                   {group.tournament.country && (
                     <FlagImg country={group.tournament.country} size={30} />
                   )}
-                  <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
-                      {titleCase(group.tournament.name)}
+                  <Link href={`/v3/tournaments/${tid}`} style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
+                        {titleCase(group.tournament.name)}
+                      </span>
+                      {stage && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                          clipPath: CHUNKY.badge, textTransform: 'uppercase',
+                          background: 'rgba(126,211,33,0.12)', color: GREEN,
+                          letterSpacing: 0.3,
+                        }}>
+                          {stage}
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                       {group.tournament.country && (
@@ -894,28 +929,40 @@ function ResultsSection({ matches }: { matches: Match[] }) {
                       )}
                       <span>{formatDates(group.tournament.starts_at, group.tournament.ends_at)}</span>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  </Link>
+                  <button
+                    onClick={() => cycleState(tid)}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+                      padding: '4px 2px',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
                     <span style={{ fontSize: 10, fontWeight: 700, color: MUTED }}>{matchCount}</span>
                     <span style={{
                       fontSize: 12, color: MUTED,
-                      transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transform: state === 'collapsed' ? 'rotate(-90deg)' : state === 'expanded' ? 'rotate(180deg)' : 'rotate(0deg)',
                       transition: 'transform 0.2s ease',
                     }}>
                       ▼
                     </span>
-                  </div>
-                </button>
+                  </button>
+                </div>
               )}
-              {/* Divider */}
-              <div style={{ height: 1, background: BORDER, margin: '0 0 8px' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {visibleMatches.map(m => <ResultCard key={m.id} match={m} />)}
-              </div>
+              {/* Matches (hidden when collapsed) */}
+              {visibleMatches.length > 0 && (
+                <>
+                  <div style={{ height: 1, background: BORDER, margin: '0 0 8px' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {visibleMatches.map(m => <ResultCard key={m.id} match={m} />)}
+                  </div>
+                </>
+              )}
               {/* Show more / less toggle */}
-              {matchCount > 2 && (
+              {matchCount > 3 && state !== 'collapsed' && (
                 <button
-                  onClick={() => toggleTournament(tid)}
+                  onClick={() => cycleState(tid)}
                   style={{
                     width: '100%', background: 'none', border: 'none', cursor: 'pointer',
                     padding: '8px 0 4px', fontSize: 11, fontWeight: 700,
@@ -923,7 +970,7 @@ function ResultsSection({ matches }: { matches: Match[] }) {
                     WebkitTapHighlightColor: 'transparent',
                   }}
                 >
-                  {isExpanded ? 'Show less' : `Show all ${matchCount} results`}
+                  {state === 'expanded' ? 'Show less' : `Show all ${matchCount} results`}
                 </button>
               )}
             </div>
@@ -1829,15 +1876,14 @@ export default function V3HomePage() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: 'rgba(10,10,10,0.92)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: `1px solid ${BORDER}`,
+        background: '#0A0A0A',
+        borderBottom: 'none',
+        boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '10px 16px',
-        height: 52,
+        padding: '12px 16px',
+        height: 62,
         transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
         transition: 'transform 0.3s ease',
       }}>
@@ -1846,7 +1892,7 @@ export default function V3HomePage() {
         <img
           src="/padelnachos-logo-v2.png"
           alt="PadelNachos"
-          style={{ height: 43, objectFit: 'contain', flexShrink: 0 }}
+          style={{ height: 52, objectFit: 'contain', flexShrink: 0 }}
         />
 
         {/* Search bar */}
@@ -1856,7 +1902,7 @@ export default function V3HomePage() {
             flex: 1,
             height: 34,
             background: 'rgba(255,255,255,0.06)',
-            border: `1px solid rgba(255,255,255,0.08)`,
+            border: '1px solid rgba(255,255,255,0.10)',
             clipPath: CHUNKY.button,
             display: 'flex',
             alignItems: 'center',
@@ -1868,11 +1914,11 @@ export default function V3HomePage() {
             maxWidth: 260,
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
           <span style={{
-            color: MUTED,
+            color: 'rgba(255,255,255,0.7)',
             fontSize: 11,
             fontWeight: 500,
             opacity: hintFading ? 0 : 1,

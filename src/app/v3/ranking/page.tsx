@@ -5,12 +5,13 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
 const GREEN_DIM = 'rgba(126,211,33,0.15)'
 const ORANGE = '#F5A623'
-const BG_BASE = '#0A0A0A'
+const BG_BASE = '#1A1A1A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
@@ -200,13 +201,16 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
         </div>
       </div>
 
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>
-          {pts != null ? pts : '--'}
+      <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>
+            {pts != null ? pts : '--'}
+          </div>
+          <div style={{ fontSize: 9, color: MUTED, marginTop: 2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            PTS
+          </div>
         </div>
-        <div style={{ fontSize: 9, color: MUTED, marginTop: 2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          PTS
-        </div>
+        <FollowButton type="player" targetId={player.id} variant="heart" size={14} style={{ marginLeft: 8 }} />
       </div>
     </div>
   )
@@ -314,9 +318,10 @@ export default function V3RankingPage() {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 16px',
-        borderBottom: `1px solid ${BORDER}`,
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 20,
-        background: BG_BASE,
+        background: '#0A0A0A',
+        height: 62,
       }}>
         <button
           onClick={() => router.push('/v3')}

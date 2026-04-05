@@ -12,6 +12,7 @@ import BottomNav from '@/app/v3/components/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
 import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
+import FollowButton from '@/components/FollowButton'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
@@ -20,7 +21,7 @@ const GREEN = '#7ED321'
 const GREEN_DIM = 'rgba(126,211,33,0.15)'
 const ORANGE = '#F5A623'
 const LIVE_RED = '#FF4655'
-const BG_BASE = '#0A0A0A'
+const BG_BASE = '#1A1A1A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
@@ -134,6 +135,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     (match as any)?.avg_rating ?? null,
     (match as any)?.rating_count ?? 0
   )
+  const [shareToast, setShareToast] = useState(false)
 
   const fetchNextMatch = useCallback(async (m: Match) => {
     const wp = (m as any).winner_pair as number | null
@@ -427,11 +429,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '12px 16px',
-        borderBottom: `1px solid ${BORDER}`,
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(10,10,10,0.92)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
+        background: '#0A0A0A',
+        height: 62,
         transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
         transition: 'transform 0.3s ease',
       }}>
@@ -460,6 +461,54 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <span style={{ fontSize: 11, fontWeight: 800, color: LIVE_RED, letterSpacing: '0.5px' }}>LIVE</span>
           </div>
         )}
+        <button
+          onClick={async () => {
+            if (!match) return
+            const shareUrl = `https://padelnachos.com/match/${match.id}`
+            const scores = (match.sets ?? [])
+              .sort((a: any, b: any) => a.set_number - b.set_number)
+              .map((s: any) => {
+                const parsed = parseSetScore(s.set_score)
+                return parsed ? `${parsed.p1}-${parsed.p2}` : null
+              })
+              .filter(Boolean)
+              .join(', ')
+            const tournamentName = (match as any).tournament?.name ?? ''
+            const round = (match as any).round ?? ''
+            const status = isLive ? 'LIVE' : isFinished ? 'Final' : 'Upcoming'
+            const title = `${pair1Label} vs ${pair2Label}`
+            const text = [
+              title,
+              scores ? `${status}: ${scores}` : status,
+              [tournamentName, round].filter(Boolean).join(' · '),
+            ].filter(Boolean).join('\n')
+            try {
+              if (typeof navigator !== 'undefined' && navigator.share) {
+                await navigator.share({ title, text, url: shareUrl })
+              } else {
+                await navigator.clipboard.writeText(shareUrl)
+                setShareToast(true)
+                setTimeout(() => setShareToast(false), 2200)
+              }
+            } catch {
+              // user cancelled or share failed
+            }
+          }}
+          style={{
+            width: 36, height: 36,
+            clipPath: CHUNKY.badge,
+            background: 'rgba(255,255,255,0.06)',
+            border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', cursor: 'pointer', flexShrink: 0,
+          }}
+          aria-label="Share"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+            <polyline points="16 6 12 2 8 6" />
+            <line x1="12" y1="2" x2="12" y2="15" />
+          </svg>
+        </button>
       </div>
 
       {/* ── Winner banner ────────────────────────────────────────────── */}
@@ -582,6 +631,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           )}
           <span style={{ flex: 1 }} />
           {matchDate && !isScheduled && <span style={{ fontSize: 10, color: '#666' }}>{matchDate}</span>}
+          <FollowButton type="match" targetId={match.id} variant="star" size={20} />
         </div>
 
         {/* Scheduled: big time display */}
@@ -787,6 +837,16 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       )}
     </main>
     <BottomNav />
+    {shareToast && (
+      <div style={{
+        position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+        background: '#7ED321', color: '#000', padding: '8px 20px',
+        borderRadius: 8, fontSize: 13, fontWeight: 700, zIndex: 1000,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+      }}>
+        Link copied!
+      </div>
+    )}
     </>
   )
 }
@@ -805,6 +865,7 @@ function PlayerNameLink({ player, dim, muted, bold, router, style }: {
     >
       {player?.country && <FlagImg country={player.country} size={14} />}
       {toShortName(player?.name ?? 'TBD')}
+      {player?.id && <FollowButton type="player" targetId={player.id} variant="heart" size={14} />}
     </div>
   )
 }

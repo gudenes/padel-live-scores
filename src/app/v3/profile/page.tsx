@@ -14,7 +14,7 @@ const V3 = {
   GREEN: '#7ED321',
   ORANGE: '#F5A623',
   LIVE_RED: '#FF4655',
-  BG_BASE: '#0A0A0A',
+  BG_BASE: '#1A1A1A',
   BG_CARD: '#141414',
   MUTED: '#6B7280',
   BORDER: 'rgba(255,255,255,0.06)',
@@ -137,9 +137,10 @@ export default function ProfilePage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 14px',
-        borderBottom: `0.5px solid ${V3.BORDER}`,
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: V3.BG_BASE,
+        background: '#0A0A0A',
+        height: 62,
       }}>
         <button
           onClick={() => router.back()}

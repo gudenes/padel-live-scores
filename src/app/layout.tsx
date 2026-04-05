@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
@@ -80,34 +81,29 @@ const jsonLd = {
   ],
 }
 
-function ServiceWorkerRegistration() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js')
-                .catch(function(err) { console.log('[SW] Registration failed:', err); });
-            });
-          }
-        `,
-      }}
-    />
-  )
-}
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-    <head>
+    <head />
+    <body>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
-    </head>
-    <body>
-      <ServiceWorkerRegistration />
+      <Script
+        id="sw-registration"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                  .catch(function(err) { console.log('[SW] Registration failed:', err); });
+              });
+            }
+          `,
+        }}
+      />
       <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
         <div style={{ maxWidth: 500, margin: '0 auto', minHeight: '100vh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
           <AuthProvider>

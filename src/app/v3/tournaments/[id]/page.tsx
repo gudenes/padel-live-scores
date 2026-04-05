@@ -9,12 +9,13 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, isWarmingUp, toShortName } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../../components/Spinner'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
 const LIVE_RED = '#FF4655'
-const BG_BASE = '#0A0A0A'
+const BG_BASE = '#1A1A1A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
@@ -428,36 +429,34 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
         {/* ── Sticky header ── */}
         <div style={{
-          background: BG_BASE, borderBottom: `1px solid ${BORDER}`,
+          background: '#0A0A0A', borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
           position: 'sticky', top: 0, zIndex: 10,
         }}>
 
-          {/* ROW 1: Back + logo + gender toggle */}
+          {/* ROW 1: Back + title */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 14px',
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '12px 16px',
+            height: 62,
           }}>
             <button
               onClick={() => router.back()}
               style={{
                 width: 36, height: 36, border: 'none', cursor: 'pointer',
-                background: 'rgba(255,255,255,0.04)',
-                clipPath: CHUNKY.badge,
+                background: 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: MUTED, flexShrink: 0,
+                color: '#fff', flexShrink: 0,
               }}
               aria-label="Back"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6"/>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
               </svg>
             </button>
 
-            {/* Logo centered */}
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/padelnachos-logo-v2.png" alt="Padel Nachos" style={{ height: 26, width: 'auto', objectFit: 'contain' }} />
-            </div>
+            <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', flex: 1, letterSpacing: -0.3 }}>
+              Tournament Detail
+            </span>
 
             {/* Gender toggle pill */}
             <div
@@ -467,9 +466,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 background: 'rgba(255,255,255,0.04)',
                 clipPath: CHUNKY.badge,
                 padding: '4px 6px', position: 'relative', width: 56, height: 28,
+                flexShrink: 0,
               }}
             >
-              {/* Sliding indicator */}
               <div style={{
                 position: 'absolute', top: 3,
                 left: genderFilter === 'men' ? 4 : 28,
@@ -502,32 +501,25 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               borderBottom: `1px solid ${BORDER}`,
               position: 'relative',
             }}>
-              {/* Left accent bar — gender color */}
-              <div style={{
-                position: 'absolute', top: 0, left: 0, bottom: 0,
-                width: 3, background: genderColor,
-              }} />
+              {/* Left accent bar removed */}
 
-              {activeTournamentObj.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={activeTournamentObj.logo_url}
-                  alt=""
-                  style={{ width: 60, height: 60, objectFit: 'contain', flexShrink: 0 }}
-                />
-              ) : activeTournamentObj.country ? (
-                <div style={{ width: 60, height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <FlagImg country={activeTournamentObj.country} size={40} />
+              {activeTournamentObj.country ? (
+                <div style={{ width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <FlagImg country={activeTournamentObj.country} size={36} />
                 </div>
               ) : null}
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 15, fontWeight: 800, color: '#fff',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  letterSpacing: 0.3,
-                }}>
-                  {titleCase(activeTournamentObj.name)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    fontSize: 15, fontWeight: 800, color: '#fff',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    letterSpacing: 0.3,
+                    flex: 1, minWidth: 0,
+                  }}>
+                    {titleCase(activeTournamentObj.name)}
+                  </div>
+                  <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
                 </div>
 
                 {activeTournamentObj.venue && (

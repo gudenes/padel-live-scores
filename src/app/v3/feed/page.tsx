@@ -10,12 +10,13 @@ import { useFeedPreferences } from '@/hooks/useFeedPreferences'
 import { buildScoredFeed, type FeedCluster, type ScoredHighlight, type ScoredArticle, type ScoringContext } from '@/lib/feed-scoring'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import Link from 'next/link'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
 const LIVE_RED = '#FF4655'
-const BG_BASE = '#0A0A0A'
+const BG_BASE = '#1A1A1A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
@@ -365,6 +366,7 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
             </div>
           )}
           <span style={{ fontSize: 11, fontWeight: 700, color: ORANGE }}>{item.source_name}</span>
+          <FollowButton type="news_source" targetId={item.source_name} variant="heart" size={12} />
           {item.language && (
             <span style={{
               fontSize: 8, fontWeight: 900, color: MUTED,
@@ -747,9 +749,10 @@ function V3FeedPage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '12px 16px',
-        borderBottom: `1px solid ${BORDER}`,
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: BG_BASE,
+        background: '#0A0A0A',
+        height: 62,
       }}>
         <Link
           href="/v3"

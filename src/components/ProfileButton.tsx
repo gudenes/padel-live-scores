@@ -30,12 +30,12 @@ export default function ProfileButton() {
         onClick={handleClick}
         style={{
           width: 34, height: 34, borderRadius: '50%',
-          border: isLoggedIn ? '2px solid #F5A623' : '1.5px solid rgba(255,255,255,0.06)',
+          border: isLoggedIn ? '2px solid #F5A623' : '1.5px solid rgba(126,211,33,0.5)',
           cursor: 'pointer',
-          background: isLoggedIn ? 'transparent' : 'rgba(255,255,255,0.08)',
+          background: isLoggedIn ? 'transparent' : 'rgba(126,211,33,0.08)',
           flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#6B7280',
+          color: '#7ED321',
           overflow: 'hidden', padding: 0,
         }}
       >
