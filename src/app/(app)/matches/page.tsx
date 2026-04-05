@@ -453,10 +453,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
           <div style={{ padding: '12px 14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasChampions ? 10 : 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                {tournament?.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={tournament.logo_url} alt="" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
-                ) : tournament?.country ? (
+                {tournament?.country ? (
                   <FlagImg country={tournament.country} size={20} />
                 ) : null}
                 <div style={{ flex: 1, minWidth: 0 }}>
