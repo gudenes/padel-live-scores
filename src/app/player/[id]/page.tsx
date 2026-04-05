@@ -6,7 +6,7 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
-import BottomNav from '@/app/v3/components/BottomNavV3'
+import BottomNav from '@/components/nav/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
 import FollowButton from '@/components/FollowButton'
 

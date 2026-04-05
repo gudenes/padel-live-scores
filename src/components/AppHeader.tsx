@@ -1,0 +1,114 @@
+'use client'
+// src/components/AppHeader.tsx
+// Shared header with logo, animated search bar, and profile button.
+// Used on home, feed, following, and matches pages.
+// Hides on scroll down, shows on scroll up.
+
+import { useState, useEffect, useRef } from 'react'
+import ProfileButton from '@/components/ProfileButton'
+
+const CHUNKY = {
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
+
+const SEARCH_HINTS = [
+  'Search players, events, matches...',
+  'Try "Arturo Coello"',
+  'Try "Miami P1"',
+  'Try "Live matches"',
+  'Try "Gemma Triay"',
+]
+
+export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void }) {
+  // Rotating search hints
+  const [hintIdx, setHintIdx] = useState(0)
+  const [hintFading, setHintFading] = useState(false)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHintFading(true)
+      setTimeout(() => {
+        setHintIdx(i => (i + 1) % SEARCH_HINTS.length)
+        setHintFading(false)
+      }, 300)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Hide on scroll down, show on scroll up
+  const [headerVisible, setHeaderVisible] = useState(true)
+  const lastScrollY = useRef(0)
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY
+      if (y < 10) { setHeaderVisible(true) }
+      else if (y > lastScrollY.current + 4) { setHeaderVisible(false) }
+      else if (y < lastScrollY.current - 4) { setHeaderVisible(true) }
+      lastScrollY.current = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  return (
+    <header style={{
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
+      background: '#0A0A0A',
+      borderBottom: 'none',
+      boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '12px 16px',
+      height: 62,
+      transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
+      transition: 'transform 0.3s ease',
+    }}>
+      {/* Logo */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/padelnachos-logo-v2.png"
+        alt="PadelNachos"
+        style={{ height: 52, objectFit: 'contain', flexShrink: 0 }}
+      />
+
+      {/* Search bar */}
+      <div
+        onClick={onSearchOpen}
+        style={{
+          flex: 1,
+          height: 34,
+          background: 'rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255,255,255,0.10)',
+          clipPath: CHUNKY.button,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '0 12px',
+          cursor: 'pointer',
+          marginLeft: 10,
+          marginRight: 6,
+          maxWidth: 260,
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+        </svg>
+        <span style={{
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: 11,
+          fontWeight: 500,
+          opacity: hintFading ? 0 : 1,
+          transform: hintFading ? 'translateY(-4px)' : 'translateY(0)',
+          transition: 'opacity 0.3s, transform 0.3s',
+        }}>
+          {SEARCH_HINTS[hintIdx]}
+        </span>
+      </div>
+
+      {/* Profile / Login */}
+      <ProfileButton />
+    </header>
+  )
+}
