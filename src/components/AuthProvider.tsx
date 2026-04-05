@@ -35,30 +35,76 @@ export function useAuth() {
 }
 
 const BOOKMARKS_STORAGE_KEY = 'pn_bookmarked_matches'
+const FOLLOWING_STORAGE_KEY = 'pn_following'
+
+interface FollowingData {
+  matches?: string[]
+  players?: string[]
+  tournaments?: string[]
+  news_sources?: string[]
+}
 
 async function migrateLocalBookmarks(userId: string) {
+  // --- Old format migration: pn_bookmarked_matches ---
   try {
     const raw = localStorage.getItem(BOOKMARKS_STORAGE_KEY)
-    if (!raw) return
-    const ids: string[] = JSON.parse(raw)
-    if (!ids.length) return
-
-    const rows = ids.map(id => ({
-      user_id: userId,
-      bookmark_type: 'match' as const,
-      target_id: id,
-    }))
-
-    const { error } = await supabase
-      .from('user_bookmarks')
-      .upsert(rows, { onConflict: 'user_id,bookmark_type,target_id' })
-
-    if (!error) {
-      localStorage.removeItem(BOOKMARKS_STORAGE_KEY)
-      console.log(`[Auth] Migrated ${ids.length} bookmarks to Supabase`)
+    if (raw) {
+      const ids: string[] = JSON.parse(raw)
+      if (ids.length) {
+        const rows = ids.map(id => ({
+          user_id: userId,
+          bookmark_type: 'match' as const,
+          target_id: id,
+        }))
+        const { error } = await supabase
+          .from('user_bookmarks')
+          .upsert(rows, { onConflict: 'user_id,bookmark_type,target_id' })
+        if (!error) {
+          localStorage.removeItem(BOOKMARKS_STORAGE_KEY)
+          console.log(`[Auth] Migrated ${ids.length} legacy bookmarks to Supabase`)
+        } else {
+          console.warn('[Auth] Legacy bookmark migration error:', error)
+        }
+      }
     }
   } catch (e) {
-    console.error('[Auth] Bookmark migration failed:', e)
+    console.warn('[Auth] Legacy bookmark migration failed:', e)
+  }
+
+  // --- New format migration: pn_following ---
+  try {
+    const raw = localStorage.getItem(FOLLOWING_STORAGE_KEY)
+    if (!raw) return
+    const following: FollowingData = JSON.parse(raw)
+
+    const rows: { user_id: string; bookmark_type: string; target_id: string }[] = []
+
+    for (const id of following.matches ?? []) {
+      rows.push({ user_id: userId, bookmark_type: 'match', target_id: id })
+    }
+    for (const id of following.players ?? []) {
+      rows.push({ user_id: userId, bookmark_type: 'player', target_id: id })
+    }
+    for (const id of following.tournaments ?? []) {
+      rows.push({ user_id: userId, bookmark_type: 'tournament', target_id: id })
+    }
+
+    if (rows.length) {
+      const { error } = await supabase
+        .from('user_bookmarks')
+        .upsert(rows, { onConflict: 'user_id,bookmark_type,target_id' })
+      if (error) {
+        console.warn('[Auth] Following migration error:', error)
+        return
+      }
+      console.log(`[Auth] Migrated ${rows.length} follows to Supabase`)
+    }
+
+    // Keep only news_sources in localStorage — they have no UUID target_id
+    const kept: FollowingData = { news_sources: following.news_sources ?? [] }
+    localStorage.setItem(FOLLOWING_STORAGE_KEY, JSON.stringify(kept))
+  } catch (e) {
+    console.warn('[Auth] Following migration failed:', e)
   }
 }
 
