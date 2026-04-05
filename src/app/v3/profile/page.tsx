@@ -143,7 +143,7 @@ export default function ProfilePage() {
         height: 62,
       }}>
         <button
-          onClick={() => router.back()}
+          onClick={() => { if (window.history.length > 1) router.back(); else router.push('/v3') }}
           style={{
             width: 36, height: 36, border: 'none', cursor: 'pointer',
             background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',

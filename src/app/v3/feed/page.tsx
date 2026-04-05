@@ -656,9 +656,10 @@ function V3FeedPage() {
 
   // Bookmark relevance
   const { bookmarked: bookmarkedMatches } = useBookmarks()
+  const bookmarkedMatchCount = bookmarkedMatches.size
   const [bookmarkedPlayerNames, setBookmarkedPlayerNames] = useState<Set<string>>(new Set())
   useEffect(() => {
-    if (bookmarkedMatches.size === 0) { setBookmarkedPlayerNames(new Set()); return }
+    if (bookmarkedMatchCount === 0) { setBookmarkedPlayerNames(new Set()); return }
     const ids = [...bookmarkedMatches].slice(0, 20)
     supabase
       .from('matches')
@@ -678,7 +679,8 @@ function V3FeedPage() {
         }
         setBookmarkedPlayerNames(names)
       })
-  }, [bookmarkedMatches])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookmarkedMatchCount])
 
   const fetchData = useCallback(async () => {
     try {

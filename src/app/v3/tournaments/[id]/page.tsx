@@ -440,7 +440,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             height: 62,
           }}>
             <button
-              onClick={() => router.back()}
+              onClick={() => { if (window.history.length > 1) router.back(); else router.push('/v3') }}
               style={{
                 width: 36, height: 36, border: 'none', cursor: 'pointer',
                 background: 'none',
