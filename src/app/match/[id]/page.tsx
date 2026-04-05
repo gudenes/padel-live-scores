@@ -428,9 +428,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         padding: '12px 16px',
-        borderBottom: '2px solid #7ED321',
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
+        background: '#0A0A0A',
         height: 62,
         transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
         transition: 'transform 0.3s ease',

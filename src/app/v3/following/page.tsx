@@ -661,8 +661,8 @@ export default function FollowingPage() {
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <div style={{
-        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
-        borderBottom: '2px solid #7ED321',
+        background: '#0A0A0A',
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         padding: '12px 16px',
         height: 62,
         display: 'flex',

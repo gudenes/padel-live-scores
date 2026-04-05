@@ -99,9 +99,9 @@ function ArticlePage({ articleId }: { articleId: string }) {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 14px',
-        borderBottom: '2px solid #7ED321',
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
+        background: '#0A0A0A',
         height: 62,
       }}>
         <a

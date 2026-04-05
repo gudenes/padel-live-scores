@@ -868,9 +868,9 @@ function V3ScoresPage() {
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '12px 16px',
         height: 62,
-        borderBottom: '2px solid #7ED321',
+        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: 'linear-gradient(180deg, #161616 0%, #111111 100%)',
+        background: '#0A0A0A',
       }}>
         <Link href="/v3" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
