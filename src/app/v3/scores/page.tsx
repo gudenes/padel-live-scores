@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, isWarmingUp } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../components/Spinner'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -244,6 +245,7 @@ function V3MatchRow({ match }: { match: Match }) {
           width: 3,
           background: genderColor,
         }} />
+        <FollowButton type="match" targetId={match.id} variant="star" size={14} style={{ position: 'absolute', top: 8, right: 8 }} />
 
         {/* Top row: round + court + status/time */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
