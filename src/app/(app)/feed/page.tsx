@@ -649,6 +649,43 @@ function V3FeedPage() {
   const { bookmarked: bookmarkedMatches } = useBookmarks()
   const bookmarkedMatchCount = bookmarkedMatches.size
   const [bookmarkedPlayerNames, setBookmarkedPlayerNames] = useState<Set<string>>(new Set())
+  const [livePlayerNames, setLivePlayerNames] = useState<Set<string>>(new Set())
+  const [recentPlayerNames, setRecentPlayerNames] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    async function fetchEventPlayers() {
+      const extractNames = (matches: any[]) => {
+        const names = new Set<string>()
+        for (const m of matches) {
+          for (const key of ['pair1_player1', 'pair1_player2', 'pair2_player1', 'pair2_player2']) {
+            const p = (m as any)[key]
+            if (p?.name) {
+              const parts = p.name.trim().split(/\s+/)
+              names.add(parts[parts.length - 1].toLowerCase())
+            }
+          }
+        }
+        return names
+      }
+
+      const [liveRes, recentRes] = await Promise.all([
+        supabase
+          .from('matches')
+          .select('pair1_player1:players!matches_pair1_player1_id_fkey(name), pair1_player2:players!matches_pair1_player2_id_fkey(name), pair2_player1:players!matches_pair2_player1_id_fkey(name), pair2_player2:players!matches_pair2_player2_id_fkey(name)')
+          .eq('status', 'live')
+          .limit(20),
+        supabase
+          .from('matches')
+          .select('pair1_player1:players!matches_pair1_player1_id_fkey(name), pair1_player2:players!matches_pair1_player2_id_fkey(name), pair2_player1:players!matches_pair2_player1_id_fkey(name), pair2_player2:players!matches_pair2_player2_id_fkey(name)')
+          .eq('status', 'finished')
+          .gte('finished_at', new Date(Date.now() - 6 * 3600000).toISOString())
+          .limit(20),
+      ])
+
+      setLivePlayerNames(extractNames(liveRes.data ?? []))
+      setRecentPlayerNames(extractNames(recentRes.data ?? []))
+    }
+    fetchEventPlayers()
+  }, [])
   useEffect(() => {
     if (bookmarkedMatchCount === 0) { setBookmarkedPlayerNames(new Set()); return }
     const ids = [...bookmarkedMatches].slice(0, 20)
@@ -726,7 +763,7 @@ function V3FeedPage() {
       return { type: 'news', id: a.id, title: a.title, source_name: a.source_name, published_at: a.published_at, click_count: a.click_count, source_weight: a.source_weight, quality_score: (a as any).quality_score, language: a.language, category: a.category }
     }
 
-    const ctx: ScoringContext = { prefs: feedPrefs, bookmarkedPlayerNames }
+    const ctx: ScoringContext = { prefs: feedPrefs, bookmarkedPlayerNames, livePlayerNames, recentPlayerNames }
     const clusters = buildScoredFeed(items, toScorable, ctx)
     // Apply diversity (no 3+ consecutive same type) and source capping (max 3 per channel/source)
     const diversified = diversifyFeed(clusters.map(c => c.primary))

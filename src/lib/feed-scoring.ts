@@ -107,6 +107,10 @@ export interface ScoringContext {
   prefs: FeedPrefs
   /** Lowercased player last names from bookmarked matches */
   bookmarkedPlayerNames?: Set<string>
+  /** Lowercased player last names from currently live matches */
+  livePlayerNames?: Set<string>
+  /** Lowercased player last names from recently finished matches */
+  recentPlayerNames?: Set<string>
 }
 
 export function scoreItem(item: ScoredItem, ctx: ScoringContext): number {
@@ -139,6 +143,15 @@ export function scoreItem(item: ScoredItem, ctx: ScoringContext): number {
   score *= staleYearPenalty(item.title)
   score *= categoryBoost(item.category, prefs.catClicks)
   score *= bookmarkBoost(item.title, ctx.bookmarkedPlayerNames ?? new Set())
+
+  // Event anchoring: boost content about live/recent match players
+  if (ctx.livePlayerNames?.size) {
+    const tokens = item.title.toLowerCase().split(/\s+/)
+    if (tokens.some(t => ctx.livePlayerNames!.has(t))) score *= 1.5
+  } else if (ctx.recentPlayerNames?.size) {
+    const tokens = item.title.toLowerCase().split(/\s+/)
+    if (tokens.some(t => ctx.recentPlayerNames!.has(t))) score *= 1.2
+  }
 
   return score
 }
