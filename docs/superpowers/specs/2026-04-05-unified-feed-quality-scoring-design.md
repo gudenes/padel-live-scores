@@ -263,7 +263,25 @@ Queries:
 
 ### Auth Pattern
 
-Same as ops dashboard — middleware checks for `CRON_SECRET` token via cookie or header. Access via `/admin/feed?token=<CRON_SECRET>`.
+**Email-based admin auth** — replace the `CRON_SECRET` token approach for admin dashboards. Use the existing Supabase auth (Google/magic link sign-in) and check that the signed-in user's email ends with `@padelnachos.com`.
+
+**Admin check logic:**
+```typescript
+const ADMIN_DOMAIN = 'padelnachos.com'
+
+function isAdmin(email: string | undefined): boolean {
+  return !!email && email.endsWith(`@${ADMIN_DOMAIN}`)
+}
+```
+
+**Middleware:** For `/admin/*` routes, check Supabase session:
+1. If not signed in → redirect to `/home` with error
+2. If signed in but email not `@padelnachos.com` → show 403 "Access denied"
+3. If signed in with `@padelnachos.com` email → allow access
+
+**API routes** (`/api/admin/*`): Check the Supabase auth token from the request, verify email domain. Return 401/403 if unauthorized.
+
+This also applies to the existing `/ops` dashboard — migrate from `CRON_SECRET` cookie to email-based auth. Keep `CRON_SECRET` for cron job endpoints only (those are server-to-server, no user session).
 
 ### Files
 
