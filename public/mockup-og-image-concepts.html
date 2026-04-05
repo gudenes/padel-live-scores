@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OG Image Concepts — WhatsApp Share Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #111; color: #fff; padding: 24px; }
+  h1 { text-align: center; font-size: 18px; color: #aaa; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #555; font-size: 12px; margin-bottom: 32px; }
+  .concepts { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; }
+  .concept-label { text-align: center; padding: 10px 0 4px; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #888; }
+  .concept-desc { text-align: center; font-size: 11px; color: #555; padding: 0 12px 16px; line-height: 1.4; max-width: 400px; }
+
+  /* WhatsApp bubble mockup */
+  .wa-bubble {
+    background: #005C4B;
+    border-radius: 8px;
+    max-width: 380px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .wa-bubble .og-image {
+    width: 100%;
+    aspect-ratio: 1200/630;
+    overflow: hidden;
+  }
+  .wa-bubble .wa-meta {
+    padding: 8px 12px;
+  }
+  .wa-bubble .wa-domain {
+    font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .wa-bubble .wa-title {
+    font-size: 14px; font-weight: 600; color: #fff; margin-top: 2px; line-height: 1.3;
+  }
+  .wa-bubble .wa-desc {
+    font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; line-height: 1.3;
+  }
+  .wa-bubble .wa-message {
+    padding: 6px 12px 8px;
+    font-size: 14px;
+    color: #fff;
+  }
+  .wa-bubble .wa-time {
+    text-align: right;
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    padding: 0 12px 6px;
+  }
+
+  /* ── Concept A: Score Card ── */
+  .og-scorecard {
+    background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px 32px;
+    height: 100%;
+    position: relative;
+  }
+  .og-scorecard .og-tournament {
+    font-size: 11px; color: #7ED321; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .og-scorecard .og-pair {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
+  }
+  .og-scorecard .og-flag {
+    width: 24px; height: 16px; border-radius: 2px; object-fit: cover;
+  }
+  .og-scorecard .og-name {
+    font-size: 16px; font-weight: 700; color: #fff; flex: 1;
+  }
+  .og-scorecard .og-winner {
+    color: #7ED321;
+  }
+  .og-scorecard .og-score {
+    display: flex; gap: 8px; font-size: 18px; font-weight: 800; font-family: monospace;
+  }
+  .og-scorecard .og-score span { min-width: 24px; text-align: center; }
+  .og-scorecard .og-score .won { color: #7ED321; }
+  .og-scorecard .og-score .lost { color: #6B7280; }
+  .og-scorecard .og-vs {
+    font-size: 10px; color: #6B7280; margin: 6px 0 6px 34px;
+  }
+  .og-scorecard .og-round {
+    font-size: 10px; color: #6B7280; margin-top: 14px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .og-scorecard .og-brand {
+    position: absolute; bottom: 16px; right: 24px;
+    font-size: 11px; font-weight: 800; color: rgba(126,211,33,0.4); letter-spacing: 1px;
+  }
+  .og-scorecard .og-live {
+    display: inline-block;
+    background: #FF4655; color: #fff; font-size: 10px; font-weight: 800;
+    padding: 2px 8px; border-radius: 3px; margin-left: 8px; letter-spacing: 0.5px;
+  }
+
+  /* ── Concept B: Brand + Match ── */
+  .og-branded {
+    background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 50%, #0A0A0A 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 24px;
+    position: relative;
+  }
+  .og-branded .og-logo {
+    height: 48px; margin-bottom: 20px;
+  }
+  .og-branded .og-matchup {
+    font-size: 15px; font-weight: 700; color: #fff; line-height: 1.6;
+  }
+  .og-branded .og-matchup .highlight { color: #7ED321; }
+  .og-branded .og-score-line {
+    font-size: 28px; font-weight: 900; color: #7ED321; margin-top: 12px;
+    font-family: monospace; letter-spacing: 4px;
+  }
+  .og-branded .og-meta {
+    font-size: 11px; color: #6B7280; margin-top: 12px; text-transform: uppercase; letter-spacing: 1px;
+  }
+
+  /* ── Concept C: Static ── */
+  .og-static {
+    background: linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 24px;
+  }
+  .og-static .og-logo { height: 64px; margin-bottom: 16px; }
+  .og-static .og-tagline {
+    font-size: 14px; color: #6B7280; font-weight: 600;
+  }
+
+  @media (max-width: 1200px) { .concepts { flex-direction: column; align-items: center; } }
+</style>
+</head>
+<body>
+  <h1>OG Image Concepts</h1>
+  <p class="subtitle">How the shared link will look when previewed in WhatsApp</p>
+
+  <div class="concepts">
+
+    <!-- ═══════ A: Score Card ═══════ -->
+    <div>
+      <div class="concept-label">A — Score Card</div>
+      <div class="concept-desc">Dynamic image per match. Shows players, flags, scores, tournament. Rich preview.</div>
+      <div class="wa-bubble">
+        <div class="og-image">
+          <div class="og-scorecard">
+            <div class="og-tournament">FIP Gold Almaty &bull; Semi-final</div>
+            <div class="og-pair">
+              <img class="og-flag" src="https://flagcdn.com/w40/es.png" alt="ES">
+              <span class="og-name og-winner">S. Bellver Fructuoso / M. Merino Saez</span>
+              <div class="og-score">
+                <span class="won">6</span><span class="won">6</span>
+              </div>
+            </div>
+            <div class="og-vs">vs</div>
+            <div class="og-pair">
+              <img class="og-flag" src="https://flagcdn.com/w40/it.png" alt="IT">
+              <span class="og-name">L. Vano / X. Clasca Vidiella</span>
+              <div class="og-score">
+                <span class="lost">3</span><span class="lost">4</span>
+              </div>
+            </div>
+            <div class="og-round">Final &bull; Center Court &bull; Apr 5, 2026</div>
+            <div class="og-brand">PADEL NACHOS</div>
+          </div>
+        </div>
+        <div class="wa-meta">
+          <div class="wa-domain">padelnachos.com</div>
+          <div class="wa-title">Bellver/Merino won 6-3, 6-4 — FIP Gold Almaty SF</div>
+        </div>
+        <div class="wa-message">Check this match! 🎾🔥</div>
+        <div class="wa-time">12:34</div>
+      </div>
+    </div>
+
+    <!-- ═══════ B: Brand + Match ═══════ -->
+    <div>
+      <div class="concept-label">B — Brand + Match Info</div>
+      <div class="concept-desc">PadelNachos logo prominent, match info as text. More branded, less dense.</div>
+      <div class="wa-bubble">
+        <div class="og-image">
+          <div class="og-branded">
+            <img class="og-logo" src="/padelnachos-logo-v2.png" alt="PadelNachos">
+            <div class="og-matchup">
+              <span class="highlight">Bellver / Merino</span><br>
+              vs<br>
+              Vano / Clasca
+            </div>
+            <div class="og-score-line">6-3 &nbsp; 6-4</div>
+            <div class="og-meta">FIP Gold Almaty &bull; Semi-final</div>
+          </div>
+        </div>
+        <div class="wa-meta">
+          <div class="wa-domain">padelnachos.com</div>
+          <div class="wa-title">Bellver/Merino won 6-3, 6-4 — FIP Gold Almaty SF</div>
+        </div>
+        <div class="wa-message">Check this match! 🎾🔥</div>
+        <div class="wa-time">12:34</div>
+      </div>
+    </div>
+
+    <!-- ═══════ C: Static ═══════ -->
+    <div>
+      <div class="concept-label">C — Static Brand</div>
+      <div class="concept-desc">Same image for all matches. Simplest — title/description do the work.</div>
+      <div class="wa-bubble">
+        <div class="og-image">
+          <div class="og-static">
+            <img class="og-logo" src="/padelnachos-logo-v2.png" alt="PadelNachos">
+            <div class="og-tagline">Live Padel Scores & Results</div>
+          </div>
+        </div>
+        <div class="wa-meta">
+          <div class="wa-domain">padelnachos.com</div>
+          <div class="wa-title">Bellver/Merino won 6-3, 6-4 — FIP Gold Almaty SF</div>
+          <div class="wa-desc">Follow every point live. Real-time scores, rankings, and highlights.</div>
+        </div>
+        <div class="wa-message">Check this match! 🎾🔥</div>
+        <div class="wa-time">12:34</div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
