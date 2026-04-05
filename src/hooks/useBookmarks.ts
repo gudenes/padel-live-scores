@@ -3,11 +3,11 @@
 // @deprecated — thin backwards-compatible wrapper around useFollowing.
 // Prefer useFollowing directly for new code.
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useFollowing } from './useFollowing'
 
 export function useBookmarks() {
-  const { isFollowing, toggle: followingToggle, getFollowed, loaded } = useFollowing()
+  const { isFollowing, toggle: followingToggle, getFollowed, counts, loaded } = useFollowing()
 
   const isBookmarked = useCallback(
     (matchId: string) => isFollowing('match', matchId),
@@ -19,7 +19,9 @@ export function useBookmarks() {
     [followingToggle],
   )
 
-  const bookmarked = new Set(getFollowed('match'))
+  const matchCount = counts.match
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const bookmarked = useMemo(() => new Set(getFollowed('match')), [matchCount])
 
   return { isBookmarked, toggle, bookmarked, loaded }
 }
