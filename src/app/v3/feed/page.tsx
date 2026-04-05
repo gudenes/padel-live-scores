@@ -10,6 +10,7 @@ import { useFeedPreferences } from '@/hooks/useFeedPreferences'
 import { buildScoredFeed, type FeedCluster, type ScoredHighlight, type ScoredArticle, type ScoringContext } from '@/lib/feed-scoring'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import Link from 'next/link'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -365,6 +366,7 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
             </div>
           )}
           <span style={{ fontSize: 11, fontWeight: 700, color: ORANGE }}>{item.source_name}</span>
+          <FollowButton type="news_source" targetId={item.source_name} variant="heart" size={12} />
           {item.language && (
             <span style={{
               fontSize: 8, fontWeight: 900, color: MUTED,

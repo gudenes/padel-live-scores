@@ -12,6 +12,7 @@ import BottomNav from '@/app/v3/components/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
 import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
+import FollowButton from '@/components/FollowButton'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
@@ -582,6 +583,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           )}
           <span style={{ flex: 1 }} />
           {matchDate && !isScheduled && <span style={{ fontSize: 10, color: '#666' }}>{matchDate}</span>}
+          <FollowButton type="match" targetId={match.id} variant="star" size={20} />
         </div>
 
         {/* Scheduled: big time display */}
@@ -805,6 +807,7 @@ function PlayerNameLink({ player, dim, muted, bold, router, style }: {
     >
       {player?.country && <FlagImg country={player.country} size={14} />}
       {toShortName(player?.name ?? 'TBD')}
+      {player?.id && <FollowButton type="player" targetId={player.id} variant="heart" size={14} />}
     </div>
   )
 }
