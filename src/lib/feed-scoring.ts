@@ -26,6 +26,7 @@ export interface ScoredArticle {
   published_at: string
   click_count: number
   source_weight: number
+  quality_score?: number | null
   language: string | null
   category: string | null
 }
@@ -127,7 +128,10 @@ export function scoreItem(item: ScoredItem, ctx: ScoringContext): number {
       else if (engRate > 0.02) score *= 1.1
     }
   } else {
-    score = baseScore(item.published_at, item.click_count, item.source_weight)
+    const weight = (item as ScoredArticle).quality_score != null
+      ? (item as ScoredArticle).quality_score!
+      : (item as ScoredArticle).source_weight
+    score = baseScore(item.published_at, item.click_count * 10, weight)
     score *= languageBoost(item.language, prefs.langClicks)
   }
 
@@ -239,4 +243,58 @@ export function buildScoredFeed<T extends { type: string; data: any }>(
   }
 
   return clusters
+}
+
+/**
+ * Enforce type diversity in a sorted feed.
+ * When `maxConsecutive` items in a row share the same type, the next item of
+ * the other type is swapped forward to break the streak.
+ */
+export function diversifyFeed<T extends { type: string }>(items: T[], maxConsecutive = 2): T[] {
+  const result = [...items]
+  for (let i = maxConsecutive; i < result.length; i++) {
+    // Check if the last maxConsecutive + 1 items are all the same type
+    const currentType = result[i].type
+    let allSame = true
+    for (let k = 1; k <= maxConsecutive; k++) {
+      if (result[i - k].type !== currentType) {
+        allSame = false
+        break
+      }
+    }
+    if (!allSame) continue
+
+    // Find the next item of a different type after i
+    let swapIdx = -1
+    for (let j = i + 1; j < result.length; j++) {
+      if (result[j].type !== currentType) {
+        swapIdx = j
+        break
+      }
+    }
+    if (swapIdx !== -1) {
+      // Move the different-type item to just after i
+      const tmp = result[swapIdx]
+      result.splice(swapIdx, 1)
+      result.splice(i + 1, 0, tmp)
+    }
+  }
+  return result
+}
+
+/**
+ * Cap the number of items from any single source.
+ * Videos are keyed by `channel_name`; articles by `source_name`.
+ * Items beyond the `limit` for a given source are dropped.
+ */
+export function capSources<T extends { type: string; data: any }>(items: T[], limit = 3): T[] {
+  const counts: Record<string, number> = {}
+  return items.filter(item => {
+    const sourceKey =
+      item.type === 'video'
+        ? (item.data as { channel_name?: string }).channel_name ?? '__unknown__'
+        : (item.data as { source_name?: string }).source_name ?? '__unknown__'
+    counts[sourceKey] = (counts[sourceKey] ?? 0) + 1
+    return counts[sourceKey] <= limit
+  })
 }
