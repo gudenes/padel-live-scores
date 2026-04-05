@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -200,13 +201,16 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
         </div>
       </div>
 
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>
-          {pts != null ? pts : '--'}
+      <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>
+            {pts != null ? pts : '--'}
+          </div>
+          <div style={{ fontSize: 9, color: MUTED, marginTop: 2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            PTS
+          </div>
         </div>
-        <div style={{ fontSize: 9, color: MUTED, marginTop: 2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          PTS
-        </div>
+        <FollowButton type="player" targetId={player.id} variant="heart" size={14} style={{ marginLeft: 8 }} />
       </div>
     </div>
   )

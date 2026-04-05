@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
 import BottomNav from '@/app/v3/components/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -211,6 +212,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
               </span>
             )}
           </div>
+          <FollowButton type="player" targetId={player.id} variant="follow" style={{ marginTop: 8 }} />
         </div>
       </div>
 
