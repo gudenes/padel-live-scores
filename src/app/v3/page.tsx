@@ -484,6 +484,8 @@ function TournamentSpotlight({ tournament, matchCount }: { tournament: Tournamen
           : 'radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%)',
       }} />
 
+      <FollowButton type="tournament" targetId={tournament.id} variant="star" size={14} style={{ position: 'absolute', top: 12, right: 12 }} />
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
         <div style={{ flex: 1 }}>
           <h3 style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 8 }}>

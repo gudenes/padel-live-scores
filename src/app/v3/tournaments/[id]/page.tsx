@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, isWarmingUp, toShortName } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../../components/Spinner'
+import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -522,12 +523,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               ) : null}
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 15, fontWeight: 800, color: '#fff',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  letterSpacing: 0.3,
-                }}>
-                  {titleCase(activeTournamentObj.name)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    fontSize: 15, fontWeight: 800, color: '#fff',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    letterSpacing: 0.3,
+                    flex: 1, minWidth: 0,
+                  }}>
+                    {titleCase(activeTournamentObj.name)}
+                  </div>
+                  <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
                 </div>
 
                 {activeTournamentObj.venue && (
