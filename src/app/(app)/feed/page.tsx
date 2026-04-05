@@ -3,11 +3,10 @@
 // V3 Feed — videos + news with chunky brand styling, no border-radius.
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useHiddenFeedItems } from '@/hooks/useHiddenFeedItems'
 import { useFeedPreferences } from '@/hooks/useFeedPreferences'
-import { buildScoredFeed, type FeedCluster, type ScoredHighlight, type ScoredArticle, type ScoringContext } from '@/lib/feed-scoring'
+import { buildScoredFeed, diversifyFeed, capSources, type FeedCluster, type ScoredHighlight, type ScoredArticle, type ScoringContext } from '@/lib/feed-scoring'
 import { useBookmarks } from '@/hooks/useBookmarks'
 import Link from 'next/link'
 import FollowButton from '@/components/FollowButton'
@@ -139,8 +138,6 @@ function getBookmarkedArticles(): Set<string> {
 function writeBookmarkedArticles(ids: Set<string>) {
   try { localStorage.setItem(BOOKMARKED_ARTICLES_KEY, JSON.stringify([...ids])) } catch {}
 }
-
-type ContentFilter = 'videos' | 'news'
 
 function getFaviconUrl(item: NewsItem): string | null {
   if (item.favicon_url) return item.favicon_url
@@ -612,17 +609,11 @@ export default function V3FeedPageWrapper() {
 }
 
 function V3FeedPage() {
-  const searchParams = useSearchParams()
-  const initialFilter = (['videos', 'news'] as const).includes(searchParams.get('filter') as any)
-    ? (searchParams.get('filter') as ContentFilter)
-    : 'videos'
-
   const [playing, setPlayingRaw] = useState<Highlight | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
-  const [filter, setFilter] = useState<ContentFilter>(initialFilter)
   const { hide: hideFeedItem, isHidden } = useHiddenFeedItems()
   const { prefs: feedPrefs, trackArticleClick: trackArticlePref, trackVideoPlay } = useFeedPreferences()
   const [visitedArticles, setVisitedArticles] = useState<Set<string>>(new Set())
@@ -693,7 +684,7 @@ function V3FeedPage() {
           .limit(50),
         supabase
           .from('articles')
-          .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url')
+          .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url, quality_score')
           .eq('status', 'active')
           .order('published_at', { ascending: false })
           .limit(50),
@@ -723,12 +714,8 @@ function V3FeedPage() {
   // Build scored feed
   const feedClusters: FeedCluster<FeedItem>[] = (() => {
     const items: FeedItem[] = []
-    if (filter === 'videos') {
-      for (const h of availableHighlights) items.push({ type: 'video', data: h })
-    }
-    if (filter === 'news') {
-      for (const a of visibleNews) items.push({ type: 'news', data: a })
-    }
+    for (const h of availableHighlights) items.push({ type: 'video', data: h })
+    for (const a of visibleNews) items.push({ type: 'news', data: a })
 
     const toScorable = (item: FeedItem): ScoredHighlight | ScoredArticle => {
       if (item.type === 'video') {
@@ -736,11 +723,17 @@ function V3FeedPage() {
         return { type: 'video', id: h.id, title: h.title, channel_name: h.channel_name, published_at: h.published_at, view_count: h.view_count, like_count: h.like_count, channel_quality_score: h.channel_quality_score, category: h.category }
       }
       const a = item.data as NewsItem
-      return { type: 'news', id: a.id, title: a.title, source_name: a.source_name, published_at: a.published_at, click_count: a.click_count, source_weight: a.source_weight, language: a.language, category: a.category }
+      return { type: 'news', id: a.id, title: a.title, source_name: a.source_name, published_at: a.published_at, click_count: a.click_count, source_weight: a.source_weight, quality_score: (a as any).quality_score, language: a.language, category: a.category }
     }
 
     const ctx: ScoringContext = { prefs: feedPrefs, bookmarkedPlayerNames }
-    return buildScoredFeed(items, toScorable, ctx)
+    const clusters = buildScoredFeed(items, toScorable, ctx)
+    // Apply diversity (no 3+ consecutive same type) and source capping (max 3 per channel/source)
+    const diversified = diversifyFeed(clusters.map(c => c.primary))
+    const capped = capSources(diversified)
+    // Re-attach collapsed arrays for "+N similar" labels
+    const primaryToCluster = new Map(clusters.map(c => [c.primary, c]))
+    return capped.map(primary => primaryToCluster.get(primary) ?? { primary, score: 0, collapsed: [] })
   })()
 
   const feed = feedClusters.map(c => c.primary)
@@ -777,31 +770,6 @@ function V3FeedPage() {
             Feed
           </div>
         </div>
-      </div>
-
-      {/* Category tabs */}
-      <div style={{ padding: '14px 16px 0', display: 'flex', gap: 10 }}>
-        {(['videos', 'news'] as ContentFilter[]).map(tab => {
-          const active = filter === tab
-          return (
-            <button
-              key={tab}
-              onClick={() => setFilter(tab)}
-              style={{
-                padding: '8px 24px',
-                clipPath: CHUNKY.button,
-                border: 'none',
-                fontSize: 13, fontWeight: 800, fontFamily: 'inherit',
-                cursor: 'pointer', textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                background: active ? GREEN : 'rgba(255,255,255,0.06)',
-                color: active ? '#000' : MUTED,
-              }}
-            >
-              {tab === 'videos' ? 'Videos' : 'News'}
-            </button>
-          )
-        })}
       </div>
 
       {/* Feed content */}
