@@ -91,6 +91,12 @@ export interface MatchscorerIds {
   code: string // e.g. "FIP-2025-3301"
 }
 
+export interface DrawSize {
+  mainDraw: number | null      // e.g. 32
+  qualifyingDraw: number | null // e.g. 16
+  prizeMoney: number | null     // e.g. 10000 (in euros)
+}
+
 export interface ParsedMatch {
   round: string
   court: string | null
@@ -228,6 +234,37 @@ export function parseMatchscorerIds(html: string): MatchscorerIds | null {
     totalDays,
     code: `FIP-${year}-${id}`,
   }
+}
+
+/**
+ * Extract draw sizes and prize money from event page overview.
+ * Looks for patterns like:
+ *   "Main draw: 32 (26 DA + 4 Qualy + 2 WC)"
+ *   "Qualification draw: 16 (14 DA + 2 WC)"
+ *   "10000€" or "€10,000"
+ */
+export function parseDrawSizes(html: string): DrawSize {
+  // Main draw: look for "Main draw" followed by a number
+  const mdMatch = /[Mm]ain\s*[Dd]raw[:\s]*(\d+)/i.exec(html)
+  const mainDraw = mdMatch ? parseInt(mdMatch[1], 10) : null
+
+  // Qualifying draw: various spellings
+  const qdMatch = /[Qq]ualif(?:ication|ying)\s*[Dd]raw[:\s]*(\d+)/i.exec(html)
+  const qualifyingDraw = qdMatch ? parseInt(qdMatch[1], 10) : null
+
+  // Prize money: look for number followed by € or € followed by number
+  // Patterns: "10000€", "€10,000", "€ 10.000", "10,000 €"
+  let prizeMoney: number | null = null
+  const prizeMatch = /(?:€\s*|Prize\s*Money[:\s]*)(\d[\d.,]*)\s*€?/i.exec(html)
+    || /(\d[\d.,]*)\s*€/.exec(html)
+  if (prizeMatch) {
+    // Remove thousand separators (both . and ,) and parse
+    const cleaned = prizeMatch[1].replace(/[.,]/g, '')
+    const val = parseInt(cleaned, 10)
+    if (val > 0 && val < 10_000_000) prizeMoney = val
+  }
+
+  return { mainDraw, qualifyingDraw, prizeMoney }
 }
 
 // ---------------------------------------------------------------------------
@@ -545,7 +582,7 @@ export async function fetchFipEvents(level?: string): Promise<FipTournament[]> {
  */
 export async function fetchEventPageData(
   slug: string
-): Promise<{ dates: EventDates; matchscorer: MatchscorerIds | null }> {
+): Promise<{ dates: EventDates; matchscorer: MatchscorerIds | null; drawSize: DrawSize }> {
   const url = `${FIP_WP_BASE}/events/${slug}/`
   const resp = await fetch(url, {
     headers: { 'User-Agent': 'PadelNachos/1.0' },
@@ -557,6 +594,7 @@ export async function fetchEventPageData(
   return {
     dates: parseEventDates(html),
     matchscorer: parseMatchscorerIds(html),
+    drawSize: parseDrawSizes(html),
   }
 }
 

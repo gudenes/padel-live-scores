@@ -40,7 +40,7 @@ export async function GET(request: Request) {
           // Check if tournament already exists with full data
           const { data: existing } = await supabase
             .from('tournaments')
-            .select('id, starts_at, matchscorer_url, logo_url')
+            .select('id, starts_at, matchscorer_url, logo_url, draw_size_md')
             .eq('fip_slug', event.slug)
             .single()
 
@@ -58,11 +58,12 @@ export async function GET(request: Request) {
             updated_at: new Date().toISOString(),
           }
 
-          // Fetch event page for dates + matchscorer ID (only if missing)
+          // Fetch event page for dates + matchscorer ID + draw sizes (only if missing)
           const needsDates = !existing?.starts_at
           const needsMatchscorer = !existing?.matchscorer_url
+          const needsDrawSize = !existing?.draw_size_md
 
-          if (needsDates || needsMatchscorer) {
+          if (needsDates || needsMatchscorer || needsDrawSize) {
             const pageData = await fetchEventPageData(event.slug)
 
             if (pageData.dates.startsAt) {
@@ -73,6 +74,15 @@ export async function GET(request: Request) {
             if (pageData.matchscorer) {
               tournamentData.matchscorer_url = pageData.matchscorer.code
               console.log(`[FIP Tournaments] Matchscorer code for ${event.name}: ${pageData.matchscorer.code}`)
+            }
+
+            if (pageData.drawSize.mainDraw) {
+              tournamentData.draw_size_md = pageData.drawSize.mainDraw
+              tournamentData.draw_size_qd = pageData.drawSize.qualifyingDraw
+              console.log(`[FIP Tournaments] Draw sizes for ${event.name}: MD=${pageData.drawSize.mainDraw} QD=${pageData.drawSize.qualifyingDraw}`)
+            }
+            if (pageData.drawSize.prizeMoney) {
+              tournamentData.prize_money_fip = pageData.drawSize.prizeMoney
             }
 
             enriched++
