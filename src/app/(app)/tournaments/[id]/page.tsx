@@ -11,6 +11,7 @@ import Link from 'next/link'
 import Spinner from '../../../components/Spinner'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
+import BracketView from '@/components/BracketView'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -130,8 +131,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>(
-    paramTab === 'recap' ? 'recap' : paramTab === 'matches' ? 'matches' : 'overview'
+  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'draw' | 'recap'>(
+    paramTab === 'recap' ? 'recap' : paramTab === 'draw' ? 'draw' : paramTab === 'matches' ? 'matches' : 'overview'
   )
   const stageStripRef = useRef<HTMLDivElement>(null)
 
@@ -180,7 +181,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchDrawEntries = useCallback(async () => {
     const { data } = await supabase
       .from('tournament_draws')
-      .select('draw_position, seed, marker, category, player1_name, player1_country, player1_id, player2_name, player2_country, player2_id, team_points')
+      .select('draw_position, seed, marker, category, round, player1_name, player1_country, player1_id, player2_name, player2_country, player2_id, team_points')
       .eq('tournament_id', tournamentId)
       .order('draw_position', { ascending: true })
     if (data) setDrawEntries(data)
@@ -588,10 +589,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
           {/* ROW 3: Page tabs */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-            {(['overview', 'matches', 'recap'] as const).map(tab => {
+            {(['overview', 'matches', 'draw', 'recap'] as const).map(tab => {
               const active = pageTab === tab
               const isFinished = activeTournamentObj?.status === 'completed' || activeTournamentObj?.status === 'finished'
               if (tab === 'recap' && !isFinished) return null
+              const hasDraws = drawEntries.filter((d: any) => d.category === genderFilter).length > 0
+              if (tab === 'draw' && !hasDraws) return null
               return (
                 <button
                   key={tab}
@@ -769,6 +772,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             availableRounds={availableRounds}
             roundDates={roundDates}
             drawEntries={drawEntries}
+          />
+        )}
+
+        {/* ── Draw Tab ── */}
+        {pageTab === 'draw' && (
+          <BracketView
+            drawEntries={drawEntries}
+            matches={allMatches}
+            genderFilter={genderFilter}
           />
         )}
 
