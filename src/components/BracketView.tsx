@@ -423,7 +423,7 @@ function TeamRow({ team, isWinner, isLoser }: { team: TeamSlot; isWinner: boolea
       {/* Player 2 */}
       {team.player2Name && (
         <div style={{
-          fontSize: 8, fontWeight: 500, color: 'rgba(255,255,255,0.6)',
+          fontSize: 8, fontWeight: 500, color: '#fff',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           lineHeight: 1.2,
         }}>
