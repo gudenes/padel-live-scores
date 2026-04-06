@@ -82,15 +82,27 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
     // Sort entries by draw_position
     const sorted = [...entries].sort((a, b) => a.draw_position - b.draw_position)
 
-    // Build match lookup from actual matches
+    // Build match lookups from actual matches
     const genderMatches = matches.filter((m: any) => m.category === genderFilter)
-    const matchMap = new Map<string, any>()
+
+    // Primary: match by sorted player IDs
+    const matchByIds = new Map<string, any>()
+    // Secondary: match by player name pairs (handles cases where IDs don't align)
+    const matchByNames = new Map<string, any>()
+
     for (const m of genderMatches) {
       const ids = [
         (m as any).pair1_player1_id, (m as any).pair1_player2_id,
         (m as any).pair2_player1_id, (m as any).pair2_player2_id,
       ].filter(Boolean).sort().join(',')
-      if (ids) matchMap.set(ids, m)
+      if (ids) matchByIds.set(ids, m)
+
+      // Name-based key: first player last name from each pair
+      const n1 = ((m as any).pair1_player1?.name ?? '').split(' ').pop()?.toLowerCase()
+      const n2 = ((m as any).pair2_player1?.name ?? '').split(' ').pop()?.toLowerCase()
+      if (n1 && n2) {
+        matchByNames.set([n1, n2].sort().join('/'), m)
+      }
     }
 
     // Build round-by-round bracket
@@ -124,8 +136,12 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
       let matchId: string | null = null
 
       if (a && b) {
+        // Try ID-based match first, then name-based fallback
         const ids = [a.player1_id, a.player2_id, b.player1_id, b.player2_id].filter(Boolean).sort().join(',')
-        const match = matchMap.get(ids)
+        const n1 = a.player1_name.split(' ').pop()?.toLowerCase() ?? ''
+        const n2 = b.player1_name.split(' ').pop()?.toLowerCase() ?? ''
+        const nameKey = [n1, n2].sort().join('/')
+        const match = (ids ? matchByIds.get(ids) : null) ?? matchByNames.get(nameKey)
         if (match) {
           matchId = match.id
           isLive = match.status === 'live'
@@ -241,25 +257,42 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
 
                       {/* Connector lines to next round */}
                       {colIdx < rounds.length - 1 && (() => {
-                        const nextMatchH = baseMatchH * multiplier
                         const isTopMatch = matchIdx % 2 === 0
-                        const verticalExtent = nextMatchH / 4
+                        // Distance between paired matches in the CURRENT round
+                        const pairSpacing = baseMatchH * multiplier
+                        const vertLen = pairSpacing / 2
 
+                        // Line from match midpoint → right to halfway point
+                        // Then vertical line connecting the two paired matches
+                        // Then horizontal from midpoint of vertical → into next round card
                         return (
                           <>
+                            {/* Horizontal: match → midpoint */}
                             <div style={{
-                              position: 'absolute', right: -ROUND_GAP / 2, top: midY - 0.5,
-                              width: ROUND_GAP / 2, height: 1, background: CONNECTOR,
+                              position: 'absolute',
+                              right: -ROUND_GAP,
+                              top: midY,
+                              width: ROUND_GAP / 2,
+                              height: 1,
+                              background: CONNECTOR,
                             }} />
+                            {/* Vertical: connects the two paired matches */}
                             <div style={{
-                              position: 'absolute', right: -ROUND_GAP / 2 - 0.5,
-                              top: isTopMatch ? midY : midY - verticalExtent,
-                              width: 1, height: verticalExtent, background: CONNECTOR,
+                              position: 'absolute',
+                              right: -ROUND_GAP / 2 - 1,
+                              top: isTopMatch ? midY : midY - vertLen + 1,
+                              width: 1,
+                              height: vertLen,
+                              background: CONNECTOR,
                             }} />
+                            {/* Horizontal: midpoint of vertical → next round card */}
                             <div style={{
-                              position: 'absolute', right: -ROUND_GAP,
-                              top: isTopMatch ? midY + verticalExtent / 2 : midY - verticalExtent / 2,
-                              width: ROUND_GAP / 2, height: 1, background: CONNECTOR,
+                              position: 'absolute',
+                              right: -ROUND_GAP / 2 - 1,
+                              top: isTopMatch ? midY + vertLen / 2 : midY - vertLen / 2,
+                              width: ROUND_GAP / 2 + 1,
+                              height: 1,
+                              background: CONNECTOR,
                             }} />
                           </>
                         )
