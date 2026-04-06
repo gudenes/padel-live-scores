@@ -12,7 +12,7 @@ const RELAY_URL = process.env.RELAY_URL
 const RELAY_SECRET = process.env.RELAY_SECRET
 
 export async function GET() {
-  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats] = await Promise.all([
+  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats, tournamentReadiness] = await Promise.all([
     fetchHealth(),
     fetchFreshness(),
     fetchQuality(),
@@ -20,6 +20,7 @@ export async function GET() {
     fetchRelayStatus(),
     fetchOngoing(),
     fetchCronStats(),
+    fetchTournamentReadiness(),
   ])
 
   return Response.json({
@@ -31,6 +32,7 @@ export async function GET() {
     cron_stats: cronStats,
     usage: null, // Vercel Analytics API — deferred to v2
     recent_events: recentEvents,
+    tournamentReadiness,
     fetched_at: new Date().toISOString(),
   })
 }
@@ -279,4 +281,93 @@ async function fetchCronStats() {
   }
 
   return stats
+}
+
+// ── Tournament Readiness: upcoming FIP tournaments ────────────
+
+async function fetchTournamentReadiness() {
+  const now = new Date()
+  const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const to = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  // Fetch FIP tournaments in the window
+  const { data: tournaments } = await supabase
+    .from('tournaments')
+    .select('id, name, level, country, starts_at, ends_at, entry_list_status')
+    .eq('source', 'fip')
+    .gte('starts_at', from)
+    .lte('starts_at', to)
+    .order('starts_at', { ascending: true })
+
+  if (!tournaments || tournaments.length === 0) return []
+
+  const tournamentIds = tournaments.map(t => t.id)
+
+  // Fetch entry-list-seed events (status ok) for these tournaments
+  const { data: seedEvents } = await supabase
+    .from('ops_events')
+    .select('meta')
+    .eq('source', 'entry-list-seed')
+    .eq('status', 'ok')
+
+  // Build a map: tournament_id -> set of seeded categories
+  const seededMap = new Map<string, Set<string>>()
+  for (const evt of seedEvents ?? []) {
+    const m = evt.meta as Record<string, any> | null
+    if (!m?.tournament_id) continue
+    const tid = m.tournament_id as string
+    if (!tournamentIds.includes(tid)) continue
+    const cats = seededMap.get(tid) ?? new Set()
+    if (m.category) cats.add(m.category)
+    seededMap.set(tid, cats)
+  }
+
+  // Fetch tournament_draws to find which categories have draws
+  const { data: draws } = await supabase
+    .from('tournament_draws')
+    .select('tournament_id, category')
+    .in('tournament_id', tournamentIds)
+
+  const drawMap = new Map<string, Set<string>>()
+  for (const d of draws ?? []) {
+    const cats = drawMap.get(d.tournament_id) ?? new Set()
+    if (d.category) cats.add(d.category)
+    drawMap.set(d.tournament_id, cats)
+  }
+
+  return tournaments.map(t => {
+    const daysUntilStart = Math.round((new Date(t.starts_at).getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+    const seededCats = seededMap.get(t.id) ?? new Set()
+    const drawCats = drawMap.get(t.id) ?? new Set()
+
+    const entryListMen = seededCats.has('men')
+    const entryListWomen = seededCats.has('women')
+    const drawMen = drawCats.has('men')
+    const drawWomen = drawCats.has('women')
+
+    const blockers: string[] = []
+    if (!entryListMen) blockers.push('EL Men')
+    if (!entryListWomen) blockers.push('EL Women')
+    if (!drawMen) blockers.push('Draw Men')
+    if (!drawWomen) blockers.push('Draw Women')
+
+    const ready = blockers.length === 0
+    const urgent = !ready && daysUntilStart <= 3
+
+    return {
+      id: t.id,
+      name: t.name,
+      level: t.level,
+      country: t.country,
+      startsAt: t.starts_at,
+      daysUntilStart,
+      entryListStatus: t.entry_list_status,
+      entryListMen,
+      entryListWomen,
+      drawMen,
+      drawWomen,
+      blockers,
+      urgent,
+    }
+  })
 }
