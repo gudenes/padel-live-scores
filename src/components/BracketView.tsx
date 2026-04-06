@@ -255,45 +255,46 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
                     >
                       <MatchCard match={match} />
 
-                      {/* Connector lines to next round */}
+                      {/* Connector: horizontal line from card right edge to the merge point */}
                       {colIdx < rounds.length - 1 && (() => {
                         const isTopMatch = matchIdx % 2 === 0
-                        // Distance between paired matches in the CURRENT round
                         const pairSpacing = baseMatchH * multiplier
                         const vertLen = pairSpacing / 2
+                        const half = ROUND_GAP / 2
 
-                        // Line from match midpoint → right to halfway point
-                        // Then vertical line connecting the two paired matches
-                        // Then horizontal from midpoint of vertical → into next round card
                         return (
                           <>
-                            {/* Horizontal: match → midpoint */}
+                            {/* 1. Horizontal stub: right edge of card → merge column */}
                             <div style={{
                               position: 'absolute',
-                              right: -ROUND_GAP,
+                              left: SLOT_W,
                               top: midY,
-                              width: ROUND_GAP / 2,
+                              width: half,
                               height: 1,
                               background: CONNECTOR,
                             }} />
-                            {/* Vertical: connects the two paired matches */}
+
+                            {/* 2. Vertical: joins the two paired matches at the merge column */}
                             <div style={{
                               position: 'absolute',
-                              right: -ROUND_GAP / 2 - 1,
-                              top: isTopMatch ? midY : midY - vertLen + 1,
+                              left: SLOT_W + half,
+                              top: isTopMatch ? midY : midY - vertLen,
                               width: 1,
-                              height: vertLen,
+                              height: vertLen + 1,
                               background: CONNECTOR,
                             }} />
-                            {/* Horizontal: midpoint of vertical → next round card */}
-                            <div style={{
-                              position: 'absolute',
-                              right: -ROUND_GAP / 2 - 1,
-                              top: isTopMatch ? midY + vertLen / 2 : midY - vertLen / 2,
-                              width: ROUND_GAP / 2 + 1,
-                              height: 1,
-                              background: CONNECTOR,
-                            }} />
+
+                            {/* 3. Horizontal: from merge midpoint → into next round card */}
+                            {isTopMatch && (
+                              <div style={{
+                                position: 'absolute',
+                                left: SLOT_W + half,
+                                top: midY + vertLen / 2,
+                                width: half,
+                                height: 1,
+                                background: CONNECTOR,
+                              }} />
+                            )}
                           </>
                         )
                       })()}
