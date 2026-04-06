@@ -13,7 +13,7 @@ export async function extractPdfText(data: Uint8Array): Promise<string> {
   if (!apiKey) throw new Error('MISTRAL_API_KEY env var is not set')
 
   // Step 1: Upload the file to Mistral
-  const blob = new Blob([data], { type: 'application/pdf' })
+  const blob = new Blob([data as BlobPart], { type: 'application/pdf' })
   const formData = new FormData()
   formData.append('file', blob, 'document.pdf')
   formData.append('purpose', 'ocr')
