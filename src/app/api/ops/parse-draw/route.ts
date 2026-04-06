@@ -36,9 +36,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { extractPdfText } = await import('@/lib/pdf-extract')
+    // Polyfill DOMMatrix for serverless environments (Vercel)
+    if (typeof globalThis.DOMMatrix === 'undefined') {
+      (globalThis as any).DOMMatrix = class DOMMatrix {
+        constructor() { return Object.create(DOMMatrix.prototype) }
+        static fromMatrix() { return new DOMMatrix() }
+      }
+    }
+
+    const { PDFParse } = await import('pdf-parse')
     const buffer = await file.arrayBuffer()
-    const text = await extractPdfText(new Uint8Array(buffer))
+    const uint8 = new Uint8Array(buffer)
+    const doc = new PDFParse({ data: uint8 })
+
+    const result = await doc.getText()
+    const text = result?.text ?? ''
 
     if (!text.trim()) {
       return Response.json({
