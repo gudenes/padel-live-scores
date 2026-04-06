@@ -25,9 +25,8 @@ const ROUND_LABELS: Record<string, string> = {
 
 // ── Slot dimensions (px) ────────────────────────────────────────
 const SLOT_W = 140
-const SLOT_H = 52
-const MATCH_GAP = 6  // gap between two teams in a match
-const ROUND_GAP = 24 // horizontal gap between round columns (room for connector lines)
+const MATCH_CARD_H = 56 // single card for both teams
+const ROUND_GAP = 24    // horizontal gap between round columns
 
 interface DrawEntry {
   draw_position: number
@@ -182,9 +181,8 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
   const firstRoundMatchCount = roundMatches.get(rounds[0])?.length ?? 0
 
   // Calculate total bracket height based on first round
-  const matchHeight = SLOT_H * 2 + MATCH_GAP
   const betweenMatches = 8
-  const totalHeight = firstRoundMatchCount * matchHeight + (firstRoundMatchCount - 1) * betweenMatches + 40
+  const totalHeight = firstRoundMatchCount * (MATCH_CARD_H + betweenMatches) + 40
 
   return (
     <div style={{ padding: '8px 0' }}>
@@ -221,82 +219,46 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
 
                 {/* Matches */}
                 {matchesInRound.map((match, matchIdx) => {
-                  // Vertical position: center this match between the two matches it feeds from
-                  const baseMatchH = matchHeight + betweenMatches
+                  const baseMatchH = MATCH_CARD_H + betweenMatches
                   const topOffset = colIdx === 0
                     ? matchIdx * baseMatchH
                     : matchIdx * baseMatchH * multiplier + (multiplier - 1) * baseMatchH / 2
+
+                  const midY = MATCH_CARD_H / 2
 
                   return (
                     <div
                       key={matchIdx}
                       style={{
                         position: 'absolute',
-                        top: topOffset + 24, // 24px for header
+                        top: topOffset + 24,
                         left: 0,
                         width: SLOT_W,
                       }}
                     >
-                      {/* Team 1 */}
-                      <TeamCard
-                        team={match.team1}
-                        isWinner={match.winnerTeam === 1}
-                        isLoser={match.winnerTeam === 2}
-                        isLive={match.isLive}
-                        score={match.score}
-                        showScore
-                      />
-
-                      {/* Connector between teams */}
-                      <div style={{
-                        height: MATCH_GAP, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <div style={{ width: '80%', height: 1, background: CONNECTOR }} />
-                      </div>
-
-                      {/* Team 2 */}
-                      <TeamCard
-                        team={match.team2}
-                        isWinner={match.winnerTeam === 2}
-                        isLoser={match.winnerTeam === 1}
-                        isLive={match.isLive}
-                      />
+                      <MatchCard match={match} />
 
                       {/* Connector lines to next round */}
                       {colIdx < rounds.length - 1 && (() => {
-                        const midY = SLOT_H + MATCH_GAP / 2
-                        const nextMatchH = (matchHeight + betweenMatches) * multiplier
+                        const nextMatchH = baseMatchH * multiplier
                         const isTopMatch = matchIdx % 2 === 0
                         const verticalExtent = nextMatchH / 4
 
                         return (
                           <>
-                            {/* Horizontal line from match center to right edge */}
                             <div style={{
-                              position: 'absolute',
-                              right: -ROUND_GAP / 2,
-                              top: midY - 0.5,
-                              width: ROUND_GAP / 2,
-                              height: 1,
-                              background: CONNECTOR,
+                              position: 'absolute', right: -ROUND_GAP / 2, top: midY - 0.5,
+                              width: ROUND_GAP / 2, height: 1, background: CONNECTOR,
                             }} />
-                            {/* Vertical line connecting to sibling match */}
                             <div style={{
-                              position: 'absolute',
-                              right: -ROUND_GAP / 2 - 0.5,
+                              position: 'absolute', right: -ROUND_GAP / 2 - 0.5,
                               top: isTopMatch ? midY : midY - verticalExtent,
-                              width: 1,
-                              height: verticalExtent,
-                              background: CONNECTOR,
+                              width: 1, height: verticalExtent, background: CONNECTOR,
                             }} />
-                            {/* Horizontal line from vertical to next round */}
                             <div style={{
-                              position: 'absolute',
-                              right: -ROUND_GAP,
+                              position: 'absolute', right: -ROUND_GAP,
                               top: isTopMatch ? midY + verticalExtent / 2 : midY - verticalExtent / 2,
-                              width: ROUND_GAP / 2,
-                              height: 1,
-                              background: CONNECTOR,
+                              width: ROUND_GAP / 2, height: 1, background: CONNECTOR,
                             }} />
                           </>
                         )
@@ -320,9 +282,8 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
             <div style={{
               position: 'relative',
               top: (() => {
-                // Vertically center trophy with the Final match
                 const finalMultiplier = Math.pow(2, rounds.length - 1)
-                const baseMatchH = matchHeight + betweenMatches
+                const baseMatchH = MATCH_CARD_H + betweenMatches
                 return (finalMultiplier - 1) * baseMatchH / 2
               })(),
             }}>
@@ -359,95 +320,108 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
   )
 }
 
-// ── Team Card ───────────────────────────────────────────────────
-function TeamCard({ team, isWinner, isLoser, isLive, score, showScore }: {
-  team: TeamSlot
-  isWinner: boolean
-  isLoser: boolean
-  isLive: boolean
-  score?: string[] | null
-  showScore?: boolean
-}) {
-  const isEmpty = team.isEmpty || !team.player1Name
+// ── Match Card (both teams in one container) ────────────────────
+function MatchCard({ match }: { match: MatchNode }) {
+  const { team1, team2, score, winnerTeam, isLive } = match
+  const bothEmpty = (team1.isEmpty || !team1.player1Name) && (team2.isEmpty || !team2.player1Name)
+
+  if (bothEmpty) {
+    return (
+      <div style={{
+        height: MATCH_CARD_H, background: BG_EMPTY,
+        border: `1px solid ${BORDER}`, borderRadius: 4,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        opacity: 0.3,
+      }}>
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>TBD</span>
+      </div>
+    )
+  }
 
   return (
     <div style={{
-      height: SLOT_H,
-      background: isEmpty ? BG_EMPTY : BG_CARD,
-      border: `1px solid ${isLive ? LIVE_RED : isWinner ? 'rgba(126,211,33,0.25)' : BORDER}`,
-      borderRadius: 4,
-      padding: '4px 7px',
-      opacity: isLoser ? 0.4 : isEmpty ? 0.3 : 1,
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      position: 'relative',
-      overflow: 'hidden',
+      height: MATCH_CARD_H, background: BG_CARD,
+      border: `1px solid ${isLive ? LIVE_RED : BORDER}`,
+      borderRadius: 4, overflow: 'hidden', position: 'relative',
     }}>
       {/* Live dot */}
       {isLive && (
         <div style={{
           position: 'absolute', top: 3, right: 3,
           width: 5, height: 5, borderRadius: '50%',
-          background: LIVE_RED,
-          animation: 'bracketLive 1.5s ease-in-out infinite',
+          background: LIVE_RED, animation: 'bracketLive 1.5s ease-in-out infinite',
         }} />
       )}
 
-      {isEmpty ? (
-        <div style={{ fontSize: 9, color: MUTED, textAlign: 'center', fontWeight: 600 }}>
-          {team.player1Name === 'TBD' ? 'TBD' : team.marker === 'Q' ? 'Qualifier' : 'TBD'}
+      {/* Score badge top-right */}
+      {score && score.length > 0 && (
+        <div style={{
+          position: 'absolute', top: 2, right: isLive ? 12 : 4,
+          fontSize: 7, color: isLive ? LIVE_RED : MUTED, fontWeight: 700, fontFamily: 'monospace',
+        }}>
+          {score.join(' ')}
         </div>
-      ) : (
-        <>
-          {/* Score row */}
-          {showScore && score && score.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
-              {team.marker && (
-                <span style={{
-                  fontSize: 6, fontWeight: 800,
-                  color: team.marker === 'Q' ? ORANGE : '#4A9EFF',
-                  marginRight: 3,
-                }}>
-                  {team.marker}
-                </span>
-              )}
-              <span style={{ fontSize: 8, color: isLive ? LIVE_RED : MUTED, marginLeft: 'auto', fontWeight: 700, fontFamily: 'monospace' }}>
-                {score.join(' ')}
-              </span>
-            </div>
-          )}
+      )}
 
-          {/* Player 1 + seed in parenthesis */}
-          <div style={{
-            fontSize: 9, fontWeight: 600,
-            color: '#fff',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            lineHeight: 1.3,
-          }}>
-            {team.player1Country && <span style={{ marginRight: 2, fontSize: 10 }}>{countryFlag(team.player1Country)}</span>}
-            {toShortName(team.player1Name!)}
-            {team.seed && <span style={{ color: GREEN, fontSize: 8, fontWeight: 700 }}> ({team.seed})</span>}
-            {!showScore && team.marker && (
-              <span style={{ fontSize: 7, fontWeight: 700, color: team.marker === 'Q' ? ORANGE : '#4A9EFF', marginLeft: 3 }}>
-                {team.marker}
-              </span>
-            )}
-          </div>
+      {/* Team 1 */}
+      <TeamRow team={team1} isWinner={winnerTeam === 1} isLoser={winnerTeam === 2} />
 
-          {/* Player 2 */}
-          {team.player2Name && (
-            <div style={{
-              fontSize: 9, fontWeight: 500,
-              color: 'rgba(255,255,255,0.7)',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              lineHeight: 1.3,
-            }}>
-              {team.player2Country && <span style={{ marginRight: 2, fontSize: 10 }}>{countryFlag(team.player2Country)}</span>}
-              {toShortName(team.player2Name)}
-            </div>
-          )}
-        </>
+      {/* Divider */}
+      <div style={{ height: 1, background: BORDER, margin: '0 6px' }} />
+
+      {/* Team 2 */}
+      <TeamRow team={team2} isWinner={winnerTeam === 2} isLoser={winnerTeam === 1} />
+    </div>
+  )
+}
+
+// ── Team Row (single team within a match card) ──────────────────
+function TeamRow({ team, isWinner, isLoser }: { team: TeamSlot; isWinner: boolean; isLoser: boolean }) {
+  const isEmpty = team.isEmpty || !team.player1Name
+  const rowH = (MATCH_CARD_H - 1) / 2 // subtract 1px for divider
+
+  if (isEmpty) {
+    return (
+      <div style={{ height: rowH, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
+        <span style={{ fontSize: 8, color: MUTED }}>
+          {team.player1Name === 'TBD' ? 'TBD' : team.marker === 'Q' ? 'Qualifier' : 'TBD'}
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      height: rowH, padding: '2px 6px',
+      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+      opacity: isLoser ? 0.4 : 1,
+      borderLeft: isWinner ? `2px solid ${GREEN}` : '2px solid transparent',
+    }}>
+      {/* Player 1 + seed */}
+      <div style={{
+        fontSize: 9, fontWeight: 600, color: '#fff',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        lineHeight: 1.2,
+      }}>
+        {team.player1Country && <span style={{ marginRight: 2, fontSize: 10 }}>{countryFlag(team.player1Country)}</span>}
+        {toShortName(team.player1Name!)}
+        {team.seed && <span style={{ color: GREEN, fontSize: 7, fontWeight: 700 }}> ({team.seed})</span>}
+        {team.marker && (
+          <span style={{ fontSize: 6, fontWeight: 700, color: team.marker === 'Q' ? ORANGE : '#4A9EFF', marginLeft: 2 }}>
+            {team.marker}
+          </span>
+        )}
+      </div>
+      {/* Player 2 */}
+      {team.player2Name && (
+        <div style={{
+          fontSize: 8, fontWeight: 500, color: 'rgba(255,255,255,0.6)',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          lineHeight: 1.2,
+        }}>
+          {team.player2Country && <span style={{ marginRight: 2, fontSize: 9 }}>{countryFlag(team.player2Country)}</span>}
+          {toShortName(team.player2Name)}
+        </div>
       )}
     </div>
   )
