@@ -99,7 +99,7 @@ export default function PrivacyPage() {
       <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginTop: 32, marginBottom: 12 }}>9. Contact Us</h2>
       <p>
         If you have questions about this Privacy Policy, contact us at: <br />
-        <strong style={{ color: '#7ED321' }}>privacy@padelnachos.com</strong>
+        <strong style={{ color: '#7ED321' }}>hello@padelnachos.com</strong>
       </p>
     </div>
   )
