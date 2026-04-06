@@ -213,8 +213,8 @@ export async function POST(request: Request) {
           name: player.name,
           country: iso2,
           category: body.category,
-          ranking: player.ranking ?? null,
-          points: player.points ?? null,
+          ranking: player.ranking || null, // 0 means unranked → treat as null
+          points: player.points || null, // 0 means no points → treat as null
         })
 
         if (result.action === 'created') {
