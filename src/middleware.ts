@@ -2,7 +2,16 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
+
+  // ── Auth param rescue — if Supabase redirects to wrong page with auth params, forward to callback ──
+  const hasCode = searchParams.has('code') && searchParams.get('code')?.startsWith('pkce_')
+  const hasTokenHash = searchParams.has('token_hash')
+  if ((hasCode || hasTokenHash) && pathname !== '/auth/callback') {
+    const callbackUrl = new URL('/auth/callback', request.url)
+    callbackUrl.search = request.nextUrl.search
+    return NextResponse.redirect(callbackUrl)
+  }
 
   // ── Root → Home redirect ────────────────────────────────────
   if (pathname === '/') {
@@ -84,5 +93,13 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/v3/:path*', '/ops/:path*', '/admin/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static, _next/image (static files)
+     * - favicon.ico, manifest.json, icons, sw.js (public assets)
+     * - api routes (handled separately)
+     */
+    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|icons/|sw\\.js|api/).*)',
+  ],
 }

@@ -4,8 +4,8 @@
 // Exchanges the ?code= param for a session, then redirects to /home.
 // Uses polling + auth listener + URL code exchange to handle all timing scenarios.
 
-import { Suspense, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 const HINTS = [
@@ -18,15 +18,15 @@ const HINTS = [
 ]
 
 function AuthCallbackInner() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [hintIdx, setHintIdx] = useState(0)
-  const [redirected, setRedirected] = useState(false)
+  const redirectedRef = useRef(false)
 
   const doRedirect = () => {
-    if (redirected) return
-    setRedirected(true)
-    router.replace('/home')
+    if (redirectedRef.current) return
+    redirectedRef.current = true
+    // Use window.location for reliable navigation — router.replace can silently fail during hydration
+    window.location.replace('/home')
   }
 
   useEffect(() => {
