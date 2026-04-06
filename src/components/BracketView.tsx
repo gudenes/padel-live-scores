@@ -197,9 +197,57 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
   const { rounds, roundMatches } = bracket
   const firstRoundMatchCount = roundMatches.get(rounds[0])?.length ?? 0
 
-  // Calculate total bracket height based on first round
-  const betweenMatches = 8
-  const totalHeight = firstRoundMatchCount * (MATCH_CARD_H + betweenMatches) + 40
+  // Layout constants
+  const GAP = 6
+  const HEADER = 24
+  const COL_W = SLOT_W + ROUND_GAP
+  const baseH = MATCH_CARD_H + GAP
+
+  // Pre-compute every match card position so SVG lines are pixel-perfect
+  const positions = new Map<string, { x: number; y: number; midY: number }>()
+  for (let c = 0; c < rounds.length; c++) {
+    const count = roundMatches.get(rounds[c])?.length ?? 0
+    const mult = Math.pow(2, c)
+    for (let m = 0; m < count; m++) {
+      const x = c * COL_W
+      const y = HEADER + (c === 0 ? m * baseH : m * baseH * mult + (mult - 1) * baseH / 2)
+      positions.set(`${c}-${m}`, { x, y, midY: y + MATCH_CARD_H / 2 })
+    }
+  }
+
+  const trophyX = rounds.length * COL_W
+  const finalMult = Math.pow(2, rounds.length - 1)
+  const trophyY = HEADER + (finalMult - 1) * baseH / 2
+  const totalWidth = trophyX + 70
+  const totalHeight = firstRoundMatchCount * baseH + HEADER + 20
+
+  // SVG connector lines — computed from exact card positions
+  const svgLines: string[] = []
+  for (let c = 0; c < rounds.length - 1; c++) {
+    const count = roundMatches.get(rounds[c])?.length ?? 0
+    const mergeX = c * COL_W + SLOT_W + ROUND_GAP / 2
+
+    for (let m = 0; m < count; m += 2) {
+      const topPos = positions.get(`${c}-${m}`)
+      const botPos = positions.get(`${c}-${m + 1}`)
+      const nextPos = positions.get(`${c + 1}-${Math.floor(m / 2)}`)
+      if (!topPos || !nextPos) continue
+
+      const topMidY = topPos.midY
+      const botMidY = botPos?.midY ?? topMidY
+      const nextMidY = nextPos.midY
+      const rightEdge = topPos.x + SLOT_W
+
+      // Top match → horizontal to merge column
+      svgLines.push(`M${rightEdge},${topMidY} L${mergeX},${topMidY}`)
+      // Bottom match → horizontal to merge column
+      if (botPos) svgLines.push(`M${rightEdge},${botMidY} L${mergeX},${botMidY}`)
+      // Vertical connecting both
+      svgLines.push(`M${mergeX},${topMidY} L${mergeX},${botMidY}`)
+      // Merge midpoint → horizontal to next round card
+      svgLines.push(`M${mergeX},${nextMidY} L${nextPos.x},${nextMidY}`)
+    }
+  }
 
   return (
     <div style={{ padding: '8px 0' }}>
@@ -209,138 +257,52 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
         WebkitOverflowScrolling: 'touch',
         maxHeight: 'calc(100vh - 260px)',
       }}>
-        <div style={{
-          display: 'flex',
-          gap: ROUND_GAP,
-          padding: '0 12px 12px',
-          minWidth: rounds.length * (SLOT_W + ROUND_GAP),
-          minHeight: totalHeight,
-          position: 'relative',
-        }}>
-          {rounds.map((round, colIdx) => {
-            const isLastRound = colIdx === rounds.length - 1
-            const matchesInRound = roundMatches.get(round) ?? []
-            const multiplier = Math.pow(2, colIdx)
+        <div style={{ position: 'relative', width: totalWidth, height: totalHeight, padding: '0 12px 12px' }}>
+          {/* SVG connectors — single pixel-perfect layer */}
+          <svg style={{ position: 'absolute', top: 0, left: 12, width: totalWidth, height: totalHeight, pointerEvents: 'none', zIndex: 0 }}>
+            {svgLines.map((d, i) => (
+              <path key={i} d={d} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+            ))}
+          </svg>
 
+          {/* Round labels */}
+          {rounds.map((round, colIdx) => (
+            <div key={`lbl-${round}`} style={{
+              position: 'absolute', left: colIdx * COL_W, top: 0, width: SLOT_W,
+              fontSize: 9, fontWeight: 800, color: colIdx === rounds.length - 1 ? GREEN : MUTED,
+              textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center', padding: '4px 0', zIndex: 2,
+            }}>
+              {ROUND_LABELS[round]}
+            </div>
+          ))}
+
+          {/* Match cards */}
+          {rounds.map((round, colIdx) => (roundMatches.get(round) ?? []).map((match, matchIdx) => {
+            const pos = positions.get(`${colIdx}-${matchIdx}`)!
             return (
-              <div key={round} style={{ flex: `0 0 ${SLOT_W}px`, position: 'relative' }}>
-                {/* Round label */}
-                <div style={{
-                  fontSize: 9, fontWeight: 800, color: colIdx === rounds.length - 1 ? GREEN : MUTED,
-                  textTransform: 'uppercase', letterSpacing: 0.5,
-                  textAlign: 'center', padding: '4px 0 6px',
-                  position: 'sticky', top: 0, background: '#1A1A1A', zIndex: 2,
-                }}>
-                  {ROUND_LABELS[round]}
-                </div>
-
-                {/* Matches */}
-                {matchesInRound.map((match, matchIdx) => {
-                  const baseMatchH = MATCH_CARD_H + betweenMatches
-                  const topOffset = colIdx === 0
-                    ? matchIdx * baseMatchH
-                    : matchIdx * baseMatchH * multiplier + (multiplier - 1) * baseMatchH / 2
-
-                  const midY = MATCH_CARD_H / 2
-
-                  return (
-                    <div
-                      key={matchIdx}
-                      style={{
-                        position: 'absolute',
-                        top: topOffset + 24,
-                        left: 0,
-                        width: SLOT_W,
-                      }}
-                    >
-                      <MatchCard match={match} />
-
-                      {/* Connector: horizontal line from card right edge to the merge point */}
-                      {colIdx < rounds.length - 1 && (() => {
-                        const isTopMatch = matchIdx % 2 === 0
-                        const pairSpacing = baseMatchH * multiplier
-                        const vertLen = pairSpacing / 2
-                        const half = ROUND_GAP / 2
-
-                        return (
-                          <>
-                            {/* 1. Horizontal stub: right edge of card → merge column */}
-                            <div style={{
-                              position: 'absolute',
-                              left: SLOT_W,
-                              top: midY,
-                              width: half,
-                              height: 1,
-                              background: CONNECTOR,
-                            }} />
-
-                            {/* 2. Vertical: joins the two paired matches at the merge column */}
-                            <div style={{
-                              position: 'absolute',
-                              left: SLOT_W + half,
-                              top: isTopMatch ? midY : midY - vertLen,
-                              width: 1,
-                              height: vertLen + 1,
-                              background: CONNECTOR,
-                            }} />
-
-                            {/* 3. Horizontal: from merge midpoint → into next round card */}
-                            {isTopMatch && (
-                              <div style={{
-                                position: 'absolute',
-                                left: SLOT_W + half,
-                                top: midY + vertLen / 2,
-                                width: half,
-                                height: 1,
-                                background: CONNECTOR,
-                              }} />
-                            )}
-                          </>
-                        )
-                      })()}
-                    </div>
-                  )
-                })}
+              <div key={`${colIdx}-${matchIdx}`} style={{
+                position: 'absolute', left: pos.x, top: pos.y, width: SLOT_W, zIndex: 1,
+              }}>
+                <MatchCard match={match} />
               </div>
             )
-          })}
+          }))}
 
-          {/* Trophy after Final */}
-          <div style={{
-            flex: '0 0 60px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingTop: 24,
-          }}>
+          {/* Trophy */}
+          <div style={{ position: 'absolute', left: trophyX, top: trophyY, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{
-              position: 'relative',
-              top: (() => {
-                const finalMultiplier = Math.pow(2, rounds.length - 1)
-                const baseMatchH = MATCH_CARD_H + betweenMatches
-                return (finalMultiplier - 1) * baseMatchH / 2
-              })(),
+              width: 48, height: 48, background: 'rgba(126,211,33,0.08)',
+              clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <div style={{
-                width: 48, height: 48,
-                background: 'rgba(126,211,33,0.08)',
-                clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.5">
-                  <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" />
-                  <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" />
-                  <path d="M6 3h12v6a6 6 0 0 1-12 0V3z" />
-                  <path d="M12 15v3" />
-                  <path d="M8 21h8" />
-                  <path d="M10 18h4" />
-                </svg>
-              </div>
-              <div style={{ fontSize: 8, fontWeight: 800, color: GREEN, textAlign: 'center', marginTop: 4, letterSpacing: 0.5 }}>
-                WINNER
-              </div>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.5">
+                <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" />
+                <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" />
+                <path d="M6 3h12v6a6 6 0 0 1-12 0V3z" />
+                <path d="M12 15v3" /><path d="M8 21h8" /><path d="M10 18h4" />
+              </svg>
             </div>
+            <div style={{ fontSize: 8, fontWeight: 800, color: GREEN, textAlign: 'center', marginTop: 4, letterSpacing: 0.5 }}>WINNER</div>
           </div>
         </div>
       </div>
