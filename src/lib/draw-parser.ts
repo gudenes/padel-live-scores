@@ -121,6 +121,29 @@ export function parseDrawText(text: string): DrawParseResult {
     // Skip empty names and standalone numbers (seed markers from PDF extraction)
     if (!rawName || rawName === '-' || /^\d+(\s+\d+)*$/.test(rawName)) { i++; continue }
 
+    // Handle "Qualifier" placeholder — a Q slot with no player names yet
+    // PDF shows "Q Qualifier" as a single line representing an entire team slot
+    if (/^qualif/i.test(rawName)) {
+      // If we had a pending player1, flush it as unpaired first
+      if (pendingPlayer1) {
+        warnings.push(`Unpaired player at draw position ${drawPosition}: ${pendingPlayer1.name}`)
+        drawPosition++
+        pendingPlayer1 = null
+      }
+      entries.push({
+        drawPosition,
+        player1Name: 'Qualifier',
+        player1Country: null,
+        player2Name: 'Qualifier',
+        player2Country: null,
+        seed: null,
+        marker: 'Q',
+      })
+      drawPosition++
+      i++
+      continue
+    }
+
     // Determine seed/marker from prefix
     let seed: number | null = null
     let marker: 'Q' | 'WC' | 'LL' | null = null

@@ -11,6 +11,7 @@ import Link from 'next/link'
 import Spinner from '../../../components/Spinner'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
+import BracketView from '@/components/BracketView'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -126,11 +127,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [justUpdated, setJustUpdated] = useState(false)
 
+  const [drawEntries, setDrawEntries] = useState<any[]>([])
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>(
-    paramTab === 'recap' ? 'recap' : paramTab === 'overview' ? 'overview' : 'matches'
+  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'draw' | 'recap'>(
+    paramTab === 'recap' ? 'recap' : paramTab === 'draw' ? 'draw' : paramTab === 'matches' ? 'matches' : 'overview'
   )
   const stageStripRef = useRef<HTMLDivElement>(null)
 
@@ -170,12 +172,22 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money, entry_list_status, source')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money, prize_money_fip, draw_size_md, draw_size_qd, entry_list_status, source')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
 
-  useEffect(() => { fetchAll(); fetchTournaments() }, [fetchAll, fetchTournaments])
+  // Fetch entry list / draw data
+  const fetchDrawEntries = useCallback(async () => {
+    const { data } = await supabase
+      .from('tournament_draws')
+      .select('draw_position, seed, marker, category, round, player1_name, player1_country, player1_id, player2_name, player2_country, player2_id, team_points')
+      .eq('tournament_id', tournamentId)
+      .order('draw_position', { ascending: true })
+    if (data) setDrawEntries(data)
+  }, [tournamentId])
+
+  useEffect(() => { fetchAll(); fetchTournaments(); fetchDrawEntries() }, [fetchAll, fetchTournaments, fetchDrawEntries])
 
   // ── Realtime — debounced ──────────────────────────────────────
   const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -577,10 +589,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
           {/* ROW 3: Page tabs */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-            {(['matches', 'overview', 'recap'] as const).map(tab => {
+            {(['overview', 'matches', 'draw', 'recap'] as const).map(tab => {
               const active = pageTab === tab
               const isFinished = activeTournamentObj?.status === 'completed' || activeTournamentObj?.status === 'finished'
               if (tab === 'recap' && !isFinished) return null
+              const hasDraws = drawEntries.filter((d: any) => d.category === genderFilter).length > 0
+              if (tab === 'draw' && !hasDraws) return null
               return (
                 <button
                   key={tab}
@@ -757,6 +771,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             genderColor={genderColor}
             availableRounds={availableRounds}
             roundDates={roundDates}
+            drawEntries={drawEntries}
+          />
+        )}
+
+        {/* ── Draw Tab ── */}
+        {pageTab === 'draw' && (
+          <BracketView
+            drawEntries={drawEntries}
+            matches={allMatches}
+            genderFilter={genderFilter}
           />
         )}
 
@@ -1015,13 +1039,14 @@ function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match;
 // ── Overview Tab ────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates }: {
+function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries }: {
   tournament: any
   allMatches: Match[]
   genderFilter: 'men' | 'women'
   genderColor: string
   availableRounds: string[]
   roundDates: Record<string, string>
+  drawEntries: any[]
 }) {
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const totalMatches = genderMatches.length
@@ -1088,14 +1113,60 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     </div>
   )
 
+  // Tournament dates
+  const startsAt = tournament?.starts_at ? new Date(tournament.starts_at) : null
+  const endsAt = tournament?.ends_at ? new Date(tournament.ends_at) : null
+  const now = new Date()
+  const daysUntilStart = startsAt ? Math.ceil((startsAt.getTime() - now.getTime()) / 86400000) : null
+  const isUpcoming = daysUntilStart != null && daysUntilStart > 0
+  const isLive = startsAt && endsAt && now >= startsAt && now <= endsAt
+
+  const formatDate = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
   return (
     <div style={{ padding: '14px 14px 20px' }}>
+      {/* Tournament timing banner */}
+      {startsAt && (
+        <div style={{
+          background: isLive ? 'rgba(126,211,33,0.08)' : 'rgba(245,166,35,0.08)',
+          borderLeft: `3px solid ${isLive ? GREEN : '#F5A623'}`,
+          borderRadius: 4, padding: '10px 14px', marginBottom: 14,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+              {isLive ? 'Tournament In Progress' : isUpcoming ? 'Main Draw Starts' : 'Tournament Ended'}
+            </div>
+            <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
+              {formatDate(startsAt)}{endsAt ? ` — ${formatDate(endsAt)}` : ''}
+            </div>
+          </div>
+          {isUpcoming && daysUntilStart != null && (
+            <div style={{
+              fontSize: 13, fontWeight: 800,
+              color: daysUntilStart <= 2 ? '#FF4655' : daysUntilStart <= 7 ? '#F5A623' : GREEN,
+            }}>
+              {daysUntilStart === 1 ? 'Tomorrow' : `${daysUntilStart} days`}
+            </div>
+          )}
+          {isLive && (
+            <div style={{
+              fontSize: 10, fontWeight: 800, color: GREEN,
+              background: 'rgba(126,211,33,0.15)', padding: '3px 8px', borderRadius: 4,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Live
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-        <StatCard value={totalTeams || '\u2014'} label="Teams" accent />
+        <StatCard value={totalTeams || (tournament?.draw_size_md ? `${tournament.draw_size_md} pairs` : '\u2014')} label="Teams" accent />
         <StatCard value={totalMatches || '\u2014'} label="Matches" />
         <StatCard value={totalCountries || '\u2014'} label="Countries" />
-        <StatCard value={tournament?.prize_money ?? '\u2014'} label="Prize Money" />
+        <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label="Prize Money" />
       </div>
 
       {/* Top seeds */}
@@ -1128,6 +1199,69 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           </div>
         </>
       )}
+
+      {/* Entry List from tournament_draws */}
+      {(() => {
+        const genderDraws = drawEntries.filter((d: any) => d.category === genderFilter)
+        if (genderDraws.length === 0) return null
+        return (
+          <>
+            <SectionHeader label={`Entry List (${genderDraws.length} pairs)`} />
+            <div style={{
+              background: BG_CARD,
+              clipPath: CHUNKY.card,
+              border: `1px solid ${BORDER}`,
+              padding: '4px 14px', marginBottom: 16,
+              maxHeight: 400, overflowY: 'auto',
+            }}>
+              {genderDraws.map((d: any, i: number) => (
+                <div key={d.draw_position} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
+                  borderBottom: i < genderDraws.length - 1 ? `0.5px solid ${BORDER}` : 'none',
+                }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 800, color: MUTED,
+                    width: 20, textAlign: 'center', flexShrink: 0,
+                  }}>
+                    {d.draw_position}
+                  </span>
+                  {d.seed && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 800, color: GREEN,
+                      background: 'rgba(126,211,33,0.12)',
+                      padding: '1px 5px', borderRadius: 3, flexShrink: 0,
+                    }}>
+                      {d.seed}
+                    </span>
+                  )}
+                  {d.marker && (
+                    <span style={{
+                      fontSize: 8, fontWeight: 800, color: '#F5A623',
+                      background: 'rgba(245,166,35,0.12)',
+                      padding: '1px 4px', borderRadius: 3, flexShrink: 0,
+                    }}>
+                      {d.marker}
+                    </span>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {countryFlag(d.player1_country)} {d.player1_name}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {countryFlag(d.player2_country)} {d.player2_name}
+                    </div>
+                  </div>
+                  {d.team_points != null && (
+                    <span style={{ fontSize: 10, color: MUTED, flexShrink: 0 }}>
+                      {d.team_points}pts
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      })()}
 
       {/* Schedule */}
       {schedule.length > 0 && (

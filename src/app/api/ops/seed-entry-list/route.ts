@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     // Fetch FIP tournaments: starting within next 30 days, or recently active (ended within 30 days)
     const { data: tournaments, error } = await supabase
       .from('tournaments')
-      .select('id, name, country, level, starts_at, ends_at, entry_list_status')
+      .select('id, name, country, level, starts_at, ends_at, entry_list_status, categories')
       .eq('source', 'fip')
       .gte('starts_at', thirtyDaysAgo)
       .lte('starts_at', in30Days)
@@ -91,6 +91,63 @@ export async function GET(request: Request) {
   }
 
   return Response.json({ error: 'Unknown action' }, { status: 400 })
+}
+
+// ── PATCH: Update tournament settings (categories, etc.) ────────
+export async function PATCH(request: Request) {
+  const authErr = await checkOpsAuth()
+  if (authErr) return authErr
+
+  const body = await request.json()
+  const { tournamentId, categories } = body
+
+  if (!tournamentId) {
+    return Response.json({ error: 'Missing tournamentId' }, { status: 400 })
+  }
+
+  const updates: Record<string, any> = {}
+  if (categories && ['both', 'men_only', 'women_only'].includes(categories)) {
+    updates.categories = categories
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return Response.json({ error: 'No valid fields to update' }, { status: 400 })
+  }
+
+  const { error } = await supabase
+    .from('tournaments')
+    .update(updates)
+    .eq('id', tournamentId)
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  // Recompute entry_list_status based on new categories setting
+  const { data: seedEvents } = await supabase
+    .from('ops_events')
+    .select('meta')
+    .eq('source', 'entry-list-seed')
+    .eq('status', 'ok')
+
+  const seededCategories = new Set(
+    (seedEvents ?? [])
+      .filter((e: any) => (e.meta as any)?.tournament_id === tournamentId)
+      .map((e: any) => (e.meta as any)?.category)
+      .filter(Boolean)
+  )
+
+  const requiredCount = updates.categories === 'both' ? 2 : 1
+  const newStatus = seededCategories.size >= requiredCount ? 'ready'
+    : seededCategories.size >= 1 ? 'partial'
+    : 'pending'
+
+  await supabase
+    .from('tournaments')
+    .update({ entry_list_status: newStatus })
+    .eq('id', tournamentId)
+
+  return Response.json({ ok: true, categories: updates.categories, entryListStatus: newStatus })
 }
 
 // ── POST: Seed players from entry list ──────────────────────────
@@ -156,8 +213,8 @@ export async function POST(request: Request) {
           name: player.name,
           country: iso2,
           category: body.category,
-          ranking: player.ranking ?? null,
-          points: player.points ?? null,
+          ranking: player.ranking || null, // 0 means unranked → treat as null
+          points: player.points || null, // 0 means no points → treat as null
         })
 
         if (result.action === 'created') {
@@ -202,6 +259,7 @@ export async function POST(request: Request) {
 
   // ── Auto-update entry_list_status ──────────────────────────────
   // Recompute from all entry-list-seed events for this tournament
+  // Respects tournament.categories: men_only/women_only tournaments are 'ready' with just one category
   const { data: seedEvents } = await supabase
     .from('ops_events')
     .select('meta')
@@ -215,8 +273,18 @@ export async function POST(request: Request) {
       .filter(Boolean)
   )
 
-  const newStatus = seededCategories.size >= 2 ? 'ready'
-    : seededCategories.size === 1 ? 'partial'
+  // Check tournament categories setting
+  const { data: tournamentInfo } = await supabase
+    .from('tournaments')
+    .select('categories')
+    .eq('id', body.tournamentId)
+    .single()
+
+  const tournamentCategories = tournamentInfo?.categories ?? 'both'
+  const requiredCount = tournamentCategories === 'both' ? 2 : 1
+
+  const newStatus = seededCategories.size >= requiredCount ? 'ready'
+    : seededCategories.size >= 1 ? 'partial'
     : 'pending'
 
   await supabase

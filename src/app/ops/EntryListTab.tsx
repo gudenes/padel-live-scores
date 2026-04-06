@@ -13,6 +13,8 @@ interface Tournament {
   level: string | null
   starts_at: string | null
   ends_at: string | null
+  entry_list_status?: string
+  categories?: string
   hasEntryList?: boolean
   hasDraw?: boolean
 }
@@ -166,7 +168,7 @@ function statusBadgeLabel(action: ParsedPlayer['action']): string {
 
 // ── Component ────────────────────────────────────────────────────
 
-export default function EntryListTab() {
+export default function EntryListTab({ preSelectedTournamentId, onClearPreSelection }: { preSelectedTournamentId?: string | null; onClearPreSelection?: () => void }) {
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [tournamentError, setTournamentError] = useState<string | null>(null)
@@ -260,6 +262,17 @@ export default function EntryListTab() {
       })
     return () => { cancelled = true }
   }, [])
+
+  // Auto-select tournament when navigating from Readiness tab
+  useEffect(() => {
+    if (preSelectedTournamentId && tournaments.length > 0 && !selectedTournament) {
+      const found = tournaments.find(t => t.id === preSelectedTournamentId)
+      if (found) {
+        setSelectedTournament(found.id)
+        onClearPreSelection?.()
+      }
+    }
+  }, [preSelectedTournamentId, tournaments, selectedTournament, onClearPreSelection])
 
   const sortedTournaments = [...tournaments].sort((a, b) => {
     const urgencyDiff = urgencyDot(a).sortKey - urgencyDot(b).sortKey
@@ -371,16 +384,19 @@ export default function EntryListTab() {
 
     try {
       let res: Response
+      const categoryParam = category ? `?category=${category}` : ''
 
       if (inputMode === 'upload' && selectedFile) {
+        // PDF upload → Sonnet parses server-side
         const form = new FormData()
         form.append('file', selectedFile)
-        res = await fetch('/api/ops/parse-entry-list', {
+        res = await fetch(`/api/ops/parse-entry-list${categoryParam}`, {
           method: 'POST',
           body: form,
         })
       } else {
-        res = await fetch('/api/ops/parse-entry-list', {
+        // Text paste → text parser server-side
+        res = await fetch(`/api/ops/parse-entry-list${categoryParam}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text: pasteText }),
@@ -585,7 +601,10 @@ export default function EntryListTab() {
 
   if (stage === 'select' || stage === 'parsing') {
     return (
-      <div>
+      <div className="entry-list-tab">
+        <style>{`
+          .entry-list-tab input, .entry-list-tab select, .entry-list-tab textarea { color: #111 !important; }
+        `}</style>
         {parseError && (
           <div style={{ ...card, background: '#fef2f2', border: '1px solid #fecaca', marginBottom: 16, color: '#dc2626', fontSize: 12 }}>
             {parseError}
@@ -615,6 +634,29 @@ export default function EntryListTab() {
                 <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: selectedTournamentObj.hasEntryList ? '#dcfce7' : '#fef2f2', color: selectedTournamentObj.hasEntryList ? '#166534' : '#dc2626' }}>EL</span>
                 <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: selectedTournamentObj.hasDraw ? '#dcfce7' : '#fef2f2', color: selectedTournamentObj.hasDraw ? '#166534' : '#dc2626' }}>DR</span>
               </div>
+              <select
+                value={selectedTournamentObj.categories ?? 'both'}
+                onChange={async (e) => {
+                  const newCat = e.target.value
+                  await fetch('/api/ops/seed-entry-list', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tournamentId: selectedTournament, categories: newCat }),
+                  })
+                  // Refresh tournament list to reflect updated status
+                  setTournaments(prev => prev.map(t => t.id === selectedTournament ? { ...t, categories: newCat } : t))
+                }}
+                style={{
+                  background: '#222', color: '#fff', border: '1px solid #444',
+                  borderRadius: 4, fontSize: 10, fontWeight: 700, padding: '2px 4px',
+                  cursor: 'pointer',
+                }}
+                title="Tournament gender categories"
+              >
+                <option value="both">M+W</option>
+                <option value="men_only">Men only</option>
+                <option value="women_only">Women only</option>
+              </select>
               <button
                 onClick={handleDeselectTournament}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280', padding: '0 2px', lineHeight: 1 }}

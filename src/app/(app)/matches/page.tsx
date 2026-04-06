@@ -738,7 +738,8 @@ function V3ScoresPage() {
           .order('finished_at', { ascending: false }),
       ])
 
-      const notSimulated = (m: any) => !(m.external_id ?? '').startsWith('sim_')
+      const testMode = searchParams.get('test') === '1'
+      const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')
       setLiveMatches(sortSets(((liveRes.data as any) ?? []).filter(notSimulated)))
       setScheduledMatches(sortSets(((scheduledRes.data as any) ?? []).filter(notSimulated)))
       setRecentMatches(sortSets(((recentRes.data as any) ?? []).filter(notSimulated)))
