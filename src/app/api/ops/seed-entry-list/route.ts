@@ -203,10 +203,14 @@ export async function POST(request: Request) {
   const newPlayers: { name: string; ranking?: number; country: string }[] = []
   const top100Errors: { name: string; ranking: number; country: string }[] = []
 
+  // Resolve each player and track their resolved IDs (in input order)
+  const resolvedIds: (string | null)[] = []
+
   for (const player of body.players) {
     try {
       if (player.action === 'link' && player.playerId) {
         linked++
+        resolvedIds.push(player.playerId)
       } else {
         const iso2 = toIso2(player.country)
         const result = await resolver.resolve({
@@ -216,6 +220,8 @@ export async function POST(request: Request) {
           ranking: player.ranking || null, // 0 means unranked → treat as null
           points: player.points || null, // 0 means no points → treat as null
         })
+
+        resolvedIds.push(result.playerId ?? null)
 
         if (result.action === 'created') {
           created++
@@ -230,6 +236,40 @@ export async function POST(request: Request) {
       }
     } catch (e) {
       errors.push(`${player.name}: ${e instanceof Error ? e.message : String(e)}`)
+      resolvedIds.push(null)
+    }
+  }
+
+  // Write pairs to tournament_draws so the entry list shows on the tournament page.
+  // Players come in order: indices 0+1 = team 1, 2+3 = team 2, etc.
+  // The actual bracket draw (uploaded later) will overwrite these with proper positions.
+  for (let i = 0; i < body.players.length; i += 2) {
+    const p1 = body.players[i]
+    const p2 = body.players[i + 1]
+    if (!p1) continue
+    const drawPosition = i / 2 + 1
+
+    const { error: upsertError } = await supabase
+      .from('tournament_draws')
+      .upsert({
+        tournament_id: body.tournamentId,
+        category: body.category,
+        draw_position: drawPosition,
+        seed: null,
+        marker: null,
+        player1_name: p1.name,
+        player1_country: toIso2(p1.country),
+        player1_id: resolvedIds[i],
+        player2_name: p2?.name ?? '',
+        player2_country: p2 ? toIso2(p2.country) : null,
+        player2_id: p2 ? (resolvedIds[i + 1] ?? null) : null,
+        team_points: null,
+        round: null,
+      }, { onConflict: 'tournament_id,category,draw_position' })
+
+    if (upsertError) {
+      console.error(`[seed-entry-list] Upsert failed for position ${drawPosition}:`, upsertError)
+      errors.push(`Position ${drawPosition} upsert: ${upsertError.message}`)
     }
   }
 

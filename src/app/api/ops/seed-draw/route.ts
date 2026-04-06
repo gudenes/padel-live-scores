@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       else resolved++
 
       // Upsert into tournament_draws
-      await supabase
+      const { error: upsertError } = await supabase
         .from('tournament_draws')
         .upsert({
           tournament_id: body.tournamentId,
@@ -111,7 +111,12 @@ export async function POST(request: Request) {
           player2_id: p2Result.playerId,
           team_points: entry.teamPoints,
           round: entry.round ?? null,
-        }, { onConflict: 'tournament_id, category, draw_position' })
+        }, { onConflict: 'tournament_id,category,draw_position' })
+
+      if (upsertError) {
+        console.error(`[seed-draw] Upsert failed for slot ${entry.drawPosition}:`, upsertError)
+        errors.push(`Slot ${entry.drawPosition} upsert: ${upsertError.message}`)
+      }
 
     } catch (e) {
       errors.push(`Slot ${entry.drawPosition}: ${e instanceof Error ? e.message : String(e)}`)
