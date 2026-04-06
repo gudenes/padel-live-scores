@@ -95,7 +95,7 @@ export async function parseDrawPdfWithSonnet(data: Uint8Array): Promise<SonnetDr
   const base64 = Buffer.from(data).toString('base64')
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6-20250514',
+    model: 'claude-sonnet-4-5-20241022',
     max_tokens: 8192,
     messages: [
       {
@@ -179,7 +179,7 @@ export async function parseEntryListPdfWithSonnet(data: Uint8Array): Promise<Son
   const base64 = Buffer.from(data).toString('base64')
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-6-20250514',
+    model: 'claude-sonnet-4-5-20241022',
     max_tokens: 8192,
     messages: [
       {
