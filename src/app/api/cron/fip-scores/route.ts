@@ -239,6 +239,54 @@ function buildMatchExternalId(tournamentId: string, match: ParsedMatch, matchInd
   return `fip-${tournamentId}-${cat}-${round}-${matchIndex}`
 }
 
+/**
+ * Match a scraped player name against a draw entry name.
+ * Handles abbreviated first names: "M. Di Nenno" vs "Martin Di Nenno"
+ * Returns true if the last name tokens match AND the first name matches or is an abbreviation.
+ */
+function drawNameMatch(scrapedName: string, drawName: string): boolean {
+  const s = scrapedName.toLowerCase().trim()
+  const d = drawName.toLowerCase().trim()
+
+  // Exact token similarity (original check)
+  if (tokenSimilarity(s, d) >= 0.7) return true
+
+  // Abbreviated first name check:
+  // Scraped: "M Di Nenno" or "M. Di Nenno"
+  // Draw: "Martin Di Nenno"
+  const sParts = s.split(/\s+/)
+  const dParts = d.split(/\s+/)
+
+  if (sParts.length < 2 || dParts.length < 2) return false
+
+  // Compare last name tokens (everything after first word)
+  const sLast = sParts.slice(1).join(' ')
+  const dLast = dParts.slice(1).join(' ')
+
+  if (sLast !== dLast) {
+    // Try: last name is the same but in different positions
+    // e.g., "Di Nenno" in both
+    const sLastTokens = new Set(sParts.slice(1))
+    const dLastTokens = new Set(dParts.slice(1))
+    const overlap = [...sLastTokens].filter(t => dLastTokens.has(t)).length
+    const maxLen = Math.max(sLastTokens.size, dLastTokens.size)
+    if (maxLen === 0 || overlap / maxLen < 0.8) return false
+  }
+
+  // Check if first name is an abbreviation (1-2 chars, possibly with period)
+  const sFirst = sParts[0].replace(/\./g, '')
+  const dFirst = dParts[0].replace(/\./g, '')
+
+  // Full match
+  if (sFirst === dFirst) return true
+
+  // Abbreviation: "m" matches "martin" (first letter)
+  if (sFirst.length <= 2 && dFirst.startsWith(sFirst)) return true
+  if (dFirst.length <= 2 && sFirst.startsWith(dFirst)) return true
+
+  return false
+}
+
 async function resolvePlayer(
   resolver: PlayerResolver,
   player: { firstName: string; lastName: string; country: string | null; seed: number | null },
@@ -249,18 +297,35 @@ async function resolvePlayer(
   const fullName = `${player.firstName} ${player.lastName}`.trim()
   if (!fullName || fullName === '-') return null
 
-  // 1. Check draw table for pre-resolved player
-  for (const d of draws) {
-    if (d.tournament_id !== tournamentId || d.category !== category) continue
-    if (d.player1_id && tokenSimilarity(fullName, d.player1_name) >= 0.7) {
+  // 1. Check draw table for pre-resolved player (with abbreviated name support)
+  const tournamentDraws = draws.filter(d => d.tournament_id === tournamentId && d.category === category)
+  for (const d of tournamentDraws) {
+    if (d.player1_id && drawNameMatch(fullName, d.player1_name)) {
+      console.log(`[FIP Scores] Draw match: "${fullName}" → "${d.player1_name}" (${d.player1_id})`)
       return d.player1_id
     }
-    if (d.player2_id && tokenSimilarity(fullName, d.player2_name) >= 0.7) {
+    if (d.player2_id && drawNameMatch(fullName, d.player2_name)) {
+      console.log(`[FIP Scores] Draw match: "${fullName}" → "${d.player2_name}" (${d.player2_id})`)
       return d.player2_id
     }
   }
 
-  // 2. Fall back to PlayerResolver
+  // 2. Also try matching by last name only against draws (even more permissive fallback)
+  if (player.lastName && player.lastName.length > 2) {
+    const lastName = player.lastName.toLowerCase()
+    for (const d of tournamentDraws) {
+      if (d.player1_id && d.player1_name.toLowerCase().includes(lastName)) {
+        console.log(`[FIP Scores] Draw last-name match: "${fullName}" → "${d.player1_name}" (${d.player1_id})`)
+        return d.player1_id
+      }
+      if (d.player2_id && d.player2_name.toLowerCase().includes(lastName)) {
+        console.log(`[FIP Scores] Draw last-name match: "${fullName}" → "${d.player2_name}" (${d.player2_id})`)
+        return d.player2_id
+      }
+    }
+  }
+
+  // 3. Fall back to PlayerResolver (only if draw lookup failed)
   try {
     const { playerId } = await resolver.resolve({
       name: fullName,
