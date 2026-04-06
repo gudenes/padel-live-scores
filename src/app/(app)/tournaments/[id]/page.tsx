@@ -126,6 +126,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [justUpdated, setJustUpdated] = useState(false)
 
+  const [drawEntries, setDrawEntries] = useState<any[]>([])
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
@@ -175,7 +176,17 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     if (data) setTournaments(data)
   }, [])
 
-  useEffect(() => { fetchAll(); fetchTournaments() }, [fetchAll, fetchTournaments])
+  // Fetch entry list / draw data
+  const fetchDrawEntries = useCallback(async () => {
+    const { data } = await supabase
+      .from('tournament_draws')
+      .select('draw_position, seed, marker, category, player1_name, player1_country, player1_id, player2_name, player2_country, player2_id, team_points')
+      .eq('tournament_id', tournamentId)
+      .order('draw_position', { ascending: true })
+    if (data) setDrawEntries(data)
+  }, [tournamentId])
+
+  useEffect(() => { fetchAll(); fetchTournaments(); fetchDrawEntries() }, [fetchAll, fetchTournaments, fetchDrawEntries])
 
   // ── Realtime — debounced ──────────────────────────────────────
   const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -757,6 +768,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             genderColor={genderColor}
             availableRounds={availableRounds}
             roundDates={roundDates}
+            drawEntries={drawEntries}
           />
         )}
 
@@ -1015,13 +1027,14 @@ function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match;
 // ── Overview Tab ────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates }: {
+function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries }: {
   tournament: any
   allMatches: Match[]
   genderFilter: 'men' | 'women'
   genderColor: string
   availableRounds: string[]
   roundDates: Record<string, string>
+  drawEntries: any[]
 }) {
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const totalMatches = genderMatches.length
@@ -1128,6 +1141,69 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           </div>
         </>
       )}
+
+      {/* Entry List from tournament_draws */}
+      {(() => {
+        const genderDraws = drawEntries.filter((d: any) => d.category === genderFilter)
+        if (genderDraws.length === 0) return null
+        return (
+          <>
+            <SectionHeader label={`Entry List (${genderDraws.length} pairs)`} />
+            <div style={{
+              background: BG_CARD,
+              clipPath: CHUNKY.card,
+              border: `1px solid ${BORDER}`,
+              padding: '4px 14px', marginBottom: 16,
+              maxHeight: 400, overflowY: 'auto',
+            }}>
+              {genderDraws.map((d: any, i: number) => (
+                <div key={d.draw_position} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
+                  borderBottom: i < genderDraws.length - 1 ? `0.5px solid ${BORDER}` : 'none',
+                }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 800, color: MUTED,
+                    width: 20, textAlign: 'center', flexShrink: 0,
+                  }}>
+                    {d.draw_position}
+                  </span>
+                  {d.seed && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 800, color: GREEN,
+                      background: 'rgba(126,211,33,0.12)',
+                      padding: '1px 5px', borderRadius: 3, flexShrink: 0,
+                    }}>
+                      {d.seed}
+                    </span>
+                  )}
+                  {d.marker && (
+                    <span style={{
+                      fontSize: 8, fontWeight: 800, color: '#F5A623',
+                      background: 'rgba(245,166,35,0.12)',
+                      padding: '1px 4px', borderRadius: 3, flexShrink: 0,
+                    }}>
+                      {d.marker}
+                    </span>
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {countryFlag(d.player1_country)} {d.player1_name}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {countryFlag(d.player2_country)} {d.player2_name}
+                    </div>
+                  </div>
+                  {d.team_points != null && (
+                    <span style={{ fontSize: 10, color: MUTED, flexShrink: 0 }}>
+                      {d.team_points}pts
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      })()}
 
       {/* Schedule */}
       {schedule.length > 0 && (
