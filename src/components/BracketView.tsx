@@ -5,6 +5,7 @@
 // Mobile-first: horizontal scroll, compact team cards, connecting lines.
 
 import { useMemo } from 'react'
+import Link from 'next/link'
 import { Match, countryFlag, toShortName } from '@/types/match'
 
 // ── Brand constants ─────────────────────────────────────────────
@@ -338,8 +339,19 @@ function MatchCard({ match }: { match: MatchNode }) {
     )
   }
 
+  const Wrapper = match.matchId
+    ? ({ children, style }: { children: React.ReactNode; style: React.CSSProperties }) => (
+        <Link href={`/match/${match.matchId}`} style={{ ...style, textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}>
+          {children}
+        </Link>
+      )
+    : ({ children, style }: { children: React.ReactNode; style: React.CSSProperties }) => (
+        <div style={style}>{children}</div>
+      )
+
   return (
-    <div style={{
+    <Wrapper style={{
+      display: 'block',
       height: MATCH_CARD_H, background: BG_CARD,
       border: `1px solid ${isLive ? LIVE_RED : BORDER}`,
       borderRadius: 4, overflow: 'hidden', position: 'relative',
@@ -371,7 +383,7 @@ function MatchCard({ match }: { match: MatchNode }) {
 
       {/* Team 2 */}
       <TeamRow team={team2} isWinner={winnerTeam === 2} isLoser={winnerTeam === 1} />
-    </div>
+    </Wrapper>
   )
 }
 
