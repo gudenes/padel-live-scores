@@ -12,6 +12,7 @@ import Spinner from '@/app/components/Spinner'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
+import { isTournamentGated } from '@/lib/tournament-utils'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -253,8 +254,17 @@ function LiveMatchCard({ match }: { match: Match }) {
   const flag1 = match.pair1_player1?.country || match.pair1_player2?.country
   const flag2 = match.pair2_player1?.country || match.pair2_player2?.country
 
+  const gated = isTournamentGated((match as any).tournament ?? {})
+  const Wrapper = gated ? 'div' : Link
+  const wrapperProps = gated
+    ? { style: { textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative' as const } }
+    : { href: `/match/${match.id}`, style: { textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative' as const } }
+
   return (
-    <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+    <Wrapper {...(wrapperProps as any)}>
+      {gated && (
+        <span style={{ position: 'absolute', top: 6, right: 6, background: '#F5A623', color: '#000', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 6px', clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)', zIndex: 2 }}>COMING SOON</span>
+      )}
       <div style={{
         background: BG_CARD,
         border: `1px solid rgba(255,70,85,0.2)`,
@@ -264,6 +274,7 @@ function LiveMatchCard({ match }: { match: Match }) {
         overflow: 'hidden',
         minWidth: 300,
         flexShrink: 0,
+        ...(gated ? { opacity: 0.4, pointerEvents: 'none' as const } : {}),
       }}>
         {/* Red glow */}
         <div style={{
@@ -344,7 +355,7 @@ function LiveMatchCard({ match }: { match: Match }) {
           {(match as any).tournament?.name ?? ''}
         </div>
       </div>
-    </Link>
+    </Wrapper>
   )
 }
 
@@ -363,6 +374,7 @@ function UpcomingMatchCard({ match }: { match: Match }) {
   const isLive = match.status === 'live'
   const category = (match as any).category as string | null
   const genderColor = category === 'women' ? WOMEN_PURPLE : category === 'men' ? MEN_BLUE : null
+  const gated = isTournamentGated(tournament ?? {})
 
   const pillStyle: React.CSSProperties = {
     fontSize: 9, fontWeight: 700, padding: '3px 7px',
@@ -370,8 +382,16 @@ function UpcomingMatchCard({ match }: { match: Match }) {
     letterSpacing: 0.3,
   }
 
+  const Wrapper = gated ? 'div' : Link
+  const wrapperProps = gated
+    ? { style: { textDecoration: 'none', color: 'inherit', position: 'relative' as const } }
+    : { href: `/match/${match.id}`, style: { textDecoration: 'none', color: 'inherit', position: 'relative' as const } }
+
   return (
-    <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+    <Wrapper {...(wrapperProps as any)}>
+      {gated && (
+        <span style={{ position: 'absolute', top: 6, right: 6, background: '#F5A623', color: '#000', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 6px', clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)', zIndex: 2 }}>COMING SOON</span>
+      )}
       <div style={{
       background: BG_CARD,
       border: `1px solid ${BORDER}`,
@@ -381,7 +401,8 @@ function UpcomingMatchCard({ match }: { match: Match }) {
       flexShrink: 0,
       position: 'relative',
       overflow: 'hidden',
-      cursor: 'pointer',
+      cursor: gated ? 'default' : 'pointer',
+      ...(gated ? { opacity: 0.4, pointerEvents: 'none' as const } : {}),
     }}>
       {/* Left accent bar — gender color */}
       <div style={{
@@ -450,7 +471,7 @@ function UpcomingMatchCard({ match }: { match: Match }) {
         )
       })()}
       </div>
-    </Link>
+    </Wrapper>
   )
 }
 
@@ -1188,7 +1209,7 @@ const LIVE_SCORE_LEVELS = ['finals', 'major', 'p1', 'p2', 'fip_platinum']
 // ── Match select query (reused) ────────────────────────────────
 const MATCH_SELECT = `
   *,
-  tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url),
+  tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url, entry_list_status, source),
   pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
   pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
   pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),

@@ -10,6 +10,7 @@ import { Match, countryFlag, pairName, parseSetScore, isWarmingUp, toShortName }
 import Link from 'next/link'
 import Spinner from '../../../components/Spinner'
 import FollowButton from '@/components/FollowButton'
+import { isTournamentGated } from '@/lib/tournament-utils'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -169,7 +170,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money, entry_list_status, source')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -618,6 +619,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </div>
           )}
 
+          {/* Gated tournament banner */}
+          {activeTournamentObj && isTournamentGated(activeTournamentObj) && (
+            <div style={{
+              margin: '0 16px', padding: '12px 16px',
+              background: 'rgba(245, 166, 35, 0.1)',
+              borderLeft: '3px solid #F5A623',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Matches Coming Soon</div>
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Entry list data is being processed for accurate player information</div>
+            </div>
+          )}
+
           {/* ROW 4: Stage selector strip (matches tab only) */}
           {pageTab === 'matches' && availableRounds.length > 0 && (
             <div ref={stageStripRef} style={{
@@ -676,7 +689,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
         {/* ── Matches Feed ── */}
         {pageTab === 'matches' && (
-          <div style={{ padding: '8px 12px 16px' }}>
+          <div style={{ padding: '8px 12px 16px', ...(activeTournamentObj && isTournamentGated(activeTournamentObj) ? { opacity: 0.4, pointerEvents: 'none' as const } : {}) }}>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} style={{ background: BG_CARD, clipPath: CHUNKY.card, height: 88, marginBottom: 6, opacity: 0.3 }} />

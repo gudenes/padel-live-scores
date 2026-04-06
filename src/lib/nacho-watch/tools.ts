@@ -92,4 +92,24 @@ export const TOOLS: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: 'get_tournament_readiness',
+    description:
+      'Check which FIP tournaments need entry lists uploaded before matches can be shown to users. Returns tournaments with their readiness status (pending/partial/ready), days until start, and specific blockers (e.g., missing men entry list, missing women draw).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        days_ahead: {
+          type: 'number',
+          description: 'How many days ahead to look for upcoming tournaments. Defaults to 30.',
+        },
+        status_filter: {
+          type: 'string',
+          enum: ['all', 'pending', 'partial', 'ready'],
+          description: 'Filter by readiness status. Defaults to all.',
+        },
+      },
+      required: [],
+    },
+  },
 ]

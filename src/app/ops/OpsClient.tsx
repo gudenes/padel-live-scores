@@ -41,6 +41,22 @@ interface OngoingEvent {
   total: number
 }
 
+interface TournamentReadiness {
+  id: string
+  name: string
+  level: string | null
+  country: string | null
+  startsAt: string
+  daysUntilStart: number
+  entryListStatus: string | null
+  entryListMen: boolean
+  entryListWomen: boolean
+  drawMen: boolean
+  drawWomen: boolean
+  blockers: string[]
+  urgent: boolean
+}
+
 interface DashboardData {
   health: Record<string, HealthEntry>
   relay: RelayStatus
@@ -70,6 +86,7 @@ interface DashboardData {
     meta: Record<string, any> | null
     error_message: string | null
   }>
+  tournamentReadiness?: TournamentReadiness[]
   fetched_at: string
 }
 
@@ -227,7 +244,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'entry-lists' | 'simulator'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'entry-lists' | 'readiness' | 'simulator'>('ongoing')
 
   const poll = useCallback(async () => {
     try {
@@ -284,6 +301,10 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
     {
       label: 'Tournament Manager',
       items: [
+        { key: 'readiness' as const, label: 'Readiness', badge: (() => {
+          const urgent = (data.tournamentReadiness ?? []).filter(t => t.urgent).length
+          return urgent > 0 ? `${urgent} urgent` : null
+        })() },
         { key: 'entry-lists' as const, label: 'Entry Lists', badge: null },
         { key: 'simulator' as const, label: 'Simulator', badge: null },
       ],
@@ -338,8 +359,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
                     {item.badge && (
                       <span style={{
                         fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 8,
-                        background: item.badge.includes('live') ? '#dcfce7' : '#f3f4f6',
-                        color: item.badge.includes('live') ? '#166534' : '#666',
+                        background: item.badge.includes('live') ? '#dcfce7' : item.badge.includes('urgent') ? '#fee2e2' : '#f3f4f6',
+                        color: item.badge.includes('live') ? '#166534' : item.badge.includes('urgent') ? '#991b1b' : '#666',
                       }}>
                         {item.badge}
                       </span>
@@ -627,6 +648,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
       </>}
 
+      {tab === 'readiness' && <ReadinessTab tournaments={data.tournamentReadiness ?? []} onUploadEL={() => setTab('entry-lists')} />}
+
       {tab === 'entry-lists' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Entry Lists</div>
         <EntryListTab />
@@ -640,5 +663,181 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       </div>
       </div>
     </div>
+  )
+}
+
+// ── Readiness Tab ──────────────────────────────────────────────
+
+const R_GREEN = '#7ED321'
+const R_ORANGE = '#F5A623'
+const R_RED = '#FF4655'
+const R_MUTED = '#6B7280'
+
+function getReadinessStatus(t: TournamentReadiness): 'ready' | 'partial' | 'pending' {
+  if (t.blockers.length === 0) return 'ready'
+  if (t.entryListMen || t.entryListWomen || t.drawMen || t.drawWomen) return 'partial'
+  return 'pending'
+}
+
+function ReadinessTab({ tournaments, onUploadEL }: { tournaments: TournamentReadiness[]; onUploadEL: () => void }) {
+  const pending = tournaments.filter(t => getReadinessStatus(t) === 'pending').length
+  const partial = tournaments.filter(t => getReadinessStatus(t) === 'partial').length
+  const ready = tournaments.filter(t => getReadinessStatus(t) === 'ready').length
+  const urgent = tournaments.filter(t => t.urgent).length
+
+  const sorted = [...tournaments].sort((a, b) => {
+    // Urgent first
+    if (a.urgent && !b.urgent) return -1
+    if (!a.urgent && b.urgent) return 1
+    // Ready last
+    const aReady = getReadinessStatus(a) === 'ready'
+    const bReady = getReadinessStatus(b) === 'ready'
+    if (aReady && !bReady) return 1
+    if (!aReady && bReady) return -1
+    // By days until start ascending
+    return a.daysUntilStart - b.daysUntilStart
+  })
+
+  const statusBadgeColor = (status: 'ready' | 'partial' | 'pending') => {
+    switch (status) {
+      case 'ready': return R_GREEN
+      case 'partial': return R_ORANGE
+      case 'pending': return R_RED
+    }
+  }
+
+  const daysColor = (days: number) => {
+    if (days < 0) return R_MUTED
+    if (days <= 3) return R_RED
+    if (days <= 7) return R_ORANGE
+    return R_GREEN
+  }
+
+  const daysLabel = (days: number) => {
+    if (days < -1) return `${Math.abs(days)}d ago`
+    if (days === -1) return 'Yesterday'
+    if (days === 0) return 'Today'
+    if (days === 1) return 'Tomorrow'
+    return `${days}d`
+  }
+
+  return (
+    <>
+      <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Tournament Readiness</div>
+
+      {/* Summary bar */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 20 }}>
+        <div style={card}>
+          <div style={tileLabel}>Pending</div>
+          <div style={{ ...bigNumber, color: R_RED }}>{pending}</div>
+        </div>
+        <div style={card}>
+          <div style={tileLabel}>Partial</div>
+          <div style={{ ...bigNumber, color: R_ORANGE }}>{partial}</div>
+        </div>
+        <div style={card}>
+          <div style={tileLabel}>Ready</div>
+          <div style={{ ...bigNumber, color: R_GREEN }}>{ready}</div>
+        </div>
+        <div style={card}>
+          <div style={tileLabel}>Urgent</div>
+          <div style={{ ...bigNumber, color: R_RED }}>{urgent}</div>
+        </div>
+      </div>
+
+      {/* Table */}
+      {sorted.length > 0 ? (
+        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+          <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Tournament</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Starts In</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Status</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>EL Men</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>EL Women</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Draw M</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Draw W</th>
+                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Blockers</th>
+                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map(t => {
+                const status = getReadinessStatus(t)
+                const badgeColor = statusBadgeColor(status)
+                return (
+                  <tr key={t.id} style={{
+                    borderBottom: '1px solid #f3f4f6',
+                    borderTop: t.urgent ? '2px solid #FF4655' : undefined,
+                  }}>
+                    <td style={{ padding: '8px 12px' }}>
+                      <div style={{ fontWeight: 600, color: '#111', fontSize: 12 }}>{t.name}</div>
+                      <div style={{ fontSize: 10, color: '#999' }}>{[t.level, t.country].filter(Boolean).join(' · ')}</div>
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      <span style={{ fontWeight: 700, color: daysColor(t.daysUntilStart), fontSize: 12 }}>
+                        {daysLabel(t.daysUntilStart)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-block', padding: '2px 10px', fontSize: 9, fontWeight: 700,
+                        color: '#fff', background: badgeColor, textTransform: 'uppercase',
+                        clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)',
+                      }}>
+                        {status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', color: t.entryListMen ? R_GREEN : R_RED, fontWeight: 600 }}>
+                      {t.entryListMen ? '\u2713' : '\u2717'}
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', color: t.entryListWomen ? R_GREEN : R_RED, fontWeight: 600 }}>
+                      {t.entryListWomen ? '\u2713' : '\u2717'}
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', color: t.drawMen ? R_GREEN : R_RED, fontWeight: 600 }}>
+                      {t.drawMen ? '\u2713' : '\u2717'}
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center', color: t.drawWomen ? R_GREEN : R_RED, fontWeight: 600 }}>
+                      {t.drawWomen ? '\u2713' : '\u2717'}
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {t.blockers.map(b => (
+                          <span key={b} style={{
+                            fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
+                            background: 'rgba(255,70,85,0.1)', color: R_RED,
+                          }}>
+                            {b}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                      {status !== 'ready' && (
+                        <button
+                          onClick={onUploadEL}
+                          style={{
+                            fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                            border: '1px solid #e5e7eb', background: '#f9fafb', color: '#333',
+                            cursor: 'pointer', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Upload EL
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div style={{ ...card, textAlign: 'center', color: '#999', fontSize: 12 }}>
+          No FIP tournaments in the -7d / +30d window
+        </div>
+      )}
+    </>
   )
 }

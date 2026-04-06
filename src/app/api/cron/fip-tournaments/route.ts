@@ -94,6 +94,7 @@ export async function GET(request: Request) {
           } else {
             // Insert new — use slug as external_id for FIP tournaments
             tournamentData.external_id = `fip-${event.slug}`
+            tournamentData.entry_list_status = 'pending'
             const { error } = await supabase
               .from('tournaments')
               .upsert(tournamentData, { onConflict: 'external_id' })
