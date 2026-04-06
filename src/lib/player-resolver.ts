@@ -65,6 +65,13 @@ export interface ResolveResult {
   action: 'found' | 'enriched' | 'created'
 }
 
+export interface LookupResult {
+  found: boolean
+  playerId?: string
+  playerName?: string
+  matchType: 'exact' | 'fuzzy' | 'none'
+}
+
 // ── Name normalization ───────────────────────────────────────────────────
 
 export function normalize(s: string): string {
@@ -377,6 +384,101 @@ export class PlayerResolver {
     this.byNormalizedName.get(norm)!.push(cached)
 
     return { playerId: data.id, action: 'created' }
+  }
+
+  /**
+   * Look up an existing player without creating one.
+   * Same resolution chain as resolve() but never creates a new player.
+   *
+   * Lookup priority:
+   *   1. fip_id (exact)
+   *   2. external_id (exact)
+   *   3. normalized name + category match
+   *   4. fuzzy name match (token overlap >= 0.7 + same category)
+   */
+  async lookup(input: PlayerInput): Promise<LookupResult> {
+    await this.ensureLoaded()
+
+    let existing: CachedPlayer | null = null
+    let matchType: 'exact' | 'fuzzy' | 'none' = 'none'
+
+    // 1. Lookup by fip_id
+    if (input.fipId) {
+      existing = this.byFipId.get(input.fipId) ?? null
+      if (existing) matchType = 'exact'
+    }
+
+    // 2. Lookup by external_id
+    if (!existing && input.externalId) {
+      existing = this.byExternalId.get(input.externalId) ?? null
+      if (existing) matchType = 'exact'
+    }
+
+    // 3. Exact normalized name match (prefer same category, disambiguate by ranking/points)
+    if (!existing) {
+      const norm = normalize(input.name)
+      const candidates = this.byNormalizedName.get(norm)
+      if (candidates) {
+        const sameCat = input.category
+          ? candidates.filter(c => c.category === input.category)
+          : candidates
+        const pool = sameCat.length > 0 ? sameCat : candidates
+
+        if (pool.length === 1) {
+          existing = pool[0]
+          matchType = 'exact'
+        } else if (pool.length > 1 && (input.ranking != null || input.points != null)) {
+          let bestDistance = Infinity
+          for (const c of pool) {
+            if (c.ranking == null && c.points == null) continue
+            const rDist = (input.ranking != null && c.ranking != null)
+              ? Math.abs(input.ranking - c.ranking) / Math.max(input.ranking, c.ranking, 1)
+              : 0.5
+            const pDist = (input.points != null && c.points != null)
+              ? Math.abs(input.points - c.points) / Math.max(input.points, c.points, 1)
+              : 0.5
+            const dist = (rDist + pDist) / 2
+            if (dist < bestDistance) {
+              bestDistance = dist
+              existing = c
+            }
+          }
+          if (bestDistance > 0.5) existing = null
+          if (existing) matchType = 'exact'
+        } else if (pool.length > 1) {
+          existing = pool[0]
+          matchType = 'exact'
+        }
+      }
+    }
+
+    // 4. Fuzzy name match (token overlap >= 0.7, same category)
+    if (!existing && input.category) {
+      let bestScore = 0
+      for (const [, players] of this.byNormalizedName) {
+        for (const p of players) {
+          if (p.category !== input.category) continue
+          const sim = tokenSimilarity(input.name, p.name)
+          if (sim >= 0.7 && sim > bestScore) {
+            if (input.country && p.country && input.country !== p.country) continue
+            bestScore = sim
+            existing = p
+          }
+        }
+      }
+      if (existing) matchType = 'fuzzy'
+    }
+
+    if (existing) {
+      return {
+        found: true,
+        playerId: existing.id,
+        playerName: existing.name,
+        matchType,
+      }
+    }
+
+    return { found: false, matchType: 'none' }
   }
 
   /** Find a cached player by DB id (for post-enrichment cache updates). */
