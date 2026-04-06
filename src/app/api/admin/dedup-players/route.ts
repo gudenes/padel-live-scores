@@ -196,31 +196,18 @@ export async function GET(request: NextRequest) {
           query = query.eq('tournament_id', tournamentFilter)
         }
 
-        const { count } = await query.select('id', { count: 'exact', head: true })
-        // Actually do the update
-        const updateQuery = supabase
-          .from('matches')
-          .update({ [col]: canonicalId })
-          .eq(col, dupeId)
-        if (tournamentFilter) {
-          updateQuery.eq('tournament_id', tournamentFilter)
-        }
-        await updateQuery
-        matchesUpdated += count ?? 0
+        const { data } = await query.select('id')
+        matchesUpdated += data?.length ?? 0
       }
 
       // Update tournament_draws
       for (const col of ['player1_id', 'player2_id']) {
-        const { count } = await supabase
+        const { data } = await supabase
           .from('tournament_draws')
           .update({ [col]: canonicalId })
           .eq(col, dupeId)
-          .select('id', { count: 'exact', head: true })
-        await supabase
-          .from('tournament_draws')
-          .update({ [col]: canonicalId })
-          .eq(col, dupeId)
-        drawsUpdated += count ?? 0
+          .select('id')
+        drawsUpdated += data?.length ?? 0
       }
 
       // Update user_bookmarks (player follows)
