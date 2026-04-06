@@ -5,9 +5,11 @@ export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
 
   // ── Auth param rescue — if Supabase redirects to wrong page with auth params, forward to callback ──
-  const hasCode = searchParams.has('code') && searchParams.get('code')?.startsWith('pkce_')
+  // Supabase verify endpoint redirects with ?code=<auth_code> (36+ char random string)
+  const code = searchParams.get('code')
+  const hasAuthCode = code && code.length >= 20 && !/^[0-9]{1,10}$/.test(code)
   const hasTokenHash = searchParams.has('token_hash')
-  if ((hasCode || hasTokenHash) && pathname !== '/auth/callback') {
+  if ((hasAuthCode || hasTokenHash) && pathname !== '/auth/callback') {
     const callbackUrl = new URL('/auth/callback', request.url)
     callbackUrl.search = request.nextUrl.search
     return NextResponse.redirect(callbackUrl)
