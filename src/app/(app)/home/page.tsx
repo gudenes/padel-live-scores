@@ -4,7 +4,7 @@
 // Sections: Header → Live Now → Coming Up → Tournament Spotlight →
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
@@ -1733,6 +1733,14 @@ function CollapsibleSeasonV3({ year, tournaments }: { year: number; tournaments:
 // ════════════════════════════════════════════════════════════════
 
 export default function V3HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <V3HomePageInner />
+    </Suspense>
+  )
+}
+
+function V3HomePageInner() {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'home' | 'tournaments'>('home')
