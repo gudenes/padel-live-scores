@@ -94,7 +94,7 @@ export default function TermsPage() {
       <h2 style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginTop: 32, marginBottom: 12 }}>10. Contact Us</h2>
       <p>
         If you have questions about these Terms of Service, contact us at: <br />
-        <strong style={{ color: '#7ED321' }}>support@padelnachos.com</strong>
+        <strong style={{ color: '#7ED321' }}>hello@padelnachos.com</strong>
       </p>
     </div>
   )
