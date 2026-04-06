@@ -21,6 +21,8 @@ export async function executeTool(name: string, input: Record<string, unknown>):
         return await getDataQuality(input)
       case 'get_rate_limit_info':
         return await getRateLimitInfo()
+      case 'get_tournament_readiness':
+        return await getTournamentReadiness(input)
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` })
     }
@@ -292,5 +294,102 @@ async function getRateLimitInfo(): Promise<string> {
     skippedRunsInWindow: skippedRuns.length,
     runsChecked: events.length,
     avgRequestsPerRun: avgPerRun,
+  })
+}
+
+// ── get_tournament_readiness ────────────────────────────────────
+async function getTournamentReadiness(input: Record<string, unknown>): Promise<string> {
+  const supabase = createServerClient()
+  const daysAhead = (input.days_ahead as number) || 30
+  const statusFilter = (input.status_filter as string) || 'all'
+
+  const now = new Date()
+  const pastCutoff = new Date(now.getTime() - 7 * 86400_000).toISOString().slice(0, 10)
+  const futureCutoff = new Date(now.getTime() + daysAhead * 86400_000).toISOString().slice(0, 10)
+
+  let query = supabase
+    .from('tournaments')
+    .select('id, name, level, country, starts_at, ends_at, entry_list_status')
+    .eq('source', 'fip')
+    .gte('starts_at', pastCutoff)
+    .lte('starts_at', futureCutoff)
+    .order('starts_at', { ascending: true })
+
+  if (statusFilter !== 'all') {
+    query = query.eq('entry_list_status', statusFilter)
+  }
+
+  const { data: tournaments, error } = await query.limit(30)
+  if (error) return JSON.stringify({ error: error.message })
+
+  const tIds = (tournaments ?? []).map((t: any) => t.id)
+
+  // Check which categories have entry lists seeded
+  const { data: seedEvents } = await supabase
+    .from('ops_events')
+    .select('meta')
+    .eq('source', 'entry-list-seed')
+    .eq('status', 'ok')
+
+  // Check which have draws
+  const { data: drawRows } = tIds.length > 0
+    ? await supabase
+        .from('tournament_draws')
+        .select('tournament_id, category')
+        .in('tournament_id', tIds)
+    : { data: [] }
+
+  // Build per-tournament seed info
+  const seedByTournament = new Map<string, Set<string>>()
+  for (const e of (seedEvents ?? [])) {
+    const tid = (e.meta as any)?.tournament_id
+    const cat = (e.meta as any)?.category
+    if (tid && cat) {
+      if (!seedByTournament.has(tid)) seedByTournament.set(tid, new Set())
+      seedByTournament.get(tid)!.add(cat)
+    }
+  }
+
+  const drawByTournament = new Map<string, Set<string>>()
+  for (const r of (drawRows ?? [])) {
+    if (!drawByTournament.has(r.tournament_id)) drawByTournament.set(r.tournament_id, new Set())
+    drawByTournament.get(r.tournament_id)!.add(r.category)
+  }
+
+  const result = (tournaments ?? []).map((t: any) => {
+    const seeded = seedByTournament.get(t.id) ?? new Set()
+    const draws = drawByTournament.get(t.id) ?? new Set()
+    const daysUntil = Math.round((new Date(t.starts_at).getTime() - now.getTime()) / 86400_000)
+
+    const blockers: string[] = []
+    if (!seeded.has('men')) blockers.push('Missing men entry list')
+    if (!seeded.has('women')) blockers.push('Missing women entry list')
+    if (!draws.has('men')) blockers.push('Missing men draw')
+    if (!draws.has('women')) blockers.push('Missing women draw')
+
+    return {
+      id: t.id,
+      name: t.name,
+      level: t.level,
+      country: t.country,
+      startsAt: t.starts_at,
+      daysUntilStart: daysUntil,
+      status: t.entry_list_status,
+      entryListMen: seeded.has('men'),
+      entryListWomen: seeded.has('women'),
+      drawMen: draws.has('men'),
+      drawWomen: draws.has('women'),
+      blockers,
+      urgent: daysUntil <= 3 && t.entry_list_status !== 'ready',
+    }
+  })
+
+  return JSON.stringify({
+    count: result.length,
+    pendingCount: result.filter((t: any) => t.status === 'pending').length,
+    partialCount: result.filter((t: any) => t.status === 'partial').length,
+    readyCount: result.filter((t: any) => t.status === 'ready').length,
+    urgentCount: result.filter((t: any) => t.urgent).length,
+    tournaments: result,
   })
 }

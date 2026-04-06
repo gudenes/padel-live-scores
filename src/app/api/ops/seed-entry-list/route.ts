@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     // Fetch FIP tournaments: starting within next 30 days, or recently active (ended within 30 days)
     const { data: tournaments, error } = await supabase
       .from('tournaments')
-      .select('id, name, country, level, starts_at, ends_at')
+      .select('id, name, country, level, starts_at, ends_at, entry_list_status')
       .eq('source', 'fip')
       .gte('starts_at', thirtyDaysAgo)
       .lte('starts_at', in30Days)
@@ -143,6 +143,8 @@ export async function POST(request: Request) {
   let linked = 0
   let created = 0
   const errors: string[] = []
+  const newPlayers: { name: string; ranking?: number; country: string }[] = []
+  const top100Errors: { name: string; ranking: number; country: string }[] = []
 
   for (const player of body.players) {
     try {
@@ -160,6 +162,11 @@ export async function POST(request: Request) {
 
         if (result.action === 'created') {
           created++
+          newPlayers.push({ name: player.name, ranking: player.ranking, country: player.country })
+          // Top-100 rule: ranked players in top 100 MUST already exist in DB
+          if (player.ranking != null && player.ranking <= 100) {
+            top100Errors.push({ name: player.name, ranking: player.ranking, country: player.country })
+          }
         } else {
           linked++
         }
@@ -187,14 +194,43 @@ export async function POST(request: Request) {
       players_linked: linked,
       players_created: created,
       errors: errors.length,
+      new_players: newPlayers.length,
+      top100_errors: top100Errors.length,
     },
     error_message: errors.length > 0 ? errors.slice(0, 5).join('; ') : null,
   })
+
+  // ── Auto-update entry_list_status ──────────────────────────────
+  // Recompute from all entry-list-seed events for this tournament
+  const { data: seedEvents } = await supabase
+    .from('ops_events')
+    .select('meta')
+    .eq('source', 'entry-list-seed')
+    .eq('status', 'ok')
+
+  const seededCategories = new Set(
+    (seedEvents ?? [])
+      .filter((e: any) => (e.meta as any)?.tournament_id === body.tournamentId)
+      .map((e: any) => (e.meta as any)?.category)
+      .filter(Boolean)
+  )
+
+  const newStatus = seededCategories.size >= 2 ? 'ready'
+    : seededCategories.size === 1 ? 'partial'
+    : 'pending'
+
+  await supabase
+    .from('tournaments')
+    .update({ entry_list_status: newStatus })
+    .eq('id', body.tournamentId)
 
   return Response.json({
     linked,
     created,
     total: body.players.length,
     errors,
+    newPlayers,
+    top100Errors,
+    entryListStatus: newStatus,
   })
 }
