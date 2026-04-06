@@ -245,6 +245,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
   const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'entry-lists' | 'readiness' | 'simulator'>('ongoing')
+  const [preSelectedTournamentId, setPreSelectedTournamentId] = useState<string | null>(null)
 
   const poll = useCallback(async () => {
     try {
@@ -648,11 +649,14 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
       </>}
 
-      {tab === 'readiness' && <ReadinessTab tournaments={data.tournamentReadiness ?? []} onUploadEL={() => setTab('entry-lists')} />}
+      {tab === 'readiness' && <ReadinessTab tournaments={data.tournamentReadiness ?? []} onOpenTournament={(id) => {
+        setPreSelectedTournamentId(id)
+        setTab('entry-lists')
+      }} />}
 
       {tab === 'entry-lists' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Entry Lists</div>
-        <EntryListTab />
+        <EntryListTab preSelectedTournamentId={preSelectedTournamentId} onClearPreSelection={() => setPreSelectedTournamentId(null)} />
       </>}
 
       {tab === 'simulator' && <>
@@ -679,7 +683,7 @@ function getReadinessStatus(t: TournamentReadiness): 'ready' | 'partial' | 'pend
   return 'pending'
 }
 
-function ReadinessTab({ tournaments, onUploadEL }: { tournaments: TournamentReadiness[]; onUploadEL: () => void }) {
+function ReadinessTab({ tournaments, onOpenTournament }: { tournaments: TournamentReadiness[]; onOpenTournament: (tournamentId: string) => void }) {
   const pending = tournaments.filter(t => getReadinessStatus(t) === 'pending').length
   const partial = tournaments.filter(t => getReadinessStatus(t) === 'partial').length
   const ready = tournaments.filter(t => getReadinessStatus(t) === 'ready').length
@@ -814,18 +818,18 @@ function ReadinessTab({ tournaments, onUploadEL }: { tournaments: TournamentRead
                       </div>
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                      {status !== 'ready' && (
+                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                         <button
-                          onClick={onUploadEL}
+                          onClick={() => onOpenTournament(t.id)}
                           style={{
                             fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
                             border: '1px solid #e5e7eb', background: '#f9fafb', color: '#333',
                             cursor: 'pointer', whiteSpace: 'nowrap',
                           }}
                         >
-                          Upload EL
+                          {status !== 'ready' ? 'Upload EL' : 'Open'}
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 )

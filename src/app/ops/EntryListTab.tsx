@@ -168,7 +168,7 @@ function statusBadgeLabel(action: ParsedPlayer['action']): string {
 
 // ── Component ────────────────────────────────────────────────────
 
-export default function EntryListTab() {
+export default function EntryListTab({ preSelectedTournamentId, onClearPreSelection }: { preSelectedTournamentId?: string | null; onClearPreSelection?: () => void }) {
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [tournamentError, setTournamentError] = useState<string | null>(null)
@@ -262,6 +262,17 @@ export default function EntryListTab() {
       })
     return () => { cancelled = true }
   }, [])
+
+  // Auto-select tournament when navigating from Readiness tab
+  useEffect(() => {
+    if (preSelectedTournamentId && tournaments.length > 0 && !selectedTournament) {
+      const found = tournaments.find(t => t.id === preSelectedTournamentId)
+      if (found) {
+        setSelectedTournament(found.id)
+        onClearPreSelection?.()
+      }
+    }
+  }, [preSelectedTournamentId, tournaments, selectedTournament, onClearPreSelection])
 
   const sortedTournaments = [...tournaments].sort((a, b) => {
     const urgencyDiff = urgencyDot(a).sortKey - urgencyDot(b).sortKey
