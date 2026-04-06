@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/quality-scores",
       "schedule": "7 * * * *"
+    },
+    {
+      "path": "/api/cron/nacho-health",
+      "schedule": "0 7 * * *"
     }
   ]
 }
