@@ -23,6 +23,23 @@ interface ParsedPlayer {
   ranking: number | null
   points: number | null
   action: 'new' | 'exact' | 'fuzzy'
+  matchStatus: 'exact' | 'fuzzy' | 'new'
+  matchedPlayerId: string | null
+  matchedPlayerName: string | null
+  matchedPlayerRanking: number | null
+}
+
+interface PlayerSearchResult {
+  id: string
+  name: string
+  country: string | null
+  ranking: number | null
+}
+
+/** Overrides collected per-player for the seed request */
+interface PlayerOverride {
+  action: 'link' | 'create'
+  playerId: string | undefined
 }
 
 interface ParsedTeam {
@@ -171,6 +188,21 @@ export default function EntryListTab() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Typeahead tournament selector state
+  const [tournamentSearch, setTournamentSearch] = useState('')
+  const [typeaheadOpen, setTypeaheadOpen] = useState(false)
+  const typeaheadRef = useRef<HTMLDivElement>(null)
+
+  // Player overrides for enriched preview (keyed by "teamIdx-playerIdx")
+  const [playerOverrides, setPlayerOverrides] = useState<Record<string, PlayerOverride>>({})
+
+  // Player search popover state
+  const [searchPopoverKey, setSearchPopoverKey] = useState<string | null>(null)
+  const [searchPopoverQuery, setSearchPopoverQuery] = useState('')
+  const [searchPopoverResults, setSearchPopoverResults] = useState<PlayerSearchResult[]>([])
+  const [searchPopoverLoading, setSearchPopoverLoading] = useState(false)
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Draw upload state
   const [drawFile, setDrawFile] = useState<File | null>(null)
   const [drawParseResult, setDrawParseResult] = useState<DrawParseResult | null>(null)
@@ -178,6 +210,30 @@ export default function EntryListTab() {
   const [drawSeedResult, setDrawSeedResult] = useState<DrawSeedResult | null>(null)
   const [drawStage, setDrawStage] = useState<'idle' | 'parsing' | 'preview' | 'seeding' | 'done'>('idle')
   const drawFileInputRef = useRef<HTMLInputElement>(null)
+
+  // Close typeahead on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (typeaheadRef.current && !typeaheadRef.current.contains(e.target as Node)) {
+        setTypeaheadOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Close search popover on outside click
+  useEffect(() => {
+    if (!searchPopoverKey) return
+    function handleClickOutside(e: MouseEvent) {
+      const popover = document.getElementById('player-search-popover')
+      if (popover && !popover.contains(e.target as Node)) {
+        setSearchPopoverKey(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [searchPopoverKey])
 
   // Load tournaments on mount
   useEffect(() => {
@@ -213,6 +269,75 @@ export default function EntryListTab() {
     const bReady = (b.hasEntryList ? 1 : 0) + (b.hasDraw ? 1 : 0)
     return aReady - bReady
   })
+
+  // ── Typeahead helpers ───────────────────────────────────────────
+
+  const filteredTournaments = tournamentSearch.trim()
+    ? sortedTournaments.filter(t => {
+        const q = tournamentSearch.toLowerCase()
+        return (
+          t.name.toLowerCase().includes(q) ||
+          (t.country ?? '').toLowerCase().includes(q) ||
+          (t.level ?? '').toLowerCase().includes(q)
+        )
+      })
+    : sortedTournaments
+
+  const selectedTournamentObj = tournaments.find(t => t.id === selectedTournament) ?? null
+
+  const handleSelectTournament = useCallback((id: string) => {
+    setSelectedTournament(id)
+    setTypeaheadOpen(false)
+    setTournamentSearch('')
+  }, [])
+
+  const handleDeselectTournament = useCallback(() => {
+    setSelectedTournament('')
+    setTournamentSearch('')
+    setTypeaheadOpen(true)
+  }, [])
+
+  // ── Player override helpers ───────────────────────────────────
+
+  const getPlayerOverride = useCallback((teamIdx: number, playerIdx: number, player: ParsedPlayer): PlayerOverride => {
+    const key = `${teamIdx}-${playerIdx}`
+    if (playerOverrides[key]) return playerOverrides[key]
+    // Default: link for exact/fuzzy, create for new
+    return {
+      action: player.matchStatus === 'new' ? 'create' : 'link',
+      playerId: player.matchedPlayerId ?? undefined,
+    }
+  }, [playerOverrides])
+
+  const setPlayerOverride = useCallback((teamIdx: number, playerIdx: number, override: Partial<PlayerOverride>) => {
+    const key = `${teamIdx}-${playerIdx}`
+    setPlayerOverrides(prev => ({
+      ...prev,
+      [key]: { ...prev[key], ...override } as PlayerOverride,
+    }))
+  }, [])
+
+  // ── Player search popover handler ─────────────────────────────
+
+  const handlePlayerSearch = useCallback((query: string) => {
+    setSearchPopoverQuery(query)
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    if (!query.trim()) {
+      setSearchPopoverResults([])
+      return
+    }
+    searchDebounceRef.current = setTimeout(async () => {
+      setSearchPopoverLoading(true)
+      try {
+        const res = await fetch(`/api/ops/search-players?q=${encodeURIComponent(query)}&category=${category}`)
+        if (res.ok) {
+          const data = await res.json()
+          setSearchPopoverResults(data.players ?? [])
+        }
+      } catch { /* ignore */ }
+      setSearchPopoverLoading(false)
+    }, 300)
+  }, [category])
 
   // ── File handling ──────────────────────────────────────────────
 
@@ -273,10 +398,17 @@ export default function EntryListTab() {
           teamNumber: t.position ?? i + 1,
           drawType: t.drawType ?? 'main',
           isWildCard: t.isWildCard ?? false,
-          players: [
-            { name: t.player1?.name ?? '', country: t.player1?.country ?? null, ranking: t.player1?.ranking ?? null, points: t.player1?.points ?? null, action: 'new' as const },
-            { name: t.player2?.name ?? '', country: t.player2?.country ?? null, ranking: t.player2?.ranking ?? null, points: t.player2?.points ?? null, action: 'new' as const },
-          ],
+          players: [t.player1, t.player2].map((p: any) => ({
+            name: p?.name ?? '',
+            country: p?.country ?? null,
+            ranking: p?.ranking ?? null,
+            points: p?.points ?? null,
+            action: (p?.matchStatus ?? 'new') as 'new' | 'exact' | 'fuzzy',
+            matchStatus: (p?.matchStatus ?? 'new') as 'exact' | 'fuzzy' | 'new',
+            matchedPlayerId: p?.matchedPlayerId ?? null,
+            matchedPlayerName: p?.matchedPlayerName ?? null,
+            matchedPlayerRanking: p?.matchedPlayerRanking ?? null,
+          })),
         })),
         metadata: {
           filename: raw.metadata?.filename ?? undefined,
@@ -290,6 +422,7 @@ export default function EntryListTab() {
         playerCount: raw.playerCount ?? 0,
       }
       setParseResult(data)
+      setPlayerOverrides({})
       setStage('preview')
     } catch (err: unknown) {
       setParseError(err instanceof Error ? err.message : 'Parse failed')
@@ -305,14 +438,18 @@ export default function EntryListTab() {
     setStage('seeding')
 
     try {
-      const allPlayers = parseResult.teams.flatMap(t =>
-        t.players.map(p => ({
-          name: p.name,
-          country: p.country ?? '',
-          ranking: p.ranking ?? undefined,
-          points: p.points ?? undefined,
-          action: p.action === 'new' ? 'create' : 'link',
-        }))
+      const allPlayers = parseResult.teams.flatMap((t, teamIdx) =>
+        t.players.map((p, playerIdx) => {
+          const override = getPlayerOverride(teamIdx, playerIdx, p)
+          return {
+            name: p.name,
+            country: p.country ?? '',
+            ranking: p.ranking ?? undefined,
+            points: p.points ?? undefined,
+            action: override.action,
+            playerId: override.playerId,
+          }
+        })
       )
 
       // Determine dominant draw type for the seed request (most teams win)
@@ -344,7 +481,7 @@ export default function EntryListTab() {
       setSeedError(err instanceof Error ? err.message : 'Seed failed')
       setStage('preview')
     }
-  }, [parseResult, selectedTournament, category])
+  }, [parseResult, selectedTournament, category, getPlayerOverride])
   // Note: drawType removed from deps — now computed from parseResult
 
   // ── Reset ──────────────────────────────────────────────────────
@@ -433,6 +570,8 @@ export default function EntryListTab() {
     setSeedError(null)
     setSelectedFile(null)
     setPasteText('')
+    setPlayerOverrides({})
+    setSearchPopoverKey(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
     // Also reset draw state
     handleDrawReset()
@@ -453,49 +592,113 @@ export default function EntryListTab() {
           </div>
         )}
 
-        {/* Tournament selector */}
+        {/* Tournament selector — typeahead */}
         <div style={{ ...card, marginBottom: 12 }}>
           <div style={sectionLabel}>Tournament</div>
           {loadingTournaments ? (
             <div style={{ fontSize: 12, color: '#999' }}>Loading tournaments...</div>
           ) : tournamentError ? (
             <div style={{ fontSize: 12, color: '#dc2626' }}>{tournamentError}</div>
+          ) : selectedTournamentObj ? (
+            /* Selected chip */
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 10px', borderRadius: 6,
+              background: '#f0f4ff', border: '1px solid #c7d2fe',
+            }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: urgencyDot(selectedTournamentObj).color, flexShrink: 0 }} />
+              <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#111' }}>
+                {selectedTournamentObj.name}
+                {selectedTournamentObj.country && <span style={{ color: '#888', fontWeight: 400, marginLeft: 4 }}>({selectedTournamentObj.country})</span>}
+              </div>
+              <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: selectedTournamentObj.hasEntryList ? '#dcfce7' : '#fef2f2', color: selectedTournamentObj.hasEntryList ? '#166534' : '#dc2626' }}>EL</span>
+                <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: selectedTournamentObj.hasDraw ? '#dcfce7' : '#fef2f2', color: selectedTournamentObj.hasDraw ? '#166534' : '#dc2626' }}>DR</span>
+              </div>
+              <button
+                onClick={handleDeselectTournament}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280', padding: '0 2px', lineHeight: 1 }}
+                title="Deselect tournament"
+              >&times;</button>
+            </div>
           ) : (
-            <select
-              value={selectedTournament}
-              onChange={e => setSelectedTournament(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                border: '1px solid #e5e7eb',
-                borderRadius: 6,
-                fontSize: 13,
-                color: '#111',
-                background: 'white',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="">Select a tournament...</option>
-              {sortedTournaments.map(t => {
-                const dot = urgencyDot(t)
-                const el = t.hasEntryList ? '\u2713' : '\u2717'
-                const dr = t.hasDraw ? '\u2713' : '\u2717'
-                return (
-                  <option key={t.id} value={t.id}>
-                    {t.name}{t.country ? ` (${t.country})` : ''} — {dot.label} [EL:{el}] [DR:{dr}]
-                  </option>
-                )
-              })}
-            </select>
+            /* Typeahead search input + dropdown */
+            <div ref={typeaheadRef} style={{ position: 'relative' }}>
+              <input
+                type="text"
+                value={tournamentSearch}
+                onChange={e => { setTournamentSearch(e.target.value); setTypeaheadOpen(true) }}
+                onFocus={() => setTypeaheadOpen(true)}
+                onKeyDown={e => { if (e.key === 'Escape') setTypeaheadOpen(false) }}
+                placeholder="Search tournaments by name, country, or level..."
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  color: '#111',
+                  background: 'white',
+                  boxSizing: 'border-box',
+                }}
+              />
+              {typeaheadOpen && filteredTournaments.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  background: 'white', border: '1px solid #e5e7eb', borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 50,
+                  maxHeight: 320, overflowY: 'auto', marginTop: 4,
+                }}>
+                  {filteredTournaments.map(t => {
+                    const dot = urgencyDot(t)
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => handleSelectTournament(t.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '7px 10px', cursor: 'pointer',
+                          borderBottom: '1px solid #f3f4f6',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color, flexShrink: 0 }} />
+                        <div style={{ flex: 1, fontSize: 12, color: '#111' }}>
+                          {t.name}
+                          {t.country && <span style={{ color: '#999', marginLeft: 4 }}>({t.country})</span>}
+                        </div>
+                        <div style={{ fontSize: 10, color: '#888', display: 'flex', gap: 4, alignItems: 'center' }}>
+                          {dot.label}
+                          <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: t.hasEntryList ? '#dcfce7' : '#fef2f2', color: t.hasEntryList ? '#166534' : '#dc2626' }}>EL</span>
+                          <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: t.hasDraw ? '#dcfce7' : '#fef2f2', color: t.hasDraw ? '#166534' : '#dc2626' }}>DR</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {typeaheadOpen && tournamentSearch.trim() && filteredTournaments.length === 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0,
+                  background: 'white', border: '1px solid #e5e7eb', borderRadius: 6,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 50,
+                  padding: '12px 10px', marginTop: 4,
+                  fontSize: 12, color: '#999', textAlign: 'center',
+                }}>
+                  No tournaments match &ldquo;{tournamentSearch}&rdquo;
+                </div>
+              )}
+            </div>
           )}
 
           {/* Urgency legend */}
           {!loadingTournaments && !tournamentError && sortedTournaments.length > 0 && (
             <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
               {[
-                { color: '#ef4444', label: 'Starting soon (≤3d)' },
-                { color: '#f59e0b', label: 'This week (4–7d)' },
-                { color: '#22c55e', label: 'Upcoming (8–30d)' },
+                { color: '#ef4444', label: 'Starting soon (3d)' },
+                { color: '#f59e0b', label: 'This week (4-7d)' },
+                { color: '#22c55e', label: 'Upcoming (8-30d)' },
                 { color: '#9ca3af', label: 'In progress' },
               ].map(item => (
                 <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -503,43 +706,6 @@ export default function EntryListTab() {
                   <span style={{ fontSize: 10, color: '#666' }}>{item.label}</span>
                 </div>
               ))}
-            </div>
-          )}
-
-          {/* Urgency dots list */}
-          {selectedTournament === '' && !loadingTournaments && sortedTournaments.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              {sortedTournaments.slice(0, 8).map(t => {
-                const dot = urgencyDot(t)
-                return (
-                  <div
-                    key={t.id}
-                    onClick={() => setSelectedTournament(t.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '6px 8px',
-                      borderRadius: 6,
-                      cursor: 'pointer',
-                      marginBottom: 2,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot.color, flexShrink: 0 }} />
-                    <div style={{ flex: 1, fontSize: 12, color: '#111' }}>
-                      {t.name}
-                      {t.country && <span style={{ color: '#999', marginLeft: 4 }}>({t.country})</span>}
-                    </div>
-                    <div style={{ fontSize: 10, color: '#888', display: 'flex', gap: 4, alignItems: 'center' }}>
-                      {dot.label}
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: t.hasEntryList ? '#dcfce7' : '#fef2f2', color: t.hasEntryList ? '#166534' : '#dc2626' }}>EL</span>
-                      <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: t.hasDraw ? '#dcfce7' : '#fef2f2', color: t.hasDraw ? '#166534' : '#dc2626' }}>DR</span>
-                    </div>
-                  </div>
-                )
-              })}
             </div>
           )}
         </div>
@@ -869,7 +1035,14 @@ export default function EntryListTab() {
     const mainTeams = teams.filter(t => t.drawType === 'main')
     const qualTeams = teams.filter(t => t.drawType === 'qualifying')
 
-    const renderTeamTable = (sectionTeams: ParsedTeam[], label: string) => (
+    // Compute global team index offset for override keys
+    const teamGlobalIndex = (sectionTeams: ParsedTeam[]) => {
+      return sectionTeams.map(t => teams.indexOf(t))
+    }
+
+    const renderTeamTable = (sectionTeams: ParsedTeam[], label: string) => {
+      const globalIndices = teamGlobalIndex(sectionTeams)
+      return (
       <div style={{ ...card, marginBottom: 12, padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '8px 10px', background: '#f3f4f6', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
@@ -879,26 +1052,35 @@ export default function EntryListTab() {
           }}>{label}</span>
           <span style={{ fontSize: 11, color: '#888' }}>{sectionTeams.length} teams · {sectionTeams.length * 2} players</span>
         </div>
-        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse', minWidth: 700 }}>
           <thead>
             <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666', width: 36 }}>#</th>
-              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Name</th>
-              <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Country</th>
-              <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Ranking</th>
-              <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Points</th>
-              <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Status</th>
+              <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: '#666', width: 32 }}>#</th>
+              <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Name</th>
+              <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: '#666', width: 50 }}>Country</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: '#666', width: 50 }}>Rank</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: '#666', width: 60 }}>Points</th>
+              <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, color: '#666', width: 60 }}>DB Match</th>
+              <th style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600, color: '#666', width: 150 }}>Player ID</th>
+              <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600, color: '#666', width: 64 }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {sectionTeams.map((team, ti) => {
               const teamBg = ti % 2 === 0 ? '#ffffff' : '#f9fafb'
-              return team.players.map((player, pi) => (
+              const gIdx = globalIndices[ti]
+              return team.players.map((player, pi) => {
+                const override = getPlayerOverride(gIdx, pi, player)
+                const overrideKey = `${gIdx}-${pi}`
+                const isNew = player.matchStatus === 'new'
+                const currentPlayerId = override.playerId ?? player.matchedPlayerId ?? ''
+                return (
                 <tr
                   key={`${team.teamNumber}-${team.drawType}-${pi}`}
                   style={{ background: teamBg, borderBottom: '1px solid #f3f4f6' }}
                 >
-                  <td style={{ padding: '6px 10px', color: '#999', fontSize: 11 }}>
+                  <td style={{ padding: '5px 8px', color: '#999', fontSize: 10 }}>
                     {pi === 0 ? (
                       <>
                         {team.teamNumber}
@@ -908,40 +1090,156 @@ export default function EntryListTab() {
                       </>
                     ) : ''}
                   </td>
-                  <td style={{ padding: '6px 10px', fontWeight: 500, color: '#111' }}>{player.name}</td>
-                  <td style={{ padding: '6px 10px', color: '#555' }}>{player.country ?? '—'}</td>
-                  <td style={{ padding: '6px 10px', textAlign: 'right', color: '#555' }}>
+                  <td style={{ padding: '5px 8px', fontWeight: 500, color: '#111' }}>
+                    {player.name}
+                    {player.ranking !== null && player.ranking <= 100 && isNew && (
+                      <span title="Top-100 player not found in DB" style={{ color: '#FF4655', marginLeft: 4, cursor: 'help' }}>&#9888;</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '5px 8px', color: '#555' }}>{player.country ?? '—'}</td>
+                  <td style={{ padding: '5px 8px', textAlign: 'right', color: '#555' }}>
                     {player.ranking !== null ? player.ranking : '—'}
                   </td>
-                  <td style={{ padding: '6px 10px', textAlign: 'right', color: '#555' }}>
+                  <td style={{ padding: '5px 8px', textAlign: 'right', color: '#555' }}>
                     {player.points !== null ? player.points.toLocaleString() : '—'}
                   </td>
-                  <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                  {/* DB Match column */}
+                  <td style={{ padding: '5px 8px', textAlign: 'center' }}>
                     <span style={{
-                      ...statusBadgeStyle(player.action),
-                      fontSize: 10,
-                      fontWeight: 600,
-                      padding: '2px 7px',
-                      borderRadius: 4,
+                      fontSize: 9,
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: 3,
+                      clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)',
                       display: 'inline-block',
+                      ...(player.matchStatus === 'exact'
+                        ? { background: '#7ED321', color: '#fff' }
+                        : player.matchStatus === 'fuzzy'
+                        ? { background: '#F5A623', color: '#fff' }
+                        : { background: '#4A9EFF', color: '#fff' }),
                     }}>
-                      {statusBadgeLabel(player.action)}
+                      {player.matchStatus === 'exact' ? 'EXACT' : player.matchStatus === 'fuzzy' ? 'FUZZY' : 'NEW'}
                     </span>
                   </td>
+                  {/* Player ID column */}
+                  <td style={{ padding: '5px 8px', position: 'relative' }}>
+                    {!isNew || override.action === 'link' ? (
+                      <span
+                        title={`${currentPlayerId}${player.matchedPlayerName ? ' — ' + player.matchedPlayerName : ''}`}
+                        style={{ fontSize: 10, fontFamily: 'monospace', color: '#666', cursor: 'help' }}
+                      >
+                        {currentPlayerId ? currentPlayerId.slice(0, 8) + '...' : '—'}
+                      </span>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <input
+                          type="text"
+                          value={override.playerId ?? ''}
+                          onChange={e => setPlayerOverride(gIdx, pi, { playerId: e.target.value || undefined })}
+                          placeholder="paste UUID"
+                          style={{
+                            width: 110, padding: '3px 5px', fontSize: 10, fontFamily: 'monospace',
+                            border: '1px solid #d1d5db', borderRadius: 4, color: '#333',
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            setSearchPopoverKey(overrideKey)
+                            setSearchPopoverQuery('')
+                            setSearchPopoverResults([])
+                          }}
+                          title="Search for player"
+                          style={{
+                            background: 'none', border: '1px solid #d1d5db', borderRadius: 4,
+                            cursor: 'pointer', padding: '2px 5px', fontSize: 12, lineHeight: 1,
+                          }}
+                        >&#128269;</button>
+                        {/* Search popover */}
+                        {searchPopoverKey === overrideKey && (
+                          <div
+                            id="player-search-popover"
+                            style={{
+                              position: 'absolute', top: '100%', left: 0, zIndex: 60,
+                              background: 'white', border: '1px solid #e5e7eb', borderRadius: 6,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)', padding: 8,
+                              width: 260, marginTop: 2,
+                            }}
+                          >
+                            <input
+                              type="text"
+                              autoFocus
+                              value={searchPopoverQuery}
+                              onChange={e => handlePlayerSearch(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Escape') setSearchPopoverKey(null) }}
+                              placeholder="Search by name..."
+                              style={{
+                                width: '100%', padding: '5px 7px', fontSize: 11,
+                                border: '1px solid #d1d5db', borderRadius: 4, marginBottom: 4,
+                                boxSizing: 'border-box',
+                              }}
+                            />
+                            {searchPopoverLoading && <div style={{ fontSize: 10, color: '#888', padding: 4 }}>Searching...</div>}
+                            {!searchPopoverLoading && searchPopoverResults.length === 0 && searchPopoverQuery.trim() && (
+                              <div style={{ fontSize: 10, color: '#999', padding: 4 }}>No results</div>
+                            )}
+                            {searchPopoverResults.map(r => (
+                              <div
+                                key={r.id}
+                                onClick={() => {
+                                  setPlayerOverride(gIdx, pi, { playerId: r.id, action: 'link' })
+                                  setSearchPopoverKey(null)
+                                }}
+                                style={{
+                                  padding: '5px 6px', cursor: 'pointer', borderRadius: 4,
+                                  fontSize: 11, display: 'flex', alignItems: 'center', gap: 6,
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                              >
+                                <span style={{ fontWeight: 500, color: '#111' }}>{r.name}</span>
+                                {r.country && <span style={{ color: '#999' }}>({r.country})</span>}
+                                {r.ranking && <span style={{ color: '#888', fontSize: 10 }}>#{r.ranking}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                  {/* Action column */}
+                  <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                    <button
+                      onClick={() => {
+                        const newAction = override.action === 'link' ? 'create' : 'link'
+                        setPlayerOverride(gIdx, pi, { action: newAction })
+                      }}
+                      style={{
+                        fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4,
+                        border: 'none', cursor: 'pointer',
+                        background: override.action === 'link' ? '#7ED321' : '#4A9EFF',
+                        color: '#fff',
+                      }}
+                    >
+                      {override.action === 'link' ? 'Link' : 'Create'}
+                    </button>
+                  </td>
                 </tr>
-              ))
+                )
+              })
             })}
             {sectionTeams.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+                <td colSpan={8} style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
                   No players found
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        </div>
       </div>
-    )
+      )
+    }
 
     return (
       <div>
