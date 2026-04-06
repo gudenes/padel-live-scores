@@ -36,21 +36,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Polyfill DOMMatrix for serverless environments (Vercel)
-    if (typeof globalThis.DOMMatrix === 'undefined') {
-      (globalThis as any).DOMMatrix = class DOMMatrix {
-        constructor() { return Object.create(DOMMatrix.prototype) }
-        static fromMatrix() { return new DOMMatrix() }
-      }
-    }
-
-    const { PDFParse } = await import('pdf-parse')
+    const { extractPdfText } = await import('@/lib/pdf-extract')
     const buffer = await file.arrayBuffer()
-    const uint8 = new Uint8Array(buffer)
-    const doc = new PDFParse({ data: uint8 })
-
-    const result = await doc.getText()
-    const text = result?.text ?? ''
+    const text = await extractPdfText(new Uint8Array(buffer))
 
     if (!text.trim()) {
       return Response.json({
