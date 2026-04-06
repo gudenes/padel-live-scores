@@ -131,7 +131,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
   const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>(
-    paramTab === 'recap' ? 'recap' : paramTab === 'overview' ? 'overview' : 'matches'
+    paramTab === 'recap' ? 'recap' : paramTab === 'matches' ? 'matches' : 'overview'
   )
   const stageStripRef = useRef<HTMLDivElement>(null)
 
@@ -588,7 +588,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
           {/* ROW 3: Page tabs */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-            {(['matches', 'overview', 'recap'] as const).map(tab => {
+            {(['overview', 'matches', 'recap'] as const).map(tab => {
               const active = pageTab === tab
               const isFinished = activeTournamentObj?.status === 'completed' || activeTournamentObj?.status === 'finished'
               if (tab === 'recap' && !isFinished) return null
@@ -1101,8 +1101,54 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     </div>
   )
 
+  // Tournament dates
+  const startsAt = tournament?.starts_at ? new Date(tournament.starts_at) : null
+  const endsAt = tournament?.ends_at ? new Date(tournament.ends_at) : null
+  const now = new Date()
+  const daysUntilStart = startsAt ? Math.ceil((startsAt.getTime() - now.getTime()) / 86400000) : null
+  const isUpcoming = daysUntilStart != null && daysUntilStart > 0
+  const isLive = startsAt && endsAt && now >= startsAt && now <= endsAt
+
+  const formatDate = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
   return (
     <div style={{ padding: '14px 14px 20px' }}>
+      {/* Tournament timing banner */}
+      {startsAt && (
+        <div style={{
+          background: isLive ? 'rgba(126,211,33,0.08)' : 'rgba(245,166,35,0.08)',
+          borderLeft: `3px solid ${isLive ? GREEN : '#F5A623'}`,
+          borderRadius: 4, padding: '10px 14px', marginBottom: 14,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+              {isLive ? 'Tournament In Progress' : isUpcoming ? 'Main Draw Starts' : 'Tournament Ended'}
+            </div>
+            <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
+              {formatDate(startsAt)}{endsAt ? ` — ${formatDate(endsAt)}` : ''}
+            </div>
+          </div>
+          {isUpcoming && daysUntilStart != null && (
+            <div style={{
+              fontSize: 13, fontWeight: 800,
+              color: daysUntilStart <= 2 ? '#FF4655' : daysUntilStart <= 7 ? '#F5A623' : GREEN,
+            }}>
+              {daysUntilStart === 1 ? 'Tomorrow' : `${daysUntilStart} days`}
+            </div>
+          )}
+          {isLive && (
+            <div style={{
+              fontSize: 10, fontWeight: 800, color: GREEN,
+              background: 'rgba(126,211,33,0.15)', padding: '3px 8px', borderRadius: 4,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+            }}>
+              Live
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
         <StatCard value={totalTeams || (tournament?.draw_size_md ? `${tournament.draw_size_md} pairs` : '\u2014')} label="Teams" accent />
