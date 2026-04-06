@@ -370,22 +370,39 @@ export default function EntryListTab() {
     setStage('parsing')
 
     try {
-      let res: Response
+      let textToSend = pasteText
 
+      // Client-side PDF extraction — parse PDF in browser, send text to API
       if (inputMode === 'upload' && selectedFile) {
-        const form = new FormData()
-        form.append('file', selectedFile)
-        res = await fetch('/api/ops/parse-entry-list', {
-          method: 'POST',
-          body: form,
-        })
-      } else {
-        res = await fetch('/api/ops/parse-entry-list', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: pasteText }),
-        })
+        try {
+          const arrayBuffer = await selectedFile.arrayBuffer()
+          const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+          pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+          const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise
+          const pages: string[] = []
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i)
+            const content = await page.getTextContent()
+            const pageText = content.items
+              .map((item: any) => ('str' in item ? item.str : ''))
+              .join(' ')
+            pages.push(pageText)
+          }
+          textToSend = pages.join('\n')
+          if (!textToSend.trim()) {
+            throw new Error('No text extracted from PDF. Try pasting the text instead.')
+          }
+        } catch (pdfErr) {
+          throw new Error(`PDF extraction failed: ${pdfErr instanceof Error ? pdfErr.message : String(pdfErr)}`)
+        }
       }
+
+      const categoryParam = category ? `?category=${category}` : ''
+      const res = await fetch(`/api/ops/parse-entry-list${categoryParam}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textToSend }),
+      })
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }))
