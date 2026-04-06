@@ -86,25 +86,12 @@ function pdfDocument(base64: string): Anthropic.DocumentBlockParam {
   }
 }
 
-/**
- * Parse a FIP tournament draw PDF using Claude Sonnet.
- * Returns structured bracket data with round assignments.
- */
-export async function parseDrawPdfWithSonnet(data: Uint8Array): Promise<SonnetDrawResult> {
-  const client = createClient()
-  const base64 = Buffer.from(data).toString('base64')
+// ── Constant prompts (cached via prompt caching) ────────────────
+// These long instruction blocks are constant across every call,
+// so we mark them with cache_control to get 90% cost reduction
+// on repeated reads ($3/M → $0.30/M after first call within 5 min TTL).
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          pdfDocument(base64),
-          {
-            type: 'text',
-            text: `Parse this FIP padel tournament draw PDF into structured JSON.
+const DRAW_SYSTEM_PROMPT = `You are a parser for FIP padel tournament draw PDFs. Convert the PDF into structured JSON.
 
 RULES:
 1. Each draw position has a PAIR of two players (team). Extract both player names.
@@ -148,47 +135,9 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
     "startingRound": "R32"
   },
   "warnings": []
-}`,
-          },
-        ],
-      },
-    ],
-  })
+}`
 
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map(block => block.text)
-    .join('')
-
-  // Extract JSON from response (might be wrapped in ```json ... ```)
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) {
-    throw new Error('Sonnet did not return valid JSON for draw parsing')
-  }
-
-  const parsed = JSON.parse(jsonMatch[0]) as SonnetDrawResult
-  return parsed
-}
-
-/**
- * Parse a FIP tournament entry list PDF using Claude Sonnet.
- * Returns structured team/player data with rankings.
- */
-export async function parseEntryListPdfWithSonnet(data: Uint8Array): Promise<SonnetEntryListResult> {
-  const client = createClient()
-  const base64 = Buffer.from(data).toString('base64')
-
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          pdfDocument(base64),
-          {
-            type: 'text',
-            text: `Parse this FIP padel tournament entry list PDF into structured JSON.
+const ENTRY_LIST_SYSTEM_PROMPT = `You are a parser for FIP padel tournament entry list PDFs. Convert the PDF into structured JSON.
 
 RULES:
 1. Each entry is a TEAM of two players with a position number.
@@ -223,12 +172,103 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
     "mainDrawTeams": 24,
     "qualifyingTeams": 8
   }
-}`,
-          },
+}`
+
+/**
+ * Parse a FIP tournament draw PDF using Claude Sonnet.
+ * Returns structured bracket data with round assignments.
+ */
+export async function parseDrawPdfWithSonnet(data: Uint8Array): Promise<SonnetDrawResult> {
+  const client = createClient()
+  const base64 = Buffer.from(data).toString('base64')
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 16384,
+    system: [
+      {
+        type: 'text',
+        text: DRAW_SYSTEM_PROMPT,
+        cache_control: { type: 'ephemeral' },
+      },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          pdfDocument(base64),
+          { type: 'text', text: 'Parse this draw PDF.' },
         ],
       },
     ],
   })
+
+  // Log cache usage for cost monitoring
+  const usage = response.usage as any
+  if (usage?.cache_creation_input_tokens || usage?.cache_read_input_tokens) {
+    console.log(`[parseDrawPdfWithSonnet] cache: created=${usage.cache_creation_input_tokens ?? 0}, read=${usage.cache_read_input_tokens ?? 0}, input=${usage.input_tokens}, output=${usage.output_tokens}`)
+  }
+
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error(`Sonnet response was truncated (hit max_tokens=${16384}). Try a smaller PDF or split the document.`)
+  }
+
+  const text = response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+    .map(block => block.text)
+    .join('')
+
+  // Extract JSON from response (might be wrapped in ```json ... ```)
+  const jsonMatch = text.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) {
+    throw new Error('Sonnet did not return valid JSON for draw parsing')
+  }
+
+  try {
+    return JSON.parse(jsonMatch[0]) as SonnetDrawResult
+  } catch (e) {
+    throw new Error(`JSON parse failed: ${e instanceof Error ? e.message : String(e)}. Response was likely truncated. Output tokens: ${usage?.output_tokens ?? 'unknown'}`)
+  }
+}
+
+/**
+ * Parse a FIP tournament entry list PDF using Claude Sonnet.
+ * Returns structured team/player data with rankings.
+ */
+export async function parseEntryListPdfWithSonnet(data: Uint8Array): Promise<SonnetEntryListResult> {
+  const client = createClient()
+  const base64 = Buffer.from(data).toString('base64')
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 16384,
+    system: [
+      {
+        type: 'text',
+        text: ENTRY_LIST_SYSTEM_PROMPT,
+        cache_control: { type: 'ephemeral' },
+      },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          pdfDocument(base64),
+          { type: 'text', text: 'Parse this entry list PDF.' },
+        ],
+      },
+    ],
+  })
+
+  // Log cache usage for cost monitoring
+  const usage = response.usage as any
+  if (usage?.cache_creation_input_tokens || usage?.cache_read_input_tokens) {
+    console.log(`[parseEntryListPdfWithSonnet] cache: created=${usage.cache_creation_input_tokens ?? 0}, read=${usage.cache_read_input_tokens ?? 0}, input=${usage.input_tokens}, output=${usage.output_tokens}`)
+  }
+
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error(`Sonnet response was truncated (hit max_tokens=${16384}). Try a smaller PDF or split the document.`)
+  }
 
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
@@ -240,6 +280,9 @@ Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
     throw new Error('Sonnet did not return valid JSON for entry list parsing')
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as SonnetEntryListResult
-  return parsed
+  try {
+    return JSON.parse(jsonMatch[0]) as SonnetEntryListResult
+  } catch (e) {
+    throw new Error(`JSON parse failed: ${e instanceof Error ? e.message : String(e)}. Response was likely truncated. Output tokens: ${usage?.output_tokens ?? 'unknown'}`)
+  }
 }
