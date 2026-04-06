@@ -184,7 +184,7 @@ export async function parseDrawPdfWithSonnet(data: Uint8Array): Promise<SonnetDr
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
+    max_tokens: 16384,
     system: [
       {
         type: 'text',
@@ -209,6 +209,10 @@ export async function parseDrawPdfWithSonnet(data: Uint8Array): Promise<SonnetDr
     console.log(`[parseDrawPdfWithSonnet] cache: created=${usage.cache_creation_input_tokens ?? 0}, read=${usage.cache_read_input_tokens ?? 0}, input=${usage.input_tokens}, output=${usage.output_tokens}`)
   }
 
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error(`Sonnet response was truncated (hit max_tokens=${16384}). Try a smaller PDF or split the document.`)
+  }
+
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
     .map(block => block.text)
@@ -220,8 +224,11 @@ export async function parseDrawPdfWithSonnet(data: Uint8Array): Promise<SonnetDr
     throw new Error('Sonnet did not return valid JSON for draw parsing')
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as SonnetDrawResult
-  return parsed
+  try {
+    return JSON.parse(jsonMatch[0]) as SonnetDrawResult
+  } catch (e) {
+    throw new Error(`JSON parse failed: ${e instanceof Error ? e.message : String(e)}. Response was likely truncated. Output tokens: ${usage?.output_tokens ?? 'unknown'}`)
+  }
 }
 
 /**
@@ -234,7 +241,7 @@ export async function parseEntryListPdfWithSonnet(data: Uint8Array): Promise<Son
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
+    max_tokens: 16384,
     system: [
       {
         type: 'text',
@@ -259,6 +266,10 @@ export async function parseEntryListPdfWithSonnet(data: Uint8Array): Promise<Son
     console.log(`[parseEntryListPdfWithSonnet] cache: created=${usage.cache_creation_input_tokens ?? 0}, read=${usage.cache_read_input_tokens ?? 0}, input=${usage.input_tokens}, output=${usage.output_tokens}`)
   }
 
+  if (response.stop_reason === 'max_tokens') {
+    throw new Error(`Sonnet response was truncated (hit max_tokens=${16384}). Try a smaller PDF or split the document.`)
+  }
+
   const text = response.content
     .filter((block): block is Anthropic.TextBlock => block.type === 'text')
     .map(block => block.text)
@@ -269,6 +280,9 @@ export async function parseEntryListPdfWithSonnet(data: Uint8Array): Promise<Son
     throw new Error('Sonnet did not return valid JSON for entry list parsing')
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as SonnetEntryListResult
-  return parsed
+  try {
+    return JSON.parse(jsonMatch[0]) as SonnetEntryListResult
+  } catch (e) {
+    throw new Error(`JSON parse failed: ${e instanceof Error ? e.message : String(e)}. Response was likely truncated. Output tokens: ${usage?.output_tokens ?? 'unknown'}`)
+  }
 }
