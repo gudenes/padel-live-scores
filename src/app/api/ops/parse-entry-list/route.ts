@@ -46,11 +46,33 @@ export async function POST(request: Request) {
 
     try {
       const buffer = await file.arrayBuffer()
-      const uint8 = new Uint8Array(buffer)
 
-      // Use Claude's native PDF reading for text extraction
-      const { extractPdfTextClaude } = await import('@/lib/pdf-extract-claude')
-      text = await extractPdfTextClaude(uint8)
+      // Disable pdfjs worker before importing pdf-parse to avoid Vercel bundling issue
+      // The worker .mjs file isn't included in serverless bundles
+      try {
+        const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+        if (pdfjsLib.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+        }
+      } catch {
+        // pdfjs-dist may not be directly importable — pdf-parse handles it internally
+      }
+
+      const { PDFParse } = await import('pdf-parse')
+      const uint8 = new Uint8Array(buffer)
+      const doc = new PDFParse({ data: uint8 })
+
+      // Extract metadata (best-effort)
+      try {
+        const info = await doc.getInfo()
+        if (info) {
+          metadata.title = (info.info?.Title as string | undefined) ?? null
+          metadata.pageCount = info.total ?? null
+        }
+      } catch { /* metadata is optional */ }
+
+      const result = await doc.getText()
+      text = result?.text ?? ''
 
       if (!text.trim()) {
         return Response.json({
