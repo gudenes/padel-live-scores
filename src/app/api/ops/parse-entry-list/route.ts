@@ -42,37 +42,9 @@ export async function POST(request: Request) {
     metadata.version = extractVersion(file.name)
 
     try {
-      // Polyfill DOMMatrix for serverless environments (Vercel)
-      if (typeof globalThis.DOMMatrix === 'undefined') {
-        (globalThis as any).DOMMatrix = class DOMMatrix {
-          constructor() { return Object.create(DOMMatrix.prototype) }
-          static fromMatrix() { return new DOMMatrix() }
-        }
-      }
-
-      const { PDFParse } = await import('pdf-parse')
+      const { extractPdfText } = await import('@/lib/pdf-extract')
       const buffer = await file.arrayBuffer()
-      const uint8 = new Uint8Array(buffer)
-      const doc = new PDFParse({ data: uint8 })
-
-      // Extract PDF metadata (creation/modification dates, title)
-      try {
-        const info = await doc.getInfo()
-        if (info) {
-          metadata.title = (info.info?.Title as string | undefined) ?? null
-          const dateNode = info.getDateNode()
-          const modDate = dateNode.ModDate ?? dateNode.CreationDate ?? null
-          if (modDate instanceof Date && !isNaN(modDate.getTime())) {
-            metadata.lastModified = modDate.toISOString()
-          }
-          metadata.pageCount = info.total ?? null
-        }
-      } catch {
-        // Metadata extraction is best-effort
-      }
-
-      const result = await doc.getText()
-      text = result?.text ?? ''
+      text = await extractPdfText(new Uint8Array(buffer))
 
       if (!text.trim()) {
         return Response.json({
