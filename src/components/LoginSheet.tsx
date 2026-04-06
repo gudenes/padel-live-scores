@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { supabase } from '@/lib/supabase'
+import { supabase, siteUrl } from '@/lib/supabase'
 
 // ── V3 Brand constants ────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -40,7 +40,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${siteUrl}/auth/callback`,
       },
     })
     if (error) setError('Sign in failed, please try again')
@@ -54,7 +54,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     })
 
@@ -82,7 +82,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           width: '100%', maxWidth: 500,
           background: BG_CARD,
           clipPath: 'polygon(0% 3%, 100% 0%, 100% 100%, 0% 100%)',
-          padding: '32px 20px 36px',
+          padding: '32px 20px 100px',
           borderTop: `2px solid ${GREEN}`,
           animation: 'loginSlideUp 0.3s ease-out',
         }}
@@ -101,12 +101,20 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
         </div>
 
         {sent ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 12 }}>
-              <rect x="2" y="4" width="20" height="16" rx="2" />
-              <polyline points="22,4 12,13 2,4" />
-            </svg>
-            <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0' }}>
+            <div style={{
+              width: 56, height: 56,
+              background: 'rgba(126, 211, 33, 0.12)',
+              clipPath: CLIP.button,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 16,
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter">
+                <path d="M2 4h20v16H2z" />
+                <polyline points="22,4 12,13 2,4" />
+              </svg>
+            </div>
+            <div style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 6 }}>
               Check your email
             </div>
             <div style={{ color: MUTED, fontSize: 12 }}>
@@ -162,7 +170,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
                 onClick={handleMagicLink}
                 disabled={sending || !email.trim()}
                 style={{
-                  background: ORANGE, color: '#000',
+                  background: GREEN, color: '#000',
                   clipPath: CLIP.button,
                   padding: '12px 16px', fontWeight: 700, fontSize: 13,
                   whiteSpace: 'nowrap', cursor: 'pointer', border: 'none',

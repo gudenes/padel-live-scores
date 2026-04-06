@@ -39,14 +39,29 @@ function AuthCallbackInner() {
       }
     )
 
-    // 2. Try to exchange the code from URL params (PKCE flow)
+    // 2. Try to exchange auth params from URL
     const code = searchParams.get('code')
+    const tokenHash = searchParams.get('token_hash')
+    const type = searchParams.get('type')
+
     if (code) {
+      // PKCE flow — works when magic link opens in same browser
       supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
         if (data?.session) {
           doRedirect()
         } else if (error) {
           console.warn('[Auth callback] Code exchange failed:', error.message)
+        }
+      })
+    }
+
+    if (tokenHash && type) {
+      // Token hash flow — works when magic link opens in different browser/app
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as 'magiclink' | 'email' }).then(({ data, error }) => {
+        if (data?.session) {
+          doRedirect()
+        } else if (error) {
+          console.warn('[Auth callback] OTP verify failed:', error.message)
         }
       })
     }
