@@ -293,7 +293,7 @@ async function fetchTournamentReadiness() {
   // Fetch FIP tournaments in the window
   const { data: tournaments } = await supabase
     .from('tournaments')
-    .select('id, name, level, country, starts_at, ends_at, entry_list_status')
+    .select('id, name, level, country, starts_at, ends_at, entry_list_status, categories')
     .eq('source', 'fip')
     .gte('starts_at', from)
     .lte('starts_at', to)
@@ -345,11 +345,17 @@ async function fetchTournamentReadiness() {
     const drawMen = drawCats.has('men')
     const drawWomen = drawCats.has('women')
 
+    // Respect tournament.categories: men_only/women_only tournaments only need
+    // their respective category to be ready
+    const cats = (t.categories ?? 'both') as 'both' | 'men_only' | 'women_only'
+    const needsMen = cats !== 'women_only'
+    const needsWomen = cats !== 'men_only'
+
     const blockers: string[] = []
-    if (!entryListMen) blockers.push('EL Men')
-    if (!entryListWomen) blockers.push('EL Women')
-    if (!drawMen) blockers.push('Draw Men')
-    if (!drawWomen) blockers.push('Draw Women')
+    if (needsMen && !entryListMen) blockers.push('EL Men')
+    if (needsWomen && !entryListWomen) blockers.push('EL Women')
+    if (needsMen && !drawMen) blockers.push('Draw Men')
+    if (needsWomen && !drawWomen) blockers.push('Draw Women')
 
     const ready = blockers.length === 0
     const urgent = !ready && daysUntilStart <= 3
@@ -362,6 +368,7 @@ async function fetchTournamentReadiness() {
       startsAt: t.starts_at,
       daysUntilStart,
       entryListStatus: t.entry_list_status,
+      categories: cats,
       entryListMen,
       entryListWomen,
       drawMen,

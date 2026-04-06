@@ -7,10 +7,22 @@ import { cookies } from 'next/headers'
 import { PlayerResolver } from '@/lib/player-resolver'
 import { toIso2 } from '@/lib/fip-scraper'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_KEY
+  if (!url) throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set')
+  if (!key) throw new Error('SUPABASE_SERVICE_KEY is not set — required for write operations')
+  // Sanity check: service keys are JWTs starting with "eyJ"
+  if (!key.startsWith('eyJ')) {
+    console.error('[seed-draw] SUPABASE_SERVICE_KEY does not look like a JWT (starts with):', key.slice(0, 10))
+    throw new Error('SUPABASE_SERVICE_KEY is invalid — must be the service_role JWT, not the anon/publishable key')
+  }
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+const supabase = getServiceClient()
 
 async function checkOpsAuth(): Promise<Response | null> {
   const cookieStore = await cookies()
