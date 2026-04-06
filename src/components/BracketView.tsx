@@ -49,8 +49,10 @@ interface TeamSlot {
   marker: string | null
   player1Name: string | null
   player1Country: string | null
+  player1Id: string | null
   player2Name: string | null
   player2Country: string | null
+  player2Id: string | null
   isEmpty: boolean
 }
 
@@ -115,19 +117,21 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
       const a = sorted[i]
       const b = sorted[i + 1]
 
+      const emptySlot: TeamSlot = { seed: null, marker: null, player1Name: null, player1Country: null, player1Id: null, player2Name: null, player2Country: null, player2Id: null, isEmpty: true }
+
       const team1: TeamSlot = a ? {
         seed: a.seed, marker: a.marker,
-        player1Name: a.player1_name, player1Country: a.player1_country,
-        player2Name: a.player2_name, player2Country: a.player2_country,
+        player1Name: a.player1_name, player1Country: a.player1_country, player1Id: a.player1_id,
+        player2Name: a.player2_name, player2Country: a.player2_country, player2Id: a.player2_id,
         isEmpty: a.player1_name === 'Qualifier',
-      } : { seed: null, marker: null, player1Name: null, player1Country: null, player2Name: null, player2Country: null, isEmpty: true }
+      } : emptySlot
 
       const team2: TeamSlot = b ? {
         seed: b.seed, marker: b.marker,
-        player1Name: b.player1_name, player1Country: b.player1_country,
-        player2Name: b.player2_name, player2Country: b.player2_country,
+        player1Name: b.player1_name, player1Country: b.player1_country, player1Id: b.player1_id,
+        player2Name: b.player2_name, player2Country: b.player2_country, player2Id: b.player2_id,
         isEmpty: b.player1_name === 'Qualifier',
-      } : { seed: null, marker: null, player1Name: null, player1Country: null, player2Name: null, player2Country: null, isEmpty: true }
+      } : emptySlot
 
       // Find match result
       let score: string[] | null = null
@@ -168,10 +172,10 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
 
         // Winner of matchA is team1, winner of matchB is team2
         const getWinner = (m: MatchNode | undefined): TeamSlot => {
-          if (!m) return { seed: null, marker: null, player1Name: null, player1Country: null, player2Name: null, player2Country: null, isEmpty: true }
+          if (!m) return { seed: null, marker: null, player1Name: null, player1Country: null, player1Id: null, player2Name: null, player2Country: null, player2Id: null, isEmpty: true }
           if (m.winnerTeam === 1) return m.team1
           if (m.winnerTeam === 2) return m.team2
-          return { seed: null, marker: null, player1Name: 'TBD', player1Country: null, player2Name: null, player2Country: null, isEmpty: true }
+          return { seed: null, marker: null, player1Name: 'TBD', player1Country: null, player1Id: null, player2Name: null, player2Country: null, player2Id: null, isEmpty: true }
         }
 
         thisRoundMatches.push({
@@ -412,7 +416,11 @@ function TeamRow({ team, isWinner, isLoser }: { team: TeamSlot; isWinner: boolea
         lineHeight: 1.2,
       }}>
         {team.player1Country && <span style={{ marginRight: 2, fontSize: 10 }}>{countryFlag(team.player1Country)}</span>}
-        {toShortName(team.player1Name!)}
+        {team.player1Id ? (
+          <Link href={`/player/${team.player1Id}`} style={{ color: 'inherit', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>
+            {toShortName(team.player1Name!)}
+          </Link>
+        ) : toShortName(team.player1Name!)}
         {team.seed && <span style={{ color: GREEN, fontSize: 7, fontWeight: 700 }}> ({team.seed})</span>}
         {team.marker && (
           <span style={{ fontSize: 6, fontWeight: 700, color: team.marker === 'Q' ? ORANGE : '#4A9EFF', marginLeft: 2 }}>
@@ -428,7 +436,11 @@ function TeamRow({ team, isWinner, isLoser }: { team: TeamSlot; isWinner: boolea
           lineHeight: 1.2,
         }}>
           {team.player2Country && <span style={{ marginRight: 2, fontSize: 9 }}>{countryFlag(team.player2Country)}</span>}
-          {toShortName(team.player2Name)}
+          {team.player2Id ? (
+            <Link href={`/player/${team.player2Id}`} style={{ color: 'inherit', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>
+              {toShortName(team.player2Name)}
+            </Link>
+          ) : toShortName(team.player2Name)}
         </div>
       )}
     </div>
