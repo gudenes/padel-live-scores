@@ -42,6 +42,14 @@ export async function POST(request: Request) {
     metadata.version = extractVersion(file.name)
 
     try {
+      // Polyfill DOMMatrix for serverless environments (Vercel)
+      if (typeof globalThis.DOMMatrix === 'undefined') {
+        (globalThis as any).DOMMatrix = class DOMMatrix {
+          constructor() { return Object.create(DOMMatrix.prototype) }
+          static fromMatrix() { return new DOMMatrix() }
+        }
+      }
+
       const { PDFParse } = await import('pdf-parse')
       const buffer = await file.arrayBuffer()
       const uint8 = new Uint8Array(buffer)
