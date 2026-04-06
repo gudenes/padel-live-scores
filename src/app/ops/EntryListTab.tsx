@@ -13,6 +13,8 @@ interface Tournament {
   level: string | null
   starts_at: string | null
   ends_at: string | null
+  entry_list_status?: string
+  categories?: string
   hasEntryList?: boolean
   hasDraw?: boolean
 }
@@ -632,6 +634,29 @@ export default function EntryListTab() {
                 <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: selectedTournamentObj.hasEntryList ? '#dcfce7' : '#fef2f2', color: selectedTournamentObj.hasEntryList ? '#166534' : '#dc2626' }}>EL</span>
                 <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: selectedTournamentObj.hasDraw ? '#dcfce7' : '#fef2f2', color: selectedTournamentObj.hasDraw ? '#166534' : '#dc2626' }}>DR</span>
               </div>
+              <select
+                value={selectedTournamentObj.categories ?? 'both'}
+                onChange={async (e) => {
+                  const newCat = e.target.value
+                  await fetch('/api/ops/seed-entry-list', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tournamentId: selectedTournament, categories: newCat }),
+                  })
+                  // Refresh tournament list to reflect updated status
+                  setTournaments(prev => prev.map(t => t.id === selectedTournament ? { ...t, categories: newCat } : t))
+                }}
+                style={{
+                  background: '#222', color: '#fff', border: '1px solid #444',
+                  borderRadius: 4, fontSize: 10, fontWeight: 700, padding: '2px 4px',
+                  cursor: 'pointer',
+                }}
+                title="Tournament gender categories"
+              >
+                <option value="both">M+W</option>
+                <option value="men_only">Men only</option>
+                <option value="women_only">Women only</option>
+              </select>
               <button
                 onClick={handleDeselectTournament}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280', padding: '0 2px', lineHeight: 1 }}
