@@ -1,0 +1,815 @@
+'use client'
+// src/app/ops/PlayersTab.tsx
+// Player management UI — search, edit, and merge players from the ops dashboard
+
+import { useState, useRef, useCallback, useEffect } from 'react'
+
+// ── Types ────────────────────────────────────────────────────────
+
+interface PlayerSummary {
+  id: string
+  name: string
+  country: string | null
+  ranking: number | null
+  points: number | null
+  category: string | null
+  avatar_url: string | null
+}
+
+interface PlayerDetail {
+  id: string
+  name: string
+  country: string | null
+  category: string | null
+  ranking: number | null
+  points: number | null
+  ranking_move: number | null
+  race_ranking: number | null
+  race_points: number | null
+  race_move: number | null
+  external_id: string | null
+  fip_id: string | null
+  avatar_url: string | null
+  profile_url: string | null
+  side: string | null
+  height: string | null
+  birthdate: string | null
+  birthplace: string | null
+  hand: string | null
+  titles: number | null
+  finals: number | null
+  semifinals: number | null
+  win_rate: number | null
+  total_matches: number | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+type CategoryFilter = 'all' | 'men' | 'women'
+
+// Fields displayed in the edit panel
+const EDITABLE_FIELDS: { key: keyof PlayerDetail; label: string; type: 'text' | 'number' | 'date' }[] = [
+  { key: 'name', label: 'Name', type: 'text' },
+  { key: 'country', label: 'Country', type: 'text' },
+  { key: 'category', label: 'Category', type: 'text' },
+  { key: 'ranking', label: 'Ranking', type: 'number' },
+  { key: 'points', label: 'Points', type: 'number' },
+  { key: 'ranking_move', label: 'Ranking Move', type: 'number' },
+  { key: 'external_id', label: 'External ID', type: 'text' },
+  { key: 'fip_id', label: 'FIP ID', type: 'text' },
+  { key: 'side', label: 'Side', type: 'text' },
+  { key: 'avatar_url', label: 'Avatar URL', type: 'text' },
+  { key: 'height', label: 'Height', type: 'text' },
+  { key: 'birthdate', label: 'Birthdate', type: 'date' },
+  { key: 'birthplace', label: 'Birthplace', type: 'text' },
+  { key: 'hand', label: 'Hand', type: 'text' },
+  { key: 'titles', label: 'Titles', type: 'number' },
+  { key: 'finals', label: 'Finals', type: 'number' },
+  { key: 'semifinals', label: 'Semifinals', type: 'number' },
+]
+
+// Fields to compare during merge
+const MERGE_FIELDS: (keyof PlayerDetail)[] = [
+  'name', 'country', 'category', 'ranking', 'points', 'ranking_move',
+  'external_id', 'fip_id', 'side', 'avatar_url', 'height', 'birthdate',
+  'birthplace', 'hand', 'titles', 'finals', 'semifinals',
+]
+
+// ── Shared styles ────────────────────────────────────────────────
+
+const card: React.CSSProperties = {
+  background: 'white',
+  border: '1px solid #e5e7eb',
+  borderRadius: 8,
+  padding: 12,
+}
+
+const sectionLabel: React.CSSProperties = {
+  fontSize: 10,
+  color: '#999',
+  textTransform: 'uppercase' as const,
+  fontWeight: 700,
+  letterSpacing: 1,
+  marginBottom: 8,
+}
+
+// ── Component ────────────────────────────────────────────────────
+
+export default function PlayersTab() {
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
+  const [results, setResults] = useState<PlayerSummary[]>([])
+  const [searching, setSearching] = useState(false)
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Detail/Edit state
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerDetail | null>(null)
+  const [selectedMatchCount, setSelectedMatchCount] = useState(0)
+  const [editFields, setEditFields] = useState<Record<string, unknown>>({})
+  const [loadingDetail, setLoadingDetail] = useState(false)
+  const [savingPlayer, setSavingPlayer] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+
+  // Merge state
+  const [mergeMode, setMergeMode] = useState(false)
+  const [mergeTarget, setMergeTarget] = useState<PlayerDetail | null>(null)
+  const [mergeTargetMatchCount, setMergeTargetMatchCount] = useState(0)
+  const [mergeSelections, setMergeSelections] = useState<Record<string, 'a' | 'b'>>({})
+  const [mergeSearchQuery, setMergeSearchQuery] = useState('')
+  const [mergeSearchResults, setMergeSearchResults] = useState<PlayerSummary[]>([])
+  const [mergeSearching, setMergeSearching] = useState(false)
+  const mergeSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [merging, setMerging] = useState(false)
+  const [mergeMessage, setMergeMessage] = useState<string | null>(null)
+  const [mergePreview, setMergePreview] = useState(false)
+
+  // ── Search handler ────────────────────────────────────────────
+
+  const doSearch = useCallback((query: string, cat: CategoryFilter) => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    if (!query.trim()) {
+      setResults([])
+      return
+    }
+    searchDebounceRef.current = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const catParam = cat !== 'all' ? `&category=${cat}` : ''
+        const res = await fetch(`/api/ops/search-players?q=${encodeURIComponent(query)}${catParam}`)
+        if (res.ok) {
+          const data = await res.json()
+          setResults(data.players ?? [])
+        }
+      } catch { /* ignore */ }
+      setSearching(false)
+    }, 300)
+  }, [])
+
+  useEffect(() => {
+    doSearch(searchQuery, categoryFilter)
+  }, [searchQuery, categoryFilter, doSearch])
+
+  // ── Fetch player detail ───────────────────────────────────────
+
+  const fetchPlayerDetail = useCallback(async (id: string): Promise<{ player: PlayerDetail; matchCount: number } | null> => {
+    try {
+      const res = await fetch(`/api/ops/players?id=${id}`)
+      if (!res.ok) return null
+      const data = await res.json()
+      return { player: data.player, matchCount: data.matchCount }
+    } catch {
+      return null
+    }
+  }, [])
+
+  const selectPlayer = useCallback(async (id: string) => {
+    setLoadingDetail(true)
+    setSaveMessage(null)
+    setMergeMode(false)
+    setMergeTarget(null)
+    setMergeMessage(null)
+    setMergePreview(false)
+    const detail = await fetchPlayerDetail(id)
+    if (detail) {
+      setSelectedPlayer(detail.player)
+      setSelectedMatchCount(detail.matchCount)
+      // Init edit fields from player
+      const fields: Record<string, unknown> = {}
+      for (const f of EDITABLE_FIELDS) {
+        fields[f.key] = detail.player[f.key]
+      }
+      setEditFields(fields)
+    }
+    setLoadingDetail(false)
+  }, [fetchPlayerDetail])
+
+  // ── Save player edits ─────────────────────────────────────────
+
+  const handleSavePlayer = useCallback(async () => {
+    if (!selectedPlayer) return
+    setSavingPlayer(true)
+    setSaveMessage(null)
+    try {
+      // Build updates: only changed fields
+      const updates: Record<string, unknown> = {}
+      for (const f of EDITABLE_FIELDS) {
+        const newVal = editFields[f.key]
+        const oldVal = selectedPlayer[f.key]
+        if (newVal !== oldVal) {
+          updates[f.key] = newVal === '' ? null : newVal
+        }
+      }
+      if (Object.keys(updates).length === 0) {
+        setSaveMessage('No changes to save')
+        setSavingPlayer(false)
+        return
+      }
+      const res = await fetch('/api/ops/players', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedPlayer.id, updates }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setSaveMessage(`Error: ${body.error ?? 'Failed to save'}`)
+      } else {
+        setSaveMessage('Saved successfully')
+        // Refresh
+        const detail = await fetchPlayerDetail(selectedPlayer.id)
+        if (detail) {
+          setSelectedPlayer(detail.player)
+          setSelectedMatchCount(detail.matchCount)
+        }
+        doSearch(searchQuery, categoryFilter)
+      }
+    } catch (e: unknown) {
+      setSaveMessage(`Error: ${e instanceof Error ? e.message : 'Failed to save'}`)
+    }
+    setSavingPlayer(false)
+  }, [selectedPlayer, editFields, fetchPlayerDetail, doSearch, searchQuery, categoryFilter])
+
+  // ── Merge: search for Player B ────────────────────────────────
+
+  const doMergeSearch = useCallback((query: string) => {
+    if (mergeSearchDebounceRef.current) clearTimeout(mergeSearchDebounceRef.current)
+    if (!query.trim()) {
+      setMergeSearchResults([])
+      return
+    }
+    mergeSearchDebounceRef.current = setTimeout(async () => {
+      setMergeSearching(true)
+      try {
+        const catParam = selectedPlayer?.category ? `&category=${selectedPlayer.category}` : ''
+        const res = await fetch(`/api/ops/search-players?q=${encodeURIComponent(query)}${catParam}`)
+        if (res.ok) {
+          const data = await res.json()
+          // Exclude Player A from results
+          setMergeSearchResults((data.players ?? []).filter((p: PlayerSummary) => p.id !== selectedPlayer?.id))
+        }
+      } catch { /* ignore */ }
+      setMergeSearching(false)
+    }, 300)
+  }, [selectedPlayer])
+
+  const selectMergeTarget = useCallback(async (id: string) => {
+    const detail = await fetchPlayerDetail(id)
+    if (detail) {
+      setMergeTarget(detail.player)
+      setMergeTargetMatchCount(detail.matchCount)
+      setMergeSearchResults([])
+      setMergeSearchQuery('')
+      setMergePreview(false)
+
+      // Auto-select non-null values
+      const selections: Record<string, 'a' | 'b'> = {}
+      for (const field of MERGE_FIELDS) {
+        const aVal = selectedPlayer?.[field]
+        const bVal = detail.player[field]
+        if (aVal != null && bVal == null) selections[field] = 'a'
+        else if (aVal == null && bVal != null) selections[field] = 'b'
+        else if (aVal != null && bVal != null) {
+          // Both non-null: default to A (the kept player)
+          selections[field] = 'a'
+        }
+        // Both null: no selection needed
+      }
+      setMergeSelections(selections)
+    }
+  }, [fetchPlayerDetail, selectedPlayer])
+
+  // ── Execute merge ─────────────────────────────────────────────
+
+  const handleMerge = useCallback(async () => {
+    if (!selectedPlayer || !mergeTarget) return
+    setMerging(true)
+    setMergeMessage(null)
+
+    // Build merged fields from selections
+    const mergedFields: Record<string, unknown> = {}
+    for (const field of MERGE_FIELDS) {
+      const selection = mergeSelections[field]
+      if (selection === 'b') {
+        mergedFields[field] = mergeTarget[field]
+      }
+      // 'a' means keep existing — no update needed
+    }
+
+    try {
+      const res = await fetch('/api/ops/players/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keepId: selectedPlayer.id,
+          deleteId: mergeTarget.id,
+          mergedFields,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setMergeMessage(`Error: ${body.error ?? 'Merge failed'}`)
+      } else {
+        const data = await res.json()
+        setMergeMessage(`Merged! ${data.matchesUpdated} matches + ${data.drawsUpdated} draws reassigned.`)
+        // Reset merge mode
+        setMergeMode(false)
+        setMergeTarget(null)
+        setMergePreview(false)
+        // Refresh player
+        const detail = await fetchPlayerDetail(selectedPlayer.id)
+        if (detail) {
+          setSelectedPlayer(detail.player)
+          setSelectedMatchCount(detail.matchCount)
+        }
+        doSearch(searchQuery, categoryFilter)
+      }
+    } catch (e: unknown) {
+      setMergeMessage(`Error: ${e instanceof Error ? e.message : 'Merge failed'}`)
+    }
+    setMerging(false)
+  }, [selectedPlayer, mergeTarget, mergeSelections, fetchPlayerDetail, doSearch, searchQuery, categoryFilter])
+
+  // ── Render ────────────────────────────────────────────────────
+
+  return (
+    <div>
+      {/* Search bar */}
+      <div style={{ ...card, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search players by name..."
+          style={{
+            flex: 1, padding: '7px 10px', fontSize: 12,
+            border: '1px solid #d1d5db', borderRadius: 6,
+          }}
+        />
+        <div style={{ display: 'flex', gap: 0 }}>
+          {(['all', 'men', 'women'] as CategoryFilter[]).map((cat, i) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              style={{
+                padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                border: '1px solid #d1d5db',
+                borderRadius: i === 0 ? '4px 0 0 4px' : i === 2 ? '0 4px 4px 0' : '0',
+                background: categoryFilter === cat ? '#111' : 'white',
+                color: categoryFilter === cat ? 'white' : '#333',
+                borderLeft: i > 0 ? 'none' : undefined,
+              }}
+            >
+              {cat === 'all' ? 'All' : cat === 'men' ? 'Men' : 'Women'}
+            </button>
+          ))}
+        </div>
+        {searching && <span style={{ fontSize: 10, color: '#999' }}>Searching...</span>}
+      </div>
+
+      {/* Results table */}
+      {results.length > 0 && (
+        <div style={{ ...card, padding: 0, marginBottom: 12, overflow: 'auto' }}>
+          <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
+                {['', 'Name', 'Country', 'Ranking', 'Points', 'Category', 'Actions'].map(h => (
+                  <th
+                    key={h}
+                    style={{
+                      ...sectionLabel, padding: '8px 6px', textAlign: 'left', marginBottom: 0,
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {results.map(player => (
+                <tr
+                  key={player.id}
+                  style={{
+                    borderBottom: '1px solid #f3f4f6',
+                    cursor: 'pointer',
+                    background: selectedPlayer?.id === player.id ? '#F0F7FF' : undefined,
+                  }}
+                  onClick={() => selectPlayer(player.id)}
+                >
+                  {/* Avatar */}
+                  <td style={{ padding: '5px 6px', width: 32 }}>
+                    {player.avatar_url ? (
+                      <img
+                        src={player.avatar_url}
+                        alt=""
+                        style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 24, height: 24, borderRadius: '50%',
+                        background: '#e5e7eb', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 10, color: '#999',
+                      }}>
+                        ?
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: '5px 6px', fontWeight: 500, color: '#111' }}>{player.name}</td>
+                  <td style={{ padding: '5px 6px', color: '#6B7280' }}>{player.country ?? '—'}</td>
+                  <td style={{ padding: '5px 6px', color: '#333' }}>{player.ranking ?? '—'}</td>
+                  <td style={{ padding: '5px 6px', color: '#333' }}>{player.points ?? '—'}</td>
+                  <td style={{ padding: '5px 6px' }}>
+                    {player.category && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
+                        padding: '2px 6px', borderRadius: 3,
+                        background: player.category === 'men' ? '#DBEAFE' : '#FCE7F3',
+                        color: player.category === 'men' ? '#1E40AF' : '#9D174D',
+                      }}>
+                        {player.category}
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '5px 6px' }} onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        onClick={() => selectPlayer(player.id)}
+                        style={{
+                          padding: '3px 8px', fontSize: 10, fontWeight: 600,
+                          background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 4,
+                          cursor: 'pointer', color: '#333',
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          selectPlayer(player.id).then(() => {
+                            setMergeMode(true)
+                            setMergeTarget(null)
+                            setMergePreview(false)
+                            setMergeMessage(null)
+                          })
+                        }}
+                        style={{
+                          padding: '3px 8px', fontSize: 10, fontWeight: 600,
+                          background: '#FEF3C7', border: '1px solid #F5A623', borderRadius: 4,
+                          cursor: 'pointer', color: '#92400E',
+                        }}
+                      >
+                        Merge
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {searchQuery.trim() && !searching && results.length === 0 && (
+        <div style={{ ...card, textAlign: 'center', color: '#9ca3af', fontSize: 12, marginBottom: 12 }}>
+          No players found
+        </div>
+      )}
+
+      {/* Loading detail */}
+      {loadingDetail && (
+        <div style={{ ...card, textAlign: 'center', color: '#999', fontSize: 12 }}>Loading player details...</div>
+      )}
+
+      {/* Detail / Edit panel */}
+      {selectedPlayer && !loadingDetail && !mergeMode && (
+        <div style={{ ...card, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>{selectedPlayer.name}</span>
+              <span style={{
+                fontSize: 10, fontWeight: 600, padding: '2px 8px',
+                background: '#F0F7FF', border: '1px solid #DBEAFE', borderRadius: 10,
+                color: '#1E40AF',
+              }}>
+                Referenced in {selectedMatchCount} matches
+              </span>
+            </div>
+            <button
+              onClick={() => { setSelectedPlayer(null); setSaveMessage(null) }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 16, color: '#9ca3af', padding: '2px 6px',
+              }}
+            >
+              &times;
+            </button>
+          </div>
+
+          {/* Save message */}
+          {saveMessage && (
+            <div style={{
+              marginBottom: 10, padding: '6px 10px', borderRadius: 4, fontSize: 11,
+              background: saveMessage.startsWith('Error') ? '#FEF2F2' : '#F0FDF4',
+              color: saveMessage.startsWith('Error') ? '#991B1B' : '#166534',
+              border: saveMessage.startsWith('Error') ? '1px solid #FECACA' : '1px solid #BBF7D0',
+            }}>
+              {saveMessage}
+            </div>
+          )}
+
+          {/* Two-column field grid */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px',
+          }}>
+            {EDITABLE_FIELDS.map(f => (
+              <div key={f.key}>
+                <label style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 2 }}>
+                  {f.label}
+                </label>
+                <input
+                  type={f.type === 'number' ? 'number' : 'text'}
+                  value={(editFields[f.key] as string | number | undefined) ?? ''}
+                  onChange={e => {
+                    const val = f.type === 'number'
+                      ? (e.target.value === '' ? null : Number(e.target.value))
+                      : e.target.value
+                    setEditFields(prev => ({ ...prev, [f.key]: val }))
+                  }}
+                  style={{
+                    width: '100%', padding: '5px 7px', fontSize: 11,
+                    border: '1px solid #e5e7eb', borderRadius: 4,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button
+              onClick={handleSavePlayer}
+              disabled={savingPlayer}
+              style={{
+                padding: '6px 14px', fontSize: 11, fontWeight: 600,
+                background: '#111', color: 'white', border: 'none', borderRadius: 6,
+                cursor: 'pointer', opacity: savingPlayer ? 0.6 : 1,
+              }}
+            >
+              {savingPlayer ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              onClick={() => { setSelectedPlayer(null); setSaveMessage(null) }}
+              style={{
+                padding: '6px 14px', fontSize: 11, fontWeight: 600,
+                background: 'white', border: '1px solid #d1d5db', borderRadius: 6,
+                cursor: 'pointer', color: '#333',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Merge mode */}
+      {selectedPlayer && !loadingDetail && mergeMode && (
+        <div style={{ ...card, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>
+              Merge Players
+            </span>
+            <button
+              onClick={() => { setMergeMode(false); setMergeTarget(null); setMergePreview(false); setMergeMessage(null) }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 16, color: '#9ca3af', padding: '2px 6px',
+              }}
+            >
+              &times;
+            </button>
+          </div>
+
+          {/* Merge message */}
+          {mergeMessage && (
+            <div style={{
+              marginBottom: 10, padding: '6px 10px', borderRadius: 4, fontSize: 11,
+              background: mergeMessage.startsWith('Error') ? '#FEF2F2' : '#F0FDF4',
+              color: mergeMessage.startsWith('Error') ? '#991B1B' : '#166534',
+              border: mergeMessage.startsWith('Error') ? '1px solid #FECACA' : '1px solid #BBF7D0',
+            }}>
+              {mergeMessage}
+            </div>
+          )}
+
+          {/* Player A (left column) */}
+          <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={sectionLabel}>Player A (Keep)</div>
+              <div style={{
+                padding: 10, border: '1px solid #BBF7D0', borderRadius: 6,
+                background: '#F0FDF4',
+              }}>
+                <div style={{ fontWeight: 600, fontSize: 12, color: '#111' }}>{selectedPlayer.name}</div>
+                <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
+                  {selectedPlayer.country ?? 'No country'} &middot; Rank #{selectedPlayer.ranking ?? '—'} &middot; {selectedMatchCount} matches
+                </div>
+              </div>
+            </div>
+
+            {/* Player B (right column) */}
+            <div style={{ flex: 1 }}>
+              <div style={sectionLabel}>Player B (Delete)</div>
+              {!mergeTarget ? (
+                <div>
+                  <input
+                    type="text"
+                    value={mergeSearchQuery}
+                    onChange={e => {
+                      setMergeSearchQuery(e.target.value)
+                      doMergeSearch(e.target.value)
+                    }}
+                    placeholder="Search for player to merge..."
+                    style={{
+                      width: '100%', padding: '7px 10px', fontSize: 11,
+                      border: '1px solid #d1d5db', borderRadius: 4,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  {mergeSearching && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>Searching...</div>}
+                  {mergeSearchResults.length > 0 && (
+                    <div style={{
+                      border: '1px solid #e5e7eb', borderRadius: 4, marginTop: 4,
+                      maxHeight: 180, overflowY: 'auto',
+                    }}>
+                      {mergeSearchResults.map(r => (
+                        <div
+                          key={r.id}
+                          onClick={() => selectMergeTarget(r.id)}
+                          style={{
+                            padding: '6px 8px', cursor: 'pointer', fontSize: 11,
+                            borderBottom: '1px solid #f3f4f6',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <span style={{ fontWeight: 500, color: '#111' }}>{r.name}</span>
+                          {r.country && <span style={{ color: '#999', marginLeft: 4 }}>({r.country})</span>}
+                          {r.ranking && <span style={{ color: '#888', fontSize: 10, marginLeft: 4 }}>#{r.ranking}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{
+                  padding: 10, border: '1px solid #FECACA', borderRadius: 6,
+                  background: '#FEF2F2',
+                }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, color: '#111' }}>{mergeTarget.name}</div>
+                  <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
+                    {mergeTarget.country ?? 'No country'} &middot; Rank #{mergeTarget.ranking ?? '—'} &middot; {mergeTargetMatchCount} matches
+                  </div>
+                  <button
+                    onClick={() => { setMergeTarget(null); setMergePreview(false) }}
+                    style={{
+                      marginTop: 6, padding: '2px 8px', fontSize: 10, fontWeight: 600,
+                      background: 'white', border: '1px solid #d1d5db', borderRadius: 3,
+                      cursor: 'pointer', color: '#6B7280',
+                    }}
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Side-by-side comparison */}
+          {mergeTarget && (
+            <>
+              <div style={{ ...card, padding: 0, overflow: 'auto', marginBottom: 12, border: '1px solid #e5e7eb' }}>
+                <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
+                      <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0, width: 100 }}>Field</th>
+                      <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0 }}>
+                        Player A (Keep)
+                      </th>
+                      <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'center', marginBottom: 0, width: 50 }}>Pick</th>
+                      <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0 }}>
+                        Player B (Delete)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {MERGE_FIELDS.map(field => {
+                      const aVal = selectedPlayer[field]
+                      const bVal = mergeTarget[field]
+                      const bothNonNull = aVal != null && aVal !== '' && bVal != null && bVal !== ''
+                      const isConflict = bothNonNull && String(aVal) !== String(bVal)
+
+                      return (
+                        <tr
+                          key={field}
+                          style={{
+                            borderBottom: '1px solid #f3f4f6',
+                            background: isConflict ? '#FFF7ED' : undefined,
+                          }}
+                        >
+                          <td style={{ padding: '5px 8px', fontWeight: 600, color: '#6B7280', fontSize: 10 }}>
+                            {field}
+                          </td>
+                          <td
+                            style={{
+                              padding: '5px 8px', color: '#111',
+                              fontWeight: mergeSelections[field] === 'a' ? 600 : 400,
+                              opacity: mergeSelections[field] === 'b' ? 0.5 : 1,
+                            }}
+                          >
+                            {aVal != null ? String(aVal) : <span style={{ color: '#d1d5db' }}>null</span>}
+                          </td>
+                          <td style={{ padding: '5px 8px', textAlign: 'center' }}>
+                            {(aVal != null || bVal != null) && (
+                              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                                <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+                                  <input
+                                    type="radio"
+                                    name={`merge-${field}`}
+                                    checked={mergeSelections[field] === 'a'}
+                                    onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'a' }))}
+                                    style={{ margin: 0 }}
+                                  />
+                                  A
+                                </label>
+                                <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+                                  <input
+                                    type="radio"
+                                    name={`merge-${field}`}
+                                    checked={mergeSelections[field] === 'b'}
+                                    onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'b' }))}
+                                    style={{ margin: 0 }}
+                                  />
+                                  B
+                                </label>
+                              </div>
+                            )}
+                          </td>
+                          <td
+                            style={{
+                              padding: '5px 8px', color: '#111',
+                              fontWeight: mergeSelections[field] === 'b' ? 600 : 400,
+                              opacity: mergeSelections[field] === 'a' ? 0.5 : 1,
+                            }}
+                          >
+                            {bVal != null ? String(bVal) : <span style={{ color: '#d1d5db' }}>null</span>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Merge actions */}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {!mergePreview ? (
+                  <button
+                    onClick={() => setMergePreview(true)}
+                    style={{
+                      padding: '6px 14px', fontSize: 11, fontWeight: 600,
+                      background: '#F5A623', color: 'white', border: 'none', borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Preview Merge
+                  </button>
+                ) : (
+                  <>
+                    <div style={{
+                      flex: 1, padding: '8px 10px', borderRadius: 6, fontSize: 11,
+                      background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B',
+                    }}>
+                      Will reassign {mergeTargetMatchCount} matches and draw entries from <strong>{mergeTarget.name}</strong> to <strong>{selectedPlayer.name}</strong>. Player B will be deleted.
+                    </div>
+                    <button
+                      onClick={handleMerge}
+                      disabled={merging}
+                      style={{
+                        padding: '6px 14px', fontSize: 11, fontWeight: 600,
+                        background: '#FF4655', color: 'white', border: 'none', borderRadius: 6,
+                        cursor: 'pointer', opacity: merging ? 0.6 : 1,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {merging ? 'Merging...' : 'Confirm Merge'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
