@@ -170,7 +170,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money, entry_list_status, source')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money, prize_money_fip, draw_size_md, draw_size_qd, entry_list_status, source')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -1092,10 +1092,10 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     <div style={{ padding: '14px 14px 20px' }}>
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-        <StatCard value={totalTeams || '\u2014'} label="Teams" accent />
+        <StatCard value={totalTeams || (tournament?.draw_size_md ? `${tournament.draw_size_md} pairs` : '\u2014')} label="Teams" accent />
         <StatCard value={totalMatches || '\u2014'} label="Matches" />
         <StatCard value={totalCountries || '\u2014'} label="Countries" />
-        <StatCard value={tournament?.prize_money ?? '\u2014'} label="Prize Money" />
+        <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label="Prize Money" />
       </div>
 
       {/* Top seeds */}
