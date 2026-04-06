@@ -203,6 +203,7 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
           position: 'relative',
         }}>
           {rounds.map((round, colIdx) => {
+            const isLastRound = colIdx === rounds.length - 1
             const matchesInRound = roundMatches.get(round) ?? []
             const multiplier = Math.pow(2, colIdx)
 
@@ -261,23 +262,90 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
                         isLive={match.isLive}
                       />
 
-                      {/* Connector line to next round */}
-                      {colIdx < rounds.length - 1 && (
-                        <div style={{
-                          position: 'absolute',
-                          right: -ROUND_GAP,
-                          top: SLOT_H + MATCH_GAP / 2 - 0.5,
-                          width: ROUND_GAP,
-                          height: 1,
-                          background: CONNECTOR,
-                        }} />
-                      )}
+                      {/* Connector lines to next round */}
+                      {colIdx < rounds.length - 1 && (() => {
+                        const midY = SLOT_H + MATCH_GAP / 2
+                        const nextMatchH = (matchHeight + betweenMatches) * multiplier
+                        const isTopMatch = matchIdx % 2 === 0
+                        const verticalExtent = nextMatchH / 4
+
+                        return (
+                          <>
+                            {/* Horizontal line from match center to right edge */}
+                            <div style={{
+                              position: 'absolute',
+                              right: -ROUND_GAP / 2,
+                              top: midY - 0.5,
+                              width: ROUND_GAP / 2,
+                              height: 1,
+                              background: CONNECTOR,
+                            }} />
+                            {/* Vertical line connecting to sibling match */}
+                            <div style={{
+                              position: 'absolute',
+                              right: -ROUND_GAP / 2 - 0.5,
+                              top: isTopMatch ? midY : midY - verticalExtent,
+                              width: 1,
+                              height: verticalExtent,
+                              background: CONNECTOR,
+                            }} />
+                            {/* Horizontal line from vertical to next round */}
+                            <div style={{
+                              position: 'absolute',
+                              right: -ROUND_GAP,
+                              top: isTopMatch ? midY + verticalExtent / 2 : midY - verticalExtent / 2,
+                              width: ROUND_GAP / 2,
+                              height: 1,
+                              background: CONNECTOR,
+                            }} />
+                          </>
+                        )
+                      })()}
                     </div>
                   )
                 })}
               </div>
             )
           })}
+
+          {/* Trophy after Final */}
+          <div style={{
+            flex: '0 0 60px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingTop: 24,
+          }}>
+            <div style={{
+              position: 'relative',
+              top: (() => {
+                // Vertically center trophy with the Final match
+                const finalMultiplier = Math.pow(2, rounds.length - 1)
+                const baseMatchH = matchHeight + betweenMatches
+                return (finalMultiplier - 1) * baseMatchH / 2
+              })(),
+            }}>
+              <div style={{
+                width: 48, height: 48,
+                background: 'rgba(126,211,33,0.08)',
+                clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="1.5">
+                  <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2" />
+                  <path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2" />
+                  <path d="M6 3h12v6a6 6 0 0 1-12 0V3z" />
+                  <path d="M12 15v3" />
+                  <path d="M8 21h8" />
+                  <path d="M10 18h4" />
+                </svg>
+              </div>
+              <div style={{ fontSize: 8, fontWeight: 800, color: GREEN, textAlign: 'center', marginTop: 4, letterSpacing: 0.5 }}>
+                WINNER
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -332,52 +400,48 @@ function TeamCard({ team, isWinner, isLoser, isLive, score, showScore }: {
         </div>
       ) : (
         <>
-          {/* Top row: badges + score */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 1 }}>
-            {team.seed && (
-              <span style={{
-                fontSize: 7, fontWeight: 800, color: GREEN,
-                background: 'rgba(126,211,33,0.12)',
-                padding: '0 3px', borderRadius: 2, lineHeight: '14px',
-              }}>
-                {team.seed}
-              </span>
-            )}
-            {team.marker && (
-              <span style={{
-                fontSize: 6, fontWeight: 800,
-                color: team.marker === 'Q' ? ORANGE : '#4A9EFF',
-                background: team.marker === 'Q' ? 'rgba(245,166,35,0.12)' : 'rgba(74,158,255,0.12)',
-                padding: '0 3px', borderRadius: 2, lineHeight: '12px',
-              }}>
-                {team.marker}
-              </span>
-            )}
-            {showScore && score && score.length > 0 && (
+          {/* Score row */}
+          {showScore && score && score.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 1 }}>
+              {team.marker && (
+                <span style={{
+                  fontSize: 6, fontWeight: 800,
+                  color: team.marker === 'Q' ? ORANGE : '#4A9EFF',
+                  marginRight: 3,
+                }}>
+                  {team.marker}
+                </span>
+              )}
               <span style={{ fontSize: 8, color: isLive ? LIVE_RED : MUTED, marginLeft: 'auto', fontWeight: 700, fontFamily: 'monospace' }}>
                 {score.join(' ')}
               </span>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Player 1 */}
+          {/* Player 1 + seed in parenthesis */}
           <div style={{
             fontSize: 9, fontWeight: 600,
-            color: isWinner ? GREEN : '#fff',
+            color: '#fff',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            lineHeight: 1.2,
+            lineHeight: 1.3,
           }}>
             {team.player1Country && <span style={{ marginRight: 2, fontSize: 10 }}>{countryFlag(team.player1Country)}</span>}
             {toShortName(team.player1Name!)}
+            {team.seed && <span style={{ color: GREEN, fontSize: 8, fontWeight: 700 }}> ({team.seed})</span>}
+            {!showScore && team.marker && (
+              <span style={{ fontSize: 7, fontWeight: 700, color: team.marker === 'Q' ? ORANGE : '#4A9EFF', marginLeft: 3 }}>
+                {team.marker}
+              </span>
+            )}
           </div>
 
           {/* Player 2 */}
           {team.player2Name && (
             <div style={{
               fontSize: 9, fontWeight: 500,
-              color: isWinner ? 'rgba(126,211,33,0.7)' : 'rgba(255,255,255,0.5)',
+              color: 'rgba(255,255,255,0.7)',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              lineHeight: 1.2,
+              lineHeight: 1.3,
             }}>
               {team.player2Country && <span style={{ marginRight: 2, fontSize: 10 }}>{countryFlag(team.player2Country)}</span>}
               {toShortName(team.player2Name)}
