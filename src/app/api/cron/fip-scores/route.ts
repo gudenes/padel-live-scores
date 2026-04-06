@@ -51,13 +51,23 @@ export async function GET(request: Request) {
       const today = new Date().toISOString().slice(0, 10)
       const yesterday = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-      const { data: tournaments } = await supabase
+      // Allow forcing a specific tournament via ?tournament_id=X (bypasses date window)
+      const url = new URL(request.url)
+      const forcedId = url.searchParams.get('tournament_id')
+
+      let query = supabase
         .from('tournaments')
         .select('id, name, matchscorer_url, starts_at, ends_at, level')
         .eq('source', 'fip')
         .not('matchscorer_url', 'is', null)
-        .lte('starts_at', today)
-        .gte('ends_at', yesterday)
+
+      if (forcedId) {
+        query = query.eq('id', forcedId)
+      } else {
+        query = query.lte('starts_at', today).gte('ends_at', yesterday)
+      }
+
+      const { data: tournaments } = await query
 
       if (!tournaments || tournaments.length === 0) {
         console.log('[FIP Scores] No active FIP tournaments')
