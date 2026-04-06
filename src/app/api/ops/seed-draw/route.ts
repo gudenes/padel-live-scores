@@ -28,6 +28,7 @@ async function checkOpsAuth(): Promise<Response | null> {
 
 interface SeedDrawEntry {
   drawPosition: number
+  round: string | null         // R32, R16, QF, SF, F — for visual bracket
   player1Name: string
   player1Country: string | null
   player2Name: string
@@ -109,6 +110,7 @@ export async function POST(request: Request) {
           player2_country: toIso2(entry.player2Country),
           player2_id: p2Result.playerId,
           team_points: entry.teamPoints,
+          round: entry.round ?? null,
         }, { onConflict: 'tournament_id, category, draw_position' })
 
     } catch (e) {

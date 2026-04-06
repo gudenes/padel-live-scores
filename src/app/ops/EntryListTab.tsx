@@ -383,39 +383,25 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
     setStage('parsing')
 
     try {
-      let textToSend = pasteText
-
-      // Client-side PDF extraction — parse PDF in browser, send text to API
-      if (inputMode === 'upload' && selectedFile) {
-        try {
-          const arrayBuffer = await selectedFile.arrayBuffer()
-          const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-          pdfjsLib.GlobalWorkerOptions.workerSrc = ''
-          const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise
-          const pages: string[] = []
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i)
-            const content = await page.getTextContent()
-            const pageText = content.items
-              .map((item: any) => ('str' in item ? item.str : ''))
-              .join(' ')
-            pages.push(pageText)
-          }
-          textToSend = pages.join('\n')
-          if (!textToSend.trim()) {
-            throw new Error('No text extracted from PDF. Try pasting the text instead.')
-          }
-        } catch (pdfErr) {
-          throw new Error(`PDF extraction failed: ${pdfErr instanceof Error ? pdfErr.message : String(pdfErr)}`)
-        }
-      }
-
+      let res: Response
       const categoryParam = category ? `?category=${category}` : ''
-      const res = await fetch(`/api/ops/parse-entry-list${categoryParam}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToSend }),
-      })
+
+      if (inputMode === 'upload' && selectedFile) {
+        // PDF upload → Sonnet parses server-side
+        const form = new FormData()
+        form.append('file', selectedFile)
+        res = await fetch(`/api/ops/parse-entry-list${categoryParam}`, {
+          method: 'POST',
+          body: form,
+        })
+      } else {
+        // Text paste → text parser server-side
+        res = await fetch(`/api/ops/parse-entry-list${categoryParam}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: pasteText }),
+        })
+      }
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }))
