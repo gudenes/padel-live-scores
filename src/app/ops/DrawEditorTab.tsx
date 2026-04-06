@@ -301,7 +301,10 @@ export default function DrawEditorTab({
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div>
+    <div className="draw-editor">
+      <style>{`
+        .draw-editor input, .draw-editor select, .draw-editor textarea { color: #111 !important; }
+      `}</style>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <button
@@ -416,7 +419,7 @@ export default function DrawEditorTab({
                         style={{
                           width: 40, padding: '3px 4px', fontSize: 11,
                           border: '1px solid #e5e7eb', borderRadius: 3,
-                          textAlign: 'center',
+                          textAlign: 'center', color: '#111',
                         }}
                       />
                     </td>
@@ -428,7 +431,7 @@ export default function DrawEditorTab({
                         style={{
                           padding: '3px 4px', fontSize: 11,
                           border: '1px solid #e5e7eb', borderRadius: 3,
-                          background: 'white',
+                          background: 'white', color: '#111',
                         }}
                       >
                         <option value="">(none)</option>

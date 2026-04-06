@@ -332,7 +332,10 @@ export default function PlayersTab() {
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div>
+    <div className="players-tab">
+      <style>{`
+        .players-tab input, .players-tab select, .players-tab textarea { color: #111 !important; }
+      `}</style>
       {/* Search bar */}
       <div style={{ ...card, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
         <input

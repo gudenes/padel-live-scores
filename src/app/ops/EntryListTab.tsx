@@ -615,7 +615,10 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
 
   if (stage === 'select' || stage === 'parsing') {
     return (
-      <div>
+      <div className="entry-list-tab">
+        <style>{`
+          .entry-list-tab input, .entry-list-tab select, .entry-list-tab textarea { color: #111 !important; }
+        `}</style>
         {parseError && (
           <div style={{ ...card, background: '#fef2f2', border: '1px solid #fecaca', marginBottom: 16, color: '#dc2626', fontSize: 12 }}>
             {parseError}
