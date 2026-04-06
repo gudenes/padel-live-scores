@@ -1,49 +1,56 @@
 // src/lib/pdf-extract.ts
-// Extract text from PDF using Claude API (PDF support).
+// Extract text from PDF using Mistral API (document/OCR support).
 // Replaces pdf-parse which has compatibility issues on Vercel serverless.
 
-import Anthropic from '@anthropic-ai/sdk'
-
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
-
 /**
- * Extract all text content from a PDF file using Claude's native PDF reading.
+ * Extract all text content from a PDF file using Mistral's vision/document API.
  * Returns the raw text suitable for parsing by draw-parser or entry-list-parser.
+ *
+ * Requires MISTRAL_API_KEY env var.
  */
 export async function extractPdfText(data: Uint8Array): Promise<string> {
-  const base64 = Buffer.from(data).toString('base64')
+  const apiKey = process.env.MISTRAL_API_KEY
+  if (!apiKey) throw new Error('MISTRAL_API_KEY env var is not set')
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 8192,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: {
-              type: 'base64',
-              media_type: 'application/pdf',
-              data: base64,
+  const base64 = Buffer.from(data).toString('base64')
+  const dataUrl = `data:application/pdf;base64,${base64}`
+
+  const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'mistral-small-latest',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: {
+                url: dataUrl,
+              },
             },
-          },
-          {
-            type: 'text',
-            text: 'Extract ALL text from this PDF exactly as it appears. Preserve the layout, line breaks, and spacing as closely as possible. Do not summarize, interpret, or modify the content in any way. Output only the raw text content, nothing else.',
-          },
-        ],
-      },
-    ],
+            {
+              type: 'text',
+              text: 'Extract ALL text from this PDF exactly as it appears. Preserve the layout, line breaks, and spacing as closely as possible. Do not summarize, interpret, or modify the content in any way. Output only the raw text content, nothing else.',
+            },
+          ],
+        },
+      ],
+      max_tokens: 8192,
+    }),
   })
 
-  // Extract text from the response
-  const text = response.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map(block => block.text)
-    .join('\n')
+  if (!response.ok) {
+    const errorBody = await response.text()
+    throw new Error(`${response.status} ${errorBody}`)
+  }
+
+  const result = await response.json()
+  const text = result.choices?.[0]?.message?.content ?? ''
 
   return text
 }
