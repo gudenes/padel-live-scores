@@ -107,11 +107,17 @@ export async function POST(request: Request) {
   const recipientReason = new Map<string, RecipientReason>()
 
   // Path 1: bookmarkers of the match itself
-  const { data: bookmarks } = await supabase
+  const bookmarkRes = await supabase
     .from('user_bookmarks')
     .select('user_id')
     .eq('bookmark_type', 'match')
     .eq('target_id', matchId)
+
+  if (bookmarkRes.error) {
+    console.error('[Push] bookmarks query error:', bookmarkRes.error)
+  }
+  const bookmarks = bookmarkRes.data
+  console.log(`[Push] match=${matchId} bookmarks query: ${bookmarks?.length ?? 0} rows, error=${bookmarkRes.error?.message ?? 'none'}`)
 
   for (const b of bookmarks ?? []) {
     if (b.user_id) recipientReason.set(b.user_id as string, { kind: 'bookmark' })
@@ -141,11 +147,17 @@ export async function POST(request: Request) {
   }
 
   if (playerIds.length > 0) {
-    const { data: playerFollows } = await supabase
+    const followsRes = await supabase
       .from('user_bookmarks')
       .select('user_id, target_id')
       .eq('bookmark_type', 'player')
       .in('target_id', playerIds)
+
+    if (followsRes.error) {
+      console.error('[Push] player follows query error:', followsRes.error)
+    }
+    const playerFollows = followsRes.data
+    console.log(`[Push] match=${matchId} player follows query: ${playerFollows?.length ?? 0} rows for playerIds=[${playerIds.join(',')}], error=${followsRes.error?.message ?? 'none'}`)
 
     for (const f of playerFollows ?? []) {
       const userId = f.user_id as string | null
@@ -162,7 +174,16 @@ export async function POST(request: Request) {
   }
 
   if (recipientReason.size === 0) {
-    return Response.json({ ok: true, sent: 0, reason: 'no recipients' })
+    return Response.json({
+      ok: true,
+      sent: 0,
+      reason: 'no recipients',
+      debug: {
+        bookmarks_count: bookmarks?.length ?? 0,
+        bookmarks_error: bookmarkRes.error?.message ?? null,
+        player_ids: playerIds,
+      },
+    })
   }
 
   // ── Fetch subscriptions for all unique recipients ───────────
