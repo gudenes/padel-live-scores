@@ -10,6 +10,7 @@ import {
   fetchMediaUrl,
   resolveCountryTerms,
 } from '@/lib/fip-scraper'
+import { filterUpdateByPriority } from '@/lib/source-priority'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -95,14 +96,26 @@ export async function GET(request: Request) {
           }
 
           if (existing) {
-            // Update existing
+            // Update existing — strip fields FIP isn't the primary owner of,
+            // so we don't clobber padelapi's operational data on rows that
+            // have been merged with padelapi (post-dedup these share a row).
+            // See src/lib/source-priority.ts for the per-field rules.
+            const filtered = filterUpdateByPriority(tournamentData, 'tournament', 'fip')
+            // Always include tracking fields that aren't subject to priority rules
+            filtered.source = tournamentData.source
+            filtered.fip_slug = tournamentData.fip_slug
+            filtered.updated_at = tournamentData.updated_at
+
             const { error } = await supabase
               .from('tournaments')
-              .update(tournamentData)
+              .update(filtered)
               .eq('id', existing.id)
             if (error) throw error
           } else {
-            // Insert new — use slug as external_id for FIP tournaments
+            // Insert new — use slug as external_id for FIP tournaments.
+            // No filter here: the row doesn't exist yet so there's nothing
+            // to protect, and FIP is effectively the primary source until
+            // (if ever) padelapi starts tracking it.
             tournamentData.external_id = `fip-${event.slug}`
             tournamentData.entry_list_status = 'pending'
             const { error } = await supabase
