@@ -18,6 +18,7 @@ import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
+import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1160,46 +1161,9 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
   )
 }
 
-// ── Fantasy Teaser ─────────────────────────────────────────────
-
-function FantasyTeaser() {
-  return (
-    <div style={{
-      margin: '0 16px',
-      background: `linear-gradient(135deg, ${BG_CARD} 0%, rgba(245,166,35,0.06) 100%)`,
-      border: `1px solid rgba(245,166,35,0.15)`,
-      clipPath: CHUNKY.card,
-      padding: '24px 20px',
-      textAlign: 'center',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      <div style={{
-        position: 'absolute', top: -30, left: -30, width: 100, height: 100,
-        background: 'radial-gradient(circle, rgba(245,166,35,0.1) 0%, transparent 70%)',
-      }} />
-      <div style={{ fontSize: 28, marginBottom: 8 }}>&#x1F3C6;</div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
-        Fantasy Padel
-      </div>
-      <div style={{ fontSize: 12, color: MUTED, marginBottom: 16, lineHeight: 1.4 }}>
-        Build your dream team. Compete with friends. Coming soon.
-      </div>
-      <div style={{
-        display: 'inline-block',
-        padding: '10px 28px',
-        background: ORANGE,
-        color: '#000',
-        fontSize: 13,
-        fontWeight: 800,
-        clipPath: CHUNKY.button,
-        cursor: 'pointer',
-      }}>
-        Notify Me
-      </div>
-    </div>
-  )
-}
+// FantasyTeaser removed — replaced by PadelGeniusTeaser component
+// (src/components/PadelGeniusTeaser.tsx) which captures real opt-in
+// signals via the feature_interest table.
 
 // ── Page Styles (animations) ───────────────────────────────────
 
@@ -2042,9 +2006,9 @@ function V3HomePageInner() {
       <SectionTitle action="All Results" href="/matches">Latest Results</SectionTitle>
       <ResultsSection matches={filteredRecent} />
 
-      {/* ── FANTASY TEASER ──────────────────────────────────── */}
+      {/* ── PADELGENIUS TEASER ──────────────────────────────── */}
       <div style={{ paddingTop: 20 }}>
-        <FantasyTeaser />
+        <PadelGeniusTeaser />
       </div>
 
       {/* Footer links */}
