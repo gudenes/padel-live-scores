@@ -3,10 +3,11 @@
 // Redesigned 3-tab bottom nav: Scores / Home (brand icon) / Feed
 // Uses PadelNachos brand language: chunky shapes, green active state.
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { useFeedLastVisit, markFeedVisited } from '@/hooks/useFeedLastVisit'
 
 // ── Icons ───────────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ export default function BottomNavV3() {
   const pathname = usePathname()
   const [liveCount, setLiveCount] = useState(0)
   const [newsCount, setNewsCount] = useState(0)
+  const feedLastVisit = useFeedLastVisit()
 
   // Determine active tab
   const activeKey =
@@ -79,24 +81,30 @@ export default function BottomNavV3() {
     pathname.startsWith('/feed') ? 'feed' :
     'home'
 
-  // Fetch badge counts
-  const fetchBadges = useCallback(async () => {
-    try {
-      const [liveRes, newsRes] = await Promise.all([
-        supabase.from('matches').select('*', { count: 'exact', head: true }).eq('status', 'live'),
-        supabase.from('articles').select('*', { count: 'exact', head: true }).eq('status', 'active')
-          .gte('published_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
-      ])
-      setLiveCount(liveRes.count ?? 0)
-      setNewsCount(newsRes.count ?? 0)
-    } catch { /* silent */ }
-  }, [])
-
+  // Poll badge counts. Re-runs whenever the user's last-visit timestamp
+  // changes (e.g. they open the feed and markFeedVisited() fires).
+  // Feed badge = number of articles published since their last visit.
   useEffect(() => {
-    fetchBadges()
-    const interval = setInterval(fetchBadges, 60_000)
-    return () => clearInterval(interval)
-  }, [fetchBadges])
+    let cancelled = false
+
+    async function fetchBadges() {
+      try {
+        const [liveRes, newsRes] = await Promise.all([
+          supabase.from('matches').select('*', { count: 'exact', head: true }).eq('status', 'live'),
+          supabase.from('articles').select('*', { count: 'exact', head: true })
+            .eq('status', 'active')
+            .gt('published_at', feedLastVisit),
+        ])
+        if (cancelled) return
+        setLiveCount(liveRes.count ?? 0)
+        setNewsCount(newsRes.count ?? 0)
+      } catch { /* silent */ }
+    }
+
+    void fetchBadges()
+    const interval = setInterval(() => { void fetchBadges() }, 60_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [feedLastVisit])
 
   return (
     <>
@@ -126,6 +134,12 @@ export default function BottomNavV3() {
             <Link
               key={tab.key}
               href={tab.href}
+              onClick={() => {
+                if (tab.key === 'feed') {
+                  setNewsCount(0)
+                  markFeedVisited()
+                }
+              }}
               style={{
                 display: 'flex',
                 flexDirection: 'column',

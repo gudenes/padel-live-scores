@@ -13,6 +13,7 @@ import BrandedLoader, { LOADER_HINTS } from '../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
+import SearchOverlay from '@/components/nav/SearchOverlay'
 import { isTournamentGated } from '@/lib/tournament-utils'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -703,6 +704,8 @@ function V3ScoresPage() {
   const [hasMore, setHasMore] = useState(true)
   const [tab, setTab] = useState<'live' | 'upcoming' | 'results'>('live')
   const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all')
+  const [leagueFilter, setLeagueFilter] = useState<'premier' | 'fip' | 'all'>('premier')
+  const [searchOpen, setSearchOpen] = useState(false)
   const pageRef = useRef(0)
 
   const matchSelect = `
@@ -867,16 +870,32 @@ function V3ScoresPage() {
   const gf = (matches: Match[]) =>
     genderFilter === 'all' ? matches : matches.filter(m => (m as any).category === genderFilter)
 
+  // League classifier — premier padel uses level codes without a prefix,
+  // FIP Tour uses fip_* levels, legacy WPT uses wpt_* levels.
+  const PREMIER_LEVELS = new Set(['p1', 'p2', 'major', 'finals'])
+  const isFipLevel = (level: string | null | undefined) => !!level && level.startsWith('fip_')
+  const matchLeague = (m: Match): 'premier' | 'fip' | 'other' => {
+    const level = (m as any).tournament?.level as string | null | undefined
+    if (level && PREMIER_LEVELS.has(level)) return 'premier'
+    if (isFipLevel(level)) return 'fip'
+    return 'other'
+  }
+
+  // League filter — 'all' keeps everything, otherwise filter by classification.
+  const lf = (matches: Match[]) =>
+    leagueFilter === 'all' ? matches : matches.filter(m => matchLeague(m) === leagueFilter)
+
   // Recently finished matches still lingering in the live tab
   const lingeringMatches = recentMatches.filter(m => lingeringIds.has(m.id))
 
-  // Current tab data — live tab includes lingering recently-finished matches
-  const currentMatches = tab === 'live' ? gf([...liveMatches, ...lingeringMatches])
-    : tab === 'upcoming' ? gf(scheduledMatches.filter(hasPlayers))
-    : gf(recentMatches)
+  // Current tab data — live tab includes lingering recently-finished matches.
+  // Apply league filter first, then gender filter.
+  const currentMatches = tab === 'live' ? gf(lf([...liveMatches, ...lingeringMatches]))
+    : tab === 'upcoming' ? gf(lf(scheduledMatches.filter(hasPlayers)))
+    : gf(lf(recentMatches))
   const grouped = groupByTournament(currentMatches)
 
-  const liveCount = gf(liveMatches).filter(m => !isWarmingUp(m)).length
+  const liveCount = gf(lf(liveMatches)).filter(m => !isWarmingUp(m)).length
 
   const tabs: { key: typeof tab; label: string; isLive?: boolean }[] = [
     { key: 'live', label: 'Live', isLive: true },
@@ -895,14 +914,48 @@ function V3ScoresPage() {
       <style dangerouslySetInnerHTML={{ __html: KEYFRAMES }} />
 
       {/* Header */}
-      <AppHeader />
+      <AppHeader onSearchOpen={() => setSearchOpen(true)} />
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {loading ? (
         <BrandedLoader hints={[...LOADER_HINTS.matches]} />
       ) : (
         <>
+          {/* League filter chips */}
+          <div style={{
+            display: 'flex', gap: 6, padding: '14px 16px 0',
+            overflowX: 'auto', scrollbarWidth: 'none',
+          } as React.CSSProperties}>
+            {([
+              { key: 'premier', label: 'Premier Padel' },
+              { key: 'fip',     label: 'FIP Tour' },
+              { key: 'all',     label: 'All' },
+            ] as const).map(chip => {
+              const active = leagueFilter === chip.key
+              return (
+                <button
+                  key={chip.key}
+                  onClick={() => setLeagueFilter(chip.key)}
+                  style={{
+                    padding: '6px 14px', fontSize: 11, fontWeight: 700,
+                    border: 'none', cursor: 'pointer',
+                    background: active ? ORANGE : 'rgba(255,255,255,0.05)',
+                    color: active ? '#000' : MUTED,
+                    clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
+                    fontFamily: 'inherit',
+                    whiteSpace: 'nowrap',
+                    letterSpacing: 0.3,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {chip.label}
+                </button>
+              )
+            })}
+          </div>
+
           {/* Tab bar + gender toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px 10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
               {tabs.map(t => {
                 const active = tab === t.key
@@ -996,7 +1049,11 @@ function V3ScoresPage() {
                   {tab === 'live' ? 'No live matches right now' : tab === 'upcoming' ? 'No upcoming matches' : 'No recent results'}
                 </div>
                 <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.5 }}>
-                  {tab === 'live' ? 'Check back during tournament days' : tab === 'upcoming' ? 'Schedules will appear closer to match day' : 'Results will appear after matches finish'}
+                  {leagueFilter !== 'all'
+                    ? `Try switching the league filter to see ${leagueFilter === 'premier' ? 'FIP Tour' : 'Premier Padel'} or All matches.`
+                    : tab === 'live' ? 'Check back during tournament days'
+                    : tab === 'upcoming' ? 'Schedules will appear closer to match day'
+                    : 'Results will appear after matches finish'}
                 </div>
               </div>
             )}

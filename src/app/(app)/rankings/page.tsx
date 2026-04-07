@@ -384,7 +384,7 @@ export default function V3RankingPage() {
             }}
           />
           {query ? (
-            <button onClick={() => setQuery('')} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 20, lineHeight: 1, padding: 0 }}>\u00D7</button>
+            <button onClick={() => setQuery('')} aria-label="Clear search" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
           ) : (
             <button onClick={closeSearch} style={{
               background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer',

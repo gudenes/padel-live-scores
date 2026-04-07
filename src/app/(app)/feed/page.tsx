@@ -11,6 +11,8 @@ import { useBookmarks } from '@/hooks/useBookmarks'
 import Link from 'next/link'
 import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
+import SearchOverlay from '@/components/nav/SearchOverlay'
+import { markFeedVisited } from '@/hooks/useFeedLastVisit'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -615,7 +617,15 @@ function V3FeedPage() {
   const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const { hide: hideFeedItem, isHidden } = useHiddenFeedItems()
+
+  // Clear the feed notification badge: record that this user has now visited
+  // the feed page. Runs on every mount (including deep links) so the badge
+  // resets to 0 and the next count starts from this timestamp.
+  useEffect(() => {
+    markFeedVisited()
+  }, [])
   const { prefs: feedPrefs, trackArticleClick: trackArticlePref, trackVideoPlay } = useFeedPreferences()
   const [visitedArticles, setVisitedArticles] = useState<Set<string>>(new Set())
 
@@ -818,7 +828,8 @@ function V3FeedPage() {
   return (
     <div style={{ minHeight: '100vh', background: BG_BASE }}>
       {/* Header */}
-      <AppHeader />
+      <AppHeader onSearchOpen={() => setSearchOpen(true)} />
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Feed content */}
       {loading ? (
