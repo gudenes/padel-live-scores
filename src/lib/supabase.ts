@@ -10,16 +10,56 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   || (typeof window !== 'undefined' ? window.location.origin : '')
 
-// Browser client — uses anon key, respects RLS
-// Auth options enable PKCE flow and session detection from OAuth/magic-link redirects
+// ── Custom auth lock ─────────────────────────────────────────────────
+//
+// History: Supabase's default `navigator.locks`-based lock was timing out
+// at 5s on slow DB responses (commit df59f6a April 2). The original fix
+// replaced it with a pure pass-through, which eliminated the timeout but
+// also eliminated the serialization. That allowed multiple concurrent
+// `getSession()` / token refresh calls to race each other — and since
+// refresh tokens are single-use, one of the racing refreshes would fail
+// and leave the client in a wedged state where every subsequent query
+// would hang waiting for state that never arrives.
+//
+// This implementation is an in-memory serializing lock with NO timeout:
+// - Per-name promise chains so distinct locks don't block each other
+// - Failed predecessors don't poison successors (we catch errors in the
+//   chain so the next waiter still runs)
+// - No reliance on navigator.locks (which has the 5s issue)
+// - No cross-tab coordination (we have a single AuthProvider; cross-tab
+//   sync is handled via supabase.auth.onAuthStateChange's `storage` events)
+const lockChains = new Map<string, Promise<unknown>>()
+
+async function serializingLock<R>(
+  name: string,
+  _acquireTimeout: number,
+  fn: () => Promise<R>
+): Promise<R> {
+  const previous = lockChains.get(name) ?? Promise.resolve()
+  // Wait for the previous holder to finish (success or failure), then run.
+  const tail: Promise<R> = previous.catch(() => undefined).then(() => fn())
+  // Store a swallowed version so that if our `fn` throws, the next waiter
+  // still gets a clean signal to start.
+  lockChains.set(name, tail.catch(() => undefined))
+  return tail
+}
+
+// Browser client — uses anon key, respects RLS.
+// Auth options:
+// - detectSessionInUrl: pick up tokens from OAuth/magic-link redirects
+// - flowType: 'pkce'
+// - autoRefreshToken: FALSE — we refresh manually on a controlled schedule
+//   (see startSessionKeepalive and useWakeRefresh) to avoid auto-refresh
+//   racing with in-flight queries
+// - persistSession: keep the session in localStorage across reloads
+// - lock: our serializing in-memory lock (see comment above)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     detectSessionInUrl: true,
     flowType: 'pkce',
-    autoRefreshToken: true,
+    autoRefreshToken: false,
     persistSession: true,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => fn(),
+    lock: serializingLock,
   },
 })
 

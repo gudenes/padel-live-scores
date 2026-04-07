@@ -131,33 +131,76 @@ async function attemptRecovery(context: string): Promise<void> {
   }
 }
 
+// Refresh proactively when the token has less than this much time left.
+// 10 minutes gives us plenty of buffer before the 1-hour JWT expires,
+// and matches a common Supabase pattern.
+const REFRESH_BEFORE_EXPIRY_MS = 10 * 60_000
+
 /**
- * Lightweight session keepalive — pings auth.getSession() periodically
- * to keep the client warm. Call once per app from a top-level component
- * (e.g. AuthProvider).
+ * Refresh the session if and only if the current token is close to expiring.
+ * Used by the keepalive, the visibility-wake handler, and AuthProvider mount.
+ *
+ * Idempotent and safe to call frequently — the serializing lock in
+ * src/lib/supabase.ts ensures concurrent calls don't race.
+ *
+ * @returns true if a refresh actually happened, false if not needed
+ */
+export async function refreshSessionIfNeeded(reason: string): Promise<boolean> {
+  try {
+    const { data: { session } } = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<{ data: { session: null } }>((_, reject) =>
+        setTimeout(() => reject(new Error('getSession-timeout')), 4_000)
+      ),
+    ])
+    if (!session) return false
+
+    const expiresAtMs = (session.expires_at ?? 0) * 1000
+    const msUntilExpiry = expiresAtMs - Date.now()
+
+    // Token is fresh enough, no work needed.
+    if (msUntilExpiry > REFRESH_BEFORE_EXPIRY_MS) return false
+
+    console.log(`[supabase-health] refreshing session (${reason}) — expires in ${Math.round(msUntilExpiry / 1000)}s`)
+    const start = Date.now()
+    const { error } = await Promise.race([
+      supabase.auth.refreshSession(),
+      new Promise<{ error: Error }>((_, reject) =>
+        setTimeout(() => reject(new Error('refreshSession-timeout')), 8_000)
+      ),
+    ])
+    const elapsed = Date.now() - start
+
+    if (error) {
+      console.warn(`[supabase-health] refresh failed after ${elapsed}ms:`, error.message)
+      return false
+    }
+    console.log(`[supabase-health] refresh ok (${elapsed}ms)`)
+    return true
+  } catch (e) {
+    console.warn(`[supabase-health] refresh attempt threw:`, (e as Error)?.message)
+    return false
+  }
+}
+
+/**
+ * Lightweight session keepalive — periodically refreshes the session if
+ * needed. With autoRefreshToken disabled in the supabase client, this is
+ * the primary path through which tokens get refreshed during normal use.
+ * Call once per app from a top-level component (e.g. AuthProvider).
  *
  * @returns cleanup function to stop the keepalive
  */
 export function startSessionKeepalive(intervalMs: number = 5 * 60_000): () => void {
   if (typeof window === 'undefined') return () => {}
 
-  const tick = async () => {
-    try {
-      const start = Date.now()
-      await Promise.race([
-        supabase.auth.getSession(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('keepalive-timeout')), 4_000)),
-      ])
-      const elapsed = Date.now() - start
-      if (elapsed > 1000) {
-        console.log(`[supabase-health] keepalive ok (${elapsed}ms)`)
-      }
-    } catch (e) {
-      console.warn('[supabase-health] keepalive failed:', (e as Error)?.message)
-      // Don't trigger recovery from keepalive — let the next user action
-      // surface the issue. Keepalive failure on its own isn't critical.
-    }
+  const tick = () => {
+    void refreshSessionIfNeeded('keepalive')
   }
+
+  // Run immediately on start so we don't wait 5 minutes to discover an
+  // already-expired token.
+  tick()
 
   const interval = setInterval(tick, intervalMs)
   return () => clearInterval(interval)

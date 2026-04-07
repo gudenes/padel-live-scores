@@ -6,7 +6,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
-import { startSessionKeepalive } from '@/lib/supabase-health'
+import { startSessionKeepalive, refreshSessionIfNeeded } from '@/lib/supabase-health'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface Profile {
@@ -185,6 +185,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Profile fetch in background — never blocks loading state
       if (s?.user) {
         fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
+      }
+      // If the persisted session is close to expiry (e.g. user reopened a
+      // tab that's been idle for hours), refresh it proactively in the
+      // background so the next query has a fresh token.
+      if (s) {
+        void refreshSessionIfNeeded('mount')
       }
     }).catch(err => {
       console.error('[Auth] getSession() failed:', err)
