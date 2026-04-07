@@ -26,6 +26,11 @@ const V3 = {
   },
 } as const
 
+interface CountryOption {
+  iso2: string
+  name: string
+}
+
 interface BookmarkedMatch {
   id: string
   status: string
@@ -50,6 +55,60 @@ export default function ProfilePage() {
   const [matches, setMatches] = useState<BookmarkedMatch[]>([])
   const [players, setPlayers] = useState<BookmarkedPlayer[]>([])
   const [loadingData, setLoadingData] = useState(true)
+
+  // Country preference (broadcaster region override)
+  const [countryOptions, setCountryOptions] = useState<CountryOption[]>([])
+  const [savingCountry, setSavingCountry] = useState(false)
+  const [countryDraft, setCountryDraft] = useState<string>('')  // '' = auto
+
+  // Load distinct countries from broadcasters table for the picker
+  useEffect(() => {
+    let cancelled = false
+    async function loadCountries() {
+      const { data } = await supabase
+        .from('broadcasters')
+        .select('country_iso2, country_name')
+        .eq('active', true)
+      if (cancelled || !data) return
+      const seen = new Map<string, string>()
+      for (const row of data) {
+        if (row.country_iso2 && !seen.has(row.country_iso2)) {
+          seen.set(row.country_iso2, row.country_name ?? row.country_iso2.toUpperCase())
+        }
+      }
+      const sorted = [...seen.entries()]
+        .map(([iso2, name]) => ({ iso2, name }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+      setCountryOptions(sorted)
+    }
+    void loadCountries()
+    return () => { cancelled = true }
+  }, [])
+
+  // Sync local draft when profile loads
+  useEffect(() => {
+    if (profile?.preferred_country !== undefined) {
+      setCountryDraft(profile.preferred_country ?? '')
+    }
+  }, [profile?.preferred_country])
+
+  const saveCountry = async (newValue: string) => {
+    if (!user) return
+    setSavingCountry(true)
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ preferred_country: newValue || null })
+        .eq('id', user.id)
+      if (error) {
+        console.warn('[Profile] saveCountry error:', error.message)
+        return
+      }
+      setCountryDraft(newValue)
+    } finally {
+      setSavingCountry(false)
+    }
+  }
 
   // Redirect if not logged in
   useEffect(() => {
@@ -226,6 +285,49 @@ export default function ProfilePage() {
             transition: 'left 0.2s',
           }} />
         </button>
+      </div>
+
+      {/* Region preference (overrides geo-IP for broadcaster lists) */}
+      <div style={{
+        padding: '14px 16px',
+        borderBottom: `1px solid rgba(255,255,255,0.04)`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={V3.ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>Region</div>
+            <div style={{ color: V3.MUTED, fontSize: 11 }}>
+              Used to show local broadcasters and content. Defaults to your IP location.
+            </div>
+          </div>
+        </div>
+        <select
+          value={countryDraft}
+          onChange={(e) => saveCountry(e.target.value)}
+          disabled={savingCountry || countryOptions.length === 0}
+          style={{
+            width: '100%',
+            background: V3.BG_CARD,
+            color: '#fff',
+            border: `1px solid ${V3.BORDER}`,
+            padding: '10px 12px',
+            fontSize: 13,
+            fontFamily: 'inherit',
+            clipPath: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+            appearance: 'none',
+            cursor: savingCountry ? 'wait' : 'pointer',
+            opacity: savingCountry ? 0.6 : 1,
+          }}
+        >
+          <option value="">🌍 Use my location (auto)</option>
+          {countryOptions.map(c => (
+            <option key={c.iso2} value={c.iso2}>{c.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Bookmarked Matches */}
