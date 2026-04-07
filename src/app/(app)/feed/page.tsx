@@ -13,6 +13,7 @@ import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
+import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -750,6 +751,10 @@ function V3FeedPage() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Recover from tab-idle Supabase auth lock deadlock — see useWakeRefresh
+  useWakeRefresh(fetchData)
+
   useEffect(() => {
     setUserCountry(getUserCountry())
     setVisitedArticles(getVisitedArticles())

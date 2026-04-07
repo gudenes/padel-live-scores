@@ -63,6 +63,25 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim()
 }
 
+// Decode HTML character entities in a URL-like string. Some RSS feeds (cope.es
+// notably) emit URLs with hex/decimal entities for : and / which then break
+// when rendered as <img src>. This decoder normalizes them and validates that
+// the result is a real http(s) URL — anything else returns null.
+function sanitizeImageUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const decoded = raw
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim()
+  if (!/^https?:\/\//i.test(decoded)) return null
+  return decoded
+}
+
 // Truncate snippet to ~200 chars at word boundary
 function truncate(text: string, max = 200): string {
   if (text.length <= max) return text
@@ -271,7 +290,7 @@ async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
       source_icon: iconUrl ?? source.icon,
       source_key: source.key,
       url: item.link,
-      image_url: imageUrl,
+      image_url: sanitizeImageUrl(imageUrl),
       snippet,
       language: source.language,
       published_at: pubDate.toISOString(),
@@ -317,7 +336,7 @@ async function fetchFIP(source: ArticleSource): Promise<ArticleRow[]> {
       source_icon: iconUrl ?? source.icon,
       source_key: source.key,
       url: post.link,
-      image_url: imageUrl,
+      image_url: sanitizeImageUrl(imageUrl),
       snippet: truncate(stripHtml(post.excerpt.rendered)),
       language: source.language,
       published_at: new Date(post.date).toISOString(),
