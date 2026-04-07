@@ -25,14 +25,6 @@
       "schedule": "40 */1 * * *"
     },
     {
-      "path": "/api/cron/fip-tournaments",
-      "schedule": "0 */12 * * *"
-    },
-    {
-      "path": "/api/cron/fip-scores",
-      "schedule": "0 */2 * * *"
-    },
-    {
       "path": "/api/cron/quality-scores",
       "schedule": "7 * * * *"
     },

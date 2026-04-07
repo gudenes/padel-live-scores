@@ -363,12 +363,9 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
       (existing ?? []).map((r: any) => [r.external_id, r])
     )
 
-    // Skip Gold/Silver/Bronze — these are now handled by the FIP standalone pipeline
-    // padelapi uses fip_gold/fip_silver/fip_bronze; our FIP pipeline uses fip_gold/fip_other
-    const FIP_STANDALONE_LEVELS = ['fip_gold', 'fip_silver', 'fip_bronze', 'fip_other']
-    const filteredTournaments = tournaments.filter(
-      (t: any) => !FIP_STANDALONE_LEVELS.includes(t.level)
-    )
+    // FIP tournament source switched back to padelapi.org for higher data quality.
+    // FIP standalone pipeline (cron/fip-tournaments + cron/fip-scores) is now paused.
+    const filteredTournaments = tournaments
 
     for (const t of filteredTournaments) {
       if (!t.id) continue

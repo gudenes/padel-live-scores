@@ -94,15 +94,24 @@ interface DashboardData {
 
 // ── Config ──────────────────────────────────────────────────────
 
-const TILES = [
+interface CronTile {
+  key: string
+  label: string
+  schedule: string
+  description: string
+  paused?: boolean
+  pauseReason?: string
+}
+
+const TILES: readonly CronTile[] = [
   { key: 'cron:scores', label: 'Scores', schedule: 'Every 2 min', description: 'Polls padelapi.org for live match scores, upserts point/game/set data, detects stale matches stuck as live' },
   { key: 'cron:sync-matches', label: 'Sync Matches', schedule: 'Every 1h', description: 'Syncs match metadata (players, courts, rounds) for all active tournaments from padelapi.org' },
   { key: 'cron:sync', label: 'Full Sync', schedule: 'Mon 4am UTC', description: 'Weekly full sync: tournaments, players, seasons, and FIP logos from padelapi.org' },
   { key: 'cron:rankings', label: 'Rankings', schedule: 'Daily 5am UTC', description: 'Fetches FIP official and race rankings (top 1000, men & women) from the FIP website' },
   { key: 'cron:articles', label: 'Articles', schedule: 'Hourly :40', description: 'Fetches padel news from Google News RSS feeds and FIP WordPress API, deduplicates and upserts' },
   { key: 'cron:highlights', label: 'Highlights', schedule: 'Hourly :20', description: 'Fetches recent match highlight videos from YouTube padel channels, filters duplicates' },
-  { key: 'cron:fip-tournaments', label: 'FIP Tournaments', schedule: 'Every 12h', description: 'Syncs FIP tournament data including draws, brackets, and scheduling from the FIP API' },
-  { key: 'cron:fip-scores', label: 'FIP Scores', schedule: 'Every 2h', description: 'Polls FIP API for live match scores in FIP-sourced tournaments, upserts results' },
+  { key: 'cron:fip-tournaments', label: 'FIP Tournaments', schedule: 'Every 12h', description: 'Syncs FIP tournament data including draws, brackets, and scheduling from the FIP API', paused: true, pauseReason: 'Switched to padelapi.org for FIP tournaments — re-enable for FIP-only data' },
+  { key: 'cron:fip-scores', label: 'FIP Scores', schedule: 'Every 2h', description: 'Polls FIP API for live match scores in FIP-sourced tournaments, upserts results', paused: true, pauseReason: 'Switched to padelapi.org for FIP tournaments — re-enable for FIP-only data' },
 ] as const
 
 // ── Helpers ─────────────────────────────────────────────────────
@@ -467,25 +476,46 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         {TILES.map(tile => {
           const h = data.health[tile.key]
           const stats = data.cron_stats?.[tile.key]
-          const color = statusColor(h?.status ?? 'unknown')
+          const isPaused = tile.paused === true
+          const color = isPaused ? '#9ca3af' : statusColor(h?.status ?? 'unknown')
+          const borderStyle = isPaused
+            ? '1px dashed #d1d5db'
+            : statusBorder(h?.status ?? 'unknown')
           return (
-            <div key={tile.key} style={{ ...card, border: statusBorder(h?.status ?? 'unknown'), borderLeft: `3px solid ${color}` }}>
-              <div style={{ ...tileLabel, display: 'flex', alignItems: 'center' }}>{tile.label}<InfoTooltip text={tile.description} /></div>
+            <div key={tile.key} style={{ ...card, border: borderStyle, borderLeft: `3px solid ${color}`, opacity: isPaused ? 0.75 : 1, background: isPaused ? '#fafafa' : 'white' }}>
+              <div style={{ ...tileLabel, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  {tile.label}
+                  <InfoTooltip text={isPaused && tile.pauseReason ? `${tile.description}\n\nPAUSED: ${tile.pauseReason}` : tile.description} />
+                </span>
+                {isPaused && (
+                  <span style={{ fontSize: 8, fontWeight: 700, color: '#6b7280', background: '#f3f4f6', padding: '1px 5px', borderRadius: 3, letterSpacing: 0.3 }}>PAUSED</span>
+                )}
+              </div>
               <div style={{ fontSize: 10, color: '#bbb', marginBottom: 6 }}>{tile.schedule}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color }}>{statusLabel(h?.status ?? 'unknown')}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color }}>{isPaused ? 'Paused' : statusLabel(h?.status ?? 'unknown')}</span>
               </div>
-              <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>
-                {timeAgo(h?.started_at ?? null)} · {formatDuration(h?.duration_ms ?? null)}
-              </div>
-              <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>
-                {h?.error_message ? <span style={{ color: '#dc2626' }}>{h.error_message.slice(0, 60)}</span> : metaSummary(tile.key, h?.meta ?? null)}
-              </div>
-              {stats && (
-                <div style={{ fontSize: 10, color: '#999', marginTop: 4, borderTop: '1px solid #f3f4f6', paddingTop: 4, display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{stats.runs} runs ({stats.ok_runs} ok)</span>
-                  <span>{stats.datapoints.toLocaleString()} datapoints</span>
+              {!isPaused && (
+                <>
+                  <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>
+                    {timeAgo(h?.started_at ?? null)} · {formatDuration(h?.duration_ms ?? null)}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>
+                    {h?.error_message ? <span style={{ color: '#dc2626' }}>{h.error_message.slice(0, 60)}</span> : metaSummary(tile.key, h?.meta ?? null)}
+                  </div>
+                  {stats && (
+                    <div style={{ fontSize: 10, color: '#999', marginTop: 4, borderTop: '1px solid #f3f4f6', paddingTop: 4, display: 'flex', justifyContent: 'space-between' }}>
+                      <span>{stats.runs} runs ({stats.ok_runs} ok)</span>
+                      <span>{stats.datapoints.toLocaleString()} datapoints</span>
+                    </div>
+                  )}
+                </>
+              )}
+              {isPaused && tile.pauseReason && (
+                <div style={{ fontSize: 9, color: '#6b7280', marginTop: 4, fontStyle: 'italic', lineHeight: 1.3 }}>
+                  {tile.pauseReason}
                 </div>
               )}
             </div>
