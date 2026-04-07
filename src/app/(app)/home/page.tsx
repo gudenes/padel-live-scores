@@ -5,7 +5,6 @@
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
 
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
@@ -1709,7 +1708,6 @@ export default function V3HomePage() {
 }
 
 function V3HomePageInner() {
-  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'home' | 'tournaments'>('home')
   const gender = 'all' as const
@@ -1801,14 +1799,16 @@ function V3HomePageInner() {
       const failureCount = results.filter(r => r.status === 'rejected').length
       void reportBatchFailures(failureCount, results.length, 'V3 Home')
 
-      const testMode = searchParams.get('test') === '1'
-      const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')
-      setLiveMatches(dataOf(0).filter(notSimulated))
-      setScheduledMatches(dataOf(1).filter(notSimulated))
+      // Note: the legacy "filter out sim_ external_id" guard was removed
+      // after scripts/purge-simulated.ts cleaned the orphan simulator
+      // matches from the DB. Future simulator runs use source='simulated'
+      // on the parent tournament, which is filtered separately if needed.
+      setLiveMatches(dataOf(0))
+      setScheduledMatches(dataOf(1))
       setUpcomingTournaments(dataOf(2))
       setTopMen(dataOf(3))
       setTopWomen(dataOf(4))
-      setRecentMatches(dataOf(5).filter(notSimulated))
+      setRecentMatches(dataOf(5))
       setHighlights(dataOf(6))
       setLatestNews(dataOf(7))
     } catch (e) {

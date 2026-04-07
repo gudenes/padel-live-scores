@@ -759,12 +759,14 @@ function V3ScoresPage() {
       const failureCount = results.filter(r => r.status === 'rejected').length
       void reportBatchFailures(failureCount, results.length, 'V3 Scores')
 
-      const testMode = searchParams.get('test') === '1'
-      const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')
+      // Note: the legacy "filter out sim_ external_id" guard was removed
+      // after scripts/purge-simulated.ts cleaned the orphan simulator
+      // matches from the DB. Future simulator runs use source='simulated'
+      // on the parent tournament, which is filtered separately if needed.
       const liveData = dataOf(0)
-      setLiveMatches(sortSets(liveData.filter(notSimulated)))
-      setScheduledMatches(sortSets(dataOf(1).filter(notSimulated)))
-      setRecentMatches(sortSets(dataOf(2).filter(notSimulated)))
+      setLiveMatches(sortSets(liveData))
+      setScheduledMatches(sortSets(dataOf(1)))
+      setRecentMatches(sortSets(dataOf(2)))
       setHasMore(true)
       pageRef.current = 0
 
