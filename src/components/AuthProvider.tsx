@@ -6,6 +6,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
+import { startSessionKeepalive } from '@/lib/supabase-health'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface Profile {
@@ -193,9 +194,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    // Listen for auth changes
+    // Listen for auth changes — log every event with timestamps so we can
+    // diagnose wedge issues from console history.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
+        const ts = new Date().toISOString()
+        console.log(`[Auth] ${ts} event=${event} hasSession=${!!s} userId=${s?.user?.id?.slice(0, 8) ?? '-'}`)
         if (cancelled) return
         setSession(s)
         setUser(s?.user ?? null)
@@ -219,10 +223,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     )
 
+    // Periodic session keepalive — pings supabase.auth.getSession every
+    // 5 minutes to keep the client warm and detect wedges before the next
+    // user interaction. Only runs in the browser.
+    const stopKeepalive = startSessionKeepalive()
+
     return () => {
       cancelled = true
       clearTimeout(safetyTimeout)
       subscription.unsubscribe()
+      stopKeepalive()
     }
   }, [])
 
