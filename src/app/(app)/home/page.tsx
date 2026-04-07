@@ -251,8 +251,21 @@ function SectionTitle({ children, action, href, onAction }: { children: React.Re
 function LiveMatchCard({ match }: { match: Match }) {
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
   const currentSet = sets.find(s => s.is_current)
-  const currentGame = currentSet?.games?.find(g => g.is_current)
-  const gamePoints = currentGame?.game_score ?? ''
+  // Pick the LAST current game (not first) — when a game finishes and a
+  // new one starts, both can briefly carry is_current=true while the
+  // realtime relay catches up. We want the most recent (highest game_number).
+  const currentGames = (currentSet?.games ?? []).filter(g => g.is_current)
+  const currentGame = currentGames.length > 0
+    ? currentGames.reduce((latest, g) =>
+        (g.game_number ?? 0) > (latest.game_number ?? 0) ? g : latest)
+    : null
+  // game_score format varies by source — padelapi uses "30-30", relay
+  // sometimes uses "30:30". Split on either to be safe.
+  const rawGameScore = currentGame?.game_score ?? ''
+  const gamePointsParts = rawGameScore.split(/[:\-]/)
+  const p1GamePts = gamePointsParts[0] ?? ''
+  const p2GamePts = gamePointsParts[1] ?? ''
+  const hasLivePts = !!(p1GamePts || p2GamePts)
 
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
@@ -266,7 +279,8 @@ function LiveMatchCard({ match }: { match: Match }) {
   const isLive = match.status === 'live'
   const p1Games = sets.reduce((s, st) => s + (st.pair1_games ?? 0), 0)
   const p2Games = sets.reduce((s, st) => s + (st.pair2_games ?? 0), 0)
-  const [p1Pts, p2Pts] = (gamePoints || ':').split(':')
+  const p1Pts = p1GamePts
+  const p2Pts = p2GamePts
 
   useEffect(() => {
     if (!isLive) { _liveScoresPrev.delete(match.id); return }
@@ -435,7 +449,7 @@ function LiveMatchCard({ match }: { match: Match }) {
                 marginLeft: 2,
                 lineHeight: 1,
               }}>
-                {gamePoints ? (gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? '') : ''}
+                {hasLivePts ? (pairNum === 1 ? p1GamePts : p2GamePts) : ''}
               </span>
             </div>
           </div>
