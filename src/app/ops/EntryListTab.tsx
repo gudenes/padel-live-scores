@@ -15,6 +15,7 @@ interface Tournament {
   ends_at: string | null
   entry_list_status?: string
   categories?: string
+  source?: string  // 'fip' | 'padelapi' (padelapi tournaments support entry list as supplemental data)
   hasEntryList?: boolean
   hasDraw?: boolean
 }
@@ -631,6 +632,22 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
                 {selectedTournamentObj.country && <span style={{ color: '#888', fontWeight: 400, marginLeft: 4 }}>({selectedTournamentObj.country})</span>}
               </div>
               <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                {selectedTournamentObj.source === 'padelapi' && (
+                  <span
+                    title="Padelapi tournament — entry list is supplemental"
+                    style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: '#dbeafe', color: '#1e40af' }}
+                  >
+                    API
+                  </span>
+                )}
+                {selectedTournamentObj.source === 'fip' && (
+                  <span
+                    title="FIP scraper — entry list is required"
+                    style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: '#f3e8ff', color: '#6b21a8' }}
+                  >
+                    FIP
+                  </span>
+                )}
                 <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: selectedTournamentObj.hasEntryList ? '#dcfce7' : '#fef2f2', color: selectedTournamentObj.hasEntryList ? '#166534' : '#dc2626' }}>EL</span>
                 <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: selectedTournamentObj.hasDraw ? '#dcfce7' : '#fef2f2', color: selectedTournamentObj.hasDraw ? '#166534' : '#dc2626' }}>DR</span>
               </div>
@@ -712,6 +729,22 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
                         </div>
                         <div style={{ fontSize: 10, color: '#888', display: 'flex', gap: 4, alignItems: 'center' }}>
                           {dot.label}
+                          {t.source === 'padelapi' && (
+                            <span
+                              title="Padelapi tournament — entry list is supplemental"
+                              style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: '#dbeafe', color: '#1e40af' }}
+                            >
+                              API
+                            </span>
+                          )}
+                          {t.source === 'fip' && (
+                            <span
+                              title="FIP scraper — entry list is required"
+                              style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: '#f3e8ff', color: '#6b21a8' }}
+                            >
+                              FIP
+                            </span>
+                          )}
                           <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: t.hasEntryList ? '#dcfce7' : '#fef2f2', color: t.hasEntryList ? '#166534' : '#dc2626' }}>EL</span>
                           <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 4px', borderRadius: 3, background: t.hasDraw ? '#dcfce7' : '#fef2f2', color: t.hasDraw ? '#166534' : '#dc2626' }}>DR</span>
                         </div>

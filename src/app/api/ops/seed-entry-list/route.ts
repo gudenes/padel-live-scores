@@ -52,11 +52,13 @@ export async function GET(request: Request) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
-    // Fetch FIP tournaments: starting within next 30 days, or recently active (ended within 30 days)
+    // Fetch tournaments (FIP + padelapi): starting within next 30 days,
+    // or recently active (ended within 30 days). Padelapi tournaments are
+    // included so we can supplement gaps in their data (e.g. seed lists).
     const { data: tournaments, error } = await supabase
       .from('tournaments')
-      .select('id, name, country, level, starts_at, ends_at, entry_list_status, categories')
-      .eq('source', 'fip')
+      .select('id, name, country, level, starts_at, ends_at, entry_list_status, categories, source')
+      .in('source', ['fip', 'padelapi'])
       .gte('starts_at', thirtyDaysAgo)
       .lte('starts_at', in30Days)
       .order('starts_at', { ascending: true })
