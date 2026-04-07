@@ -14,6 +14,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import BracketView from '@/components/BracketView'
+import WhereToWatch from '@/components/WhereToWatch'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1524,6 +1525,12 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
             <span style={{ fontSize: 16, color: '#F5A623', fontWeight: 800 }}>→</span>
           </div>
         </Link>
+      )}
+
+      {/* Where to Watch — only shown for Premier-tier tournaments since the
+          data we sync from premierpadel.com only covers Premier events */}
+      {tournament?.level && ['p1', 'p2', 'major', 'finals'].includes(tournament.level) && (
+        <WhereToWatch />
       )}
 
       {/* Top seeds */}

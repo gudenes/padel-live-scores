@@ -31,6 +31,10 @@
     {
       "path": "/api/cron/nacho-health",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/sync-broadcasters",
+      "schedule": "0 4 * * 0"
     }
   ]
 }

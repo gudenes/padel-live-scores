@@ -13,6 +13,7 @@ interface Profile {
   id: string
   display_name: string | null
   avatar_url: string | null
+  preferred_country: string | null
 }
 
 interface AuthContextType {
@@ -146,7 +147,7 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, display_name, avatar_url')
+      .select('id, display_name, avatar_url, preferred_country')
       .eq('id', userId)
       .single()
     if (error) return null
