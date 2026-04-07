@@ -146,6 +146,8 @@ export async function POST(request: Request) {
     playerNameById.set(match.pair2_player2.id, lastName(match.pair2_player2.name))
   }
 
+  let playerFollowsCount = 0
+  let playerFollowsError: string | null = null
   if (playerIds.length > 0) {
     const followsRes = await supabase
       .from('user_bookmarks')
@@ -155,9 +157,11 @@ export async function POST(request: Request) {
 
     if (followsRes.error) {
       console.error('[Push] player follows query error:', followsRes.error)
+      playerFollowsError = followsRes.error.message
     }
     const playerFollows = followsRes.data
-    console.log(`[Push] match=${matchId} player follows query: ${playerFollows?.length ?? 0} rows for playerIds=[${playerIds.join(',')}], error=${followsRes.error?.message ?? 'none'}`)
+    playerFollowsCount = playerFollows?.length ?? 0
+    console.log(`[Push] match=${matchId} player follows query: ${playerFollowsCount} rows for playerIds=[${playerIds.join(',')}], error=${playerFollowsError ?? 'none'}`)
 
     for (const f of playerFollows ?? []) {
       const userId = f.user_id as string | null
@@ -181,7 +185,11 @@ export async function POST(request: Request) {
       debug: {
         bookmarks_count: bookmarks?.length ?? 0,
         bookmarks_error: bookmarkRes.error?.message ?? null,
+        player_follows_count: playerFollowsCount,
+        player_follows_error: playerFollowsError,
         player_ids: playerIds,
+        supabase_url_host: (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/^https?:\/\//, '').split('.')[0],
+        service_key_len: (process.env.SUPABASE_SERVICE_KEY ?? '').length,
       },
     })
   }
