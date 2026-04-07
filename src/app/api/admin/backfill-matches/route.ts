@@ -6,7 +6,12 @@
 //   GET /api/admin/backfill-matches?run=true      — start backfill (streams progress via SSE)
 //   GET /api/admin/backfill-matches?run=true&season=4  — backfill only season 4
 //   GET /api/admin/backfill-matches?run=true&tournament=727  — backfill single tournament
+//   GET /api/admin/backfill-matches?run=true&levels=p1,p2,major,finals,fip_platinum,fip_gold,fip_silver
+//                                                  — backfill only specific tier(s)
 //   GET /api/admin/backfill-matches?run=true&skip_pbp=true   — skip point-by-point (faster)
+//
+// Special level: fip_silver matches "FIP SILVER" tournaments inside the fip_other DB level
+// (since padelapi lumps Silver and Bronze under fip_other).
 
 import { createClient } from '@supabase/supabase-js'
 import { PlayerResolver } from '@/lib/player-resolver'
@@ -323,7 +328,29 @@ export async function GET(request: Request) {
   const run = url.searchParams.get('run') === 'true'
   const seasonFilter = url.searchParams.get('season')
   const tournamentFilter = url.searchParams.get('tournament')
+  const levelsParam = url.searchParams.get('levels') ?? url.searchParams.get('level')
+  const levelFilters = levelsParam
+    ? levelsParam.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+    : null
   const skipPbp = url.searchParams.get('skip_pbp') === 'true'
+
+  // Match a tournament against the level filters.
+  // Special: 'fip_silver' matches `level=fip_other` AND name contains 'silver'
+  function matchesLevelFilter(t: { level: string | null; name: string | null }): boolean {
+    if (!levelFilters) return true
+    const lvl = (t.level ?? '').toLowerCase()
+    const name = (t.name ?? '').toLowerCase()
+    for (const filter of levelFilters) {
+      if (filter === 'fip_silver') {
+        if (lvl === 'fip_other' && name.includes('silver')) return true
+      } else if (filter === 'fip_bronze') {
+        if (lvl === 'fip_other' && name.includes('bronze')) return true
+      } else {
+        if (lvl === filter) return true
+      }
+    }
+    return false
+  }
 
   // Fetch all tournaments
   const allTournaments: any[] = []
@@ -331,7 +358,7 @@ export async function GET(request: Request) {
   while (true) {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, external_id, name, level, status, starts_at, season_external_id')
+      .select('id, external_id, name, level, status, starts_at, season_external_id, source')
       .order('starts_at', { ascending: false })
       .range(offset, offset + 999)
     if (!data || data.length === 0) break
@@ -356,10 +383,14 @@ export async function GET(request: Request) {
   const tourneysWithMatches = new Set(allTournamentIds)
 
   // Filter to finished tournaments that need syncing
+  // Excludes source='fip' tournaments (FIP scraper) since their external_ids
+  // (e.g. fip-fip-silver-...) aren't valid padelapi IDs.
   let targets = allTournaments.filter(t => {
     const isPast = new Date(t.starts_at) < new Date()
     if (!isPast) return false
     if (tournamentFilter) return t.external_id === tournamentFilter
+    if (t.source === 'fip') return false
+    if (!matchesLevelFilter(t)) return false
     if (seasonFilter) return String(t.season_external_id) === seasonFilter
     return !tourneysWithMatches.has(t.id)
   })
@@ -367,18 +398,23 @@ export async function GET(request: Request) {
   // Dry run — just show what needs syncing
   if (!run) {
     const bySeason: Record<string, any[]> = {}
+    const byLevel: Record<string, number> = {}
     for (const t of targets) {
       const key = `Season ${t.season_external_id}`
       if (!bySeason[key]) bySeason[key] = []
       bySeason[key].push({ name: t.name, level: t.level, external_id: t.external_id, hasMatches: tourneysWithMatches.has(t.id) })
+      const lvlKey = t.level || 'unknown'
+      byLevel[lvlKey] = (byLevel[lvlKey] || 0) + 1
     }
     return Response.json({
       mode: 'dry-run',
       totalTournaments: allTournaments.length,
       alreadySynced: tourneysWithMatches.size,
       needsSync: targets.length,
+      ...(levelFilters ? { levelFilters } : {}),
       ...(seasonFilter ? { seasonFilter } : {}),
       ...(tournamentFilter ? { tournamentFilter } : {}),
+      byLevel,
       tournaments: bySeason,
     })
   }

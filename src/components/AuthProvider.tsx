@@ -162,24 +162,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
+    let cancelled = false
+
+    // Safety timeout — if getSession() hangs (known Supabase lock deadlock),
+    // unblock the UI after 3s. The auth state change listener will still
+    // pick up the session whenever it eventually resolves.
+    const safetyTimeout = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[Auth] getSession() timed out after 3s — unblocking UI')
+        setLoading(false)
+      }
+    }, 3000)
+
+    // Get initial session (don't block on profile fetch)
     supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (cancelled) return
+      clearTimeout(safetyTimeout)
       setSession(s)
       setUser(s?.user ?? null)
-      if (s?.user) {
-        fetchProfile(s.user.id).then(setProfile)
-      }
       setLoading(false)
+      // Profile fetch in background — never blocks loading state
+      if (s?.user) {
+        fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
+      }
+    }).catch(err => {
+      console.error('[Auth] getSession() failed:', err)
+      if (!cancelled) {
+        clearTimeout(safetyTimeout)
+        setLoading(false)
+      }
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
+        if (cancelled) return
         setSession(s)
         setUser(s?.user ?? null)
+        setLoading(false) // ensure loading is false once we get any auth event
 
         if (s?.user) {
           const p = await fetchProfile(s.user.id)
+          if (cancelled) return
           setProfile(p)
 
           // Migrate localStorage bookmarks on first sign-in
@@ -195,7 +219,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      clearTimeout(safetyTimeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signOut = useCallback(async () => {
