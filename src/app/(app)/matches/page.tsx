@@ -335,8 +335,27 @@ function V3MatchRow({ match }: { match: Match }) {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '4px 0',
               opacity: isLoser ? 0.4 : 1,
+              position: 'relative',
+              overflow: 'hidden',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+              {/* Score-sweep banner — appears for ~2.5s when this pair scores.
+                  Keyed on flashKeyRef so multiple consecutive points re-trigger
+                  the animation cleanly. pointer-events:none keeps the row tappable. */}
+              {isRolling && (
+                <div
+                  key={`sweep-${flashKeyRef.current}`}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: LIVE_RED,
+                    animation: 'v3-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                    willChange: 'transform, opacity',
+                  }}
+                />
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, position: 'relative', zIndex: 2 }}>
                 {/* Stacked overlapping dual flags — same pattern as latest results */}
                 <div style={{ position: 'relative', width: 24, height: 18, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
@@ -353,7 +372,7 @@ function V3MatchRow({ match }: { match: Match }) {
                   {pair}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, position: 'relative', zIndex: 2 }}>
                 {sets.map(s => {
                   const parsed = parseSetScore(s.set_score)
                   const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
@@ -678,6 +697,16 @@ const KEYFRAMES = `
   65%  { transform: translateY(-3%); }
   80%  { transform: translateY(1%); }
   100% { transform: translateY(0); }
+}
+/* Red banner that covers the scoring pair, holds, then swipes right.
+   Total ~2.5s. The 0% step starts the banner just off the left edge so
+   it slides in to fully cover, holds for ~1s, then slides out right.
+   Pointer-events:none in the overlay style keeps the row clickable. */
+@keyframes v3-score-sweep {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  18%  { transform: translateX(0);     opacity: 1; }
+  60%  { transform: translateX(0);     opacity: 1; }
+  100% { transform: translateX(110%);  opacity: 0; }
 }
 `
 
