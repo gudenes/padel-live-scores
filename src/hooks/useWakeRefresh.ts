@@ -35,7 +35,7 @@
 // ```
 
 import { useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { refreshSessionIfNeeded } from '@/lib/supabase-health'
 
 interface UseWakeRefreshOptions {
   /** How long the tab must have been hidden before we treat the next
@@ -77,18 +77,10 @@ export function useWakeRefresh(
       console.log(`[useWakeRefresh] tab visible after ${Math.round(hiddenForMs / 1000)}s — refreshing`)
 
       if (refreshSession) {
-        try {
-          // Race auth refresh against a 3-second timeout. If the GoTrue lock
-          // is genuinely deadlocked, getSession() will hang too — we accept
-          // the timeout and try the refetch anyway, since pages have their
-          // own per-query timeouts as a backstop.
-          await Promise.race([
-            supabase.auth.getSession(),
-            new Promise(resolve => setTimeout(resolve, 3_000)),
-          ])
-        } catch (e) {
-          console.warn('[useWakeRefresh] auth refresh failed:', e)
-        }
+        // refreshSessionIfNeeded handles its own timeout and only calls
+        // refreshSession() when the token is actually close to expiring.
+        // Cheap when the token is fresh, important when it's not.
+        await refreshSessionIfNeeded('wake')
       }
 
       try {

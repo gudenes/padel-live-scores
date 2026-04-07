@@ -16,6 +16,7 @@ import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
+import { reportBatchFailures } from '@/lib/supabase-health'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -753,6 +754,10 @@ function V3ScoresPage() {
         console.warn(`[V3 Scores] fetch[${i}] failed:`, (r.reason as Error)?.message)
         return []
       }
+
+      // Wedge detection — auto-recover if Supabase client is stuck
+      const failureCount = results.filter(r => r.status === 'rejected').length
+      void reportBatchFailures(failureCount, results.length, 'V3 Scores')
 
       const testMode = searchParams.get('test') === '1'
       const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')

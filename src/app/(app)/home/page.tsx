@@ -12,6 +12,7 @@ import Link from 'next/link'
 import Spinner from '@/app/components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
+import { reportBatchFailures } from '@/lib/supabase-health'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
@@ -1830,6 +1831,11 @@ function V3HomePageInner() {
         console.warn(`[V3 Home] fetch[${i}] failed:`, (r.reason as Error)?.message)
         return []
       }
+
+      // Count failures for wedge detection (auto-recovery if Supabase
+      // client is stuck — see src/lib/supabase-health.ts)
+      const failureCount = results.filter(r => r.status === 'rejected').length
+      void reportBatchFailures(failureCount, results.length, 'V3 Home')
 
       const testMode = searchParams.get('test') === '1'
       const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')

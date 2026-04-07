@@ -6,6 +6,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
+import { startSessionKeepalive, refreshSessionIfNeeded } from '@/lib/supabase-health'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface Profile {
@@ -185,6 +186,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (s?.user) {
         fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
       }
+      // If the persisted session is close to expiry (e.g. user reopened a
+      // tab that's been idle for hours), refresh it proactively in the
+      // background so the next query has a fresh token.
+      if (s) {
+        void refreshSessionIfNeeded('mount')
+      }
     }).catch(err => {
       console.error('[Auth] getSession() failed:', err)
       if (!cancelled) {
@@ -193,9 +200,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    // Listen for auth changes
+    // Listen for auth changes — log every event with timestamps so we can
+    // diagnose wedge issues from console history.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
+        const ts = new Date().toISOString()
+        console.log(`[Auth] ${ts} event=${event} hasSession=${!!s} userId=${s?.user?.id?.slice(0, 8) ?? '-'}`)
         if (cancelled) return
         setSession(s)
         setUser(s?.user ?? null)
@@ -219,10 +229,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     )
 
+    // Periodic session keepalive — pings supabase.auth.getSession every
+    // 5 minutes to keep the client warm and detect wedges before the next
+    // user interaction. Only runs in the browser.
+    const stopKeepalive = startSessionKeepalive()
+
     return () => {
       cancelled = true
       clearTimeout(safetyTimeout)
       subscription.unsubscribe()
+      stopKeepalive()
     }
   }, [])
 
