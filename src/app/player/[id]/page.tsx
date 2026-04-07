@@ -229,12 +229,15 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
   useEffect(() => {
     let cancelled = false
+    // Match-heavy players (top 10s like Tapia, Coello, Belasteguín) can have
+    // 300-1000 career matches. Bumped timeout gives room for the larger
+    // payload on slow connections without the safety fallback firing early.
     const safetyTimeout = setTimeout(() => {
       if (!cancelled) {
         console.warn('[Player] load safety timeout — releasing loading state')
         setLoading(false)
       }
-    }, 12_000)
+    }, 25_000)
 
     async function load() {
       try {
@@ -251,9 +254,11 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         if (!p) return
         setPlayer(p)
 
-        // Fetch more matches so we have stats depth.
-        // Order by finished_at (primary) then started_at (fallback) then scheduled_at
-        // because backfilled matches often have null started_at values.
+        // Fetch ALL career matches. Supabase's default range cap is 1000
+        // rows, which comfortably covers every player in the DB today
+        // (Tapia — our current busiest — has 371 matches).
+        // Order by finished_at (primary) then started_at (fallback) then
+        // scheduled_at because backfilled matches often have null started_at.
         const matchesResult = await withTimeout<QueryResult<MatchRow[]>>(
           supabase
             .from('matches')
@@ -267,12 +272,12 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
               sets(set_score, set_number)
             `)
             .or(`pair1_player1_id.eq.${id},pair1_player2_id.eq.${id},pair2_player1_id.eq.${id},pair2_player2_id.eq.${id}`)
-            .in('status', ['finished', 'live', 'scheduled'])
+            .in('status', ['finished', 'live', 'scheduled', 'retired', 'walkover'])
             .order('finished_at', { ascending: false, nullsFirst: false })
             .order('started_at', { ascending: false, nullsFirst: false })
             .order('scheduled_at', { ascending: false, nullsFirst: false })
-            .limit(100) as unknown as Promise<QueryResult<MatchRow[]>>,
-          10_000,
+            .limit(1000) as unknown as Promise<QueryResult<MatchRow[]>>,
+          20_000,
           'player:matches'
         )
         if (cancelled) return
