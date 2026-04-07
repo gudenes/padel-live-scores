@@ -59,6 +59,41 @@ interface TournamentReadiness {
   urgent: boolean
 }
 
+interface ReadinessFlag {
+  ok: boolean
+  label: string
+  severity: 'info' | 'warn' | 'error'
+}
+
+interface LaunchMonitor {
+  id: string
+  name: string
+  level: string | null
+  externalId: string | null
+  source: string | null
+  startsAt: string | null
+  endsAt: string | null
+  daysUntilStart: number | null
+  isLive: boolean
+  isUpcoming: boolean
+  hasFinished: boolean
+  location: string | null
+  country: string | null
+  prizeMoney: string | null
+  logoUrl: string | null
+  totalMatches: number
+  liveMatches: number
+  scheduledMatches: number
+  finishedMatches: number
+  matchesWithAllPlayers: number
+  matchesWithWinner: number
+  drawsTotal: number
+  drawsMen: number
+  drawsWomen: number
+  lastSyncEvent: { startedAt: string | null; status: string | null; matchesSynced: number | null } | null
+  readinessFlags: ReadinessFlag[]
+}
+
 interface DashboardData {
   health: Record<string, HealthEntry>
   relay: RelayStatus
@@ -258,6 +293,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'entry-lists' | 'readiness' | 'simulator' | 'draw-editor' | 'players'>('ongoing')
   const [preSelectedTournamentId, setPreSelectedTournamentId] = useState<string | null>(null)
   const [drawEditorTournament, setDrawEditorTournament] = useState<{ id: string; name: string } | null>(null)
+  const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
+  const [forcingSyncId, setForcingSyncId] = useState<string | null>(null)
 
   const poll = useCallback(async () => {
     try {
@@ -269,11 +306,47 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
     } catch { /* silent */ }
   }, [])
 
-  // Poll every 30s
+  const pollLaunchMonitor = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ops/launch-monitor')
+      if (!res.ok) return
+      const json = await res.json()
+      setLaunchMonitors(json.monitors ?? [])
+    } catch { /* silent */ }
+  }, [])
+
+  const handleForceSync = useCallback(async (monitor: LaunchMonitor) => {
+    if (!monitor.externalId) return
+    setForcingSyncId(monitor.id)
+    try {
+      const res = await fetch(`/api/cron/sync?scope=matches&tournament=${monitor.externalId}`, {
+        headers: { Authorization: `Bearer 30143014` },
+      })
+      if (res.ok) {
+        // Wait a beat then refresh launch monitor + dashboard
+        await new Promise(r => setTimeout(r, 800))
+        await pollLaunchMonitor()
+        await poll()
+      }
+    } catch { /* silent */ } finally {
+      setForcingSyncId(null)
+    }
+  }, [pollLaunchMonitor, poll])
+
+  // Poll every 30s — also fetch immediately on mount if no initial data
   useEffect(() => {
+    if (!data) poll()
     const interval = setInterval(poll, 30000)
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poll])
+
+  // Launch monitor: fetch on mount + poll every 60s
+  useEffect(() => {
+    pollLaunchMonitor()
+    const interval = setInterval(pollLaunchMonitor, 60000)
+    return () => clearInterval(interval)
+  }, [pollLaunchMonitor])
 
   // Update "ago" display every 5s
   useEffect(() => {
@@ -400,6 +473,28 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       {/* Ongoing Events page */}
       {tab === 'ongoing' && (
         <>
+          {/* Launch Monitor */}
+          {launchMonitors.length > 0 && (
+            <>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                🚀 Launch Monitor
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#9333ea', background: '#f3e8ff', padding: '2px 8px', borderRadius: 999 }}>
+                  {launchMonitors.length} spotlighted
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: 12, marginBottom: 24 }}>
+                {launchMonitors.map(monitor => (
+                  <LaunchMonitorCard
+                    key={monitor.id}
+                    monitor={monitor}
+                    onForceSync={() => handleForceSync(monitor)}
+                    isForcing={forcingSyncId === monitor.id}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
           <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Ongoing Events</div>
           {data.ongoing.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
@@ -741,6 +836,167 @@ function getReadinessStatus(t: TournamentReadiness): 'ready' | 'partial' | 'pend
   if (t.blockers.length === 0) return 'ready'
   if (t.entryListMen || t.entryListWomen || t.drawMen || t.drawWomen) return 'partial'
   return 'pending'
+}
+
+// ── Launch Monitor Card ─────────────────────────────────────────
+
+function LaunchMonitorCard({ monitor, onForceSync, isForcing }: {
+  monitor: LaunchMonitor
+  onForceSync: () => void
+  isForcing: boolean
+}) {
+  const days = monitor.daysUntilStart
+  const dateRange = (() => {
+    if (!monitor.startsAt || !monitor.endsAt) return ''
+    const s = new Date(monitor.startsAt)
+    const e = new Date(monitor.endsAt)
+    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return `${fmt(s)} – ${fmt(e)}`
+  })()
+
+  // Status pill
+  let pillBg = '#dbeafe', pillFg = '#1e40af', pillText = `+${days}d`
+  if (monitor.isLive) { pillBg = '#dcfce7'; pillFg = '#166534'; pillText = 'LIVE' }
+  else if (monitor.hasFinished) { pillBg = '#f3f4f6'; pillFg = '#4b5563'; pillText = 'ENDED' }
+  else if (days !== null && days <= 1) { pillBg = '#fee2e2'; pillFg = '#991b1b'; pillText = days === 0 ? 'TODAY' : 'TOMORROW' }
+  else if (days !== null && days <= 7) { pillBg = '#fef3c7'; pillFg = '#92400e'; pillText = `+${days}d` }
+
+  // Border accent
+  const borderColor = monitor.isLive ? '#22c55e'
+    : (days !== null && days <= 3) ? '#ef4444'
+    : (days !== null && days <= 7) ? '#f59e0b'
+    : '#3b82f6'
+
+  // Last sync time
+  const lastSyncLabel = monitor.lastSyncEvent?.startedAt
+    ? new Date(monitor.lastSyncEvent.startedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    : '—'
+
+  return (
+    <div style={{
+      ...card,
+      borderLeft: `4px solid ${borderColor}`,
+      padding: 16,
+      background: 'linear-gradient(135deg, #fff 0%, #fafbff 100%)',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flex: 1, minWidth: 0 }}>
+          {monitor.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={monitor.logoUrl} alt="" style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0, borderRadius: 4 }} />
+          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#111', lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {monitor.name}
+            </div>
+            <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>
+              {[monitor.level?.toUpperCase(), monitor.location, monitor.country, dateRange].filter(Boolean).join(' · ')}
+            </div>
+          </div>
+        </div>
+        <span style={{
+          fontSize: 10, fontWeight: 800, color: pillFg, background: pillBg,
+          padding: '4px 10px', borderRadius: 999, textTransform: 'uppercase', flexShrink: 0, letterSpacing: 0.4,
+        }}>
+          {pillText}
+        </span>
+      </div>
+
+      {/* Stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+        <Stat label="Total" value={monitor.totalMatches} accent="#111" />
+        <Stat label="Live" value={monitor.liveMatches} accent={monitor.liveMatches > 0 ? '#16a34a' : '#9ca3af'} />
+        <Stat label="Done" value={monitor.finishedMatches} accent="#1e40af" />
+        <Stat label="Draws" value={monitor.drawsTotal} accent={monitor.drawsTotal > 0 ? '#9333ea' : '#9ca3af'} />
+      </div>
+
+      {/* Player resolution rate */}
+      {monitor.totalMatches > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6b7280', marginBottom: 4 }}>
+            <span>Player resolution</span>
+            <span>{monitor.matchesWithAllPlayers}/{monitor.totalMatches}</span>
+          </div>
+          <div style={{ height: 4, background: '#f3f4f6', borderRadius: 2 }}>
+            <div style={{
+              height: '100%',
+              width: `${(monitor.matchesWithAllPlayers / monitor.totalMatches) * 100}%`,
+              background: monitor.matchesWithAllPlayers === monitor.totalMatches ? '#22c55e' : '#f59e0b',
+              borderRadius: 2,
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* Readiness flags */}
+      {monitor.readinessFlags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 12 }}>
+          {monitor.readinessFlags.map((flag, i) => {
+            const colors = flag.severity === 'error'
+              ? { bg: '#fee2e2', fg: '#991b1b' }
+              : flag.severity === 'warn'
+              ? { bg: '#fef3c7', fg: '#92400e' }
+              : flag.ok
+              ? { bg: '#dcfce7', fg: '#166534' }
+              : { bg: '#dbeafe', fg: '#1e40af' }
+            return (
+              <span key={i} style={{
+                fontSize: 9, fontWeight: 600, color: colors.fg, background: colors.bg,
+                padding: '3px 7px', borderRadius: 4,
+              }}>
+                {flag.ok ? '✓' : '!'} {flag.label}
+              </span>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, paddingTop: 10, borderTop: '1px solid #f3f4f6' }}>
+        <div style={{ fontSize: 9, color: '#9ca3af' }}>
+          Last sync: {lastSyncLabel} · ext_id: <code style={{ fontFamily: 'monospace', color: '#6b7280' }}>{monitor.externalId ?? '—'}</code>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={onForceSync}
+            disabled={isForcing || !monitor.externalId}
+            style={{
+              fontSize: 10, fontWeight: 600, padding: '5px 11px',
+              background: isForcing ? '#e5e7eb' : '#3b82f6',
+              color: isForcing ? '#6b7280' : '#fff',
+              border: 'none', borderRadius: 5,
+              cursor: isForcing || !monitor.externalId ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {isForcing ? 'Syncing…' : 'Force Sync'}
+          </button>
+          <a
+            href={`/tournaments/${monitor.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 10, fontWeight: 600, padding: '5px 11px',
+              background: '#fff', color: '#374151', border: '1px solid #d1d5db', borderRadius: 5,
+              textDecoration: 'none',
+            }}
+          >
+            View →
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Stat({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <div style={{ background: '#fff', border: '1px solid #f3f4f6', borderRadius: 6, padding: '8px 6px', textAlign: 'center' }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: accent, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 9, color: '#9ca3af', textTransform: 'uppercase', marginTop: 3, letterSpacing: 0.3 }}>{label}</div>
+    </div>
+  )
 }
 
 function ReadinessTab({ tournaments, onOpenTournament }: { tournaments: TournamentReadiness[]; onOpenTournament: (tournamentId: string) => void }) {
