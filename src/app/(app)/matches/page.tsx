@@ -1050,23 +1050,10 @@ function V3ScoresPage() {
                 clipPath: CHUNKY.card,
                 background: BG_CARD,
                 border: `1px solid ${BORDER}`,
-                padding: '32px 20px 28px',
+                padding: '28px 20px',
                 textAlign: 'center',
               }}>
-                {/* Brand mascot — replaces the old 🎾 emoji empty state */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/padel-nachos-paddle.png"
-                  alt=""
-                  style={{
-                    width: 110,
-                    height: 110,
-                    objectFit: 'contain',
-                    margin: '0 auto 14px',
-                    display: 'block',
-                    filter: 'drop-shadow(0 6px 18px rgba(245,166,35,0.18))',
-                  }}
-                />
+                <div style={{ fontSize: 32, marginBottom: 10 }}>&#127934;</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
                   {tab === 'live' ? 'No live matches right now' : tab === 'upcoming' ? 'No upcoming matches' : 'No recent results'}
                 </div>

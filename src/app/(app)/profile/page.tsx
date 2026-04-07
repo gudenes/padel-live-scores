@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import Spinner from '../../components/Spinner'
 import BrandedLoader from '../../components/BrandedLoader'
+import CountryPicker from '@/components/CountryPicker'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -305,29 +306,12 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-        <select
+        <CountryPicker
+          options={countryOptions}
           value={countryDraft}
-          onChange={(e) => saveCountry(e.target.value)}
+          onChange={saveCountry}
           disabled={savingCountry || countryOptions.length === 0}
-          style={{
-            width: '100%',
-            background: V3.BG_CARD,
-            color: '#fff',
-            border: `1px solid ${V3.BORDER}`,
-            padding: '10px 12px',
-            fontSize: 13,
-            fontFamily: 'inherit',
-            clipPath: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-            appearance: 'none',
-            cursor: savingCountry ? 'wait' : 'pointer',
-            opacity: savingCountry ? 0.6 : 1,
-          }}
-        >
-          <option value="">🌍 Use my location (auto)</option>
-          {countryOptions.map(c => (
-            <option key={c.iso2} value={c.iso2}>{c.name}</option>
-          ))}
-        </select>
+        />
       </div>
 
       {/* Bookmarked Matches */}
