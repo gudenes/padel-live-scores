@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
+import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -65,38 +66,62 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const [imgError, setImgError] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
+    const safetyTimeout = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[Player] load safety timeout — releasing loading state')
+        setLoading(false)
+      }
+    }, 12_000)
+
     async function load() {
-      // Fetch player
-      const { data: p } = await supabase
-        .from('players')
-        .select('*')
-        .eq('id', id)
-        .single()
+      try {
+        // Fetch player
+        const playerResult = await withTimeout<{ data: any; error: any }>(
+          supabase.from('players').select('*').eq('id', id).single() as unknown as Promise<{ data: any; error: any }>,
+          10_000,
+          'player:detail'
+        )
+        if (cancelled) return
 
-      if (!p) { setLoading(false); return }
-      setPlayer(p)
+        const p = playerResult.data
+        if (!p) return
+        setPlayer(p)
 
-      // Fetch recent matches involving this player
-      const { data: m } = await supabase
-        .from('matches')
-        .select(`
-          id, status, round, started_at, winner_pair, category, duration,
-          tournament:tournaments(name, country, level),
-          pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country),
-          pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country),
-          pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country),
-          pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country),
-          sets(set_score, set_number)
-        `)
-        .or(`pair1_player1_id.eq.${id},pair1_player2_id.eq.${id},pair2_player1_id.eq.${id},pair2_player2_id.eq.${id}`)
-        .in('status', ['finished', 'live', 'scheduled'])
-        .order('started_at', { ascending: false })
-        .limit(20)
+        // Fetch recent matches involving this player
+        const matchesResult = await withTimeout<{ data: any; error: any }>(
+          supabase
+            .from('matches')
+            .select(`
+              id, status, round, started_at, winner_pair, category, duration,
+              tournament:tournaments(name, country, level),
+              pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country),
+              pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country),
+              pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country),
+              pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country),
+              sets(set_score, set_number)
+            `)
+            .or(`pair1_player1_id.eq.${id},pair1_player2_id.eq.${id},pair2_player1_id.eq.${id},pair2_player2_id.eq.${id}`)
+            .in('status', ['finished', 'live', 'scheduled'])
+            .order('started_at', { ascending: false })
+            .limit(20) as unknown as Promise<{ data: any; error: any }>,
+          10_000,
+          'player:matches'
+        )
+        if (cancelled) return
 
-      setMatches(m ?? [])
-      setLoading(false)
+        setMatches(matchesResult.data ?? [])
+      } catch (e) {
+        console.error('[Player] load exception:', e)
+      } finally {
+        if (!cancelled) {
+          clearTimeout(safetyTimeout)
+          setLoading(false)
+        }
+      }
     }
     load()
+    return () => { cancelled = true; clearTimeout(safetyTimeout) }
   }, [id])
 
   if (loading) return (
