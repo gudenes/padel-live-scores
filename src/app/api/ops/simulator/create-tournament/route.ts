@@ -107,8 +107,17 @@ export async function POST(request: Request) {
     .insert({
       external_id: 'sim_' + Date.now(),
       name,
+      // source='simulated' is what scripts/purge-simulated.ts looks for
+      // when cleaning up — it stays as the canonical "this is test data"
+      // marker. level is set to 'p1' (a real Premier tier) so the test
+      // tournament behaves like a real Premier event throughout the UI:
+      // it shows up in the matches page Premier filter, the home live
+      // carousel, the Where to Watch card, etc. Without this, the
+      // matches page leagueFilter (default 'premier') would silently
+      // hide test matches and the simulator wouldn't actually exercise
+      // the production code paths.
       source: 'simulated',
-      level: 'simulated',
+      level: 'p1',
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
     })

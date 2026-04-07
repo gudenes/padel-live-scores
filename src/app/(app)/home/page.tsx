@@ -5,9 +5,8 @@
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
 
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
+import { Match, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '@/app/components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
@@ -257,8 +256,47 @@ function LiveMatchCard({ match }: { match: Match }) {
 
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
-  const flag1 = match.pair1_player1?.country || match.pair1_player2?.country
-  const flag2 = match.pair2_player1?.country || match.pair2_player2?.country
+
+  // ── Score-change banner detection ───────────────────────────
+  // Same logic as the matches page MatchCard. Detects which pair just
+  // scored by comparing current game/point totals against the last seen
+  // values, and sets `flashPair` for ~2.5s to drive the red sweep banner.
+  const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
+  const flashKeyRef = useRef(0)
+  const isLive = match.status === 'live'
+  const p1Games = sets.reduce((s, st) => s + (st.pair1_games ?? 0), 0)
+  const p2Games = sets.reduce((s, st) => s + (st.pair2_games ?? 0), 0)
+  const [p1Pts, p2Pts] = (gamePoints || ':').split(':')
+
+  useEffect(() => {
+    if (!isLive) { _liveScoresPrev.delete(match.id); return }
+    const cur = { p1Games, p2Games, p1Pts: p1Pts ?? '', p2Pts: p2Pts ?? '' }
+    const prev = _liveScoresPrev.get(match.id)
+    if (prev && (prev.p1Games !== cur.p1Games || prev.p2Games !== cur.p2Games || prev.p1Pts !== cur.p1Pts || prev.p2Pts !== cur.p2Pts)) {
+      let scorer: 1 | 2 | null = null
+      if (cur.p1Games > prev.p1Games) scorer = 1
+      else if (cur.p2Games > prev.p2Games) scorer = 2
+      else {
+        const cP1 = PT_ORD[cur.p1Pts] ?? 0
+        const cP2 = PT_ORD[cur.p2Pts] ?? 0
+        const pP1 = PT_ORD[prev.p1Pts] ?? 0
+        const pP2 = PT_ORD[prev.p2Pts] ?? 0
+        if (cP1 > pP1) scorer = 1
+        else if (cP2 > pP2) scorer = 2
+        else if (pP1 > pP2 && cP1 <= cP2) scorer = 2
+        else if (pP2 > pP1 && cP2 <= cP1) scorer = 1
+      }
+      _liveScoresPrev.set(match.id, cur)
+      if (scorer) {
+        flashKeyRef.current += 1
+        setFlashPair(scorer)
+        const t = setTimeout(() => setFlashPair(null), 2800)
+        return () => clearTimeout(t)
+      }
+    } else {
+      _liveScoresPrev.set(match.id, cur)
+    }
+  }, [isLive, match.id, p1Games, p2Games, p1Pts, p2Pts])
 
   const gated = isTournamentGated((match as any).tournament ?? {})
   const Wrapper = gated ? 'div' : Link
@@ -311,16 +349,42 @@ function LiveMatchCard({ match }: { match: Match }) {
 
         {/* Scores */}
         {[
-          { pair: pair1, flag: flag1, pairNum: 1 },
-          { pair: pair2, flag: flag2, pairNum: 2 },
-        ].map(({ pair, flag, pairNum }) => (
+          { pair: pair1, p1: match.pair1_player1, p2: match.pair1_player2, pairNum: 1 },
+          { pair: pair2, p1: match.pair2_player1, p2: match.pair2_player2, pairNum: 2 },
+        ].map(({ pair, p1, p2, pairNum }) => (
           <div key={pairNum} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '6px 0',
             opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.4 : 1,
+            position: 'relative',
+            overflow: 'hidden',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 14 }}>{countryFlag(flag ?? null)}</span>
+            {/* Score-sweep banner — appears for ~2.5s when this pair scores.
+                rgba 60% alpha keeps the names + scores readable underneath. */}
+            {flashPair === pairNum && (
+              <div
+                key={`sweep-${flashKeyRef.current}`}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(255, 70, 85, 0.6)',
+                  animation: 'v3-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                  willChange: 'transform, opacity',
+                }}
+              />
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, position: 'relative', zIndex: 2 }}>
+              {/* Stacked overlapping dual flags — same pattern as latest results */}
+              <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                  <FlagImg country={p1?.country ?? null} size={16} />
+                </div>
+                <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
+                  <FlagImg country={p2?.country ?? null} size={16} />
+                </div>
+              </div>
               <span style={{
                 fontSize: 14, fontWeight: 700, color: '#fff',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -328,30 +392,51 @@ function LiveMatchCard({ match }: { match: Match }) {
                 {pair}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              position: 'relative',
+              zIndex: 2,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
               {sets.map(s => {
                 const parsed = parseSetScore(s.set_score)
                 const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
                 const isCurrent = s.is_current
                 return (
                   <span key={s.id} style={{
-                    fontSize: 16, fontWeight: 700, fontFamily: 'monospace',
+                    display: 'inline-block',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    fontFamily: 'monospace',
+                    fontVariantNumeric: 'tabular-nums',
                     color: isCurrent ? GREEN : '#fff',
-                    minWidth: 16, textAlign: 'center',
+                    width: 18,
+                    textAlign: 'center',
+                    lineHeight: 1,
                   }}>
                     {games}
                   </span>
                 )
               })}
-              {gamePoints && (
-                <span style={{
-                  fontSize: 18, fontWeight: 800, fontFamily: 'monospace',
-                  color: LIVE_RED, minWidth: 20, textAlign: 'center',
-                  marginLeft: 4,
-                }}>
-                  {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
-                </span>
-              )}
+              {/* Game points column ALWAYS renders (empty when no live points)
+                  so both pair rows reserve the same horizontal space and the
+                  set columns to the left stay column-aligned. */}
+              <span style={{
+                display: 'inline-block',
+                fontSize: 18,
+                fontWeight: 800,
+                fontFamily: 'monospace',
+                fontVariantNumeric: 'tabular-nums',
+                color: LIVE_RED,
+                width: 24,
+                textAlign: 'center',
+                marginLeft: 2,
+                lineHeight: 1,
+              }}>
+                {gamePoints ? (gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? '') : ''}
+              </span>
             </div>
           </div>
         ))}
@@ -1170,10 +1255,24 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
 const PAGE_STYLES = `
   @keyframes v3-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
   .v3-scroll-hide::-webkit-scrollbar { display: none; }
+  /* Score-sweep banner — fires for ~2.5s when a pair scores. */
+  @keyframes v3-score-sweep {
+    0%   { transform: translateX(-110%); opacity: 0; }
+    18%  { transform: translateX(0);     opacity: 1; }
+    60%  { transform: translateX(0);     opacity: 1; }
+    100% { transform: translateX(110%);  opacity: 0; }
+  }
 `
 
 // Premier Padel + Platinum have live scoring
 const LIVE_SCORE_LEVELS = ['finals', 'major', 'p1', 'p2', 'fip_platinum']
+
+// ── Live score-change detection ─────────────────────────────────
+// Tracks the previous game/point counts per match so we can detect WHO
+// scored on each refresh and trigger the red banner animation. Module-level
+// so the state survives component remounts.
+const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'AD': 4 }
+const _liveScoresPrev = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
 
 // ── Match select query (reused) ────────────────────────────────
 const MATCH_SELECT = `
@@ -1709,7 +1808,6 @@ export default function V3HomePage() {
 }
 
 function V3HomePageInner() {
-  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'home' | 'tournaments'>('home')
   const gender = 'all' as const
@@ -1801,14 +1899,16 @@ function V3HomePageInner() {
       const failureCount = results.filter(r => r.status === 'rejected').length
       void reportBatchFailures(failureCount, results.length, 'V3 Home')
 
-      const testMode = searchParams.get('test') === '1'
-      const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')
-      setLiveMatches(dataOf(0).filter(notSimulated))
-      setScheduledMatches(dataOf(1).filter(notSimulated))
+      // Note: the legacy "filter out sim_ external_id" guard was removed
+      // after scripts/purge-simulated.ts cleaned the orphan simulator
+      // matches from the DB. Future simulator runs use source='simulated'
+      // on the parent tournament, which is filtered separately if needed.
+      setLiveMatches(dataOf(0))
+      setScheduledMatches(dataOf(1))
       setUpcomingTournaments(dataOf(2))
       setTopMen(dataOf(3))
       setTopWomen(dataOf(4))
-      setRecentMatches(dataOf(5).filter(notSimulated))
+      setRecentMatches(dataOf(5))
       setHighlights(dataOf(6))
       setLatestNews(dataOf(7))
     } catch (e) {

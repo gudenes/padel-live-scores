@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, pairName, parseSetScore, isWarmingUp } from '@/types/match'
+import { Match, pairName, parseSetScore, isWarmingUp } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../components/BrandedLoader'
@@ -183,8 +183,6 @@ function V3MatchRow({ match }: { match: Match }) {
 
   const pair1Name = pairName(match.pair1_player1, match.pair1_player2)
   const pair2Name = pairName(match.pair2_player1, match.pair2_player2)
-  const flag1 = match.pair1_player1?.country || match.pair1_player2?.country || null
-  const flag2 = match.pair2_player1?.country || match.pair2_player2?.country || null
 
   const roundLabel = match.round ?? ''
   const courtLabel = match.court ?? ''
@@ -325,9 +323,9 @@ function V3MatchRow({ match }: { match: Match }) {
 
         {/* Pair rows with scores */}
         {[
-          { pair: pair1Name, flag: flag1, pairNum: 1 },
-          { pair: pair2Name, flag: flag2, pairNum: 2 },
-        ].map(({ pair, flag, pairNum }) => {
+          { pair: pair1Name, p1: match.pair1_player1, p2: match.pair1_player2, pairNum: 1 },
+          { pair: pair2Name, p1: match.pair2_player1, p2: match.pair2_player2, pairNum: 2 },
+        ].map(({ pair, p1, p2, pairNum }) => {
           const isWinner = match.winner_pair === pairNum
           const isLoser = match.winner_pair && match.winner_pair !== pairNum
           const isRolling = flashPair === pairNum
@@ -337,9 +335,38 @@ function V3MatchRow({ match }: { match: Match }) {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '4px 0',
               opacity: isLoser ? 0.4 : 1,
+              position: 'relative',
+              overflow: 'hidden',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                <FlagImg country={flag} size={14} />
+              {/* Score-sweep banner — appears for ~2.5s when this pair scores.
+                  Keyed on flashKeyRef so multiple consecutive points re-trigger
+                  the animation cleanly. pointer-events:none keeps the row tappable.
+                  Background is rgba with 60% alpha so the player names + scores
+                  underneath stay readable while the banner is on top. */}
+              {isRolling && (
+                <div
+                  key={`sweep-${flashKeyRef.current}`}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'rgba(255, 70, 85, 0.6)',
+                    animation: 'v3-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                    pointerEvents: 'none',
+                    zIndex: 1,
+                    willChange: 'transform, opacity',
+                  }}
+                />
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, position: 'relative', zIndex: 2 }}>
+                {/* Stacked overlapping dual flags — same pattern as latest results */}
+                <div style={{ position: 'relative', width: 24, height: 18, flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                    <FlagImg country={p1?.country ?? null} size={14} />
+                  </div>
+                  <div style={{ position: 'absolute', top: 5, left: 7, zIndex: 1 }}>
+                    <FlagImg country={p2?.country ?? null} size={14} />
+                  </div>
+                </div>
                 <span style={{
                   fontSize: 13, fontWeight: 700, color: isWinner ? '#fff' : '#e0e0e0',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -347,7 +374,7 @@ function V3MatchRow({ match }: { match: Match }) {
                   {pair}
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, position: 'relative', zIndex: 2 }}>
                 {sets.map(s => {
                   const parsed = parseSetScore(s.set_score)
                   const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
@@ -673,6 +700,16 @@ const KEYFRAMES = `
   80%  { transform: translateY(1%); }
   100% { transform: translateY(0); }
 }
+/* Red banner that covers the scoring pair, holds, then swipes right.
+   Total ~2.5s. The 0% step starts the banner just off the left edge so
+   it slides in to fully cover, holds for ~1s, then slides out right.
+   Pointer-events:none in the overlay style keeps the row clickable. */
+@keyframes v3-score-sweep {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  18%  { transform: translateX(0);     opacity: 1; }
+  60%  { transform: translateX(0);     opacity: 1; }
+  100% { transform: translateX(110%);  opacity: 0; }
+}
 `
 
 // ── Main page ─────────────────────────────────────────────────
@@ -759,12 +796,14 @@ function V3ScoresPage() {
       const failureCount = results.filter(r => r.status === 'rejected').length
       void reportBatchFailures(failureCount, results.length, 'V3 Scores')
 
-      const testMode = searchParams.get('test') === '1'
-      const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')
+      // Note: the legacy "filter out sim_ external_id" guard was removed
+      // after scripts/purge-simulated.ts cleaned the orphan simulator
+      // matches from the DB. Future simulator runs use source='simulated'
+      // on the parent tournament, which is filtered separately if needed.
       const liveData = dataOf(0)
-      setLiveMatches(sortSets(liveData.filter(notSimulated)))
-      setScheduledMatches(sortSets(dataOf(1).filter(notSimulated)))
-      setRecentMatches(sortSets(dataOf(2).filter(notSimulated)))
+      setLiveMatches(sortSets(liveData))
+      setScheduledMatches(sortSets(dataOf(1)))
+      setRecentMatches(sortSets(dataOf(2)))
       setHasMore(true)
       pageRef.current = 0
 
