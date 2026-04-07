@@ -123,8 +123,23 @@ export default function WhereToWatch() {
       <div style={{
         fontSize: 9, color: ORANGE, fontWeight: 800,
         textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12,
+        display: 'flex', alignItems: 'center', gap: 6,
       }}>
-        📺 Where to Watch
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="2" y="7" width="20" height="15" rx="2" ry="2" />
+          <polyline points="17 2 12 7 7 2" />
+        </svg>
+        Where to Watch
       </div>
 
       {/* ── Global editorial cards ── */}
