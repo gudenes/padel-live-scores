@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
+import { Match, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '@/app/components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
@@ -256,8 +256,6 @@ function LiveMatchCard({ match }: { match: Match }) {
 
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
-  const flag1 = match.pair1_player1?.country || match.pair1_player2?.country
-  const flag2 = match.pair2_player1?.country || match.pair2_player2?.country
 
   const gated = isTournamentGated((match as any).tournament ?? {})
   const Wrapper = gated ? 'div' : Link
@@ -310,16 +308,24 @@ function LiveMatchCard({ match }: { match: Match }) {
 
         {/* Scores */}
         {[
-          { pair: pair1, flag: flag1, pairNum: 1 },
-          { pair: pair2, flag: flag2, pairNum: 2 },
-        ].map(({ pair, flag, pairNum }) => (
+          { pair: pair1, p1: match.pair1_player1, p2: match.pair1_player2, pairNum: 1 },
+          { pair: pair2, p1: match.pair2_player1, p2: match.pair2_player2, pairNum: 2 },
+        ].map(({ pair, p1, p2, pairNum }) => (
           <div key={pairNum} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '6px 0',
             opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.4 : 1,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 14 }}>{countryFlag(flag ?? null)}</span>
+              {/* Stacked overlapping dual flags — same pattern as latest results */}
+              <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                  <FlagImg country={p1?.country ?? null} size={16} />
+                </div>
+                <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
+                  <FlagImg country={p2?.country ?? null} size={16} />
+                </div>
+              </div>
               <span style={{
                 fontSize: 14, fontWeight: 700, color: '#fff',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',

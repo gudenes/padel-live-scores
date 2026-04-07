@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, pairName, parseSetScore, isWarmingUp } from '@/types/match'
+import { Match, pairName, parseSetScore, isWarmingUp } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../components/BrandedLoader'
@@ -183,8 +183,6 @@ function V3MatchRow({ match }: { match: Match }) {
 
   const pair1Name = pairName(match.pair1_player1, match.pair1_player2)
   const pair2Name = pairName(match.pair2_player1, match.pair2_player2)
-  const flag1 = match.pair1_player1?.country || match.pair1_player2?.country || null
-  const flag2 = match.pair2_player1?.country || match.pair2_player2?.country || null
 
   const roundLabel = match.round ?? ''
   const courtLabel = match.court ?? ''
@@ -325,9 +323,9 @@ function V3MatchRow({ match }: { match: Match }) {
 
         {/* Pair rows with scores */}
         {[
-          { pair: pair1Name, flag: flag1, pairNum: 1 },
-          { pair: pair2Name, flag: flag2, pairNum: 2 },
-        ].map(({ pair, flag, pairNum }) => {
+          { pair: pair1Name, p1: match.pair1_player1, p2: match.pair1_player2, pairNum: 1 },
+          { pair: pair2Name, p1: match.pair2_player1, p2: match.pair2_player2, pairNum: 2 },
+        ].map(({ pair, p1, p2, pairNum }) => {
           const isWinner = match.winner_pair === pairNum
           const isLoser = match.winner_pair && match.winner_pair !== pairNum
           const isRolling = flashPair === pairNum
@@ -339,7 +337,15 @@ function V3MatchRow({ match }: { match: Match }) {
               opacity: isLoser ? 0.4 : 1,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                <FlagImg country={flag} size={14} />
+                {/* Stacked overlapping dual flags — same pattern as latest results */}
+                <div style={{ position: 'relative', width: 24, height: 18, flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                    <FlagImg country={p1?.country ?? null} size={14} />
+                  </div>
+                  <div style={{ position: 'absolute', top: 5, left: 7, zIndex: 1 }}>
+                    <FlagImg country={p2?.country ?? null} size={14} />
+                  </div>
+                </div>
                 <span style={{
                   fontSize: 13, fontWeight: 700, color: isWinner ? '#fff' : '#e0e0e0',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
