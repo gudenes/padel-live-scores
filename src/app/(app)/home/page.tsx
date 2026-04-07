@@ -392,30 +392,51 @@ function LiveMatchCard({ match }: { match: Match }) {
                 {pair}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative', zIndex: 2 }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              position: 'relative',
+              zIndex: 2,
+              fontVariantNumeric: 'tabular-nums',
+            }}>
               {sets.map(s => {
                 const parsed = parseSetScore(s.set_score)
                 const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
                 const isCurrent = s.is_current
                 return (
                   <span key={s.id} style={{
-                    fontSize: 16, fontWeight: 700, fontFamily: 'monospace',
+                    display: 'inline-block',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    fontFamily: 'monospace',
+                    fontVariantNumeric: 'tabular-nums',
                     color: isCurrent ? GREEN : '#fff',
-                    minWidth: 16, textAlign: 'center',
+                    width: 18,
+                    textAlign: 'center',
+                    lineHeight: 1,
                   }}>
                     {games}
                   </span>
                 )
               })}
-              {gamePoints && (
-                <span style={{
-                  fontSize: 18, fontWeight: 800, fontFamily: 'monospace',
-                  color: LIVE_RED, minWidth: 20, textAlign: 'center',
-                  marginLeft: 4,
-                }}>
-                  {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
-                </span>
-              )}
+              {/* Game points column ALWAYS renders (empty when no live points)
+                  so both pair rows reserve the same horizontal space and the
+                  set columns to the left stay column-aligned. */}
+              <span style={{
+                display: 'inline-block',
+                fontSize: 18,
+                fontWeight: 800,
+                fontFamily: 'monospace',
+                fontVariantNumeric: 'tabular-nums',
+                color: LIVE_RED,
+                width: 24,
+                textAlign: 'center',
+                marginLeft: 2,
+                lineHeight: 1,
+              }}>
+                {gamePoints ? (gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? '') : ''}
+              </span>
             </div>
           </div>
         ))}
