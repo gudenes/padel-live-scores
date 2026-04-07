@@ -40,11 +40,64 @@ export async function POST(request: Request) {
 
     const parseResult = await parseDrawPdfWithSonnet(uint8)
 
+    // Defensive sanitization — Sonnet can emit null or missing player names
+    // for "BYE" entries or partial PDFs. Coerce to safe strings so the
+    // ops UI never hits null.name when rendering bracket slots.
+    const safeString = (s: unknown, fallback: string): string =>
+      typeof s === 'string' && s.trim().length > 0 ? s.trim() : fallback
+    const safeNullable = (s: unknown): string | null =>
+      typeof s === 'string' && s.trim().length > 0 ? s.trim() : null
+    const safeInt = (n: unknown): number | null =>
+      typeof n === 'number' && Number.isFinite(n) ? n : null
+
+    const skipped: Array<{ drawPosition: number | null; reason: string }> = []
+    const sanitizedEntries = (parseResult.entries ?? []).flatMap(e => {
+      if (!e || typeof e !== 'object') {
+        skipped.push({ drawPosition: null, reason: 'entry is null or not an object' })
+        return []
+      }
+      return [{
+        drawPosition: e.drawPosition ?? 0,
+        round: safeString(e.round, 'R32'),
+        seed: safeInt(e.seed),
+        marker: (e.marker === 'Q' || e.marker === 'WC' || e.marker === 'LL') ? e.marker : null,
+        player1Name: safeString(e.player1Name, 'BYE'),
+        player1Country: safeNullable(e.player1Country),
+        player2Name: safeString(e.player2Name, 'BYE'),
+        player2Country: safeNullable(e.player2Country),
+        teamPoints: safeInt(e.teamPoints),
+      }]
+    })
+
+    const sanitizedSeeded = (parseResult.seededTeams ?? []).flatMap(s => {
+      if (!s || typeof s !== 'object') return []
+      return [{
+        seed: s.seed ?? 0,
+        player1: safeString(s.player1, 'Unknown'),
+        player2: safeString(s.player2, 'Unknown'),
+        points: safeInt(s.points) ?? 0,
+      }]
+    })
+
+    if (skipped.length > 0) {
+      console.warn('[parse-draw] sanitized invalid entries from Sonnet output:', skipped)
+    }
+
+    if (sanitizedEntries.length === 0) {
+      return Response.json({
+        error: 'PDF parsing returned no valid draw entries. The PDF layout may not be supported.',
+      }, { status: 422 })
+    }
+
     return Response.json({
-      ...parseResult,
+      entries: sanitizedEntries,
+      seededTeams: sanitizedSeeded,
+      metadata: parseResult.metadata,
+      warnings: parseResult.warnings ?? [],
       filename: file.name,
     })
   } catch (e) {
+    console.error('[parse-draw] parser threw:', e)
     return Response.json({
       error: `PDF parsing failed: ${e instanceof Error ? e.message : String(e)}`,
     }, { status: 422 })
