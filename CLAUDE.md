@@ -49,21 +49,128 @@ supabase/
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `matches` | Match data | `external_id`, `status`, `coverage`, `winner_pair`, `pusher_channel`, `round`, `court` |
+| `matches` | Match data | `padelapi_id` (+`external_id` legacy), `status`, `coverage`, `winner_pair`, `pusher_channel`, `round`, `court` |
 | `sets` | Set scores | `match_id`, `set_number`, `set_score`, `pair1_games`, `pair2_games`, `is_current`, `score_source` |
 | `games` | Game-level data | `set_id`, `match_id`, `game_number`, `game_score`, `points[]`, `is_current` |
-| `players` | Player profiles | `external_id`, `name`, `country`, `avatar_url` (Supabase Storage), `ranking`, `category` |
-| `tournaments` | Tournament info | `external_id`, `name`, `level`, `country`, `logo_url`, `starts_at`, `ends_at` |
+| `players` | Player profiles | `padelapi_id` (+`external_id` legacy), `fip_id`, `name`, `country`, `avatar_url` (Supabase Storage), `ranking`, `category` |
+| `tournaments` | Tournament info | `padelapi_id` (+`external_id` legacy), `fip_id` (+`fip_slug` legacy), `name`, `level`, `country`, `logo_url`, `starts_at`, `ends_at`, `source` |
 | `seasons` | Season grouping | `external_id`, `name`, `year` |
 | `articles` | News feed | `source_url`, `source_name`, `published_at`, `click_count`, `source_weight`, `favicon_url` |
 | `highlights` | YouTube videos | `youtube_id`, `channel_name`, `view_count`, `like_count`, `comment_count`, `description`, `channel_quality_score` |
 | `tournament_draws` | Parsed draw brackets | `tournament_id`, `category`, `draw_position`, `seed`, `marker`, `player1/2_name`, `player1/2_id` |
+| `entity_external_ids` | Sidecar for non-primary source IDs | `entity_type`, `entity_id`, `source`, `external_id`, `metadata` |
 
 ### Relationships
 - `matches` → `tournaments` (via `tournament_id`)
 - `sets` → `matches` (via `match_id`)
 - `games` → `sets` (via `set_id`) + `matches` (via `match_id`)
 - `matches` has 4 player FKs: `pair1_player1_id`, `pair1_player2_id`, `pair2_player1_id`, `pair2_player2_id`
+
+## Data Model: Canonical IDs & Source Identity
+
+PadelNachos aggregates data from multiple upstream sources (padelapi.org, FIP site, YouTube, etc). The schema uses a **"hot columns + sidecar"** pattern to handle identity across sources without sacrificing lookup speed.
+
+### The canonical ID
+Every entity (player, tournament, match) has a `id UUID` primary key — that's the **canonical PadelNachos ID**. All foreign keys point at it. External source IDs are secondary identifiers that can be looked up to resolve a canonical `id`.
+
+### Hot columns (top 2 sources)
+The top 2 sources have dedicated indexed columns for zero-cost lookups on hot paths:
+
+| Table | Column | Source | Format example |
+|---|---|---|---|
+| `players` | `padelapi_id` | padelapi.org | `"432"` |
+| `players` | `fip_id` | FIP official | `"fip-P200038"` |
+| `tournaments` | `padelapi_id` | padelapi.org | `"778"` |
+| `tournaments` | `fip_id` | FIP scraper | `"fip-gold-ponta-delgada-2026"` |
+| `matches` | `padelapi_id` | padelapi.org | (numeric) |
+
+All hot columns have `UNIQUE` constraints (partial, `WHERE NOT NULL`) and dedicated indexes.
+
+### Legacy columns (deprecated, kept for back-compat)
+`players.external_id`, `tournaments.external_id`, `tournaments.fip_slug`, `matches.external_id` still exist and are **kept in sync with the new columns via Postgres triggers**. All existing code paths (40+ call sites) keep working unchanged. New code should write to the new columns; old code can stay as-is until it's touched naturally.
+
+Migration path (for future cleanup, not urgent):
+1. Migrate remaining reads to new columns one file at a time
+2. Migrate UPSERT `onConflict` targets from `external_id` → `padelapi_id`
+3. Ship a "drop legacy columns" migration once all code is clean
+
+### Sidecar: `entity_external_ids`
+For **any source beyond the top 2** (ATP, Whoscored, future feeds, etc.), external IDs go into the `entity_external_ids` polymorphic table instead of adding yet another column. Schema:
+
+```sql
+entity_external_ids (
+  entity_type  TEXT,           -- 'player' | 'tournament' | 'match' | 'season'
+  entity_id    UUID,
+  source       TEXT,
+  external_id  TEXT,
+  metadata     JSONB,
+  first_seen_at TIMESTAMPTZ,
+  last_seen_at  TIMESTAMPTZ,
+  UNIQUE (source, entity_type, external_id),
+  UNIQUE (entity_type, entity_id, source)
+)
+```
+
+Adding a new source = zero schema changes.
+
+### Unified lookup API — `src/lib/external-id-registry.ts`
+Hides the hot-column vs sidecar split so callers don't need to know where each source lives:
+
+```ts
+import { findEntityBySourceId, registerSourceId, listSourceIds } from '@/lib/external-id-registry'
+
+// Lookup — works for any source, hot path + sidecar fallback
+const playerId = await findEntityBySourceId(supabase, 'player', 'padelapi', '432')      // hot column
+const playerId = await findEntityBySourceId(supabase, 'player', 'atp',      'abc-123')  // sidecar
+
+// Register — routes to the right storage automatically
+await registerSourceId(supabase, {
+  entityType: 'tournament',
+  entityId: someUuid,
+  source: 'whoscored',
+  externalId: 'ws-42',
+})
+
+// List all known IDs for an entity (combines hot + sidecar)
+const ids = await listSourceIds(supabase, 'player', playerId)
+// → [{ source: 'padelapi', externalId: '432', isHot: true }, ...]
+```
+
+### Source priority — `src/lib/source-priority.ts`
+When multiple sources carry the same field, priority rules decide who wins. These are **code-based config** (not a DB table) because they're data-correctness rules that should go through PR review.
+
+Per-field priority lists (top = most authoritative):
+
+| Field | Primary | Fallbacks |
+|---|---|---|
+| `player.name` | padelapi | fip, manual |
+| `player.ranking` | fip_official | fip, padelapi |
+| `player.avatar_url` | padelapi | fip, manual |
+| `player.birthdate` | fip | padelapi, manual |
+| `tournament.name` | padelapi | fip, manual |
+| `tournament.logo_url` | fip | padelapi, manual |
+| `tournament.draw_size_md` | fip | padelapi |
+| `tournament.prize_money` | padelapi | manual |
+| `match.sets` | padelapi | simulated (fip NOT listed — no live scoring) |
+| `match.status` | padelapi | simulated |
+
+Full list in `src/lib/source-priority.ts`. Helpers:
+- `shouldOverwrite(field, currentSource, attemptingSource)` — runtime gate (needs per-field source tracking columns, not used yet)
+- `isPrimaryOwner(field, source)` — is this source the top of the list?
+- `filterUpdateByPriority(payload, entityType, source, mode)` — strip fields a source can't own from an update payload
+
+**Sync jobs should use `filterUpdateByPriority` when updating existing rows** so secondary sources can't clobber primary data. See `src/app/api/cron/fip-tournaments/route.ts` for the canonical example.
+
+### Tournament entity resolution (cross-source dedup)
+Same real-world tournament can exist under multiple sources with different IDs + names. Matching rule used by the defending-champion lookup, Phase 2 dedup script, and any future merging tool:
+
+1. **Normalize name**: strip diacritics, strip 4-digit years, lowercase, split on non-alphanumerics
+2. **Filter noise tokens**: drop `premier`, `padel`, `tour`, `open`, `season`, `championship`, etc.
+3. **Token subset match**: candidate matches when every current token is present in the candidate's token set (handles sponsor prefixes like "Motorola Razr Miami Premier Padel P1" matching "Miami P1 2026")
+4. **Same year**: year from `starts_at` must match
+5. **Same level**: `level` column must match (prevents cross-tier matches)
+
+Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and does a pre-flight FK check before deleting anything.
 
 ## Scheduled Jobs (vercel.json)
 
