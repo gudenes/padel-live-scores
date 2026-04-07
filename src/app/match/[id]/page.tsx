@@ -10,6 +10,8 @@ import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toS
 import MomentumChart from './MomentumChart'
 import BottomNav from '@/components/nav/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
+import { withTimeout } from '@/lib/with-timeout'
 import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
@@ -163,33 +165,48 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   }, [id])
 
   const fetchMatch = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('matches')
-      .select(`
-        *,
-        tournament:tournaments(id, name, starts_at, ends_at, country, timezone),
-        pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        sets(*, games(*))
-      `)
-      .eq('id', id)
-      .single()
+    const safetyTimeout = setTimeout(() => {
+      console.warn('[Match] fetchMatch safety timeout — releasing loading state')
+      setLoading(false)
+    }, 12_000)
+    try {
+      const result = await withTimeout<{ data: any; error: any }>(
+        supabase
+          .from('matches')
+          .select(`
+            *,
+            tournament:tournaments(id, name, starts_at, ends_at, country, timezone),
+            pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            sets(*, games(*))
+          `)
+          .eq('id', id)
+          .single() as unknown as Promise<{ data: any; error: any }>,
+        10_000,
+        'match:detail'
+      )
+      const { data, error } = result
 
-    if (error || !data) { setLoading(false); return }
+      if (error || !data) return
 
-    const sorted = {
-      ...data,
-      sets: (data.sets ?? [])
-        .sort((a: any, b: any) => a.set_number - b.set_number)
-        .map((set: any) => ({
-          ...set,
-          games: (set.games ?? []).sort((a: any, b: any) => a.game_number - b.game_number),
-        })),
+      const sorted = {
+        ...data,
+        sets: (data.sets ?? [])
+          .sort((a: any, b: any) => a.set_number - b.set_number)
+          .map((set: any) => ({
+            ...set,
+            games: (set.games ?? []).sort((a: any, b: any) => a.game_number - b.game_number),
+          })),
+      }
+      setMatch(sorted as Match)
+    } catch (e) {
+      console.error('[Match] fetchMatch exception:', e)
+    } finally {
+      clearTimeout(safetyTimeout)
+      setLoading(false)
     }
-    setMatch(sorted as Match)
-    setLoading(false)
   }, [id])
 
   const fetchH2H = useCallback(async (m: Match) => {
@@ -359,8 +376,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   if (loading) return (
     <>
-    <main style={{ background: BG_BASE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Spinner fullHeight />
+    <main style={{ background: BG_BASE, minHeight: '100vh' }}>
+      <BrandedLoader hints={[...LOADER_HINTS.match]} />
     </main>
     <BottomNav />
     </>

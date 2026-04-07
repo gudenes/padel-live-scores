@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, isWarmingUp } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '../../components/BrandedLoader'
+import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
 import { isTournamentGated } from '@/lib/tournament-utils'
@@ -674,7 +676,7 @@ const KEYFRAMES = `
 
 export default function V3ScoresPageWrapper() {
   return (
-    <Suspense fallback={<Spinner fullHeight />}>
+    <Suspense fallback={<BrandedLoader hints={[...LOADER_HINTS.matches]} />}>
       <V3ScoresPage />
     </Suspense>
   )
@@ -720,35 +722,46 @@ function V3ScoresPage() {
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
+    const safetyTimeout = setTimeout(() => {
+      console.warn('[V3 Scores] fetchData safety timeout — releasing loading state')
+      setLoading(false)
+    }, 12_000)
     try {
-      const [liveRes, scheduledRes, recentRes] = await Promise.all([
-        supabase.from('matches').select(matchSelect)
+      const wrap = <T,>(p: Promise<T>, label: string) => withTimeout(p, 10_000, label)
+      const results = await Promise.allSettled([
+        wrap(supabase.from('matches').select(matchSelect)
           .eq('status', 'live')
-          .order('court_order', { ascending: true }),
-
-        supabase.from('matches').select(matchSelect)
+          .order('court_order', { ascending: true }) as any, 'matches:live'),
+        wrap(supabase.from('matches').select(matchSelect)
           .eq('status', 'scheduled')
           .order('scheduled_at', { ascending: true })
-          .limit(50),
-
-        supabase.from('matches').select(matchSelect)
+          .limit(50) as any, 'matches:scheduled'),
+        wrap(supabase.from('matches').select(matchSelect)
           .in('status', ['finished', 'retired', 'walkover'])
           .not('finished_at', 'is', null)
           .gte('finished_at', `${new Date().getFullYear()}-01-01`)
-          .order('finished_at', { ascending: false }),
+          .order('finished_at', { ascending: false }) as any, 'matches:recent'),
       ])
+
+      const dataOf = (i: number) => {
+        const r = results[i]
+        if (r.status === 'fulfilled') return (r.value as any)?.data ?? []
+        console.warn(`[V3 Scores] fetch[${i}] failed:`, (r.reason as Error)?.message)
+        return []
+      }
 
       const testMode = searchParams.get('test') === '1'
       const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')
-      setLiveMatches(sortSets(((liveRes.data as any) ?? []).filter(notSimulated)))
-      setScheduledMatches(sortSets(((scheduledRes.data as any) ?? []).filter(notSimulated)))
-      setRecentMatches(sortSets(((recentRes.data as any) ?? []).filter(notSimulated)))
+      const liveData = dataOf(0)
+      setLiveMatches(sortSets(liveData.filter(notSimulated)))
+      setScheduledMatches(sortSets(dataOf(1).filter(notSimulated)))
+      setRecentMatches(sortSets(dataOf(2).filter(notSimulated)))
       setHasMore(true)
       pageRef.current = 0
 
       // Auto-select tab only on first load: show live only if actual live matches exist
       if (!initialLoadDone.current) {
-        const hasLive = (liveRes.data?.length ?? 0) > 0
+        const hasLive = liveData.length > 0
         if (hasLive) setTab('live')
         else setTab('upcoming')
         initialLoadDone.current = true
@@ -756,8 +769,10 @@ function V3ScoresPage() {
     } catch (e) {
       console.error('[V3 Scores] fetchData error:', e)
     } finally {
+      clearTimeout(safetyTimeout)
       setLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchMoreResults = useCallback(async () => {
@@ -883,7 +898,7 @@ function V3ScoresPage() {
       <AppHeader />
 
       {loading ? (
-        <Spinner fullHeight />
+        <BrandedLoader hints={[...LOADER_HINTS.matches]} />
       ) : (
         <>
           {/* Tab bar + gender toggle */}

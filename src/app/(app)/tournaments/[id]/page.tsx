@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, isWarmingUp, toShortName } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../../components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '../../../components/BrandedLoader'
+import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import BracketView from '@/components/BracketView'
@@ -102,7 +104,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
 export default function TournamentDetailWrapper({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', background: BG_BASE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner fullHeight /></div>}>
+    <Suspense fallback={<BrandedLoader hints={[...LOADER_HINTS.tournament]} />}>
       <TournamentDetail tournamentId={id} />
     </Suspense>
   )
@@ -138,35 +140,53 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   // ── Fetch ─────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('matches')
-      .select(`
-        *,
-        tournament:tournaments!inner(id, name, starts_at, ends_at, country, timezone, level),
-        pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-        sets(*, games(*))
-      `)
-      .eq('tournament.id', tournamentId)
-      .in('status', ['live', 'scheduled', 'finished', 'retired', 'walkover', 'ended', 'bye'])
-      .order('court_order', { ascending: true, nullsFirst: false })
-      .order('started_at', { ascending: false })
+    const safetyTimeout = setTimeout(() => {
+      console.warn('[V3 Tournament] fetchAll safety timeout — releasing loading state')
+      setLoading(false)
+    }, 12_000)
+    try {
+      const result = await withTimeout<{ data: any; error: any }>(
+        supabase
+          .from('matches')
+          .select(`
+            *,
+            tournament:tournaments!inner(id, name, starts_at, ends_at, country, timezone, level),
+            pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            sets(*, games(*))
+          `)
+          .eq('tournament.id', tournamentId)
+          .in('status', ['live', 'scheduled', 'finished', 'retired', 'walkover', 'ended', 'bye'])
+          .order('court_order', { ascending: true, nullsFirst: false })
+          .order('started_at', { ascending: false }) as unknown as Promise<{ data: any; error: any }>,
+        10_000,
+        'tournament:matches'
+      )
+      const { data, error } = result
 
-    if (error) { console.error('v3 tournament fetchAll error:', error); return }
+      if (error) {
+        console.error('[V3 Tournament] fetchAll error:', error)
+        return
+      }
 
-    const sorted = (data as any[]).map(m => ({
-      ...m,
-      sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number),
-    }))
+      const sorted = (data as any[]).map(m => ({
+        ...m,
+        sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number),
+      }))
 
-    setAllMatches(sorted)
-    setLiveCount(sorted.filter((m: any) => m.status === 'live' && !isWarmingUp(m as Match)).length)
-    setLastSynced(new Date())
-    setJustUpdated(true)
-    setTimeout(() => setJustUpdated(false), 1500)
-    setLoading(false)
+      setAllMatches(sorted)
+      setLiveCount(sorted.filter((m: any) => m.status === 'live' && !isWarmingUp(m as Match)).length)
+      setLastSynced(new Date())
+      setJustUpdated(true)
+      setTimeout(() => setJustUpdated(false), 1500)
+    } catch (e) {
+      console.error('[V3 Tournament] fetchAll exception:', e)
+    } finally {
+      clearTimeout(safetyTimeout)
+      setLoading(false)
+    }
   }, [tournamentId])
 
   const fetchTournaments = useCallback(async () => {

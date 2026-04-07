@@ -10,6 +10,8 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '@/app/components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
+import { withTimeout } from '@/lib/with-timeout'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
@@ -1793,38 +1795,58 @@ function V3HomePageInner() {
   }, [])
 
   const fetchData = useCallback(async () => {
+    // Safety net: ensure UI never spins forever even if every fetch hangs
+    const safetyTimeout = setTimeout(() => {
+      console.warn('[V3 Home] fetchData safety timeout — releasing loading state')
+      setLoading(false)
+    }, 12_000)
     try {
-      const [liveRes, scheduledRes, tournamentRes, menRes, womenRes, recentRes, highlightsRes, newsRes] = await Promise.all([
-        supabase.from('matches').select(MATCH_SELECT).eq('status', 'live').order('court_order', { ascending: true }),
-        supabase.from('matches').select(MATCH_SELECT).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(50),
-        supabase.from('tournaments')
+      // Use allSettled so one slow/failed query doesn't block the others.
+      // Wrap each in a per-query timeout so a single hung query can't drag everyone.
+      const wrap = <T,>(p: Promise<T>, label: string) =>
+        withTimeout(p as Promise<T>, 10_000, label)
+
+      const results = await Promise.allSettled([
+        wrap(supabase.from('matches').select(MATCH_SELECT).eq('status', 'live').order('court_order', { ascending: true }) as any, 'home:live'),
+        wrap(supabase.from('matches').select(MATCH_SELECT).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
+        wrap(supabase.from('tournaments')
           .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url')
           .in('level', ['finals', 'major', 'p1', 'p2'])
           .gte('ends_at', new Date().toISOString())
           .order('starts_at', { ascending: true })
-          .limit(2),
-        supabase.from('players').select('id, name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'men').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10),
-        supabase.from('players').select('id, name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'women').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10),
-        supabase.from('matches').select(MATCH_SELECT).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20),
-        supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10),
-        supabase.from('articles').select('id, title, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(10),
+          .limit(2) as any, 'home:tournaments'),
+        wrap(supabase.from('players').select('id, name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'men').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topMen'),
+        wrap(supabase.from('players').select('id, name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'women').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topWomen'),
+        wrap(supabase.from('matches').select(MATCH_SELECT).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
+        wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
+        wrap(supabase.from('articles').select('id, title, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(10) as any, 'home:articles'),
       ])
+
+      // Helper: pull data out of a settled result, default to []
+      const dataOf = (i: number) => {
+        const r = results[i]
+        if (r.status === 'fulfilled') return (r.value as any)?.data ?? []
+        console.warn(`[V3 Home] fetch[${i}] failed:`, (r.reason as Error)?.message)
+        return []
+      }
 
       const testMode = searchParams.get('test') === '1'
       const notSimulated = (m: any) => testMode || !(m.external_id ?? '').startsWith('sim_')
-      setLiveMatches(((liveRes.data as any) ?? []).filter(notSimulated))
-      setScheduledMatches(((scheduledRes.data as any) ?? []).filter(notSimulated))
-      setUpcomingTournaments((tournamentRes.data as any) ?? [])
-      setTopMen((menRes.data as any) ?? [])
-      setTopWomen((womenRes.data as any) ?? [])
-      setRecentMatches(((recentRes.data as any) ?? []).filter(notSimulated))
-      setHighlights((highlightsRes.data as any) ?? [])
-      setLatestNews((newsRes.data as any) ?? [])
+      setLiveMatches(dataOf(0).filter(notSimulated))
+      setScheduledMatches(dataOf(1).filter(notSimulated))
+      setUpcomingTournaments(dataOf(2))
+      setTopMen(dataOf(3))
+      setTopWomen(dataOf(4))
+      setRecentMatches(dataOf(5).filter(notSimulated))
+      setHighlights(dataOf(6))
+      setLatestNews(dataOf(7))
     } catch (e) {
       console.error('[V3 Home] fetchData error:', e)
     } finally {
+      clearTimeout(safetyTimeout)
       setLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -1843,7 +1865,7 @@ function V3HomePageInner() {
   if (loading) {
     return (
       <div style={{ maxWidth: 500, margin: '0 auto' }}>
-        <Spinner fullHeight />
+        <BrandedLoader hints={[...LOADER_HINTS.home]} />
       </div>
     )
   }
