@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '@/app/components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
@@ -1864,7 +1865,7 @@ function V3HomePageInner() {
   if (loading) {
     return (
       <div style={{ maxWidth: 500, margin: '0 auto' }}>
-        <Spinner fullHeight />
+        <BrandedLoader hints={[...LOADER_HINTS.home]} />
       </div>
     )
   }

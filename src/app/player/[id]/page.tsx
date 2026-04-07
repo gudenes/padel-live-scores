@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 
@@ -126,8 +127,8 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
   if (loading) return (
     <>
-    <main style={{ background: BG_BASE, minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Spinner fullHeight />
+    <main style={{ background: BG_BASE, minHeight: '100dvh' }}>
+      <BrandedLoader hints={[...LOADER_HINTS.player]} />
     </main>
     <BottomNav />
     </>

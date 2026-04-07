@@ -5,6 +5,7 @@
 import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import Spinner from '@/app/components/Spinner'
+import BrandedLoader from '@/app/components/BrandedLoader'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -69,11 +70,8 @@ function ArticlePage({ articleId }: { articleId: string }) {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: V3.BG_BASE, color: '#fff',
-      }}>
-        <Spinner fullHeight />
+      <div style={{ minHeight: '100dvh', background: V3.BG_BASE }}>
+        <BrandedLoader hints={['Loading article...', 'Fetching content...', 'Almost ready...']} />
       </div>
     )
   }

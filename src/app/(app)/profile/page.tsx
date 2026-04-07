@@ -9,6 +9,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import Spinner from '../../components/Spinner'
+import BrandedLoader from '../../components/BrandedLoader'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -118,7 +119,7 @@ export default function ProfilePage() {
     fetchBookmarks()
   }, [user])
 
-  if (authLoading || !user) return <Spinner fullHeight />
+  if (authLoading || !user) return <BrandedLoader hints={['Loading your profile...', 'Almost ready...']} />
 
   const handleSignOut = async () => {
     await signOut()

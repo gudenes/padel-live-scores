@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, isWarmingUp } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
@@ -675,7 +676,7 @@ const KEYFRAMES = `
 
 export default function V3ScoresPageWrapper() {
   return (
-    <Suspense fallback={<Spinner fullHeight />}>
+    <Suspense fallback={<BrandedLoader hints={[...LOADER_HINTS.matches]} />}>
       <V3ScoresPage />
     </Suspense>
   )
@@ -897,7 +898,7 @@ function V3ScoresPage() {
       <AppHeader />
 
       {loading ? (
-        <Spinner fullHeight />
+        <BrandedLoader hints={[...LOADER_HINTS.matches]} />
       ) : (
         <>
           {/* Tab bar + gender toggle */}

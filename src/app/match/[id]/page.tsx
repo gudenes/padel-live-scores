@@ -10,6 +10,7 @@ import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toS
 import MomentumChart from './MomentumChart'
 import BottomNav from '@/components/nav/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
@@ -375,8 +376,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   if (loading) return (
     <>
-    <main style={{ background: BG_BASE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Spinner fullHeight />
+    <main style={{ background: BG_BASE, minHeight: '100vh' }}>
+      <BrandedLoader hints={[...LOADER_HINTS.match]} />
     </main>
     <BottomNav />
     </>

@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, isWarmingUp, toShortName } from '@/types/match'
 import Link from 'next/link'
 import Spinner from '../../../components/Spinner'
+import BrandedLoader, { LOADER_HINTS } from '../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
@@ -103,7 +104,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
 export default function TournamentDetailWrapper({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', background: BG_BASE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Spinner fullHeight /></div>}>
+    <Suspense fallback={<BrandedLoader hints={[...LOADER_HINTS.tournament]} />}>
       <TournamentDetail tournamentId={id} />
     </Suspense>
   )
