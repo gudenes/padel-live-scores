@@ -15,6 +15,7 @@ import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { isTournamentGated } from '@/lib/tournament-utils'
+import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -802,6 +803,9 @@ function V3ScoresPage() {
     if (searchParams.get('tournament')) return
     fetchData()
   }, [fetchData, searchParams])
+
+  // Recover from tab-idle Supabase auth lock deadlock — see useWakeRefresh
+  useWakeRefresh(() => fetchData(true))
 
   // Realtime subscription — silent refresh (no spinner)
   const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)

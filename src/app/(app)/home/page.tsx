@@ -16,6 +16,7 @@ import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
+import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1850,6 +1851,9 @@ function V3HomePageInner() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Recover from tab-idle Supabase auth lock deadlock — see useWakeRefresh
+  useWakeRefresh(fetchData)
 
   // Realtime subscription for live matches
   useEffect(() => {
