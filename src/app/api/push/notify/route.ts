@@ -190,6 +190,18 @@ export async function POST(request: Request) {
         player_ids: playerIds,
         supabase_url_host: (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/^https?:\/\//, '').split('.')[0],
         service_key_len: (process.env.SUPABASE_SERVICE_KEY ?? '').length,
+        service_key_trimmed_len: (process.env.SUPABASE_SERVICE_KEY ?? '').trim().length,
+        service_key_head: (process.env.SUPABASE_SERVICE_KEY ?? '').slice(0, 8),
+        service_key_tail: (process.env.SUPABASE_SERVICE_KEY ?? '').slice(-8),
+        service_key_role: (() => {
+          try {
+            const k = (process.env.SUPABASE_SERVICE_KEY ?? '').trim()
+            const payload = k.split('.')[1] ?? ''
+            const json = Buffer.from(payload, 'base64').toString('utf8')
+            const obj = JSON.parse(json)
+            return obj.role ?? null
+          } catch { return 'parse_error' }
+        })(),
       },
     })
   }
