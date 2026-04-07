@@ -907,7 +907,6 @@ function V3MatchCard({ match, genderColor }: { match: Match; genderColor: string
           const p1 = pairNum === 1 ? match.pair1_player1 : match.pair2_player1
           const p2 = pairNum === 1 ? match.pair1_player2 : match.pair2_player2
           const pair = pairName(p1, p2)
-          const flag = p1?.country || p2?.country
           const isWinner = winner === pairNum
           const isLoser = winner !== 0 && winner !== pairNum
 
@@ -918,7 +917,15 @@ function V3MatchCard({ match, genderColor }: { match: Match; genderColor: string
               opacity: isLoser ? 0.4 : 1,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                <FlagImg country={flag ?? null} size={14} />
+                {/* Stacked overlapping flags — second slightly lower */}
+                <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                    <FlagImg country={p1?.country ?? null} size={16} />
+                  </div>
+                  <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
+                    <FlagImg country={p2?.country ?? null} size={16} />
+                  </div>
+                </div>
                 <span style={{
                   fontSize: 13, fontWeight: isWinner ? 800 : 600, color: '#fff',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
