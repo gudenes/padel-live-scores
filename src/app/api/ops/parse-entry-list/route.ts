@@ -75,25 +75,63 @@ export async function POST(request: Request) {
         filename: file.name,
       }
 
-      rawTeams = result.teams.map(t => ({
-        position: t.position,
-        teamPoints: t.teamPoints,
-        drawType: t.drawType,
-        isWildCard: t.isWildCard,
-        player1: {
-          name: t.player1.name,
-          country: t.player1.country,
-          ranking: t.player1.ranking,
-          points: t.player1.points,
-        },
-        player2: {
-          name: t.player2.name,
-          country: t.player2.country,
-          ranking: t.player2.ranking,
-          points: t.player2.points,
-        },
-      }))
+      // Defensive mapping — Sonnet occasionally returns teams with missing
+      // player data for odd PDFs (byes, incomplete rows, sponsor noise).
+      // Skip broken teams with a warning rather than throwing the whole
+      // request away, and coerce nulls to safe defaults.
+      const safeName = (s: unknown): string =>
+        typeof s === 'string' && s.trim().length > 0 ? s.trim() : 'Unknown'
+      const safeCountry = (s: unknown): string =>
+        typeof s === 'string' ? s.trim() : ''
+      const safeInt = (n: unknown): number | null =>
+        typeof n === 'number' && Number.isFinite(n) ? n : null
+
+      const skipped: Array<{ position: number | null; reason: string }> = []
+      rawTeams = []
+      for (const t of result.teams ?? []) {
+        if (!t || typeof t !== 'object') {
+          skipped.push({ position: null, reason: 'team is null or not an object' })
+          continue
+        }
+        if (!t.player1 || !t.player2) {
+          skipped.push({
+            position: t.position ?? null,
+            reason: `missing ${!t.player1 ? 'player1' : ''}${!t.player1 && !t.player2 ? ' and ' : ''}${!t.player2 ? 'player2' : ''}`,
+          })
+          continue
+        }
+        rawTeams.push({
+          position: t.position ?? 0,
+          teamPoints: safeInt(t.teamPoints),
+          drawType: t.drawType ?? 'main',
+          isWildCard: t.isWildCard === true,
+          player1: {
+            name: safeName(t.player1.name),
+            country: safeCountry(t.player1.country),
+            ranking: safeInt(t.player1.ranking),
+            points: safeInt(t.player1.points),
+          },
+          player2: {
+            name: safeName(t.player2.name),
+            country: safeCountry(t.player2.country),
+            ranking: safeInt(t.player2.ranking),
+            points: safeInt(t.player2.points),
+          },
+        })
+      }
+
+      if (skipped.length > 0) {
+        console.warn('[parse-entry-list] skipped invalid teams from Sonnet output:', skipped)
+      }
+
+      if (rawTeams.length === 0) {
+        return Response.json({
+          error: `PDF parsing returned no valid teams${skipped.length ? ` (${skipped.length} rows had missing player data)` : ''}. The PDF layout may not be supported.`,
+          skipped,
+        }, { status: 422 })
+      }
     } catch (e) {
+      console.error('[parse-entry-list] parser threw:', e)
       return Response.json({
         error: `PDF parsing failed: ${e instanceof Error ? e.message : String(e)}`,
       }, { status: 422 })
