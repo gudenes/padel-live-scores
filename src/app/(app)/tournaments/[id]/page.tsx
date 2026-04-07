@@ -244,6 +244,19 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
 
+  // Default tab to 'recap' when the tournament is finished and no explicit
+  // tab was requested via URL. Runs once per tournament load.
+  const autoTabSetRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!activeTournamentObj || paramTab) return
+    if (autoTabSetRef.current === activeTournamentObj.id) return
+    const isFinished = activeTournamentObj.status === 'completed' || activeTournamentObj.status === 'finished'
+    if (isFinished) {
+      setPageTab('recap')
+      autoTabSetRef.current = activeTournamentObj.id
+    }
+  }, [activeTournamentObj, paramTab])
+
   // ── Auto-switch gender if no matches ──────────────────────────
   useEffect(() => {
     if (loading || allMatches.length === 0) return
@@ -607,9 +620,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </div>
           )}
 
-          {/* ROW 3: Page tabs */}
+          {/* ROW 3: Page tabs — recap leads when the tournament is finished */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-            {(['overview', 'matches', 'draw', 'recap'] as const).map(tab => {
+            {(['recap', 'overview', 'matches', 'draw'] as const).map(tab => {
               const active = pageTab === tab
               const isFinished = activeTournamentObj?.status === 'completed' || activeTournamentObj?.status === 'finished'
               if (tab === 'recap' && !isFinished) return null
@@ -1066,6 +1079,109 @@ function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match;
 // ── Overview Tab ────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
+interface DefendingChampion {
+  year: number
+  names: string
+  country1: string | null
+  country2: string | null
+  /** Tournament id of the previous edition, so users can open it. */
+  previousTournamentId?: string | null
+}
+
+// Shared tile used by both "Champion" and "Defending Champion" rows.
+// Accent color differentiates them (green for current, orange for previous).
+// When `clickable` is true, an arrow appears on the right — the caller is
+// expected to wrap the tile in a Link / onClick handler.
+function ChampionTile({
+  label, year, names, country1, country2, accent, clickable = false,
+}: {
+  label: string
+  year: number
+  names: string
+  country1: string | null
+  country2: string | null
+  accent: string
+  clickable?: boolean
+}) {
+  // Convert any CSS color to rgba-ish tints for background + border.
+  // For our two known accents (GREEN, ORANGE) we hand-code the tints.
+  const tint = accent === GREEN
+    ? {
+        gradient: 'linear-gradient(135deg, rgba(126,211,33,0.22), rgba(126,211,33,0.08))',
+        border: 'rgba(126,211,33,0.35)',
+        innerGlow: 'rgba(126,211,33,0.1)',
+      }
+    : {
+        gradient: 'linear-gradient(135deg, rgba(245,166,35,0.22), rgba(245,166,35,0.08))',
+        border: 'rgba(245,166,35,0.35)',
+        innerGlow: 'rgba(245,166,35,0.1)',
+      }
+
+  return (
+    <div style={{
+      background: BG_CARD,
+      clipPath: CHUNKY.card,
+      border: `1px solid ${BORDER}`,
+      padding: '14px 16px',
+      marginBottom: 10,
+      display: 'flex', alignItems: 'center', gap: 14,
+      cursor: clickable ? 'pointer' : 'default',
+    }}>
+      {/* Chunky trophy tile */}
+      <div style={{
+        width: 48, height: 48, flexShrink: 0,
+        background: tint.gradient,
+        clipPath: CHUNKY.badge,
+        border: `1px solid ${tint.border}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 24,
+        boxShadow: `inset 0 0 0 1px ${tint.innerGlow}`,
+      }}>
+        🏆
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 9, color: accent, fontWeight: 800,
+          textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5,
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <span>{label}{year ? ` · ${year}` : ''}</span>
+          {clickable && (
+            <span style={{ fontSize: 9, color: accent, opacity: 0.7 }}>· VIEW EDITION</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          {/* Stacked overlapping flags — same pattern as latest results cards */}
+          <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+              <FlagImg country={country1} size={16} />
+            </div>
+            <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
+              <FlagImg country={country2} size={16} />
+            </div>
+          </div>
+          <span style={{
+            fontSize: 13, fontWeight: 700, color: '#fff',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {names}
+          </span>
+        </div>
+      </div>
+
+      {clickable && (
+        <span style={{
+          fontSize: 16, fontWeight: 800, color: accent,
+          flexShrink: 0, marginLeft: 4,
+        }}>
+          →
+        </span>
+      )}
+    </div>
+  )
+}
+
 function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries }: {
   tournament: any
   allMatches: Match[]
@@ -1077,6 +1193,165 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
 }) {
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const totalMatches = genderMatches.length
+
+  // ── Current tournament champion (if the final has been played) ──
+  // Derived directly from allMatches — no extra fetch needed.
+  const currentChampion: DefendingChampion | null = useMemo(() => {
+    const finishedStatuses = new Set(['finished', 'retired', 'walkover'])
+    const finalMatch = genderMatches.find(m =>
+      finishedStatuses.has(m.status as string) &&
+      (m as any).winner_pair != null &&
+      normalizeRoundFull((m as any).round as string) === 'Finals'
+    )
+    if (!finalMatch) return null
+    const wp = (finalMatch as any).winner_pair
+    const winners = wp === 1
+      ? [(finalMatch as any).pair1_player1, (finalMatch as any).pair1_player2]
+      : [(finalMatch as any).pair2_player1, (finalMatch as any).pair2_player2]
+    const winnerPlayers = winners.filter(Boolean)
+    if (winnerPlayers.length === 0) return null
+    const names = winnerPlayers.map((p: any) => toShortName(p.name)).join(' / ')
+    const country1 = winnerPlayers[0]?.country ?? null
+    const country2 = winnerPlayers[1]?.country ?? null
+    const year = tournament?.ends_at ? new Date(tournament.ends_at).getFullYear() : 0
+    return { year, names, country1, country2 }
+  }, [genderMatches, tournament?.ends_at])
+
+  // ── Previous edition + defending champion lookup ──────────────
+  // Find the most recent previous edition of this tournament (same level,
+  // same name ignoring year tokens, ending before the current one's start).
+  // If found, try to extract its Final winner for the selected category.
+  //
+  // `previousEdition` is set as soon as we find the tournament row, so the
+  // user can always navigate to it — even if we can't resolve the champion.
+  const [previousEdition, setPreviousEdition] = useState<{ id: string; year: number } | null>(null)
+  const [defendingChampion, setDefendingChampion] = useState<DefendingChampion | null>(null)
+
+  useEffect(() => {
+    if (!tournament?.id || !tournament?.name || !tournament?.level || !tournament?.starts_at) return
+    let cancelled = false
+
+    // Strip diacritics so "Cancún" and "Cancun" tokenize the same.
+    const stripAccents = (s: string): string =>
+      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+    // Tokenize a tournament name into its meaningful words.
+    // - strips diacritics so accent variants (Cancún / Cancun) line up
+    // - strips 4-digit years (2025, 2026)
+    // - drops generic/sponsor noise words that vary across editions
+    // - lowercases, splits on non-alphanumerics
+    //
+    // Example:
+    //   "Motorola Razr Miami Premier Padel P1" → {motorola, razr, miami, p1}
+    //   "Miami P1 2026"                         → {miami, p1}
+    const NOISE_TOKENS = new Set([
+      'premier', 'padel', 'tour', 'open', 'the', 'by', 'presented',
+      'pro', 'vip', 'official', 'season', 'championship', 'championships',
+    ])
+    const tokenize = (n: string): Set<string> => {
+      return new Set(
+        stripAccents(n)
+          .toLowerCase()
+          .replace(/\b(19|20)\d{2}\b/g, '')
+          .replace(/[^a-z0-9]+/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length >= 2 && !NOISE_TOKENS.has(w))
+      )
+    }
+
+    const currentTokens = tokenize(tournament.name)
+    if (currentTokens.size < 2) return // too generic to match safely
+
+    async function loadDefendingChampion() {
+      try {
+        // Pick the longest current token as the LIKE filter so we fetch a
+        // narrow candidate list (common tokens like "p1" are too broad).
+        const discriminating = [...currentTokens]
+          .filter(t => t.length >= 3)
+          .sort((a, b) => b.length - a.length)[0]
+          ?? [...currentTokens][0]
+
+        // ILIKE is accent-sensitive in Postgres, so match both the stripped
+        // form and the accented form (if they differ) to catch cross-year
+        // accent variants like "Cancún" vs "Cancun".
+        const originalWords = (tournament!.name as string)
+          .toLowerCase()
+          .match(/[\p{L}\p{N}]+/gu) ?? []
+        const accented = originalWords.find(w => stripAccents(w) === discriminating) ?? discriminating
+        const orFilter = discriminating === accented
+          ? `name.ilike.%${discriminating}%`
+          : `name.ilike.%${discriminating}%,name.ilike.%${accented}%`
+
+        const { data: candidates } = await supabase
+          .from('tournaments')
+          .select('id, name, starts_at, ends_at')
+          .eq('level', tournament!.level)
+          .lt('ends_at', tournament!.starts_at)
+          .or(orFilter)
+          .order('ends_at', { ascending: false })
+          .limit(50)
+        if (cancelled || !candidates || candidates.length === 0) return
+
+        // Subset match: every current token must appear in the candidate's
+        // tokens. This handles sponsor prefixes (2025 "Motorola Razr Miami
+        // Premier Padel P1" contains all of {miami, p1}).
+        const previous = candidates.find(c => {
+          const candTokens = tokenize(c.name)
+          for (const t of currentTokens) {
+            if (!candTokens.has(t)) return false
+          }
+          return true
+        })
+        if (!previous) return
+
+        // Record the previous edition id immediately so the user can navigate
+        // to it even if the champion lookup below comes up empty.
+        const previousYear = previous.ends_at ? new Date(previous.ends_at).getFullYear() : 0
+        if (!cancelled) setPreviousEdition({ id: previous.id, year: previousYear })
+
+        // Fetch finished matches from that edition for the current category
+        // and pick the one in the Final round.
+        const { data: finalMatches } = await supabase
+          .from('matches')
+          .select(`
+            id, round, winner_pair, status, category,
+            pair1_player1:players!matches_pair1_player1_id_fkey(name, country),
+            pair1_player2:players!matches_pair1_player2_id_fkey(name, country),
+            pair2_player1:players!matches_pair2_player1_id_fkey(name, country),
+            pair2_player2:players!matches_pair2_player2_id_fkey(name, country)
+          `)
+          .eq('tournament_id', previous.id)
+          .eq('category', genderFilter)
+          .in('status', ['finished', 'retired', 'walkover'])
+          .not('winner_pair', 'is', null)
+        if (cancelled || !finalMatches || finalMatches.length === 0) return
+
+        const final = finalMatches.find(m => normalizeRoundFull((m as any).round as string) === 'Finals')
+        if (!final) return
+
+        const winners = (final as any).winner_pair === 1
+          ? [(final as any).pair1_player1, (final as any).pair1_player2]
+          : [(final as any).pair2_player1, (final as any).pair2_player2]
+        const winnerPlayers = winners.filter(Boolean)
+        if (winnerPlayers.length === 0) return
+
+        const names = winnerPlayers.map((p: any) => toShortName(p.name)).join(' / ')
+        const country1 = winnerPlayers[0]?.country ?? null
+        const country2 = winnerPlayers[1]?.country ?? null
+        const year = previous.ends_at ? new Date(previous.ends_at).getFullYear() : 0
+        if (cancelled) return
+        setDefendingChampion({ year, names, country1, country2, previousTournamentId: previous.id })
+      } catch (e) {
+        console.warn('[V3Overview] defending champion lookup failed:', e)
+      }
+    }
+
+    // Clear stale values from a different tournament/category before fetching.
+    setPreviousEdition(null)
+    setDefendingChampion(null)
+    void loadDefendingChampion()
+    return () => { cancelled = true }
+  }, [tournament?.id, tournament?.name, tournament?.level, tournament?.starts_at, genderFilter])
 
   // Count unique teams
   const teamSet = new Set<string>()
@@ -1195,6 +1470,61 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         <StatCard value={totalCountries || '\u2014'} label="Countries" />
         <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label="Prize Money" />
       </div>
+
+      {/* Champion (current tournament, only once the final has been played) */}
+      {currentChampion && (
+        <ChampionTile
+          label="Champion"
+          year={currentChampion.year}
+          names={currentChampion.names}
+          country1={currentChampion.country1}
+          country2={currentChampion.country2}
+          accent={GREEN}
+        />
+      )}
+
+      {/* Defending Champion (from previous edition, if we can find it) */}
+      {defendingChampion && previousEdition && (
+        <Link href={`/tournaments/${previousEdition.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+          <ChampionTile
+            label="Defending Champion"
+            year={defendingChampion.year}
+            names={defendingChampion.names}
+            country1={defendingChampion.country1}
+            country2={defendingChampion.country2}
+            accent="#F5A623"
+            clickable
+          />
+        </Link>
+      )}
+
+      {/* Fallback: previous edition exists but no champion data.
+          Still give the user a way to open it. */}
+      {!defendingChampion && previousEdition && (
+        <Link href={`/tournaments/${previousEdition.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 10 }}>
+          <div style={{
+            background: BG_CARD,
+            clipPath: CHUNKY.card,
+            border: `1px solid ${BORDER}`,
+            padding: '11px 14px',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <div style={{
+              width: 28, height: 28, flexShrink: 0,
+              background: 'rgba(245,166,35,0.12)',
+              clipPath: CHUNKY.badge,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#F5A623', fontSize: 14,
+            }}>
+              🏆
+            </div>
+            <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: '#fff' }}>
+              View {previousEdition.year || 'last'} edition
+            </span>
+            <span style={{ fontSize: 16, color: '#F5A623', fontWeight: 800 }}>→</span>
+          </div>
+        </Link>
+      )}
 
       {/* Top seeds */}
       {topSeeds.length > 0 && (
