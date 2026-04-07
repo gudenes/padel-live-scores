@@ -76,38 +76,58 @@ export async function reportBatchFailures(
 }
 
 /**
- * The actual recovery routine. Try to wake up auth, then either let the
- * next refetch take over, or hard-reload.
+ * The actual recovery routine. Tries auth, then a probe query, then
+ * escalates to a hard reload if either is broken.
+ *
+ * The "auth probe + query probe" pair matters: previous evidence shows
+ * that supabase.auth.getSession() can resolve fine while the underlying
+ * query path is still wedged. Both have to work for us to consider
+ * recovery successful.
  */
 async function attemptRecovery(context: string): Promise<void> {
   console.warn(`[supabase-health] ${context}: attempting recovery...`)
 
-  const start = Date.now()
-  let authResolved = false
-
+  // ── Probe 1: auth ──
+  const authStart = Date.now()
+  let authOk = false
   try {
     await Promise.race([
-      supabase.auth.getSession().then(() => { authResolved = true }),
+      supabase.auth.getSession().then(() => { authOk = true }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('auth-timeout')), 4_000)),
     ])
-  } catch {
-    /* fall through to reload */
-  }
+  } catch { /* swallow */ }
+  console.warn(
+    `[supabase-health] probe.auth: ${authOk ? 'ok' : 'TIMED OUT'} ` +
+    `(${Date.now() - authStart}ms)`
+  )
 
-  const elapsed = Date.now() - start
-  console.warn(`[supabase-health] auth.getSession() ${authResolved ? 'resolved' : 'TIMED OUT'} after ${elapsed}ms`)
+  // ── Probe 2: tiny query ──
+  // If auth.getSession() worked but real queries don't, the client is
+  // wedged in a way that recreating the session won't fix.
+  const queryStart = Date.now()
+  let queryOk = false
+  try {
+    await Promise.race([
+      supabase.from('matches').select('id').limit(1).then(() => { queryOk = true }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('query-timeout')), 4_000)),
+    ])
+  } catch { /* swallow */ }
+  console.warn(
+    `[supabase-health] probe.query: ${queryOk ? 'ok' : 'TIMED OUT'} ` +
+    `(${Date.now() - queryStart}ms)`
+  )
 
-  if (authResolved) {
-    // Auth is alive — give the next refetch a chance to succeed.
-    // The page's wake-refresh hook or interval will trigger it.
+  if (authOk && queryOk) {
+    console.warn(`[supabase-health] both probes ok — letting next refetch take over`)
     return
   }
 
-  // Auth is dead. Force hard reload.
-  console.warn(`[supabase-health] auth wedged — forcing page reload`)
+  // Either auth or query is wedged. Hard reload is the only reliable
+  // recovery — recreating the supabase client mid-session would orphan
+  // every page that imported it.
+  console.warn(`[supabase-health] client wedged (auth=${authOk} query=${queryOk}) — forcing reload`)
   if (typeof window !== 'undefined') {
-    // Small delay so the warn message has time to flush to the console
-    setTimeout(() => window.location.reload(), 100)
+    setTimeout(() => window.location.reload(), 200)
   }
 }
 

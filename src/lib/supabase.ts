@@ -23,6 +23,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
+// Expose the client on window for debugging — only in the browser, never SSR.
+// Lets you paste diagnostic scripts into the console that touch supabase.*
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(window as any).__pn_supabase = supabase
+}
+
 // Server client — uses service key, bypasses RLS
 // Only use in API routes and server components
 export function createServerClient() {
