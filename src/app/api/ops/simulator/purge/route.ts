@@ -43,49 +43,70 @@ export async function POST(request: Request) {
     )
   }
 
-  // Count tournaments and matches before deleting
-  const { data: simulatedTournaments, error: countTournError } = await supabase
+  // Collect every simulator trace:
+  //   - tournaments with source='simulated', level='simulated', or external_id LIKE 'sim_%'
+  //   - orphan matches with external_id LIKE 'sim_%' (tournament_id may have been nulled previously)
+  const tournamentIds = new Set<string>()
+
+  const { data: bySource, error: sourceErr } = await supabase
     .from('tournaments')
     .select('id')
     .eq('source', 'simulated')
-
-  if (countTournError) {
-    console.error('[simulator/purge] count tournaments error', countTournError)
-    return Response.json({ error: 'Failed to count tournaments' }, { status: 500 })
+  if (sourceErr) {
+    console.error('[simulator/purge] query bySource error', sourceErr)
+    return Response.json({ error: 'Failed to query tournaments (source)' }, { status: 500 })
   }
+  bySource?.forEach(t => tournamentIds.add(t.id))
 
-  const tournamentIds = (simulatedTournaments ?? []).map((t) => t.id)
-  const tournamentCount = tournamentIds.length
-
-  if (tournamentCount === 0) {
-    return Response.json({ deleted: { tournaments: 0, matches: 0 } })
-  }
-
-  const { count: matchCount, error: countMatchError } = await supabase
-    .from('matches')
-    .select('id', { count: 'exact', head: true })
-    .in('tournament_id', tournamentIds)
-
-  if (countMatchError) {
-    console.error('[simulator/purge] count matches error', countMatchError)
-    return Response.json({ error: 'Failed to count matches' }, { status: 500 })
-  }
-
-  // Delete tournaments — matches should cascade if FK has ON DELETE CASCADE
-  const { error: deleteError } = await supabase
+  const { data: byLevel, error: levelErr } = await supabase
     .from('tournaments')
-    .delete()
-    .eq('source', 'simulated')
+    .select('id')
+    .eq('level', 'simulated')
+  if (levelErr) {
+    console.error('[simulator/purge] query byLevel error', levelErr)
+    return Response.json({ error: 'Failed to query tournaments (level)' }, { status: 500 })
+  }
+  byLevel?.forEach(t => tournamentIds.add(t.id))
 
-  if (deleteError) {
-    console.error('[simulator/purge] delete error', deleteError)
-    return Response.json({ error: 'Failed to purge simulated tournaments' }, { status: 500 })
+  const { data: byExt, error: extErr } = await supabase
+    .from('tournaments')
+    .select('id')
+    .like('external_id', 'sim_%')
+  if (extErr) {
+    console.error('[simulator/purge] query byExt error', extErr)
+    return Response.json({ error: 'Failed to query tournaments (external_id)' }, { status: 500 })
+  }
+  byExt?.forEach(t => tournamentIds.add(t.id))
+
+  // 1. Delete sim_ matches directly — catches orphans whose parent tournament was
+  //    already removed and left the FK nulled instead of cascading.
+  const { error: delMatchErr, count: deletedMatchCount } = await supabase
+    .from('matches')
+    .delete({ count: 'exact' })
+    .like('external_id', 'sim_%')
+  if (delMatchErr) {
+    console.error('[simulator/purge] delete matches error', delMatchErr)
+    return Response.json({ error: 'Failed to delete simulator matches' }, { status: 500 })
+  }
+
+  // 2. Delete the matching tournaments (cascades any remaining matches)
+  let deletedTournCount = 0
+  if (tournamentIds.size > 0) {
+    const { error: delTournErr, count } = await supabase
+      .from('tournaments')
+      .delete({ count: 'exact' })
+      .in('id', [...tournamentIds])
+    if (delTournErr) {
+      console.error('[simulator/purge] delete tournaments error', delTournErr)
+      return Response.json({ error: 'Failed to delete simulator tournaments' }, { status: 500 })
+    }
+    deletedTournCount = count ?? 0
   }
 
   return Response.json({
     deleted: {
-      tournaments: tournamentCount,
-      matches: matchCount ?? 0,
+      tournaments: deletedTournCount,
+      matches: deletedMatchCount ?? 0,
     },
   })
 }
