@@ -340,14 +340,16 @@ function V3MatchRow({ match }: { match: Match }) {
             }}>
               {/* Score-sweep banner — appears for ~2.5s when this pair scores.
                   Keyed on flashKeyRef so multiple consecutive points re-trigger
-                  the animation cleanly. pointer-events:none keeps the row tappable. */}
+                  the animation cleanly. pointer-events:none keeps the row tappable.
+                  Background is rgba with 60% alpha so the player names + scores
+                  underneath stay readable while the banner is on top. */}
               {isRolling && (
                 <div
                   key={`sweep-${flashKeyRef.current}`}
                   style={{
                     position: 'absolute',
                     inset: 0,
-                    background: LIVE_RED,
+                    background: 'rgba(255, 70, 85, 0.6)',
                     animation: 'v3-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                     pointerEvents: 'none',
                     zIndex: 1,

@@ -359,14 +359,15 @@ function LiveMatchCard({ match }: { match: Match }) {
             position: 'relative',
             overflow: 'hidden',
           }}>
-            {/* Score-sweep banner — appears for ~2.5s when this pair scores */}
+            {/* Score-sweep banner — appears for ~2.5s when this pair scores.
+                rgba 60% alpha keeps the names + scores readable underneath. */}
             {flashPair === pairNum && (
               <div
                 key={`sweep-${flashKeyRef.current}`}
                 style={{
                   position: 'absolute',
                   inset: 0,
-                  background: LIVE_RED,
+                  background: 'rgba(255, 70, 85, 0.6)',
                   animation: 'v3-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                   pointerEvents: 'none',
                   zIndex: 1,
