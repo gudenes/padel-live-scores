@@ -1437,33 +1437,195 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
         </div>
       )}
 
-      {h2hMatches.map((m, idx) => {
+      {h2hMatches.map((m) => {
+        // Perspective: figure out whether the historical match's pair1
+        // corresponds to CURRENT team 1 (from the match we're viewing).
+        // If yes, render historical pair1 on top; otherwise swap so
+        // current team 1 is always on top (orange) and current team 2
+        // always on the bottom (yellow).
         const mp1p1 = m.pair1_player1?.id ?? null
         const mp1p2 = m.pair1_player2?.id ?? null
         const ourPairIsMatch1 = pairMatchesIds(mp1p1, mp1p2, p1Ids)
-        const ourWon = (ourPairIsMatch1 && m.winner_pair === 1) || (!ourPairIsMatch1 && m.winner_pair === 2)
 
-        const scores = formatSetScores(m)
+        const topP1 = ourPairIsMatch1 ? m.pair1_player1 : m.pair2_player1
+        const topP2 = ourPairIsMatch1 ? m.pair1_player2 : m.pair2_player2
+        const botP1 = ourPairIsMatch1 ? m.pair2_player1 : m.pair1_player1
+        const botP2 = ourPairIsMatch1 ? m.pair2_player2 : m.pair1_player2
+
+        const topName = pairName(topP1, topP2)
+        const botName = pairName(botP1, botP2)
+
+        const team1Won = (ourPairIsMatch1 && m.winner_pair === 1) || (!ourPairIsMatch1 && m.winner_pair === 2)
+        const team2Won = m.winner_pair != null && !team1Won
+        const accentColor = team1Won ? PAIR1_COLOR : team2Won ? PAIR2_COLOR : MUTED
+
+        // Per-set games for each side, in top-row / bottom-row orientation.
+        const sortedSets = [...(m.sets ?? [])].sort((a: any, b: any) => a.set_number - b.set_number)
+        const setGames: { top: number | string; bot: number | string }[] = sortedSets.map((s: any) => {
+          const parsed = parseSetScore(s.set_score)
+          const p1g = parsed?.p1 ?? s.pair1_games ?? 0
+          const p2g = parsed?.p2 ?? s.pair2_games ?? 0
+          return ourPairIsMatch1
+            ? { top: p1g, bot: p2g }
+            : { top: p2g, bot: p1g }
+        })
+
         const date = formatDate(m.finished_at ?? m.started_at)
         const tournamentName = (m.tournament as any)?.name ?? '\u2014'
         const round = m.round ?? ''
 
         return (
-          <Link key={m.id} href={`/match/${m.id}`} style={{ padding: '10px 16px', borderBottom: `0.5px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 8, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.1)', textDecoration: 'none' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {tournamentName}
+          <Link
+            key={m.id}
+            href={`/match/${m.id}`}
+            style={{
+              display: 'block',
+              textDecoration: 'none',
+              color: 'inherit',
+              margin: '6px 10px',
+            }}
+          >
+            <div style={{
+              position: 'relative',
+              background: 'rgba(255,255,255,0.03)',
+              clipPath: CHUNKY.card,
+              padding: '6px 10px 6px 14px',
+              overflow: 'hidden',
+            }}>
+              {/* Left accent bar — winner's team color */}
+              <div style={{
+                position: 'absolute',
+                top: 0, left: 0, bottom: 0,
+                width: 3,
+                background: accentColor,
+              }} />
+
+              {/* Pills row: tournament, round, date */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{
+                  fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                  clipPath: CHUNKY.badge, textTransform: 'uppercase',
+                  background: 'rgba(255,255,255,0.08)', color: '#fff',
+                  letterSpacing: 0.3,
+                  maxWidth: 180,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {tournamentName}
+                </span>
+                {round && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                    clipPath: CHUNKY.badge, textTransform: 'uppercase',
+                    background: 'rgba(255,255,255,0.06)', color: MUTED,
+                    letterSpacing: 0.3,
+                  }}>
+                    {round}
+                  </span>
+                )}
+                {date && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                    clipPath: CHUNKY.badge, textTransform: 'uppercase',
+                    background: 'rgba(255,255,255,0.06)', color: MUTED,
+                    letterSpacing: 0.3,
+                  }}>
+                    {date}
+                  </span>
+                )}
               </div>
-              <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span>{round}</span>
-                {date && <><span style={{ width: 2, height: 2, borderRadius: '50%', background: MUTED, display: 'inline-block' }} /><span>{date}</span></>}
+
+              {/* Team 1 row (always current team 1 — orange) */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '2px 0',
+                opacity: team1Won || m.winner_pair == null ? 1 : 0.42,
+              }}>
+                {/* Flag stack */}
+                <div style={{ position: 'relative', width: 22, height: 16, flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                    <FlagImg country={topP1?.country ?? null} size={14} />
+                  </div>
+                  <div style={{ position: 'absolute', top: 4, left: 6, zIndex: 1 }}>
+                    <FlagImg country={topP2?.country ?? null} size={14} />
+                  </div>
+                </div>
+                <span style={{
+                  flex: 1, minWidth: 0,
+                  fontSize: 12,
+                  fontWeight: team1Won ? 700 : 500,
+                  color: team1Won ? '#fff' : MUTED,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {topName}
+                </span>
+                {team1Won && (
+                  <span style={{
+                    width: 14, height: 14, flexShrink: 0,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    background: PAIR1_COLOR, clipPath: CHUNKY.badge,
+                    fontSize: 8, fontWeight: 800, color: '#000',
+                  }}>
+                    W
+                  </span>
+                )}
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  {setGames.map((sg, i) => (
+                    <span key={i} style={{
+                      fontSize: 14, fontWeight: 700, fontFamily: 'monospace',
+                      color: team1Won ? '#fff' : MUTED,
+                      minWidth: 13, textAlign: 'center',
+                    }}>
+                      {sg.top}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'monospace', color: MUTED, flexShrink: 0, textAlign: 'right', marginRight: 12 }}>
-              {scores || '\u2014'}
-            </div>
-            <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: ourWon ? PAIR1_BG : PAIR2_BG, border: `0.5px solid ${ourWon ? PAIR1_BORDER : PAIR2_BORDER}`, clipPath: CHUNKY.badge }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: ourWon ? PAIR1_COLOR : PAIR2_COLOR }}>{ourWon ? 'W' : 'L'}</span>
+
+              {/* Team 2 row (always current team 2 — yellow) */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '2px 0',
+                opacity: team2Won || m.winner_pair == null ? 1 : 0.42,
+              }}>
+                <div style={{ position: 'relative', width: 22, height: 16, flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                    <FlagImg country={botP1?.country ?? null} size={14} />
+                  </div>
+                  <div style={{ position: 'absolute', top: 4, left: 6, zIndex: 1 }}>
+                    <FlagImg country={botP2?.country ?? null} size={14} />
+                  </div>
+                </div>
+                <span style={{
+                  flex: 1, minWidth: 0,
+                  fontSize: 12,
+                  fontWeight: team2Won ? 700 : 500,
+                  color: team2Won ? '#fff' : MUTED,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {botName}
+                </span>
+                {team2Won && (
+                  <span style={{
+                    width: 14, height: 14, flexShrink: 0,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    background: PAIR2_COLOR, clipPath: CHUNKY.badge,
+                    fontSize: 8, fontWeight: 800, color: '#000',
+                  }}>
+                    W
+                  </span>
+                )}
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  {setGames.map((sg, i) => (
+                    <span key={i} style={{
+                      fontSize: 14, fontWeight: 700, fontFamily: 'monospace',
+                      color: team2Won ? '#fff' : MUTED,
+                      minWidth: 13, textAlign: 'center',
+                    }}>
+                      {sg.bot}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </Link>
         )
