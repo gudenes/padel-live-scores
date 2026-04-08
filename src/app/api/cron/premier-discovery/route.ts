@@ -13,11 +13,15 @@
 import { createClient } from '@supabase/supabase-js'
 import {
   fetchPremierTournamentDropdown,
-  type PremierTournamentSummary,
+  fetchPremierUpcomingMatches,
+  withThrottle,
+  type PremierUpcomingMatch,
 } from '@/lib/premier-api'
 import {
   resolveSingleCandidate,
   yearOf,
+  normalizeRound,
+  extractCategoryFromPremierRound,
   type CandidateTournament,
 } from '@/lib/source-matcher'
 import { findEntityBySourceId, registerSourceId } from '@/lib/external-id-registry'
@@ -34,6 +38,175 @@ const IN_SCOPE_LEVELS = ['p1', 'p2', 'major', 'finals', 'fip_platinum', 'fip_gol
 
 // Only 2026+ tournaments are in scope for the pre-launch backfill.
 const MIN_YEAR = 2026
+
+// ── Last-name extraction ─────────────────────────────────────
+
+function lastNameOf(full: string | null | undefined): string {
+  if (!full) return ''
+  const norm = full.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const parts = norm.trim().split(/\s+/)
+  return parts[parts.length - 1] ?? ''
+}
+
+// ── Our match row type ───────────────────────────────────────
+
+interface OurMatchRow {
+  id: string
+  round: string | null
+  category: string | null
+  pair1_player1: { name: string | null } | null
+  pair1_player2: { name: string | null } | null
+  pair2_player1: { name: string | null } | null
+  pair2_player2: { name: string | null } | null
+}
+
+// ── Match-level player-name matcher ──────────────────────────
+
+/**
+ * Score a Premier match against a candidate by counting how many of the
+ * 4 last names overlap, filtered by matching (category, round) after
+ * normalizing both sides through normalizeRound.
+ * Returns the best candidate + its score (0-4).
+ */
+function matchPremierMatchToOurs(
+  pm: PremierUpcomingMatch,
+  candidates: OurMatchRow[],
+): { matched: OurMatchRow | null; score: number } {
+  const premierNames = new Set(
+    [
+      lastNameOf(pm.team1_player_name),
+      lastNameOf(pm.team1_partner_name),
+      lastNameOf(pm.team2_player_name),
+      lastNameOf(pm.team2_partner_player_name),
+    ].filter(Boolean),
+  )
+
+  if (premierNames.size === 0) return { matched: null, score: 0 }
+
+  // Premier's round_name is like "Men SF"; split into category + canonical round
+  const pmCategory = extractCategoryFromPremierRound(pm.round_name)
+  const pmCanonicalRound = normalizeRound(pm.round_name)
+
+  let best: OurMatchRow | null = null
+  let bestScore = 0
+
+  for (const c of candidates) {
+    // Category filter: if both known, they must match
+    if (pmCategory && c.category && c.category !== pmCategory) continue
+
+    // Round filter: normalize our DB side to canonical form too
+    if (pmCanonicalRound && c.round) {
+      const ourCanonicalRound = normalizeRound(c.round)
+      if (ourCanonicalRound !== pmCanonicalRound) continue
+    }
+
+    const ourNames = new Set(
+      [
+        lastNameOf(c.pair1_player1?.name),
+        lastNameOf(c.pair1_player2?.name),
+        lastNameOf(c.pair2_player1?.name),
+        lastNameOf(c.pair2_player2?.name),
+      ].filter(Boolean),
+    )
+    const overlap = [...premierNames].filter(n => ourNames.has(n)).length
+    if (overlap > bestScore) {
+      bestScore = overlap
+      best = c
+    }
+  }
+
+  return { matched: best, score: bestScore }
+}
+
+// ── Match linking: iterate over linked tournaments ───────────
+
+async function linkMatchesForLinkedTournaments(
+  linkedTournamentIds: Array<{ ourId: string; premierId: number; name: string }>,
+  result: {
+    matches: { linked: number; already: number; unresolved: number; skipped_byes: number }
+    by_reason: { no_candidate: number; multiple_candidates: number; no_player_match: number }
+  },
+): Promise<void> {
+  for (const { ourId, premierId, name } of linkedTournamentIds) {
+    // Pull our matches for this tournament with player names joined
+    const { data: ourMatches } = await supabase
+      .from('matches')
+      .select(`
+        id, round, category,
+        pair1_player1:players!matches_pair1_player1_id_fkey(name),
+        pair1_player2:players!matches_pair1_player2_id_fkey(name),
+        pair2_player1:players!matches_pair2_player1_id_fkey(name),
+        pair2_player2:players!matches_pair2_player2_id_fkey(name)
+      `)
+      .eq('tournament_id', ourId)
+
+    if (!ourMatches?.length) {
+      console.log(`[premier-discovery] no matches in our DB for ${name}`)
+      continue
+    }
+
+    // Fetch Premier's match list for this tournament (throttled)
+    let premierMatches: PremierUpcomingMatch[]
+    try {
+      premierMatches = await withThrottle(() => fetchPremierUpcomingMatches(premierId))
+    } catch (err) {
+      console.error(`[premier-discovery] fetchPremierUpcomingMatches(${premierId}) failed:`, err)
+      continue
+    }
+
+    for (const pm of premierMatches) {
+      // Skip byes — no stats to collect
+      if (pm.is_bye === 'Yes') {
+        result.matches.skipped_byes++
+        continue
+      }
+
+      // Skip if already linked
+      const existing = await findEntityBySourceId(
+        supabase,
+        'match',
+        'premierpadel',
+        String(pm.tournaments_match_id),
+      )
+      if (existing) {
+        result.matches.already++
+        continue
+      }
+
+      const { matched, score } = matchPremierMatchToOurs(
+        pm,
+        ourMatches as unknown as OurMatchRow[],
+      )
+
+      if (matched && score >= 3) {
+        await registerSourceId(supabase, {
+          entityType: 'match',
+          entityId: matched.id,
+          source: 'premierpadel',
+          externalId: String(pm.tournaments_match_id),
+          metadata: {
+            draw_type: pm.draw_type,
+            round_name: pm.round_name,
+            matchId: pm.tournaments_match_id,
+          },
+        })
+        result.matches.linked++
+      } else {
+        await supabase.from('match_stats_unresolved').upsert({
+          source: 'premierpadel',
+          source_kind: 'match',
+          source_id: String(pm.tournaments_match_id),
+          source_payload: pm as unknown as Record<string, unknown>,
+          candidate_count: ourMatches.length,
+          reason: 'no_player_match',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'source,source_kind,source_id' })
+        result.matches.unresolved++
+        result.by_reason.no_player_match++
+      }
+    }
+  }
+}
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -127,8 +300,8 @@ export async function GET(request: Request) {
     }
   }
 
-  // Step 4: Match linking — implemented in Task 14, placeholder for now
-  // (will add a `linkMatchesForLinkedTournaments(linkedTournamentIds)` call here)
+  // Step 4: Match linking for newly-linked (and already-linked) tournaments
+  await linkMatchesForLinkedTournaments(linkedTournamentIds, result)
 
   return Response.json({
     ...result,
