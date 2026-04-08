@@ -44,10 +44,15 @@ const MIN_YEAR = 2026
 // tournament. This is more reliable than fetchPremierUpcomingMatches which
 // only returns upcoming matches for future tournaments.
 //
-// 5900 is roughly the start of 2026 Premier matches (Riyadh P1 Feb 7).
+// 5700 is roughly where Riyadh P1 2026 (Feb 7) match IDs start.
 // 6500 is safe headroom for the next few tournaments.
-const MIN_MATCH_ID = 5900
+const MIN_MATCH_ID = 5700
 const MAX_MATCH_ID = 6500
+
+// Rounds we skip at the source — our DB doesn't store qualification
+// matches, so these would always end up as "no_player_match" unresolved
+// failures even though they're legitimately out of scope.
+const SKIP_ROUND_PATTERN = /\bQ[123]\b/i
 
 // ── Last-name extraction ─────────────────────────────────────
 
@@ -169,6 +174,7 @@ async function linkMatchesViaIdScan(
   let scanned = 0
   let empty = 0
   let outOfScope = 0
+  let skippedQuali = 0
 
   for (let premierMatchId = MIN_MATCH_ID; premierMatchId <= MAX_MATCH_ID; premierMatchId++) {
     // Fetch with throttle
@@ -184,6 +190,13 @@ async function linkMatchesViaIdScan(
     // Skip byes
     if (detail.match_score.is_bye === 'Yes') {
       result.matches.skipped_byes++
+      continue
+    }
+
+    // Skip qualification rounds (Q1/Q2/Q3) — our DB doesn't track them,
+    // so they'd always fail player-matching. Silent skip, no unresolved entry.
+    if (SKIP_ROUND_PATTERN.test(detail.match_score.round_name ?? '')) {
+      skippedQuali++
       continue
     }
 
@@ -248,7 +261,7 @@ async function linkMatchesViaIdScan(
     }
   }
 
-  console.log(`[premier-discovery] scan complete: ${scanned} fetched, ${empty} empty, ${outOfScope} out-of-scope, ${result.matches.linked} linked, ${result.matches.unresolved} unresolved`)
+  console.log(`[premier-discovery] scan complete: ${scanned} fetched, ${empty} empty, ${outOfScope} out-of-scope, ${skippedQuali} quali-skipped, ${result.matches.linked} linked, ${result.matches.unresolved} unresolved`)
 }
 
 export async function GET(request: Request) {
