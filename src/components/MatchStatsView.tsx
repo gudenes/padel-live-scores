@@ -8,11 +8,10 @@
 //  - Single flat list of stat rows (no section headers)
 //  - Nested pill tabs to switch between Match aggregate and individual sets
 //  - Match tab shows all stats; per-set tabs show only set-level stats
-//    (service + return only — streak, aces, double faults, and total
-//    points only exist on the Match aggregate)
-//  - Aces and Double Faults are hardcoded to 0 — Premier Padel's API
-//    always returns 0 for these counts, but we include them in the list
-//    to match the reference design
+//    (service + return only — streak and total points only exist on
+//    the Match aggregate)
+//  - Aces and Double Faults are NOT shown because Premier Padel's API
+//    always returns 0 for these counts (not tracked by their system)
 
 import { useEffect, useState } from 'react'
 import { MatchStatsBar } from './MatchStatsBar'
@@ -130,32 +129,14 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
 
       {/* Match-only stats (only shown on Match aggregate tab) */}
       {isMatchTab && (
-        <>
-          <MatchStatsBar
-            label="Longest points won streak"
-            kind="count"
-            t1Value={activeRow.team1_longest_streak}
-            t1Total={null}
-            t2Value={activeRow.team2_longest_streak}
-            t2Total={null}
-          />
-          <MatchStatsBar
-            label="Aces"
-            kind="count"
-            t1Value={0}
-            t1Total={null}
-            t2Value={0}
-            t2Total={null}
-          />
-          <MatchStatsBar
-            label="Double faults"
-            kind="count"
-            t1Value={0}
-            t1Total={null}
-            t2Value={0}
-            t2Total={null}
-          />
-        </>
+        <MatchStatsBar
+          label="Longest points won streak"
+          kind="count"
+          t1Value={activeRow.team1_longest_streak}
+          t1Total={null}
+          t2Value={activeRow.team2_longest_streak}
+          t2Total={null}
+        />
       )}
 
       {/* Service stats — shown on all tabs */}
@@ -240,7 +221,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
 function SkeletonBars() {
   return (
     <div style={{ padding: 16 }}>
-      {[...Array(11)].map((_, i) => (
+      {[...Array(9)].map((_, i) => (
         <div
           key={i}
           style={{
