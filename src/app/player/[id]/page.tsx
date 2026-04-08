@@ -2,7 +2,7 @@
 // src/app/player/[id]/page.tsx
 // Player profile — v3 brand styling with tabbed dashboard + widget grid (A2 layout).
 
-import { useState, useEffect, useMemo, use } from 'react'
+import { useState, useEffect, useMemo, useRef, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
@@ -10,6 +10,27 @@ import BottomNav from '@/components/nav/BottomNavV3'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
+import { useInViewOnce } from '@/hooks/useInViewOnce'
+
+// Win-rate bar with scroll-triggered grow-from-left animation.
+function WinRateBar({ wr, color, rowIndex }: { wr: number; color: string; rowIndex: number }) {
+  const barRef = useRef<HTMLDivElement>(null)
+  const inView = useInViewOnce(barRef)
+  return (
+    <div ref={barRef} style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)' }}>
+      <div
+        style={{
+          width: `${wr}%`,
+          height: '100%',
+          background: color,
+          transformOrigin: 'left center',
+          transform: inView ? 'scaleX(1)' : 'scaleX(0)',
+          transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
+        }}
+      />
+    </div>
+  )
+}
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1232,15 +1253,13 @@ function StatsTab({
       {rounds.length > 0 && (
         <Widget wide label="By Round">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-            {rounds.map(([round, { wins, losses }]) => {
+            {rounds.map(([round, { wins, losses }], idx) => {
               const total = wins + losses
               const wr = total > 0 ? Math.round((wins / total) * 100) : 0
               return (
                 <div key={round} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
                   <div style={{ flex: '0 0 70px', color: '#fff', fontWeight: 600 }}>{round}</div>
-                  <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)' }}>
-                    <div style={{ width: `${wr}%`, height: '100%', background: GREEN }} />
-                  </div>
+                  <WinRateBar wr={wr} color={GREEN} rowIndex={idx} />
                   <div style={{ flex: '0 0 52px', textAlign: 'right', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
                     <b style={{ color: GREEN }}>{wr}%</b> · {wins}-{losses}
                   </div>
@@ -1255,7 +1274,7 @@ function StatsTab({
       {levels.length > 0 && (
         <Widget wide label="By Tournament Level">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-            {levels.map(([level, { wins, losses }]) => {
+            {levels.map(([level, { wins, losses }], idx) => {
               const total = wins + losses
               const wr = total > 0 ? Math.round((wins / total) * 100) : 0
               return (
@@ -1263,9 +1282,7 @@ function StatsTab({
                   <div style={{ flex: '0 0 70px', color: '#fff', fontWeight: 600, textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {level.replace('fip_', 'FIP ').replace('_', ' ')}
                   </div>
-                  <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)' }}>
-                    <div style={{ width: `${wr}%`, height: '100%', background: ORANGE }} />
-                  </div>
+                  <WinRateBar wr={wr} color={ORANGE} rowIndex={idx} />
                   <div style={{ flex: '0 0 52px', textAlign: 'right', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
                     <b style={{ color: ORANGE }}>{wr}%</b> · {wins}-{losses}
                   </div>
