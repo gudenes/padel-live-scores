@@ -14,6 +14,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import BracketView from '@/components/BracketView'
+import { EntryList } from '@/components/EntryList'
 import { V3MatchCard } from '@/components/V3MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
 
@@ -132,6 +133,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [justUpdated, setJustUpdated] = useState(false)
 
   const [drawEntries, setDrawEntries] = useState<any[]>([])
+  const [playerMap, setPlayerMap] = useState<Record<string, { avatar_url: string | null; ranking: number | null }>>({})
+  const [debutStatusMap, setDebutStatusMap] = useState<Record<string, 'fresh' | 'newThisSeason' | null>>({})
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
@@ -199,14 +202,41 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     if (data) setTournaments(data)
   }, [])
 
-  // Fetch entry list / draw data
+  // Fetch entry list / draw data + player hydration (avatars, rankings)
   const fetchDrawEntries = useCallback(async () => {
-    const { data } = await supabase
+    const { data: drawData } = await supabase
       .from('tournament_draws')
       .select('draw_position, seed, marker, category, round, player1_name, player1_country, player1_id, player2_name, player2_country, player2_id, team_points')
       .eq('tournament_id', tournamentId)
       .order('draw_position', { ascending: true })
-    if (data) setDrawEntries(data)
+
+    if (!drawData) return
+    setDrawEntries(drawData)
+
+    // Collect unique resolved player IDs
+    const playerIds = new Set<string>()
+    for (const d of drawData as any[]) {
+      if (d.player1_id) playerIds.add(d.player1_id)
+      if (d.player2_id) playerIds.add(d.player2_id)
+    }
+    if (playerIds.size === 0) return
+
+    // Hydrate player avatars + rankings
+    const { data: playerData } = await supabase
+      .from('players')
+      .select('id, avatar_url, ranking')
+      .in('id', Array.from(playerIds))
+
+    if (playerData) {
+      const map: Record<string, { avatar_url: string | null; ranking: number | null }> = {}
+      for (const p of playerData as any[]) {
+        map[p.id] = { avatar_url: p.avatar_url ?? null, ranking: p.ranking ?? null }
+      }
+      setPlayerMap(map)
+    }
+
+    // Debut status computation stays empty for Task 1 — Task 2 wires it.
+    setDebutStatusMap({})
   }, [tournamentId])
 
   useEffect(() => { fetchAll(); fetchTournaments(); fetchDrawEntries() }, [fetchAll, fetchTournaments, fetchDrawEntries])
@@ -807,6 +837,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             availableRounds={availableRounds}
             roundDates={roundDates}
             drawEntries={drawEntries}
+            playerMap={playerMap}
+            debutStatusMap={debutStatusMap}
           />
         )}
 
@@ -1041,7 +1073,7 @@ function ChampionTile({
   )
 }
 
-function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries }: {
+function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries, playerMap, debutStatusMap }: {
   tournament: any
   allMatches: Match[]
   genderFilter: 'men' | 'women'
@@ -1049,6 +1081,8 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   availableRounds: string[]
   roundDates: Record<string, string>
   drawEntries: any[]
+  playerMap: Record<string, { avatar_url: string | null; ranking: number | null }>
+  debutStatusMap: Record<string, 'fresh' | 'newThisSeason' | null>
 }) {
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const totalMatches = genderMatches.length
@@ -1422,68 +1456,13 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         </>
       )}
 
-      {/* Entry List from tournament_draws */}
-      {(() => {
-        const genderDraws = drawEntries.filter((d: any) => d.category === genderFilter)
-        if (genderDraws.length === 0) return null
-        return (
-          <>
-            <SectionHeader label={`Entry List (${genderDraws.length} pairs)`} />
-            <div style={{
-              background: BG_CARD,
-              clipPath: CHUNKY.card,
-              border: `1px solid ${BORDER}`,
-              padding: '4px 14px', marginBottom: 16,
-              maxHeight: 400, overflowY: 'auto',
-            }}>
-              {genderDraws.map((d: any, i: number) => (
-                <div key={d.draw_position} style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
-                  borderBottom: i < genderDraws.length - 1 ? `0.5px solid ${BORDER}` : 'none',
-                }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 800, color: MUTED,
-                    width: 20, textAlign: 'center', flexShrink: 0,
-                  }}>
-                    {d.draw_position}
-                  </span>
-                  {d.seed && (
-                    <span style={{
-                      fontSize: 9, fontWeight: 800, color: GREEN,
-                      background: 'rgba(126,211,33,0.12)',
-                      padding: '1px 5px', borderRadius: 3, flexShrink: 0,
-                    }}>
-                      {d.seed}
-                    </span>
-                  )}
-                  {d.marker && (
-                    <span style={{
-                      fontSize: 8, fontWeight: 800, color: '#F5A623',
-                      background: 'rgba(245,166,35,0.12)',
-                      padding: '1px 4px', borderRadius: 3, flexShrink: 0,
-                    }}>
-                      {d.marker}
-                    </span>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {countryFlag(d.player1_country)} {d.player1_name}
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {countryFlag(d.player2_country)} {d.player2_name}
-                    </div>
-                  </div>
-                  {d.team_points != null && (
-                    <span style={{ fontSize: 10, color: MUTED, flexShrink: 0 }}>
-                      {d.team_points}pts
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
-        )
-      })()}
+      {/* Entry List — hero rows for top seeds + compact for rest */}
+      <EntryList
+        entries={drawEntries as any}
+        playerMap={playerMap}
+        debutStatusMap={debutStatusMap}
+        genderFilter={genderFilter}
+      />
 
       {/* Schedule */}
       {schedule.length > 0 && (
