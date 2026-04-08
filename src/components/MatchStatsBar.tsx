@@ -169,6 +169,20 @@ export function MatchStatsBar({
   const t2Weight = weightOf(kind, t2Value, t2Total)
   const bothZero = t1Weight === 0 && t2Weight === 0
 
+  // For percentage stats, use the 100%-reference model: each team's half of
+  // the track represents 100%, and the bar length = (pct / 100) × 50% of the
+  // total track width. Both teams grow OUTWARD from the center — team 1
+  // extends leftward toward the left edge, team 2 extends rightward toward
+  // the right edge. When a team hits 100%, its bar reaches exactly the
+  // edge (full half of the track). Empty space appears on the OUTSIDE
+  // (not the center), so the bars look anchored to the center gutter.
+  //
+  // For count stats (games played, longest streak), there's no meaningful
+  // 100% reference, so we keep the flex-weighted split where the two values
+  // share the track proportionally.
+  const t1PctFill = kind === 'percentage' ? (pct(t1Value, t1Total) ?? 0) / 2 : 0
+  const t2PctFill = kind === 'percentage' ? (pct(t2Value, t2Total) ?? 0) / 2 : 0
+
   return (
     <div style={rowContainer}>
       {/* Row 1: numbers + label with dashes */}
@@ -199,13 +213,42 @@ export function MatchStatsBar({
         </div>
       )}
 
-      {/* Split bar track */}
+      {/* Bar track — rendering depends on kind */}
       <div style={trackOuter}>
-        {!bothZero && (
-          <div style={trackInner}>
-            <div style={{ flex: t1Weight, background: PAIR1_COLOR, opacity: 0.85 }} />
-            <div style={{ flex: t2Weight, background: PAIR2_COLOR, opacity: 0.85 }} />
-          </div>
+        {kind === 'percentage' ? (
+          <>
+            {/* Team 1 grows from center toward left edge */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '50%',
+                top: 0,
+                bottom: 0,
+                width: `${t1PctFill}%`,
+                background: PAIR1_COLOR,
+                opacity: 0.85,
+              }}
+            />
+            {/* Team 2 grows from center toward right edge */}
+            <div
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: 0,
+                bottom: 0,
+                width: `${t2PctFill}%`,
+                background: PAIR2_COLOR,
+                opacity: 0.85,
+              }}
+            />
+          </>
+        ) : (
+          !bothZero && (
+            <div style={trackInner}>
+              <div style={{ flex: t1Weight, background: PAIR1_COLOR, opacity: 0.85 }} />
+              <div style={{ flex: t2Weight, background: PAIR2_COLOR, opacity: 0.85 }} />
+            </div>
+          )
         )}
       </div>
     </div>
