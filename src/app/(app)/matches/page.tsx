@@ -8,10 +8,10 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, pairName, parseSetScore, isWarmingUp } from '@/types/match'
 import Link from 'next/link'
-import Spinner from '../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
+import { V3MatchCard } from '@/components/V3MatchCard'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { isTournamentGated } from '@/lib/tournament-utils'
@@ -126,33 +126,6 @@ function tournamentStatus(matches: Match[], tournament?: any): 'live' | 'finishe
   }
   if (hasScheduled && matches.every(m => m.status === 'scheduled')) return 'upcoming'
   return null
-}
-
-function getChampions(matches: Match[], category: string): { player1: string | null; player2: string | null; avatar1: string | null; avatar2: string | null } | null {
-  const finals = matches.filter(m => {
-    const a = m as any
-    const r = (a.round ?? '').toLowerCase()
-    const isFinal = r === 'f' || r === 'final' || r === 'finals'
-    return a.category === category && isFinal && a.winner_pair
-  })
-  if (finals.length === 0) return null
-  const f = finals[0] as any
-  const isP1 = f.winner_pair === 1
-  return {
-    player1: isP1 ? f.pair1_player1?.name : f.pair2_player1?.name,
-    player2: isP1 ? f.pair1_player2?.name : f.pair2_player2?.name,
-    avatar1: isP1 ? f.pair1_player1?.avatar_url : f.pair2_player1?.avatar_url,
-    avatar2: isP1 ? f.pair1_player2?.avatar_url : f.pair2_player2?.avatar_url,
-  }
-}
-
-// ── Status config for tournament badges ───────────────────────
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  live: { label: 'LIVE', color: '#fff', bg: LIVE_RED },
-  finished: { label: 'FINISHED', color: MUTED, bg: 'rgba(255,255,255,0.06)' },
-  upcoming: { label: 'UPCOMING', color: GREEN, bg: 'rgba(126,211,33,0.12)' },
-  qualifying: { label: 'QUALIFYING', color: ORANGE, bg: 'rgba(245,166,35,0.15)' },
 }
 
 // ── Point ordinal for score-change detection ─────────────────
@@ -420,144 +393,22 @@ function V3MatchRow({ match }: { match: Match }) {
   )
 }
 
-// ── Champion row for finished tournaments ──────────────────────
-
-function ChampionRow({ champions, color }: { champions: { player1: string | null; player2: string | null; avatar1: string | null; avatar2: string | null }; color: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ width: 3, height: 22, background: color, flexShrink: 0 }} />
-      <div style={{ display: 'flex', flexShrink: 0 }}>
-        {champions.avatar1 && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={champions.avatar1} alt="" style={{
-            width: 22, height: 22, objectFit: 'cover',
-            clipPath: 'circle(50%)',
-            border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
-          }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-        )}
-        {champions.avatar2 && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={champions.avatar2} alt="" style={{
-            width: 22, height: 22, objectFit: 'cover',
-            clipPath: 'circle(50%)',
-            border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
-            marginLeft: -6,
-          }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-        )}
-      </div>
-      <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
-        {shortName(champions.player1)} / {shortName(champions.player2)}
-      </span>
-    </div>
-  )
-}
-
 // ── Tournament group ──────────────────────────────────────────
 
-function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
+function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
   tournament: any
   matches: Match[]
   defaultOpen: boolean
-  genderFilter: string
+  tab: 'live' | 'upcoming' | 'results'
 }) {
   const gated = isTournamentGated(tournament ?? {})
   const badge = tournament?.level ? levelLabel(tournament.level) : null
   const status = tournamentStatus(matches, tournament)
-  const statusCfg = status ? STATUS_CONFIG[status] : null
-  const isFinished = status === 'finished'
-
-  const menChampions = isFinished ? getChampions(matches, 'men') : null
-  const womenChampions = isFinished ? getChampions(matches, 'women') : null
-  const showMen = genderFilter === 'all' || genderFilter === 'men'
-  const showWomen = genderFilter === 'all' || genderFilter === 'women'
-  const hasChampions = (showMen && menChampions) || (showWomen && womenChampions)
 
   const dateRange = tournament?.starts_at
     ? new Date(tournament.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
       + (tournament.ends_at ? ` \u2013 ${new Date(tournament.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '')
     : ''
-
-  // Finished tournament → compact card linking to tournament page
-  if (isFinished) {
-    return (
-      <Link href={`/tournaments/${tournament?.id}?tab=recap`} style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div style={{
-          clipPath: CHUNKY.card,
-          overflow: 'hidden',
-          border: `1px solid ${BORDER}`,
-          background: BG_CARD,
-        }}>
-          <div style={{ padding: '12px 14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasChampions ? 10 : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                {tournament?.country ? (
-                  <FlagImg country={tournament.country} size={20} />
-                ) : null}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {titleCase(tournament?.name ?? '')}
-                    </span>
-                    {statusCfg && (
-                      <span style={{
-                        fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
-                        padding: '2px 6px',
-                        clipPath: CHUNKY.badge,
-                        color: statusCfg.color, background: statusCfg.bg,
-                        flexShrink: 0, lineHeight: '12px',
-                      }}>
-                        {statusCfg.label}
-                      </span>
-                    )}
-                  </div>
-                  {(badge || dateRange) && (
-                    <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 2 }}>
-                      {badge}{badge && dateRange ? ' \u00B7 ' : ''}{dateRange}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                <span style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>{matches.length}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </div>
-            </div>
-
-            {hasChampions && (
-              <div style={{
-                borderTop: `1px solid ${BORDER}`,
-                paddingTop: 10,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{
-                    fontSize: 8, fontWeight: 700, textTransform: 'uppercase',
-                    letterSpacing: '0.08em', color: ORANGE,
-                  }}>
-                    Champions
-                  </div>
-                  {showMen && menChampions && <ChampionRow champions={menChampions} color={MEN_BLUE} />}
-                  {showWomen && womenChampions && <ChampionRow champions={womenChampions} color={WOMEN_PURPLE} />}
-                </div>
-                <div style={{
-                  fontSize: 10, fontWeight: 700, color: GREEN,
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  flexShrink: 0,
-                }}>
-                  View
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </Link>
-    )
-  }
 
   // Derive the most advanced round
   const ROUND_ORDER = ['F', 'Final', 'SF', 'Semi-final', 'QF', 'Quarter-final', 'R16', 'R32', 'R64', 'R128']
@@ -570,10 +421,10 @@ function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
   }
   const stageLabel = bestRoundIdx < 999 ? (ROUND_LABELS[ROUND_ORDER[bestRoundIdx]] ?? ROUND_ORDER[bestRoundIdx]) : null
 
-  // 3-state: undefined = default (3 matches), 'expanded' = all, 'collapsed' = none
+  // 3-state: undefined = default (10 matches), 'expanded' = all, 'collapsed' = none
   const [viewState, setViewState] = useState<'collapsed' | 'expanded' | undefined>(defaultOpen ? undefined : 'collapsed')
   const matchCount = matches.length
-  const visibleMatches = viewState === 'collapsed' ? [] : viewState === 'expanded' ? matches : matches.slice(0, 3)
+  const visibleMatches = viewState === 'collapsed' ? [] : viewState === 'expanded' ? matches : matches.slice(0, 10)
 
   const cycleState = () => {
     setViewState(prev => {
@@ -581,6 +432,14 @@ function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
       if (prev === 'expanded') return 'collapsed' // expanded → collapsed
       return undefined                       // collapsed → default
     })
+  }
+
+  // Resolve a per-match gender accent color for V3MatchCard rendering.
+  const genderColorFor = (m: Match): string => {
+    const cat = (m as any).category as string | null
+    if (cat === 'men') return MEN_BLUE
+    if (cat === 'women') return WOMEN_PURPLE
+    return MUTED
   }
 
   // Live / upcoming — collapsible with match rows
@@ -667,11 +526,13 @@ function TournamentGroup({ tournament, matches, defaultOpen, genderFilter }: {
       {visibleMatches.length > 0 && (
         <div style={gated ? { opacity: 0.4, filter: 'grayscale(60%)', pointerEvents: 'none' } : undefined}>
           {visibleMatches.map(m => (
-            <V3MatchRow key={m.id} match={m} />
+            tab === 'results'
+              ? <V3MatchCard key={m.id} match={m} genderColor={genderColorFor(m)} />
+              : <V3MatchRow key={m.id} match={m} />
           ))}
         </div>
       )}
-      {matchCount > 3 && viewState !== 'collapsed' && (
+      {matchCount > 10 && viewState !== 'collapsed' && (
         <button
           onClick={cycleState}
           style={{
@@ -739,13 +600,10 @@ function V3ScoresPage() {
   const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
   const [tab, setTab] = useState<'live' | 'upcoming' | 'results'>('live')
   const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all')
   const [leagueFilter, setLeagueFilter] = useState<'premier' | 'fip' | 'all'>('premier')
   const [searchOpen, setSearchOpen] = useState(false)
-  const pageRef = useRef(0)
 
   const matchSelect = `
     *,
@@ -804,14 +662,14 @@ function V3ScoresPage() {
       setLiveMatches(sortSets(liveData))
       setScheduledMatches(sortSets(dataOf(1)))
       setRecentMatches(sortSets(dataOf(2)))
-      setHasMore(true)
-      pageRef.current = 0
 
-      // Auto-select tab only on first load: show live only if actual live matches exist
+      // Auto-select tab only on first load: live → upcoming → results
       if (!initialLoadDone.current) {
         const hasLive = liveData.length > 0
+        const hasUpcoming = (dataOf(1) as Match[]).length > 0
         if (hasLive) setTab('live')
-        else setTab('upcoming')
+        else if (hasUpcoming) setTab('upcoming')
+        else setTab('results')
         initialLoadDone.current = true
       }
     } catch (e) {
@@ -821,26 +679,6 @@ function V3ScoresPage() {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const fetchMoreResults = useCallback(async () => {
-    setLoadingMore(true)
-    const nextPage = pageRef.current + 1
-    const from = nextPage * 50
-    const to = from + 49
-
-    const { data } = await supabase.from('matches').select(matchSelect)
-      .in('status', ['finished', 'retired', 'walkover'])
-      .not('finished_at', 'is', null)
-      .lt('finished_at', `${new Date().getFullYear()}-01-01`)
-      .order('finished_at', { ascending: false })
-      .range(from, to)
-
-    const sorted = sortSets((data as any) ?? [])
-    setRecentMatches(prev => [...prev, ...sorted])
-    setHasMore(sorted.length >= 50)
-    pageRef.current = nextPage
-    setLoadingMore(false)
   }, [])
 
   useEffect(() => {
@@ -1081,8 +919,8 @@ function V3ScoresPage() {
                 key={group.tournament?.id ?? idx}
                 tournament={group.tournament}
                 matches={group.matches}
-                defaultOpen={tab === 'live'}
-                genderFilter={genderFilter}
+                defaultOpen={tab === 'live' || (tab === 'results' && idx === 0)}
+                tab={tab}
               />
             )) : (
               <div style={{
@@ -1107,25 +945,25 @@ function V3ScoresPage() {
             )}
           </div>
 
-          {/* Load more for results */}
-          {tab === 'results' && hasMore && (
+          {/* View previous seasons → home Events view */}
+          {tab === 'results' && (
             <div style={{ padding: '0 16px 32px', textAlign: 'center' }}>
-              <button
-                onClick={fetchMoreResults}
-                disabled={loadingMore}
+              <Link
+                href="/home?view=tournaments"
                 style={{
+                  display: 'inline-block',
                   background: 'rgba(255,255,255,0.04)',
                   border: `1px solid ${BORDER}`,
                   clipPath: CHUNKY.button,
                   padding: '10px 28px',
                   fontSize: 12, fontWeight: 700,
-                  color: loadingMore ? MUTED : GREEN,
-                  cursor: loadingMore ? 'default' : 'pointer',
+                  color: GREEN,
+                  textDecoration: 'none',
                   fontFamily: 'inherit',
                 }}
               >
-                {loadingMore ? <Spinner size={16} /> : 'Load previous seasons'}
-              </button>
+                View previous seasons
+              </Link>
             </div>
           )}
         </>
