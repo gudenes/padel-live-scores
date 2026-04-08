@@ -232,7 +232,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       .eq('status', 'finished')
       .neq('id', m.id)
       .order('finished_at', { ascending: false, nullsFirst: false })
-      .limit(80)
+      .limit(300)
 
     // Sort by best available date: finished_at > started_at > scheduled_at
     const data = rawData?.sort((a: any, b: any) => {
@@ -250,7 +250,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         const fwd = pairMatchesIds(mp1p1, mp1p2, p1Ids) && pairMatchesIds(mp2p1, mp2p2, p2Ids)
         const rev = pairMatchesIds(mp1p1, mp1p2, p2Ids) && pairMatchesIds(mp2p1, mp2p2, p1Ids)
         return fwd || rev
-      }).slice(0, 10)
+      })
       setH2hMatches(filtered)
 
       // Extract last 5 matches per pair (any opponent, from the broader dataset)
@@ -1381,6 +1381,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
 function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Recent, pair2Recent }: {
   match: Match; h2hMatches: any[]; h2hLoading: boolean; pair1Label: string; pair2Label: string; pair1Recent: any[]; pair2Recent: any[]
 }) {
+  const [showAll, setShowAll] = useState(false)
   const p1Ids = [match.pair1_player1?.id, match.pair1_player2?.id].filter(Boolean) as string[]
 
   // Compute overall record
@@ -1405,6 +1406,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
       return new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(d)
     } catch { return '' }
   }
+
+  const visibleMatches = showAll ? h2hMatches : h2hMatches.slice(0, 5)
 
   if (h2hLoading) return (
     <Spinner size={22} />
@@ -1437,7 +1440,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
         </div>
       )}
 
-      {h2hMatches.map((m) => {
+      {visibleMatches.map((m) => {
         // Perspective: figure out whether the historical match's pair1
         // corresponds to CURRENT team 1 (from the match we're viewing).
         // If yes, render historical pair1 on top; otherwise swap so
@@ -1630,6 +1633,30 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
           </Link>
         )
       })}
+
+      {h2hMatches.length > 5 && (
+        <button
+          onClick={() => setShowAll(s => !s)}
+          style={{
+            display: 'block',
+            width: 'calc(100% - 20px)',
+            margin: '8px 10px 4px',
+            padding: '10px 12px',
+            background: 'rgba(255,255,255,0.04)',
+            border: 'none',
+            clipPath: CHUNKY.card,
+            fontSize: 11,
+            fontWeight: 700,
+            color: GREEN,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          {showAll ? 'Show less' : `Show all ${h2hMatches.length} matches`}
+        </button>
+      )}
 
       {/* ── Last 5 Matches per pair ───────────────────────────────── */}
       {(pair1Recent.length > 0 || pair2Recent.length > 0) && (
