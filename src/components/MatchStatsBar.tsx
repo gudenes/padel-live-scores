@@ -217,7 +217,9 @@ export function MatchStatsBar({
       <div style={trackOuter}>
         {kind === 'percentage' ? (
           <>
-            {/* Team 1 grows from center toward left edge */}
+            {/* Team 1 grows from center toward left edge — each bar gets
+                its own chunky clip so the edges look slanted even though
+                the bar is an interior slab rather than touching the track edge */}
             <div
               style={{
                 position: 'absolute',
@@ -227,6 +229,7 @@ export function MatchStatsBar({
                 width: `${t1PctFill}%`,
                 background: PAIR1_COLOR,
                 opacity: 0.85,
+                clipPath: CHUNKY_BAR,
               }}
             />
             {/* Team 2 grows from center toward right edge */}
@@ -239,6 +242,7 @@ export function MatchStatsBar({
                 width: `${t2PctFill}%`,
                 background: PAIR2_COLOR,
                 opacity: 0.85,
+                clipPath: CHUNKY_BAR,
               }}
             />
           </>
