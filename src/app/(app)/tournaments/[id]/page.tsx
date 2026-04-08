@@ -1464,7 +1464,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         <WhereToWatch />
       )}
 
-      {/* Entry List — hero rows for top seeds + compact for rest */}
+      {/* Player List — hero rows for top seeds + compact for rest */}
       <EntryList
         entries={drawEntries as any}
         playerMap={playerMap}

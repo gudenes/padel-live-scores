@@ -157,7 +157,7 @@ function PlayerLink({
   const baseStyle: React.CSSProperties = {
     fontSize: 12,
     fontWeight: 700,
-    color: muted ? 'rgba(255,255,255,0.75)' : '#fff',
+    color: '#fff',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -270,7 +270,7 @@ export function EntryList({ entries, playerMap, debutStatusMap, genderFilter }: 
         textTransform: 'uppercase', letterSpacing: 1,
         margin: '18px 0 10px',
       }}>
-        Entry List ({genderEntries.length} pairs)
+        Player List ({genderEntries.length} pairs)
       </div>
 
       {/* Filter chips */}
