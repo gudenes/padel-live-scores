@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Game, Set as MatchSet, parseSetScore } from '@/types/match'
+import { useInViewOnce } from '@/hooks/useInViewOnce'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface MomentumChartProps {
@@ -26,9 +27,9 @@ interface GameSummary {
   globalIndex: number
 }
 
-// ── Colors — same as live feed (amber / teal) ──────────────────────────────
-const P1_COLOR = '#F59E0B'
-const P2_COLOR = '#14B8A6'
+// ── Colors — brand identity (orange / yellow) ──────────────────────────────
+const P1_COLOR = '#FF6B2B'
+const P2_COLOR = '#FFD166'
 const LIVE_RED = '#FF4455'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -127,6 +128,8 @@ function MiniAvatar({ url, size = 32 }: { url: string | null; size?: number }) {
 // ── Main Component ──────────────────────────────────────────────────────────
 
 export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pair1Avatars, pair2Avatars, onGameClick }: MomentumChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inView = useInViewOnce(containerRef)
   const sortedSets = useMemo(() => [...sets].sort((a, b) => a.set_number - b.set_number), [sets])
   const allGames = useMemo(() => buildGameSummaries(sortedSets), [sortedSets])
 
@@ -186,7 +189,7 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
   const markerX = barsStartX + markerIdx * (barWidth + barGap) + barWidth + 1
 
   return (
-    <div style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)', padding: '12px 16px' }}>
+    <div ref={containerRef} style={{ background: 'var(--bg-card)', borderBottom: '0.5px solid var(--border-card)', padding: '12px 16px' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -223,12 +226,12 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
           <svg viewBox={`0 0 ${svgW} ${svgH}`} style={{ width: '100%', height: '100%' }} preserveAspectRatio="xMidYMid meet">
             <defs>
               <linearGradient id="barP1g" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={P1_COLOR} stopOpacity={0.85} />
-                <stop offset="100%" stopColor={P1_COLOR} stopOpacity={0.25} />
+                <stop offset="0%" stopColor={P1_COLOR} stopOpacity={1} />
+                <stop offset="100%" stopColor={P1_COLOR} stopOpacity={0.7} />
               </linearGradient>
               <linearGradient id="barP2g" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor={P2_COLOR} stopOpacity={0.85} />
-                <stop offset="100%" stopColor={P2_COLOR} stopOpacity={0.25} />
+                <stop offset="0%" stopColor={P2_COLOR} stopOpacity={1} />
+                <stop offset="100%" stopColor={P2_COLOR} stopOpacity={0.7} />
               </linearGradient>
               {/* Chunky clip-path for bars — slight angular cut */}
               <clipPath id="chunkyBarUp" clipPathUnits="objectBoundingBox">
@@ -285,16 +288,28 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
                     <rect
                       x={x} y={centerY - p1H} width={barWidth} height={p1H}
                       fill="url(#barP1g)"
-                      opacity={game.isCurrent ? 0.5 : 0.6}
+                      opacity={game.isCurrent ? 0.75 : 0.9}
                       clipPath="url(#chunkyBarUp)"
+                      style={{
+                        transformBox: 'fill-box',
+                        transformOrigin: 'bottom center',
+                        transform: inView ? 'scaleY(1)' : 'scaleY(0)',
+                        transition: `transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 50}ms`,
+                      }}
                     />
                   )}
                   {game.p2Points > 0 && (
                     <rect
                       x={x} y={centerY} width={barWidth} height={p2H}
                       fill="url(#barP2g)"
-                      opacity={game.isCurrent ? 0.5 : 0.6}
+                      opacity={game.isCurrent ? 0.75 : 0.9}
                       clipPath="url(#chunkyBarDown)"
+                      style={{
+                        transformBox: 'fill-box',
+                        transformOrigin: 'top center',
+                        transform: inView ? 'scaleY(1)' : 'scaleY(0)',
+                        transition: `transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 50}ms`,
+                      }}
                     />
                   )}
                 </g>

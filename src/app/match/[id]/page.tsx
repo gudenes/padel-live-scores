@@ -1415,8 +1415,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
 
   return (
     <div>
-      {/* Fixed summary header */}
-      <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px 12px', position: 'sticky', top: 95, zIndex: 8 }}>
+      {/* Summary header */}
+      <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ flex: 1, textAlign: 'center' }}>
             <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'monospace', color: PAIR1_COLOR, lineHeight: 1 }}>{p1Wins}</div>
