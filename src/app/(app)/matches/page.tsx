@@ -525,17 +525,34 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
         </div>
       )}
       {matchCount > 10 && viewState !== 'collapsed' && (
-        <button
-          onClick={cycleState}
-          style={{
-            width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-            padding: '8px 0 6px', fontSize: 11, fontWeight: 700,
-            color: GREEN, textAlign: 'center',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          {viewState === 'expanded' ? 'Show less' : `Show all ${matchCount} matches`}
-        </button>
+        tab === 'results' && tournament?.id ? (
+          <Link
+            href={`/tournaments/${tournament.id}`}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '8px 0 6px',
+              fontSize: 11, fontWeight: 700,
+              color: GREEN, textAlign: 'center',
+              textDecoration: 'none',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            See all {matchCount} matches →
+          </Link>
+        ) : (
+          <button
+            onClick={cycleState}
+            style={{
+              width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+              padding: '8px 0 6px', fontSize: 11, fontWeight: 700,
+              color: GREEN, textAlign: 'center',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {viewState === 'expanded' ? 'Show less' : `Show all ${matchCount} matches`}
+          </button>
+        )
       )}
     </div>
   )
