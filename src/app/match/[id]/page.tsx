@@ -15,6 +15,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
+import { MatchStatsView } from '@/components/MatchStatsView'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
@@ -828,7 +829,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </div>
           <div style={{ background: BG_CARD, minHeight: 300 }}>
             {subTab === 'recap' && isFinished && (
-              <FinishedStatsSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+              <MatchStatsView matchId={match.id} />
             )}
             {subTab === 'live' && (
               <LiveFeedTab match={match} pair1Label={pair1Label} pair2Label={pair2Label} isLive={isLive} />
