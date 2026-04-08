@@ -1335,30 +1335,6 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     return { round, date: roundDates[round] ?? '', count }
   })
 
-  // Top seeds
-  const seededTeams: { rank: number; names: string; flag: string }[] = []
-  const seenPairs = new Set<string>()
-  for (const m of genderMatches) {
-    for (const pairKey of [['pair1_player1', 'pair1_player2'], ['pair2_player1', 'pair2_player2']]) {
-      const p1 = (m as any)[pairKey[0]]
-      const p2 = (m as any)[pairKey[1]]
-      if (!p1?.name || !p2?.name) continue
-      const key = [p1.name, p2.name].sort().join('/')
-      if (seenPairs.has(key)) continue
-      seenPairs.add(key)
-      const bestRank = Math.min(p1.ranking || 9999, p2.ranking || 9999)
-      if (bestRank < 9999) {
-        seededTeams.push({
-          rank: bestRank,
-          names: `${toShortName(p1.name)} / ${toShortName(p2.name)}`,
-          flag: countryFlag(p1.country) || countryFlag(p2.country) || '',
-        })
-      }
-    }
-  }
-  seededTeams.sort((a, b) => a.rank - b.rank)
-  const topSeeds = seededTeams.slice(0, 8)
-
   const StatCard = ({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) => (
     <div style={{
       background: BG_CARD,
@@ -1486,37 +1462,6 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           data we sync from premierpadel.com only covers Premier events */}
       {tournament?.level && ['p1', 'p2', 'major', 'finals'].includes(tournament.level) && (
         <WhereToWatch />
-      )}
-
-      {/* Top seeds */}
-      {topSeeds.length > 0 && (
-        <>
-          <SectionHeader label="Top Seeds" />
-          <div style={{
-            background: BG_CARD,
-            clipPath: CHUNKY.card,
-            border: `1px solid ${BORDER}`,
-            padding: '4px 14px', marginBottom: 16,
-          }}>
-            {topSeeds.map((seed, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
-                borderBottom: i < topSeeds.length - 1 ? `0.5px solid ${BORDER}` : 'none',
-              }}>
-                <span style={{
-                  fontSize: 11, fontWeight: 800,
-                  color: i < 3 ? GREEN : MUTED,
-                  width: 20, textAlign: 'center',
-                }}>
-                  {i + 1}
-                </span>
-                <span style={{ fontSize: 13, flexShrink: 0 }}>{seed.flag}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#fff' }}>{seed.names}</span>
-                <span style={{ fontSize: 10, color: MUTED }}>#{seed.rank}</span>
-              </div>
-            ))}
-          </div>
-        </>
       )}
 
       {/* Entry List — hero rows for top seeds + compact for rest */}

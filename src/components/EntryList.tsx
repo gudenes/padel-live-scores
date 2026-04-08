@@ -236,9 +236,13 @@ export function EntryList({ entries, playerMap, debutStatusMap, genderFilter }: 
 
   if (filtered.length === 0 && filter === 'all') return null
 
-  // Split hero (seeds 1–8 or draw_position ≤ 8 when seed missing) vs compact (rest)
-  const isHero = (e: DrawEntry) => (e.seed != null && e.seed <= 8) || (e.seed == null && e.draw_position <= 8)
-  const heroEntries = filtered.filter(isHero)
+  // Split hero vs compact. Hero = seeded pairs with seed ≤ 8. Seeds are
+  // assigned to specific draw positions across the bracket for balance,
+  // so we can't fall back to draw_position — that would pick up LL/WC
+  // entries that happen to sit at the top of the draw. Hero section is
+  // sorted by seed so they display 1 → 8 regardless of draw order.
+  const isHero = (e: DrawEntry) => e.seed != null && e.seed <= 8
+  const heroEntries = filtered.filter(isHero).sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
   const compactEntries = filtered.filter(e => !isHero(e))
 
   // Chip click: toggle or switch
