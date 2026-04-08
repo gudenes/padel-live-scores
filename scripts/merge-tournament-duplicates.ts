@@ -28,6 +28,7 @@
 import { createClient } from '@supabase/supabase-js'
 import * as fs from 'fs'
 import * as path from 'path'
+import { tokenize } from '../src/lib/source-matcher.ts'
 
 // ── env loader ────────────────────────────────────────────────
 function loadEnv() {
@@ -57,16 +58,13 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 
 // ── helpers ────────────────────────────────────────────────────
-function stripAccents(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-}
-
+// normalizeName produces a space-separated canonical string from the
+// tournament name (diacritic-free, year-stripped, noise-filtered).
+// It is a thin wrapper around tokenize() in source-matcher.ts to keep
+// the groupKey logic identical to the original while sharing the
+// canonical tokenizer with the discovery cron.
 function normalizeName(n: string): string {
-  return stripAccents(n)
-    .toLowerCase()
-    .replace(/\b(19|20)\d{2}\b/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
+  return tokenize(n).join(' ')
 }
 
 function groupKey(name: string, startsAt: string | null): string {

@@ -107,17 +107,11 @@ export async function POST(request: Request) {
   const recipientReason = new Map<string, RecipientReason>()
 
   // Path 1: bookmarkers of the match itself
-  const bookmarkRes = await supabase
+  const { data: bookmarks } = await supabase
     .from('user_bookmarks')
     .select('user_id')
     .eq('bookmark_type', 'match')
     .eq('target_id', matchId)
-
-  if (bookmarkRes.error) {
-    console.error('[Push] bookmarks query error:', bookmarkRes.error)
-  }
-  const bookmarks = bookmarkRes.data
-  console.log(`[Push] match=${matchId} bookmarks query: ${bookmarks?.length ?? 0} rows, error=${bookmarkRes.error?.message ?? 'none'}`)
 
   for (const b of bookmarks ?? []) {
     if (b.user_id) recipientReason.set(b.user_id as string, { kind: 'bookmark' })
@@ -146,22 +140,12 @@ export async function POST(request: Request) {
     playerNameById.set(match.pair2_player2.id, lastName(match.pair2_player2.name))
   }
 
-  let playerFollowsCount = 0
-  let playerFollowsError: string | null = null
   if (playerIds.length > 0) {
-    const followsRes = await supabase
+    const { data: playerFollows } = await supabase
       .from('user_bookmarks')
       .select('user_id, target_id')
       .eq('bookmark_type', 'player')
       .in('target_id', playerIds)
-
-    if (followsRes.error) {
-      console.error('[Push] player follows query error:', followsRes.error)
-      playerFollowsError = followsRes.error.message
-    }
-    const playerFollows = followsRes.data
-    playerFollowsCount = playerFollows?.length ?? 0
-    console.log(`[Push] match=${matchId} player follows query: ${playerFollowsCount} rows for playerIds=[${playerIds.join(',')}], error=${playerFollowsError ?? 'none'}`)
 
     for (const f of playerFollows ?? []) {
       const userId = f.user_id as string | null
@@ -178,32 +162,7 @@ export async function POST(request: Request) {
   }
 
   if (recipientReason.size === 0) {
-    return Response.json({
-      ok: true,
-      sent: 0,
-      reason: 'no recipients',
-      debug: {
-        bookmarks_count: bookmarks?.length ?? 0,
-        bookmarks_error: bookmarkRes.error?.message ?? null,
-        player_follows_count: playerFollowsCount,
-        player_follows_error: playerFollowsError,
-        player_ids: playerIds,
-        supabase_url_host: (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/^https?:\/\//, '').split('.')[0],
-        service_key_len: (process.env.SUPABASE_SERVICE_KEY ?? '').length,
-        service_key_trimmed_len: (process.env.SUPABASE_SERVICE_KEY ?? '').trim().length,
-        service_key_head: (process.env.SUPABASE_SERVICE_KEY ?? '').slice(0, 8),
-        service_key_tail: (process.env.SUPABASE_SERVICE_KEY ?? '').slice(-8),
-        service_key_role: (() => {
-          try {
-            const k = (process.env.SUPABASE_SERVICE_KEY ?? '').trim()
-            const payload = k.split('.')[1] ?? ''
-            const json = Buffer.from(payload, 'base64').toString('utf8')
-            const obj = JSON.parse(json)
-            return obj.role ?? null
-          } catch { return 'parse_error' }
-        })(),
-      },
-    })
+    return Response.json({ ok: true, sent: 0, reason: 'no recipients' })
   }
 
   // ── Fetch subscriptions for all unique recipients ───────────

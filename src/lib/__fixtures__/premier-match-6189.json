@@ -1,0 +1,920 @@
+{
+    "status": 1,
+    "data": {
+        "match_score": {
+            "tournaments_match_id": 6189,
+            "tournaments_id": 261,
+            "tournament_name": "MIAMI P1",
+            "court_name": "COURT JUAN & BELA",
+            "date": "2026-03-28",
+            "start_time": "12:00",
+            "day": "7",
+            "matchId": "MD002",
+            "draw_type": "MD",
+            "team1_player_name": "Tapia",
+            "team1_player_countries_image": "https://d1txpmnu5q46gr.cloudfront.net/uploads/default/flags/128x128/ar.png",
+            "team1_player_image": "https://d1txpmnu5q46gr.cloudfront.net/uploads/images/player/Agustin_Tapia_4.png",
+            "team1_partner_name": "Coello",
+            "team1_partner_countries_image": "https://d1txpmnu5q46gr.cloudfront.net/uploads/default/flags/128x128/es.png",
+            "team1_partner_image": "https://d1txpmnu5q46gr.cloudfront.net/uploads/images/player/Arturo_Coello_6.png",
+            "team2_player_name": "Lebron",
+            "team2_player_countries_image": "https://d1txpmnu5q46gr.cloudfront.net/uploads/default/flags/128x128/es.png",
+            "team2_player_image": "https://d1txpmnu5q46gr.cloudfront.net/uploads/images/player/Juan_Lebron_2.png",
+            "team2_partner_player_name": "Augsburger",
+            "team2_partner_player_countries_image": "https://d1txpmnu5q46gr.cloudfront.net/uploads/default/flags/128x128/ar.png",
+            "team2_partner_player_image": "https://d1txpmnu5q46gr.cloudfront.net/uploads/default/user-placeholder.png",
+            "is_bye": "No",
+            "round": "2",
+            "round_name": "Men SF",
+            "winner_id": "1",
+            "status": "F",
+            "server": "0",
+            "header": "Not before 4:00 PM",
+            "to_be_finished": "",
+            "team1_score": {
+                "set1": 5,
+                "set2": 6,
+                "set3": 6,
+                "set4": null,
+                "set5": null,
+                "tie1": -1,
+                "tie2": -1,
+                "tie3": -1,
+                "tie4": null,
+                "tie5": null,
+                "points": null
+            },
+            "team2_score": {
+                "set1": 7,
+                "set2": 3,
+                "set3": 2,
+                "set4": null,
+                "set5": null,
+                "tie1": -1,
+                "tie2": -1,
+                "tie3": -1,
+                "tie4": null,
+                "tie5": null,
+                "points": null
+            },
+            "live_match_url": "https://premierpadel.com/en/wheretowatch",
+            "match_centre_powered_by_image": "",
+            "created_at": "2026-03-28 00:00:03",
+            "updated_at": "2026-03-28 23:59:03"
+        },
+        "match_state": [
+            {
+                "title": "Match",
+                "service": [
+                    {
+                        "title": "Aces",
+                        "team_1": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Double Faults",
+                        "team_1": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "First Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 58,
+                            "played": 75,
+                            "percentage": 77,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 55,
+                            "played": 94,
+                            "percentage": 59,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Second Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 2,
+                            "played": 5,
+                            "percentage": 40,
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 3,
+                            "played": 5,
+                            "percentage": 60,
+                            "is_winner": "Yes"
+                        }
+                    },
+                    {
+                        "title": "Services Games Played",
+                        "team_1": {
+                            "title": "15",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "14",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ],
+                "return": [
+                    {
+                        "title": "First Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 39,
+                            "played": 94,
+                            "percentage": 41,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 17,
+                            "played": 75,
+                            "percentage": 23,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Second Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 2,
+                            "played": 5,
+                            "percentage": 40,
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 3,
+                            "played": 5,
+                            "percentage": 60,
+                            "is_winner": "Yes"
+                        }
+                    },
+                    {
+                        "title": "Return Games Played",
+                        "team_1": {
+                            "title": "14",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "15",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "Yes"
+                        }
+                    }
+                ],
+                "total_points": [
+                    {
+                        "title": "Total Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 101,
+                            "played": 179,
+                            "percentage": 56,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 78,
+                            "played": 179,
+                            "percentage": 44,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Total Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 60,
+                            "played": 80,
+                            "percentage": 75,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 58,
+                            "played": 99,
+                            "percentage": 59,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Total Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 41,
+                            "played": 99,
+                            "percentage": 41,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 20,
+                            "played": 80,
+                            "percentage": 25,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Longest Points Won Streak",
+                        "team_1": {
+                            "title": "6",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "5",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ]
+            },
+            {
+                "title": "set 1",
+                "service": [
+                    {
+                        "title": "Aces",
+                        "team_1": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Double Faults",
+                        "team_1": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "First Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 23,
+                            "played": 31,
+                            "percentage": 74,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 25,
+                            "played": 39,
+                            "percentage": 64,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Second Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 0,
+                            "played": 2,
+                            "percentage": 0,
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 2,
+                            "played": 3,
+                            "percentage": 67,
+                            "is_winner": "Yes"
+                        }
+                    },
+                    {
+                        "title": "Services Games Played",
+                        "team_1": {
+                            "title": "6",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "6",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ],
+                "return": [
+                    {
+                        "title": "First Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 14,
+                            "played": 39,
+                            "percentage": 36,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 8,
+                            "played": 31,
+                            "percentage": 26,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Second Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 1,
+                            "played": 3,
+                            "percentage": 33,
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 2,
+                            "played": 2,
+                            "percentage": 100,
+                            "is_winner": "Yes"
+                        }
+                    },
+                    {
+                        "title": "Return Games Played",
+                        "team_1": {
+                            "title": "6",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "6",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ],
+                "total_points": [
+                    {
+                        "title": "Total Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 38,
+                            "played": 75,
+                            "percentage": 51,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 37,
+                            "played": 75,
+                            "percentage": 49,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Total Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 23,
+                            "played": 33,
+                            "percentage": 70,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 27,
+                            "played": 42,
+                            "percentage": 64,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Total Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 15,
+                            "played": 42,
+                            "percentage": 36,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 10,
+                            "played": 33,
+                            "percentage": 30,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Longest Points Won Streak",
+                        "team_1": {
+                            "title": "4",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "5",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "Yes"
+                        }
+                    }
+                ]
+            },
+            {
+                "title": "set 2",
+                "service": [
+                    {
+                        "title": "Aces",
+                        "team_1": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Double Faults",
+                        "team_1": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "First Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 21,
+                            "played": 27,
+                            "percentage": 78,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 16,
+                            "played": 27,
+                            "percentage": 59,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Second Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 0,
+                            "played": 1,
+                            "percentage": 0,
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 0,
+                            "played": 0,
+                            "percentage": 0,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Services Games Played",
+                        "team_1": {
+                            "title": "5",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "4",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ],
+                "return": [
+                    {
+                        "title": "First Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 11,
+                            "played": 27,
+                            "percentage": 41,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 6,
+                            "played": 27,
+                            "percentage": 22,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Second Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 0,
+                            "played": 0,
+                            "percentage": 0,
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 1,
+                            "played": 1,
+                            "percentage": 100,
+                            "is_winner": "Yes"
+                        }
+                    },
+                    {
+                        "title": "Return Games Played",
+                        "team_1": {
+                            "title": "4",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "5",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "Yes"
+                        }
+                    }
+                ],
+                "total_points": [
+                    {
+                        "title": "Total Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 32,
+                            "played": 55,
+                            "percentage": 58,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 23,
+                            "played": 55,
+                            "percentage": 42,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Total Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 21,
+                            "played": 28,
+                            "percentage": 75,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 16,
+                            "played": 27,
+                            "percentage": 59,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Total Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 11,
+                            "played": 27,
+                            "percentage": 41,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 7,
+                            "played": 28,
+                            "percentage": 25,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Longest Points Won Streak",
+                        "team_1": {
+                            "title": "5",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "3",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ]
+            },
+            {
+                "title": "set 3",
+                "service": [
+                    {
+                        "title": "Aces",
+                        "team_1": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Double Faults",
+                        "team_1": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "0",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "First Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 14,
+                            "played": 17,
+                            "percentage": 82,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 14,
+                            "played": 28,
+                            "percentage": 50,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Second Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 2,
+                            "played": 2,
+                            "percentage": 100,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 1,
+                            "played": 2,
+                            "percentage": 50,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Services Games Played",
+                        "team_1": {
+                            "title": "4",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "4",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ],
+                "return": [
+                    {
+                        "title": "First Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 14,
+                            "played": 28,
+                            "percentage": 50,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 3,
+                            "played": 17,
+                            "percentage": 18,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Second Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 1,
+                            "played": 2,
+                            "percentage": 50,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 0,
+                            "played": 2,
+                            "percentage": 0,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Return Games Played",
+                        "team_1": {
+                            "title": "4",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        },
+                        "team_2": {
+                            "title": "4",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ],
+                "total_points": [
+                    {
+                        "title": "Total Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 31,
+                            "played": 49,
+                            "percentage": 63,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 18,
+                            "played": 49,
+                            "percentage": 37,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Total Serve Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 16,
+                            "played": 19,
+                            "percentage": 84,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 15,
+                            "played": 30,
+                            "percentage": 50,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Total Return Points Won",
+                        "team_1": {
+                            "title": "",
+                            "won": 15,
+                            "played": 30,
+                            "percentage": 50,
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "",
+                            "won": 3,
+                            "played": 19,
+                            "percentage": 16,
+                            "is_winner": "No"
+                        }
+                    },
+                    {
+                        "title": "Longest Points Won Streak",
+                        "team_1": {
+                            "title": "6",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "Yes"
+                        },
+                        "team_2": {
+                            "title": "4",
+                            "won": "",
+                            "played": "",
+                            "percentage": "",
+                            "is_winner": "No"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
