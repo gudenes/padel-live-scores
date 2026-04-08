@@ -32,6 +32,157 @@ function WinRateBar({ wr, color, rowIndex }: { wr: number; color: string; rowInd
   )
 }
 
+// Last 10 sparkline single bar (vertical, grows from bottom).
+// Extracted into its own component so each iteration can have its own
+// IntersectionObserver via useInViewOnce.
+function Last10SparkBar({
+  won,
+  isLatest,
+  rowIndex,
+  onClick,
+  title,
+  green,
+  red,
+  orange,
+}: {
+  won: boolean
+  isLatest: boolean
+  rowIndex: number
+  onClick: (e: React.MouseEvent) => void
+  title: string
+  green: string
+  red: string
+  orange: string
+}) {
+  const barRef = useRef<HTMLDivElement>(null)
+  const inView = useInViewOnce(barRef)
+  return (
+    <div
+      ref={barRef}
+      onClick={onClick}
+      title={title}
+      style={{
+        flex: 1,
+        position: 'relative',
+        height: won ? '100%' : '50%',
+        cursor: 'pointer',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: won
+            ? `linear-gradient(to top, ${green}, rgba(126,211,33,0.4))`
+            : `linear-gradient(to top, ${red}, rgba(255,70,85,0.3))`,
+          clipPath: 'polygon(0% 12%, 100% 0%, 100% 100%, 0% 100%)',
+          outline: isLatest ? `1.5px solid ${orange}` : 'none',
+          outlineOffset: isLatest ? 1 : 0,
+          transformOrigin: 'bottom center',
+          transform: inView ? 'scaleY(1)' : 'scaleY(0)',
+          transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
+        }}
+      />
+      {isLatest && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -7,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontSize: 7,
+            fontWeight: 800,
+            color: orange,
+            textTransform: 'uppercase',
+            letterSpacing: 0.3,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ▼
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Monthly performance chart bar (Season tab). Two stacked fills:
+// the loss area (red, bottom-up full height) and the wins overlay
+// (green, bottom-up to wrHeight%). Both grow from the bottom edge
+// when the chart enters the viewport.
+function MonthlyBar({
+  total,
+  height,
+  wrHeight,
+  monthLabel,
+  rowIndex,
+  red,
+  green,
+}: {
+  total: number
+  height: number
+  wrHeight: number
+  monthLabel: string
+  rowIndex: number
+  red: string
+  green: string
+}) {
+  const barRef = useRef<HTMLDivElement>(null)
+  const inView = useInViewOnce(barRef)
+  const animationStyle: React.CSSProperties = {
+    transformOrigin: 'bottom center',
+    transform: inView ? 'scaleY(1)' : 'scaleY(0)',
+    transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
+  }
+  return (
+    <div
+      ref={barRef}
+      style={{
+        flex: 1,
+        position: 'relative',
+        height: `${height}%`,
+        minHeight: total === 0 ? 4 : undefined,
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: total === 0 ? 'rgba(255,255,255,0.05)' : red,
+          clipPath: 'polygon(0% 8%, 100% 0%, 100% 100%, 0% 100%)',
+          ...animationStyle,
+        }}
+      />
+      {total > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: `${wrHeight}%`,
+            background: green,
+            clipPath: 'polygon(0% 8%, 100% 0%, 100% 100%, 0% 100%)',
+            ...animationStyle,
+          }}
+        />
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: -18,
+          left: 0,
+          right: 0,
+          textAlign: 'center',
+          fontSize: 8,
+          color: '#6B7280',
+        }}
+      >
+        {monthLabel}
+      </div>
+    </div>
+  )
+}
+
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
 const GREEN_DIM = 'rgba(126,211,33,0.15)'
@@ -718,37 +869,19 @@ function OverviewTab({
                 const roles = resolveMatchRoles(m, playerId)
                 const won = roles.won
                 const isLatest = i === ordered.length - 1
+                const title = `${won ? 'W' : 'L'} vs ${[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.name)).join(' / ')}${m.tournament?.name ? ' · ' + titleCase(m.tournament.name) : ''}`
                 return (
-                  <div
+                  <Last10SparkBar
                     key={m.id}
+                    won={won}
+                    isLatest={isLatest}
+                    rowIndex={i}
+                    title={title}
                     onClick={(e) => { e.stopPropagation(); router.push(`/match/${m.id}`) }}
-                    title={`${won ? 'W' : 'L'} vs ${[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.name)).join(' / ')}${m.tournament?.name ? ' · ' + titleCase(m.tournament.name) : ''}`}
-                    style={{
-                      flex: 1, position: 'relative', height: won ? '100%' : '50%',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{
-                      position: 'absolute', inset: 0,
-                      background: won
-                        ? `linear-gradient(to top, ${GREEN}, rgba(126,211,33,0.4))`
-                        : `linear-gradient(to top, ${LIVE_RED}, rgba(255,70,85,0.3))`,
-                      clipPath: 'polygon(0% 12%, 100% 0%, 100% 100%, 0% 100%)',
-                      outline: isLatest ? `1.5px solid ${ORANGE}` : 'none',
-                      outlineOffset: isLatest ? 1 : 0,
-                    }} />
-                    {isLatest && (
-                      <div style={{
-                        position: 'absolute',
-                        top: -7, left: '50%', transform: 'translateX(-50%)',
-                        fontSize: 7, fontWeight: 800, color: ORANGE,
-                        textTransform: 'uppercase', letterSpacing: 0.3,
-                        whiteSpace: 'nowrap',
-                      }}>
-                        ▼
-                      </div>
-                    )}
-                  </div>
+                    green={GREEN}
+                    red={LIVE_RED}
+                    orange={ORANGE}
+                  />
                 )
               })}
             </div>
@@ -967,27 +1100,16 @@ function SeasonTab({
             const height = total === 0 ? 4 : (total / maxTotal) * 100
             const wrHeight = total === 0 ? 0 : (mo.wins / total) * 100
             return (
-              <div key={i} style={{ flex: 1, position: 'relative', height: `${height}%`, minHeight: total === 0 ? 4 : undefined }}>
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  background: total === 0 ? 'rgba(255,255,255,0.05)' : LIVE_RED,
-                  clipPath: 'polygon(0% 8%, 100% 0%, 100% 100%, 0% 100%)',
-                }} />
-                {total > 0 && (
-                  <div style={{
-                    position: 'absolute', left: 0, right: 0, bottom: 0,
-                    height: `${wrHeight}%`,
-                    background: GREEN,
-                    clipPath: 'polygon(0% 8%, 100% 0%, 100% 100%, 0% 100%)',
-                  }} />
-                )}
-                <div style={{
-                  position: 'absolute', bottom: -18, left: 0, right: 0,
-                  textAlign: 'center', fontSize: 8, color: MUTED,
-                }}>
-                  {months[i]}
-                </div>
-              </div>
+              <MonthlyBar
+                key={i}
+                total={total}
+                height={height}
+                wrHeight={wrHeight}
+                monthLabel={months[i]}
+                rowIndex={i}
+                red={LIVE_RED}
+                green={GREEN}
+              />
             )
           })}
         </div>
