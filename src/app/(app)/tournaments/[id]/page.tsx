@@ -1309,7 +1309,13 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     return () => { cancelled = true }
   }, [tournament?.id, tournament?.name, tournament?.level, tournament?.starts_at, genderFilter])
 
-  // Count unique teams
+  // Entries for the current gender — used as a fallback data source for
+  // upcoming tournaments that have no matches in the DB yet.
+  const genderEntries = drawEntries.filter((d: any) => d.category === genderFilter)
+
+  // Count unique teams. Prefer match-derived data (covers all categories
+  // of a played tournament); fall back to the entry list size for upcoming
+  // tournaments that haven't started.
   const teamSet = new Set<string>()
   for (const m of genderMatches) {
     const p1 = [(m as any).pair1_player1?.name, (m as any).pair1_player2?.name].filter(Boolean).sort().join('/')
@@ -1317,9 +1323,10 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     if (p1) teamSet.add(p1)
     if (p2) teamSet.add(p2)
   }
-  const totalTeams = teamSet.size
+  const totalTeams = teamSet.size || genderEntries.length
 
-  // Count unique countries
+  // Count unique countries. Same fallback strategy — entries carry the
+  // player country codes, so upcoming tournaments still show real values.
   const countrySet = new Set<string>()
   for (const m of genderMatches) {
     for (const key of ['pair1_player1', 'pair1_player2', 'pair2_player1', 'pair2_player2'] as const) {
@@ -1327,7 +1334,25 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       if (country) countrySet.add(country)
     }
   }
+  if (countrySet.size === 0) {
+    for (const e of genderEntries) {
+      if (e.player1_country) countrySet.add(e.player1_country)
+      if (e.player2_country) countrySet.add(e.player2_country)
+    }
+  }
   const totalCountries = countrySet.size
+
+  // Total match count — prefer the live match count; otherwise compute
+  // from the tournament's main-draw size (single-elimination → N-1 matches)
+  // so upcoming events surface the right expected number.
+  const expectedMatches = (() => {
+    const drawSize = (tournament as any)?.draw_size_md as number | undefined
+    if (drawSize && drawSize > 0) return drawSize - 1
+    // Fall back to entry count when draw size isn't set — also N-1
+    if (genderEntries.length > 0) return Math.max(0, genderEntries.length - 1)
+    return 0
+  })()
+  const displayMatches = totalMatches || expectedMatches
 
   // Schedule
   const schedule = availableRounds.map(round => {
@@ -1398,7 +1423,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
         <StatCard value={totalTeams || (tournament?.draw_size_md ? `${tournament.draw_size_md} pairs` : '\u2014')} label="Teams" accent />
-        <StatCard value={totalMatches || '\u2014'} label="Matches" />
+        <StatCard value={displayMatches || '\u2014'} label="Matches" />
         <StatCard value={totalCountries || '\u2014'} label="Countries" />
         <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label="Prize Money" />
       </div>
