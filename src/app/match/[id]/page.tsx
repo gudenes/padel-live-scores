@@ -32,12 +32,12 @@ const MEN_BLUE = '#4A9EFF'
 const WOMEN_PURPLE = '#D966FF'
 
 // ── Pair identity colors ────────────────────────────────────────────────────
-const PAIR1_COLOR = '#F59E0B'         // amber
-const PAIR2_COLOR = '#14B8A6'         // teal
-const PAIR1_BG    = 'rgba(245,158,11,0.08)'
-const PAIR2_BG    = 'rgba(20,184,166,0.08)'
-const PAIR1_BORDER = 'rgba(245,158,11,0.28)'
-const PAIR2_BORDER = 'rgba(20,184,166,0.28)'
+const PAIR1_COLOR = '#FF6B2B'         // brand orange
+const PAIR2_COLOR = '#FFD166'         // brand yellow
+const PAIR1_BG    = 'rgba(255,107,43,0.08)'
+const PAIR2_BG    = 'rgba(255,209,102,0.08)'
+const PAIR1_BORDER = 'rgba(255,107,43,0.28)'
+const PAIR2_BORDER = 'rgba(255,209,102,0.28)'
 
 // ── Chunky clip-path presets ────────────────────────────────────────────────
 const CHUNKY = {
@@ -1429,15 +1429,6 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
           </div>
         </div>
       </div>
-
-      {/* Column headers */}
-      {h2hMatches.length > 0 && (
-        <div style={{ display: 'flex', padding: '7px 16px', background: BG_CARD, borderBottom: `0.5px solid ${BORDER}` }}>
-          <span style={{ flex: 1, fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tournament · Round</span>
-          <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: 48 }}>Score</span>
-          <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px', width: 28, textAlign: 'center' }}>W/L</span>
-        </div>
-      )}
 
       {/* Match list */}
       {h2hMatches.length === 0 && !h2hLoading && (
