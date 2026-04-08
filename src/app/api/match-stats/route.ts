@@ -1,53 +1,91 @@
 // src/app/api/match-stats/route.ts
+//
+// Public GET endpoint for the Stats tab on match detail.
+// Returns { stats: MatchStatsRow[] | null, status }.
+//
+// Status values:
+//   'upcoming'     — match hasn't started yet
+//   'no_mapping'   — no Premier mapping exists (probably FIP/unsupported source)
+//   'pending_sync' — mapping exists but stats not yet synced
+//   'ok'           — stats present
 
-const PADELAPI = 'https://padelapi.org/api'
+import { createClient } from '@supabase/supabase-js'
 
-function apiHeaders() {
-  return {
-    Authorization: `Bearer ${process.env.PADELAPI_TOKEN}`,
-    'Content-Type': 'application/json',
-  }
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!,
+)
+
+type StatsStatus = 'ok' | 'no_mapping' | 'pending_sync' | 'upcoming'
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const externalId = searchParams.get('id')
-
-  if (!externalId) {
-    return Response.json({ error: 'Missing id' }, { status: 400 })
+  const url = new URL(request.url)
+  const matchId = url.searchParams.get('matchId')
+  if (!matchId) {
+    return Response.json({ error: 'Missing matchId' }, { status: 400 })
   }
 
-  try {
-    const res = await fetch(`${PADELAPI}/matches/${externalId}/stats`, {
-      headers: apiHeaders(),
-      next: { revalidate: 300 }, // cache 5 mins
-    })
+  // Fetch match status
+  const { data: match, error: matchErr } = await supabase
+    .from('matches')
+    .select('id, status')
+    .eq('id', matchId)
+    .maybeSingle()
 
-    // Check rate limit headers and warn in logs
-    const remaining = res.headers.get('X-RateLimit-Remaining')
-    const resetAt = res.headers.get('X-RateLimit-Reset')
-    if (remaining !== null && parseInt(remaining) < 5) {
-      console.warn(`[match-stats] Rate limit low — ${remaining} requests remaining, resets at ${resetAt}`)
-    }
-
-    // Handle rate limit explicitly — return 429 so the UI can handle it gracefully
-    if (res.status === 429) {
-      const retryAfter = res.headers.get('Retry-After') ?? '60'
-      console.warn(`[match-stats] Rate limited — retry after ${retryAfter}s`)
-      return Response.json(
-        { error: 'Rate limited', retryAfter: parseInt(retryAfter) },
-        { status: 429, headers: { 'Retry-After': retryAfter } }
-      )
-    }
-
-    if (!res.ok) {
-      return Response.json({ error: 'Stats not available' }, { status: 404 })
-    }
-
-    const data = await res.json()
-    return Response.json(data)
-  } catch (error) {
-    console.error('[match-stats] Error:', error)
-    return Response.json({ error: 'Failed to fetch stats' }, { status: 500 })
+  if (matchErr) {
+    return Response.json({ error: matchErr.message }, { status: 500 })
   }
+  if (!match) {
+    return Response.json({ error: 'Match not found' }, { status: 404 })
+  }
+
+  // Upcoming match? Short-circuit.
+  if (match.status === 'scheduled') {
+    return Response.json(
+      { stats: null, status: 'upcoming' as StatsStatus },
+      { headers: { 'cache-control': 'public, max-age=30, stale-while-revalidate=300' } },
+    )
+  }
+
+  // Does a Premier mapping exist?
+  const { data: mapping } = await supabase
+    .from('entity_external_ids')
+    .select('external_id')
+    .eq('entity_type', 'match')
+    .eq('entity_id', matchId)
+    .eq('source', 'premierpadel')
+    .maybeSingle()
+
+  if (!mapping) {
+    return Response.json(
+      { stats: null, status: 'no_mapping' as StatsStatus },
+      { headers: { 'cache-control': 'public, max-age=30, stale-while-revalidate=300' } },
+    )
+  }
+
+  // Fetch the stats rows
+  const { data: rows, error } = await supabase
+    .from('match_stats')
+    .select('*')
+    .eq('match_id', matchId)
+    .order('set_number', { ascending: true })
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 })
+  }
+
+  if (!rows || rows.length === 0) {
+    return Response.json(
+      { stats: null, status: 'pending_sync' as StatsStatus },
+      { headers: { 'cache-control': 'public, max-age=30, stale-while-revalidate=300' } },
+    )
+  }
+
+  // Strip raw_payload to keep response small
+  const stats = rows.map(({ raw_payload: _raw, ...rest }) => rest)
+
+  return Response.json(
+    { stats, status: 'ok' as StatsStatus },
+    { headers: { 'cache-control': 'public, max-age=30, stale-while-revalidate=300' } },
+  )
 }
