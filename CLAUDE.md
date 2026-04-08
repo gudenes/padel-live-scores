@@ -113,6 +113,21 @@ entity_external_ids (
 
 Adding a new source = zero schema changes.
 
+### Premier Padel source (stats only)
+
+`premierpadel` is a tertiary source added in 2026-04 that provides per-set
+service/return/points match statistics. It's scoped to `match.stats` only —
+Premier doesn't own any canonical fields like names or rankings.
+
+- **Storage:** `entity_external_ids` sidecar (no hot column)
+- **Table:** `match_stats` (composite PK `(match_id, set_number)`)
+- **Queue:** `match_stats_unresolved` for manual linking
+- **Crons:** `/api/cron/premier-discovery` (weekly) + `/api/cron/premier-stats` (hourly)
+- **UI:** `<MatchStatsView>` on the match detail Stats tab
+- **Launch:** 2026-04-13 (NewGiza P2)
+
+See `docs/superpowers/specs/2026-04-08-premier-stats-2026-backfill-design.md` and `docs/superpowers/plans/2026-04-08-premier-stats-2026-backfill.md` for design + implementation.
+
 ### Unified lookup API — `src/lib/external-id-registry.ts`
 Hides the hot-column vs sidecar split so callers don't need to know where each source lives:
 
@@ -182,6 +197,8 @@ Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and do
 | `/api/cron/sync-fip-rankings` | Daily 5am UTC | FIP official + race rankings (top 1000, both genders) |
 | `/api/cron/sync-articles` | Every 6 hours | News from RSS feeds + FIP WordPress API |
 | `/api/cron/sync-highlights` | Every 6 hours | YouTube highlights from padel channels |
+| `/api/cron/premier-discovery` | Mon 4am UTC | Link Premier tournaments + matches to our DB |
+| `/api/cron/premier-stats` | Hourly at :13 | Sync per-set stats from Premier Padel API |
 
 ## Relay Service (Railway)
 
