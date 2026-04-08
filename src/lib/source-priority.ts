@@ -43,6 +43,7 @@ export type SourceName =
   | 'padelapi'          // padelapi.org — primary live/schedule data
   | 'fip'               // FIP WordPress API / scraper
   | 'fip_official'      // FIP official ranking feed (subset of 'fip')
+  | 'premierpadel'      // Premier Padel API — per-set match stats
   | 'manual'            // Hand-edited via ops dashboard
   | 'simulated'         // Dev/test simulator
   | 'youtube'           // YouTube Data API
@@ -101,6 +102,7 @@ export type FieldKey =
   | 'match.duration'
   | 'match.sets'
   | 'match.coverage'
+  | 'match.stats'
 
 // ── Priority rules ─────────────────────────────────────────────
 
@@ -160,6 +162,7 @@ export const SOURCE_PRIORITY: Record<FieldKey, PriorityList> = {
   'match.duration':        ['padelapi'],
   'match.sets':            ['padelapi', 'simulated'],
   'match.coverage':        ['padelapi'],
+  'match.stats':           ['premierpadel'],
 }
 
 // ── API ────────────────────────────────────────────────────────
