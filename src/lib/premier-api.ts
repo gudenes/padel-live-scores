@@ -94,3 +94,110 @@ export interface PremierMatchDetail {
   match_score: PremierMatchScore
   match_state: PremierMatchStateSection[]
 }
+
+// ── Fetch helper ──────────────────────────────────────────────
+
+interface FetchOpts {
+  retries?: number
+  timeoutMs?: number
+}
+
+async function premierFetch<T>(
+  endpoint: string,
+  fields: Record<string, string | number>,
+  opts: FetchOpts = {}
+): Promise<T> {
+  const { retries = 3, timeoutMs = 10000 } = opts
+
+  let lastErr: unknown
+  for (let attempt = 0; attempt < retries; attempt++) {
+    // Rebuild the body on each attempt — FormData streams can be consumed
+    // on the first send, making retries silently send empty bodies.
+    const body = new FormData()
+    for (const [k, v] of Object.entries(fields)) body.append(k, String(v))
+
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), timeoutMs)
+    try {
+      const res = await fetch(API_BASE + endpoint, {
+        method: 'POST',
+        body,
+        signal: ctl.signal,
+        cache: 'no-store',
+      })
+      clearTimeout(timer)
+      if (!res.ok) throw new Error(`Premier API ${endpoint} returned ${res.status}`)
+      const json = (await res.json()) as { status: number; data: T }
+      if (json.status !== 1) throw new Error(`Premier API ${endpoint} returned status=${json.status}`)
+      return json.data
+    } catch (err) {
+      clearTimeout(timer)
+      lastErr = err
+      if (attempt < retries - 1) {
+        await new Promise(r => setTimeout(r, 250 * Math.pow(4, attempt)))
+      }
+    }
+  }
+  throw lastErr
+}
+
+// ── Throttle helper ──────────────────────────────────────────
+// Wraps a promise-returning function with a trailing sleep. Use inside a
+// for loop to space out requests (Premier's rate limits are undocumented).
+
+export async function withThrottle<T>(fn: () => Promise<T>, ms = 200): Promise<T> {
+  const result = await fn()
+  await new Promise(r => setTimeout(r, ms))
+  return result
+}
+
+// ── Endpoint wrappers ────────────────────────────────────────
+
+/**
+ * Fetch the tournament dropdown list. Drops the "All" meta entry
+ * (tournaments_id = 28) which is a filter placeholder, not a real tournament.
+ */
+export async function fetchPremierTournamentDropdown(lang = 'en'): Promise<PremierTournamentSummary[]> {
+  const data = await premierFetch<PremierTournamentSummary[]>(
+    'beforeauth/gettournamentsdropdown',
+    { lang },
+  )
+  return Array.isArray(data) ? data.filter(t => t.tournaments_id !== 28) : []
+}
+
+/**
+ * Fetch the match list for a single Premier tournament.
+ * Note: endpoint name has a typo ("gettournamnet...") — that's vendor-side,
+ * we mirror it exactly.
+ */
+export async function fetchPremierUpcomingMatches(
+  tournamentsId: number,
+): Promise<PremierUpcomingMatch[]> {
+  const data = await premierFetch<{ tournaments_match: PremierUpcomingMatch[] }>(
+    'beforeauth/gettournamnetupcomingmatches',
+    { tournaments_id: tournamentsId },
+  )
+  return Array.isArray(data?.tournaments_match) ? data.tournaments_match : []
+}
+
+/**
+ * Fetch the full stats payload for a single match.
+ * Returns null when the match ID is not recognized (Premier returns
+ * {status:1, data:[]} for unknown IDs rather than an error).
+ */
+export async function fetchPremierMatchDetail(
+  matchId: number,
+  lang = 'en',
+): Promise<PremierMatchDetail | null> {
+  try {
+    const data = await premierFetch<PremierMatchDetail | unknown[]>(
+      'beforeauth/gettournamentsmatchdetail',
+      { tournaments_match_id: matchId, lang },
+    )
+    if (Array.isArray(data)) return null
+    return data
+  } catch (err) {
+    console.error(`[premier-api] match detail ${matchId} failed:`, err)
+    return null
+  }
+}
