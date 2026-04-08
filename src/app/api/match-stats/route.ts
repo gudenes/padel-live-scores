@@ -8,6 +8,10 @@
 //   'no_mapping'   — no Premier mapping exists (probably FIP/unsupported source)
 //   'pending_sync' — mapping exists but stats not yet synced
 //   'ok'           — stats present
+//
+// Uses the SERVICE key because `entity_external_ids` is a sidecar table
+// without a public-read RLS policy. A post-launch follow-up can add an
+// anon-read policy to that table and then switch this endpoint to anon.
 
 import { createClient } from '@supabase/supabase-js'
 

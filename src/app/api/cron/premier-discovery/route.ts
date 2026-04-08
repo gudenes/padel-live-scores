@@ -169,6 +169,19 @@ async function linkMatchesViaIdScan(
     return rows
   }
 
+  // Pre-fetch ALL existing Premier match mappings in one query so the scan
+  // loop can do in-memory set membership checks instead of hitting the DB
+  // per iteration (was 800 N+1 lookups before this optimization).
+  const { data: existingMappings } = await supabase
+    .from('entity_external_ids')
+    .select('external_id')
+    .eq('entity_type', 'match')
+    .eq('source', 'premierpadel')
+  const alreadyLinkedMatchIds = new Set(
+    (existingMappings ?? []).map(r => String(r.external_id)),
+  )
+  console.log(`[premier-discovery] pre-loaded ${alreadyLinkedMatchIds.size} existing match mappings`)
+
   console.log(`[premier-discovery] scanning Premier match IDs ${MIN_MATCH_ID}..${MAX_MATCH_ID}`)
 
   let scanned = 0
@@ -200,14 +213,8 @@ async function linkMatchesViaIdScan(
       continue
     }
 
-    // Skip if this Premier match ID is already linked
-    const existing = await findEntityBySourceId(
-      supabase,
-      'match',
-      'premierpadel',
-      String(premierMatchId),
-    )
-    if (existing) {
+    // Skip if this Premier match ID is already linked (in-memory lookup)
+    if (alreadyLinkedMatchIds.has(String(premierMatchId))) {
       result.matches.already++
       continue
     }
