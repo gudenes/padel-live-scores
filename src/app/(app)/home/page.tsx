@@ -21,6 +21,8 @@ import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { ResultCard } from '@/components/ResultCard'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
+import { useAuth } from '@/components/AuthProvider'
+import { useInvite } from '@/hooks/useInvite'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1699,6 +1701,8 @@ export default function V3HomePage() {
 function V3HomePageInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { user } = useAuth()
+  const { shareNow } = useInvite()
   const initialView: 'home' | 'tournaments' = searchParams.get('view') === 'tournaments' ? 'tournaments' : 'home'
 
   const [loading, setLoading] = useState(true)
@@ -1933,6 +1937,33 @@ function V3HomePageInner() {
             {SEARCH_HINTS[hintIdx]}
           </span>
         </div>
+
+        {/* Share icon — logged-in users only */}
+        {user && (
+          <button
+            onClick={() => { void shareNow() }}
+            aria-label="Share PadelNachos"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              clipPath: CHUNKY.button,
+              width: 34, height: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              marginRight: 8,
+              padding: 0,
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+          </button>
+        )}
 
         {/* Profile / Login */}
         <ProfileButton />

@@ -13,7 +13,6 @@ import BrandedLoader from '../../components/BrandedLoader'
 import CountryPicker from '@/components/CountryPicker'
 import { useInvite } from '@/hooks/useInvite'
 import { AmbassadorBadge } from '@/components/AmbassadorBadge'
-import { AMBASSADOR_TIERS } from '@/lib/ambassador'
 
 const V3 = {
   GREEN: '#7ED321',
