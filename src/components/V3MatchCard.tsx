@@ -151,12 +151,15 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {sets.map(s => {
                   const parsed = parseSetScore(s.set_score)
-                  const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
+                  const p1g = parsed?.p1 ?? s.pair1_games ?? 0
+                  const p2g = parsed?.p2 ?? s.pair2_games ?? 0
+                  const games = pairNum === 1 ? p1g : p2g
+                  const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
                   const isCurrent = s.is_current && isLive
                   return (
                     <span key={s.id} style={{
                       fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
-                      color: isCurrent ? GREEN : '#fff',
+                      color: isCurrent ? GREEN : wonThisSet ? '#fff' : MUTED,
                       minWidth: 16, textAlign: 'center',
                     }}>
                       {games}
