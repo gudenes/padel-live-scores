@@ -11,6 +11,8 @@ import { usePushNotifications } from '@/hooks/usePushNotifications'
 import Spinner from '../../components/Spinner'
 import BrandedLoader from '../../components/BrandedLoader'
 import CountryPicker from '@/components/CountryPicker'
+import { useInvite } from '@/hooks/useInvite'
+import { AmbassadorBadge } from '@/components/AmbassadorBadge'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -53,6 +55,7 @@ export default function ProfilePage() {
   const { user, profile, loading: authLoading, signOut } = useAuth()
   const router = useRouter()
   const { enabled, supported, permission, toggle: togglePush } = usePushNotifications()
+  const { inviteCount, tier, loading: inviteLoading, shareNow } = useInvite()
   const [matches, setMatches] = useState<BookmarkedMatch[]>([])
   const [players, setPlayers] = useState<BookmarkedPlayer[]>([])
   const [loadingData, setLoadingData] = useState(true)
@@ -248,6 +251,72 @@ export default function ProfilePage() {
           {user.email}
         </div>
       </div>
+
+      {/* Invite friends — share CTA with ambassador badge */}
+      {user && (
+        <div style={{ padding: '12px 16px 0' }}>
+          <button
+            onClick={() => { void shareNow() }}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              background: 'rgba(255,255,255,0.03)',
+              clipPath: V3.clip.card,
+              padding: '12px 14px',
+              border: 'none',
+              marginBottom: 12,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ flexShrink: 0 }}>
+              {tier ? (
+                <AmbassadorBadge tier={tier} size="md" />
+              ) : (
+                <div style={{
+                  width: 44, height: 44,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  clipPath: 'polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%)',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1.5px solid rgba(255,255,255,0.1)`,
+                  fontSize: 20,
+                }}>🎾</div>
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                Invite friends
+              </div>
+              <div style={{ fontSize: 11, color: V3.MUTED, marginTop: 3 }}>
+                {inviteLoading ? 'Loading…' : tier ? (
+                  <>
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: 9, fontWeight: 800,
+                      color: tier.color,
+                      background: tier.bgGradient,
+                      padding: '1px 5px',
+                      clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+                      marginRight: 5,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.3,
+                    }}>
+                      {tier.name}
+                    </span>
+                    {inviteCount} {inviteCount === 1 ? 'friend' : 'friends'} on PadelNachos
+                  </>
+                ) : (
+                  'Share the app with your friends'
+                )}
+              </div>
+            </div>
+            <span style={{ color: V3.MUTED, fontSize: 18, flexShrink: 0 }}>›</span>
+          </button>
+        </div>
+      )}
 
       {/* Notification toggle */}
       <div style={{

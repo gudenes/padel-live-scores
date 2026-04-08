@@ -14,6 +14,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import BracketView from '@/components/BracketView'
+import { EntryList } from '@/components/EntryList'
 import { V3MatchCard } from '@/components/V3MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
 
@@ -132,6 +133,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [justUpdated, setJustUpdated] = useState(false)
 
   const [drawEntries, setDrawEntries] = useState<any[]>([])
+  const [playerMap, setPlayerMap] = useState<Record<string, { avatar_url: string | null; ranking: number | null }>>({})
+  const [debutStatusMap, setDebutStatusMap] = useState<Record<string, 'fresh' | 'newThisSeason' | null>>({})
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
@@ -199,14 +202,104 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     if (data) setTournaments(data)
   }, [])
 
-  // Fetch entry list / draw data
+  // Fetch entry list / draw data + player hydration (avatars, rankings)
   const fetchDrawEntries = useCallback(async () => {
-    const { data } = await supabase
+    const { data: drawData } = await supabase
       .from('tournament_draws')
       .select('draw_position, seed, marker, category, round, player1_name, player1_country, player1_id, player2_name, player2_country, player2_id, team_points')
       .eq('tournament_id', tournamentId)
       .order('draw_position', { ascending: true })
-    if (data) setDrawEntries(data)
+
+    if (!drawData) return
+    setDrawEntries(drawData)
+
+    // Collect unique resolved player IDs
+    const playerIds = new Set<string>()
+    for (const d of drawData as any[]) {
+      if (d.player1_id) playerIds.add(d.player1_id)
+      if (d.player2_id) playerIds.add(d.player2_id)
+    }
+    if (playerIds.size === 0) return
+
+    // Hydrate player avatars + rankings
+    const { data: playerData } = await supabase
+      .from('players')
+      .select('id, avatar_url, ranking')
+      .in('id', Array.from(playerIds))
+
+    if (playerData) {
+      const map: Record<string, { avatar_url: string | null; ranking: number | null }> = {}
+      for (const p of playerData as any[]) {
+        map[p.id] = { avatar_url: p.avatar_url ?? null, ranking: p.ranking ?? null }
+      }
+      setPlayerMap(map)
+    }
+
+    // ── Compute debut status (fresh partners / new this season) ──
+    // For each entry with both player IDs resolved, look at historical
+    // finished matches (excluding this tournament) and count whether
+    // they've played together, and whether any of those matches are
+    // in the current calendar year.
+    const idList = Array.from(playerIds)
+    if (idList.length === 0) {
+      setDebutStatusMap({})
+      return
+    }
+
+    const orClause =
+      `pair1_player1_id.in.(${idList.join(',')}),` +
+      `pair1_player2_id.in.(${idList.join(',')}),` +
+      `pair2_player1_id.in.(${idList.join(',')}),` +
+      `pair2_player2_id.in.(${idList.join(',')})`
+
+    const { data: histMatches } = await supabase
+      .from('matches')
+      .select('pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, finished_at')
+      .in('status', ['finished', 'retired', 'walkover'])
+      .neq('tournament_id', tournamentId)
+      .or(orClause)
+      .limit(5000)
+
+    // Build a map: pairKey → { hasPast: boolean, hasThisYear: boolean }
+    const pairStats: Record<string, { hasPast: boolean; hasThisYear: boolean }> = {}
+    const currentYear = new Date().getFullYear()
+
+    const makeKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`
+
+    for (const m of (histMatches ?? []) as any[]) {
+      // For each match, check both pair slots. If both IDs in a slot
+      // are members of our playerIds set, record them as a played-together pair.
+      const pairs: Array<[string | null, string | null]> = [
+        [m.pair1_player1_id, m.pair1_player2_id],
+        [m.pair2_player1_id, m.pair2_player2_id],
+      ]
+      for (const [a, b] of pairs) {
+        if (!a || !b) continue
+        if (!playerIds.has(a) || !playerIds.has(b)) continue
+        const key = makeKey(a, b)
+        const year = m.finished_at ? new Date(m.finished_at).getFullYear() : 0
+        const existing = pairStats[key] ?? { hasPast: false, hasThisYear: false }
+        existing.hasPast = true
+        if (year === currentYear) existing.hasThisYear = true
+        pairStats[key] = existing
+      }
+    }
+
+    // Map each current-tournament entry to a debut status.
+    const statusMap: Record<string, 'fresh' | 'newThisSeason' | null> = {}
+    for (const d of drawData as any[]) {
+      if (!d.player1_id || !d.player2_id) continue
+      const key = makeKey(d.player1_id, d.player2_id)
+      const stats = pairStats[key]
+      if (!stats || !stats.hasPast) {
+        statusMap[key] = 'fresh'
+      } else if (!stats.hasThisYear) {
+        statusMap[key] = 'newThisSeason'
+      } else {
+        statusMap[key] = null // established
+      }
+    }
+    setDebutStatusMap(statusMap)
   }, [tournamentId])
 
   useEffect(() => { fetchAll(); fetchTournaments(); fetchDrawEntries() }, [fetchAll, fetchTournaments, fetchDrawEntries])
@@ -807,6 +900,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             availableRounds={availableRounds}
             roundDates={roundDates}
             drawEntries={drawEntries}
+            playerMap={playerMap}
+            debutStatusMap={debutStatusMap}
           />
         )}
 
@@ -1041,7 +1136,7 @@ function ChampionTile({
   )
 }
 
-function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries }: {
+function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries, playerMap, debutStatusMap }: {
   tournament: any
   allMatches: Match[]
   genderFilter: 'men' | 'women'
@@ -1049,6 +1144,8 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   availableRounds: string[]
   roundDates: Record<string, string>
   drawEntries: any[]
+  playerMap: Record<string, { avatar_url: string | null; ranking: number | null }>
+  debutStatusMap: Record<string, 'fresh' | 'newThisSeason' | null>
 }) {
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const totalMatches = genderMatches.length
@@ -1212,7 +1309,13 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     return () => { cancelled = true }
   }, [tournament?.id, tournament?.name, tournament?.level, tournament?.starts_at, genderFilter])
 
-  // Count unique teams
+  // Entries for the current gender — used as a fallback data source for
+  // upcoming tournaments that have no matches in the DB yet.
+  const genderEntries = drawEntries.filter((d: any) => d.category === genderFilter)
+
+  // Count unique teams. Prefer match-derived data (covers all categories
+  // of a played tournament); fall back to the entry list size for upcoming
+  // tournaments that haven't started.
   const teamSet = new Set<string>()
   for (const m of genderMatches) {
     const p1 = [(m as any).pair1_player1?.name, (m as any).pair1_player2?.name].filter(Boolean).sort().join('/')
@@ -1220,9 +1323,10 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     if (p1) teamSet.add(p1)
     if (p2) teamSet.add(p2)
   }
-  const totalTeams = teamSet.size
+  const totalTeams = teamSet.size || genderEntries.length
 
-  // Count unique countries
+  // Count unique countries. Same fallback strategy — entries carry the
+  // player country codes, so upcoming tournaments still show real values.
   const countrySet = new Set<string>()
   for (const m of genderMatches) {
     for (const key of ['pair1_player1', 'pair1_player2', 'pair2_player1', 'pair2_player2'] as const) {
@@ -1230,37 +1334,31 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       if (country) countrySet.add(country)
     }
   }
+  if (countrySet.size === 0) {
+    for (const e of genderEntries) {
+      if (e.player1_country) countrySet.add(e.player1_country)
+      if (e.player2_country) countrySet.add(e.player2_country)
+    }
+  }
   const totalCountries = countrySet.size
+
+  // Total match count — prefer the live match count; otherwise compute
+  // from the tournament's main-draw size (single-elimination → N-1 matches)
+  // so upcoming events surface the right expected number.
+  const expectedMatches = (() => {
+    const drawSize = (tournament as any)?.draw_size_md as number | undefined
+    if (drawSize && drawSize > 0) return drawSize - 1
+    // Fall back to entry count when draw size isn't set — also N-1
+    if (genderEntries.length > 0) return Math.max(0, genderEntries.length - 1)
+    return 0
+  })()
+  const displayMatches = totalMatches || expectedMatches
 
   // Schedule
   const schedule = availableRounds.map(round => {
     const count = genderMatches.filter(m => normalizeRoundFull(m.round as string) === round).length
     return { round, date: roundDates[round] ?? '', count }
   })
-
-  // Top seeds
-  const seededTeams: { rank: number; names: string; flag: string }[] = []
-  const seenPairs = new Set<string>()
-  for (const m of genderMatches) {
-    for (const pairKey of [['pair1_player1', 'pair1_player2'], ['pair2_player1', 'pair2_player2']]) {
-      const p1 = (m as any)[pairKey[0]]
-      const p2 = (m as any)[pairKey[1]]
-      if (!p1?.name || !p2?.name) continue
-      const key = [p1.name, p2.name].sort().join('/')
-      if (seenPairs.has(key)) continue
-      seenPairs.add(key)
-      const bestRank = Math.min(p1.ranking || 9999, p2.ranking || 9999)
-      if (bestRank < 9999) {
-        seededTeams.push({
-          rank: bestRank,
-          names: `${toShortName(p1.name)} / ${toShortName(p2.name)}`,
-          flag: countryFlag(p1.country) || countryFlag(p2.country) || '',
-        })
-      }
-    }
-  }
-  seededTeams.sort((a, b) => a.rank - b.rank)
-  const topSeeds = seededTeams.slice(0, 8)
 
   const StatCard = ({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) => (
     <div style={{
@@ -1325,7 +1423,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
         <StatCard value={totalTeams || (tournament?.draw_size_md ? `${tournament.draw_size_md} pairs` : '\u2014')} label="Teams" accent />
-        <StatCard value={totalMatches || '\u2014'} label="Matches" />
+        <StatCard value={displayMatches || '\u2014'} label="Matches" />
         <StatCard value={totalCountries || '\u2014'} label="Countries" />
         <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label="Prize Money" />
       </div>
@@ -1391,99 +1489,13 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         <WhereToWatch />
       )}
 
-      {/* Top seeds */}
-      {topSeeds.length > 0 && (
-        <>
-          <SectionHeader label="Top Seeds" />
-          <div style={{
-            background: BG_CARD,
-            clipPath: CHUNKY.card,
-            border: `1px solid ${BORDER}`,
-            padding: '4px 14px', marginBottom: 16,
-          }}>
-            {topSeeds.map((seed, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
-                borderBottom: i < topSeeds.length - 1 ? `0.5px solid ${BORDER}` : 'none',
-              }}>
-                <span style={{
-                  fontSize: 11, fontWeight: 800,
-                  color: i < 3 ? GREEN : MUTED,
-                  width: 20, textAlign: 'center',
-                }}>
-                  {i + 1}
-                </span>
-                <span style={{ fontSize: 13, flexShrink: 0 }}>{seed.flag}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, flex: 1, color: '#fff' }}>{seed.names}</span>
-                <span style={{ fontSize: 10, color: MUTED }}>#{seed.rank}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Entry List from tournament_draws */}
-      {(() => {
-        const genderDraws = drawEntries.filter((d: any) => d.category === genderFilter)
-        if (genderDraws.length === 0) return null
-        return (
-          <>
-            <SectionHeader label={`Entry List (${genderDraws.length} pairs)`} />
-            <div style={{
-              background: BG_CARD,
-              clipPath: CHUNKY.card,
-              border: `1px solid ${BORDER}`,
-              padding: '4px 14px', marginBottom: 16,
-              maxHeight: 400, overflowY: 'auto',
-            }}>
-              {genderDraws.map((d: any, i: number) => (
-                <div key={d.draw_position} style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 0',
-                  borderBottom: i < genderDraws.length - 1 ? `0.5px solid ${BORDER}` : 'none',
-                }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 800, color: MUTED,
-                    width: 20, textAlign: 'center', flexShrink: 0,
-                  }}>
-                    {d.draw_position}
-                  </span>
-                  {d.seed && (
-                    <span style={{
-                      fontSize: 9, fontWeight: 800, color: GREEN,
-                      background: 'rgba(126,211,33,0.12)',
-                      padding: '1px 5px', borderRadius: 3, flexShrink: 0,
-                    }}>
-                      {d.seed}
-                    </span>
-                  )}
-                  {d.marker && (
-                    <span style={{
-                      fontSize: 8, fontWeight: 800, color: '#F5A623',
-                      background: 'rgba(245,166,35,0.12)',
-                      padding: '1px 4px', borderRadius: 3, flexShrink: 0,
-                    }}>
-                      {d.marker}
-                    </span>
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {countryFlag(d.player1_country)} {d.player1_name}
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {countryFlag(d.player2_country)} {d.player2_name}
-                    </div>
-                  </div>
-                  {d.team_points != null && (
-                    <span style={{ fontSize: 10, color: MUTED, flexShrink: 0 }}>
-                      {d.team_points}pts
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
-        )
-      })()}
+      {/* Player List — hero rows for top seeds + compact for rest */}
+      <EntryList
+        entries={drawEntries as any}
+        playerMap={playerMap}
+        debutStatusMap={debutStatusMap}
+        genderFilter={genderFilter}
+      />
 
       {/* Schedule */}
       {schedule.length > 0 && (

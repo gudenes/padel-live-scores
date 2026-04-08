@@ -19,6 +19,10 @@ import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
+import { ResultCard } from '@/components/ResultCard'
+import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
+import { useAuth } from '@/components/AuthProvider'
+import { useInvite } from '@/hooks/useInvite'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -808,134 +812,6 @@ function RankingsSection({ men, women, gender }: { men: RankedPlayer[]; women: R
         ))}
       </div>
     </div>
-  )
-}
-
-// ── Result Match Card ──────────────────────────────────────────
-
-function ResultCard({ match }: { match: Match }) {
-  const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
-  const pair1 = pairName(match.pair1_player1, match.pair1_player2)
-  const pair2 = pairName(match.pair2_player1, match.pair2_player2)
-  const isWinner1 = match.winner_pair === 1
-  const isWinner2 = match.winner_pair === 2
-  const category = (match as any).category as string | null
-  const genderColor = category === 'women' ? WOMEN_PURPLE : category === 'men' ? MEN_BLUE : null
-  const hasWinner = isWinner1 || isWinner2
-
-  return (
-    <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-      <div style={{
-        background: 'rgba(255,255,255,0.03)',
-        clipPath: CHUNKY.card,
-        padding: '10px 12px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        {/* Left accent bar */}
-        <div style={{
-          position: 'absolute',
-          top: 0, left: 0, bottom: 0,
-          width: 3,
-          background: hasWinner
-            ? (genderColor ?? GREEN)
-            : MUTED,
-        }} />
-        {/* Pills row: round, court, status, date */}
-        <div style={{ display: 'flex', gap: 5, marginBottom: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          {match.round && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, padding: '2px 6px',
-              clipPath: CHUNKY.badge, textTransform: 'uppercase',
-              background: 'rgba(255,255,255,0.06)', color: MUTED,
-            }}>
-              {match.round}
-            </span>
-          )}
-          {match.court && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, padding: '2px 6px',
-              clipPath: CHUNKY.badge, textTransform: 'uppercase',
-              background: 'rgba(255,255,255,0.06)', color: MUTED,
-            }}>
-              {match.court}
-            </span>
-          )}
-          <span style={{
-            fontSize: 9, fontWeight: 700, padding: '2px 6px',
-            clipPath: CHUNKY.badge, textTransform: 'uppercase',
-            background: match.status === 'finished' ? 'rgba(126,211,33,0.1)' : 'rgba(255,255,255,0.06)',
-            color: match.status === 'finished' ? GREEN : MUTED,
-          }}>
-            {match.status}
-          </span>
-          {match.finished_at && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, padding: '2px 6px',
-              clipPath: CHUNKY.badge,
-              background: 'rgba(255,255,255,0.06)', color: MUTED,
-            }}>
-              {new Date(match.finished_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-          )}
-        </div>
-
-        {[
-          { pair: pair1, isWinner: isWinner1, pairNum: 1, p1: match.pair1_player1, p2: match.pair1_player2 },
-          { pair: pair2, isWinner: isWinner2, pairNum: 2, p1: match.pair2_player1, p2: match.pair2_player2 },
-        ].map(({ pair, isWinner, pairNum, p1, p2 }) => (
-          <div key={pairNum} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '4px 0',
-            opacity: !isWinner && (isWinner1 || isWinner2) ? 0.45 : 1,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-              {/* Stacked overlapping flags — second slightly lower */}
-              <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
-                <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                  <FlagImg country={p1?.country ?? null} size={16} />
-                </div>
-                <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
-                  <FlagImg country={p2?.country ?? null} size={16} />
-                </div>
-              </div>
-              <span style={{
-                fontSize: 13, fontWeight: isWinner ? 700 : 500, color: isWinner ? '#fff' : MUTED,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>
-                {pair}
-              </span>
-              {isWinner && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  width: 16, height: 16, background: GREEN,
-                  clipPath: CHUNKY.badge,
-                  fontSize: 9, color: '#000', fontWeight: 800,
-                  flexShrink: 0,
-                }}>
-                  W
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {sets.map(s => {
-                const parsed = parseSetScore(s.set_score)
-                const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
-                return (
-                  <span key={s.id} style={{
-                    fontSize: 16, fontWeight: 700, fontFamily: 'monospace',
-                    color: isWinner ? '#fff' : MUTED,
-                    minWidth: 16, textAlign: 'center',
-                  }}>
-                    {games}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Link>
   )
 }
 
@@ -1825,6 +1701,8 @@ export default function V3HomePage() {
 function V3HomePageInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const { user } = useAuth()
+  const { shareNow } = useInvite()
   const initialView: 'home' | 'tournaments' = searchParams.get('view') === 'tournaments' ? 'tournaments' : 'home'
 
   const [loading, setLoading] = useState(true)
@@ -2060,9 +1938,38 @@ function V3HomePageInner() {
           </span>
         </div>
 
+        {/* Share icon — logged-in users only */}
+        {user && (
+          <button
+            onClick={() => { void shareNow() }}
+            aria-label="Share PadelNachos"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              clipPath: CHUNKY.button,
+              width: 34, height: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              marginRight: 8,
+              padding: 0,
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+          </button>
+        )}
+
         {/* Profile / Login */}
         <ProfileButton />
       </header>
+
+      <InviteWelcomeBanner />
 
       {/* ── LIVE NOW ────────────────────────────────────────── */}
       {liveScorable.length > 0 && (

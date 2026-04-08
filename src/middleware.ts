@@ -80,6 +80,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ── Invite ref code capture ────────────────────────────────
+  // Capture ?ref=XXXXXX into a cookie so we can claim it on signup.
+  // Only accept codes matching the 6-char base36 format.
+  const ref = request.nextUrl.searchParams.get('ref')
+
   // ── Geo-country cookie (existing) ───────────────────────────
   const response = NextResponse.next()
   const country = request.headers.get('x-vercel-ip-country') ?? ''
@@ -91,6 +96,16 @@ export function middleware(request: NextRequest) {
       maxAge: 86400,
     })
   }
+
+  // Set ref code cookie if valid
+  if (ref && /^[A-Z0-9]{6}$/.test(ref)) {
+    response.cookies.set('pn_invite_ref', ref, {
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: '/',
+      sameSite: 'lax',
+    })
+  }
+
   return response
 }
 

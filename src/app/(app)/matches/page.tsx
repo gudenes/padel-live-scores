@@ -11,7 +11,7 @@ import Link from 'next/link'
 import BrandedLoader, { LOADER_HINTS } from '../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
-import { V3MatchCard } from '@/components/V3MatchCard'
+import { ResultCard } from '@/components/ResultCard'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { isTournamentGated } from '@/lib/tournament-utils'
@@ -434,14 +434,6 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
     })
   }
 
-  // Resolve a per-match gender accent color for V3MatchCard rendering.
-  const genderColorFor = (m: Match): string => {
-    const cat = (m as any).category as string | null
-    if (cat === 'men') return MEN_BLUE
-    if (cat === 'women') return WOMEN_PURPLE
-    return MUTED
-  }
-
   // Live / upcoming — collapsible with match rows
   return (
     <div style={{
@@ -527,23 +519,40 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
         <div style={gated ? { opacity: 0.4, filter: 'grayscale(60%)', pointerEvents: 'none' } : undefined}>
           {visibleMatches.map(m => (
             tab === 'results'
-              ? <V3MatchCard key={m.id} match={m} genderColor={genderColorFor(m)} />
+              ? <ResultCard key={m.id} match={m} />
               : <V3MatchRow key={m.id} match={m} />
           ))}
         </div>
       )}
       {matchCount > 10 && viewState !== 'collapsed' && (
-        <button
-          onClick={cycleState}
-          style={{
-            width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-            padding: '8px 0 6px', fontSize: 11, fontWeight: 700,
-            color: GREEN, textAlign: 'center',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          {viewState === 'expanded' ? 'Show less' : `Show all ${matchCount} matches`}
-        </button>
+        tab === 'results' && tournament?.id ? (
+          <Link
+            href={`/tournaments/${tournament.id}`}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '8px 0 6px',
+              fontSize: 11, fontWeight: 700,
+              color: GREEN, textAlign: 'center',
+              textDecoration: 'none',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            See all {matchCount} matches →
+          </Link>
+        ) : (
+          <button
+            onClick={cycleState}
+            style={{
+              width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+              padding: '8px 0 6px', fontSize: 11, fontWeight: 700,
+              color: GREEN, textAlign: 'center',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {viewState === 'expanded' ? 'Show less' : `Show all ${matchCount} matches`}
+          </button>
+        )
       )}
     </div>
   )
