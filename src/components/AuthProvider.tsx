@@ -143,6 +143,45 @@ async function migrateLocalRatings(accessToken: string) {
   }
 }
 
+async function claimReferral(userId: string) {
+  if (typeof document === 'undefined') return
+
+  // Read cookie
+  const match = document.cookie.match(/(?:^|;\s*)pn_invite_ref=([A-Z0-9]{6})/)
+  if (!match) return
+  const code = match[1]
+
+  try {
+    // Resolve inviter
+    const { data: inviter } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('referral_code', code)
+      .maybeSingle()
+
+    if (!inviter) return
+    if (inviter.id === userId) {
+      // Self-referral — just clear the cookie
+      document.cookie = 'pn_invite_ref=; Path=/; Max-Age=0; SameSite=lax'
+      return
+    }
+
+    // Only set referred_by if currently null (idempotent)
+    const { error } = await supabase
+      .from('profiles')
+      .update({ referred_by: inviter.id })
+      .eq('id', userId)
+      .is('referred_by', null)
+
+    if (!error) {
+      document.cookie = 'pn_invite_ref=; Path=/; Max-Age=0; SameSite=lax'
+      console.log('[Auth] Claimed referral from', code)
+    }
+  } catch (e) {
+    console.warn('[Auth] claimReferral failed:', e)
+  }
+}
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   try {
     const { data, error } = await supabase
@@ -220,6 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Migrate localStorage bookmarks on first sign-in
           if (event === 'SIGNED_IN') {
             await migrateLocalBookmarks(s.user.id)
+            void claimReferral(s.user.id)
             if (s.access_token) {
               await migrateLocalRatings(s.access_token)
             }
