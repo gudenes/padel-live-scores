@@ -21,24 +21,28 @@ src/
     match/[id]/            # Match detail + momentum chart
     player/[id]/           # Player profile
     api/
-      cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings)
+      cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings, premier-discovery, premier-stats)
       admin/               # Protected maintenance endpoints (resync, backfill, seed, migrate)
       ops/                 # Ops dashboard APIs (seed-entry-list, parse-draw, seed-draw)
       feed/                # Article click tracking, video reporting
-      match-stats/         # Match stats computation
-    components/            # Shared components (MatchCard, CompactMatchCard, BottomNav, Spinner)
+      match-stats/         # GET endpoint for the Stats tab (reads from match_stats table)
+    components/            # Shared components (MatchCard, CompactMatchCard, BottomNav, Spinner, MatchStatsView, MatchStatsBar, MatchStatsSetTabs)
   lib/
     supabase.ts            # Client factory (browser anon + server service key)
     score-inference.ts     # Final score inference from point data
     player-resolver.ts     # Player deduplication (with ranking/points disambiguation)
     draw-parser.ts         # FIP draw PDF text parser (pure function)
     feed-scoring.ts        # Feed ranking engine (personalization, dedup, quality signals)
+    premier-api.ts         # REST client for premierpadel.com beforeauth API (fetch + retry + throttle)
+    premier-stats-parser.ts  # Pure parser: PremierMatchDetail → MatchStatsRow[] (tested)
+    source-matcher.ts      # Token-subset tournament matcher + round normalizer (tested)
   types/
     match.ts               # Core interfaces (Match, Set, Game, Player) + utility functions
   hooks/
     useBookmarks.ts        # localStorage bookmarks (future: Supabase auth)
     useHiddenFeedItems.ts  # localStorage hidden feed items (videos + news)
     useFeedPreferences.ts  # localStorage feed preferences (language, category, channel)
+    useInViewOnce.ts       # IntersectionObserver hook for scroll-triggered animations (honors prefers-reduced-motion)
 relay/
   index.js                 # Railway Node.js service — persistent Pusher WebSocket relay
 supabase/
@@ -59,6 +63,8 @@ supabase/
 | `highlights` | YouTube videos | `youtube_id`, `channel_name`, `view_count`, `like_count`, `comment_count`, `description`, `channel_quality_score` |
 | `tournament_draws` | Parsed draw brackets | `tournament_id`, `category`, `draw_position`, `seed`, `marker`, `player1/2_name`, `player1/2_id` |
 | `entity_external_ids` | Sidecar for non-primary source IDs | `entity_type`, `entity_id`, `source`, `external_id`, `metadata` |
+| `match_stats` | Per-match + per-set stats from Premier Padel | `match_id` + `set_number` (composite PK, `set_number=0` is match aggregate), 34 stat columns (service/return/total), `source`, `source_match_id`, `raw_payload`, `computed_at` |
+| `match_stats_unresolved` | Queue for tournaments/matches the auto-matcher couldn't link | `source`, `source_kind`, `source_id`, `source_payload`, `reason`, `resolved_at`, `resolved_match_id`, `resolved_tournament_id` |
 
 ### Relationships
 - `matches` → `tournaments` (via `tournament_id`)
@@ -243,6 +249,41 @@ User preferences tracked in localStorage via `useFeedPreferences` hook. Hidden i
 
 ### Avatar Hosting
 Player avatars hosted on Supabase Storage (bucket: `avatars`), not proxied from external sources. Migration done via `/api/admin/migrate-avatars`.
+
+### Scroll-Triggered Animations
+Stat bars across the app (match stats, player profile win-rate bars, Last 10 sparkline, Season monthly chart) use a shared animation pattern driven by `src/hooks/useInViewOnce.ts`:
+
+- **Trigger:** `IntersectionObserver` on a row ref, fires once when the row enters the viewport (never replays)
+- **Duration:** 700ms
+- **Easing:** `cubic-bezier(0.25, 0.1, 0.25, 1)` (ease-out cubic)
+- **Row stagger:** `${rowIndex * 80}ms` delay — cascading wave
+- **Transform:** `scaleX` (horizontal bars, grows from center or left edge) or `scaleY` (vertical bars, grows from bottom)
+- **Transform origin:** `right center` / `left center` / `bottom center` depending on bar direction
+- **Fallback:** `prefers-reduced-motion: reduce` skips animation (instant final state)
+- **Fallback:** missing `IntersectionObserver` (old browsers) also skips animation
+
+When adding new stat visualizations, reuse this pattern — don't introduce a new animation library. Example usage:
+
+```tsx
+import { useRef } from 'react'
+import { useInViewOnce } from '@/hooks/useInViewOnce'
+
+function MyBar({ value, rowIndex }: { value: number; rowIndex: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInViewOnce(ref)
+  return (
+    <div ref={ref} style={{ width: 100, background: 'rgba(255,255,255,0.05)' }}>
+      <div style={{
+        width: `${value}%`,
+        background: '#7ed321',
+        transformOrigin: 'left center',
+        transform: inView ? 'scaleX(1)' : 'scaleX(0)',
+        transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
+      }} />
+    </div>
+  )
+}
+```
 
 ## Environment Variables
 
