@@ -15,7 +15,9 @@
 // won/played fraction underneath in a smaller muted font. For count
 // kind, only the raw number is shown (no fraction below).
 
+import { useRef } from 'react'
 import type { CSSProperties } from 'react'
+import { useInViewOnce } from '@/hooks/useInViewOnce'
 
 const PAIR1_COLOR = '#7ed321'
 const PAIR2_COLOR = '#4a90e2'
@@ -33,6 +35,8 @@ export interface MatchStatsBarProps {
   t1Total: number | null
   t2Value: number | null
   t2Total: number | null
+  /** Row index used to stagger the scroll-triggered animation. Default: 0. */
+  rowIndex?: number
 }
 
 function pct(value: number | null, total: number | null): number | null {
@@ -159,7 +163,17 @@ export function MatchStatsBar({
   t1Total,
   t2Value,
   t2Total,
+  rowIndex = 0,
 }: MatchStatsBarProps) {
+  const rowRef = useRef<HTMLDivElement>(null)
+  const inView = useInViewOnce(rowRef)
+
+  // Animation style — applied to every colored bar
+  const animationStyle: CSSProperties = {
+    transform: inView ? 'scaleX(1)' : 'scaleX(0)',
+    transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
+  }
+
   const t1Display = formatDisplay(kind, t1Value, t1Total)
   const t2Display = formatDisplay(kind, t2Value, t2Total)
   const t1Frac = kind === 'percentage' ? formatFraction(t1Value, t1Total) : ''
@@ -184,7 +198,7 @@ export function MatchStatsBar({
   const t2PctFill = kind === 'percentage' ? (pct(t2Value, t2Total) ?? 0) / 2 : 0
 
   return (
-    <div style={rowContainer}>
+    <div ref={rowRef} style={rowContainer}>
       {/* Row 1: numbers + label with dashes */}
       <div style={gridStyle}>
         <div style={t1NumStyle}>{t1Display}</div>
@@ -230,6 +244,8 @@ export function MatchStatsBar({
                 background: PAIR1_COLOR,
                 opacity: 0.85,
                 clipPath: CHUNKY_BAR,
+                transformOrigin: 'right center',
+                ...animationStyle,
               }}
             />
             {/* Team 2 grows from center toward right edge */}
@@ -243,14 +259,32 @@ export function MatchStatsBar({
                 background: PAIR2_COLOR,
                 opacity: 0.85,
                 clipPath: CHUNKY_BAR,
+                transformOrigin: 'left center',
+                ...animationStyle,
               }}
             />
           </>
         ) : (
           !bothZero && (
             <div style={trackInner}>
-              <div style={{ flex: t1Weight, background: PAIR1_COLOR, opacity: 0.85 }} />
-              <div style={{ flex: t2Weight, background: PAIR2_COLOR, opacity: 0.85 }} />
+              <div
+                style={{
+                  flex: t1Weight,
+                  background: PAIR1_COLOR,
+                  opacity: 0.85,
+                  transformOrigin: 'right center',
+                  ...animationStyle,
+                }}
+              />
+              <div
+                style={{
+                  flex: t2Weight,
+                  background: PAIR2_COLOR,
+                  opacity: 0.85,
+                  transformOrigin: 'left center',
+                  ...animationStyle,
+                }}
+              />
             </div>
           )
         )}

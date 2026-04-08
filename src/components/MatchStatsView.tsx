@@ -136,6 +136,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           t1Total={activeRow.team1_first_serve_played}
           t2Value={activeRow.team2_first_serve_won}
           t2Total={activeRow.team2_first_serve_played}
+          rowIndex={0}
         />
         <MatchStatsBar
           label="Second serve points won"
@@ -144,6 +145,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           t1Total={activeRow.team1_second_serve_played}
           t2Value={activeRow.team2_second_serve_won}
           t2Total={activeRow.team2_second_serve_played}
+          rowIndex={1}
         />
         <MatchStatsBar
           label="Service games played"
@@ -152,6 +154,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           t1Total={null}
           t2Value={activeRow.team2_service_games}
           t2Total={null}
+          rowIndex={2}
         />
         {/* Total serve points won — Match tab only */}
         {isMatchTab && (
@@ -162,6 +165,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
             t1Total={activeRow.team1_serve_points_played}
             t2Value={activeRow.team2_serve_points_won}
             t2Total={activeRow.team2_serve_points_played}
+            rowIndex={3}
           />
         )}
       </Section>
@@ -175,6 +179,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           t1Total={activeRow.team1_first_return_played}
           t2Value={activeRow.team2_first_return_won}
           t2Total={activeRow.team2_first_return_played}
+          rowIndex={4}
         />
         <MatchStatsBar
           label="Second return points won"
@@ -183,6 +188,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           t1Total={activeRow.team1_second_return_played}
           t2Value={activeRow.team2_second_return_won}
           t2Total={activeRow.team2_second_return_played}
+          rowIndex={5}
         />
         <MatchStatsBar
           label="Return games played"
@@ -191,6 +197,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           t1Total={null}
           t2Value={activeRow.team2_return_games}
           t2Total={null}
+          rowIndex={6}
         />
         {/* Total return points won — Match tab only */}
         {isMatchTab && (
@@ -201,6 +208,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
             t1Total={activeRow.team1_return_points_played}
             t2Value={activeRow.team2_return_points_won}
             t2Total={activeRow.team2_return_points_played}
+            rowIndex={7}
           />
         )}
       </Section>
@@ -215,6 +223,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
             t1Total={null}
             t2Value={activeRow.team2_longest_streak}
             t2Total={null}
+            rowIndex={8}
           />
         </Section>
       )}
