@@ -1229,47 +1229,6 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
   )
 }
 
-// ── Finished Stats Section ──────────────────────────────────────────────────
-function FinishedStatsSection({ match, pair1Label, pair2Label }: { match: Match; pair1Label: string; pair2Label: string }) {
-  const sets = [...(match.sets ?? [])].sort((a, b) => a.set_number - b.set_number)
-  const p1Games = sets.reduce((s, set) => s + (parseSetScore(set.set_score)?.p1 ?? 0), 0)
-  const p2Games = sets.reduce((s, set) => s + (parseSetScore(set.set_score)?.p2 ?? 0), 0)
-  const totalGames = p1Games + p2Games || 1
-
-  const StatRow = ({ label, p1, p2 }: { label: string; p1: number; p2: number }) => {
-    const total = p1 + p2 || 1
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, width: 28, textAlign: 'right', fontFamily: 'monospace', color: PAIR1_COLOR }}>{p1}</span>
-        <div style={{ flex: 1, display: 'flex', gap: 2, height: 4, overflow: 'hidden', clipPath: CHUNKY.badge }}>
-          <div style={{ flex: p1 / total, background: PAIR1_COLOR, opacity: 0.8 }} />
-          <div style={{ flex: p2 / total, background: PAIR2_COLOR, opacity: 0.8 }} />
-        </div>
-        <span style={{ fontSize: 11, fontWeight: 700, width: 28, fontFamily: 'monospace', color: PAIR2_COLOR }}>{p2}</span>
-        <span style={{ fontSize: 9, color: MUTED, width: 72, flexShrink: 0 }}>{label}</span>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '12px 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px' }}>Match stats</span>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: PAIR1_COLOR }}>{pair1Label.split(' / ')[0]}</span>
-          <span style={{ fontSize: 9, fontWeight: 700, color: PAIR2_COLOR }}>{pair2Label.split(' / ')[0]}</span>
-        </div>
-      </div>
-      <StatRow label="Games won" p1={p1Games} p2={p2Games} />
-      {sets.map(set => {
-        const parsed = parseSetScore(set.set_score)
-        if (!parsed) return null
-        return <StatRow key={set.set_number} label={`Set ${set.set_number} games`} p1={parsed.p1} p2={parsed.p2} />
-      })}
-    </div>
-  )
-}
-
 // ── Live Feed Tab ───────────────────────────────────────────────────────────
 function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
   match: Match; pair1Label: string; pair2Label: string; isLive: boolean
