@@ -16,46 +16,9 @@
 import { useEffect, useState } from 'react'
 import { MatchStatsBar } from './MatchStatsBar'
 import { MatchStatsSetTabs, type SetTabItem } from './MatchStatsSetTabs'
+import type { MatchStatsRow } from '@/lib/premier-stats-parser'
 
 const MUTED = '#8a8f98'
-
-interface MatchStatsRow {
-  set_number: number
-  team1_first_serve_won: number | null
-  team1_first_serve_played: number | null
-  team1_second_serve_won: number | null
-  team1_second_serve_played: number | null
-  team1_service_games: number | null
-  team2_first_serve_won: number | null
-  team2_first_serve_played: number | null
-  team2_second_serve_won: number | null
-  team2_second_serve_played: number | null
-  team2_service_games: number | null
-  team1_first_return_won: number | null
-  team1_first_return_played: number | null
-  team1_second_return_won: number | null
-  team1_second_return_played: number | null
-  team1_return_games: number | null
-  team2_first_return_won: number | null
-  team2_first_return_played: number | null
-  team2_second_return_won: number | null
-  team2_second_return_played: number | null
-  team2_return_games: number | null
-  team1_total_points_won: number | null
-  team1_total_points_played: number | null
-  team1_serve_points_won: number | null
-  team1_serve_points_played: number | null
-  team1_return_points_won: number | null
-  team1_return_points_played: number | null
-  team1_longest_streak: number | null
-  team2_total_points_won: number | null
-  team2_total_points_played: number | null
-  team2_serve_points_won: number | null
-  team2_serve_points_played: number | null
-  team2_return_points_won: number | null
-  team2_return_points_played: number | null
-  team2_longest_streak: number | null
-}
 
 type StatsStatus = 'ok' | 'no_mapping' | 'pending_sync' | 'upcoming'
 
