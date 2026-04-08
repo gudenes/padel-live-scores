@@ -394,13 +394,21 @@ export default function V3RankingPage() {
           {query ? (
             <button onClick={() => setQuery('')} aria-label="Clear search" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: MUTED, fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
           ) : (
-            <button onClick={closeSearch} style={{
-              background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer',
-              color: MUTED, fontSize: 11, fontWeight: 700,
-              fontFamily: 'inherit', padding: '4px 10px',
-              clipPath: CHUNKY.badge,
-              textTransform: 'uppercase', letterSpacing: '0.04em',
-            }}>ESC</button>
+            <button
+              onClick={closeSearch}
+              aria-label="Close search"
+              style={{
+                background: 'rgba(255,255,255,0.06)', border: 'none', cursor: 'pointer',
+                color: MUTED, fontSize: 18, fontWeight: 600, lineHeight: 1,
+                fontFamily: 'inherit',
+                width: 28, height: 28,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                clipPath: CHUNKY.badge,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
           )}
         </div>
       )}

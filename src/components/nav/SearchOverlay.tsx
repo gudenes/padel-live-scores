@@ -335,14 +335,18 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           />
           <button
             onClick={onClose}
+            aria-label="Close search"
             style={{
               background: BG_CARD, border: `1px solid ${BORDER}`,
               clipPath: CLIP.button,
-              padding: '5px 14px', fontSize: 11, fontWeight: 700,
+              width: 32, height: 32,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 20, fontWeight: 600, lineHeight: 1,
               color: MUTED, cursor: 'pointer', fontFamily: 'inherit',
+              padding: 0,
             }}
           >
-            ESC
+            ×
           </button>
         </div>
 
