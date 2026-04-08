@@ -20,6 +20,7 @@ import { isTournamentGated } from '@/lib/tournament-utils'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { ResultCard } from '@/components/ResultCard'
+import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1936,6 +1937,8 @@ function V3HomePageInner() {
         {/* Profile / Login */}
         <ProfileButton />
       </header>
+
+      <InviteWelcomeBanner />
 
       {/* ── LIVE NOW ────────────────────────────────────────── */}
       {liveScorable.length > 0 && (
