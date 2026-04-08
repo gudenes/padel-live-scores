@@ -236,14 +236,28 @@ export function EntryList({ entries, playerMap, debutStatusMap, genderFilter }: 
 
   if (filtered.length === 0 && filter === 'all') return null
 
-  // Split hero vs compact. Hero = seeded pairs with seed ≤ 8. Seeds are
-  // assigned to specific draw positions across the bracket for balance,
-  // so we can't fall back to draw_position — that would pick up LL/WC
-  // entries that happen to sit at the top of the draw. Hero section is
-  // sorted by seed so they display 1 → 8 regardless of draw order.
-  const isHero = (e: DrawEntry) => e.seed != null && e.seed <= 8
-  const heroEntries = filtered.filter(isHero).sort((a, b) => (a.seed ?? 999) - (b.seed ?? 999))
-  const compactEntries = filtered.filter(e => !isHero(e))
+  // Split hero vs compact. Strategy: rank every entry by pair strength
+  // and take the top 8 as hero cards. Strength key:
+  //   - seeded pairs: use their seed number (1, 2, 3, ..., 8)
+  //   - unseeded pairs: fall back to best (= lowest) player ranking within
+  //     the pair, offset by 1000 so they always sort AFTER seeded pairs
+  //   - unseeded with no ranking data: sink to the bottom (Infinity)
+  //
+  // This way a tournament like FIP Gold Almaty that has only 1 formal
+  // seed still gets 8 hero cards (seed 1 + top 7 unseeded by ranking),
+  // while a Premier tournament with seeds 1-8 set just shows them in
+  // seed order exactly as before.
+  const strengthOf = (e: DrawEntry & { debutStatus: DebutStatus }): number => {
+    if (e.seed != null) return e.seed
+    const p1Rank = e.player1_id ? playerMap[e.player1_id]?.ranking ?? null : null
+    const p2Rank = e.player2_id ? playerMap[e.player2_id]?.ranking ?? null : null
+    const bestRank = [p1Rank, p2Rank].filter((r): r is number => r != null).sort((a, b) => a - b)[0]
+    if (bestRank != null) return 1000 + bestRank
+    return Infinity
+  }
+  const sortedByStrength = [...filtered].sort((a, b) => strengthOf(a) - strengthOf(b))
+  const heroEntries = sortedByStrength.slice(0, 8)
+  const compactEntries = sortedByStrength.slice(8)
 
   // Chip click: toggle or switch
   const clickChip = (next: Filter) => setFilter(prev => prev === next ? 'all' : next)
@@ -296,10 +310,15 @@ export function EntryList({ entries, playerMap, debutStatusMap, genderFilter }: 
           }}>
             Top Seeds
           </div>
-          {heroEntries.map(e => {
+          {heroEntries.map((e, i) => {
             const p1Info = e.player1_id ? playerMap[e.player1_id] : undefined
             const p2Info = e.player2_id ? playerMap[e.player2_id] : undefined
-            const seedLabel = e.seed != null ? String(e.seed) : e.marker || '—'
+            // Use the formal seed number when the draw has one, otherwise
+            // fall back to the ordinal position in the hero list (1..8) so
+            // the labels always read in order. Never show draw_position as
+            // a seed — it confuses users because draw positions don't
+            // follow strength order.
+            const seedLabel = e.seed != null ? String(e.seed) : String(i + 1)
 
             return (
               <div
