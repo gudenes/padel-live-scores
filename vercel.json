@@ -35,6 +35,14 @@
     {
       "path": "/api/cron/sync-broadcasters",
       "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/premier-discovery",
+      "schedule": "0 4 * * 1"
+    },
+    {
+      "path": "/api/cron/premier-stats",
+      "schedule": "13 * * * *"
     }
   ]
 }
