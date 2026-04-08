@@ -3,14 +3,17 @@
 //
 // Single stat row for the Match Stats tab. Design:
 //
-//   62% ───────── Label ───────── 69%
-//   [====green====][====blue====]     <- split bar, flex-based, CHUNKY clipped
+//   62%     ───── First serve points won ─────   69%
+//   53/86                                         44/64
+//   [====green====][====blue====]     <- chunky split bar
 //
 // Team 1 (green) takes the left portion of the bar proportional to its
 // value; team 2 (blue) takes the right portion. The split point is at
-// team1_value / (team1_value + team2_value). For percentages, this
-// naturally aligns near the middle when both teams are close. For count
-// stats (games played, streak), the bar still splits proportionally.
+// team1_value / (team1_value + team2_value).
+//
+// For percentage kind, the row shows the big pct on top and the raw
+// won/played fraction underneath in a smaller muted font. For count
+// kind, only the raw number is shown (no fraction below).
 
 import type { CSSProperties } from 'react'
 
@@ -20,7 +23,7 @@ const MUTED = '#8a8f98'
 const BORDER = 'rgba(255, 255, 255, 0.08)'
 const TRACK_BG = 'rgba(255, 255, 255, 0.04)'
 
-// Chunky bar shape from the app's brand system (home/page.tsx)
+// Chunky bar shape from the app's brand system (home/page.tsx CHUNKY.bar)
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
 
 export interface MatchStatsBarProps {
@@ -47,9 +50,17 @@ function formatDisplay(
   return p == null ? '—' : `${p}%`
 }
 
+function formatFraction(value: number | null, total: number | null): string {
+  if (value == null || total == null) return ''
+  return `${value}/${total}`
+}
+
 // Derive the numeric weight used for the flex-based bar split.
-// For percentages, weight = pct (0..100). For counts, weight = raw value.
-function weightOf(kind: 'percentage' | 'count', value: number | null, total: number | null): number {
+function weightOf(
+  kind: 'percentage' | 'count',
+  value: number | null,
+  total: number | null,
+): number {
   if (kind === 'percentage') return pct(value, total) ?? 0
   return value ?? 0
 }
@@ -57,14 +68,18 @@ function weightOf(kind: 'percentage' | 'count', value: number | null, total: num
 // ── Styles ───────────────────────────────────────────────────
 
 const rowContainer: CSSProperties = {
-  padding: '14px 16px 16px',
+  padding: '12px 16px 14px',
   borderBottom: `0.5px solid ${BORDER}`,
 }
 
-const labelRow: CSSProperties = {
-  display: 'flex',
+// Grid: [t1 cell] [center label] [t2 cell]
+// Row 1: big numbers + label with dashes
+// Row 2: fractions (t1, empty, t2)
+const gridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(56px, auto) 1fr minmax(56px, auto)',
+  columnGap: 10,
   alignItems: 'center',
-  gap: 10,
   marginBottom: 10,
 }
 
@@ -73,9 +88,8 @@ const t1NumStyle: CSSProperties = {
   fontWeight: 700,
   color: PAIR1_COLOR,
   fontFamily: 'monospace',
-  minWidth: 44,
   textAlign: 'left',
-  flexShrink: 0,
+  lineHeight: 1.1,
 }
 
 const t2NumStyle: CSSProperties = {
@@ -83,13 +97,25 @@ const t2NumStyle: CSSProperties = {
   fontWeight: 700,
   color: PAIR2_COLOR,
   fontFamily: 'monospace',
-  minWidth: 44,
   textAlign: 'right',
-  flexShrink: 0,
+  lineHeight: 1.1,
+}
+
+const fracLeftStyle: CSSProperties = {
+  fontSize: 9,
+  color: MUTED,
+  fontFamily: 'monospace',
+  textAlign: 'left',
+  lineHeight: 1.1,
+  marginTop: 2,
+}
+
+const fracRightStyle: CSSProperties = {
+  ...fracLeftStyle,
+  textAlign: 'right',
 }
 
 const labelCenter: CSSProperties = {
-  flex: 1,
   display: 'flex',
   alignItems: 'center',
   gap: 8,
@@ -136,25 +162,42 @@ export function MatchStatsBar({
 }: MatchStatsBarProps) {
   const t1Display = formatDisplay(kind, t1Value, t1Total)
   const t2Display = formatDisplay(kind, t2Value, t2Total)
+  const t1Frac = kind === 'percentage' ? formatFraction(t1Value, t1Total) : ''
+  const t2Frac = kind === 'percentage' ? formatFraction(t2Value, t2Total) : ''
 
   const t1Weight = weightOf(kind, t1Value, t1Total)
   const t2Weight = weightOf(kind, t2Value, t2Total)
-  // Guard against both-zero: in that case, render a blank track (flex 0 on both
-  // sides leaves the background TRACK_BG visible).
   const bothZero = t1Weight === 0 && t2Weight === 0
 
   return (
     <div style={rowContainer}>
-      {/* Value + label row */}
-      <div style={labelRow}>
-        <span style={t1NumStyle}>{t1Display}</span>
+      {/* Row 1: numbers + label with dashes */}
+      <div style={gridStyle}>
+        <div style={t1NumStyle}>{t1Display}</div>
         <div style={labelCenter}>
           <div style={dashStyle} />
           <span style={labelTextStyle}>{label}</span>
           <div style={dashStyle} />
         </div>
-        <span style={t2NumStyle}>{t2Display}</span>
+        <div style={t2NumStyle}>{t2Display}</div>
       </div>
+
+      {/* Row 2: fractions (only for percentage kind) */}
+      {kind === 'percentage' && (t1Frac || t2Frac) && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(56px, auto) 1fr minmax(56px, auto)',
+            columnGap: 10,
+            marginTop: -6,
+            marginBottom: 10,
+          }}
+        >
+          <div style={fracLeftStyle}>{t1Frac || '\u00a0'}</div>
+          <div />
+          <div style={fracRightStyle}>{t2Frac || '\u00a0'}</div>
+        </div>
+      )}
 
       {/* Split bar track */}
       <div style={trackOuter}>

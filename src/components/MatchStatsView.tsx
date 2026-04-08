@@ -5,11 +5,11 @@
 // appropriate state (loading / empty / success).
 //
 // Design:
-//  - Single flat list of stat rows (no section headers)
+//  - Grouped sections: SERVICE, RETURN, POINTS
 //  - Nested pill tabs to switch between Match aggregate and individual sets
-//  - Match tab shows all stats; per-set tabs show only set-level stats
-//    (service + return only — streak and total points only exist on
-//    the Match aggregate)
+//  - Match tab shows all stats including Total serve/return and Longest streak
+//  - Per-set tabs show only first/second serve %, service games played,
+//    first/second return %, return games played (the middle 6 rows)
 //  - Aces and Double Faults are NOT shown because Premier Padel's API
 //    always returns 0 for these counts (not tracked by their system)
 
@@ -127,73 +127,34 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
     <div>
       <MatchStatsSetTabs tabs={tabs} active={activeSet} onChange={setActiveSet} />
 
-      {/* Match-only stats (only shown on Match aggregate tab) */}
-      {isMatchTab && (
+      {/* SERVICE section */}
+      <Section title="Service" isFirst>
         <MatchStatsBar
-          label="Longest points won streak"
+          label="First serve points won"
+          kind="percentage"
+          t1Value={activeRow.team1_first_serve_won}
+          t1Total={activeRow.team1_first_serve_played}
+          t2Value={activeRow.team2_first_serve_won}
+          t2Total={activeRow.team2_first_serve_played}
+        />
+        <MatchStatsBar
+          label="Second serve points won"
+          kind="percentage"
+          t1Value={activeRow.team1_second_serve_won}
+          t1Total={activeRow.team1_second_serve_played}
+          t2Value={activeRow.team2_second_serve_won}
+          t2Total={activeRow.team2_second_serve_played}
+        />
+        <MatchStatsBar
+          label="Service games played"
           kind="count"
-          t1Value={activeRow.team1_longest_streak}
+          t1Value={activeRow.team1_service_games}
           t1Total={null}
-          t2Value={activeRow.team2_longest_streak}
+          t2Value={activeRow.team2_service_games}
           t2Total={null}
         />
-      )}
-
-      {/* Service stats — shown on all tabs */}
-      <MatchStatsBar
-        label="First serve points won"
-        kind="percentage"
-        t1Value={activeRow.team1_first_serve_won}
-        t1Total={activeRow.team1_first_serve_played}
-        t2Value={activeRow.team2_first_serve_won}
-        t2Total={activeRow.team2_first_serve_played}
-      />
-      <MatchStatsBar
-        label="Second serve points won"
-        kind="percentage"
-        t1Value={activeRow.team1_second_serve_won}
-        t1Total={activeRow.team1_second_serve_played}
-        t2Value={activeRow.team2_second_serve_won}
-        t2Total={activeRow.team2_second_serve_played}
-      />
-      <MatchStatsBar
-        label="Service games played"
-        kind="count"
-        t1Value={activeRow.team1_service_games}
-        t1Total={null}
-        t2Value={activeRow.team2_service_games}
-        t2Total={null}
-      />
-
-      {/* Return stats — shown on all tabs */}
-      <MatchStatsBar
-        label="First return points won"
-        kind="percentage"
-        t1Value={activeRow.team1_first_return_won}
-        t1Total={activeRow.team1_first_return_played}
-        t2Value={activeRow.team2_first_return_won}
-        t2Total={activeRow.team2_first_return_played}
-      />
-      <MatchStatsBar
-        label="Second return points won"
-        kind="percentage"
-        t1Value={activeRow.team1_second_return_won}
-        t1Total={activeRow.team1_second_return_played}
-        t2Value={activeRow.team2_second_return_won}
-        t2Total={activeRow.team2_second_return_played}
-      />
-      <MatchStatsBar
-        label="Return games played"
-        kind="count"
-        t1Value={activeRow.team1_return_games}
-        t1Total={null}
-        t2Value={activeRow.team2_return_games}
-        t2Total={null}
-      />
-
-      {/* Total stats — only shown on Match tab */}
-      {isMatchTab && (
-        <>
+        {/* Total serve points won — Match tab only */}
+        {isMatchTab && (
           <MatchStatsBar
             label="Total serve points won"
             kind="percentage"
@@ -202,6 +163,37 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
             t2Value={activeRow.team2_serve_points_won}
             t2Total={activeRow.team2_serve_points_played}
           />
+        )}
+      </Section>
+
+      {/* RETURN section */}
+      <Section title="Return">
+        <MatchStatsBar
+          label="First return points won"
+          kind="percentage"
+          t1Value={activeRow.team1_first_return_won}
+          t1Total={activeRow.team1_first_return_played}
+          t2Value={activeRow.team2_first_return_won}
+          t2Total={activeRow.team2_first_return_played}
+        />
+        <MatchStatsBar
+          label="Second return points won"
+          kind="percentage"
+          t1Value={activeRow.team1_second_return_won}
+          t1Total={activeRow.team1_second_return_played}
+          t2Value={activeRow.team2_second_return_won}
+          t2Total={activeRow.team2_second_return_played}
+        />
+        <MatchStatsBar
+          label="Return games played"
+          kind="count"
+          t1Value={activeRow.team1_return_games}
+          t1Total={null}
+          t2Value={activeRow.team2_return_games}
+          t2Total={null}
+        />
+        {/* Total return points won — Match tab only */}
+        {isMatchTab && (
           <MatchStatsBar
             label="Total return points won"
             kind="percentage"
@@ -210,8 +202,54 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
             t2Value={activeRow.team2_return_points_won}
             t2Total={activeRow.team2_return_points_played}
           />
-        </>
+        )}
+      </Section>
+
+      {/* POINTS section — Match tab only */}
+      {isMatchTab && (
+        <Section title="Points">
+          <MatchStatsBar
+            label="Longest points won streak"
+            kind="count"
+            t1Value={activeRow.team1_longest_streak}
+            t1Total={null}
+            t2Value={activeRow.team2_longest_streak}
+            t2Total={null}
+          />
+        </Section>
       )}
+    </div>
+  )
+}
+
+// ── Section header ────────────────────────────────────────────
+
+function Section({
+  title,
+  isFirst,
+  children,
+}: {
+  title: string
+  isFirst?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          padding: '14px 16px 6px',
+          fontSize: 9,
+          fontWeight: 700,
+          color: '#8a8f98',
+          textTransform: 'uppercase',
+          letterSpacing: '1px',
+          borderTop: isFirst ? 'none' : '0.5px solid rgba(255, 255, 255, 0.08)',
+          background: 'rgba(0, 0, 0, 0.15)',
+        }}
+      >
+        {title}
+      </div>
+      {children}
     </div>
   )
 }
