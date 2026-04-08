@@ -235,8 +235,71 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       setPlayerMap(map)
     }
 
-    // Debut status computation stays empty for Task 1 — Task 2 wires it.
-    setDebutStatusMap({})
+    // ── Compute debut status (fresh partners / new this season) ──
+    // For each entry with both player IDs resolved, look at historical
+    // finished matches (excluding this tournament) and count whether
+    // they've played together, and whether any of those matches are
+    // in the current calendar year.
+    const idList = Array.from(playerIds)
+    if (idList.length === 0) {
+      setDebutStatusMap({})
+      return
+    }
+
+    const orClause =
+      `pair1_player1_id.in.(${idList.join(',')}),` +
+      `pair1_player2_id.in.(${idList.join(',')}),` +
+      `pair2_player1_id.in.(${idList.join(',')}),` +
+      `pair2_player2_id.in.(${idList.join(',')})`
+
+    const { data: histMatches } = await supabase
+      .from('matches')
+      .select('pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, finished_at')
+      .in('status', ['finished', 'retired', 'walkover'])
+      .neq('tournament_id', tournamentId)
+      .or(orClause)
+      .limit(5000)
+
+    // Build a map: pairKey → { hasPast: boolean, hasThisYear: boolean }
+    const pairStats: Record<string, { hasPast: boolean; hasThisYear: boolean }> = {}
+    const currentYear = new Date().getFullYear()
+
+    const makeKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`
+
+    for (const m of (histMatches ?? []) as any[]) {
+      // For each match, check both pair slots. If both IDs in a slot
+      // are members of our playerIds set, record them as a played-together pair.
+      const pairs: Array<[string | null, string | null]> = [
+        [m.pair1_player1_id, m.pair1_player2_id],
+        [m.pair2_player1_id, m.pair2_player2_id],
+      ]
+      for (const [a, b] of pairs) {
+        if (!a || !b) continue
+        if (!playerIds.has(a) || !playerIds.has(b)) continue
+        const key = makeKey(a, b)
+        const year = m.finished_at ? new Date(m.finished_at).getFullYear() : 0
+        const existing = pairStats[key] ?? { hasPast: false, hasThisYear: false }
+        existing.hasPast = true
+        if (year === currentYear) existing.hasThisYear = true
+        pairStats[key] = existing
+      }
+    }
+
+    // Map each current-tournament entry to a debut status.
+    const statusMap: Record<string, 'fresh' | 'newThisSeason' | null> = {}
+    for (const d of drawData as any[]) {
+      if (!d.player1_id || !d.player2_id) continue
+      const key = makeKey(d.player1_id, d.player2_id)
+      const stats = pairStats[key]
+      if (!stats || !stats.hasPast) {
+        statusMap[key] = 'fresh'
+      } else if (!stats.hasThisYear) {
+        statusMap[key] = 'newThisSeason'
+      } else {
+        statusMap[key] = null // established
+      }
+    }
+    setDebutStatusMap(statusMap)
   }, [tournamentId])
 
   useEffect(() => { fetchAll(); fetchTournaments(); fetchDrawEntries() }, [fetchAll, fetchTournaments, fetchDrawEntries])
