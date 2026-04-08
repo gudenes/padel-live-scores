@@ -5,6 +5,7 @@
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
 
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Link from 'next/link'
@@ -1822,8 +1823,26 @@ export default function V3HomePage() {
 }
 
 function V3HomePageInner() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const initialView: 'home' | 'tournaments' = searchParams.get('view') === 'tournaments' ? 'tournaments' : 'home'
+
   const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'home' | 'tournaments'>('home')
+  const [view, setView] = useState<'home' | 'tournaments'>(initialView)
+
+  const switchView = useCallback((next: 'home' | 'tournaments') => {
+    setView(next)
+    const url = next === 'tournaments' ? '/home?view=tournaments' : '/home'
+    router.replace(url, { scroll: false })
+  }, [router])
+
+  // Sync state when the URL changes (e.g. user navigates from /home to
+  // /home?view=tournaments via a link inside the same page).
+  useEffect(() => {
+    const next = searchParams.get('view') === 'tournaments' ? 'tournaments' : 'home'
+    setView(next)
+  }, [searchParams])
+
   const gender = 'all' as const
   const [liveMatches, setLiveMatches] = useState<Match[]>([])
   const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
@@ -1974,7 +1993,7 @@ function V3HomePageInner() {
     return (
       <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
         <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
-        <TournamentsView onBack={() => setView('home')} />
+        <TournamentsView onBack={() => switchView('home')} />
       </div>
     )
   }
@@ -2104,7 +2123,7 @@ function V3HomePageInner() {
       {/* ── TOURNAMENT SPOTLIGHT ─────────────────────────────── */}
       {spotlightTournament && (
         <>
-          <SectionTitle action="Full Events" onAction={() => { setView('tournaments'); window.scrollTo(0, 0) }}>Tournament Spotlight</SectionTitle>
+          <SectionTitle action="Full Events" onAction={() => { switchView('tournaments'); window.scrollTo(0, 0) }}>Tournament Spotlight</SectionTitle>
           <TournamentSpotlight
             tournament={spotlightTournament}
             matchCount={liveMatchCount}
