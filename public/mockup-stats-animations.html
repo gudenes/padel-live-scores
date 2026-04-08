@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Match Stats Animation Mockups</title>
+<style>
+  :root {
+    --pair1: #7ed321;
+    --pair2: #4a90e2;
+    --muted: #8a8f98;
+    --border: rgba(255,255,255,0.08);
+    --track-bg: rgba(255,255,255,0.04);
+    --card-bg: #0f1114;
+    --section-bg: rgba(0,0,0,0.15);
+    --bg: #05070a;
+    --chunky-bar: polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%);
+    --chunky-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: white;
+    font-family: -apple-system, 'SF Pro Display', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    padding: 16px;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 18px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin: 8px 0 4px;
+  }
+  .lead {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .replay-all {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: rgba(126,211,33,0.12);
+    border: 0.5px solid rgba(126,211,33,0.3);
+    color: var(--pair1);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    clip-path: var(--chunky-badge);
+    font-family: inherit;
+    margin-bottom: 20px;
+  }
+  .mockup-card {
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    margin-bottom: 24px;
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+  }
+  .mockup-header {
+    padding: 14px 16px 12px;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .mockup-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .mockup-desc {
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .replay-btn {
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid var(--border);
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 5px 12px;
+    cursor: pointer;
+    clip-path: var(--chunky-badge);
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .replay-btn:hover {
+    color: var(--pair1);
+    border-color: rgba(126,211,33,0.3);
+  }
+
+  /* Section header inside a mockup */
+  .section-header {
+    padding: 14px 16px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: var(--section-bg);
+  }
+
+  /* Stat row */
+  .stat-row {
+    padding: 12px 16px 14px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .stat-row:last-child { border-bottom: none; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: minmax(56px, auto) 1fr minmax(56px, auto);
+    column-gap: 10px;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .stat-num {
+    font-family: ui-monospace, 'SF Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .stat-num.t1 { color: var(--pair1); text-align: left; }
+  .stat-num.t2 { color: var(--pair2); text-align: right; }
+
+  .stat-label-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stat-dash {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .stat-frac-grid {
+    display: grid;
+    grid-template-columns: minmax(56px, auto) 1fr minmax(56px, auto);
+    column-gap: 10px;
+    margin-top: -2px;
+    margin-bottom: 10px;
+  }
+  .stat-frac {
+    font-family: ui-monospace, 'SF Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    line-height: 1.1;
+  }
+  .stat-frac.t1 { text-align: left; }
+  .stat-frac.t2 { text-align: right; }
+
+  /* Bar track — the chunky container */
+  .stat-track {
+    position: relative;
+    height: 8px;
+    background: var(--track-bg);
+    clip-path: var(--chunky-bar);
+    overflow: hidden;
+  }
+
+  /* The colored bar halves — center-anchored, grow outward */
+  .stat-fill {
+    position: absolute;
+    top: 0; bottom: 0;
+    clip-path: var(--chunky-bar);
+    opacity: 0.85;
+    width: 0;
+  }
+  .stat-fill.t1 { right: 50%; background: var(--pair1); }
+  .stat-fill.t2 { left: 50%; background: var(--pair2); }
+
+  /* ─── MOCKUP A: Grow from Center ─── */
+  .mockup-a .stat-fill {
+    transition: width 700ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  .mockup-a.playing .stat-row:nth-child(1) .stat-fill.t1,
+  .mockup-a.playing .stat-row:nth-child(1) .stat-fill.t2 { transition-delay: 0ms; }
+  .mockup-a.playing .stat-row:nth-child(2) .stat-fill.t1,
+  .mockup-a.playing .stat-row:nth-child(2) .stat-fill.t2 { transition-delay: 80ms; }
+  .mockup-a.playing .stat-row:nth-child(3) .stat-fill.t1,
+  .mockup-a.playing .stat-row:nth-child(3) .stat-fill.t2 { transition-delay: 160ms; }
+  .mockup-a.playing .stat-row:nth-child(4) .stat-fill.t1,
+  .mockup-a.playing .stat-row:nth-child(4) .stat-fill.t2 { transition-delay: 240ms; }
+
+  /* ─── MOCKUP B: Grow + Counter ─── */
+  .mockup-b .stat-fill {
+    transition: width 700ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  .mockup-b.playing .stat-row:nth-child(1) .stat-fill.t1,
+  .mockup-b.playing .stat-row:nth-child(1) .stat-fill.t2 { transition-delay: 0ms; }
+  .mockup-b.playing .stat-row:nth-child(2) .stat-fill.t1,
+  .mockup-b.playing .stat-row:nth-child(2) .stat-fill.t2 { transition-delay: 80ms; }
+  .mockup-b.playing .stat-row:nth-child(3) .stat-fill.t1,
+  .mockup-b.playing .stat-row:nth-child(3) .stat-fill.t2 { transition-delay: 160ms; }
+  .mockup-b.playing .stat-row:nth-child(4) .stat-fill.t1,
+  .mockup-b.playing .stat-row:nth-child(4) .stat-fill.t2 { transition-delay: 240ms; }
+
+  /* ─── MOCKUP C: Cascading by Section ─── */
+  .mockup-c .stat-fill {
+    transition: width 600ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  .mockup-c.playing .stat-row:nth-child(1) .stat-fill { transition-delay: 0ms; }
+  .mockup-c.playing .stat-row:nth-child(2) .stat-fill { transition-delay: 150ms; }
+  .mockup-c.playing .stat-row:nth-child(3) .stat-fill { transition-delay: 300ms; }
+  .mockup-c.playing .stat-row:nth-child(4) .stat-fill { transition-delay: 450ms; }
+
+  /* ─── MOCKUP D: Quick Pop ─── */
+  .mockup-d .stat-fill {
+    opacity: 0;
+    transform: scaleY(0.4);
+    transform-origin: center;
+    transition: opacity 300ms ease-out, transform 300ms ease-out;
+  }
+  .mockup-d .stat-fill.pre {
+    /* width is set instantly from JS */
+  }
+  .mockup-d.playing .stat-fill {
+    opacity: 0.85;
+    transform: scaleY(1);
+  }
+  .mockup-d.playing .stat-row:nth-child(1) .stat-fill { transition-delay: 0ms; }
+  .mockup-d.playing .stat-row:nth-child(2) .stat-fill { transition-delay: 60ms; }
+  .mockup-d.playing .stat-row:nth-child(3) .stat-fill { transition-delay: 120ms; }
+  .mockup-d.playing .stat-row:nth-child(4) .stat-fill { transition-delay: 180ms; }
+
+  /* ─── MOCKUP E: Shimmer Preload ─── */
+  .mockup-e .stat-track {
+    position: relative;
+  }
+  .mockup-e .stat-placeholder {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      rgba(255,255,255,0.02) 0%,
+      rgba(255,255,255,0.02) 30%,
+      rgba(255,255,255,0.08) 50%,
+      rgba(255,255,255,0.02) 70%,
+      rgba(255,255,255,0.02) 100%
+    );
+    background-size: 200% 100%;
+    background-position: 100% 0;
+    clip-path: var(--chunky-bar);
+    opacity: 1;
+    transition: opacity 300ms ease-out;
+  }
+  .mockup-e.playing .stat-placeholder {
+    animation: shimmer 800ms ease-in-out;
+    animation-fill-mode: forwards;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 100% 0; opacity: 1; }
+    60%  { background-position: -100% 0; opacity: 1; }
+    100% { background-position: -200% 0; opacity: 0; }
+  }
+  .mockup-e .stat-fill {
+    transition: width 500ms cubic-bezier(0.25, 0.1, 0.25, 1);
+    transition-delay: 500ms;
+  }
+
+  .help-note {
+    color: var(--muted);
+    font-size: 10px;
+    text-align: center;
+    padding: 20px 16px;
+    border-top: 0.5px solid var(--border);
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Stats Animation Mockups</h1>
+<p class="lead">
+  5 concepts for scroll-triggered animation on the match stats tab. Tap
+  "Replay All" or any individual "Replay" button to see each in action.
+  The real data used is Miami P1 2026 Men's Final (Tapia/Coello vs Galán/Chingotto).
+</p>
+
+<button class="replay-all" onclick="replayAll()">▶ Replay All</button>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- MOCKUP A -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="mockup-card mockup-a" id="mockup-a">
+  <div class="mockup-header">
+    <div>
+      <div class="mockup-title">A · Grow from Center</div>
+      <div class="mockup-desc">700ms · 80ms row stagger · cubic ease-out</div>
+    </div>
+    <button class="replay-btn" onclick="replay('a')">Replay</button>
+  </div>
+  <div class="section-header">Service</div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">62%</div>
+      <div class="stat-label-center">
+        <div class="stat-dash"></div>
+        <span class="stat-label">First serve points won</span>
+        <div class="stat-dash"></div>
+      </div>
+      <div class="stat-num t2">69%</div>
+    </div>
+    <div class="stat-frac-grid">
+      <div class="stat-frac t1">53/86</div>
+      <div></div>
+      <div class="stat-frac t2">44/64</div>
+    </div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="31"></div>
+      <div class="stat-fill t2" data-w="34.5"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">60%</div>
+      <div class="stat-label-center">
+        <div class="stat-dash"></div>
+        <span class="stat-label">Second serve points won</span>
+        <div class="stat-dash"></div>
+      </div>
+      <div class="stat-num t2">73%</div>
+    </div>
+    <div class="stat-frac-grid">
+      <div class="stat-frac t1">3/5</div>
+      <div></div>
+      <div class="stat-frac t2">8/11</div>
+    </div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="30"></div>
+      <div class="stat-fill t2" data-w="36.5"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">31%</div>
+      <div class="stat-label-center">
+        <div class="stat-dash"></div>
+        <span class="stat-label">First return points won</span>
+        <div class="stat-dash"></div>
+      </div>
+      <div class="stat-num t2">38%</div>
+    </div>
+    <div class="stat-frac-grid">
+      <div class="stat-frac t1">20/64</div>
+      <div></div>
+      <div class="stat-frac t2">33/86</div>
+    </div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="15.5"></div>
+      <div class="stat-fill t2" data-w="19"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">48%</div>
+      <div class="stat-label-center">
+        <div class="stat-dash"></div>
+        <span class="stat-label">Total points won</span>
+        <div class="stat-dash"></div>
+      </div>
+      <div class="stat-num t2">52%</div>
+    </div>
+    <div class="stat-frac-grid">
+      <div class="stat-frac t1">79/166</div>
+      <div></div>
+      <div class="stat-frac t2">87/166</div>
+    </div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="24"></div>
+      <div class="stat-fill t2" data-w="26"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- MOCKUP B -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="mockup-card mockup-b" id="mockup-b">
+  <div class="mockup-header">
+    <div>
+      <div class="mockup-title">B · Grow + Counter ⭐</div>
+      <div class="mockup-desc">Numbers tick up in sync with bar · 700ms · 80ms stagger</div>
+    </div>
+    <button class="replay-btn" onclick="replay('b')">Replay</button>
+  </div>
+  <div class="section-header">Service</div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1" data-target="62" data-suffix="%">62%</div>
+      <div class="stat-label-center">
+        <div class="stat-dash"></div>
+        <span class="stat-label">First serve points won</span>
+        <div class="stat-dash"></div>
+      </div>
+      <div class="stat-num t2" data-target="69" data-suffix="%">69%</div>
+    </div>
+    <div class="stat-frac-grid">
+      <div class="stat-frac t1" data-num-target="53" data-num-denom="86">53/86</div>
+      <div></div>
+      <div class="stat-frac t2" data-num-target="44" data-num-denom="64">44/64</div>
+    </div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="31"></div>
+      <div class="stat-fill t2" data-w="34.5"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1" data-target="60" data-suffix="%">60%</div>
+      <div class="stat-label-center">
+        <div class="stat-dash"></div>
+        <span class="stat-label">Second serve points won</span>
+        <div class="stat-dash"></div>
+      </div>
+      <div class="stat-num t2" data-target="73" data-suffix="%">73%</div>
+    </div>
+    <div class="stat-frac-grid">
+      <div class="stat-frac t1" data-num-target="3" data-num-denom="5">3/5</div>
+      <div></div>
+      <div class="stat-frac t2" data-num-target="8" data-num-denom="11">8/11</div>
+    </div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="30"></div>
+      <div class="stat-fill t2" data-w="36.5"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1" data-target="31" data-suffix="%">31%</div>
+      <div class="stat-label-center">
+        <div class="stat-dash"></div>
+        <span class="stat-label">First return points won</span>
+        <div class="stat-dash"></div>
+      </div>
+      <div class="stat-num t2" data-target="38" data-suffix="%">38%</div>
+    </div>
+    <div class="stat-frac-grid">
+      <div class="stat-frac t1" data-num-target="20" data-num-denom="64">20/64</div>
+      <div></div>
+      <div class="stat-frac t2" data-num-target="33" data-num-denom="86">33/86</div>
+    </div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="15.5"></div>
+      <div class="stat-fill t2" data-w="19"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1" data-target="48" data-suffix="%">48%</div>
+      <div class="stat-label-center">
+        <div class="stat-dash"></div>
+        <span class="stat-label">Total points won</span>
+        <div class="stat-dash"></div>
+      </div>
+      <div class="stat-num t2" data-target="52" data-suffix="%">52%</div>
+    </div>
+    <div class="stat-frac-grid">
+      <div class="stat-frac t1" data-num-target="79" data-num-denom="166">79/166</div>
+      <div></div>
+      <div class="stat-frac t2" data-num-target="87" data-num-denom="166">87/166</div>
+    </div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="24"></div>
+      <div class="stat-fill t2" data-w="26"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- MOCKUP C -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="mockup-card mockup-c" id="mockup-c">
+  <div class="mockup-header">
+    <div>
+      <div class="mockup-title">C · Cascading by Section</div>
+      <div class="mockup-desc">150ms between rows · theatrical wave</div>
+    </div>
+    <button class="replay-btn" onclick="replay('c')">Replay</button>
+  </div>
+  <div class="section-header">Service</div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">62%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">First serve points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">69%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">53/86</div><div></div><div class="stat-frac t2">44/64</div></div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="31"></div>
+      <div class="stat-fill t2" data-w="34.5"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">60%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">Second serve points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">73%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">3/5</div><div></div><div class="stat-frac t2">8/11</div></div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="30"></div>
+      <div class="stat-fill t2" data-w="36.5"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">31%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">First return points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">38%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">20/64</div><div></div><div class="stat-frac t2">33/86</div></div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="15.5"></div>
+      <div class="stat-fill t2" data-w="19"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">48%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">Total points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">52%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">79/166</div><div></div><div class="stat-frac t2">87/166</div></div>
+    <div class="stat-track">
+      <div class="stat-fill t1" data-w="24"></div>
+      <div class="stat-fill t2" data-w="26"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- MOCKUP D -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="mockup-card mockup-d" id="mockup-d">
+  <div class="mockup-header">
+    <div>
+      <div class="mockup-title">D · Quick Pop</div>
+      <div class="mockup-desc">Subtlest · 300ms fade + scaleY · no counter</div>
+    </div>
+    <button class="replay-btn" onclick="replay('d')">Replay</button>
+  </div>
+  <div class="section-header">Service</div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">62%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">First serve points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">69%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">53/86</div><div></div><div class="stat-frac t2">44/64</div></div>
+    <div class="stat-track">
+      <div class="stat-fill t1 pre" style="width: 31%"></div>
+      <div class="stat-fill t2 pre" style="width: 34.5%"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">60%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">Second serve points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">73%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">3/5</div><div></div><div class="stat-frac t2">8/11</div></div>
+    <div class="stat-track">
+      <div class="stat-fill t1 pre" style="width: 30%"></div>
+      <div class="stat-fill t2 pre" style="width: 36.5%"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">31%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">First return points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">38%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">20/64</div><div></div><div class="stat-frac t2">33/86</div></div>
+    <div class="stat-track">
+      <div class="stat-fill t1 pre" style="width: 15.5%"></div>
+      <div class="stat-fill t2 pre" style="width: 19%"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">48%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">Total points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">52%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">79/166</div><div></div><div class="stat-frac t2">87/166</div></div>
+    <div class="stat-track">
+      <div class="stat-fill t1 pre" style="width: 24%"></div>
+      <div class="stat-fill t2 pre" style="width: 26%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- MOCKUP E -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="mockup-card mockup-e" id="mockup-e">
+  <div class="mockup-header">
+    <div>
+      <div class="mockup-title">E · Shimmer Preload</div>
+      <div class="mockup-desc">Loading placeholder first, then fill · 800ms total</div>
+    </div>
+    <button class="replay-btn" onclick="replay('e')">Replay</button>
+  </div>
+  <div class="section-header">Service</div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">62%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">First serve points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">69%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">53/86</div><div></div><div class="stat-frac t2">44/64</div></div>
+    <div class="stat-track">
+      <div class="stat-placeholder"></div>
+      <div class="stat-fill t1" data-w="31"></div>
+      <div class="stat-fill t2" data-w="34.5"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">60%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">Second serve points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">73%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">3/5</div><div></div><div class="stat-frac t2">8/11</div></div>
+    <div class="stat-track">
+      <div class="stat-placeholder"></div>
+      <div class="stat-fill t1" data-w="30"></div>
+      <div class="stat-fill t2" data-w="36.5"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">31%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">First return points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">38%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">20/64</div><div></div><div class="stat-frac t2">33/86</div></div>
+    <div class="stat-track">
+      <div class="stat-placeholder"></div>
+      <div class="stat-fill t1" data-w="15.5"></div>
+      <div class="stat-fill t2" data-w="19"></div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-grid">
+      <div class="stat-num t1">48%</div>
+      <div class="stat-label-center"><div class="stat-dash"></div><span class="stat-label">Total points won</span><div class="stat-dash"></div></div>
+      <div class="stat-num t2">52%</div>
+    </div>
+    <div class="stat-frac-grid"><div class="stat-frac t1">79/166</div><div></div><div class="stat-frac t2">87/166</div></div>
+    <div class="stat-track">
+      <div class="stat-placeholder"></div>
+      <div class="stat-fill t1" data-w="24"></div>
+      <div class="stat-fill t2" data-w="26"></div>
+    </div>
+  </div>
+</div>
+
+<div class="help-note">
+  All mockups use the same real data from Miami P1 2026 Men's Final.<br>
+  Tap Replay to run the animation again. Scroll to see all 5 side by side.
+</div>
+
+<script>
+// ── Helpers ─────────────────────────────────────
+
+function resetFills(card) {
+  // For bars that animate width
+  card.querySelectorAll('.stat-fill:not(.pre)').forEach(fill => {
+    fill.style.width = '0%'
+  })
+  // For "pre" fills (mockup D), reset opacity/scale only
+  card.querySelectorAll('.stat-fill.pre').forEach(fill => {
+    // width stays at data-w, reset via classList
+  })
+  // Reset counter numbers for mockup B
+  card.querySelectorAll('.stat-num[data-target]').forEach(el => {
+    el.textContent = '0' + (el.dataset.suffix || '')
+  })
+  card.querySelectorAll('.stat-frac[data-num-target]').forEach(el => {
+    el.textContent = '0/' + el.dataset.numDenom
+  })
+  // Reset shimmer placeholder (mockup E)
+  card.querySelectorAll('.stat-placeholder').forEach(el => {
+    el.style.animation = 'none'
+    el.style.opacity = ''
+    el.style.backgroundPosition = '100% 0'
+    // Force reflow so the animation can restart
+    void el.offsetWidth
+    el.style.animation = ''
+  })
+}
+
+function playFills(card) {
+  requestAnimationFrame(() => {
+    card.querySelectorAll('.stat-fill:not(.pre)').forEach(fill => {
+      const w = fill.dataset.w
+      if (w) fill.style.width = w + '%'
+    })
+  })
+}
+
+// RAF-based counter for Mockup B
+function animateCounters(card, duration, staggerPerRow) {
+  const rows = card.querySelectorAll('.stat-row')
+  rows.forEach((row, rowIdx) => {
+    const delay = rowIdx * staggerPerRow
+    const startTime = performance.now() + delay
+
+    const pctEls = row.querySelectorAll('.stat-num[data-target]')
+    const fracEls = row.querySelectorAll('.stat-frac[data-num-target]')
+
+    const step = (now) => {
+      if (now < startTime) {
+        requestAnimationFrame(step)
+        return
+      }
+      const elapsed = now - startTime
+      const t = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+
+      pctEls.forEach(el => {
+        const target = Number(el.dataset.target)
+        const current = Math.round(target * eased)
+        el.textContent = current + (el.dataset.suffix || '')
+      })
+      fracEls.forEach(el => {
+        const target = Number(el.dataset.numTarget)
+        const denom = el.dataset.numDenom
+        const current = Math.round(target * eased)
+        el.textContent = current + '/' + denom
+      })
+
+      if (t < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  })
+}
+
+// ── Main replay logic ─────────────────────────────
+
+function replay(id) {
+  const card = document.getElementById('mockup-' + id)
+  if (!card) return
+
+  card.classList.remove('playing')
+  resetFills(card)
+
+  // Force reflow
+  void card.offsetWidth
+
+  card.classList.add('playing')
+
+  if (id === 'a' || id === 'c') {
+    playFills(card)
+  } else if (id === 'b') {
+    playFills(card)
+    animateCounters(card, 700, 80)
+  } else if (id === 'd') {
+    // Mockup D: bars already at width, just toggle playing class (handles opacity+transform via CSS)
+  } else if (id === 'e') {
+    // Mockup E: shimmer first, then bars
+    setTimeout(() => { playFills(card) }, 500)
+  }
+}
+
+function replayAll() {
+  ['a', 'b', 'c', 'd', 'e'].forEach((id, i) => {
+    setTimeout(() => replay(id), i * 100)
+  })
+}
+
+// ── Initial: run once on load ─────────────────────
+
+window.addEventListener('load', () => {
+  setTimeout(() => replayAll(), 300)
+})
+</script>
+
+</body>
+</html>
