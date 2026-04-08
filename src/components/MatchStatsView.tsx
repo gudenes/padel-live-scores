@@ -4,12 +4,15 @@
 // Stats tab container. Fetches /api/match-stats on mount, renders the
 // appropriate state (loading / empty / success).
 //
-// Features:
-// - Nested pill tabs to switch between Match aggregate and individual sets
-// - Three grouped sections (Service / Return / Total)
-// - Total Points section is hidden on per-set tabs (Premier only returns
-//   total_points on the 'Match' section)
-// - Empty states for 4 API status cases: ok / upcoming / no_mapping / pending_sync
+// Design:
+//  - Single flat list of stat rows (no section headers)
+//  - Nested pill tabs to switch between Match aggregate and individual sets
+//  - Match tab shows all stats; per-set tabs show only set-level stats
+//    (service + return only — streak, aces, double faults, and total
+//    points only exist on the Match aggregate)
+//  - Aces and Double Faults are hardcoded to 0 — Premier Padel's API
+//    always returns 0 for these counts, but we include them in the list
+//    to match the reference design
 
 import { useEffect, useState } from 'react'
 import { MatchStatsBar } from './MatchStatsBar'
@@ -119,79 +122,99 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
     })),
   ]
 
+  const isMatchTab = activeSet === 0
+
   return (
     <div>
       <MatchStatsSetTabs tabs={tabs} active={activeSet} onChange={setActiveSet} />
 
-      {/* Service section */}
-      <Section title="Service">
-        <MatchStatsBar
-          label="1st Serve %"
-          kind="percentage"
-          t1Value={activeRow.team1_first_serve_won}
-          t1Total={activeRow.team1_first_serve_played}
-          t2Value={activeRow.team2_first_serve_won}
-          t2Total={activeRow.team2_first_serve_played}
-        />
-        <MatchStatsBar
-          label="2nd Serve %"
-          kind="percentage"
-          t1Value={activeRow.team1_second_serve_won}
-          t1Total={activeRow.team1_second_serve_played}
-          t2Value={activeRow.team2_second_serve_won}
-          t2Total={activeRow.team2_second_serve_played}
-        />
-        <MatchStatsBar
-          label="Service Games"
-          kind="count"
-          t1Value={activeRow.team1_service_games}
-          t1Total={null}
-          t2Value={activeRow.team2_service_games}
-          t2Total={null}
-        />
-      </Section>
-
-      {/* Return section */}
-      <Section title="Return">
-        <MatchStatsBar
-          label="1st Return %"
-          kind="percentage"
-          t1Value={activeRow.team1_first_return_won}
-          t1Total={activeRow.team1_first_return_played}
-          t2Value={activeRow.team2_first_return_won}
-          t2Total={activeRow.team2_first_return_played}
-        />
-        <MatchStatsBar
-          label="2nd Return %"
-          kind="percentage"
-          t1Value={activeRow.team1_second_return_won}
-          t1Total={activeRow.team1_second_return_played}
-          t2Value={activeRow.team2_second_return_won}
-          t2Total={activeRow.team2_second_return_played}
-        />
-        <MatchStatsBar
-          label="Return Games"
-          kind="count"
-          t1Value={activeRow.team1_return_games}
-          t1Total={null}
-          t2Value={activeRow.team2_return_games}
-          t2Total={null}
-        />
-      </Section>
-
-      {/* Total Points — only on Match tab (Premier only has totals at match level) */}
-      {activeSet === 0 && (
-        <Section title="Total Points">
+      {/* Match-only stats (only shown on Match aggregate tab) */}
+      {isMatchTab && (
+        <>
           <MatchStatsBar
-            label="Total Points Won"
-            kind="percentage"
-            t1Value={activeRow.team1_total_points_won}
-            t1Total={activeRow.team1_total_points_played}
-            t2Value={activeRow.team2_total_points_won}
-            t2Total={activeRow.team2_total_points_played}
+            label="Longest points won streak"
+            kind="count"
+            t1Value={activeRow.team1_longest_streak}
+            t1Total={null}
+            t2Value={activeRow.team2_longest_streak}
+            t2Total={null}
           />
           <MatchStatsBar
-            label="Serve Points Won"
+            label="Aces"
+            kind="count"
+            t1Value={0}
+            t1Total={null}
+            t2Value={0}
+            t2Total={null}
+          />
+          <MatchStatsBar
+            label="Double faults"
+            kind="count"
+            t1Value={0}
+            t1Total={null}
+            t2Value={0}
+            t2Total={null}
+          />
+        </>
+      )}
+
+      {/* Service stats — shown on all tabs */}
+      <MatchStatsBar
+        label="First serve points won"
+        kind="percentage"
+        t1Value={activeRow.team1_first_serve_won}
+        t1Total={activeRow.team1_first_serve_played}
+        t2Value={activeRow.team2_first_serve_won}
+        t2Total={activeRow.team2_first_serve_played}
+      />
+      <MatchStatsBar
+        label="Second serve points won"
+        kind="percentage"
+        t1Value={activeRow.team1_second_serve_won}
+        t1Total={activeRow.team1_second_serve_played}
+        t2Value={activeRow.team2_second_serve_won}
+        t2Total={activeRow.team2_second_serve_played}
+      />
+      <MatchStatsBar
+        label="Service games played"
+        kind="count"
+        t1Value={activeRow.team1_service_games}
+        t1Total={null}
+        t2Value={activeRow.team2_service_games}
+        t2Total={null}
+      />
+
+      {/* Return stats — shown on all tabs */}
+      <MatchStatsBar
+        label="First return points won"
+        kind="percentage"
+        t1Value={activeRow.team1_first_return_won}
+        t1Total={activeRow.team1_first_return_played}
+        t2Value={activeRow.team2_first_return_won}
+        t2Total={activeRow.team2_first_return_played}
+      />
+      <MatchStatsBar
+        label="Second return points won"
+        kind="percentage"
+        t1Value={activeRow.team1_second_return_won}
+        t1Total={activeRow.team1_second_return_played}
+        t2Value={activeRow.team2_second_return_won}
+        t2Total={activeRow.team2_second_return_played}
+      />
+      <MatchStatsBar
+        label="Return games played"
+        kind="count"
+        t1Value={activeRow.team1_return_games}
+        t1Total={null}
+        t2Value={activeRow.team2_return_games}
+        t2Total={null}
+      />
+
+      {/* Total stats — only shown on Match tab */}
+      {isMatchTab && (
+        <>
+          <MatchStatsBar
+            label="Total serve points won"
             kind="percentage"
             t1Value={activeRow.team1_serve_points_won}
             t1Total={activeRow.team1_serve_points_played}
@@ -199,45 +222,15 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
             t2Total={activeRow.team2_serve_points_played}
           />
           <MatchStatsBar
-            label="Return Points Won"
+            label="Total return points won"
             kind="percentage"
             t1Value={activeRow.team1_return_points_won}
             t1Total={activeRow.team1_return_points_played}
             t2Value={activeRow.team2_return_points_won}
             t2Total={activeRow.team2_return_points_played}
           />
-          <MatchStatsBar
-            label="Longest Streak"
-            kind="count"
-            t1Value={activeRow.team1_longest_streak}
-            t1Total={null}
-            t2Value={activeRow.team2_longest_streak}
-            t2Total={null}
-          />
-        </Section>
+        </>
       )}
-    </div>
-  )
-}
-
-// ── Section header ────────────────────────────────────────────
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div
-        style={{
-          padding: '12px 16px 8px',
-          fontSize: 9,
-          fontWeight: 700,
-          color: MUTED,
-          textTransform: 'uppercase',
-          letterSpacing: '1px',
-        }}
-      >
-        {title}
-      </div>
-      {children}
     </div>
   )
 }
@@ -247,7 +240,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function SkeletonBars() {
   return (
     <div style={{ padding: 16 }}>
-      {[...Array(10)].map((_, i) => (
+      {[...Array(11)].map((_, i) => (
         <div
           key={i}
           style={{
