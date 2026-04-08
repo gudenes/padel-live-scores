@@ -862,7 +862,7 @@ function OverviewTab({
         const winCount = derived.last10Matches.filter(m => resolveMatchRoles(m, playerId).won).length
         const lossCount = derived.last10Matches.length - winCount
         return (
-          <Widget label={`Last ${derived.last10Matches.length}`}>
+          <Widget label={`Last ${derived.last10Matches.length} matches`}>
             {/* Bars row — top padding leaves space for the "latest" marker */}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 44, marginTop: 8, position: 'relative' }}>
               {ordered.map((m, i) => {
