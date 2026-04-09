@@ -12,6 +12,9 @@ import Spinner from '../../components/Spinner'
 import BrandedLoader from '../../components/BrandedLoader'
 import CountryPicker from '@/components/CountryPicker'
 import { useInvite } from '@/hooks/useInvite'
+import { useBadges } from '@/hooks/useBadges'
+import { BadgeIcon } from '@/components/BadgeIcon'
+import { BADGE_CATALOG, TIER_META, overallTierFromBadgeCount } from '@/lib/badges'
 import { AmbassadorBadge } from '@/components/AmbassadorBadge'
 import { withTimeout } from '@/lib/with-timeout'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
@@ -58,6 +61,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const { enabled, supported, permission, toggle: togglePush } = usePushNotifications()
   const { inviteCount, tier, loading: inviteLoading, shareNow } = useInvite()
+  const { badges: earnedBadges, loading: badgesLoading } = useBadges()
   const [matches, setMatches] = useState<BookmarkedMatch[]>([])
   const [players, setPlayers] = useState<BookmarkedPlayer[]>([])
   const [loadingData, setLoadingData] = useState(true)
@@ -319,6 +323,75 @@ export default function ProfilePage() {
             </div>
             <span style={{ color: V3.MUTED, fontSize: 18, flexShrink: 0 }}>›</span>
           </button>
+        </div>
+      )}
+
+      {/* Achievements summary — links to /achievements */}
+      {user && (
+        <div style={{ padding: '0 16px' }}>
+          <Link
+            href="/achievements"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              background: 'rgba(255,255,255,0.03)',
+              clipPath: V3.clip.card,
+              padding: '12px 14px',
+              marginBottom: 12,
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
+          >
+            {/* Top 3 earned badge icons */}
+            <div style={{ display: 'flex', flexShrink: 0 }}>
+              {(() => {
+                const uniqueIds = [...new Set(earnedBadges.map(b => b.badge_id))]
+                const topBadges = uniqueIds.slice(0, 3)
+                const earnedMap = new Map<string, number>()
+                for (const b of earnedBadges) {
+                  const c = earnedMap.get(b.badge_id) ?? 0
+                  if (b.tier > c) earnedMap.set(b.badge_id, b.tier)
+                }
+                return topBadges.map(id => {
+                  const badge = BADGE_CATALOG.find(b => b.id === id)
+                  if (!badge) return null
+                  const badgeTier = (earnedMap.get(id) ?? 1) as 1 | 2 | 3 | 4
+                  return (
+                    <div key={id} style={{ marginRight: -4 }}>
+                      <BadgeIcon svgIcon={badge.svgIcon} tier={badgeTier} size={32} />
+                    </div>
+                  )
+                })
+              })()}
+              {earnedBadges.length === 0 && (
+                <BadgeIcon svgIcon="lock" tier={null} size={32} />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                Achievements
+              </div>
+              <div style={{ fontSize: 11, color: V3.MUTED, marginTop: 2 }}>
+                {badgesLoading ? 'Loading\u2026' : (() => {
+                  const count = new Set(earnedBadges.map(b => b.badge_id)).size
+                  const total = BADGE_CATALOG.length
+                  const badgeTier = overallTierFromBadgeCount(count)
+                  const tierMeta = badgeTier ? TIER_META[badgeTier] : null
+                  return tierMeta
+                    ? <><span style={{
+                        fontSize: 9, fontWeight: 800, color: tierMeta.color,
+                        background: `${tierMeta.color}20`,
+                        padding: '1px 5px', marginRight: 5,
+                        clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+                        textTransform: 'uppercase', letterSpacing: 0.3,
+                      }}>{tierMeta.label}</span>{count} of {total} badges</>
+                    : `${count} of ${total} badges`
+                })()}
+              </div>
+            </div>
+            <span style={{ color: V3.MUTED, fontSize: 18, flexShrink: 0 }}>{'\u203A'}</span>
+          </Link>
         </div>
       )}
 
