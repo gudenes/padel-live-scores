@@ -115,8 +115,8 @@ export default function ProfileButton() {
           overflow: 'visible', padding: 0,
         }}
       >
-        {/* New badge notification — chunky square */}
-        {hasNewBadges && (
+        {/* Profile notification — chunky square */}
+        {hasNotification && (
           <div style={{
             position: 'absolute',
             top: -4,
