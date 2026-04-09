@@ -764,7 +764,7 @@ function PlayerBustCard({ player, rank }: { player: RankedPlayer; rank: number }
 
         {/* Name */}
         <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textAlign: 'center', lineHeight: 1.2 }}>
-          {shortName(player.name)}
+          {shortName((player as any).display_name ?? player.name)}
         </div>
 
         {/* Flag + points + move */}
@@ -1235,10 +1235,10 @@ const _liveScoresPrev = new Map<string, { p1Games: number; p2Games: number; p1Pt
 const MATCH_SELECT = `
   *,
   tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url, entry_list_status, source),
-  pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-  pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-  pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-  pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+  pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+  pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+  pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+  pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
   sets(*, games(*))
 `
 
@@ -1349,9 +1349,9 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
           const isP1 = m.winner_pair === 1
           const w: Winner = {
             category: m.category ?? 'men',
-            player1_name: isP1 ? m.pair1_player1?.name : m.pair2_player1?.name,
+            player1_name: isP1 ? (m.pair1_player1?.display_name ?? m.pair1_player1?.name) : (m.pair2_player1?.display_name ?? m.pair2_player1?.name),
             player1_avatar: isP1 ? m.pair1_player1?.avatar_url : m.pair2_player1?.avatar_url,
-            player2_name: isP1 ? m.pair1_player2?.name : m.pair2_player2?.name,
+            player2_name: isP1 ? (m.pair1_player2?.display_name ?? m.pair1_player2?.name) : (m.pair2_player2?.display_name ?? m.pair2_player2?.name),
             player2_avatar: isP1 ? m.pair1_player2?.avatar_url : m.pair2_player2?.avatar_url,
           }
           if (!winnersMap[tid]) winnersMap[tid] = []
@@ -1856,8 +1856,8 @@ function V3HomePageInner() {
           .gte('ends_at', new Date().toISOString())
           .order('starts_at', { ascending: true })
           .limit(2) as any, 'home:tournaments'),
-        wrap(supabase.from('players').select('id, name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'men').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topMen'),
-        wrap(supabase.from('players').select('id, name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'women').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topWomen'),
+        wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'men').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topMen'),
+        wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'women').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topWomen'),
         wrap(supabase.from('matches').select(MATCH_SELECT).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
         wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
         wrap(supabase.from('articles').select('id, title, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(10) as any, 'home:articles'),

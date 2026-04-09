@@ -158,10 +158,10 @@ async function linkMatchesViaIdScan(
       .from('matches')
       .select(`
         id, round, category,
-        pair1_player1:players!matches_pair1_player1_id_fkey(name),
-        pair1_player2:players!matches_pair1_player2_id_fkey(name),
-        pair2_player1:players!matches_pair2_player1_id_fkey(name),
-        pair2_player2:players!matches_pair2_player2_id_fkey(name)
+        pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name),
+        pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name),
+        pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name),
+        pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name)
       `)
       .eq('tournament_id', ourTournamentId)
     const rows = (data as unknown as OurMatchRow[] | null) ?? []

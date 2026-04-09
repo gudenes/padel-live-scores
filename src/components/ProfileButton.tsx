@@ -103,6 +103,7 @@ export default function ProfileButton() {
     <>
       <button
         onClick={handleClick}
+        suppressHydrationWarning
         style={{
           position: 'relative',
           width: 34, height: 34, borderRadius: '50%',

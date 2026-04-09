@@ -212,10 +212,10 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           .from('matches')
           .select(`
             id, started_at, scheduled_at, winner_pair,
-            pair1_player1:players!matches_pair1_player1_id_fkey(id, name),
-            pair1_player2:players!matches_pair1_player2_id_fkey(id, name),
-            pair2_player1:players!matches_pair2_player1_id_fkey(id, name),
-            pair2_player2:players!matches_pair2_player2_id_fkey(id, name),
+            pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name),
+            pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name),
+            pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name),
+            pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name),
             tournament:tournaments(name),
             round, status
           `)

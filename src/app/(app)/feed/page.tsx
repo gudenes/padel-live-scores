@@ -689,12 +689,12 @@ function V3FeedPage() {
       const [liveRes, recentRes] = await Promise.all([
         supabase
           .from('matches')
-          .select('pair1_player1:players!matches_pair1_player1_id_fkey(name), pair1_player2:players!matches_pair1_player2_id_fkey(name), pair2_player1:players!matches_pair2_player1_id_fkey(name), pair2_player2:players!matches_pair2_player2_id_fkey(name)')
+          .select('pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name), pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name), pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name), pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name)')
           .eq('status', 'live')
           .limit(20),
         supabase
           .from('matches')
-          .select('pair1_player1:players!matches_pair1_player1_id_fkey(name), pair1_player2:players!matches_pair1_player2_id_fkey(name), pair2_player1:players!matches_pair2_player1_id_fkey(name), pair2_player2:players!matches_pair2_player2_id_fkey(name)')
+          .select('pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name), pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name), pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name), pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name)')
           .eq('status', 'finished')
           .gte('finished_at', new Date(Date.now() - 6 * 3600000).toISOString())
           .limit(20),
@@ -710,7 +710,7 @@ function V3FeedPage() {
     const ids = [...bookmarkedMatches].slice(0, 20)
     supabase
       .from('matches')
-      .select('pair1_player1:players!matches_pair1_player1_id_fkey(name), pair1_player2:players!matches_pair1_player2_id_fkey(name), pair2_player1:players!matches_pair2_player1_id_fkey(name), pair2_player2:players!matches_pair2_player2_id_fkey(name)')
+      .select('pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name), pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name), pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name), pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name)')
       .in('id', ids)
       .then(({ data }) => {
         const names = new Set<string>()

@@ -437,10 +437,10 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             .select(`
               id, status, round, started_at, finished_at, scheduled_at, winner_pair, category, duration,
               tournament:tournaments(name, country, level),
-              pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, avatar_url),
-              pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, avatar_url),
-              pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, avatar_url),
-              pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, avatar_url),
+              pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, avatar_url),
+              pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, avatar_url),
+              pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, avatar_url),
+              pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, avatar_url),
               sets(set_score, set_number)
             `)
             .or(`pair1_player1_id.eq.${id},pair1_player2_id.eq.${id},pair2_player1_id.eq.${id},pair2_player2_id.eq.${id}`)

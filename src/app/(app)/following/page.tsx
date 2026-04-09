@@ -628,7 +628,7 @@ export default function FollowingPage() {
       if (followedPlayerIds.length > 0) {
         const { data } = await supabase
           .from('players')
-          .select('id, name, country, avatar_url, ranking, category')
+          .select('id, name, display_name, country, avatar_url, ranking, category')
           .in('id', followedPlayerIds)
 
         setPlayers((data ?? []) as PlayerData[])
