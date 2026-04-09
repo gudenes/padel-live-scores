@@ -1125,8 +1125,33 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
                 }}>
                   {n.title}
                 </div>
-                <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
-                  {n.source_name} &middot; {timeAgo(n.published_at)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                  <div style={{ fontSize: 10, color: MUTED }}>
+                    {n.source_name} &middot; {timeAgo(n.published_at)}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      if (typeof navigator !== 'undefined' && navigator.share) {
+                        void navigator.share({ title: n.title, url: n.url })
+                      } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                        void navigator.clipboard.writeText(n.url)
+                      }
+                    }}
+                    aria-label="Share article"
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      padding: 4, color: MUTED, display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                      <polyline points="16 6 12 2 8 6"/>
+                      <line x1="12" y1="2" x2="12" y2="15"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
