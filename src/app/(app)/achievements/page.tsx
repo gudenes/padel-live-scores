@@ -106,7 +106,7 @@ export default function AchievementsPage() {
         borderLeft: `3px solid ${overallMeta?.color ?? MUTED}`,
         display: 'flex', alignItems: 'center', gap: 14,
       }}>
-        <BadgeIcon svgIcon="paddle" tier={overallTier} size={52} />
+        <BadgeIcon svgIcon="trophy" tier={overallTier} size={52} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>
             {overallMeta?.label ?? 'No Level Yet'}
