@@ -138,7 +138,10 @@ export function BadgeGrid({ earned, categoryFilter }: BadgeGridProps) {
                       }}>
                         {tierNum ? badge.name : '???'}
                       </div>
-                      {tierMeta && (
+                      {/* Tier label: multi-tier badges show Rookie/Intermediate/etc.
+                          Single-tier badges show nothing (or "Exclusive" if premium).
+                          Locked badges show "Locked". */}
+                      {tierNum && !badge.isSingleTier && tierMeta && (
                         <div style={{
                           fontSize: 7, fontWeight: 800,
                           color: tierMeta.color,
@@ -146,6 +149,16 @@ export function BadgeGrid({ earned, categoryFilter }: BadgeGridProps) {
                           letterSpacing: 0.5,
                         }}>
                           {tierMeta.label}
+                        </div>
+                      )}
+                      {tierNum && badge.isSingleTier && badge.isPremium && (
+                        <div style={{
+                          fontSize: 7, fontWeight: 800,
+                          color: '#FFD166',
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5,
+                        }}>
+                          Exclusive
                         </div>
                       )}
                       {!tierNum && (
