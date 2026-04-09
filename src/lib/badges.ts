@@ -53,7 +53,7 @@ export interface BadgeDefinition {
 }
 
 // ── Launch date constant ─────────────────────────────────────────
-// OG Fan badge: awarded to users who sign up within 30 days of this date.
+// Founding Member badge: awarded to users who sign up within 30 days of this date.
 export const LAUNCH_DATE = new Date('2026-04-15T00:00:00Z')
 export const OG_FAN_CUTOFF = new Date(LAUNCH_DATE.getTime() + 30 * 24 * 60 * 60 * 1000)
 
@@ -74,7 +74,7 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
   },
   {
     id: 'early_adopter',
-    name: 'OG Fan',
+    name: 'Founding Member',
     description: 'Joined PadelNachos within the first 30 days of launch.',
     svgIcon: 'star',
     category: 'getting_started',
