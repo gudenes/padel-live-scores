@@ -834,25 +834,65 @@ function V3FeedPage() {
 
   const feed = feedClusters.map(c => c.primary)
 
+  const [showSaved, setShowSaved] = useState(false)
+  const savedCount = bookmarkedArticles.size
+
+  // When "Saved" filter is on, show only bookmarked articles (no videos)
+  const displayClusters = showSaved
+    ? feedClusters.filter(c => c.primary.type === 'news' && bookmarkedArticles.has((c.primary.data as NewsItem).id))
+    : feedClusters
+
   return (
     <div style={{ minHeight: '100vh', background: BG_BASE }}>
       {/* Header */}
       <AppHeader onSearchOpen={() => setSearchOpen(true)} />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
+      {/* Saved filter chip */}
+      {!loading && savedCount > 0 && (
+        <div style={{ padding: '10px 16px 0', display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => setShowSaved(false)}
+            style={{
+              padding: '5px 12px', fontSize: 10, fontWeight: 800,
+              background: !showSaved ? ORANGE : 'rgba(255,255,255,0.06)',
+              color: !showSaved ? '#000' : MUTED,
+              clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
+              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              textTransform: 'uppercase', letterSpacing: 0.3,
+            }}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setShowSaved(true)}
+            style={{
+              padding: '5px 12px', fontSize: 10, fontWeight: 800,
+              background: showSaved ? GREEN : 'rgba(255,255,255,0.06)',
+              color: showSaved ? '#000' : MUTED,
+              clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
+              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              textTransform: 'uppercase', letterSpacing: 0.3,
+            }}
+          >
+            Saved {savedCount}
+          </button>
+        </div>
+      )}
+
       {/* Feed content */}
       {loading ? (
         <FeedSkeleton />
-      ) : feed.length === 0 ? (
+      ) : displayClusters.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: '60px 20px',
           fontSize: 14, color: MUTED, fontWeight: 600,
         }}>
-          No content available
+          {showSaved ? 'No saved articles yet. Bookmark articles to see them here.' : 'No content available'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 16px' }}>
-          {feedClusters.map((cluster, i) => {
+          {displayClusters.map((cluster, i) => {
             const item = cluster.primary
             const collapsed = cluster.collapsed.length
 
