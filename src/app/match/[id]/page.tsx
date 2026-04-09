@@ -16,6 +16,8 @@ import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
 import { MatchStatsView } from '@/components/MatchStatsView'
+import { useAuth } from '@/components/AuthProvider'
+import { logActivity } from '@/lib/activity-log'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
@@ -139,6 +141,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     (match as any)?.rating_count ?? 0
   )
   const [shareToast, setShareToast] = useState(false)
+  const { user } = useAuth()
 
   const fetchNextMatch = useCallback(async (m: Match) => {
     const wp = (m as any).winner_pair as number | null
@@ -374,6 +377,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       _matchPrevScores.set(id, cur)
     }
   }, [_isLive, id, p1TotalGames, p2TotalGames, _p1Pt, _p2Pt])
+
+  // Log match view for badge tracking
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!user || !match) return
+    void logActivity(user.id, 'match_view', match.id)
+  }, [match?.id, user?.id])
 
   if (loading) return (
     <>
