@@ -187,6 +187,47 @@ async function claimReferral(userId: string) {
   }
 }
 
+async function updateLoginStreak(userId: string) {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('last_active_at, login_streak, longest_streak')
+      .eq('id', userId)
+      .single()
+
+    if (!profile) return
+
+    const now = new Date()
+    const today = now.toISOString().slice(0, 10)
+    const lastActive = profile.last_active_at
+      ? new Date(profile.last_active_at).toISOString().slice(0, 10)
+      : null
+
+    if (lastActive === today) return // Already updated today
+
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().slice(0, 10)
+
+    const newStreak = lastActive === yesterdayStr
+      ? (profile.login_streak ?? 0) + 1
+      : 1
+
+    const newLongest = Math.max(newStreak, profile.longest_streak ?? 0)
+
+    await supabase
+      .from('profiles')
+      .update({
+        last_active_at: now.toISOString(),
+        login_streak: newStreak,
+        longest_streak: newLongest,
+      })
+      .eq('id', userId)
+  } catch (e) {
+    console.warn('[Auth] updateLoginStreak failed:', (e as Error)?.message)
+  }
+}
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   try {
     const { data, error } = await supabase
@@ -231,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Profile fetch in background — never blocks loading state
       if (s?.user) {
         fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
+        void updateLoginStreak(s.user.id)
       }
       // If the persisted session is close to expiry (e.g. user reopened a
       // tab that's been idle for hours), refresh it proactively in the
@@ -267,6 +309,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const p = await fetchProfile(s.user.id)
           if (cancelled) return
           setProfile(p)
+
+          // Update login streak (fire-and-forget)
+          void updateLoginStreak(s.user.id)
 
           // Migrate localStorage bookmarks on first sign-in
           if (event === 'SIGNED_IN') {
