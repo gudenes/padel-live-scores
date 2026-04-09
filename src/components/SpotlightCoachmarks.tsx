@@ -91,7 +91,6 @@ const STEPS: Step[] = [
 export function SpotlightCoachmarks() {
   const [currentStep, setCurrentStep] = useState<number | null>(null)
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
-  const [isCircular, setIsCircular] = useState(false)
   const rafRef = useRef<number | null>(null)
 
   // Check if onboarding has been completed
@@ -113,9 +112,35 @@ export function SpotlightCoachmarks() {
     if (el) {
       const rect = el.getBoundingClientRect()
       setTargetRect(rect)
-      // Detect if the element is roughly circular (e.g. profile button)
-      const ratio = rect.width / rect.height
-      setIsCircular(ratio > 0.8 && ratio < 1.2 && rect.width < 50)
+    }
+  }, [currentStep])
+
+  // Elevate the target element above the overlay so it's visible
+  // in the spotlight cutout. Also elevate its sticky/fixed ancestors
+  // (e.g. the header for the profile button, the nav for following tab).
+  useEffect(() => {
+    if (currentStep === null || currentStep >= STEPS.length) return
+    const step = STEPS[currentStep]
+    const el = document.querySelector(step.targetSelector) as HTMLElement | null
+    if (!el) return
+
+    // Collect elements to elevate: the target + any fixed/sticky ancestors
+    const toElevate: HTMLElement[] = [el]
+    let parent = el.parentElement
+    while (parent) {
+      const pos = window.getComputedStyle(parent).position
+      if (pos === 'fixed' || pos === 'sticky') {
+        toElevate.push(parent)
+      }
+      parent = parent.parentElement
+    }
+
+    // Save original z-index values and set high z-index
+    const originals = toElevate.map(e => ({ el: e, zIndex: e.style.zIndex }))
+    toElevate.forEach(e => { e.style.zIndex = '10001' })
+
+    return () => {
+      originals.forEach(({ el: e, zIndex }) => { e.style.zIndex = zIndex })
     }
   }, [currentStep])
 
@@ -190,41 +215,57 @@ export function SpotlightCoachmarks() {
           position: 'fixed',
           inset: 0,
           zIndex: 10000,
-          // Use a CSS mask to cut out the spotlight area
+          // Use an SVG mask to cut out a rectangular spotlight area
           background: 'rgba(0,0,0,0.82)',
-          ...(targetRect ? {
-            maskImage: `radial-gradient(
-              ${isCircular ? 'circle' : 'ellipse'}
-              ${(targetRect.width / 2) + padding}px ${(targetRect.height / 2) + padding}px
-              at ${targetRect.left + targetRect.width / 2}px ${targetRect.top + targetRect.height / 2}px,
-              transparent 100%, black 100%
-            )`,
-            WebkitMaskImage: `radial-gradient(
-              ${isCircular ? 'circle' : 'ellipse'}
-              ${(targetRect.width / 2) + padding}px ${(targetRect.height / 2) + padding}px
-              at ${targetRect.left + targetRect.width / 2}px ${targetRect.top + targetRect.height / 2}px,
-              transparent 100%, black 100%
-            )`,
-          } : {}),
+          ...(targetRect ? (() => {
+            // Build an SVG mask with a rectangular hole where the target is
+            const x = Math.max(0, targetRect.left - padding)
+            const y = Math.max(0, targetRect.top - padding)
+            const w = targetRect.width + padding * 2
+            const h = Math.min(targetRect.height + padding * 2, window.innerHeight - y)
+            const svg = `url("data:image/svg+xml,${encodeURIComponent(
+              `<svg xmlns='http://www.w3.org/2000/svg' width='${window.innerWidth}' height='${window.innerHeight}'>` +
+              `<defs><mask id='m'>` +
+              `<rect width='100%' height='100%' fill='white'/>` +
+              `<rect x='${x}' y='${y}' width='${w}' height='${h}' fill='black' rx='4'/>` +
+              `</mask></defs>` +
+              `<rect width='100%' height='100%' fill='white' mask='url(%23m)'/>` +
+              `</svg>`)
+            }")`
+            return {
+              maskImage: svg,
+              WebkitMaskImage: svg,
+            }
+          })() : {}),
         }}
       />
 
-      {/* Spotlight ring — green glowing border around the target */}
-      {targetRect && (
-        <div style={{
-          position: 'fixed',
-          zIndex: 10001,
-          top: targetRect.top - padding,
-          left: targetRect.left - padding,
-          width: targetRect.width + padding * 2,
-          height: targetRect.height + padding * 2,
-          border: `2px solid ${GREEN}`,
-          borderRadius: isCircular ? '50%' : 8,
-          boxShadow: `0 0 20px rgba(126,211,33,0.5), inset 0 0 20px rgba(126,211,33,0.15)`,
-          pointerEvents: 'none',
-          animation: 'coachmark-ring-pulse 2s ease-in-out infinite',
-        }} />
-      )}
+      {/* Spotlight ring — green glowing border with chunky clip-path */}
+      {targetRect && (() => {
+        // Clamp the ring so it doesn't overflow the viewport
+        const ringTop = Math.max(0, targetRect.top - padding)
+        const ringLeft = Math.max(0, targetRect.left - padding)
+        const ringWidth = targetRect.width + padding * 2
+        const ringHeight = Math.min(
+          targetRect.height + padding * 2,
+          window.innerHeight - ringTop
+        )
+        return (
+          <div style={{
+            position: 'fixed',
+            zIndex: 10001,
+            top: ringTop,
+            left: ringLeft,
+            width: ringWidth,
+            height: ringHeight,
+            border: `2px solid ${GREEN}`,
+            clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+            boxShadow: `0 0 20px rgba(126,211,33,0.5)`,
+            pointerEvents: 'none',
+            animation: 'coachmark-ring-pulse 2s ease-in-out infinite',
+          }} />
+        )
+      })()}
 
       {/* Tip card */}
       <div
