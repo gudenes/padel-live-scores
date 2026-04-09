@@ -80,6 +80,7 @@ export function InviteWelcomeBanner() {
           inset: 0,
           background: 'rgba(0,0,0,0.75)',
           zIndex: 9998,
+          animation: 'invite-backdrop-fade 0.3s ease-out forwards',
         }}
       />
 
@@ -139,11 +140,12 @@ export function InviteWelcomeBanner() {
           <img
             src="/padelnachos-logo-v2.png"
             alt="PadelNachos"
+            className="invite-stagger invite-stagger-1"
             style={{ height: 36, objectFit: 'contain', marginBottom: 14, position: 'relative', zIndex: 1 }}
           />
 
           {/* Invite label */}
-          <div style={{
+          <div className="invite-stagger invite-stagger-2" style={{
             fontSize: 10, fontWeight: 800,
             color: 'rgba(0,0,0,0.45)',
             textTransform: 'uppercase',
@@ -155,7 +157,7 @@ export function InviteWelcomeBanner() {
           </div>
 
           {/* Inviter section */}
-          <div style={{
+          <div className="invite-stagger invite-stagger-3" style={{
             display: 'flex', alignItems: 'center', gap: 14,
             position: 'relative', zIndex: 1,
           }}>
@@ -192,7 +194,7 @@ export function InviteWelcomeBanner() {
           background: BG_CARD,
           padding: '20px 24px 24px',
         }}>
-          <div style={{
+          <div className="invite-stagger invite-stagger-4" style={{
             fontSize: 14, fontWeight: 700,
             color: '#fff', lineHeight: 1.5,
             marginBottom: 16,
@@ -201,7 +203,7 @@ export function InviteWelcomeBanner() {
           </div>
 
           {/* Value props — text only, no icons */}
-          <div style={{
+          <div className="invite-stagger invite-stagger-5" style={{
             display: 'flex', flexDirection: 'column', gap: 8,
             marginBottom: 20,
           }}>
@@ -228,6 +230,7 @@ export function InviteWelcomeBanner() {
 
           {/* CTA button */}
           <button
+            className="invite-stagger invite-stagger-6"
             onClick={handleDismiss}
             style={{
               width: '100%',
@@ -249,6 +252,7 @@ export function InviteWelcomeBanner() {
 
           {/* Dismiss link */}
           <div
+            className="invite-stagger invite-stagger-7"
             onClick={handleDismiss}
             style={{
               textAlign: 'center',
@@ -263,12 +267,32 @@ export function InviteWelcomeBanner() {
         </div>
       </div>
 
-      {/* Animation */}
+      {/* Animations — staggered entrance for each element */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes invite-popup-appear {
-          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
           100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
+        @keyframes invite-fade-up {
+          0% { opacity: 0; transform: translateY(12px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes invite-backdrop-fade {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        .invite-stagger {
+          opacity: 0;
+          animation: invite-fade-up 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+        .invite-stagger-1 { animation-delay: 0.15s; }
+        .invite-stagger-2 { animation-delay: 0.25s; }
+        .invite-stagger-3 { animation-delay: 0.35s; }
+        .invite-stagger-4 { animation-delay: 0.45s; }
+        .invite-stagger-5 { animation-delay: 0.55s; }
+        .invite-stagger-6 { animation-delay: 0.65s; }
+        .invite-stagger-7 { animation-delay: 0.75s; }
+        .invite-stagger-8 { animation-delay: 0.85s; }
       `}} />
     </>
   )
