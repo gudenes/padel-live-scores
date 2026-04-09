@@ -764,7 +764,7 @@ function PlayerBustCard({ player, rank }: { player: RankedPlayer; rank: number }
 
         {/* Name */}
         <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', textAlign: 'center', lineHeight: 1.2 }}>
-          {shortName(player.name)}
+          {shortName((player as any).display_name ?? player.name)}
         </div>
 
         {/* Flag + points + move */}
@@ -1349,9 +1349,9 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
           const isP1 = m.winner_pair === 1
           const w: Winner = {
             category: m.category ?? 'men',
-            player1_name: isP1 ? m.pair1_player1?.name : m.pair2_player1?.name,
+            player1_name: isP1 ? (m.pair1_player1?.display_name ?? m.pair1_player1?.name) : (m.pair2_player1?.display_name ?? m.pair2_player1?.name),
             player1_avatar: isP1 ? m.pair1_player1?.avatar_url : m.pair2_player1?.avatar_url,
-            player2_name: isP1 ? m.pair1_player2?.name : m.pair2_player2?.name,
+            player2_name: isP1 ? (m.pair1_player2?.display_name ?? m.pair1_player2?.name) : (m.pair2_player2?.display_name ?? m.pair2_player2?.name),
             player2_avatar: isP1 ? m.pair1_player2?.avatar_url : m.pair2_player2?.avatar_url,
           }
           if (!winnersMap[tid]) winnersMap[tid] = []

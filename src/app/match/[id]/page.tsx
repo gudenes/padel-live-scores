@@ -892,7 +892,7 @@ function PlayerNameLink({ player, dim, muted, bold, router, style }: {
       style={{ fontSize: 13, fontWeight: bold ? 700 : 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: player?.id ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 4, ...style }}
     >
       {player?.country && <FlagImg country={player.country} size={14} />}
-      {toShortName(player?.name ?? 'TBD')}
+      {toShortName(player?.display_name ?? player?.name ?? 'TBD')}
       {player?.id && <FollowButton type="player" targetId={player.id} variant="heart" size={14} />}
     </div>
   )
@@ -1691,8 +1691,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 const isPair1InSlot1 = pairMatchesIds(m.pair1_player1?.id, m.pair1_player2?.id, p1Ids)
                 const won = (isPair1InSlot1 && m.winner_pair === 1) || (!isPair1InSlot1 && m.winner_pair === 2)
                 const opponentNames = isPair1InSlot1
-                  ? [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
-                  : [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
+                  ? [m.pair2_player1?.display_name ?? m.pair2_player1?.name, m.pair2_player2?.display_name ?? m.pair2_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
+                  : [m.pair1_player1?.display_name ?? m.pair1_player1?.name, m.pair1_player2?.display_name ?? m.pair1_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
                 const scores = formatSetScores(m)
                 return (
                   <Link key={m.id} href={`/match/${m.id}`} style={{ display: 'block', padding: '6px 10px', borderBottom: `0.5px solid ${BORDER}`, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.08)', textDecoration: 'none' }}>
@@ -1730,8 +1730,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 const isPair2InSlot1 = pairMatchesIds(m.pair1_player1?.id, m.pair1_player2?.id, p2Ids)
                 const won = (isPair2InSlot1 && m.winner_pair === 1) || (!isPair2InSlot1 && m.winner_pair === 2)
                 const opponentNames = isPair2InSlot1
-                  ? [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
-                  : [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
+                  ? [m.pair2_player1?.display_name ?? m.pair2_player1?.name, m.pair2_player2?.display_name ?? m.pair2_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
+                  : [m.pair1_player1?.display_name ?? m.pair1_player1?.name, m.pair1_player2?.display_name ?? m.pair1_player2?.name].filter(Boolean).map((n: string) => toShortName(n)).join(' / ')
                 const scores = formatSetScores(m)
                 return (
                   <Link key={m.id} href={`/match/${m.id}`} style={{ display: 'block', padding: '6px 10px', borderBottom: `0.5px solid ${BORDER}`, background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.08)', textDecoration: 'none' }}>
@@ -1772,7 +1772,7 @@ function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean;
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: winner ? '#fff' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
             {player.country && <FlagImg country={player.country} size={14} />}
-            {toShortName(player.name)}
+            {toShortName(player.display_name ?? player.name)}
           </div>
           {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{player.side === 'drive' ? 'Drive' : 'Backhand'}</div>}
         </div>
@@ -1814,7 +1814,8 @@ function PlayerAvatar({ player, size, winner, accent }: { player: any; size: num
 // ── PlayerSquare (hero photos) ──────────────────────────────────────────────
 function PlayerSquare({ player, winner, router }: { player: any; winner?: boolean; router: ReturnType<typeof import('next/navigation').useRouter> }) {
   const [imgError, setImgError] = useState(false)
-  const initials = player?.name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') ?? '?'
+  const displayName = player?.display_name ?? player?.name
+  const initials = displayName?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') ?? '?'
   const border = winner ? `2px solid rgba(126,211,33,0.5)` : `1.5px solid ${BORDER}`
   const bg = winner ? 'rgba(126,211,33,0.05)' : '#0A1A2A'
   const handleClick = player?.id ? (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/player/${player.id}`) } : undefined
