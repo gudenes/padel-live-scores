@@ -12,29 +12,59 @@ import LoginSheet from '@/components/LoginSheet'
 import { supabase } from '@/lib/supabase'
 
 const SEEN_BADGE_COUNT_KEY = 'pn_seen_badge_count'
+const SEEN_REFERRAL_COUNT_KEY = 'pn_seen_referral_count'
+const SEEN_STREAK_MILESTONE_KEY = 'pn_seen_streak_milestone'
+
+// Streak milestones that trigger the notification
+const STREAK_MILESTONES = [3, 7, 30, 100]
+
+function highestMilestoneReached(streak: number): number {
+  let best = 0
+  for (const m of STREAK_MILESTONES) {
+    if (streak >= m) best = m
+  }
+  return best
+}
 
 export default function ProfileButton() {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
   const [loginOpen, setLoginOpen] = useState(false)
-  const [hasNewBadges, setHasNewBadges] = useState(false)
+  const [hasNotification, setHasNotification] = useState(false)
 
-  // Check for unseen badge unlocks
+  // Check for unseen profile updates: new badges, referrals, streak milestones
   useEffect(() => {
-    if (!user) { setHasNewBadges(false); return }
+    if (!user) { setHasNotification(false); return }
     let cancelled = false
 
     ;(async () => {
       try {
-        const { count } = await supabase
-          .from('user_badges')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
+        // Run all checks in parallel
+        const [badgeRes, referralRes, profileRes] = await Promise.all([
+          supabase.from('user_badges').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+          supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', user.id),
+          supabase.from('profiles').select('login_streak').eq('id', user.id).single(),
+        ])
 
         if (cancelled) return
-        const currentCount = count ?? 0
-        const seenCount = parseInt(localStorage.getItem(SEEN_BADGE_COUNT_KEY) ?? '0', 10)
-        setHasNewBadges(currentCount > seenCount)
+
+        // 1. New badges
+        const badgeCount = badgeRes.count ?? 0
+        const seenBadges = parseInt(localStorage.getItem(SEEN_BADGE_COUNT_KEY) ?? '0', 10)
+        const hasNewBadges = badgeCount > seenBadges
+
+        // 2. New referrals (someone signed up via your invite link)
+        const referralCount = referralRes.count ?? 0
+        const seenReferrals = parseInt(localStorage.getItem(SEEN_REFERRAL_COUNT_KEY) ?? '0', 10)
+        const hasNewReferrals = referralCount > seenReferrals
+
+        // 3. Streak milestone hit (3, 7, 30, 100 days)
+        const currentStreak = profileRes.data?.login_streak ?? 0
+        const currentMilestone = highestMilestoneReached(currentStreak)
+        const seenMilestone = parseInt(localStorage.getItem(SEEN_STREAK_MILESTONE_KEY) ?? '0', 10)
+        const hasNewMilestone = currentMilestone > seenMilestone
+
+        setHasNotification(hasNewBadges || hasNewReferrals || hasNewMilestone)
       } catch { /* silent */ }
     })()
 
@@ -43,9 +73,22 @@ export default function ProfileButton() {
 
   const handleClick = () => {
     if (user) {
-      // Clear the notification dot on tap
-      if (hasNewBadges) {
-        setHasNewBadges(false)
+      // Clear the notification on tap + persist seen counts
+      if (hasNotification) {
+        setHasNotification(false)
+        // Update all seen counts so the dot stays cleared
+        void (async () => {
+          try {
+            const [badgeRes, referralRes, profileRes] = await Promise.all([
+              supabase.from('user_badges').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+              supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', user.id),
+              supabase.from('profiles').select('login_streak').eq('id', user.id).single(),
+            ])
+            localStorage.setItem(SEEN_BADGE_COUNT_KEY, String(badgeRes.count ?? 0))
+            localStorage.setItem(SEEN_REFERRAL_COUNT_KEY, String(referralRes.count ?? 0))
+            localStorage.setItem(SEEN_STREAK_MILESTONE_KEY, String(highestMilestoneReached(profileRes.data?.login_streak ?? 0)))
+          } catch { /* silent */ }
+        })()
       }
       router.push('/profile')
     } else {
