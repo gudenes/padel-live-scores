@@ -30,7 +30,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     title: '🔍 Find anything',
-    description: 'Find your favorite players, upcoming tournaments and live matches. All Premier Padel and FIP Tour events in one place!',
+    description: 'Find your favorite players, upcoming tournaments and matches.',
     targetSelector: '[data-coachmark="search"]',
   },
   {
@@ -42,7 +42,7 @@ const STEPS: Step[] = [
     title: '🏆 Earn badges',
     description: 'Unlock badges as you explore! From Rookie to Padel Genius, collect them all and show off your padel passion.',
     targetSelector: '[data-coachmark="profile"]',
-    ctaLabel: 'Vamos! 🎾',
+    ctaLabel: '¡Vamos!',
   },
 ]
 
