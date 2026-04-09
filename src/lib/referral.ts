@@ -5,6 +5,7 @@
 // Collision probability is ~1 in 2.1 billion — retries up to 3 times.
 
 import { supabase } from '@/lib/supabase'
+import { withTimeout } from '@/lib/with-timeout'
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
 const CODE_LENGTH = 6
@@ -31,11 +32,10 @@ export function generateReferralCode(): string {
  */
 export async function ensureReferralCode(userId: string): Promise<string | null> {
   // Fast path: read current code
-  const { data: existing } = await supabase
-    .from('profiles')
-    .select('referral_code')
-    .eq('id', userId)
-    .maybeSingle()
+  const { data: existing } = await withTimeout(
+    Promise.resolve(supabase.from('profiles').select('referral_code').eq('id', userId).maybeSingle()),
+    10_000, 'referral:read-code'
+  )
 
   if (existing?.referral_code) return existing.referral_code
 
@@ -82,9 +82,9 @@ export async function resolveInviterByCode(code: string): Promise<{
  * Used to compute the ambassador tier.
  */
 export async function countReferralsByUser(userId: string): Promise<number> {
-  const { count } = await supabase
-    .from('profiles')
-    .select('id', { count: 'exact', head: true })
-    .eq('referred_by', userId)
+  const { count } = await withTimeout(
+    Promise.resolve(supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', userId)),
+    10_000, 'referral:count'
+  )
   return count ?? 0
 }

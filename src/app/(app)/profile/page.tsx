@@ -2,7 +2,7 @@
 // src/app/(app)/profile/page.tsx
 // User profile — v3 brand styling with chunky clip-path shapes.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/components/AuthProvider'
@@ -13,6 +13,8 @@ import BrandedLoader from '../../components/BrandedLoader'
 import CountryPicker from '@/components/CountryPicker'
 import { useInvite } from '@/hooks/useInvite'
 import { AmbassadorBadge } from '@/components/AmbassadorBadge'
+import { withTimeout } from '@/lib/with-timeout'
+import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -52,7 +54,7 @@ interface BookmarkedPlayer {
 }
 
 export default function ProfilePage() {
-  const { user, profile, loading: authLoading, signOut } = useAuth()
+  const { user, profile, loading: authLoading, retryKey, signOut } = useAuth()
   const router = useRouter()
   const { enabled, supported, permission, toggle: togglePush } = usePushNotifications()
   const { inviteCount, tier, loading: inviteLoading, shareNow } = useInvite()
@@ -119,45 +121,42 @@ export default function ProfilePage() {
     if (!authLoading && !user) router.replace('/home')
   }, [authLoading, user, router])
 
-  // Fetch bookmarked data
-  useEffect(() => {
+  // Fetch bookmarked data — wraps queries in withTimeout so they fail fast
+  // instead of spinning forever when the Supabase client is wedged.
+  // Depends on retryKey so TOKEN_REFRESHED auto-triggers a refetch.
+  const fetchBookmarks = useCallback(async () => {
     if (!user) return
+    setLoadingData(true)
 
-    async function fetchBookmarks() {
-      const { data: matchBookmarks, error: matchErr } = await supabase
-        .from('user_bookmarks')
-        .select('target_id')
-        .eq('user_id', user!.id)
-        .eq('bookmark_type', 'match')
+    try {
+      const wrap = <T,>(p: PromiseLike<T>, label: string) => withTimeout(Promise.resolve(p), 10_000, label)
 
+      const { data: matchBookmarks, error: matchErr } = await wrap(
+        supabase.from('user_bookmarks').select('target_id').eq('user_id', user.id).eq('bookmark_type', 'match'),
+        'profile:match-bookmarks'
+      )
       if (matchErr) { setLoadingData(false); return }
 
-      const { data: playerBookmarks } = await supabase
-        .from('user_bookmarks')
-        .select('target_id')
-        .eq('user_id', user!.id)
-        .eq('bookmark_type', 'player')
+      const { data: playerBookmarks } = await wrap(
+        supabase.from('user_bookmarks').select('target_id').eq('user_id', user.id).eq('bookmark_type', 'player'),
+        'profile:player-bookmarks'
+      )
 
-      const matchIds = (matchBookmarks ?? []).map(b => b.target_id)
+      const matchIds = (matchBookmarks ?? []).map((b: any) => b.target_id)
       if (matchIds.length > 0) {
-        const { data: matchData } = await supabase
-          .from('matches')
-          .select(`
+        const { data: matchData } = await wrap(
+          supabase.from('matches').select(`
             id, status, round,
             tournament:tournaments(name),
             pair1_player1:players!matches_pair1_player1_id_fkey(name),
             pair1_player2:players!matches_pair1_player2_id_fkey(name),
             pair2_player1:players!matches_pair2_player1_id_fkey(name),
             pair2_player2:players!matches_pair2_player2_id_fkey(name)
-          `)
-          .in('id', matchIds)
-          .order('updated_at', { ascending: false })
-          .limit(20)
-
+          `).in('id', matchIds).order('updated_at', { ascending: false }).limit(20),
+          'profile:match-details'
+        )
         setMatches((matchData ?? []).map((m: any) => ({
-          id: m.id,
-          status: m.status,
-          round: m.round,
+          id: m.id, status: m.status, round: m.round,
           tournament_name: m.tournament?.name ?? null,
           pair1_player1_name: m.pair1_player1?.name ?? null,
           pair1_player2_name: m.pair1_player2?.name ?? null,
@@ -166,21 +165,26 @@ export default function ProfilePage() {
         })))
       }
 
-      const playerIds = (playerBookmarks ?? []).map(b => b.target_id)
+      const playerIds = (playerBookmarks ?? []).map((b: any) => b.target_id)
       if (playerIds.length > 0) {
-        const { data: playerData } = await supabase
-          .from('players')
-          .select('id, name, avatar_url')
-          .in('id', playerIds)
-
+        const { data: playerData } = await wrap(
+          supabase.from('players').select('id, name, avatar_url').in('id', playerIds),
+          'profile:player-details'
+        )
         setPlayers(playerData ?? [])
       }
-
+    } catch (e) {
+      console.warn('[Profile] fetchBookmarks failed:', (e as Error)?.message)
+    } finally {
       setLoadingData(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
-    fetchBookmarks()
-  }, [user])
+  useEffect(() => { void fetchBookmarks() }, [fetchBookmarks, retryKey])
+
+  // Recover from tab-idle Supabase auth lock deadlock
+  useWakeRefresh(fetchBookmarks)
 
   if (authLoading || !user) return <BrandedLoader hints={['Loading your profile...', 'Almost ready...']} />
 

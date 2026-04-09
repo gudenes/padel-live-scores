@@ -140,12 +140,26 @@ const REFRESH_BEFORE_EXPIRY_MS = 10 * 60_000
  * Refresh the session if and only if the current token is close to expiring.
  * Used by the keepalive, the visibility-wake handler, and AuthProvider mount.
  *
- * Idempotent and safe to call frequently — the serializing lock in
- * src/lib/supabase.ts ensures concurrent calls don't race.
+ * Deduplicated: concurrent callers share a single in-flight promise so the
+ * keepalive tick and AuthProvider mount don't double-call getSession /
+ * refreshSession on page load.
  *
  * @returns true if a refresh actually happened, false if not needed
  */
-export async function refreshSessionIfNeeded(reason: string): Promise<boolean> {
+let _refreshInFlight: Promise<boolean> | null = null
+
+export function refreshSessionIfNeeded(reason: string): Promise<boolean> {
+  if (_refreshInFlight) {
+    console.log(`[supabase-health] refresh already in flight, joining (${reason})`)
+    return _refreshInFlight
+  }
+  _refreshInFlight = _doRefreshSessionIfNeeded(reason).finally(() => {
+    _refreshInFlight = null
+  })
+  return _refreshInFlight
+}
+
+async function _doRefreshSessionIfNeeded(reason: string): Promise<boolean> {
   try {
     const { data: { session } } = await Promise.race([
       supabase.auth.getSession(),
