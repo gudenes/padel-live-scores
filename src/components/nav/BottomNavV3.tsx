@@ -134,6 +134,7 @@ export default function BottomNavV3() {
             <Link
               key={tab.key}
               href={tab.href}
+              data-coachmark={tab.key === 'following' ? 'following' : undefined}
               onClick={() => {
                 if (tab.key === 'feed') {
                   setNewsCount(0)

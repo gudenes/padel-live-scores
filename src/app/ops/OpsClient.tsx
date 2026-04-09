@@ -92,6 +92,27 @@ interface LaunchMonitor {
   drawsWomen: number
   lastSyncEvent: { startedAt: string | null; status: string | null; matchesSynced: number | null } | null
   readinessFlags: ReadinessFlag[]
+  userMetrics: {
+    signupsTotal: number
+    signupsToday: number
+    signupsThisWeek: number
+    signupsViaReferral: number
+    activeToday: number
+    activeThisWeek: number
+    badgesEarnedTotal: number
+    badgesEarnedToday: number
+    ratingsTotal: number
+    ratingsToday: number
+    articleClicksToday: number
+    sharesToday: number
+    sharesTotal: number
+    pushSubscribers: number
+    playersFollowed: number
+    tournamentsFollowed: number
+    matchesBookmarked: number
+    avgLoginStreak: number
+    maxLoginStreak: number
+  }
 }
 
 interface DashboardData {
@@ -951,6 +972,60 @@ function LaunchMonitorCard({ monitor, onForceSync, isForcing }: {
             )
           })}
         </div>
+      )}
+
+      {/* ── User Engagement Metrics ─────────────────────── */}
+      {monitor.userMetrics && (
+        <>
+          {/* Sign-ups */}
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, marginTop: 4 }}>
+            📊 Sign-ups
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+            <Stat label="Total" value={monitor.userMetrics.signupsTotal} accent="#7c3aed" />
+            <Stat label="Today" value={monitor.userMetrics.signupsToday} accent={monitor.userMetrics.signupsToday > 0 ? '#16a34a' : '#9ca3af'} />
+            <Stat label="This week" value={monitor.userMetrics.signupsThisWeek} accent="#1e40af" />
+            <Stat label="Referral" value={monitor.userMetrics.signupsViaReferral} accent={monitor.userMetrics.signupsViaReferral > 0 ? '#ea580c' : '#9ca3af'} />
+          </div>
+
+          {/* Active users */}
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+            👥 Active Users
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+            <Stat label="DAU" value={monitor.userMetrics.activeToday} accent={monitor.userMetrics.activeToday > 0 ? '#16a34a' : '#9ca3af'} />
+            <Stat label="WAU" value={monitor.userMetrics.activeThisWeek} accent="#1e40af" />
+            <Stat label="Avg streak" value={monitor.userMetrics.avgLoginStreak} accent="#ea580c" />
+            <Stat label="Max streak" value={monitor.userMetrics.maxLoginStreak} accent="#7c3aed" />
+          </div>
+
+          {/* Engagement */}
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+            ⚡ Engagement
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+            <Stat label="Badges" value={monitor.userMetrics.badgesEarnedTotal} accent="#7c3aed" />
+            <Stat label="Badges 24h" value={monitor.userMetrics.badgesEarnedToday} accent={monitor.userMetrics.badgesEarnedToday > 0 ? '#16a34a' : '#9ca3af'} />
+            <Stat label="Ratings" value={monitor.userMetrics.ratingsTotal} accent="#1e40af" />
+            <Stat label="Ratings 24h" value={monitor.userMetrics.ratingsToday} accent={monitor.userMetrics.ratingsToday > 0 ? '#16a34a' : '#9ca3af'} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+            <Stat label="Art. clicks" value={monitor.userMetrics.articleClicksToday} accent={monitor.userMetrics.articleClicksToday > 0 ? '#16a34a' : '#9ca3af'} />
+            <Stat label="Shares 24h" value={monitor.userMetrics.sharesToday} accent={monitor.userMetrics.sharesToday > 0 ? '#ea580c' : '#9ca3af'} />
+            <Stat label="Shares all" value={monitor.userMetrics.sharesTotal} accent="#1e40af" />
+            <Stat label="Push subs" value={monitor.userMetrics.pushSubscribers} accent="#7c3aed" />
+          </div>
+
+          {/* Follows & bookmarks */}
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+            ❤️ Follows & Bookmarks
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
+            <Stat label="Players" value={monitor.userMetrics.playersFollowed} accent="#7c3aed" />
+            <Stat label="Events" value={monitor.userMetrics.tournamentsFollowed} accent="#1e40af" />
+            <Stat label="Matches" value={monitor.userMetrics.matchesBookmarked} accent="#ea580c" />
+          </div>
+        </>
       )}
 
       {/* Actions */}

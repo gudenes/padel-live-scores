@@ -62,6 +62,35 @@ interface LaunchMonitor {
   lastSyncEvent: { startedAt: string | null; status: string | null; matchesSynced: number | null } | null
   // Readiness summary (human friendly)
   readinessFlags: { ok: boolean; label: string; severity: 'info' | 'warn' | 'error' }[]
+  // ── User engagement metrics ─────────────────────────
+  userMetrics: {
+    // Sign-ups
+    signupsTotal: number
+    signupsToday: number
+    signupsThisWeek: number
+    signupsViaReferral: number
+    // Active users
+    activeToday: number
+    activeThisWeek: number
+    // Badges
+    badgesEarnedTotal: number
+    badgesEarnedToday: number
+    // Match ratings
+    ratingsTotal: number
+    ratingsToday: number
+    // Feed engagement
+    articleClicksToday: number
+    sharesToday: number
+    sharesTotal: number
+    // Push & follows
+    pushSubscribers: number
+    playersFollowed: number
+    tournamentsFollowed: number
+    matchesBookmarked: number
+    // Streaks
+    avgLoginStreak: number
+    maxLoginStreak: number
+  }
 }
 
 export async function GET() {
@@ -161,6 +190,77 @@ export async function GET() {
       })
     }
 
+    // ── User engagement metrics (global, not per-tournament) ────
+    const today = new Date().toISOString().slice(0, 10) + 'T00:00:00Z'
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+    const [
+      signupsTotalRes, signupsTodayRes, signupsWeekRes, signupsReferralRes,
+      activeTodayRes, activeWeekRes,
+      badgesTotalRes, badgesTodayRes,
+      ratingsTotalRes, ratingsTodayRes,
+      articleClicksTodayRes, sharesTodayRes, sharesTotalRes,
+      pushRes, playersFollowedRes, tournamentsFollowedRes, matchesBookmarkedRes,
+      streakRes,
+    ] = await Promise.all([
+      // Sign-ups
+      supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', today),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).not('referred_by', 'is', null),
+      // Active users
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('last_active_at', today),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('last_active_at', weekAgo),
+      // Badges
+      supabase.from('user_badges').select('id', { count: 'exact', head: true }),
+      supabase.from('user_badges').select('id', { count: 'exact', head: true }).gte('unlocked_at', today),
+      // Ratings
+      supabase.from('match_ratings').select('id', { count: 'exact', head: true }),
+      supabase.from('match_ratings').select('id', { count: 'exact', head: true }).gte('created_at', today),
+      // Activity log
+      supabase.from('user_activity_log').select('id', { count: 'exact', head: true }).eq('action', 'article_click').gte('created_at', today),
+      supabase.from('user_activity_log').select('id', { count: 'exact', head: true }).eq('action', 'share').gte('created_at', today),
+      supabase.from('user_activity_log').select('id', { count: 'exact', head: true }).eq('action', 'share'),
+      // Push & follows
+      supabase.from('push_subscriptions').select('id', { count: 'exact', head: true }),
+      supabase.from('user_bookmarks').select('id', { count: 'exact', head: true }).eq('bookmark_type', 'player'),
+      supabase.from('user_bookmarks').select('id', { count: 'exact', head: true }).eq('bookmark_type', 'tournament'),
+      supabase.from('user_bookmarks').select('id', { count: 'exact', head: true }).eq('bookmark_type', 'match'),
+      // Streaks
+      supabase.from('profiles').select('login_streak').not('login_streak', 'is', null).gt('login_streak', 0),
+    ])
+
+    // Compute average and max streak
+    const streakData = (streakRes.data ?? []) as { login_streak: number }[]
+    const avgStreak = streakData.length > 0
+      ? Math.round((streakData.reduce((sum, p) => sum + p.login_streak, 0) / streakData.length) * 10) / 10
+      : 0
+    const maxStreak = streakData.length > 0
+      ? Math.max(...streakData.map(p => p.login_streak))
+      : 0
+
+    const userMetrics: LaunchMonitor['userMetrics'] = {
+      signupsTotal: signupsTotalRes.count ?? 0,
+      signupsToday: signupsTodayRes.count ?? 0,
+      signupsThisWeek: signupsWeekRes.count ?? 0,
+      signupsViaReferral: signupsReferralRes.count ?? 0,
+      activeToday: activeTodayRes.count ?? 0,
+      activeThisWeek: activeWeekRes.count ?? 0,
+      badgesEarnedTotal: badgesTotalRes.count ?? 0,
+      badgesEarnedToday: badgesTodayRes.count ?? 0,
+      ratingsTotal: ratingsTotalRes.count ?? 0,
+      ratingsToday: ratingsTodayRes.count ?? 0,
+      articleClicksToday: articleClicksTodayRes.count ?? 0,
+      sharesToday: sharesTodayRes.count ?? 0,
+      sharesTotal: sharesTotalRes.count ?? 0,
+      pushSubscribers: pushRes.count ?? 0,
+      playersFollowed: playersFollowedRes.count ?? 0,
+      tournamentsFollowed: tournamentsFollowedRes.count ?? 0,
+      matchesBookmarked: matchesBookmarkedRes.count ?? 0,
+      avgLoginStreak: avgStreak,
+      maxLoginStreak: maxStreak,
+    }
+
     monitors.push({
       id: t.id,
       name: t.name,
@@ -188,6 +288,7 @@ export async function GET() {
       drawsWomen,
       lastSyncEvent,
       readinessFlags: flags,
+      userMetrics,
     })
   }
 

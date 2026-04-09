@@ -1972,6 +1972,7 @@ function V3HomePageInner() {
 
         {/* Search bar */}
         <div
+          data-coachmark="search"
           onClick={() => setSearchOpen(true)}
           style={{
             flex: 1,

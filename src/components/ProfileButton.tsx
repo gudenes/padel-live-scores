@@ -102,6 +102,7 @@ export default function ProfileButton() {
   return (
     <>
       <button
+        data-coachmark="profile"
         onClick={handleClick}
         suppressHydrationWarning
         style={{
