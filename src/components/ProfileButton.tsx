@@ -72,16 +72,16 @@ export default function ProfileButton() {
           overflow: 'visible', padding: 0,
         }}
       >
-        {/* New badge notification dot */}
+        {/* New badge notification — chunky square */}
         {hasNewBadges && (
           <div style={{
             position: 'absolute',
-            top: -3,
-            right: -3,
-            width: 10,
-            height: 10,
+            top: -4,
+            right: -4,
+            width: 12,
+            height: 12,
             background: '#FF4655',
-            borderRadius: '50%',
+            clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
             border: '2px solid #0A0A0A',
             zIndex: 3,
           }} />
