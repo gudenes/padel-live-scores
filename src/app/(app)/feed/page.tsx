@@ -875,7 +875,7 @@ function V3FeedPage() {
               textTransform: 'uppercase', letterSpacing: 0.3,
             }}
           >
-            Saved {savedCount}
+            Saved ({savedCount})
           </button>
         </div>
       )}
