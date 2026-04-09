@@ -2,16 +2,44 @@
 // src/components/ProfileButton.tsx
 // Auth-aware header button: generic icon when logged out (opens LoginSheet),
 // avatar with gold border when logged in (navigates to profile).
+// Shows a notification dot when new badges have been earned since last
+// visit to /achievements.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import LoginSheet from '@/components/LoginSheet'
+import { supabase } from '@/lib/supabase'
+
+const SEEN_BADGE_COUNT_KEY = 'pn_seen_badge_count'
 
 export default function ProfileButton() {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
   const [loginOpen, setLoginOpen] = useState(false)
+  const [hasNewBadges, setHasNewBadges] = useState(false)
+
+  // Check for unseen badge unlocks
+  useEffect(() => {
+    if (!user) { setHasNewBadges(false); return }
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const { count } = await supabase
+          .from('user_badges')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        if (cancelled) return
+        const currentCount = count ?? 0
+        const seenCount = parseInt(localStorage.getItem(SEEN_BADGE_COUNT_KEY) ?? '0', 10)
+        setHasNewBadges(currentCount > seenCount)
+      } catch { /* silent */ }
+    })()
+
+    return () => { cancelled = true }
+  }, [user])
 
   const handleClick = () => {
     if (user) {
@@ -29,6 +57,7 @@ export default function ProfileButton() {
       <button
         onClick={handleClick}
         style={{
+          position: 'relative',
           width: 34, height: 34, borderRadius: '50%',
           border: isLoggedIn ? '2px solid #F5A623' : '1.5px solid rgba(126,211,33,0.5)',
           cursor: 'pointer',
@@ -36,9 +65,23 @@ export default function ProfileButton() {
           flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#7ED321',
-          overflow: 'hidden', padding: 0,
+          overflow: 'visible', padding: 0,
         }}
       >
+        {/* New badge notification dot */}
+        {hasNewBadges && (
+          <div style={{
+            position: 'absolute',
+            top: -3,
+            right: -3,
+            width: 10,
+            height: 10,
+            background: '#FF4655',
+            borderRadius: '50%',
+            border: '2px solid #0A0A0A',
+            zIndex: 3,
+          }} />
+        )}
         {isLoggedIn && profile?.avatar_url ? (
           <img
             src={profile.avatar_url}

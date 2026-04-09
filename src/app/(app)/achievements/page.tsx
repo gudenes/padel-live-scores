@@ -53,6 +53,13 @@ export default function AchievementsPage() {
     })
   }, [user, badgesLoading, evaluated, evaluateAll, showBadgeToast])
 
+  // Mark badges as seen (clears notification dot on ProfileButton)
+  useEffect(() => {
+    if (badgesLoading || !evaluated) return
+    const totalBadges = badges.length
+    try { localStorage.setItem('pn_seen_badge_count', String(totalBadges)) } catch {}
+  }, [badges.length, badgesLoading, evaluated])
+
   if (authLoading || !user) return <BrandedLoader hints={['Loading achievements...']} />
 
   // Compute unique badge count (count each badge_id once, regardless of tier count)
