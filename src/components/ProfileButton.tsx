@@ -43,6 +43,10 @@ export default function ProfileButton() {
 
   const handleClick = () => {
     if (user) {
+      // Clear the notification dot on tap
+      if (hasNewBadges) {
+        setHasNewBadges(false)
+      }
       router.push('/profile')
     } else {
       setLoginOpen(true)
@@ -82,6 +86,14 @@ export default function ProfileButton() {
             zIndex: 3,
           }} />
         )}
+        {/* Inner wrapper restores circular clip for the avatar content
+            while the outer button stays overflow:visible for the dot */}
+        <div style={{
+          width: '100%', height: '100%',
+          borderRadius: '50%',
+          overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
         {isLoggedIn && profile?.avatar_url ? (
           <img
             src={profile.avatar_url}
@@ -105,6 +117,7 @@ export default function ProfileButton() {
             <circle cx="12" cy="7" r="4"/>
           </svg>
         )}
+        </div>
       </button>
 
       <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
