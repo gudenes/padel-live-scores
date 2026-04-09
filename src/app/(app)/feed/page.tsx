@@ -13,6 +13,8 @@ import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
+import { useAuth } from '@/components/AuthProvider'
+import { logActivity } from '@/lib/activity-log'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -613,6 +615,7 @@ export default function V3FeedPageWrapper() {
 }
 
 function V3FeedPage() {
+  const { user } = useAuth()
   const [playing, setPlayingRaw] = useState<Highlight | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [news, setNews] = useState<NewsItem[]>([])
@@ -632,10 +635,11 @@ function V3FeedPage() {
 
   const handleArticleClick = useCallback((id: string) => {
     trackClick(id)
+    if (user) void logActivity(user.id, 'article_click', id)
     setVisitedArticles(prev => { const s = new Set(prev); s.add(id); return s })
     const article = news.find(a => a.id === id)
     if (article) trackArticlePref(article.language, article.category)
-  }, [news, trackArticlePref])
+  }, [news, trackArticlePref, user])
 
   const [bookmarkedArticles, setBookmarkedArticles] = useState<Set<string>>(new Set())
   const toggleBookmarkArticle = useCallback((id: string) => {
