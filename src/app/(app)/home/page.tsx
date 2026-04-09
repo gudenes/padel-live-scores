@@ -991,7 +991,27 @@ function ResultsSection({ matches }: { matches: Match[] }) {
 
 // ── Highlights Carousel ────────────────────────────────────────
 
+const BOOKMARKED_ARTICLES_KEY = 'padel-bookmarked-articles'
+
 function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news: NewsItem[] }) {
+  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(BOOKMARKED_ARTICLES_KEY)
+      if (raw) setBookmarked(new Set(JSON.parse(raw)))
+    } catch {}
+  }, [])
+
+  const toggleBookmark = (id: string) => {
+    setBookmarked(prev => {
+      const s = new Set(prev)
+      if (s.has(id)) s.delete(id); else s.add(id)
+      try { localStorage.setItem(BOOKMARKED_ARTICLES_KEY, JSON.stringify([...s])) } catch {}
+      return s
+    })
+  }
+
   const items = [
     ...highlights.slice(0, 7).map(h => ({ type: 'video' as const, data: h })),
     ...news.slice(0, 5).map(n => ({ type: 'news' as const, data: n })),
@@ -1125,8 +1145,54 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
                 }}>
                   {n.title}
                 </div>
-                <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
-                  {n.source_name} &middot; {timeAgo(n.published_at)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                  <div style={{ fontSize: 10, color: MUTED }}>
+                    {n.source_name} &middot; {timeAgo(n.published_at)}
+                  </div>
+                  <div style={{ display: 'flex', gap: 2 }}>
+                    {/* Bookmark */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        toggleBookmark(n.id)
+                      }}
+                      aria-label={bookmarked.has(n.id) ? 'Remove bookmark' : 'Bookmark article'}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        padding: 4, color: bookmarked.has(n.id) ? GREEN : MUTED,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill={bookmarked.has(n.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                      </svg>
+                    </button>
+                    {/* Share */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (typeof navigator !== 'undefined' && navigator.share) {
+                          void navigator.share({ title: n.title, url: n.url })
+                        } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                          void navigator.clipboard.writeText(n.url)
+                        }
+                      }}
+                      aria-label="Share article"
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        padding: 4, color: MUTED, display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                        <polyline points="16 6 12 2 8 6"/>
+                        <line x1="12" y1="2" x2="12" y2="15"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

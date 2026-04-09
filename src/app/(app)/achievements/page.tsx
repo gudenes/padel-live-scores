@@ -53,6 +53,13 @@ export default function AchievementsPage() {
     })
   }, [user, badgesLoading, evaluated, evaluateAll, showBadgeToast])
 
+  // Mark badges as seen (clears notification dot on ProfileButton)
+  useEffect(() => {
+    if (badgesLoading || !evaluated) return
+    const totalBadges = badges.length
+    try { localStorage.setItem('pn_seen_badge_count', String(totalBadges)) } catch {}
+  }, [badges.length, badgesLoading, evaluated])
+
   if (authLoading || !user) return <BrandedLoader hints={['Loading achievements...']} />
 
   // Compute unique badge count (count each badge_id once, regardless of tier count)
@@ -106,7 +113,7 @@ export default function AchievementsPage() {
         borderLeft: `3px solid ${overallMeta?.color ?? MUTED}`,
         display: 'flex', alignItems: 'center', gap: 14,
       }}>
-        <BadgeIcon svgIcon="paddle" tier={overallTier} size={52} />
+        <BadgeIcon svgIcon="trophy" tier={overallTier} size={52} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>
             {overallMeta?.label ?? 'No Level Yet'}

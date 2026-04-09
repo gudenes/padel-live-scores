@@ -20,7 +20,6 @@ export type BadgeCategory =
   | 'following'
   | 'engagement'
   | 'consistency'
-  | 'ambassador'
 
 export type EvalType =
   | 'bookmark_count'   // COUNT user_bookmarks WHERE bookmark_type = evalParam
@@ -50,6 +49,7 @@ export interface BadgeDefinition {
   isSingleTier: boolean
   evalType: EvalType
   evalParam?: string        // e.g. 'player' for bookmark_count, 'article_click' for activity_count
+  isPremium?: boolean       // true for special badges with premium visual treatment (glow, gold)
 }
 
 // ── Launch date constant ─────────────────────────────────────────
@@ -63,8 +63,8 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
   // ── Getting Started ─────────────────────────────────
   {
     id: 'profile_complete',
-    name: 'Complete Profile',
-    description: 'Fill in your display name, avatar, and country preference.',
+    name: 'Welcome',
+    description: 'Create your PadelNachos account and join the community.',
     svgIcon: 'checkmark',
     category: 'getting_started',
     categoryLabel: 'Getting Started',
@@ -75,13 +75,14 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
   {
     id: 'early_adopter',
     name: 'Founding Member',
-    description: 'Joined PadelNachos within the first 30 days of launch.',
-    svgIcon: 'star',
+    description: 'Joined PadelNachos within the first 30 days of launch. A rare badge for the originals.',
+    svgIcon: 'crown',
     category: 'getting_started',
     categoryLabel: 'Getting Started',
     isSingleTier: true,
     tiers: [],
     evalType: 'early_adopter',
+    isPremium: true,
   },
   {
     id: 'genius_insider',
@@ -255,14 +256,14 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
     evalType: 'longest_streak',
   },
 
-  // ── Ambassador ──────────────────────────────────────
+  // ── Ambassador (in Getting Started) ─────────────────
   {
     id: 'ambassador',
     name: 'Ambassador',
     description: 'Invite friends to PadelNachos and grow the community.',
-    svgIcon: 'paddle',
-    category: 'ambassador',
-    categoryLabel: 'Ambassador',
+    svgIcon: 'bolt',
+    category: 'getting_started',
+    categoryLabel: 'Getting Started',
     isSingleTier: false,
     tiers: [
       { tier: 1, threshold: 1 },
@@ -284,7 +285,6 @@ export const BADGE_CATEGORIES = [
   { key: 'following', label: 'Following' },
   { key: 'engagement', label: 'Engagement' },
   { key: 'consistency', label: 'Consistency' },
-  { key: 'ambassador', label: 'Ambassador' },
 ] as const
 
 /**
