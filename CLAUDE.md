@@ -198,11 +198,11 @@ Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and do
 | Route | Schedule | Purpose |
 |-------|----------|---------|
 | `/api/cron/scores` | Every 2 min | Poll live matches, upsert scores, reconcile finished matches, detect stale |
-| `/api/cron/sync?scope=matches` | Every 6 hours | Sync match metadata for active tournaments |
+| `/api/cron/sync?scope=matches` | Hourly at :00 | Sync match metadata for active tournaments |
 | `/api/cron/sync` | Mon 4am UTC | Full sync: tournaments, players, seasons, FIP logos |
 | `/api/cron/sync-fip-rankings` | Daily 5am UTC | FIP official + race rankings (top 1000, both genders) |
-| `/api/cron/sync-articles` | Every 6 hours | News from RSS feeds + FIP WordPress API |
-| `/api/cron/sync-highlights` | Every 6 hours | YouTube highlights from padel channels |
+| `/api/cron/sync-articles` | Hourly at :40 | News from RSS feeds + FIP WordPress API |
+| `/api/cron/sync-highlights` | Hourly at :20 | YouTube highlights from padel channels |
 | `/api/cron/premier-discovery` | Mon 4am UTC | Link Premier tournaments + matches to our DB |
 | `/api/cron/premier-stats` | Hourly at :13 | Sync per-set stats from Premier Padel API |
 

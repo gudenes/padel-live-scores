@@ -21,6 +21,10 @@ interface AuthContextType {
   profile: Profile | null
   session: Session | null
   loading: boolean
+  /** Bumped on TOKEN_REFRESHED so pages can auto-refetch when the
+   *  session recovers from a wedge. Include in useEffect deps to
+   *  trigger a refetch without depending on user reference identity. */
+  retryKey: number
   signOut: () => Promise<void>
 }
 
@@ -29,6 +33,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   session: null,
   loading: true,
+  retryKey: 0,
   signOut: async () => {},
 })
 
@@ -201,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -251,6 +257,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(s?.user ?? null)
         setLoading(false) // ensure loading is false once we get any auth event
 
+        // Bump retryKey so pages auto-refetch when the session recovers
+        // from a wedge (e.g. after a hung getSession finally resolves).
+        if (event === 'TOKEN_REFRESHED') {
+          setRetryKey(k => k + 1)
+        }
+
         if (s?.user) {
           const p = await fetchProfile(s.user.id)
           if (cancelled) return
@@ -291,7 +303,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, retryKey, signOut }}>
       {children}
     </AuthContext.Provider>
   )

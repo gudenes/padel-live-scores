@@ -32,12 +32,21 @@ const lockChains = new Map<string, Promise<unknown>>()
 
 async function serializingLock<R>(
   name: string,
-  _acquireTimeout: number,
+  acquireTimeout: number,
   fn: () => Promise<R>
 ): Promise<R> {
   const previous = lockChains.get(name) ?? Promise.resolve()
-  // Wait for the previous holder to finish (success or failure), then run.
-  const tail: Promise<R> = previous.catch(() => undefined).then(() => fn())
+  // Wait for the previous holder to finish — BUT with a timeout.
+  // If the predecessor hangs (network stall, browser throttle, stale
+  // PKCE exchange), we proceed after acquireTimeout ms instead of
+  // waiting forever. Worst case: two auth ops run concurrently and one
+  // fails due to the single-use refresh token. A failed-then-retried
+  // refresh is infinitely better than a permanently wedged client.
+  const waitForPrevious = Promise.race([
+    previous.catch(() => undefined),
+    new Promise<void>(resolve => setTimeout(resolve, acquireTimeout || 5000)),
+  ])
+  const tail: Promise<R> = waitForPrevious.then(() => fn())
   // Store a swallowed version so that if our `fn` throws, the next waiter
   // still gets a clean signal to start.
   lockChains.set(name, tail.catch(() => undefined))
