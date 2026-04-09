@@ -236,18 +236,16 @@ export default function V3RankingPage() {
     setQuery('')
   }, [])
 
-  // Close search on Escape or click outside
+  // Close search on Escape only — don't close on outside click because
+  // the player rows sit outside the search box and clicking them would
+  // fire closeSearch() before the row's onClick, resetting the query
+  // and making the click land on the wrong (or no) player.
   useEffect(() => {
     if (!searchOpen) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeSearch() }
-    const onMouseDown = (e: MouseEvent) => {
-      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) closeSearch()
-    }
     document.addEventListener('keydown', onKey)
-    document.addEventListener('mousedown', onMouseDown)
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.removeEventListener('mousedown', onMouseDown)
     }
   }, [searchOpen, closeSearch])
 
