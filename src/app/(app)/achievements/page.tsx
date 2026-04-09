@@ -16,6 +16,7 @@ import {
   overallTierFromBadgeCount,
 } from '@/lib/badges'
 import BrandedLoader from '@/app/components/BrandedLoader'
+import { useBadgeToast } from '@/components/BadgeToast'
 
 const ORANGE = '#F5A623'
 const MUTED = '#6B7280'
@@ -30,6 +31,7 @@ const CHUNKY = {
 export default function AchievementsPage() {
   const { user, loading: authLoading } = useAuth()
   const { badges, loading: badgesLoading, evaluateAll } = useBadges()
+  const { show: showBadgeToast } = useBadgeToast()
   const router = useRouter()
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
   const [evaluated, setEvaluated] = useState(false)
@@ -42,8 +44,14 @@ export default function AchievementsPage() {
   // Evaluate all badges on mount (lazy batch)
   useEffect(() => {
     if (!user || badgesLoading || evaluated) return
-    void evaluateAll().then(() => setEvaluated(true))
-  }, [user, badgesLoading, evaluated, evaluateAll])
+    void evaluateAll().then(newBadges => {
+      setEvaluated(true)
+      // Show celebration toast for each newly earned badge
+      for (const b of newBadges) {
+        showBadgeToast(b.badge_id, b.tier as 1 | 2 | 3 | 4)
+      }
+    })
+  }, [user, badgesLoading, evaluated, evaluateAll, showBadgeToast])
 
   if (authLoading || !user) return <BrandedLoader hints={['Loading achievements...']} />
 
