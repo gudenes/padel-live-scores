@@ -61,6 +61,7 @@ interface SearchResult {
   imageUrl: string | null
   href: string
   badge?: string | null
+  matchLetter?: string   // W, L, —, LIVE, F for matches
 }
 
 // ── LocalStorage recents ──────────────────────────────────────
@@ -210,7 +211,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         matchesRes = await supabase
           .from('matches')
           .select(`
-            id, started_at, scheduled_at,
+            id, started_at, scheduled_at, winner_pair,
             pair1_player1:players!matches_pair1_player1_id_fkey(id, name),
             pair1_player2:players!matches_pair1_player2_id_fkey(id, name),
             pair2_player1:players!matches_pair2_player1_id_fkey(id, name),
@@ -257,6 +258,28 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         const p2 = [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).join(' / ')
         const matchDate = m.started_at ?? m.scheduled_at
         const date = matchDate ? new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(matchDate)) : ''
+
+        // Determine W/L from the searched player's perspective.
+        // Check which pair the searched player(s) belong to, then
+        // compare against winner_pair.
+        let matchLetter = '—'
+        if (m.status === 'live') {
+          matchLetter = 'LIVE'
+        } else if (m.status === 'finished' && m.winner_pair) {
+          const p1Ids = [m.pair1_player1?.id, m.pair1_player2?.id].filter(Boolean)
+          const p2Ids = [m.pair2_player1?.id, m.pair2_player2?.id].filter(Boolean)
+          const searchedInPair1 = p1Ids.some((id: string) => playerIds.includes(id))
+          const searchedInPair2 = p2Ids.some((id: string) => playerIds.includes(id))
+          if (searchedInPair1 && !searchedInPair2) {
+            matchLetter = m.winner_pair === 1 ? 'W' : 'L'
+          } else if (searchedInPair2 && !searchedInPair1) {
+            matchLetter = m.winner_pair === 2 ? 'W' : 'L'
+          } else {
+            // Both pairs contain searched players (e.g. searching a common name) — just show finished
+            matchLetter = 'F'
+          }
+        }
+
         const statusLabel = m.status === 'live' ? 'LIVE' : m.status === 'finished' ? 'Finished' : 'Scheduled'
         items.push({
           type: 'match', id: m.id,
@@ -266,6 +289,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           imageUrl: null,
           href: `/match/${m.id}`,
           badge: m.status === 'live' ? 'LIVE' : null,
+          matchLetter,
         })
       }
       setResults(items)
@@ -500,15 +524,25 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
                         <FlagImg country={item.country} size={22} />
                       </span>
                     ) : (
-                      <span style={{
-                        fontSize: 11, fontWeight: 800, width: 34, height: 34,
-                        clipPath: CLIP.badge,
-                        background: meta.bg,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0, color: meta.fg, letterSpacing: 0.5,
-                      }}>
-                        {meta.letter}
-                      </span>
+                      (() => {
+                        // For matches: show W/L/— instead of generic "M"
+                        const letter = item.matchLetter ?? meta.letter
+                        const isWin = letter === 'W'
+                        const isLoss = letter === 'L'
+                        const iconBg = isWin ? 'rgba(126,211,33,0.15)' : isLoss ? 'rgba(255,70,85,0.15)' : meta.bg
+                        const iconFg = isWin ? GREEN : isLoss ? LIVE_RED : meta.fg
+                        return (
+                          <span style={{
+                            fontSize: 11, fontWeight: 800, width: 34, height: 34,
+                            clipPath: CLIP.badge,
+                            background: iconBg,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0, color: iconFg, letterSpacing: 0.5,
+                          }}>
+                            {letter}
+                          </span>
+                        )
+                      })()
                     )}
 
                     {/* Text */}
