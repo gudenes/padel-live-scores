@@ -261,7 +261,7 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
     id: 'ambassador',
     name: 'Ambassador',
     description: 'Invite friends to PadelNachos and grow the community.',
-    svgIcon: 'paddle',
+    svgIcon: 'bolt',
     category: 'getting_started',
     categoryLabel: 'Getting Started',
     isSingleTier: false,
