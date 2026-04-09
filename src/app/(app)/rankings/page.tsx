@@ -115,7 +115,8 @@ function DeltaChip({ delta }: { delta: number }) {
 
 function Avatar({ player, size = 40 }: { player: Player; size?: number }) {
   const [err, setErr] = useState(false)
-  const initials = player.name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
+  const displayName = (player as any).display_name?.trim() || player.name
+  const initials = displayName.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase()
   const accent = player.category === 'women' ? WOMEN_PURPLE : MEN_BLUE
 
   if (!player.avatar_url || err) {
@@ -180,7 +181,7 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
           color: '#E2E8F0',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-          {player.name}
+          {(player as any).display_name?.trim() || player.name}
         </div>
         <div style={{
           fontSize: 12, color: MUTED, marginTop: 2,
@@ -257,7 +258,7 @@ export default function V3RankingPage() {
 
       let { data, error } = await supabase
         .from('players')
-        .select('id, name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at, ranking_date')
+        .select('id, name, display_name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at, ranking_date')
         .eq('category', g)
         .not(rankCol, 'is', null)
         .order(rankCol, { ascending: true })
@@ -266,7 +267,7 @@ export default function V3RankingPage() {
       if (error) {
         const fallback = await supabase
           .from('players')
-          .select('id, name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at')
+          .select('id, name, display_name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at')
           .eq('category', g)
           .not(rankCol, 'is', null)
           .order(rankCol, { ascending: true })
@@ -297,6 +298,7 @@ export default function V3RankingPage() {
     if (!q) return players
     return players.filter(p =>
       p.name.toLowerCase().includes(q) ||
+      ((p as any).display_name ?? '').toLowerCase().includes(q) ||
       countryName(p.country).toLowerCase().includes(q) ||
       (p.country ?? '').toLowerCase().includes(q)
     )

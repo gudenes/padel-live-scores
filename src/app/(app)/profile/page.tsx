@@ -152,20 +152,20 @@ export default function ProfilePage() {
           supabase.from('matches').select(`
             id, status, round,
             tournament:tournaments(name),
-            pair1_player1:players!matches_pair1_player1_id_fkey(name),
-            pair1_player2:players!matches_pair1_player2_id_fkey(name),
-            pair2_player1:players!matches_pair2_player1_id_fkey(name),
-            pair2_player2:players!matches_pair2_player2_id_fkey(name)
+            pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name),
+            pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name),
+            pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name),
+            pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name)
           `).in('id', matchIds).order('updated_at', { ascending: false }).limit(20),
           'profile:match-details'
         )
         setMatches((matchData ?? []).map((m: any) => ({
           id: m.id, status: m.status, round: m.round,
           tournament_name: m.tournament?.name ?? null,
-          pair1_player1_name: m.pair1_player1?.name ?? null,
-          pair1_player2_name: m.pair1_player2?.name ?? null,
-          pair2_player1_name: m.pair2_player1?.name ?? null,
-          pair2_player2_name: m.pair2_player2?.name ?? null,
+          pair1_player1_name: m.pair1_player1?.display_name ?? m.pair1_player1?.name ?? null,
+          pair1_player2_name: m.pair1_player2?.display_name ?? m.pair1_player2?.name ?? null,
+          pair2_player1_name: m.pair2_player1?.display_name ?? m.pair2_player1?.name ?? null,
+          pair2_player2_name: m.pair2_player2?.display_name ?? m.pair2_player2?.name ?? null,
         })))
       }
 

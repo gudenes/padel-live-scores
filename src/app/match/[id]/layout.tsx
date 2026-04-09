@@ -28,10 +28,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       status,
       round,
       winner_pair,
-      pair1_player1:players!matches_pair1_player1_id_fkey(name),
-      pair1_player2:players!matches_pair1_player2_id_fkey(name),
-      pair2_player1:players!matches_pair2_player1_id_fkey(name),
-      pair2_player2:players!matches_pair2_player2_id_fkey(name),
+      pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name),
+      pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name),
+      pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name),
+      pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name),
       tournament:tournaments(name),
       sets(set_number, pair1_games, pair2_games)
     `)

@@ -180,10 +180,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           .select(`
             *,
             tournament:tournaments(id, name, starts_at, ends_at, country, timezone),
-            pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
+            pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
             sets(*, games(*))
           `)
           .eq('id', id)
@@ -225,10 +225,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       .select(`
         id, external_id, status, round, started_at, finished_at, scheduled_at, winner_pair,
         tournament:tournaments(name),
-        pair1_player1:players!matches_pair1_player1_id_fkey(id, name, country),
-        pair1_player2:players!matches_pair1_player2_id_fkey(id, name, country),
-        pair2_player1:players!matches_pair2_player1_id_fkey(id, name, country),
-        pair2_player2:players!matches_pair2_player2_id_fkey(id, name, country),
+        pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country),
+        pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country),
+        pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country),
+        pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country),
         sets(set_score, set_number)
       `)
       .or(`pair1_player1_id.in.(${allIds.join(',')}),pair2_player1_id.in.(${allIds.join(',')})`)

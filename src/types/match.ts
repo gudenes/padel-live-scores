@@ -7,12 +7,18 @@ export interface Player {
   id: string
   external_id: string
   name: string
+  display_name?: string | null
   country: string | null
   avatar_url: string | null
   ranking?: number | null
   win_rate?: number | null
   total_matches?: number | null
   side?: string | null
+}
+
+/** Returns the preferred display name for a player, falling back to canonical name. */
+export function playerDisplayName(p: { name: string; display_name?: string | null }): string {
+  return p.display_name?.trim() || p.name
 }
 
 export interface Game {
@@ -155,11 +161,13 @@ export function toShortName(name: string): string {
   return parts[0][0] + '. ' + parts.slice(1).join(' ')
 }
 
-// Last name only for compact pair display
+// Last name only for compact pair display — prefers display_name when set
 export function pairName(p1: Player | null, p2: Player | null): string {
   if (!p1 && !p2) return 'TBD'
-  if (!p2) return toShortName(p1?.name ?? 'TBD')
-  return `${toShortName(p1?.name ?? '')} / ${toShortName(p2?.name ?? '')}`
+  const n1 = p1 ? (p1.display_name?.trim() || p1.name) : 'TBD'
+  const n2 = p2 ? (p2.display_name?.trim() || p2.name) : null
+  if (!n2) return toShortName(n1)
+  return `${toShortName(n1)} / ${toShortName(n2)}`
 }
 
 // Detects star point — 40:40 that follows at least one advantage point
