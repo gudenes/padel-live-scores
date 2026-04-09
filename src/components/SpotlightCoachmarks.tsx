@@ -25,24 +25,66 @@ interface Step {
   targetSelector: string
   /** CTA button label (last step only) */
   ctaLabel?: string
+  /** Icon type for the branded SVG icon */
+  iconType: 'search' | 'following' | 'badges'
+}
+
+// Branded SVG icons in chunky badge shape — matches the app's visual language
+const CHUNKY_ICON = 'polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%)'
+
+function StepIcon({ type }: { type: 'search' | 'following' | 'badges' }) {
+  const icons = {
+    search: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+    ),
+    following: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+      </svg>
+    ),
+    badges: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+      </svg>
+    ),
+  }
+  return (
+    <div style={{
+      width: 28, height: 28,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      clipPath: CHUNKY_ICON,
+      background: `linear-gradient(135deg, ${GREEN}40, ${GREEN}10)`,
+      border: `1.5px solid ${GREEN}`,
+      marginRight: 8,
+      verticalAlign: 'middle',
+      flexShrink: 0,
+    }}>
+      {icons[type]}
+    </div>
+  )
 }
 
 const STEPS: Step[] = [
   {
-    title: '🔍 Find anything',
+    title: 'Find anything',
     description: 'Find your favorite players, upcoming tournaments and matches.',
     targetSelector: '[data-coachmark="search"]',
+    iconType: 'search',
   },
   {
-    title: '☆ Your following feed',
+    title: 'Your following feed',
     description: 'Follow the players and tournaments you love. Everything you care about, all in one place!',
     targetSelector: '[data-coachmark="following"]',
+    iconType: 'following',
   },
   {
-    title: '🏆 Earn badges',
+    title: 'Earn badges',
     description: 'Unlock badges as you explore! From Rookie to Padel Genius, collect them all and show off your padel passion.',
     targetSelector: '[data-coachmark="profile"]',
     ctaLabel: '¡Vamos!',
+    iconType: 'badges',
   },
 ]
 
@@ -211,11 +253,13 @@ export function SpotlightCoachmarks() {
           ))}
         </div>
 
-        {/* Title */}
+        {/* Title with branded icon */}
         <div style={{
           fontSize: 15, fontWeight: 900, color: '#fff',
           marginBottom: 6, lineHeight: 1.2,
+          display: 'flex', alignItems: 'center',
         }}>
+          <StepIcon type={step.iconType} />
           {step.title}
         </div>
 
