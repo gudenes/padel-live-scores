@@ -1,9 +1,10 @@
 // src/lib/ambassador.ts
 //
-// Ambassador tier spec. Tiers are earned by inviting friends who
-// successfully sign up. Three tiers, all padel-shot + nacho themed.
+// Ambassador tier spec. Uses the universal padel-themed tier system
+// (Rookie → Intermediate → Advanced → Padel Genius) to stay
+// consistent with the badge system.
 
-export type AmbassadorTierId = 'bandeja' | 'vibora' | 'smash'
+export type AmbassadorTierId = 'rookie' | 'intermediate' | 'advanced' | 'genius'
 
 export interface AmbassadorTierSpec {
   id: AmbassadorTierId
@@ -17,35 +18,45 @@ export interface AmbassadorTierSpec {
 }
 
 export const AMBASSADOR_TIERS: Record<AmbassadorTierId, AmbassadorTierSpec> = {
-  bandeja: {
-    id: 'bandeja',
-    name: 'Bandeja',
-    subtitle: 'The tray',
+  rookie: {
+    id: 'rookie',
+    name: 'Rookie',
+    subtitle: 'First invites',
     icon: '🥨',
     color: '#7ED321',
     bgGradient: 'linear-gradient(135deg, rgba(126,211,33,0.25) 0%, rgba(126,211,33,0.08) 100%)',
     minInvites: 1,
-    description: 'Bandeja means "tray" in Spanish — the padel shot AND what nachos are served on. You\'ve served up your first invites.',
+    description: 'You\'ve invited your first friends to PadelNachos. Welcome to the crew!',
   },
-  vibora: {
-    id: 'vibora',
-    name: 'Víbora Picante',
-    subtitle: 'Spicy snake',
-    icon: '🌶️',
+  intermediate: {
+    id: 'intermediate',
+    name: 'Intermediate',
+    subtitle: 'Growing the community',
+    icon: '🥨',
+    color: '#F5A623',
+    bgGradient: 'linear-gradient(135deg, rgba(245,166,35,0.3) 0%, rgba(245,166,35,0.08) 100%)',
+    minInvites: 5,
+    description: 'Five friends and counting — you\'re building momentum.',
+  },
+  advanced: {
+    id: 'advanced',
+    name: 'Advanced',
+    subtitle: 'Community leader',
+    icon: '🥨',
     color: '#FF6B2B',
     bgGradient: 'linear-gradient(135deg, rgba(255,107,43,0.3) 0%, rgba(255,107,43,0.1) 100%)',
-    minInvites: 5,
-    description: 'The padel shot with bite + a jalapeño kick. You\'re turning up the heat and bringing the crew.',
+    minInvites: 15,
+    description: 'Fifteen friends on board. You\'re a true community builder.',
   },
-  smash: {
-    id: 'smash',
-    name: 'Smash Supremo',
-    subtitle: 'The supreme',
-    icon: '🧀',
+  genius: {
+    id: 'genius',
+    name: 'Padel Genius',
+    subtitle: 'Ambassador legend',
+    icon: '🥨',
     color: '#FFD166',
     bgGradient: 'linear-gradient(135deg, rgba(255,209,102,0.35) 0%, rgba(255,209,102,0.12) 100%)',
-    minInvites: 15,
-    description: 'Match-winning smash + fully-loaded nacho supreme. Top of the community. Legendary status.',
+    minInvites: 50,
+    description: 'Fifty friends! You\'re a PadelNachos legend. Top of the ambassadors.',
   },
 }
 
@@ -54,9 +65,10 @@ export const AMBASSADOR_TIERS: Record<AmbassadorTierId, AmbassadorTierSpec> = {
  * Returns null when count is 0 (no badge yet).
  */
 export function tierForCount(count: number): AmbassadorTierSpec | null {
-  if (count >= AMBASSADOR_TIERS.smash.minInvites) return AMBASSADOR_TIERS.smash
-  if (count >= AMBASSADOR_TIERS.vibora.minInvites) return AMBASSADOR_TIERS.vibora
-  if (count >= AMBASSADOR_TIERS.bandeja.minInvites) return AMBASSADOR_TIERS.bandeja
+  if (count >= AMBASSADOR_TIERS.genius.minInvites) return AMBASSADOR_TIERS.genius
+  if (count >= AMBASSADOR_TIERS.advanced.minInvites) return AMBASSADOR_TIERS.advanced
+  if (count >= AMBASSADOR_TIERS.intermediate.minInvites) return AMBASSADOR_TIERS.intermediate
+  if (count >= AMBASSADOR_TIERS.rookie.minInvites) return AMBASSADOR_TIERS.rookie
   return null
 }
 
@@ -66,14 +78,17 @@ export function tierForCount(count: number): AmbassadorTierSpec | null {
  * profile row.
  */
 export function nextTierProgress(count: number): { next: AmbassadorTierSpec; remaining: number } | null {
-  if (count < AMBASSADOR_TIERS.bandeja.minInvites) {
-    return { next: AMBASSADOR_TIERS.bandeja, remaining: AMBASSADOR_TIERS.bandeja.minInvites - count }
+  if (count < AMBASSADOR_TIERS.rookie.minInvites) {
+    return { next: AMBASSADOR_TIERS.rookie, remaining: AMBASSADOR_TIERS.rookie.minInvites - count }
   }
-  if (count < AMBASSADOR_TIERS.vibora.minInvites) {
-    return { next: AMBASSADOR_TIERS.vibora, remaining: AMBASSADOR_TIERS.vibora.minInvites - count }
+  if (count < AMBASSADOR_TIERS.intermediate.minInvites) {
+    return { next: AMBASSADOR_TIERS.intermediate, remaining: AMBASSADOR_TIERS.intermediate.minInvites - count }
   }
-  if (count < AMBASSADOR_TIERS.smash.minInvites) {
-    return { next: AMBASSADOR_TIERS.smash, remaining: AMBASSADOR_TIERS.smash.minInvites - count }
+  if (count < AMBASSADOR_TIERS.advanced.minInvites) {
+    return { next: AMBASSADOR_TIERS.advanced, remaining: AMBASSADOR_TIERS.advanced.minInvites - count }
+  }
+  if (count < AMBASSADOR_TIERS.genius.minInvites) {
+    return { next: AMBASSADOR_TIERS.genius, remaining: AMBASSADOR_TIERS.genius.minInvites - count }
   }
   return null  // maxed out
 }

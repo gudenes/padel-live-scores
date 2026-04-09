@@ -14,6 +14,7 @@ interface BadgeIconProps {
   svgIcon: string
   tier: TierNumber | null  // null = locked
   size?: number            // px, default 48
+  isPremium?: boolean      // premium badges get gold glow regardless of tier
 }
 
 // SVG path data for each icon identifier
@@ -83,6 +84,11 @@ const ICON_PATHS: Record<string, (color: string, size: number) => JSX.Element> =
       <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
     </svg>
   ),
+  crown: (c, s) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 20h20"/><path d="M4 20V10l4 4 4-8 4 8 4-4v10"/>
+    </svg>
+  ),
   lock: (c, s) => (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -90,23 +96,28 @@ const ICON_PATHS: Record<string, (color: string, size: number) => JSX.Element> =
   ),
 }
 
-export function BadgeIcon({ svgIcon, tier, size = 48 }: BadgeIconProps) {
+export function BadgeIcon({ svgIcon, tier, size = 48, isPremium }: BadgeIconProps) {
   const isLocked = tier === null
   const tierMeta = tier ? TIER_META[tier] : null
-  const color = isLocked ? '#ffffff' : tierMeta!.color
+
+  // Premium badges (e.g. Founding Member) always use gold color + glow
+  const PREMIUM_COLOR = '#FFD166'
+  const color = isLocked ? '#ffffff' : isPremium ? PREMIUM_COLOR : tierMeta!.color
   const iconSize = Math.round(size * 0.44)
 
   // Background gradient
   const bg = isLocked
     ? 'rgba(255,255,255,0.03)'
-    : `linear-gradient(135deg, ${color}40 0%, ${color}10 100%)`
+    : isPremium
+      ? `linear-gradient(135deg, ${PREMIUM_COLOR}50 0%, ${PREMIUM_COLOR}15 100%)`
+      : `linear-gradient(135deg, ${color}40 0%, ${color}10 100%)`
   const borderColor = isLocked
     ? 'rgba(255,255,255,0.08)'
     : color
 
-  // Padel Genius glow
-  const glow = tier === 4
-    ? { boxShadow: `0 0 ${Math.round(size * 0.3)}px 2px ${color}55` }
+  // Padel Genius OR premium glow
+  const glow = (tier === 4 || isPremium)
+    ? { boxShadow: `0 0 ${Math.round(size * 0.35)}px 3px ${color}66` }
     : undefined
 
   const renderIcon = ICON_PATHS[svgIcon] ?? ICON_PATHS.lock

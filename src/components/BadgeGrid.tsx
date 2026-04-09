@@ -130,7 +130,7 @@ export function BadgeGrid({ earned, categoryFilter }: BadgeGridProps) {
                         transition: 'background 0.15s',
                       }}
                     >
-                      <BadgeIcon svgIcon={badge.svgIcon} tier={tierNum} size={48} />
+                      <BadgeIcon svgIcon={badge.svgIcon} tier={tierNum} size={48} isPremium={badge.isPremium} />
                       <div style={{
                         fontSize: 8, fontWeight: 700, color: tierNum ? '#aaa' : '#444',
                         textAlign: 'center', lineHeight: 1.2,

@@ -113,12 +113,8 @@ export function useBadges(): UseBadgesResult {
         return count ?? 0
       }
       case 'profile_complete': {
-        const { data } = await supabase
-          .from('profiles')
-          .select('display_name, avatar_url, preferred_country')
-          .eq('id', user.id)
-          .single()
-        return (data?.display_name && data?.avatar_url && data?.preferred_country) ? 1 : 0
+        // Simply having an account counts — tied to sign-up, not profile fields.
+        return 1
       }
       case 'early_adopter': {
         const { data } = await supabase
