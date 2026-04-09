@@ -2,7 +2,7 @@
 //
 // Chunky clip-pathed tier badge for the ambassador system. Three
 // sizes for different surfaces: lg (dedicated screen), md (profile
-// row), sm (name chip). Smash tier gets a subtle outer glow.
+// row), sm (name chip). Padel Genius tier gets a subtle outer glow.
 
 'use client'
 
@@ -19,7 +19,7 @@ export function AmbassadorBadge({ tier, size = 'md' }: AmbassadorBadgeProps) {
   const px = size === 'lg' ? 68 : size === 'md' ? 44 : 22
   const iconSize = size === 'lg' ? 30 : size === 'md' ? 20 : 11
 
-  const glow = tier.id === 'smash'
+  const glow = tier.id === 'genius'
     ? { boxShadow: `0 0 ${size === 'lg' ? 22 : size === 'md' ? 14 : 8}px ${size === 'lg' ? 3 : 2}px ${tier.color}55` }
     : undefined
 
