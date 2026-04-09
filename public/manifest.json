@@ -2,24 +2,30 @@
   "name": "Padel Nachos",
   "short_name": "Padel Nachos",
   "description": "Real-time padel scores, live match tracking, player rankings, tournament brackets, and news.",
-  "start_url": "/v3",
+  "start_url": "/home",
   "display": "standalone",
-  "background_color": "#020C18",
-  "theme_color": "#020C18",
+  "background_color": "#0A0A0A",
+  "theme_color": "#7ED321",
   "orientation": "portrait",
   "scope": "/",
   "icons": [
     {
-      "src": "/padelnachos-logo-v2.png",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/padelnachos-logo-v2.png",
-      "sizes": "192x192",
+      "src": "/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
     }
   ],
   "categories": ["sports", "news"],
