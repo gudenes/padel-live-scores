@@ -1433,8 +1433,17 @@ function StatsTab({
               const wr = total > 0 ? Math.round((wins / total) * 100) : 0
               return (
                 <div key={circuit} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
-                  <div style={{ flex: '0 0 70px', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {circuit}
+                  <div style={{ flex: '0 0 70px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {circuit === 'Premier Padel' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src="/padel-logo-black-768x174.webp"
+                        alt="Premier Padel"
+                        style={{ height: 14, objectFit: 'contain', filter: 'invert(1)' }}
+                      />
+                    ) : (
+                      <span style={{ color: '#fff', fontWeight: 600 }}>{circuit}</span>
+                    )}
                   </div>
                   <WinRateBar wr={wr} color={ORANGE} rowIndex={idx} />
                   <div style={{ flex: '0 0 52px', textAlign: 'right', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
