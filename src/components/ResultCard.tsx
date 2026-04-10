@@ -157,7 +157,7 @@ export function ResultCard({ match }: { match: Match }) {
                 return (
                   <span key={s.id} style={{
                     fontSize: 16, fontWeight: 700, fontFamily: 'monospace',
-                    color: wonThisSet ? '#fff' : MUTED,
+                    color: wonThisSet ? '#fff' : '#B0B5BE',
                     minWidth: 16, textAlign: 'center',
                   }}>
                     {games}

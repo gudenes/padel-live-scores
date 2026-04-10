@@ -427,7 +427,10 @@ function LiveMatchCard({ match }: { match: Match }) {
             }}>
               {sets.map(s => {
                 const parsed = parseSetScore(s.set_score)
-                const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
+                const p1g = parsed?.p1 ?? s.pair1_games ?? 0
+                const p2g = parsed?.p2 ?? s.pair2_games ?? 0
+                const games = pairNum === 1 ? p1g : p2g
+                const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
                 const isCurrent = s.is_current
                 return (
                   <span key={s.id} style={{
@@ -436,7 +439,7 @@ function LiveMatchCard({ match }: { match: Match }) {
                     fontWeight: 700,
                     fontFamily: 'monospace',
                     fontVariantNumeric: 'tabular-nums',
-                    color: isCurrent ? GREEN : '#fff',
+                    color: isCurrent ? GREEN : wonThisSet ? '#fff' : '#B0B5BE',
                     width: 18,
                     textAlign: 'center',
                     lineHeight: 1,

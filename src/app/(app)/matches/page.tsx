@@ -359,7 +359,7 @@ function V3MatchRow({ match }: { match: Match }) {
                     <span key={s.id} style={{
                       position: 'relative',
                       fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
-                      color: isCurrent && isLive ? GREEN : wonSet ? '#fff' : '#888',
+                      color: isCurrent && isLive ? GREEN : wonSet ? '#fff' : '#B0B5BE',
                       minWidth: 14, textAlign: 'center',
                     }}>
                       {games}

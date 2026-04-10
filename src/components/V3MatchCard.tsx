@@ -159,7 +159,7 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
                   return (
                     <span key={s.id} style={{
                       fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
-                      color: isCurrent ? GREEN : wonThisSet ? '#fff' : MUTED,
+                      color: isCurrent ? GREEN : wonThisSet ? '#fff' : '#B0B5BE',
                       minWidth: 16, textAlign: 'center',
                     }}>
                       {games}

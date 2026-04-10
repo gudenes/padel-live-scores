@@ -612,7 +612,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const parsed = parseSetScore(set.set_score)
                 const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                 return (
-                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: p1WonSet && !set.is_current ? '#fff' : '#555' }}>
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p1WonSet ? '#fff' : '#B0B5BE' }}>
                     {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
                   </span>
                 )
@@ -628,7 +628,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const parsed = parseSetScore(set.set_score)
                 const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                 return (
-                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: p2WonSet && !set.is_current ? '#fff' : '#555' }}>
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p2WonSet ? '#fff' : '#B0B5BE' }}>
                     {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
                   </span>
                 )
@@ -1653,7 +1653,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                   {setGames.map((sg, i) => (
                     <span key={i} style={{
                       fontSize: 14, fontWeight: 700, fontFamily: 'monospace',
-                      color: team1Won ? '#fff' : MUTED,
+                      color: Number(sg.top) > Number(sg.bot) ? '#fff' : '#B0B5BE',
                       minWidth: 13, textAlign: 'center',
                     }}>
                       {sg.top}
@@ -1699,7 +1699,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                   {setGames.map((sg, i) => (
                     <span key={i} style={{
                       fontSize: 14, fontWeight: 700, fontFamily: 'monospace',
-                      color: team2Won ? '#fff' : MUTED,
+                      color: Number(sg.bot) > Number(sg.top) ? '#fff' : '#B0B5BE',
                       minWidth: 13, textAlign: 'center',
                     }}>
                       {sg.bot}
