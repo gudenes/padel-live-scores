@@ -855,12 +855,10 @@ function ResultsSection({ matches }: { matches: Match[] }) {
     group.matches.push(m)
   }
 
-  const cycleState = (tid: string) => {
+  const toggleState = (tid: string) => {
     setTournamentState(prev => {
       const current = prev[tid]
-      if (!current) return { ...prev, [tid]: 'expanded' }       // default → expanded
-      if (current === 'expanded') return { ...prev, [tid]: 'collapsed' } // expanded → collapsed
-      const { [tid]: _, ...rest } = prev; return rest            // collapsed → default
+      return { ...prev, [tid]: current === 'collapsed' ? 'expanded' : 'collapsed' }
     })
   }
 
@@ -900,94 +898,93 @@ function ResultsSection({ matches }: { matches: Match[] }) {
           const tid = group.tournament?.id ?? 'unknown'
           const state = tournamentState[tid] // undefined = default
           const matchCount = group.matches.length
-          const visibleMatches = state === 'collapsed' ? [] : state === 'expanded' ? group.matches : group.matches.slice(0, 3)
+          const visibleMatches = state === 'collapsed' ? [] : group.matches
           const stage = stageLabel(group)
 
+          const isExpanded = state !== 'collapsed'
           return (
             <div key={tid} style={{
-              background: BG_CARD,
-              clipPath: CHUNKY.card,
-              padding: '14px 14px 10px',
-              border: `1px solid ${BORDER}`,
+              overflow: 'hidden',
             }}>
-              {/* Tournament header — name links to detail, chevron toggles collapse */}
-              {group.tournament && (
-                <div style={{
+              {/* ── Header with green top accent ────────── */}
+              <div
+                onClick={() => toggleState(tid)}
+                style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '0 0 10px',
-                }}>
-                  {group.tournament.country && (
-                    <FlagImg country={group.tournament.country} size={30} />
-                  )}
-                  <Link href={`/tournaments/${tid}`} style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
-                        {titleCase(group.tournament.name)}
+                  padding: '12px 14px',
+                  background: '#1e1e1e',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {/* Green accent bar — scales in when expanded */}
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+                  background: GREEN,
+                  transform: isExpanded ? 'scaleX(1)' : 'scaleX(0)',
+                  transformOrigin: 'left',
+                  transition: 'transform 0.3s ease',
+                }} />
+                {group.tournament?.country && (
+                  <FlagImg country={group.tournament.country} size={28} />
+                )}
+                <Link
+                  href={`/tournaments/${tid}`}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ flex: 1, minWidth: 0, textDecoration: 'none' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
+                      {titleCase(group.tournament?.name ?? 'Unknown')}
+                    </span>
+                    {stage && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: '2px 6px',
+                        clipPath: CHUNKY.badge, textTransform: 'uppercase',
+                        background: 'rgba(126,211,33,0.12)', color: GREEN,
+                        letterSpacing: 0.3,
+                      }}>
+                        {stage}
                       </span>
-                      {stage && (
-                        <span style={{
-                          fontSize: 9, fontWeight: 700, padding: '2px 6px',
-                          clipPath: CHUNKY.badge, textTransform: 'uppercase',
-                          background: 'rgba(126,211,33,0.12)', color: GREEN,
-                          letterSpacing: 0.3,
-                        }}>
-                          {stage}
-                        </span>
-                      )}
-                    </div>
+                    )}
+                  </div>
+                  {group.tournament?.country && (
                     <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      {group.tournament.country && (
-                        <>
-                          <span>{countryName(group.tournament.country)}</span>
-                          <span style={{ opacity: 0.4 }}>&middot;</span>
-                        </>
-                      )}
+                      <span>{countryName(group.tournament.country)}</span>
+                      <span style={{ opacity: 0.4 }}>&middot;</span>
                       <span>{formatDates(group.tournament.starts_at, group.tournament.ends_at)}</span>
                     </div>
-                  </Link>
-                  <button
-                    onClick={() => cycleState(tid)}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-                      padding: '4px 2px',
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
-                  >
-                    <span style={{ fontSize: 10, fontWeight: 700, color: MUTED }}>{matchCount}</span>
-                    <span style={{
-                      fontSize: 12, color: MUTED,
-                      transform: state === 'collapsed' ? 'rotate(-90deg)' : state === 'expanded' ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s ease',
-                    }}>
-                      ▼
-                    </span>
-                  </button>
+                  )}
+                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, color: MUTED,
+                    background: 'rgba(255,255,255,0.05)',
+                    padding: '2px 8px', clipPath: CHUNKY.badge,
+                  }}>
+                    {matchCount}
+                  </span>
+                  <span style={{
+                    fontSize: 10, color: MUTED, display: 'inline-block',
+                    transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                    transition: 'transform 0.3s ease',
+                  }}>
+                    ▼
+                  </span>
                 </div>
-              )}
-              {/* Matches (hidden when collapsed) */}
-              {visibleMatches.length > 0 && (
-                <>
-                  <div style={{ height: 1, background: BORDER, margin: '0 0 8px' }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {visibleMatches.map(m => <ResultCard key={m.id} match={m} />)}
-                  </div>
-                </>
-              )}
-              {/* Show more / less toggle */}
-              {matchCount > 3 && state !== 'collapsed' && (
-                <button
-                  onClick={() => cycleState(tid)}
-                  style={{
-                    width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '8px 0 4px', fontSize: 11, fontWeight: 700,
-                    color: GREEN, textAlign: 'center',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
-                  {state === 'expanded' ? 'Show less' : `Show all ${matchCount} results`}
-                </button>
-              )}
+              </div>
+              {/* ── Collapsible content ─────────────────── */}
+              <div style={{
+                background: BG_CARD,
+                overflow: 'hidden',
+                maxHeight: isExpanded ? matchCount * 80 + 20 : 0,
+                transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}>
+                <div style={{ padding: '8px 14px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {group.matches.map(m => <ResultCard key={m.id} match={m} />)}
+                </div>
+              </div>
             </div>
           )
         })}
@@ -1345,10 +1342,10 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
           .select(`
             id, round, category, winner_pair, status,
             tournament:tournaments!inner(id),
-            pair1_player1:players!matches_pair1_player1_id_fkey(name, avatar_url),
-            pair1_player2:players!matches_pair1_player2_id_fkey(name, avatar_url),
-            pair2_player1:players!matches_pair2_player1_id_fkey(name, avatar_url),
-            pair2_player2:players!matches_pair2_player2_id_fkey(name, avatar_url)
+            pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name, avatar_url),
+            pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name, avatar_url),
+            pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name, avatar_url),
+            pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name, avatar_url)
           `)
           .in('tournament.id', completedIds)
           .in('round', ['Finals', 'Final', 'FINAL', 'finals', 'final', 'F'])
