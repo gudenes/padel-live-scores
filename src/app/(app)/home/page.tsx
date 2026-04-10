@@ -904,7 +904,6 @@ function ResultsSection({ matches }: { matches: Match[] }) {
           const isExpanded = state !== 'collapsed'
           return (
             <div key={tid} style={{
-              clipPath: CHUNKY.card,
               overflow: 'hidden',
             }}>
               {/* ── Header with green top accent ────────── */}

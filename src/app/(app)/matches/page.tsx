@@ -436,7 +436,6 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
   // Live / upcoming — collapsible with match rows
   return (
     <div style={{
-      clipPath: CHUNKY.card,
       overflow: 'hidden',
     }}>
       {/* ── Header with green top accent ────────── */}
