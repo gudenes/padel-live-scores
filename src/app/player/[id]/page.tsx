@@ -13,16 +13,26 @@ import FollowButton from '@/components/FollowButton'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
+const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
+
 function WinRateBar({ wr, color, rowIndex }: { wr: number; color: string; rowIndex: number }) {
   const barRef = useRef<HTMLDivElement>(null)
   const inView = useInViewOnce(barRef)
   return (
-    <div ref={barRef} style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)' }}>
+    <div ref={barRef} style={{
+      flex: 1, height: 8,
+      background: 'rgba(255,255,255,0.04)',
+      clipPath: CHUNKY_BAR,
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
       <div
         style={{
           width: `${wr}%`,
           height: '100%',
           background: color,
+          opacity: 0.85,
+          clipPath: CHUNKY_BAR,
           transformOrigin: 'left center',
           transform: inView ? 'scaleX(1)' : 'scaleX(0)',
           transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
@@ -1328,7 +1338,11 @@ function StatsTab({
     if (won) entry.wins++; else entry.losses++
     roundMap.set(round, entry)
   }
-  const rounds = [...roundMap.entries()].sort((a, b) => (b[1].wins + b[1].losses) - (a[1].wins + a[1].losses))
+  const rounds = [...roundMap.entries()].sort((a, b) => {
+    const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
+    const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)
+    return wrB - wrA
+  })
 
   // Group by tournament level
   const levelMap = new Map<string, { wins: number; losses: number }>()
@@ -1343,7 +1357,11 @@ function StatsTab({
     if (won) entry.wins++; else entry.losses++
     levelMap.set(level, entry)
   }
-  const levels = [...levelMap.entries()].sort((a, b) => (b[1].wins + b[1].losses) - (a[1].wins + a[1].losses))
+  const levels = [...levelMap.entries()].sort((a, b) => {
+    const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
+    const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)
+    return wrB - wrA
+  })
 
   if (derived.finished.length === 0) {
     return (
