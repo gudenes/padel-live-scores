@@ -280,8 +280,8 @@ export default function TournamentSpotlightHero({
         </div>
 
         {/* ── Row 2: Flag + tournament name ── */}
-        <div style={{ textAlign: 'center', marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <FlagImg country={tournament.country} size={28} />
             <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.2 }}>
               {titleCase(tournament.name)}
@@ -290,7 +290,7 @@ export default function TournamentSpotlightHero({
         </div>
 
         {/* ── Row 3: Location + dates + prize money ── */}
-        <div style={{ textAlign: 'center', marginBottom: 18 }}>
+        <div style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 12, color: MUTED, marginBottom: 3 }}>
             {tournament.location ? `${tournament.location}, ${countryName(tournament.country)}` : countryName(tournament.country)}
           </div>
