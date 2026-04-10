@@ -1439,7 +1439,7 @@ function StatsTab({
                       <img
                         src="/padel-logo-black-768x174.webp"
                         alt="Premier Padel"
-                        style={{ height: 14, objectFit: 'contain', filter: 'invert(1)' }}
+                        style={{ height: 14, objectFit: 'contain', filter: 'invert(1) hue-rotate(180deg)' }}
                       />
                     ) : (
                       <span style={{ color: '#fff', fontWeight: 600 }}>{circuit}</span>
