@@ -844,7 +844,7 @@ function OverviewTab({
                 )}
                 {derived.firstPartneredIso && (
                   <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>
-                    Partnered since {formatDate(derived.firstPartneredIso)}
+                    First match together {formatDate(derived.firstPartneredIso)}
                   </div>
                 )}
               </div>
