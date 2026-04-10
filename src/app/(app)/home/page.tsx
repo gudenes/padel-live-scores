@@ -21,6 +21,7 @@ import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { ResultCard } from '@/components/ResultCard'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
+import { ReferralToast } from '@/components/ReferralToast'
 import { useAuth } from '@/components/AuthProvider'
 import { useInvite } from '@/hooks/useInvite'
 import TournamentSpotlightHero from '@/components/TournamentSpotlightHero'
@@ -2208,6 +2209,7 @@ function V3HomePageInner() {
       </header>
 
       <InviteWelcomeBanner />
+      <ReferralToast />
 
       {/* ── LIVE NOW ────────────────────────────────────────── */}
       {liveScorable.length > 0 && (

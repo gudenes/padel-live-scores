@@ -39,7 +39,7 @@ export function InviteWelcomeBanner() {
     }
   }, [refCode])
 
-  // Fetch inviter profile
+  // Fetch inviter profile + persist to localStorage for post-signup toast
   useEffect(() => {
     if (!refCode) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -48,7 +48,21 @@ export function InviteWelcomeBanner() {
     }
     let cancelled = false
     void resolveInviterByCode(refCode).then(data => {
-      if (!cancelled) setInviter(data)
+      if (!cancelled) {
+        setInviter(data)
+        // Persist inviter info so the post-signup toast can show it
+        // even if the user signs up later (cookie handles the claim,
+        // localStorage handles the notification)
+        if (data && typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('pn_pending_referral', JSON.stringify({
+              code: refCode,
+              inviterName: data.display_name,
+              inviterAvatar: data.avatar_url,
+            }))
+          } catch { /* quota / private browsing — ignore */ }
+        }
+      }
     })
     return () => { cancelled = true }
   }, [refCode])

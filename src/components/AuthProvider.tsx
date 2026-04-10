@@ -181,6 +181,16 @@ async function claimReferral(userId: string) {
     if (!error) {
       document.cookie = 'pn_invite_ref=; Path=/; Max-Age=0; SameSite=lax'
       console.log('[Auth] Claimed referral from', code)
+
+      // Queue a post-signup welcome toast from the pending referral info
+      try {
+        const pending = localStorage.getItem('pn_pending_referral')
+        if (pending) {
+          const { inviterName, inviterAvatar } = JSON.parse(pending)
+          localStorage.setItem('pn_show_referral_toast', JSON.stringify({ inviterName, inviterAvatar }))
+          localStorage.removeItem('pn_pending_referral')
+        }
+      } catch { /* ignore parse errors */ }
     }
   } catch (e) {
     console.warn('[Auth] claimReferral failed:', e)
