@@ -99,6 +99,23 @@ export async function GET() {
 
   const supabase = getServiceClient()
 
+  // ── Latest 50 sign-ups (global, outside tournament loop) ────
+  const { data: recentSignupsData } = await supabase
+    .from('profiles')
+    .select('id, display_name, avatar_url, created_at, referred_by, login_streak, last_active_at')
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  const recentSignups = (recentSignupsData ?? []).map(p => ({
+    id: p.id,
+    displayName: p.display_name,
+    avatarUrl: p.avatar_url,
+    createdAt: p.created_at,
+    referredBy: p.referred_by,
+    loginStreak: p.login_streak,
+    lastActiveAt: p.last_active_at,
+  }))
+
   const monitors: LaunchMonitor[] = []
 
   for (const tournamentId of LAUNCH_TOURNAMENT_IDS) {
@@ -292,5 +309,5 @@ export async function GET() {
     })
   }
 
-  return Response.json({ monitors })
+  return Response.json({ monitors, recentSignups })
 }

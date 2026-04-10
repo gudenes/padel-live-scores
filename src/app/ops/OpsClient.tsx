@@ -115,6 +115,16 @@ interface LaunchMonitor {
   }
 }
 
+interface RecentSignup {
+  id: string
+  displayName: string | null
+  avatarUrl: string | null
+  createdAt: string | null
+  referredBy: string | null
+  loginStreak: number | null
+  lastActiveAt: string | null
+}
+
 interface DashboardData {
   health: Record<string, HealthEntry>
   relay: RelayStatus
@@ -315,6 +325,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [preSelectedTournamentId, setPreSelectedTournamentId] = useState<string | null>(null)
   const [drawEditorTournament, setDrawEditorTournament] = useState<{ id: string; name: string } | null>(null)
   const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
+  const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([])
   const [forcingSyncId, setForcingSyncId] = useState<string | null>(null)
 
   const poll = useCallback(async () => {
@@ -333,6 +344,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       if (!res.ok) return
       const json = await res.json()
       setLaunchMonitors(json.monitors ?? [])
+      setRecentSignups(json.recentSignups ?? [])
     } catch { /* silent */ }
   }, [])
 
@@ -512,6 +524,77 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
                     isForcing={forcingSyncId === monitor.id}
                   />
                 ))}
+              </div>
+            </>
+          )}
+
+          {/* ── Recent Sign-ups ─────────────────────────── */}
+          {recentSignups.length > 0 && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>Recent Sign-ups</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#16a34a', background: '#dcfce7', padding: '2px 8px', borderRadius: 999 }}>
+                  {recentSignups.length} latest
+                </span>
+              </div>
+              <div style={{
+                background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
+                overflow: 'hidden', marginBottom: 24,
+              }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3 }}>User</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3 }}>Signed up</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3 }}>Streak</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#6b7280', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3 }}>Referred</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3 }}>Last active</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentSignups.map((s, i) => {
+                      const initials = (s.displayName || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+                      const createdAgo = timeAgo(s.createdAt)
+                      const activeAgo = timeAgo(s.lastActiveAt)
+                      return (
+                        <tr key={s.id} style={{ borderBottom: i < recentSignups.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
+                          <td style={{ padding: '8px 12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{
+                                width: 28, height: 28, borderRadius: '50%',
+                                background: s.avatarUrl ? `url(${s.avatarUrl}) center/cover` : '#e5e7eb',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 10, fontWeight: 700, color: '#6b7280', flexShrink: 0,
+                                overflow: 'hidden',
+                              }}>
+                                {!s.avatarUrl && initials}
+                              </div>
+                              <span style={{ fontWeight: 600, color: '#111' }}>
+                                {s.displayName || s.id.slice(0, 8)}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '8px 12px', color: '#6b7280' }}>{createdAgo}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                            {(s.loginStreak ?? 0) > 0 ? (
+                              <span style={{ fontWeight: 700, color: '#ea580c' }}>{s.loginStreak}d</span>
+                            ) : (
+                              <span style={{ color: '#d1d5db' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                            {s.referredBy ? (
+                              <span style={{ fontSize: 10, fontWeight: 600, color: '#16a34a', background: '#dcfce7', padding: '2px 6px', borderRadius: 999 }}>Yes</span>
+                            ) : (
+                              <span style={{ color: '#d1d5db' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '8px 12px', color: '#6b7280' }}>{activeAgo}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             </>
           )}
