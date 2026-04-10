@@ -82,7 +82,7 @@ export function InviteWelcomeBanner() {
   if (!refCode || !inviter || dismissed) return null
   if (user && user.id === inviter.id) return null
 
-  const name = inviter.display_name?.trim() || 'Someone'
+  const firstName = (inviter.display_name?.trim() || 'Someone').split(' ')[0]
 
   return (
     <>
@@ -110,174 +110,182 @@ export function InviteWelcomeBanner() {
         clipPath: CHUNKY_CARD,
         animation: 'invite-popup-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
         overflow: 'hidden',
+        background: BG_CARD,
       }}>
-        {/* ── Green gradient header band ─────────────────── */}
+        {/* ── Accent bar (orange → green gradient) ────────── */}
         <div style={{
-          background: 'linear-gradient(135deg, #7ED321 0%, #5BA418 60%, #3D7A0F 100%)',
-          padding: '24px 24px 20px',
-          position: 'relative',
-          overflow: 'hidden',
+          height: 3,
+          background: 'linear-gradient(90deg, #F5A623, #7ED321)',
+        }} />
+
+        {/* ── Header: centered logo + close button ────────── */}
+        <div className="invite-stagger invite-stagger-1" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px 18px 0', position: 'relative',
         }}>
-          {/* Subtle glow accents */}
-          <div style={{
-            position: 'absolute', top: -30, right: -30,
-            width: 120, height: 120,
-            background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)',
-          }} />
-          <div style={{
-            position: 'absolute', bottom: -20, left: -20,
-            width: 80, height: 80,
-            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
-          }} />
-
-          {/* Close button */}
-          <button
-            onClick={handleDismiss}
-            aria-label="Dismiss"
-            style={{
-              position: 'absolute',
-              top: 10, right: 10,
-              width: 28, height: 28,
-              background: 'rgba(0,0,0,0.2)',
-              clipPath: CHUNKY_BADGE,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontSize: 16, cursor: 'pointer',
-              border: 'none', zIndex: 2,
-              fontFamily: 'inherit', lineHeight: 1,
-            }}
-          >
-            ×
-          </button>
-
-          {/* PadelNachos logo */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/padelnachos-logo-v2.png"
             alt="PadelNachos"
-            className="invite-stagger invite-stagger-1"
-            style={{ height: 36, objectFit: 'contain', marginBottom: 14, position: 'relative', zIndex: 1 }}
+            style={{ height: 42, objectFit: 'contain' }}
           />
+          <button
+            onClick={handleDismiss}
+            aria-label="Dismiss"
+            style={{
+              position: 'absolute', top: 14, right: 16,
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke={MUTED} strokeWidth="1.8" strokeLinecap="round">
+              <line x1="5" y1="5" x2="15" y2="15" /><line x1="15" y1="5" x2="5" y2="15" />
+            </svg>
+          </button>
+        </div>
 
-          {/* Invite label */}
-          <div className="invite-stagger invite-stagger-2" style={{
-            fontSize: 10, fontWeight: 800,
-            color: 'rgba(0,0,0,0.45)',
-            textTransform: 'uppercase',
-            letterSpacing: 1,
-            marginBottom: 10,
-            position: 'relative', zIndex: 1,
-          }}>
-            🎾 You&apos;ve been invited
-          </div>
+        {/* ── Welcome label ───────────────────────────────── */}
+        <div className="invite-stagger invite-stagger-2" style={{
+          textAlign: 'center', marginTop: 20,
+          fontSize: 11, fontWeight: 500,
+          letterSpacing: 1.5, textTransform: 'uppercase',
+          color: MUTED,
+        }}>
+          Welcome to the world of padel
+        </div>
 
-          {/* Inviter section */}
-          <div className="invite-stagger invite-stagger-3" style={{
-            display: 'flex', alignItems: 'center', gap: 14,
-            position: 'relative', zIndex: 1,
-          }}>
+        {/* ── Avatar with green glow ──────────────────────── */}
+        <div className="invite-stagger invite-stagger-3" style={{
+          display: 'flex', justifyContent: 'center', marginTop: 18, position: 'relative',
+        }}>
+          <div style={{ position: 'relative', width: 64, height: 64 }}>
+            {/* Glow */}
             <div style={{
-              width: 56, height: 56,
+              position: 'absolute', inset: -6,
               borderRadius: '50%',
-              border: '3px solid rgba(255,255,255,0.3)',
+              background: 'radial-gradient(circle, rgba(126,211,33,0.15) 0%, transparent 70%)',
+            }} />
+            {/* Ring */}
+            <div style={{
+              position: 'absolute', inset: -3,
+              borderRadius: '50%',
+              border: '1.5px solid rgba(126,211,33,0.3)',
+            }} />
+            {/* Avatar */}
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%',
               background: inviter.avatar_url
                 ? `url(${inviter.avatar_url}) center/cover`
-                : 'linear-gradient(135deg, #5a6a7a, #2a3a4a)',
-              flexShrink: 0,
+                : 'linear-gradient(135deg, #3a4a5a, #2a3a4a)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               overflow: 'hidden',
-            }} />
-            <div>
-              <div style={{
-                fontSize: 18, fontWeight: 900,
-                color: '#000', lineHeight: 1.2,
-              }}>
-                {name}
-              </div>
-              <div style={{
-                fontSize: 12, fontWeight: 600,
-                color: 'rgba(0,0,0,0.5)',
-                marginTop: 3,
-              }}>
-                brought you to PadelNachos
-              </div>
+            }}>
+              {!inviter.avatar_url && (
+                <span style={{ fontSize: 20, fontWeight: 800, color: GREEN }}>
+                  {firstName[0]?.toUpperCase() ?? '?'}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* ── Dark content area ──────────────────────────── */}
-        <div style={{
-          background: BG_CARD,
-          padding: '20px 24px 24px',
+        {/* ── Inviter subtitle ────────────────────────────── */}
+        <div className="invite-stagger invite-stagger-4" style={{
+          textAlign: 'center', marginTop: 14,
+          fontSize: 13, color: MUTED,
         }}>
-          <div className="invite-stagger invite-stagger-4" style={{
-            fontSize: 14, fontWeight: 700,
-            color: '#fff', lineHeight: 1.5,
-            marginBottom: 16,
-          }}>
-            Your <span style={{ color: GREEN }}>free pass</span> to the world of padel — live scores, rankings, and never miss a match.
+          <span style={{ color: '#ccc', fontWeight: 600 }}>{firstName}</span> invited you to PadelNachos
+        </div>
+
+        {/* ── Divider ─────────────────────────────────────── */}
+        <div className="invite-stagger invite-stagger-5" style={{
+          width: 'calc(100% - 48px)', height: 1, margin: '18px auto 16px',
+          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0.08) 80%, transparent)',
+        }} />
+
+        {/* ── Value props with SVG icons ───────────────────── */}
+        <div className="invite-stagger invite-stagger-6" style={{
+          display: 'flex', flexDirection: 'column', gap: 10,
+          padding: '0 22px',
+        }}>
+          {/* Live scores */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 28, height: 28, flexShrink: 0,
+              clipPath: CHUNKY_BADGE, background: 'rgba(126,211,33,0.10)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none">
+                <rect x="2" y="4" width="18" height="14" stroke={GREEN} strokeWidth="1.5" />
+                <line x1="2" y1="10" x2="20" y2="10" stroke={GREEN} strokeWidth="1" opacity="0.5" />
+                <line x1="11" y1="4" x2="11" y2="18" stroke={GREEN} strokeWidth="1" opacity="0.5" />
+                <circle cx="11" cy="10" r="1.5" fill={GREEN} />
+              </svg>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 500, color: '#aaa' }}>Live scores, point by point</span>
           </div>
 
-          {/* Value props — text only, no icons */}
-          <div className="invite-stagger invite-stagger-5" style={{
-            display: 'flex', flexDirection: 'column', gap: 8,
-            marginBottom: 20,
-          }}>
-            {[
-              'Real-time live scores for every match',
-              'Follow your favorite players & tournaments',
-              'Push alerts when your matches go live',
-            ].map((text, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}>
-                <div style={{
-                  width: 6, height: 6,
-                  background: GREEN,
-                  clipPath: CHUNKY_BADGE,
-                  flexShrink: 0,
-                }} />
-                <span style={{ fontSize: 12, color: MUTED, fontWeight: 500 }}>
-                  {text}
-                </span>
-              </div>
-            ))}
+          {/* Rankings */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 28, height: 28, flexShrink: 0,
+              clipPath: CHUNKY_BADGE, background: 'rgba(245,166,35,0.10)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none">
+                <rect x="3" y="10" width="4" height="8" fill="#F5A623" opacity="0.7" />
+                <rect x="9" y="5" width="4" height="13" fill="#F5A623" />
+                <rect x="15" y="8" width="4" height="10" fill="#F5A623" opacity="0.5" />
+              </svg>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 500, color: '#aaa' }}>Rankings and up to date stats</span>
           </div>
 
-          {/* CTA button */}
+          {/* Alerts */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 28, height: 28, flexShrink: 0,
+              clipPath: CHUNKY_BADGE, background: 'rgba(126,211,33,0.10)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none">
+                <path d="M11 3 C11 3 6 6 6 11 L6 14 L4 16 L18 16 L16 14 L16 11 C16 6 11 3 11 3Z" stroke={GREEN} strokeWidth="1.5" fill="none" />
+                <circle cx="11" cy="19" r="1.5" fill={GREEN} />
+                <circle cx="16" cy="5" r="2.5" fill="#F5A623" />
+              </svg>
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 500, color: '#aaa' }}>Your centre court, in your pocket</span>
+          </div>
+        </div>
+
+        {/* ── CTA button ──────────────────────────────────── */}
+        <div style={{ padding: '20px 22px 0' }}>
           <button
-            className="invite-stagger invite-stagger-6"
-            onClick={handleDismiss}
-            style={{
-              width: '100%',
-              padding: 14,
-              background: GREEN,
-              color: '#000',
-              fontSize: 14, fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-              border: 'none',
-              clipPath: CHUNKY_BUTTON,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              textAlign: 'center',
-            }}
-          >
-            Get Started 🎾
-          </button>
-
-          {/* Dismiss link */}
-          <div
             className="invite-stagger invite-stagger-7"
             onClick={handleDismiss}
             style={{
-              textAlign: 'center',
-              marginTop: 12,
-              fontSize: 11,
-              color: '#555',
-              cursor: 'pointer',
+              width: '100%', padding: 14,
+              background: '#F5A623', color: '#000',
+              fontSize: 14, fontWeight: 800,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+              border: 'none', clipPath: CHUNKY_BUTTON,
+              cursor: 'pointer', fontFamily: 'inherit', textAlign: 'center',
             }}
           >
-            Maybe later
-          </div>
+            LET&apos;S GO
+          </button>
+        </div>
+
+        {/* ── Dismiss ─────────────────────────────────────── */}
+        <div
+          className="invite-stagger invite-stagger-8"
+          onClick={handleDismiss}
+          style={{
+            textAlign: 'center', padding: '12px 0 20px',
+            fontSize: 11, color: '#555', cursor: 'pointer',
+          }}
+        >
+          Maybe later
         </div>
       </div>
 
