@@ -23,6 +23,9 @@ import { ResultCard } from '@/components/ResultCard'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
 import { useAuth } from '@/components/AuthProvider'
 import { useInvite } from '@/hooks/useInvite'
+import TournamentSpotlightHero from '@/components/TournamentSpotlightHero'
+import type { TournamentSpotlightHeroProps } from '@/components/TournamentSpotlightHero'
+import { toShortName } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1797,6 +1800,9 @@ function V3HomePageInner() {
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [latestNews, setLatestNews] = useState<NewsItem[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
+  const [spotlightChampion, setSpotlightChampion] = useState<TournamentSpotlightHeroProps['defendingChampion']>(null)
+  const [spotlightSeeds, setSpotlightSeeds] = useState<TournamentSpotlightHeroProps['topSeeds']>([])
+  const [spotlightStats, setSpotlightStats] = useState<TournamentSpotlightHeroProps['stats']>(null)
 
   // Rotating search hints
   const SEARCH_HINTS = [
@@ -1833,6 +1839,150 @@ function V3HomePageInner() {
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // ── Spotlight hero: defending champion, seeds, stats ───────────
+  // Runs as a non-blocking side-effect after main data loads.
+  const fetchSpotlightData = useCallback(async (t: Tournament) => {
+    try {
+      // Token-based previous-edition matching (same logic as tournament detail page)
+      const NOISE_TOKENS = new Set([
+        'premier', 'padel', 'tour', 'open', 'the', 'by', 'presented',
+        'pro', 'vip', 'official', 'season', 'championship', 'championships',
+      ])
+      const stripAccents = (s: string): string =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const tokenize = (n: string): Set<string> =>
+        new Set(
+          stripAccents(n).toLowerCase().replace(/\b(19|20)\d{2}\b/g, '').replace(/[^a-z0-9]+/g, ' ')
+            .split(/\s+/).filter(w => w.length >= 2 && !NOISE_TOKENS.has(w))
+        )
+
+      // ── 1. Defending champion ─────────────────────────────
+      const currentTokens = tokenize(t.name)
+      if (currentTokens.size >= 2 && t.level && t.starts_at) {
+        const discriminating = [...currentTokens].filter(tk => tk.length >= 3).sort((a, b) => b.length - a.length)[0] ?? [...currentTokens][0]
+
+        const { data: candidates } = await supabase
+          .from('tournaments')
+          .select('id, name, starts_at, ends_at')
+          .eq('level', t.level)
+          .lt('ends_at', t.starts_at)
+          .ilike('name', `%${discriminating}%`)
+          .order('ends_at', { ascending: false })
+          .limit(50)
+
+        if (candidates && candidates.length > 0) {
+          const previous = candidates.find(c => {
+            const candTokens = tokenize(c.name)
+            for (const tk of currentTokens) {
+              if (!candTokens.has(tk)) return false
+            }
+            return true
+          })
+          if (previous) {
+            // Fetch finals match with players for both men and women (default to men)
+            const FINALS_ROUNDS = new Set(['Final', 'Finals', 'F'])
+            const { data: finalMatches } = await supabase
+              .from('matches')
+              .select(`
+                id, round, winner_pair, status, category,
+                pair1_player1:players!matches_pair1_player1_id_fkey(name, country, avatar_url),
+                pair1_player2:players!matches_pair1_player2_id_fkey(name, country, avatar_url),
+                pair2_player1:players!matches_pair2_player1_id_fkey(name, country, avatar_url),
+                pair2_player2:players!matches_pair2_player2_id_fkey(name, country, avatar_url)
+              `)
+              .eq('tournament_id', previous.id)
+              .in('status', ['finished', 'retired', 'walkover'])
+              .not('winner_pair', 'is', null)
+
+            if (finalMatches && finalMatches.length > 0) {
+              const finalMatch = finalMatches.find(m => FINALS_ROUNDS.has((m as any).round as string))
+                ?? finalMatches.find(m => ((m as any).round as string || '').toLowerCase().includes('final'))
+              if (finalMatch) {
+                const winners = (finalMatch as any).winner_pair === 1
+                  ? [(finalMatch as any).pair1_player1, (finalMatch as any).pair1_player2]
+                  : [(finalMatch as any).pair2_player1, (finalMatch as any).pair2_player2]
+                const winnerPlayers = winners.filter(Boolean)
+                if (winnerPlayers.length > 0) {
+                  const year = previous.ends_at ? new Date(previous.ends_at).getFullYear() : 0
+                  setSpotlightChampion({
+                    names: winnerPlayers.map((p: any) => toShortName(p.name)).join(' / '),
+                    year,
+                    country1: winnerPlayers[0]?.country ?? null,
+                    country2: winnerPlayers[1]?.country ?? null,
+                    avatar1: winnerPlayers[0]?.avatar_url ?? null,
+                    avatar2: winnerPlayers[1]?.avatar_url ?? null,
+                    previousEditionId: previous.id,
+                  })
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // ── 2. Top 4 seeds from tournament_draws ──────────────
+      const { data: drawEntries } = await supabase
+        .from('tournament_draws')
+        .select('seed, player1_name, player1_country, player1_id, player2_name, player2_country')
+        .eq('tournament_id', t.id)
+        .not('seed', 'is', null)
+        .order('seed', { ascending: true })
+        .limit(8)
+
+      if (drawEntries && drawEntries.length > 0) {
+        // Collect unique seeds (top 4)
+        const seenSeeds = new Set<number>()
+        const topSeedEntries: typeof drawEntries = []
+        for (const entry of drawEntries) {
+          if (entry.seed != null && !seenSeeds.has(entry.seed) && seenSeeds.size < 4) {
+            seenSeeds.add(entry.seed)
+            topSeedEntries.push(entry)
+          }
+        }
+
+        // Look up player avatars for the first player of each seed pair
+        const playerIds = topSeedEntries.map(e => e.player1_id).filter(Boolean)
+        let avatarMap: Record<string, string | null> = {}
+        if (playerIds.length > 0) {
+          const { data: players } = await supabase
+            .from('players')
+            .select('id, avatar_url')
+            .in('id', playerIds)
+          if (players) {
+            avatarMap = Object.fromEntries(players.map(p => [p.id, p.avatar_url]))
+          }
+        }
+
+        setSpotlightSeeds(topSeedEntries.map(e => ({
+          name: e.player1_name ?? 'TBD',
+          avatarUrl: e.player1_id ? (avatarMap[e.player1_id] ?? null) : null,
+          seed: e.seed!,
+        })))
+      }
+
+      // ── 3. Stats from tournament_draws ────────────────────
+      const { data: allEntries } = await supabase
+        .from('tournament_draws')
+        .select('player1_country, player2_country')
+        .eq('tournament_id', t.id)
+
+      if (allEntries && allEntries.length > 0) {
+        const countries = new Set<string>()
+        for (const e of allEntries) {
+          if (e.player1_country) countries.add(e.player1_country)
+          if (e.player2_country) countries.add(e.player2_country)
+        }
+        setSpotlightStats({
+          pairsCount: allEntries.length,
+          countriesCount: countries.size,
+          matchesCount: Math.max(0, allEntries.length - 1),
+        })
+      }
+    } catch (e) {
+      console.warn('[V3 Home] spotlight data fetch failed:', e)
+    }
   }, [])
 
   const fetchData = useCallback(async () => {
@@ -1882,12 +2032,19 @@ function V3HomePageInner() {
       // on the parent tournament, which is filtered separately if needed.
       setLiveMatches(dataOf(0))
       setScheduledMatches(dataOf(1))
-      setUpcomingTournaments(dataOf(2))
+      const tournaments: Tournament[] = dataOf(2)
+      setUpcomingTournaments(tournaments)
       setTopMen(dataOf(3))
       setTopWomen(dataOf(4))
       setRecentMatches(dataOf(5))
       setHighlights(dataOf(6))
       setLatestNews(dataOf(7))
+
+      // ── Spotlight hero data (non-blocking) ───────────────
+      const spotlight = tournaments[0] ?? null
+      if (spotlight) {
+        void fetchSpotlightData(spotlight)
+      }
     } catch (e) {
       console.error('[V3 Home] fetchData error:', e)
     } finally {
@@ -2094,13 +2251,15 @@ function V3HomePageInner() {
         </>
       )}
 
-      {/* ── TOURNAMENT SPOTLIGHT ─────────────────────────────── */}
+      {/* ── TOURNAMENT SPOTLIGHT HERO ──────────────────────── */}
       {spotlightTournament && (
         <>
           <SectionTitle action="Full Events" onAction={() => { switchView('tournaments'); window.scrollTo(0, 0) }}>Tournament Spotlight</SectionTitle>
-          <TournamentSpotlight
+          <TournamentSpotlightHero
             tournament={spotlightTournament}
-            matchCount={liveMatchCount}
+            defendingChampion={spotlightChampion}
+            topSeeds={spotlightSeeds}
+            stats={spotlightStats}
           />
         </>
       )}
