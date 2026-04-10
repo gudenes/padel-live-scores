@@ -1192,7 +1192,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       : [(finalMatch as any).pair2_player1, (finalMatch as any).pair2_player2]
     const winnerPlayers = winners.filter(Boolean)
     if (winnerPlayers.length === 0) return null
-    const names = winnerPlayers.map((p: any) => toShortName(p.name)).join(' / ')
+    const names = winnerPlayers.map((p: any) => toShortName(p.display_name?.trim() || p.name)).join(' / ')
     const country1 = winnerPlayers[0]?.country ?? null
     const country2 = winnerPlayers[1]?.country ?? null
     const year = tournament?.ends_at ? new Date(tournament.ends_at).getFullYear() : 0
@@ -1297,10 +1297,10 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           .from('matches')
           .select(`
             id, round, winner_pair, status, category,
-            pair1_player1:players!matches_pair1_player1_id_fkey(name, country),
-            pair1_player2:players!matches_pair1_player2_id_fkey(name, country),
-            pair2_player1:players!matches_pair2_player1_id_fkey(name, country),
-            pair2_player2:players!matches_pair2_player2_id_fkey(name, country)
+            pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name, country),
+            pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name, country),
+            pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name, country),
+            pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name, country)
           `)
           .eq('tournament_id', previous.id)
           .eq('category', genderFilter)
@@ -1317,7 +1317,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         const winnerPlayers = winners.filter(Boolean)
         if (winnerPlayers.length === 0) return
 
-        const names = winnerPlayers.map((p: any) => toShortName(p.name)).join(' / ')
+        const names = winnerPlayers.map((p: any) => toShortName(p.display_name?.trim() || p.name)).join(' / ')
         const country1 = winnerPlayers[0]?.country ?? null
         const country2 = winnerPlayers[1]?.country ?? null
         const year = previous.ends_at ? new Date(previous.ends_at).getFullYear() : 0

@@ -1343,10 +1343,10 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
           .select(`
             id, round, category, winner_pair, status,
             tournament:tournaments!inner(id),
-            pair1_player1:players!matches_pair1_player1_id_fkey(name, avatar_url),
-            pair1_player2:players!matches_pair1_player2_id_fkey(name, avatar_url),
-            pair2_player1:players!matches_pair2_player1_id_fkey(name, avatar_url),
-            pair2_player2:players!matches_pair2_player2_id_fkey(name, avatar_url)
+            pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name, avatar_url),
+            pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name, avatar_url),
+            pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name, avatar_url),
+            pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name, avatar_url)
           `)
           .in('tournament.id', completedIds)
           .in('round', ['Finals', 'Final', 'FINAL', 'finals', 'final', 'F'])
