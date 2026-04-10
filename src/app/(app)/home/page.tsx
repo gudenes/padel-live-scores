@@ -21,6 +21,7 @@ import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { ResultCard } from '@/components/ResultCard'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
+import { ReferralToast } from '@/components/ReferralToast'
 import { useAuth } from '@/components/AuthProvider'
 import { useInvite } from '@/hooks/useInvite'
 import TournamentSpotlightHero from '@/components/TournamentSpotlightHero'
@@ -377,7 +378,6 @@ function LiveMatchCard({ match }: { match: Match }) {
           <div key={pairNum} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '6px 0',
-            opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.65 : 1,
             position: 'relative',
             overflow: 'hidden',
           }}>
@@ -397,7 +397,11 @@ function LiveMatchCard({ match }: { match: Match }) {
                 }}
               />
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, position: 'relative', zIndex: 2 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0,
+              position: 'relative', zIndex: 2,
+              opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.65 : 1,
+            }}>
               {/* Stacked overlapping dual flags — same pattern as latest results */}
               <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
@@ -408,7 +412,9 @@ function LiveMatchCard({ match }: { match: Match }) {
                 </div>
               </div>
               <span style={{
-                fontSize: 14, fontWeight: 700, color: '#fff',
+                fontSize: 14,
+                fontWeight: match.winner_pair && match.winner_pair !== pairNum ? 600 : 700,
+                color: match.winner_pair && match.winner_pair !== pairNum ? '#B0B5BE' : '#fff',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {pair}
@@ -424,7 +430,10 @@ function LiveMatchCard({ match }: { match: Match }) {
             }}>
               {sets.map(s => {
                 const parsed = parseSetScore(s.set_score)
-                const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
+                const p1g = parsed?.p1 ?? s.pair1_games ?? 0
+                const p2g = parsed?.p2 ?? s.pair2_games ?? 0
+                const games = pairNum === 1 ? p1g : p2g
+                const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
                 const isCurrent = s.is_current
                 return (
                   <span key={s.id} style={{
@@ -433,7 +442,7 @@ function LiveMatchCard({ match }: { match: Match }) {
                     fontWeight: 700,
                     fontFamily: 'monospace',
                     fontVariantNumeric: 'tabular-nums',
-                    color: isCurrent ? GREEN : '#fff',
+                    color: isCurrent ? GREEN : wonThisSet ? '#fff' : '#B0B5BE',
                     width: 18,
                     textAlign: 'center',
                     lineHeight: 1,
@@ -2206,6 +2215,7 @@ function V3HomePageInner() {
       </header>
 
       <InviteWelcomeBanner />
+      <ReferralToast />
 
       {/* ── LIVE NOW ────────────────────────────────────────── */}
       {liveScorable.length > 0 && (

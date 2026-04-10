@@ -24,6 +24,12 @@ const SEARCH_HINTS = [
 export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void }) {
   const { user } = useAuth()
   const { shareNow } = useInvite()
+
+  // Defer auth-dependent rendering until after hydration to avoid
+  // React #418 — SSR has user=null, client has cached user.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   // Rotating search hints
   const [hintIdx, setHintIdx] = useState(0)
   const [hintFading, setHintFading] = useState(false)
@@ -111,8 +117,8 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
         </span>
       </div>
 
-      {/* Share icon — logged-in users only */}
-      {user && (
+      {/* Share icon — logged-in users only (deferred to avoid hydration mismatch) */}
+      {mounted && user && (
         <button
           onClick={() => { void shareNow() }}
           aria-label="Share PadelNachos"

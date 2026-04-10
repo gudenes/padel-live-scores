@@ -2,7 +2,7 @@
 // Persists hidden feed items (videos + news) in localStorage.
 // Items can be hidden by ID; hidden state is shared across home and feed pages.
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 const STORAGE_KEY = 'padel-hidden-feed'
 const MAX_ITEMS = 500
@@ -25,7 +25,14 @@ function writeHidden(ids: Set<string>) {
 }
 
 export function useHiddenFeedItems() {
-  const [hidden, setHidden] = useState<Set<string>>(() => readHidden())
+  // Start empty to match SSR — load from localStorage in useEffect
+  // to avoid React hydration error #418 on /feed.
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const stored = readHidden()
+    if (stored.size > 0) setHidden(stored)
+  }, [])
 
   const hide = useCallback((id: string) => {
     setHidden(prev => {

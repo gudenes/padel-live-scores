@@ -307,7 +307,6 @@ function V3MatchRow({ match }: { match: Match }) {
             <div key={pairNum} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '4px 0',
-              opacity: isLoser ? 0.4 : 1,
               position: 'relative',
               overflow: 'hidden',
             }}>
@@ -330,7 +329,11 @@ function V3MatchRow({ match }: { match: Match }) {
                   }}
                 />
               )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, position: 'relative', zIndex: 2 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0,
+                position: 'relative', zIndex: 2,
+                opacity: isLoser ? 0.65 : 1,
+              }}>
                 {/* Stacked overlapping dual flags — same pattern as latest results */}
                 <div style={{ position: 'relative', width: 24, height: 18, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
@@ -359,7 +362,7 @@ function V3MatchRow({ match }: { match: Match }) {
                     <span key={s.id} style={{
                       position: 'relative',
                       fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
-                      color: isCurrent && isLive ? GREEN : wonSet ? '#fff' : '#888',
+                      color: isCurrent && isLive ? GREEN : wonSet ? '#fff' : '#B0B5BE',
                       minWidth: 14, textAlign: 'center',
                     }}>
                       {games}
@@ -822,9 +825,9 @@ function V3ScoresPage() {
             overflowX: 'auto', scrollbarWidth: 'none',
           } as React.CSSProperties}>
             {([
-              { key: 'premier', label: 'Premier Padel' },
-              { key: 'fip',     label: 'FIP Tour' },
-              { key: 'all',     label: 'All' },
+              { key: 'premier', label: 'Premier Padel', logo: '/padel-logo-black-768x174.webp', logoH: 16, logoFilter: 'invert(1) hue-rotate(180deg)', logoFilterActive: 'brightness(0)' },
+              { key: 'fip',     label: 'FIP Tour',      logo: '/fiptour2026-removebg-preview.png', logoH: 22, logoFilter: 'brightness(0) invert(1)', logoFilterActive: 'brightness(0)' },
+              { key: 'all',     label: 'All',            logo: null, logoH: 0, logoFilter: '', logoFilterActive: '' },
             ] as const).map(chip => {
               const active = leagueFilter === chip.key
               return (
@@ -832,7 +835,8 @@ function V3ScoresPage() {
                   key={chip.key}
                   onClick={() => setLeagueFilter(chip.key)}
                   style={{
-                    padding: '6px 14px', fontSize: 11, fontWeight: 700,
+                    padding: active ? '8px 18px' : '6px 14px',
+                    fontSize: 11, fontWeight: 700,
                     border: 'none', cursor: 'pointer',
                     background: active ? ORANGE : 'rgba(255,255,255,0.05)',
                     color: active ? '#000' : MUTED,
@@ -841,9 +845,24 @@ function V3ScoresPage() {
                     whiteSpace: 'nowrap',
                     letterSpacing: 0.3,
                     textTransform: 'uppercase',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    minHeight: active ? 34 : 28,
+                    transition: 'all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)',
                   }}
                 >
-                  {chip.label}
+                  {chip.logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={chip.logo}
+                      alt={chip.label}
+                      style={{
+                        height: active ? chip.logoH * 1.25 : chip.logoH,
+                        objectFit: 'contain',
+                        filter: active ? chip.logoFilterActive : chip.logoFilter,
+                        transition: 'all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)',
+                      }}
+                    />
+                  ) : chip.label}
                 </button>
               )
             })}

@@ -93,15 +93,33 @@ export function SpotlightCoachmarks() {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
   const rafRef = useRef<number | null>(null)
 
-  // Check if onboarding has been completed
+  // Check if onboarding has been completed.
+  // If a referral welcome banner is showing (?ref= in URL), wait
+  // until the user dismisses it before starting the tutorial.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const done = localStorage.getItem(STORAGE_KEY)
-    if (!done) {
-      // Delay slightly so the page renders first
+    if (done) return
+
+    // Check if a referral welcome banner is active
+    const refCode = new URLSearchParams(window.location.search).get('ref')
+    const bannerActive = refCode && !sessionStorage.getItem(`pn_welcome_dismissed_${refCode}`)
+
+    if (!bannerActive) {
+      // No banner — start tutorial after a short delay
       const timer = setTimeout(() => setCurrentStep(0), 800)
       return () => clearTimeout(timer)
     }
+
+    // Banner is showing — poll sessionStorage until it's dismissed
+    const poll = setInterval(() => {
+      if (sessionStorage.getItem(`pn_welcome_dismissed_${refCode}`)) {
+        clearInterval(poll)
+        // Short delay after banner dismissal before starting tutorial
+        setTimeout(() => setCurrentStep(0), 600)
+      }
+    }, 300)
+    return () => clearInterval(poll)
   }, [])
 
   // Position the spotlight on the target element

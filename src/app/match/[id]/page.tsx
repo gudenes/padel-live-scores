@@ -612,7 +612,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const parsed = parseSetScore(set.set_score)
                 const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                 return (
-                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: p1WonSet && !set.is_current ? '#fff' : '#555' }}>
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p1WonSet ? '#fff' : '#B0B5BE' }}>
                     {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
                   </span>
                 )
@@ -628,7 +628,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const parsed = parseSetScore(set.set_score)
                 const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                 return (
-                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: p2WonSet && !set.is_current ? '#fff' : '#555' }}>
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p2WonSet ? '#fff' : '#B0B5BE' }}>
                     {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
                   </span>
                 )
@@ -799,6 +799,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         </>
       )}
 
+      {/* ── Rate this match (above journey for prominence) ────────── */}
+      {isFinished && (
+        <MatchRatingCard rating={rating} setRating={setRating} avgRating={avgRating} ratingCount={ratingCount} />
+      )}
+
       {/* ── Match Journey chart ───────────────────────────────────── */}
       {!isScheduled && (match.sets ?? []).length > 0 && (
         <MomentumChart
@@ -827,9 +832,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* ── LIVE / FINISHED: sub-tabs ─────────────────────────────────── */}
       {!isScheduled && (
         <>
-          {isFinished && (
-            <MatchRatingCard rating={rating} setRating={setRating} avgRating={avgRating} ratingCount={ratingCount} />
-          )}
           <div style={{ display: 'flex', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
             {(isFinished ? ['recap', 'live', 'players', 'h2h'] as SubTab[] : ['live', 'players', 'h2h'] as SubTab[]).map(tab => (
               <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? GREEN : MUTED, borderBottom: subTab === tab ? `2px solid ${GREEN}` : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -1106,6 +1108,63 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
 
 // ── Match Rating Card ───────────────────────────────────────────────────────
 const REACTION_LABELS: Record<number, string> = { 1: 'Boring', 2: 'Meh', 3: 'Decent', 4: 'Great match!', 5: 'Epic' }
+const CONFETTI_COLORS = [GREEN, ORANGE, GREEN, '#fff', ORANGE, GREEN, ORANGE, '#fff']
+const CONFETTI_COUNT = 38
+
+function spawnConfetti(originEl: HTMLElement) {
+  const overlay = document.createElement('div')
+  Object.assign(overlay.style, {
+    position: 'fixed', top: '0', left: '0', right: '0', bottom: '0',
+    pointerEvents: 'none', zIndex: '9999', overflow: 'hidden',
+  })
+  document.body.appendChild(overlay)
+
+  const rect = originEl.getBoundingClientRect()
+  const cx = rect.left + rect.width / 2
+  const cy = rect.top + rect.height / 2
+
+  for (let i = 0; i < CONFETTI_COUNT; i++) {
+    const piece = document.createElement('div')
+    const w = 6 + Math.random() * 8
+    const h = 4 + Math.random() * 6
+    Object.assign(piece.style, {
+      position: 'absolute', pointerEvents: 'none', willChange: 'transform, opacity',
+      width: `${w}px`, height: `${h}px`,
+      background: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      clipPath: 'polygon(4% 6%, 96% 0%, 100% 94%, 0% 100%)',
+      left: `${cx}px`, top: `${cy}px`, opacity: '1',
+    })
+    overlay.appendChild(piece)
+
+    const angle = Math.random() * Math.PI * 2
+    const speed = 200 + Math.random() * 400
+    const vx = Math.cos(angle) * speed
+    const vy = Math.sin(angle) * speed - (200 + Math.random() * 300)
+    const rotSpeed = -720 + Math.random() * 1440
+    const wobbleAmp = 20 + Math.random() * 40
+    const wobbleFreq = 2 + Math.random() * 3
+    const gravity = 800
+    const duration = 2.2
+    let start: number | null = null
+
+    function animate(ts: number) {
+      if (!start) start = ts
+      const elapsed = (ts - start) / 1000
+      const progress = elapsed / duration
+      if (progress >= 1) { piece.remove(); return }
+      const x = vx * elapsed + Math.sin(elapsed * wobbleFreq) * wobbleAmp * elapsed * 0.3
+      const y = vy * elapsed + 0.5 * gravity * elapsed * elapsed
+      const rot = rotSpeed * elapsed
+      const opacity = progress > 0.7 ? 1 - (progress - 0.7) / 0.3 : 1
+      piece.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`
+      piece.style.opacity = `${opacity}`
+      requestAnimationFrame(animate)
+    }
+    setTimeout(() => requestAnimationFrame(animate), Math.random() * 80)
+  }
+
+  setTimeout(() => overlay.remove(), 2800)
+}
 
 function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
   rating: number | null
@@ -1115,28 +1174,27 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
 }) {
   const [justRated, setJustRated] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(rating != null)
-  const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([])
+  const [showPoints, setShowPoints] = useState(false)
+  const badgeRef = useRef<HTMLDivElement>(null)
 
   const handleRate = (n: number) => {
     setRating(n)
     setJustRated(n)
+    setShowPoints(true)
 
-    // Generate particles
-    const colors = [GREEN, ORANGE, GREEN, '#fff', ORANGE, GREEN, ORANGE, GREEN]
-    const newParticles = colors.map((color, i) => ({
-      id: i,
-      x: (Math.random() - 0.5) * 80,
-      y: (Math.random() - 0.5) * 80,
-      color,
-    }))
-    setParticles(newParticles)
+    // Fire confetti from the widget
+    setTimeout(() => {
+      if (badgeRef.current) spawnConfetti(badgeRef.current)
+    }, 150)
 
-    // Collapse after 2s
+    // Hide points floater
+    setTimeout(() => { setShowPoints(false) }, 1400)
+
+    // Collapse after celebration
     setTimeout(() => {
       setCollapsed(true)
       setJustRated(null)
-      setParticles([])
-    }, 2000)
+    }, 2500)
   }
 
   // Already rated on a previous visit — show compact immediately
@@ -1164,44 +1222,54 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
     )
   }
 
-  // Celebration burst state (just tapped)
+  // Celebration state (just tapped)
   if (justRated != null) {
     return (
-      <div style={{ padding: '20px 16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ padding: '20px 16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD, textAlign: 'center', position: 'relative', overflow: 'visible' }}>
         <style>{`
-          @keyframes pn-burst {
-            0% { transform: translate(0,0) scale(1); opacity: 1; }
-            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
-          }
           @keyframes pn-scale-up {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.4); }
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.5); }
             100% { transform: scale(1.3); }
           }
           @keyframes pn-fade-in {
             0% { opacity: 0; transform: translateY(6px); }
             100% { opacity: 1; transform: translateY(0); }
           }
+          @keyframes pn-pts-float {
+            0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+            20%  { opacity: 1; transform: translateY(-10px) scale(1); }
+            70%  { opacity: 1; transform: translateY(-35px) scale(1); }
+            100% { opacity: 0; transform: translateY(-55px) scale(0.8); }
+          }
         `}</style>
-        <div style={{ position: 'relative', display: 'inline-block' }}>
-          {/* Particles */}
-          {particles.map(p => (
-            <div key={p.id} style={{
-              position: 'absolute', top: '50%', left: '50%',
-              width: 6, height: 6, borderRadius: '50%', background: p.color,
-              '--tx': `${p.x}px`, '--ty': `${p.y}px`,
-              animation: 'pn-burst 0.6s ease-out forwards',
-              pointerEvents: 'none',
-            } as React.CSSProperties} />
-          ))}
+        <div ref={badgeRef} style={{ position: 'relative', display: 'inline-block' }}>
           {/* Badge */}
           <div style={{
             width: 48, height: 48, clipPath: CHUNKY.badge, background: GREEN,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            animation: 'pn-scale-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+            animation: 'pn-scale-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
           }}>
             <span style={{ fontSize: 20, fontWeight: 900, color: '#000' }}>{justRated}</span>
           </div>
+          {/* +10 pts floater */}
+          {showPoints && (
+            <div style={{
+              position: 'absolute', top: -8, left: '50%',
+              transform: 'translateX(-50%)',
+              animation: 'pn-pts-float 1.4s ease-out forwards',
+              pointerEvents: 'none', zIndex: 10,
+            }}>
+              <div style={{
+                padding: '4px 12px', background: GREEN,
+                clipPath: CHUNKY.badge,
+                fontSize: 12, fontWeight: 900, color: '#000',
+                whiteSpace: 'nowrap',
+              }}>
+                +10 pts
+              </div>
+            </div>
+          )}
         </div>
         <div style={{
           fontSize: 14, fontWeight: 900, color: GREEN, marginTop: 10,
@@ -1565,8 +1633,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 <span style={{
                   flex: 1, minWidth: 0,
                   fontSize: 12,
-                  fontWeight: team1Won ? 700 : 500,
-                  color: team1Won ? '#fff' : MUTED,
+                  fontWeight: team1Won ? 700 : 600,
+                  color: team1Won ? '#fff' : '#B0B5BE',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {topName}
@@ -1585,7 +1653,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                   {setGames.map((sg, i) => (
                     <span key={i} style={{
                       fontSize: 14, fontWeight: 700, fontFamily: 'monospace',
-                      color: team1Won ? '#fff' : MUTED,
+                      color: Number(sg.top) > Number(sg.bot) ? '#fff' : '#B0B5BE',
                       minWidth: 13, textAlign: 'center',
                     }}>
                       {sg.top}
@@ -1611,8 +1679,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 <span style={{
                   flex: 1, minWidth: 0,
                   fontSize: 12,
-                  fontWeight: team2Won ? 700 : 500,
-                  color: team2Won ? '#fff' : MUTED,
+                  fontWeight: team2Won ? 700 : 600,
+                  color: team2Won ? '#fff' : '#B0B5BE',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {botName}
@@ -1631,7 +1699,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                   {setGames.map((sg, i) => (
                     <span key={i} style={{
                       fontSize: 14, fontWeight: 700, fontFamily: 'monospace',
-                      color: team2Won ? '#fff' : MUTED,
+                      color: Number(sg.bot) > Number(sg.top) ? '#fff' : '#B0B5BE',
                       minWidth: 13, textAlign: 'center',
                     }}>
                       {sg.bot}

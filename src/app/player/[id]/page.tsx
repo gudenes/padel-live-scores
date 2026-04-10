@@ -13,16 +13,26 @@ import FollowButton from '@/components/FollowButton'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
+const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
+
 function WinRateBar({ wr, color, rowIndex }: { wr: number; color: string; rowIndex: number }) {
   const barRef = useRef<HTMLDivElement>(null)
   const inView = useInViewOnce(barRef)
   return (
-    <div ref={barRef} style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.05)' }}>
+    <div ref={barRef} style={{
+      flex: 1, height: 8,
+      background: 'rgba(255,255,255,0.04)',
+      clipPath: CHUNKY_BAR,
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
       <div
         style={{
           width: `${wr}%`,
           height: '100%',
           background: color,
+          opacity: 0.85,
+          clipPath: CHUNKY_BAR,
           transformOrigin: 'left center',
           transform: inView ? 'scaleX(1)' : 'scaleX(0)',
           transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
@@ -210,6 +220,7 @@ type PageTab = 'overview' | 'season' | 'partners' | 'matches' | 'stats'
 interface PlayerRow {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   category: string | null
   avatar_url: string | null
@@ -247,6 +258,7 @@ interface MatchRow {
 interface PartnerInfo {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   avatar_url: string | null
 }
@@ -336,7 +348,13 @@ function titleCase(name: string): string {
 // Best-effort date for a match: finished > started > scheduled.
 // Used for both sorting (newest first) and display.
 function matchDate(m: MatchRow): string | null {
-  return m.finished_at ?? m.started_at ?? m.scheduled_at ?? null
+  // Some backfilled matches have epoch dates (1970-01-01) — treat as null
+  // and fall through to the next date field.
+  const isValid = (d: string | null) => d && !d.startsWith('1970-01-01')
+  return (isValid(m.finished_at) ? m.finished_at
+    : isValid(m.started_at) ? m.started_at
+    : isValid(m.scheduled_at) ? m.scheduled_at
+    : null)
 }
 
 function matchTime(m: MatchRow): number {
@@ -665,7 +683,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 </span>
               )}
               <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>
-                {titleCase(player.name)}
+                {titleCase(player.display_name?.trim() || player.name)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: MUTED, fontSize: 12 }}>
                 {player.country && <FlagImg country={player.country} size={16} />}
@@ -827,7 +845,7 @@ function OverviewTab({
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {titleCase(derived.currentPartner.name)}
+                  {titleCase(derived.currentPartner.display_name?.trim() || derived.currentPartner.name)}
                 </div>
                 {cpTotal > 0 && (
                   <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
@@ -836,7 +854,7 @@ function OverviewTab({
                 )}
                 {derived.firstPartneredIso && (
                   <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>
-                    Partnered since {formatDate(derived.firstPartneredIso)}
+                    First match together {formatDate(derived.firstPartneredIso)}
                   </div>
                 )}
               </div>
@@ -869,7 +887,7 @@ function OverviewTab({
                 const roles = resolveMatchRoles(m, playerId)
                 const won = roles.won
                 const isLatest = i === ordered.length - 1
-                const title = `${won ? 'W' : 'L'} vs ${[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.name)).join(' / ')}${m.tournament?.name ? ' · ' + titleCase(m.tournament.name) : ''}`
+                const title = `${won ? 'W' : 'L'} vs ${[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}${m.tournament?.name ? ' · ' + titleCase(m.tournament.name) : ''}`
                 return (
                   <Last10SparkBar
                     key={m.id}
@@ -1183,7 +1201,7 @@ function PartnersTab({
               <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 5 }}>
                 {partner.country && <FlagImg country={partner.country} size={13} />}
                 <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {titleCase(partner.name)}
+                  {titleCase(partner.display_name?.trim() || partner.name)}
                 </span>
               </div>
               <div style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>
@@ -1247,9 +1265,9 @@ function MatchListItem({
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {roles.partner ? `w/ ${toShortName(roles.partner.name)}` : 'Solo'}
+          {roles.partner ? `w/ ${toShortName(roles.partner.display_name?.trim() || roles.partner.name)}` : 'Solo'}
           <span style={{ color: MUTED, fontWeight: 400 }}> vs </span>
-          {[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.name)).join(' / ')}
+          {[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}
         </div>
         <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', gap: 5 }}>
           <span>{tournamentName}</span>
@@ -1320,22 +1338,36 @@ function StatsTab({
     if (won) entry.wins++; else entry.losses++
     roundMap.set(round, entry)
   }
-  const rounds = [...roundMap.entries()].sort((a, b) => (b[1].wins + b[1].losses) - (a[1].wins + a[1].losses))
+  const rounds = [...roundMap.entries()].sort((a, b) => {
+    const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
+    const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)
+    return wrB - wrA
+  })
 
-  // Group by tournament level
-  const levelMap = new Map<string, { wins: number; losses: number }>()
+  // Group by tournament circuit (aggregate, no per-level breakdown)
+  const LEVEL_TO_CIRCUIT: Record<string, string> = {
+    p1: 'Premier Padel', p2: 'Premier Padel', major: 'Premier Padel', finals: 'Premier Padel',
+    wpt_master: 'World Padel Tour', wpt_1000: 'World Padel Tour', wpt_500: 'World Padel Tour', wpt_final: 'World Padel Tour',
+    fip_platinum: 'FIP', fip_gold: 'FIP', fip_other: 'FIP',
+  }
+  const circuitMap = new Map<string, { wins: number; losses: number }>()
   for (const m of derived.finished) {
-    const level = m.tournament?.level ?? 'Other'
-    const entry = levelMap.get(level) ?? { wins: 0, losses: 0 }
+    const circuit = LEVEL_TO_CIRCUIT[m.tournament?.level ?? ''] ?? 'Other'
+    const entry = circuitMap.get(circuit) ?? { wins: 0, losses: 0 }
     const won = m.winner_pair != null && (
       m.pair1_player1?.id === player.id || m.pair1_player2?.id === player.id
         ? m.winner_pair === 1
         : m.winner_pair === 2
     )
     if (won) entry.wins++; else entry.losses++
-    levelMap.set(level, entry)
+    circuitMap.set(circuit, entry)
   }
-  const levels = [...levelMap.entries()].sort((a, b) => (b[1].wins + b[1].losses) - (a[1].wins + a[1].losses))
+  const CIRCUIT_ORDER = ['Premier Padel', 'World Padel Tour', 'FIP', 'Other']
+  const circuits = [...circuitMap.entries()].sort((a, b) => {
+    const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
+    const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)
+    return wrB - wrA
+  })
 
   if (derived.finished.length === 0) {
     return (
@@ -1392,17 +1424,40 @@ function StatsTab({
         </Widget>
       )}
 
-      {/* By Level */}
-      {levels.length > 0 && (
-        <Widget wide label="By Tournament Level">
+      {/* By Circuit */}
+      {circuits.length > 0 && (
+        <Widget wide label="By Circuit">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-            {levels.map(([level, { wins, losses }], idx) => {
+            {circuits.map(([circuit, { wins, losses }], idx) => {
               const total = wins + losses
               const wr = total > 0 ? Math.round((wins / total) * 100) : 0
               return (
-                <div key={level} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
-                  <div style={{ flex: '0 0 70px', color: '#fff', fontWeight: 600, textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {level.replace('fip_', 'FIP ').replace('_', ' ')}
+                <div key={circuit} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
+                  <div style={{ flex: '0 0 90px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                    {circuit === 'Premier Padel' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src="/padel-logo-black-768x174.webp"
+                        alt="Premier Padel"
+                        style={{ height: 18, objectFit: 'contain', filter: 'invert(1) hue-rotate(180deg)' }}
+                      />
+                    ) : circuit === 'World Padel Tour' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src="/world-padel-tour-logo-png_seeklogo-411786.png"
+                        alt="World Padel Tour"
+                        style={{ height: 28, objectFit: 'contain', filter: 'invert(1) grayscale(1) brightness(2)' }}
+                      />
+                    ) : circuit === 'FIP' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src="/fip-logo.png"
+                        alt="FIP"
+                        style={{ height: 22, objectFit: 'contain', filter: 'invert(1) grayscale(1) brightness(2)' }}
+                      />
+                    ) : (
+                      <span style={{ color: '#fff', fontWeight: 600 }}>{circuit}</span>
+                    )}
                   </div>
                   <WinRateBar wr={wr} color={ORANGE} rowIndex={idx} />
                   <div style={{ flex: '0 0 52px', textAlign: 'right', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>

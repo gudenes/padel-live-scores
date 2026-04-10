@@ -129,9 +129,11 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
             <div key={pairNum} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '5px 0',
-              opacity: isLoser ? 0.65 : 1,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0,
+                opacity: isLoser ? 0.65 : 1,
+              }}>
                 {/* Stacked overlapping flags — second slightly lower */}
                 <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
@@ -142,7 +144,7 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
                   </div>
                 </div>
                 <span style={{
-                  fontSize: 13, fontWeight: isWinner ? 800 : 600, color: '#fff',
+                  fontSize: 13, fontWeight: isWinner ? 800 : 600, color: isLoser ? '#B0B5BE' : '#fff',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {pair}
@@ -159,7 +161,7 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
                   return (
                     <span key={s.id} style={{
                       fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
-                      color: isCurrent ? GREEN : wonThisSet ? '#fff' : MUTED,
+                      color: isCurrent ? GREEN : wonThisSet ? '#fff' : '#B0B5BE',
                       minWidth: 16, textAlign: 'center',
                     }}>
                       {games}

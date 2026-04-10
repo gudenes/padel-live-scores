@@ -181,6 +181,16 @@ async function claimReferral(userId: string) {
     if (!error) {
       document.cookie = 'pn_invite_ref=; Path=/; Max-Age=0; SameSite=lax'
       console.log('[Auth] Claimed referral from', code)
+
+      // Queue a post-signup welcome toast from the pending referral info
+      try {
+        const pending = localStorage.getItem('pn_pending_referral')
+        if (pending) {
+          const { inviterName, inviterAvatar } = JSON.parse(pending)
+          localStorage.setItem('pn_show_referral_toast', JSON.stringify({ inviterName, inviterAvatar }))
+          localStorage.removeItem('pn_pending_referral')
+        }
+      } catch { /* ignore parse errors */ }
     }
   } catch (e) {
     console.warn('[Auth] claimReferral failed:', e)
@@ -321,9 +331,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void updateLoginStreak(s.user.id)
         }
       }
-      // Refresh proactively if token is close to expiry
+      // Refresh proactively if token is close to expiry.
+      // Defer by 2s to let the network radio stabilize after a hard
+      // reload — avoids the getSession-timeout cascade on mobile wake.
       if (s) {
-        void refreshSessionIfNeeded('mount')
+        setTimeout(() => { void refreshSessionIfNeeded('mount') }, 2000)
       }
     }).catch(err => {
       console.error('[Auth] getSession() failed:', err)

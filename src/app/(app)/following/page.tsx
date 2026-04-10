@@ -41,7 +41,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
       alt={country}
       width={size}
       height={size * 0.75}
-      style={{ borderRadius: 2, objectFit: 'cover', display: 'block', flexShrink: 0 }}
+      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
     />
   )
 }
@@ -58,6 +58,7 @@ interface SetRow {
 interface PlayerRow {
   id: string
   name: string
+  display_name: string | null
   country: string | null
 }
 
@@ -83,6 +84,7 @@ interface MatchRow {
 interface PlayerData {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   avatar_url: string | null
   ranking: number | null
@@ -247,14 +249,14 @@ function MatchCard({ match }: { match: MatchRow }) {
         {[match.pair1_player1, match.pair1_player2].map((p, i) => (
           <div key={`p1-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <FlagImg country={p?.country ?? null} size={13} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name ?? 'TBD'}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
           </div>
         ))}
         <div style={{ fontSize: 9, color: MUTED, margin: '2px 0', paddingLeft: 2 }}>vs</div>
         {[match.pair2_player1, match.pair2_player2].map((p, i) => (
           <div key={`p2-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <FlagImg country={p?.country ?? null} size={13} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name ?? 'TBD'}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
           </div>
         ))}
 
@@ -301,7 +303,8 @@ function MatchCard({ match }: { match: MatchRow }) {
 
 function PlayerCard({ player }: { player: PlayerData }) {
   const borderColor = player.category === 'women' ? WOMEN_PURPLE : MEN_BLUE
-  const initials = player.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const displayName = player.display_name || player.name
+  const initials = displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
     <Link
@@ -353,7 +356,7 @@ function PlayerCard({ player }: { player: PlayerData }) {
           textOverflow: 'ellipsis',
           width: '100%',
         }}>
-          {player.name.split(' ').pop()}
+          {displayName.split(' ').pop()}
         </div>
 
         {/* Ranking + country */}
@@ -594,10 +597,10 @@ export default function FollowingPage() {
           .select(`
             id, status, scheduled_at, round, category,
             tournament:tournaments(id, name),
-            pair1_player1:players!pair1_player1_id(id, name, country),
-            pair1_player2:players!pair1_player2_id(id, name, country),
-            pair2_player1:players!pair2_player1_id(id, name, country),
-            pair2_player2:players!pair2_player2_id(id, name, country),
+            pair1_player1:players!pair1_player1_id(id, name, display_name, country),
+            pair1_player2:players!pair1_player2_id(id, name, display_name, country),
+            pair2_player1:players!pair2_player1_id(id, name, display_name, country),
+            pair2_player2:players!pair2_player2_id(id, name, display_name, country),
             sets(set_number, pair1_games, pair2_games, is_current)
           `)
           .in('status', ['live', 'scheduled'])
@@ -695,10 +698,6 @@ export default function FollowingPage() {
             <AddPlayerCard onOpen={() => setSearchOpen(true)} />
           </ScrollRow>
         </>
-      )}
-
-      {loaded && players.length > 0 && (
-        <></>
       )}
 
       {/* ── Section 3: Tournaments ──────────────────────────────── */}
