@@ -249,14 +249,14 @@ function MatchCard({ match }: { match: MatchRow }) {
         {[match.pair1_player1, match.pair1_player2].map((p, i) => (
           <div key={`p1-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <FlagImg country={p?.country ?? null} size={13} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || p?.name ?? 'TBD'}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
           </div>
         ))}
         <div style={{ fontSize: 9, color: MUTED, margin: '2px 0', paddingLeft: 2 }}>vs</div>
         {[match.pair2_player1, match.pair2_player2].map((p, i) => (
           <div key={`p2-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <FlagImg country={p?.country ?? null} size={13} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || p?.name ?? 'TBD'}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
           </div>
         ))}
 
