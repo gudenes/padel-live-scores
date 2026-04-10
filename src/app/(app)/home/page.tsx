@@ -377,7 +377,7 @@ function LiveMatchCard({ match }: { match: Match }) {
           <div key={pairNum} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '6px 0',
-            opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.4 : 1,
+            opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.65 : 1,
             position: 'relative',
             overflow: 'hidden',
           }}>
