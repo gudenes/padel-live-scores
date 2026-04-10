@@ -20,16 +20,39 @@ export function ReferralToast() {
   const [data, setData] = useState<ReferralToastData | null>(null)
   const [visible, setVisible] = useState(false)
 
+  // Poll for the toast key — claimReferral() is fire-and-forget and may
+  // write the key AFTER this component's initial mount. Check immediately,
+  // then retry a few times over the next 5 seconds to catch late writes.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('pn_show_referral_toast')
-      if (!raw) return
-      const parsed: ReferralToastData = JSON.parse(raw)
-      localStorage.removeItem('pn_show_referral_toast')
-      setData(parsed)
-      // Small delay so the page renders first
-      requestAnimationFrame(() => setVisible(true))
-    } catch { /* ignore */ }
+    let cancelled = false
+
+    function check() {
+      try {
+        const raw = localStorage.getItem('pn_show_referral_toast')
+        if (!raw) return false
+        const parsed: ReferralToastData = JSON.parse(raw)
+        localStorage.removeItem('pn_show_referral_toast')
+        if (!cancelled) {
+          setData(parsed)
+          requestAnimationFrame(() => setVisible(true))
+        }
+        return true
+      } catch { return false }
+    }
+
+    // Immediate check
+    if (check()) return
+
+    // Retry every 500ms for up to 5s (covers async claimReferral delay)
+    let attempts = 0
+    const poll = setInterval(() => {
+      attempts++
+      if (check() || attempts >= 10 || cancelled) {
+        clearInterval(poll)
+      }
+    }, 500)
+
+    return () => { cancelled = true; clearInterval(poll) }
   }, [])
 
   // Auto-dismiss after 4s
