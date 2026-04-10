@@ -427,7 +427,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
   // 2-state: expanded (show all) or collapsed (show none)
   const [viewState, setViewState] = useState<'collapsed' | 'expanded'>(defaultOpen ? 'expanded' : 'collapsed')
   const matchCount = matches.length
-  const visibleMatches = viewState === 'collapsed' ? [] : matches
+  const isExpanded = viewState !== 'collapsed'
 
   const toggleState = () => {
     setViewState(prev => prev === 'collapsed' ? 'expanded' : 'collapsed')
@@ -438,107 +438,112 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
     <div style={{
       clipPath: CHUNKY.card,
       overflow: 'hidden',
-      border: `1px solid ${status === 'live' ? 'rgba(255,70,85,0.2)' : BORDER}`,
-      background: BG_CARD,
     }}>
+      {/* ── Header with green top accent ────────── */}
       {tournament && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 0, width: '100%',
-          borderBottom: visibleMatches.length > 0 ? `1px solid ${BORDER}` : 'none',
-        }}>
+        <div
+          onClick={toggleState}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+            padding: '10px 14px',
+            background: '#1e1e1e',
+            cursor: 'pointer', position: 'relative',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          {/* Green accent bar */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+            background: status === 'live' ? LIVE_RED : GREEN,
+            transform: isExpanded ? 'scaleX(1)' : 'scaleX(0)',
+            transformOrigin: 'left',
+            transition: 'transform 0.3s ease',
+          }} />
+          {tournament.country ? (
+            <FlagImg country={tournament.country} size={20} />
+          ) : null}
           <Link
             href={`/tournaments/${tournament.id}`}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0,
-              padding: '10px 0 10px 14px',
-              textDecoration: 'none', color: 'inherit',
-            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}
           >
-            {tournament.country ? (
-              <FlagImg country={tournament.country} size={20} />
-            ) : null}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {titleCase(tournament.name)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {titleCase(tournament.name)}
+              </span>
+              {stageLabel && (
+                <span style={{
+                  fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
+                  padding: '2px 6px', clipPath: CHUNKY.badge,
+                  color: GREEN, background: 'rgba(126,211,33,0.12)',
+                  flexShrink: 0, lineHeight: '12px', textTransform: 'uppercase',
+                }}>
+                  {stageLabel}
                 </span>
-                {stageLabel && (
-                  <span style={{
-                    fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
-                    padding: '2px 6px',
-                    clipPath: CHUNKY.badge,
-                    color: GREEN, background: 'rgba(126,211,33,0.12)',
-                    flexShrink: 0, lineHeight: '12px',
-                    textTransform: 'uppercase',
-                  }}>
-                    {stageLabel}
-                  </span>
-                )}
-                {gated && (
-                  <span style={{
-                    fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
-                    padding: '2px 6px',
-                    clipPath: CHUNKY.badge,
-                    color: '#000', background: ORANGE,
-                    flexShrink: 0, lineHeight: '12px',
-                    textTransform: 'uppercase',
-                  }}>
-                    COMING SOON
-                  </span>
-                )}
-              </div>
-              {(badge || dateRange) && (
-                <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 2 }}>
-                  {badge}{badge && dateRange ? ' \u00B7 ' : ''}{dateRange}
-                </div>
+              )}
+              {gated && (
+                <span style={{
+                  fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
+                  padding: '2px 6px', clipPath: CHUNKY.badge,
+                  color: '#000', background: ORANGE,
+                  flexShrink: 0, lineHeight: '12px', textTransform: 'uppercase',
+                }}>
+                  COMING SOON
+                </span>
               )}
             </div>
+            {(badge || dateRange) && (
+              <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 2 }}>
+                {badge}{badge && dateRange ? ' \u00B7 ' : ''}{dateRange}
+              </div>
+            )}
           </Link>
-          <button
-            onClick={toggleState}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 14px 10px 8px',
-              background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>{matchCount}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <span style={{
-              fontSize: 12, color: MUTED,
-              transform: viewState === 'collapsed' ? 'rotate(-90deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-              display: 'inline-block',
+              fontSize: 10, fontWeight: 600, color: MUTED,
+              background: 'rgba(255,255,255,0.05)',
+              padding: '2px 8px', clipPath: CHUNKY.badge,
+            }}>
+              {matchCount}
+            </span>
+            <span style={{
+              fontSize: 10, color: MUTED, display: 'inline-block',
+              transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+              transition: 'transform 0.3s ease',
             }}>
               ▼
             </span>
-          </button>
+          </div>
         </div>
       )}
-      {visibleMatches.length > 0 && (
+      {/* ── Collapsible content ─────────────────── */}
+      <div style={{
+        background: BG_CARD,
+        overflow: 'hidden',
+        maxHeight: isExpanded ? matchCount * 80 + 60 : 0,
+        transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+      }}>
         <div style={gated ? { opacity: 0.4, filter: 'grayscale(60%)', pointerEvents: 'none' } : undefined}>
-          {visibleMatches.map(m => (
+          {matches.map(m => (
             tab === 'results'
               ? <ResultCard key={m.id} match={m} />
               : <V3MatchRow key={m.id} match={m} />
           ))}
         </div>
-      )}
-      {tab === 'results' && tournament?.id && matchCount > 10 && viewState !== 'collapsed' && (
-        <Link
-          href={`/tournaments/${tournament.id}`}
-          style={{
-            display: 'block',
-            width: '100%',
-            padding: '8px 0 6px',
-            fontSize: 11, fontWeight: 700,
-            color: GREEN, textAlign: 'center',
-            textDecoration: 'none',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          See all {matchCount} matches →
-        </Link>
-      )}
+        {tab === 'results' && tournament?.id && matchCount > 10 && (
+          <Link
+            href={`/tournaments/${tournament.id}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: 'block', width: '100%',
+              padding: '8px 0 6px', fontSize: 11, fontWeight: 700,
+              color: GREEN, textAlign: 'center', textDecoration: 'none',
+            }}
+          >
+            See all {matchCount} matches →
+          </Link>
+        )}
+      </div>
     </div>
   )
 }
