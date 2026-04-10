@@ -76,6 +76,13 @@ export function useWakeRefresh(
 
       console.log(`[useWakeRefresh] tab visible after ${Math.round(hiddenForMs / 1000)}s — refreshing`)
 
+      // Fix 3: Wait 1.5s before attempting refresh. After waking from
+      // sleep, the device's network radio (WiFi/LTE) needs time to
+      // reconnect. Hitting the network immediately causes timeouts that
+      // cascade into auth failures and infinite spinners. Discord and
+      // Slack use the same pattern.
+      await new Promise(resolve => setTimeout(resolve, 1500))
+
       if (refreshSession) {
         // refreshSessionIfNeeded handles its own timeout and only calls
         // refreshSession() when the token is actually close to expiring.

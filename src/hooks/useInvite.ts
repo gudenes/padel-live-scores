@@ -43,12 +43,20 @@ export function useInvite(): UseInviteResult {
       }
 
       setLoading(true)
-      const [c, n] = await Promise.all([
-        ensureReferralCode(user.id),
-        countReferralsByUser(user.id),
-      ])
-      setCode(c)
-      setInviteCount(n)
+      // Fix 4: Don't let referral lookup block the page. If it times out
+      // (e.g. on tab wakeup when network is slow), still unblock loading
+      // so the profile page and header render. The referral data will
+      // arrive on the next successful load.
+      try {
+        const [c, n] = await Promise.all([
+          ensureReferralCode(user.id),
+          countReferralsByUser(user.id),
+        ])
+        setCode(c)
+        setInviteCount(n)
+      } catch (e) {
+        console.warn('[useInvite] load failed (will retry next mount):', (e as Error)?.message)
+      }
       setLoading(false)
     }
 
