@@ -2,7 +2,7 @@
 // Tracks user feed preferences in localStorage for personalized scoring.
 // Signals: language affinity, category preference, channel engagement.
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 const STORAGE_KEY = 'padel-feed-prefs'
 const MAX_CHANNELS = 100
@@ -50,9 +50,16 @@ function writePrefs(prefs: FeedPrefs) {
 }
 
 export function useFeedPreferences() {
-  const [prefs, setPrefs] = useState<FeedPrefs>(() => readPrefs())
+  // Start with empty prefs to match SSR — load from localStorage in
+  // useEffect to avoid React hydration error #418 on /feed.
+  const [prefs, setPrefs] = useState<FeedPrefs>({ ...EMPTY_PREFS, catClicks: { ...EMPTY_PREFS.catClicks } })
   // Debounce writes — batch rapid updates
   const writeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const stored = readPrefs()
+    setPrefs(stored)
+  }, [])
 
   const persist = useCallback((next: FeedPrefs) => {
     setPrefs(next)

@@ -331,9 +331,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void updateLoginStreak(s.user.id)
         }
       }
-      // Refresh proactively if token is close to expiry
+      // Refresh proactively if token is close to expiry.
+      // Defer by 2s to let the network radio stabilize after a hard
+      // reload — avoids the getSession-timeout cascade on mobile wake.
       if (s) {
-        void refreshSessionIfNeeded('mount')
+        setTimeout(() => { void refreshSessionIfNeeded('mount') }, 2000)
       }
     }).catch(err => {
       console.error('[Auth] getSession() failed:', err)
