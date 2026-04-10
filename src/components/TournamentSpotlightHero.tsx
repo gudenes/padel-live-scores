@@ -379,12 +379,9 @@ export default function TournamentSpotlightHero({
 
                     {/* Names + gender label */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
+                      <div style={{ marginBottom: 1 }}>
                         <span style={{ fontSize: 7, fontWeight: 800, color: AMBER, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                          {label} Champion
-                        </span>
-                        <span style={{ fontSize: 7, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>
-                          {champion.year}
+                          {label} Champion {champion.year}
                         </span>
                       </div>
                       <div style={{
