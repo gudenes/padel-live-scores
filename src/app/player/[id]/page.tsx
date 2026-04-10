@@ -1446,14 +1446,14 @@ function StatsTab({
                       <img
                         src="/world-padel-tour-logo-png_seeklogo-411786.png"
                         alt="World Padel Tour"
-                        style={{ height: 28, objectFit: 'contain', filter: 'invert(1) brightness(1.3)' }}
+                        style={{ height: 28, objectFit: 'contain', filter: 'invert(1) grayscale(1) brightness(2)' }}
                       />
                     ) : circuit === 'FIP' ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src="/fip-logo.png"
                         alt="FIP"
-                        style={{ height: 22, objectFit: 'contain', filter: 'invert(1) brightness(1.3)' }}
+                        style={{ height: 22, objectFit: 'contain', filter: 'invert(1) grayscale(1) brightness(2)' }}
                       />
                     ) : (
                       <span style={{ color: '#fff', fontWeight: 600 }}>{circuit}</span>
