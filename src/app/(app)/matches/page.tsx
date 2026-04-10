@@ -424,17 +424,13 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
   }
   const stageLabel = bestRoundIdx < 999 ? (ROUND_LABELS[ROUND_ORDER[bestRoundIdx]] ?? ROUND_ORDER[bestRoundIdx]) : null
 
-  // 3-state: undefined = default (10 matches), 'expanded' = all, 'collapsed' = none
-  const [viewState, setViewState] = useState<'collapsed' | 'expanded' | undefined>(defaultOpen ? undefined : 'collapsed')
+  // 2-state: expanded (show all) or collapsed (show none)
+  const [viewState, setViewState] = useState<'collapsed' | 'expanded'>(defaultOpen ? 'expanded' : 'collapsed')
   const matchCount = matches.length
-  const visibleMatches = viewState === 'collapsed' ? [] : viewState === 'expanded' ? matches : matches.slice(0, 10)
+  const visibleMatches = viewState === 'collapsed' ? [] : matches
 
-  const cycleState = () => {
-    setViewState(prev => {
-      if (!prev) return 'expanded'          // default → expanded
-      if (prev === 'expanded') return 'collapsed' // expanded → collapsed
-      return undefined                       // collapsed → default
-    })
+  const toggleState = () => {
+    setViewState(prev => prev === 'collapsed' ? 'expanded' : 'collapsed')
   }
 
   // Live / upcoming — collapsible with match rows
@@ -499,7 +495,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
             </div>
           </Link>
           <button
-            onClick={cycleState}
+            onClick={toggleState}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '10px 14px 10px 8px',
@@ -509,7 +505,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
             <span style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>{matchCount}</span>
             <span style={{
               fontSize: 12, color: MUTED,
-              transform: viewState === 'collapsed' ? 'rotate(-90deg)' : viewState === 'expanded' ? 'rotate(180deg)' : 'rotate(0deg)',
+              transform: viewState === 'collapsed' ? 'rotate(-90deg)' : 'rotate(0deg)',
               transition: 'transform 0.2s ease',
               display: 'inline-block',
             }}>
@@ -527,35 +523,21 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
           ))}
         </div>
       )}
-      {matchCount > 10 && viewState !== 'collapsed' && (
-        tab === 'results' && tournament?.id ? (
-          <Link
-            href={`/tournaments/${tournament.id}`}
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '8px 0 6px',
-              fontSize: 11, fontWeight: 700,
-              color: GREEN, textAlign: 'center',
-              textDecoration: 'none',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            See all {matchCount} matches →
-          </Link>
-        ) : (
-          <button
-            onClick={cycleState}
-            style={{
-              width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-              padding: '8px 0 6px', fontSize: 11, fontWeight: 700,
-              color: GREEN, textAlign: 'center',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            {viewState === 'expanded' ? 'Show less' : `Show all ${matchCount} matches`}
-          </button>
-        )
+      {tab === 'results' && tournament?.id && matchCount > 10 && viewState !== 'collapsed' && (
+        <Link
+          href={`/tournaments/${tournament.id}`}
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '8px 0 6px',
+            fontSize: 11, fontWeight: 700,
+            color: GREEN, textAlign: 'center',
+            textDecoration: 'none',
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          See all {matchCount} matches →
+        </Link>
       )}
     </div>
   )

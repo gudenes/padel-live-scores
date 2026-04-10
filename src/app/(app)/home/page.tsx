@@ -855,12 +855,10 @@ function ResultsSection({ matches }: { matches: Match[] }) {
     group.matches.push(m)
   }
 
-  const cycleState = (tid: string) => {
+  const toggleState = (tid: string) => {
     setTournamentState(prev => {
       const current = prev[tid]
-      if (!current) return { ...prev, [tid]: 'expanded' }       // default → expanded
-      if (current === 'expanded') return { ...prev, [tid]: 'collapsed' } // expanded → collapsed
-      const { [tid]: _, ...rest } = prev; return rest            // collapsed → default
+      return { ...prev, [tid]: current === 'collapsed' ? 'expanded' : 'collapsed' }
     })
   }
 
@@ -900,7 +898,7 @@ function ResultsSection({ matches }: { matches: Match[] }) {
           const tid = group.tournament?.id ?? 'unknown'
           const state = tournamentState[tid] // undefined = default
           const matchCount = group.matches.length
-          const visibleMatches = state === 'collapsed' ? [] : state === 'expanded' ? group.matches : group.matches.slice(0, 3)
+          const visibleMatches = state === 'collapsed' ? [] : group.matches
           const stage = stageLabel(group)
 
           return (
@@ -946,7 +944,7 @@ function ResultsSection({ matches }: { matches: Match[] }) {
                     </div>
                   </Link>
                   <button
-                    onClick={() => cycleState(tid)}
+                    onClick={() => toggleState(tid)}
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
@@ -957,7 +955,7 @@ function ResultsSection({ matches }: { matches: Match[] }) {
                     <span style={{ fontSize: 10, fontWeight: 700, color: MUTED }}>{matchCount}</span>
                     <span style={{
                       fontSize: 12, color: MUTED,
-                      transform: state === 'collapsed' ? 'rotate(-90deg)' : state === 'expanded' ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transform: state === 'collapsed' ? 'rotate(-90deg)' : 'rotate(0deg)',
                       transition: 'transform 0.2s ease',
                     }}>
                       ▼
@@ -973,20 +971,6 @@ function ResultsSection({ matches }: { matches: Match[] }) {
                     {visibleMatches.map(m => <ResultCard key={m.id} match={m} />)}
                   </div>
                 </>
-              )}
-              {/* Show more / less toggle */}
-              {matchCount > 3 && state !== 'collapsed' && (
-                <button
-                  onClick={() => cycleState(tid)}
-                  style={{
-                    width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '8px 0 4px', fontSize: 11, fontWeight: 700,
-                    color: GREEN, textAlign: 'center',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
-                >
-                  {state === 'expanded' ? 'Show less' : `Show all ${matchCount} results`}
-                </button>
               )}
             </div>
           )
