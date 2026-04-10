@@ -832,7 +832,8 @@ function V3ScoresPage() {
                   key={chip.key}
                   onClick={() => setLeagueFilter(chip.key)}
                   style={{
-                    padding: '6px 14px', fontSize: 11, fontWeight: 700,
+                    padding: active ? '8px 18px' : '6px 14px',
+                    fontSize: 11, fontWeight: 700,
                     border: 'none', cursor: 'pointer',
                     background: active ? ORANGE : 'rgba(255,255,255,0.05)',
                     color: active ? '#000' : MUTED,
@@ -842,7 +843,8 @@ function V3ScoresPage() {
                     letterSpacing: 0.3,
                     textTransform: 'uppercase',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    minHeight: 28,
+                    minHeight: active ? 34 : 28,
+                    transition: 'all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)',
                   }}
                 >
                   {chip.logo ? (
@@ -851,9 +853,10 @@ function V3ScoresPage() {
                       src={chip.logo}
                       alt={chip.label}
                       style={{
-                        height: chip.logoH,
+                        height: active ? chip.logoH * 1.25 : chip.logoH,
                         objectFit: 'contain',
                         filter: active ? chip.logoFilterActive : chip.logoFilter,
+                        transition: 'all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)',
                       }}
                     />
                   ) : chip.label}
