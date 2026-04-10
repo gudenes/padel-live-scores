@@ -823,7 +823,7 @@ function V3ScoresPage() {
           } as React.CSSProperties}>
             {([
               { key: 'premier', label: 'Premier Padel', logo: '/padel-logo-black-768x174.webp', logoH: 12, logoFilter: 'invert(1) hue-rotate(180deg)', logoFilterActive: 'brightness(0)' },
-              { key: 'fip',     label: 'FIP Tour',      logo: '/fiptour2026.png',               logoH: 17, logoFilter: 'invert(1) grayscale(1) brightness(10)', logoFilterActive: 'brightness(0)' },
+              { key: 'fip',     label: 'FIP Tour',      logo: '/fiptour2026-removebg-preview.png', logoH: 17, logoFilter: 'brightness(0) invert(1)', logoFilterActive: 'brightness(0)' },
               { key: 'all',     label: 'All',            logo: null, logoH: 0, logoFilter: '', logoFilterActive: '' },
             ] as const).map(chip => {
               const active = leagueFilter === chip.key
