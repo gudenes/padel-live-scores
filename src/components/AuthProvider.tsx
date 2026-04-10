@@ -242,19 +242,61 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
   }
 }
 
+// ── Optimistic session reader ─────────────────────────────────
+// Reads the Supabase session directly from localStorage WITHOUT
+// a network call. This is the key to eliminating spinners on
+// page load and tab wakeup — the user's identity is available
+// immediately. Network verification happens in the background.
+//
+// Supabase stores the session under `sb-{projectRef}-auth-token`
+// in localStorage when persistSession is true.
+function readCachedSession(): { user: User; session: Session } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+    // Extract project ref from URL: https://{ref}.supabase.co
+    const ref = supabaseUrl.match(/\/\/(.*?)\.supabase/)?.[1]
+    if (!ref) return null
+    const raw = localStorage.getItem(`sb-${ref}-auth-token`)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    // Supabase stores { access_token, refresh_token, user, ... }
+    if (!data?.user?.id || !data?.access_token) return null
+    // Check if the access token has expired (JWT exp claim)
+    const expiry = data.expires_at ? data.expires_at * 1000 : 0
+    if (expiry > 0 && Date.now() > expiry) {
+      console.log('[Auth] cached session expired, skipping optimistic render')
+      return null
+    }
+    return { user: data.user as User, session: data as Session }
+  } catch {
+    return null
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  // ── Fix 1: Optimistic render from localStorage cache ──────
+  // Read the session synchronously from localStorage BEFORE any
+  // network call. This eliminates spinners for returning users.
+  const cached = readCachedSession()
+  const [user, setUser] = useState<User | null>(cached?.user ?? null)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [session, setSession] = useState<Session | null>(cached?.session ?? null)
+  const [loading, setLoading] = useState(!cached) // false if we have a cached session
   const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
 
-    // Safety timeout — if getSession() hangs (known Supabase lock deadlock),
-    // unblock the UI after 3s. The auth state change listener will still
-    // pick up the session whenever it eventually resolves.
+    // If we already have a cached user, fetch profile immediately
+    // (don't wait for getSession network call)
+    if (cached?.user) {
+      fetchProfile(cached.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
+      void updateLoginStreak(cached.user.id)
+    }
+
+    // Safety timeout — if getSession() hangs, we already rendered
+    // optimistically so this just ensures loading is false.
     const safetyTimeout = setTimeout(() => {
       if (!cancelled) {
         console.warn('[Auth] getSession() timed out after 3s — unblocking UI')
@@ -262,7 +304,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, 3000)
 
-    // Get initial session (don't block on profile fetch)
+    // ── Fix 2: Fallback to cached session on getSession timeout ──
+    // Verify the session with the server. If it fails or times out,
+    // we already have the cached session rendering — no spinner.
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (cancelled) return
       clearTimeout(safetyTimeout)
@@ -271,12 +315,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       // Profile fetch in background — never blocks loading state
       if (s?.user) {
-        fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
-        void updateLoginStreak(s.user.id)
+        // Only re-fetch profile if user changed (or wasn't cached)
+        if (!cached?.user || s.user.id !== cached.user.id) {
+          fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
+          void updateLoginStreak(s.user.id)
+        }
       }
-      // If the persisted session is close to expiry (e.g. user reopened a
-      // tab that's been idle for hours), refresh it proactively in the
-      // background so the next query has a fresh token.
+      // Refresh proactively if token is close to expiry
       if (s) {
         void refreshSessionIfNeeded('mount')
       }
@@ -284,7 +329,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('[Auth] getSession() failed:', err)
       if (!cancelled) {
         clearTimeout(safetyTimeout)
+        // Fix 2: Don't leave user in spinner — we already have
+        // the cached session rendered. Just ensure loading is false.
         setLoading(false)
+        // Schedule a background retry instead of leaving broken
+        setTimeout(() => { void refreshSessionIfNeeded('retry-after-failure') }, 3000)
       }
     })
 

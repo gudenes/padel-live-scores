@@ -240,25 +240,51 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     // finished matches (excluding this tournament) and count whether
     // they've played together, and whether any of those matches are
     // in the current calendar year.
+    //
+    // IMPORTANT: With large tournaments (50+ pairs, 100+ player IDs),
+    // a single .or() clause can exceed Supabase's URL limit (~26KB).
+    // We chunk the player IDs into groups of 30 and run parallel queries.
     const idList = Array.from(playerIds)
     if (idList.length === 0) {
       setDebutStatusMap({})
       return
     }
 
-    const orClause =
-      `pair1_player1_id.in.(${idList.join(',')}),` +
-      `pair1_player2_id.in.(${idList.join(',')}),` +
-      `pair2_player1_id.in.(${idList.join(',')}),` +
-      `pair2_player2_id.in.(${idList.join(',')})`
+    const CHUNK_SIZE = 30
+    const chunks: string[][] = []
+    for (let i = 0; i < idList.length; i += CHUNK_SIZE) {
+      chunks.push(idList.slice(i, i + CHUNK_SIZE))
+    }
 
-    const { data: histMatches } = await supabase
-      .from('matches')
-      .select('pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, finished_at')
-      .in('status', ['finished', 'retired', 'walkover'])
-      .neq('tournament_id', tournamentId)
-      .or(orClause)
-      .limit(5000)
+    // Run chunked queries in parallel
+    const chunkResults = await Promise.all(
+      chunks.map(chunk => {
+        const orClause =
+          `pair1_player1_id.in.(${chunk.join(',')}),` +
+          `pair1_player2_id.in.(${chunk.join(',')}),` +
+          `pair2_player1_id.in.(${chunk.join(',')}),` +
+          `pair2_player2_id.in.(${chunk.join(',')})`
+        return supabase
+          .from('matches')
+          .select('pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, finished_at')
+          .in('status', ['finished', 'retired', 'walkover'])
+          .neq('tournament_id', tournamentId)
+          .or(orClause)
+          .limit(5000)
+      })
+    )
+
+    // Merge all chunk results
+    const histMatches = chunkResults.flatMap(r => (r.data ?? []) as any[])
+
+    // Deduplicate by match fields (chunks may overlap if players appear in multiple chunks)
+    const seen = new Set<string>()
+    const dedupedMatches = histMatches.filter(m => {
+      const key = `${m.pair1_player1_id}|${m.pair1_player2_id}|${m.pair2_player1_id}|${m.pair2_player2_id}|${m.finished_at}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
 
     // Build a map: pairKey → { hasPast: boolean, hasThisYear: boolean }
     const pairStats: Record<string, { hasPast: boolean; hasThisYear: boolean }> = {}
@@ -266,7 +292,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
     const makeKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`
 
-    for (const m of (histMatches ?? []) as any[]) {
+    for (const m of dedupedMatches) {
       // For each match, check both pair slots. If both IDs in a slot
       // are members of our playerIds set, record them as a played-together pair.
       const pairs: Array<[string | null, string | null]> = [

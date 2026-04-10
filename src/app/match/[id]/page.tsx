@@ -1551,7 +1551,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '2px 0',
-                opacity: team1Won || m.winner_pair == null ? 1 : 0.42,
+                opacity: team1Won || m.winner_pair == null ? 1 : 0.65,
               }}>
                 {/* Flag stack */}
                 <div style={{ position: 'relative', width: 22, height: 16, flexShrink: 0 }}>
@@ -1598,7 +1598,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '2px 0',
-                opacity: team2Won || m.winner_pair == null ? 1 : 0.42,
+                opacity: team2Won || m.winner_pair == null ? 1 : 0.65,
               }}>
                 <div style={{ position: 'relative', width: 22, height: 16, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
