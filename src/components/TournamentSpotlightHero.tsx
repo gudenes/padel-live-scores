@@ -295,10 +295,10 @@ export default function TournamentSpotlightHero({
         ref={cardRef}
         style={{
           margin: '0 16px',
-          background: 'linear-gradient(180deg, #1a3a08 0%, #0d1f04 35%, #141414 100%)',
-          border: '1px solid rgba(126,211,33,0.2)',
+          background: '#141414',
+          border: '1px solid rgba(255,255,255,0.08)',
           clipPath: CHUNKY.card,
-          padding: '20px 18px 22px',
+          padding: '0 0 22px',
           position: 'relative',
           overflow: 'hidden',
           opacity: inView ? 1 : 0,
@@ -306,12 +306,15 @@ export default function TournamentSpotlightHero({
           transition: 'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        {/* Decorative glow */}
+        {/* Green accent bar at top */}
         <div style={{
-          position: 'absolute', top: -60, right: -60, width: 180, height: 180,
-          background: 'radial-gradient(circle, rgba(126,211,33,0.1) 0%, transparent 70%)',
-          pointerEvents: 'none',
+          height: 3,
+          background: `linear-gradient(90deg, ${GREEN}, rgba(126,211,33,0.3))`,
+          marginBottom: 20,
         }} />
+
+        {/* Content with side padding */}
+        <div style={{ padding: '0 18px' }}>
 
         {/* ── Row 1: NEXT UP badge + level pill + follow star ── */}
         <AnimateOnView className="sp-piece sp-piece-1" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, position: 'relative' }}>
@@ -601,6 +604,7 @@ export default function TournamentSpotlightHero({
             View Event Details &rarr;
           </Link>
         </AnimateOnView>
+        </div>{/* end content padding */}
       </div>
     </>
   )
