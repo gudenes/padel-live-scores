@@ -1344,54 +1344,30 @@ function StatsTab({
     return wrB - wrA
   })
 
-  // Group by tournament circuit → level
-  const CIRCUIT_MAP: Record<string, { circuit: string; label: string }> = {
-    p1:             { circuit: 'Premier Padel', label: 'P1' },
-    p2:             { circuit: 'Premier Padel', label: 'P2' },
-    major:          { circuit: 'Premier Padel', label: 'Major' },
-    finals:         { circuit: 'Premier Padel', label: 'Finals' },
-    wpt_master:     { circuit: 'World Padel Tour', label: 'Master' },
-    wpt_1000:       { circuit: 'World Padel Tour', label: 'WPT 1000' },
-    wpt_500:        { circuit: 'World Padel Tour', label: 'WPT 500' },
-    wpt_final:      { circuit: 'World Padel Tour', label: 'Finals' },
-    fip_platinum:   { circuit: 'FIP', label: 'Platinum' },
-    fip_gold:       { circuit: 'FIP', label: 'Gold' },
-    fip_other:      { circuit: 'FIP', label: 'Other' },
+  // Group by tournament circuit (aggregate, no per-level breakdown)
+  const LEVEL_TO_CIRCUIT: Record<string, string> = {
+    p1: 'Premier Padel', p2: 'Premier Padel', major: 'Premier Padel', finals: 'Premier Padel',
+    wpt_master: 'World Padel Tour', wpt_1000: 'World Padel Tour', wpt_500: 'World Padel Tour', wpt_final: 'World Padel Tour',
+    fip_platinum: 'FIP', fip_gold: 'FIP', fip_other: 'FIP',
   }
-
-  // Build circuit → levels map
-  const circuitData = new Map<string, Array<{ label: string; wins: number; losses: number }>>()
+  const circuitMap = new Map<string, { wins: number; losses: number }>()
   for (const m of derived.finished) {
-    const level = m.tournament?.level ?? 'other'
-    const mapping = CIRCUIT_MAP[level] ?? { circuit: 'Other', label: level.replace('fip_', 'FIP ').replace('_', ' ') }
+    const circuit = LEVEL_TO_CIRCUIT[m.tournament?.level ?? ''] ?? 'Other'
+    const entry = circuitMap.get(circuit) ?? { wins: 0, losses: 0 }
     const won = m.winner_pair != null && (
       m.pair1_player1?.id === player.id || m.pair1_player2?.id === player.id
         ? m.winner_pair === 1
         : m.winner_pair === 2
     )
-
-    if (!circuitData.has(mapping.circuit)) circuitData.set(mapping.circuit, [])
-    const levels = circuitData.get(mapping.circuit)!
-    let entry = levels.find(l => l.label === mapping.label)
-    if (!entry) { entry = { label: mapping.label, wins: 0, losses: 0 }; levels.push(entry) }
     if (won) entry.wins++; else entry.losses++
+    circuitMap.set(circuit, entry)
   }
-
-  // Sort levels within each circuit by win rate, sort circuits by display order
   const CIRCUIT_ORDER = ['Premier Padel', 'World Padel Tour', 'FIP', 'Other']
-  const sortedCircuits = [...circuitData.entries()]
-    .sort((a, b) => {
-      const ia = CIRCUIT_ORDER.indexOf(a[0]), ib = CIRCUIT_ORDER.indexOf(b[0])
-      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
-    })
-    .map(([circuit, levels]) => ({
-      circuit,
-      levels: levels.sort((a, b) => {
-        const wrA = a.wins / (a.wins + a.losses || 1)
-        const wrB = b.wins / (b.wins + b.losses || 1)
-        return wrB - wrA
-      }),
-    }))
+  const circuits = [...circuitMap.entries()].sort((a, b) => {
+    const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
+    const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)
+    return wrB - wrA
+  })
 
   if (derived.finished.length === 0) {
     return (
@@ -1448,17 +1424,17 @@ function StatsTab({
         </Widget>
       )}
 
-      {/* By Tournament Circuit */}
-      {sortedCircuits.map(({ circuit, levels }) => (
-        <Widget key={circuit} wide label={circuit}>
+      {/* By Circuit */}
+      {circuits.length > 0 && (
+        <Widget wide label="By Circuit">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-            {levels.map(({ label, wins, losses }, idx) => {
+            {circuits.map(([circuit, { wins, losses }], idx) => {
               const total = wins + losses
               const wr = total > 0 ? Math.round((wins / total) * 100) : 0
               return (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
+                <div key={circuit} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
                   <div style={{ flex: '0 0 70px', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {label}
+                    {circuit}
                   </div>
                   <WinRateBar wr={wr} color={ORANGE} rowIndex={idx} />
                   <div style={{ flex: '0 0 52px', textAlign: 'right', color: MUTED, fontVariantNumeric: 'tabular-nums' }}>
@@ -1469,7 +1445,7 @@ function StatsTab({
             })}
           </div>
         </Widget>
-      ))}
+      )}
     </div>
   )
 }
