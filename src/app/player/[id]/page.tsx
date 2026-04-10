@@ -338,7 +338,13 @@ function titleCase(name: string): string {
 // Best-effort date for a match: finished > started > scheduled.
 // Used for both sorting (newest first) and display.
 function matchDate(m: MatchRow): string | null {
-  return m.finished_at ?? m.started_at ?? m.scheduled_at ?? null
+  // Some backfilled matches have epoch dates (1970-01-01) — treat as null
+  // and fall through to the next date field.
+  const isValid = (d: string | null) => d && !d.startsWith('1970-01-01')
+  return (isValid(m.finished_at) ? m.finished_at
+    : isValid(m.started_at) ? m.started_at
+    : isValid(m.scheduled_at) ? m.scheduled_at
+    : null)
 }
 
 function matchTime(m: MatchRow): number {
