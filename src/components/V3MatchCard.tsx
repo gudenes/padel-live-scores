@@ -129,9 +129,11 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
             <div key={pairNum} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '5px 0',
-              opacity: isLoser ? 0.65 : 1,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0,
+                opacity: isLoser ? 0.65 : 1,
+              }}>
                 {/* Stacked overlapping flags — second slightly lower */}
                 <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>

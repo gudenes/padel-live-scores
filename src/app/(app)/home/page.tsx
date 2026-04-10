@@ -378,7 +378,6 @@ function LiveMatchCard({ match }: { match: Match }) {
           <div key={pairNum} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '6px 0',
-            opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.65 : 1,
             position: 'relative',
             overflow: 'hidden',
           }}>
@@ -398,7 +397,11 @@ function LiveMatchCard({ match }: { match: Match }) {
                 }}
               />
             )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, position: 'relative', zIndex: 2 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0,
+              position: 'relative', zIndex: 2,
+              opacity: match.winner_pair && match.winner_pair !== pairNum ? 0.65 : 1,
+            }}>
               {/* Stacked overlapping dual flags — same pattern as latest results */}
               <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>

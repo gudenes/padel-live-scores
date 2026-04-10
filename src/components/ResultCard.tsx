@@ -117,9 +117,11 @@ export function ResultCard({ match }: { match: Match }) {
           <div key={pairNum} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '4px 0',
-            opacity: !isWinner && (isWinner1 || isWinner2) ? 0.65 : 1,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0,
+              opacity: !isWinner && (isWinner1 || isWinner2) ? 0.65 : 1,
+            }}>
               {/* Stacked overlapping flags — second slightly lower */}
               <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
