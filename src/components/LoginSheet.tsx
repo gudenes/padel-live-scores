@@ -25,14 +25,30 @@ interface LoginSheetProps {
   onClose: () => void
 }
 
+interface PendingReferral {
+  code: string
+  inviterName: string | null
+  inviterAvatar: string | null
+}
+
 export default function LoginSheet({ open, onClose }: LoginSheetProps) {
   const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingRef, setPendingRef] = useState<PendingReferral | null>(null)
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
+
+  // Read pending referral from localStorage
+  useEffect(() => {
+    if (!open) return
+    try {
+      const raw = localStorage.getItem('pn_pending_referral')
+      if (raw) setPendingRef(JSON.parse(raw))
+    } catch { /* ignore */ }
+  }, [open])
 
   if (!open || !mounted) return null
 
@@ -93,11 +109,50 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           borderRadius: 2, margin: '0 auto 24px',
         }} />
 
+        {/* Pending referral invite — shown when user arrived via ref link */}
+        {pendingRef && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '10px 14px', marginBottom: 20,
+            background: 'rgba(126,211,33,0.06)',
+            border: `1px solid rgba(126,211,33,0.15)`,
+            clipPath: CLIP.card,
+          }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+              border: `2px solid rgba(126,211,33,0.3)`,
+              background: pendingRef.inviterAvatar
+                ? `url(${pendingRef.inviterAvatar}) center/cover`
+                : 'linear-gradient(135deg, #3a4a5a, #2a3a4a)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              overflow: 'hidden',
+            }}>
+              {!pendingRef.inviterAvatar && (
+                <span style={{ fontSize: 14, fontWeight: 800, color: GREEN }}>
+                  {(pendingRef.inviterName || '?')[0]?.toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                {(pendingRef.inviterName?.split(' ')[0]) || 'Someone'} invited you
+              </div>
+              <div style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>
+                Sign in to join PadelNachos
+              </div>
+            </div>
+            <div style={{
+              width: 6, height: 6, background: GREEN, flexShrink: 0,
+              clipPath: 'polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%)',
+            }} />
+          </div>
+        )}
+
         <div style={{ textAlign: 'center', color: '#fff', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
-          Sign in to Padel Nachos
+          {pendingRef ? 'Sign in to get started' : 'Sign in to Padel Nachos'}
         </div>
         <div style={{ textAlign: 'center', color: MUTED, fontSize: 12, marginBottom: 28 }}>
-          Sync bookmarks & get match notifications
+          {pendingRef ? 'Live scores, rankings & match alerts await' : 'Sync bookmarks & get match notifications'}
         </div>
 
         {sent ? (
