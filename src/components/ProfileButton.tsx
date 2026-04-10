@@ -32,9 +32,16 @@ export default function ProfileButton() {
   const [loginOpen, setLoginOpen] = useState(false)
   const [hasNotification, setHasNotification] = useState(false)
 
-  // Check for unseen profile updates: new badges, referrals, streak milestones
+  // Check for unseen profile updates: new badges, referrals, streak milestones.
+  // For anonymous users: show dot if there's a pending referral invite.
   useEffect(() => {
-    if (!user) { setHasNotification(false); return }
+    if (!user) {
+      try {
+        const hasPending = !!localStorage.getItem('pn_pending_referral')
+        setHasNotification(hasPending)
+      } catch { setHasNotification(false) }
+      return
+    }
     let cancelled = false
 
     ;(async () => {
