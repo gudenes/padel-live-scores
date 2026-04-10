@@ -1433,20 +1433,20 @@ function StatsTab({
               const wr = total > 0 ? Math.round((wins / total) * 100) : 0
               return (
                 <div key={circuit} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
-                  <div style={{ flex: '0 0 70px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ flex: '0 0 90px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                     {circuit === 'Premier Padel' ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src="/padel-logo-black-768x174.webp"
                         alt="Premier Padel"
-                        style={{ height: 14, objectFit: 'contain', filter: 'invert(1) hue-rotate(180deg)' }}
+                        style={{ height: 18, objectFit: 'contain', filter: 'invert(1) hue-rotate(180deg)' }}
                       />
                     ) : circuit === 'World Padel Tour' ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src="/world-padel-tour-logo-png_seeklogo-411786.png"
                         alt="World Padel Tour"
-                        style={{ height: 18, objectFit: 'contain', filter: 'invert(1) hue-rotate(180deg)' }}
+                        style={{ height: 28, objectFit: 'contain', filter: 'brightness(0) invert(1) brightness(0.85)' }}
                       />
                     ) : (
                       <span style={{ color: '#fff', fontWeight: 600 }}>{circuit}</span>
