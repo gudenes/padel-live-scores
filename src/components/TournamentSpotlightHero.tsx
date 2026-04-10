@@ -1,9 +1,26 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import FollowButton from '@/components/FollowButton'
+
+// ── Per-section scroll trigger ────────────────────────────────────
+// Each section gets its own IntersectionObserver so animations fire
+// when THAT section enters the viewport, not when the whole card does.
+function AnimateOnView({ className, children, style }: {
+  className: string
+  children: ReactNode
+  style?: React.CSSProperties
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInViewOnce(ref, { threshold: 0.3 })
+  return (
+    <div ref={ref} className={inView ? className : 'sp-piece'} style={style}>
+      {children}
+    </div>
+  )
+}
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -297,7 +314,7 @@ export default function TournamentSpotlightHero({
         }} />
 
         {/* ── Row 1: NEXT UP badge + level pill + follow star ── */}
-        <div className={inView ? 'sp-piece sp-piece-1' : 'sp-piece'} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, position: 'relative' }}>
+        <AnimateOnView className="sp-piece sp-piece-1" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, position: 'relative' }}>
           <div style={{
             background: 'rgba(126,211,33,0.2)',
             clipPath: CHUNKY.badge,
@@ -323,20 +340,20 @@ export default function TournamentSpotlightHero({
           <div style={{ marginLeft: 'auto' }}>
             <FollowButton type="tournament" targetId={tournament.id} variant="star" size={16} />
           </div>
-        </div>
+        </AnimateOnView>
 
         {/* ── Row 2: Flag + tournament name ── */}
-        <div className={inView ? 'sp-piece sp-piece-2' : 'sp-piece'} style={{ marginBottom: 12 }}>
+        <AnimateOnView className="sp-piece sp-piece-2" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <FlagImg country={tournament.country} size={28} />
             <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.2 }}>
               {titleCase(tournament.name)}
             </h3>
           </div>
-        </div>
+        </AnimateOnView>
 
         {/* ── Row 3: Location + dates + prize money ── */}
-        <div className={inView ? 'sp-piece sp-piece-3' : 'sp-piece'} style={{ marginBottom: 18 }}>
+        <div className='sp-piece sp-piece-3' style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 12, color: MUTED, marginBottom: 3 }}>
             {tournament.location ? `${tournament.location}, ${countryName(tournament.country)}` : countryName(tournament.country)}
           </div>
@@ -349,7 +366,7 @@ export default function TournamentSpotlightHero({
         </div>
 
         {/* ── Row 4: Defending Champions (Men + Women) ── */}
-        {(defendingChampionMen || defendingChampionWomen) && inView && (
+        {(defendingChampionMen || defendingChampionWomen) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
             {[
               { champion: defendingChampionMen, label: 'Men', color: '#4A9EFF' },
@@ -359,7 +376,7 @@ export default function TournamentSpotlightHero({
               return (
                 <div
                   key={label}
-                  className={inView ? 'sp-piece sp-piece-4' : 'sp-piece'}
+                  className='sp-piece sp-piece-4'
                   style={{
                     background: 'linear-gradient(135deg, rgba(245,166,35,0.12), rgba(245,166,35,0.03))',
                     border: '1px solid rgba(245,166,35,0.2)',
@@ -434,7 +451,7 @@ export default function TournamentSpotlightHero({
         )}
 
         {/* ── Row 5: Live Countdown ── */}
-        {countdown && inView && (
+        {countdown && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
             {[
               { label: 'Days', value: countdown.days, piece: '5a' },
@@ -444,7 +461,7 @@ export default function TournamentSpotlightHero({
             ].map(({ label, value, piece }) => (
               <div
                 key={label}
-                className={inView ? `sp-piece sp-piece-${piece}` : 'sp-piece'}
+                className={`sp-piece sp-piece-${piece}`}
                 style={{
                   flex: 1,
                   maxWidth: 72,
@@ -453,7 +470,7 @@ export default function TournamentSpotlightHero({
                   clipPath: CHUNKY.badge,
                   padding: '10px 6px',
                   textAlign: 'center',
-                  ...(inView ? { animationName: `sp-from-top, spotlight-countdown-glow`, animationDuration: '0.4s, 3s', animationIterationCount: '1, infinite' } : {}),
+                  ...{ animationName: `sp-from-top, spotlight-countdown-glow`, animationDuration: '0.4s, 3s', animationIterationCount: '1, infinite' },
                 }}
               >
                 <div style={{ fontSize: 22, fontWeight: 800, color: GREEN, fontFamily: 'monospace', lineHeight: 1 }}>
@@ -468,9 +485,9 @@ export default function TournamentSpotlightHero({
         )}
 
         {/* Live NOW state */}
-        {isLive && inView && (
+        {isLive && (
           <div
-            className={inView ? 'sp-piece sp-piece-4' : 'sp-piece'}
+            className='sp-piece sp-piece-4'
             style={{
               textAlign: 'center',
               marginBottom: 16,
@@ -487,9 +504,9 @@ export default function TournamentSpotlightHero({
         )}
 
         {/* ── Row 6: Stats chips ── */}
-        {stats && inView && (
-          <div
-            className={inView ? 'sp-piece sp-piece-6' : 'sp-piece'}
+        {stats && (
+          <AnimateOnView
+            className="sp-piece sp-piece-6"
             style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 16 }}
           >
             {[
@@ -510,16 +527,16 @@ export default function TournamentSpotlightHero({
                 <div style={{ fontSize: 8, fontWeight: 700, color: MUTED, letterSpacing: 0.6, marginTop: 3, textTransform: 'uppercase' }}>{label}</div>
               </div>
             ))}
-          </div>
+          </AnimateOnView>
         )}
 
         {/* ── Row 7: Top 4 seeds ── */}
-        {topSeeds.length > 0 && inView && (
+        {topSeeds.length > 0 && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginBottom: 18 }}>
             {topSeeds.slice(0, 4).map((seed, i) => (
-              <div
+              <AnimateOnView
                 key={seed.seed}
-                className={inView ? `sp-piece sp-piece-7${['a','b','c','d'][i] ?? 'a'}` : 'sp-piece'}
+                className={`sp-piece sp-piece-7${['a','b','c','d'][i] ?? 'a'}`}
                 style={{ textAlign: 'center', width: 60 }}
               >
                 {seed.avatarUrl ? (
@@ -559,16 +576,15 @@ export default function TournamentSpotlightHero({
                 <div style={{ fontSize: 8, fontWeight: 700, color: MUTED, marginTop: 1 }}>
                   #{seed.seed}
                 </div>
-              </div>
+              </AnimateOnView>
             ))}
           </div>
         )}
 
         {/* ── Row 8: CTA Button ── */}
-        {inView && (
+        <AnimateOnView className="sp-piece sp-piece-8">
           <Link
             href={`/tournaments/${tournament.id}`}
-            className={inView ? 'sp-piece sp-piece-8' : 'sp-piece'}
             style={{
               display: 'block',
               textAlign: 'center',
@@ -584,7 +600,7 @@ export default function TournamentSpotlightHero({
           >
             View Event Details &rarr;
           </Link>
-        )}
+        </AnimateOnView>
       </div>
     </>
   )
