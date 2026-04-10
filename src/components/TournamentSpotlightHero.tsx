@@ -317,22 +317,17 @@ export default function TournamentSpotlightHero({
             ].map(({ champion, label, color }) => {
               if (!champion) return null
               return (
-                <Link
+                <div
                   key={label}
-                  href={`/tournaments/${champion.previousEditionId}`}
-                  style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+                  className="spotlight-stagger spotlight-stagger-1"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(245,166,35,0.12), rgba(245,166,35,0.03))',
+                    border: '1px solid rgba(245,166,35,0.2)',
+                    clipPath: CHUNKY.badge,
+                    padding: '8px 12px',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                  }}
                 >
-                  <div
-                    className="spotlight-stagger spotlight-stagger-1"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(245,166,35,0.12), rgba(245,166,35,0.03))',
-                      border: '1px solid rgba(245,166,35,0.2)',
-                      clipPath: CHUNKY.badge,
-                      padding: '8px 12px',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      cursor: 'pointer',
-                    }}
-                  >
                     {/* Trophy icon */}
                     <div style={{
                       width: 30, height: 30, flexShrink: 0,
@@ -392,9 +387,7 @@ export default function TournamentSpotlightHero({
                       </div>
                     </div>
 
-                    <ChevronRightIcon size={14} color={AMBER} />
-                  </div>
-                </Link>
+                </div>
               )
             })}
           </div>
