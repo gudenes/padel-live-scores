@@ -1446,7 +1446,7 @@ function StatsTab({
                       <img
                         src="/world-padel-tour-logo-png_seeklogo-411786.png"
                         alt="World Padel Tour"
-                        style={{ height: 28, objectFit: 'contain', filter: 'brightness(0) invert(1) brightness(0.85)' }}
+                        style={{ height: 28, objectFit: 'contain', filter: 'invert(1) brightness(1.3)' }}
                       />
                     ) : (
                       <span style={{ color: '#fff', fontWeight: 600 }}>{circuit}</span>
