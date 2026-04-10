@@ -799,6 +799,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         </>
       )}
 
+      {/* ── Rate this match (above journey for prominence) ────────── */}
+      {isFinished && (
+        <MatchRatingCard rating={rating} setRating={setRating} avgRating={avgRating} ratingCount={ratingCount} />
+      )}
+
       {/* ── Match Journey chart ───────────────────────────────────── */}
       {!isScheduled && (match.sets ?? []).length > 0 && (
         <MomentumChart
@@ -827,9 +832,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* ── LIVE / FINISHED: sub-tabs ─────────────────────────────────── */}
       {!isScheduled && (
         <>
-          {isFinished && (
-            <MatchRatingCard rating={rating} setRating={setRating} avgRating={avgRating} ratingCount={ratingCount} />
-          )}
           <div style={{ display: 'flex', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
             {(isFinished ? ['recap', 'live', 'players', 'h2h'] as SubTab[] : ['live', 'players', 'h2h'] as SubTab[]).map(tab => (
               <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? GREEN : MUTED, borderBottom: subTab === tab ? `2px solid ${GREEN}` : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -1116,10 +1118,12 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
   const [justRated, setJustRated] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(rating != null)
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; color: string }[]>([])
+  const [showPoints, setShowPoints] = useState(false)
 
   const handleRate = (n: number) => {
     setRating(n)
     setJustRated(n)
+    setShowPoints(true)
 
     // Generate particles
     const colors = [GREEN, ORANGE, GREEN, '#fff', ORANGE, GREEN, ORANGE, GREEN]
@@ -1130,6 +1134,9 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
       color,
     }))
     setParticles(newParticles)
+
+    // Hide points floater after animation
+    setTimeout(() => { setShowPoints(false) }, 1200)
 
     // Collapse after 2s
     setTimeout(() => {
@@ -1182,6 +1189,11 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
             0% { opacity: 0; transform: translateY(6px); }
             100% { opacity: 1; transform: translateY(0); }
           }
+          @keyframes pn-pts-float {
+            0%   { opacity: 1; transform: translateY(0) scale(1); }
+            60%  { opacity: 1; transform: translateY(-40px) scale(1.1); }
+            100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
+          }
         `}</style>
         <div style={{ position: 'relative', display: 'inline-block' }}>
           {/* Particles */}
@@ -1202,6 +1214,29 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
           }}>
             <span style={{ fontSize: 20, fontWeight: 900, color: '#000' }}>{justRated}</span>
           </div>
+          {/* +10 pts floater */}
+          {showPoints && (
+            <div style={{
+              position: 'absolute',
+              top: -10,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              animation: 'pn-pts-float 1.2s ease-out forwards',
+              pointerEvents: 'none',
+            }}>
+              <div style={{
+                padding: '3px 10px',
+                background: GREEN,
+                clipPath: CHUNKY.badge,
+                fontSize: 11,
+                fontWeight: 900,
+                color: '#000',
+                whiteSpace: 'nowrap',
+              }}>
+                +10 pts
+              </div>
+            </div>
+          )}
         </div>
         <div style={{
           fontSize: 14, fontWeight: 900, color: GREEN, marginTop: 10,
