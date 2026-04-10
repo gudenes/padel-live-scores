@@ -41,7 +41,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
       alt={country}
       width={size}
       height={size * 0.75}
-      style={{ borderRadius: 2, objectFit: 'cover', display: 'block', flexShrink: 0 }}
+      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
     />
   )
 }
@@ -83,6 +83,7 @@ interface MatchRow {
 interface PlayerData {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   avatar_url: string | null
   ranking: number | null
@@ -301,7 +302,8 @@ function MatchCard({ match }: { match: MatchRow }) {
 
 function PlayerCard({ player }: { player: PlayerData }) {
   const borderColor = player.category === 'women' ? WOMEN_PURPLE : MEN_BLUE
-  const initials = player.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const displayName = player.display_name || player.name
+  const initials = displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
     <Link
@@ -353,7 +355,7 @@ function PlayerCard({ player }: { player: PlayerData }) {
           textOverflow: 'ellipsis',
           width: '100%',
         }}>
-          {player.name.split(' ').pop()}
+          {displayName.split(' ').pop()}
         </div>
 
         {/* Ranking + country */}
@@ -695,10 +697,6 @@ export default function FollowingPage() {
             <AddPlayerCard onOpen={() => setSearchOpen(true)} />
           </ScrollRow>
         </>
-      )}
-
-      {loaded && players.length > 0 && (
-        <></>
       )}
 
       {/* ── Section 3: Tournaments ──────────────────────────────── */}
