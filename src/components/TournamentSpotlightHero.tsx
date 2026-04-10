@@ -18,33 +18,73 @@ const CHUNKY = {
 }
 
 // ── CSS animations ─────────────────────────────────────────────
+// "Puzzle pieces" entrance: each section slides in from a different
+// direction with varied timing so it feels like assembling a poster.
 const SPOTLIGHT_STYLES = `
 @keyframes spotlight-scale-in {
-  0% { opacity: 0; transform: scale(0.96); }
+  0% { opacity: 0; transform: scale(0.92); }
   100% { opacity: 1; transform: scale(1); }
 }
-@keyframes spotlight-fade-up {
-  0% { opacity: 0; transform: translateY(12px); }
+/* Different directions for the puzzle feel */
+@keyframes sp-from-left {
+  0% { opacity: 0; transform: translateX(-20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes sp-from-right {
+  0% { opacity: 0; transform: translateX(20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes sp-from-top {
+  0% { opacity: 0; transform: translateY(-16px); }
   100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes sp-from-bottom {
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes sp-pop {
+  0% { opacity: 0; transform: scale(0.7); }
+  70% { transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
 }
 @keyframes spotlight-countdown-glow {
   0%, 100% { box-shadow: 0 0 8px rgba(126,211,33,0.2); }
   50% { box-shadow: 0 0 16px rgba(126,211,33,0.4); }
 }
-.spotlight-stagger {
-  opacity: 0;
-  animation: spotlight-fade-up 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+/* CTA attention pulse — runs every 4 seconds after entrance */
+@keyframes sp-cta-pulse {
+  0%, 85%, 100% { transform: scale(1); box-shadow: none; }
+  90% { transform: scale(1.03); box-shadow: 0 0 16px rgba(126,211,33,0.5); }
+  95% { transform: scale(0.98); }
 }
-.spotlight-stagger-1 { animation-delay: 0.15s; }
-.spotlight-stagger-2 { animation-delay: 0.25s; }
-.spotlight-stagger-3 { animation-delay: 0.35s; }
-.spotlight-stagger-4 { animation-delay: 0.45s; }
-.spotlight-stagger-5 { animation-delay: 0.55s; }
-.spotlight-stagger-6 { animation-delay: 0.65s; }
-.spotlight-stagger-7 { animation-delay: 0.75s; }
-.spotlight-stagger-8 { animation-delay: 0.85s; }
-.spotlight-stagger-9 { animation-delay: 0.95s; }
-.spotlight-stagger-10 { animation-delay: 1.05s; }
+
+/* Puzzle pieces — each with a different animation + varied timing */
+.sp-piece { opacity: 0; }
+/* Row 1: badges slide from left */
+.sp-piece-1 { animation: sp-from-left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards; }
+/* Row 2: name slides from right */
+.sp-piece-2 { animation: sp-from-right 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s forwards; }
+/* Row 3: subtitle fades from left */
+.sp-piece-3 { animation: sp-from-left 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) 0.35s forwards; }
+/* Row 4: champion pops in */
+.sp-piece-4 { animation: sp-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s forwards; }
+/* Row 5: countdown boxes stagger from top */
+.sp-piece-5a { animation: sp-from-top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.65s forwards; }
+.sp-piece-5b { animation: sp-from-top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.75s forwards; }
+.sp-piece-5c { animation: sp-from-top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.85s forwards; }
+.sp-piece-5d { animation: sp-from-top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.95s forwards; }
+/* Row 6: stats slide from right */
+.sp-piece-6 { animation: sp-from-right 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) 1.05s forwards; }
+/* Row 7: seeds pop in staggered */
+.sp-piece-7a { animation: sp-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1.15s forwards; }
+.sp-piece-7b { animation: sp-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1.25s forwards; }
+.sp-piece-7c { animation: sp-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1.35s forwards; }
+.sp-piece-7d { animation: sp-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 1.45s forwards; }
+/* Row 8: CTA slides from bottom + recurring pulse */
+.sp-piece-8 {
+  animation: sp-from-bottom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.6s forwards,
+             sp-cta-pulse 4s ease-in-out 3s infinite;
+}
 `
 
 // ── SVG Icons ──────────────────────────────────────────────────
@@ -257,7 +297,7 @@ export default function TournamentSpotlightHero({
         }} />
 
         {/* ── Row 1: NEXT UP badge + level pill + follow star ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, position: 'relative' }}>
+        <div className={inView ? 'sp-piece sp-piece-1' : 'sp-piece'} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, position: 'relative' }}>
           <div style={{
             background: 'rgba(126,211,33,0.2)',
             clipPath: CHUNKY.badge,
@@ -286,7 +326,7 @@ export default function TournamentSpotlightHero({
         </div>
 
         {/* ── Row 2: Flag + tournament name ── */}
-        <div style={{ marginBottom: 12 }}>
+        <div className={inView ? 'sp-piece sp-piece-2' : 'sp-piece'} style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <FlagImg country={tournament.country} size={28} />
             <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.2 }}>
@@ -296,7 +336,7 @@ export default function TournamentSpotlightHero({
         </div>
 
         {/* ── Row 3: Location + dates + prize money ── */}
-        <div style={{ marginBottom: 18 }}>
+        <div className={inView ? 'sp-piece sp-piece-3' : 'sp-piece'} style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 12, color: MUTED, marginBottom: 3 }}>
             {tournament.location ? `${tournament.location}, ${countryName(tournament.country)}` : countryName(tournament.country)}
           </div>
@@ -319,7 +359,7 @@ export default function TournamentSpotlightHero({
               return (
                 <div
                   key={label}
-                  className="spotlight-stagger spotlight-stagger-1"
+                  className={inView ? 'sp-piece sp-piece-4' : 'sp-piece'}
                   style={{
                     background: 'linear-gradient(135deg, rgba(245,166,35,0.12), rgba(245,166,35,0.03))',
                     border: '1px solid rgba(245,166,35,0.2)',
@@ -397,14 +437,14 @@ export default function TournamentSpotlightHero({
         {countdown && inView && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
             {[
-              { label: 'Days', value: countdown.days, stagger: 2 },
-              { label: 'Hours', value: countdown.hours, stagger: 3 },
-              { label: 'Min', value: countdown.min, stagger: 4 },
-              { label: 'Sec', value: countdown.sec, stagger: 5 },
-            ].map(({ label, value, stagger }) => (
+              { label: 'Days', value: countdown.days, piece: '5a' },
+              { label: 'Hours', value: countdown.hours, piece: '5b' },
+              { label: 'Min', value: countdown.min, piece: '5c' },
+              { label: 'Sec', value: countdown.sec, piece: '5d' },
+            ].map(({ label, value, piece }) => (
               <div
                 key={label}
-                className={`spotlight-stagger spotlight-stagger-${stagger}`}
+                className={inView ? `sp-piece sp-piece-${piece}` : 'sp-piece'}
                 style={{
                   flex: 1,
                   maxWidth: 72,
@@ -413,7 +453,7 @@ export default function TournamentSpotlightHero({
                   clipPath: CHUNKY.badge,
                   padding: '10px 6px',
                   textAlign: 'center',
-                  animation: `spotlight-fade-up 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) ${stagger * 0.1 + 0.15}s forwards, spotlight-countdown-glow 3s ease-in-out ${stagger * 0.1 + 1.2}s infinite`,
+                  ...(inView ? { animationName: `sp-from-top, spotlight-countdown-glow`, animationDuration: '0.4s, 3s', animationIterationCount: '1, infinite' } : {}),
                 }}
               >
                 <div style={{ fontSize: 22, fontWeight: 800, color: GREEN, fontFamily: 'monospace', lineHeight: 1 }}>
@@ -430,7 +470,7 @@ export default function TournamentSpotlightHero({
         {/* Live NOW state */}
         {isLive && inView && (
           <div
-            className="spotlight-stagger spotlight-stagger-2"
+            className={inView ? 'sp-piece sp-piece-4' : 'sp-piece'}
             style={{
               textAlign: 'center',
               marginBottom: 16,
@@ -449,7 +489,7 @@ export default function TournamentSpotlightHero({
         {/* ── Row 6: Stats chips ── */}
         {stats && inView && (
           <div
-            className="spotlight-stagger spotlight-stagger-5"
+            className={inView ? 'sp-piece sp-piece-6' : 'sp-piece'}
             style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 16 }}
           >
             {[
@@ -479,7 +519,7 @@ export default function TournamentSpotlightHero({
             {topSeeds.slice(0, 4).map((seed, i) => (
               <div
                 key={seed.seed}
-                className={`spotlight-stagger spotlight-stagger-${6 + i}`}
+                className={inView ? `sp-piece sp-piece-7${['a','b','c','d'][i] ?? 'a'}` : 'sp-piece'}
                 style={{ textAlign: 'center', width: 60 }}
               >
                 {seed.avatarUrl ? (
@@ -528,7 +568,7 @@ export default function TournamentSpotlightHero({
         {inView && (
           <Link
             href={`/tournaments/${tournament.id}`}
-            className="spotlight-stagger spotlight-stagger-10"
+            className={inView ? 'sp-piece sp-piece-8' : 'sp-piece'}
             style={{
               display: 'block',
               textAlign: 'center',
