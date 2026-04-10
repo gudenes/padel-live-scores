@@ -306,10 +306,11 @@ export default function TournamentSpotlightHero({
           transition: 'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        {/* Green accent bar at top */}
+        {/* Green accent bar at top — chunky shape */}
         <div style={{
-          height: 3,
+          height: 4,
           background: `linear-gradient(90deg, ${GREEN}, rgba(126,211,33,0.3))`,
+          clipPath: 'polygon(0% 0%, 100% 0%, 99% 100%, 0.5% 80%)',
           marginBottom: 20,
         }} />
 
