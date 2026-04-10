@@ -1968,22 +1968,28 @@ function V3HomePageInner() {
         })))
       }
 
-      // ── 3. Stats from tournament_draws ────────────────────
+      // ── 3. Stats from tournament_draws (both genders) ─────
       const { data: allEntries } = await supabase
         .from('tournament_draws')
-        .select('player1_country, player2_country')
+        .select('category, player1_country, player2_country')
         .eq('tournament_id', t.id)
 
       if (allEntries && allEntries.length > 0) {
         const countries = new Set<string>()
+        let menPairs = 0
+        let womenPairs = 0
         for (const e of allEntries) {
           if (e.player1_country) countries.add(e.player1_country)
           if (e.player2_country) countries.add(e.player2_country)
+          if ((e as any).category === 'men') menPairs++
+          else if ((e as any).category === 'women') womenPairs++
         }
+        // Each gender has its own knockout bracket: N pairs = N-1 matches
+        const matchesCount = Math.max(0, menPairs - 1) + Math.max(0, womenPairs - 1)
         setSpotlightStats({
           pairsCount: allEntries.length,
           countriesCount: countries.size,
-          matchesCount: Math.max(0, allEntries.length - 1),
+          matchesCount,
         })
       }
     } catch (e) {
