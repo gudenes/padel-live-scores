@@ -142,7 +142,7 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
                   </div>
                 </div>
                 <span style={{
-                  fontSize: 13, fontWeight: isWinner ? 800 : 600, color: '#fff',
+                  fontSize: 13, fontWeight: isWinner ? 800 : 600, color: isLoser ? '#B0B5BE' : '#fff',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {pair}

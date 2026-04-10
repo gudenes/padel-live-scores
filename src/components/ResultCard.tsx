@@ -130,7 +130,7 @@ export function ResultCard({ match }: { match: Match }) {
                 </div>
               </div>
               <span style={{
-                fontSize: 13, fontWeight: isWinner ? 700 : 500, color: isWinner ? '#fff' : MUTED,
+                fontSize: 13, fontWeight: isWinner ? 700 : 600, color: isWinner ? '#fff' : '#B0B5BE',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {pair}

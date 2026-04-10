@@ -408,7 +408,9 @@ function LiveMatchCard({ match }: { match: Match }) {
                 </div>
               </div>
               <span style={{
-                fontSize: 14, fontWeight: 700, color: '#fff',
+                fontSize: 14,
+                fontWeight: match.winner_pair && match.winner_pair !== pairNum ? 600 : 700,
+                color: match.winner_pair && match.winner_pair !== pairNum ? '#B0B5BE' : '#fff',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {pair}

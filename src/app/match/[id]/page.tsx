@@ -1565,8 +1565,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 <span style={{
                   flex: 1, minWidth: 0,
                   fontSize: 12,
-                  fontWeight: team1Won ? 700 : 500,
-                  color: team1Won ? '#fff' : MUTED,
+                  fontWeight: team1Won ? 700 : 600,
+                  color: team1Won ? '#fff' : '#B0B5BE',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {topName}
@@ -1611,8 +1611,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 <span style={{
                   flex: 1, minWidth: 0,
                   fontSize: 12,
-                  fontWeight: team2Won ? 700 : 500,
-                  color: team2Won ? '#fff' : MUTED,
+                  fontWeight: team2Won ? 700 : 600,
+                  color: team2Won ? '#fff' : '#B0B5BE',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {botName}
