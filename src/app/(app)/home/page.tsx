@@ -1800,7 +1800,8 @@ function V3HomePageInner() {
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [latestNews, setLatestNews] = useState<NewsItem[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
-  const [spotlightChampion, setSpotlightChampion] = useState<TournamentSpotlightHeroProps['defendingChampion']>(null)
+  const [spotlightChampionMen, setSpotlightChampionMen] = useState<TournamentSpotlightHeroProps['defendingChampionMen']>(null)
+  const [spotlightChampionWomen, setSpotlightChampionWomen] = useState<TournamentSpotlightHeroProps['defendingChampionWomen']>(null)
   const [spotlightSeeds, setSpotlightSeeds] = useState<TournamentSpotlightHeroProps['topSeeds']>([])
   const [spotlightStats, setSpotlightStats] = useState<TournamentSpotlightHeroProps['stats']>(null)
 
@@ -1897,24 +1898,29 @@ function V3HomePageInner() {
               .not('winner_pair', 'is', null)
 
             if (finalMatches && finalMatches.length > 0) {
-              const finalMatch = finalMatches.find(m => FINALS_ROUNDS.has((m as any).round as string))
-                ?? finalMatches.find(m => ((m as any).round as string || '').toLowerCase().includes('final'))
-              if (finalMatch) {
-                const winners = (finalMatch as any).winner_pair === 1
-                  ? [(finalMatch as any).pair1_player1, (finalMatch as any).pair1_player2]
-                  : [(finalMatch as any).pair2_player1, (finalMatch as any).pair2_player2]
-                const winnerPlayers = winners.filter(Boolean)
-                if (winnerPlayers.length > 0) {
-                  const year = previous.ends_at ? new Date(previous.ends_at).getFullYear() : 0
-                  setSpotlightChampion({
-                    names: winnerPlayers.map((p: any) => toShortName(p.name)).join(' / '),
-                    year,
-                    country1: winnerPlayers[0]?.country ?? null,
-                    country2: winnerPlayers[1]?.country ?? null,
-                    avatar1: winnerPlayers[0]?.avatar_url ?? null,
-                    avatar2: winnerPlayers[1]?.avatar_url ?? null,
-                    previousEditionId: previous.id,
-                  })
+              const year = previous.ends_at ? new Date(previous.ends_at).getFullYear() : 0
+
+              // Find finals for each gender
+              for (const category of ['men', 'women'] as const) {
+                const genderFinals = finalMatches.filter((m: any) => m.category === category)
+                const finalMatch = genderFinals.find(m => FINALS_ROUNDS.has((m as any).round as string))
+                  ?? genderFinals.find(m => ((m as any).round as string || '').toLowerCase().includes('final'))
+                if (finalMatch) {
+                  const winners = (finalMatch as any).winner_pair === 1
+                    ? [(finalMatch as any).pair1_player1, (finalMatch as any).pair1_player2]
+                    : [(finalMatch as any).pair2_player1, (finalMatch as any).pair2_player2]
+                  const winnerPlayers = winners.filter(Boolean)
+                  if (winnerPlayers.length > 0) {
+                    const champData = {
+                      names: winnerPlayers.map((p: any) => toShortName(p.display_name ?? p.name)).join(' / '),
+                      year,
+                      avatar1: winnerPlayers[0]?.avatar_url ?? null,
+                      avatar2: winnerPlayers[1]?.avatar_url ?? null,
+                      previousEditionId: previous.id,
+                    }
+                    if (category === 'men') setSpotlightChampionMen(champData)
+                    else setSpotlightChampionWomen(champData)
+                  }
                 }
               }
             }
@@ -2257,7 +2263,8 @@ function V3HomePageInner() {
           <SectionTitle action="Full Events" onAction={() => { switchView('tournaments'); window.scrollTo(0, 0) }}>Tournament Spotlight</SectionTitle>
           <TournamentSpotlightHero
             tournament={spotlightTournament}
-            defendingChampion={spotlightChampion}
+            defendingChampionMen={spotlightChampionMen}
+            defendingChampionWomen={spotlightChampionWomen}
             topSeeds={spotlightSeeds}
             stats={spotlightStats}
           />

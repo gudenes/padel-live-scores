@@ -148,11 +148,16 @@ export interface TournamentSpotlightHeroProps {
     location: string | null
     prize_money: string | null
   }
-  defendingChampion: {
+  defendingChampionMen: {
     names: string
     year: number
-    country1: string | null
-    country2: string | null
+    avatar1: string | null
+    avatar2: string | null
+    previousEditionId: string
+  } | null
+  defendingChampionWomen: {
+    names: string
+    year: number
     avatar1: string | null
     avatar2: string | null
     previousEditionId: string
@@ -173,7 +178,8 @@ export interface TournamentSpotlightHeroProps {
 
 export default function TournamentSpotlightHero({
   tournament,
-  defendingChampion,
+  defendingChampionMen,
+  defendingChampionWomen,
   topSeeds,
   stats,
 }: TournamentSpotlightHeroProps) {
@@ -302,85 +308,99 @@ export default function TournamentSpotlightHero({
           </div>
         </div>
 
-        {/* ── Row 4: Defending Champion ── */}
-        {defendingChampion && inView && (
-          <Link
-            href={`/tournaments/${defendingChampion.previousEditionId}`}
-            style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
-          >
-            <div
-              className="spotlight-stagger spotlight-stagger-1"
-              style={{
-                background: 'linear-gradient(135deg, rgba(245,166,35,0.15), rgba(245,166,35,0.05))',
-                border: '1px solid rgba(245,166,35,0.25)',
-                clipPath: CHUNKY.badge,
-                padding: '10px 14px',
-                marginBottom: 16,
-                display: 'flex', alignItems: 'center', gap: 12,
-                cursor: 'pointer',
-              }}
-            >
-              {/* Trophy icon in chunky shape */}
-              <div style={{
-                width: 36, height: 36, flexShrink: 0,
-                background: 'linear-gradient(135deg, rgba(245,166,35,0.25), rgba(245,166,35,0.1))',
-                clipPath: CHUNKY.badge,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <TrophyIcon size={18} color={AMBER} />
-              </div>
+        {/* ── Row 4: Defending Champions (Men + Women) ── */}
+        {(defendingChampionMen || defendingChampionWomen) && inView && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+            {[
+              { champion: defendingChampionMen, label: 'Men', color: '#4A9EFF' },
+              { champion: defendingChampionWomen, label: 'Women', color: '#D966FF' },
+            ].map(({ champion, label, color }) => {
+              if (!champion) return null
+              return (
+                <Link
+                  key={label}
+                  href={`/tournaments/${champion.previousEditionId}`}
+                  style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+                >
+                  <div
+                    className="spotlight-stagger spotlight-stagger-1"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(245,166,35,0.12), rgba(245,166,35,0.03))',
+                      border: '1px solid rgba(245,166,35,0.2)',
+                      clipPath: CHUNKY.badge,
+                      padding: '8px 12px',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {/* Trophy icon */}
+                    <div style={{
+                      width: 30, height: 30, flexShrink: 0,
+                      background: 'linear-gradient(135deg, rgba(245,166,35,0.2), rgba(245,166,35,0.06))',
+                      clipPath: CHUNKY.badge,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <TrophyIcon size={14} color={AMBER} />
+                    </div>
 
-              {/* Champion avatars */}
-              <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                {[defendingChampion.avatar1, defendingChampion.avatar2].map((avatar, i) => (
-                  avatar ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={i}
-                      src={avatar}
-                      alt=""
-                      width={24}
-                      height={24}
-                      style={{
-                        borderRadius: '50%',
-                        border: `2px solid ${AMBER}`,
-                        objectFit: 'cover',
-                        marginLeft: i > 0 ? -6 : 0,
-                      }}
-                    />
-                  ) : (
-                    <div
-                      key={i}
-                      style={{
-                        width: 24, height: 24,
-                        borderRadius: '50%',
-                        border: `2px solid ${AMBER}`,
-                        background: 'linear-gradient(135deg, rgba(245,166,35,0.3), rgba(245,166,35,0.1))',
-                        marginLeft: i > 0 ? -6 : 0,
-                        flexShrink: 0,
-                      }}
-                    />
-                  )
-                ))}
-              </div>
+                    {/* Champion avatars */}
+                    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                      {[champion.avatar1, champion.avatar2].map((avatar, i) => (
+                        avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={i}
+                            src={avatar}
+                            alt=""
+                            width={22}
+                            height={22}
+                            style={{
+                              borderRadius: '50%',
+                              border: `2px solid ${color}`,
+                              objectFit: 'cover',
+                              marginLeft: i > 0 ? -6 : 0,
+                            }}
+                          />
+                        ) : (
+                          <div
+                            key={i}
+                            style={{
+                              width: 22, height: 22,
+                              borderRadius: '50%',
+                              border: `2px solid ${color}`,
+                              background: `linear-gradient(135deg, ${color}40, ${color}15)`,
+                              marginLeft: i > 0 ? -6 : 0,
+                              flexShrink: 0,
+                            }}
+                          />
+                        )
+                      ))}
+                    </div>
 
-              {/* Names + year */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 8, fontWeight: 800, color: AMBER, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>
-                  Defending Champion &middot; {defendingChampion.year}
-                </div>
-                <div style={{
-                  fontSize: 12, fontWeight: 700, color: '#fff',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                  {defendingChampion.names}
-                </div>
-              </div>
+                    {/* Names + gender label */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
+                        <span style={{ fontSize: 7, fontWeight: 800, color: AMBER, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                          {label} Champion
+                        </span>
+                        <span style={{ fontSize: 7, fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>
+                          {champion.year}
+                        </span>
+                      </div>
+                      <div style={{
+                        fontSize: 11, fontWeight: 700, color: '#fff',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>
+                        {champion.names}
+                      </div>
+                    </div>
 
-              {/* Chevron */}
-              <ChevronRightIcon size={16} color={AMBER} />
-            </div>
-          </Link>
+                    <ChevronRightIcon size={14} color={AMBER} />
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
         )}
 
         {/* ── Row 5: Live Countdown ── */}
