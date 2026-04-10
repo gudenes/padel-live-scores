@@ -1888,10 +1888,10 @@ function V3HomePageInner() {
               .from('matches')
               .select(`
                 id, round, winner_pair, status, category,
-                pair1_player1:players!matches_pair1_player1_id_fkey(name, country, avatar_url),
-                pair1_player2:players!matches_pair1_player2_id_fkey(name, country, avatar_url),
-                pair2_player1:players!matches_pair2_player1_id_fkey(name, country, avatar_url),
-                pair2_player2:players!matches_pair2_player2_id_fkey(name, country, avatar_url)
+                pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name, country, avatar_url),
+                pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name, country, avatar_url),
+                pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name, country, avatar_url),
+                pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name, country, avatar_url)
               `)
               .eq('tournament_id', previous.id)
               .in('status', ['finished', 'retired', 'walkover'])
