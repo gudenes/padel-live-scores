@@ -210,6 +210,7 @@ type PageTab = 'overview' | 'season' | 'partners' | 'matches' | 'stats'
 interface PlayerRow {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   category: string | null
   avatar_url: string | null
@@ -247,6 +248,7 @@ interface MatchRow {
 interface PartnerInfo {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   avatar_url: string | null
 }
@@ -665,7 +667,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 </span>
               )}
               <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>
-                {titleCase(player.name)}
+                {titleCase(player.display_name?.trim() || player.name)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: MUTED, fontSize: 12 }}>
                 {player.country && <FlagImg country={player.country} size={16} />}
@@ -827,7 +829,7 @@ function OverviewTab({
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {titleCase(derived.currentPartner.name)}
+                  {titleCase(derived.currentPartner.display_name?.trim() || derived.currentPartner.name)}
                 </div>
                 {cpTotal > 0 && (
                   <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
@@ -869,7 +871,7 @@ function OverviewTab({
                 const roles = resolveMatchRoles(m, playerId)
                 const won = roles.won
                 const isLatest = i === ordered.length - 1
-                const title = `${won ? 'W' : 'L'} vs ${[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.name)).join(' / ')}${m.tournament?.name ? ' · ' + titleCase(m.tournament.name) : ''}`
+                const title = `${won ? 'W' : 'L'} vs ${[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}${m.tournament?.name ? ' · ' + titleCase(m.tournament.name) : ''}`
                 return (
                   <Last10SparkBar
                     key={m.id}
@@ -1183,7 +1185,7 @@ function PartnersTab({
               <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 5 }}>
                 {partner.country && <FlagImg country={partner.country} size={13} />}
                 <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {titleCase(partner.name)}
+                  {titleCase(partner.display_name?.trim() || partner.name)}
                 </span>
               </div>
               <div style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>
@@ -1247,9 +1249,9 @@ function MatchListItem({
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {roles.partner ? `w/ ${toShortName(roles.partner.name)}` : 'Solo'}
+          {roles.partner ? `w/ ${toShortName(roles.partner.display_name?.trim() || roles.partner.name)}` : 'Solo'}
           <span style={{ color: MUTED, fontWeight: 400 }}> vs </span>
-          {[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.name)).join(' / ')}
+          {[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}
         </div>
         <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', gap: 5 }}>
           <span>{tournamentName}</span>
