@@ -1891,11 +1891,11 @@ function PlayerSquare({ player, winner, router }: { player: any; winner?: boolea
 
   const rankBadge = ranking ? (
     <div style={{
-      position: 'absolute', bottom: -3, right: -3, zIndex: 2,
-      minWidth: 18, height: 16, padding: '0 4px',
+      position: 'absolute', bottom: -2, right: -2, zIndex: 2,
+      minWidth: 14, height: 12, padding: '0 3px',
       background: PAIR2_COLOR, clipPath: CHUNKY.badge,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 9, fontWeight: 900, color: '#000',
+      fontSize: 7, fontWeight: 900, color: '#000',
       lineHeight: 1,
     }}>
       #{ranking}
