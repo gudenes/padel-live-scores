@@ -112,10 +112,8 @@ export async function GET(request: Request) {
         }
       }
 
-      // Rule 2: same country + ranking within 10 (even with different names)
-      if (sameCountry && rankDiff !== null && rankDiff <= 10) {
-        reasons.push(`Same country, ranking within ${rankDiff}`)
-      }
+      // Rule 2: same country + ranking within 10 — only if names also partially match
+      // (ranking proximity alone without name similarity is not enough to flag)
 
       if (reasons.length > 0) {
         seen.add(pairKey)
