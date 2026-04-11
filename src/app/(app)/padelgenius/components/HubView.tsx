@@ -40,261 +40,219 @@ export default function HubView({ progress, todayCompleted, onStart, onOpenAvata
   const xpToNext = next ? (next.xpRequired - progress.totalXp).toLocaleString() : '0'
 
   return (
-    <div style={{ background: '#1A1A1A', minHeight: '100vh' }}>
-      <div style={{ maxWidth: 390, margin: '0 auto' }}>
+    <div style={{
+      background: '#1A1A1A',
+      height: 'calc(100vh - 72px)',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column' as const,
+    }}>
+      <div style={{
+        maxWidth: 390,
+        margin: '0 auto',
+        width: '100%',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column' as const,
+        padding: '12px 16px 8px',
+        gap: 10,
+      }}>
 
-        {/* Header */}
+        {/* Header: avatar + title + streak */}
         <div style={{
-          padding: '20px 20px 0',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Avatar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Avatar — clickable with edit hint */}
             <button
               onClick={onOpenAvatarPicker}
+              aria-label="Customize avatar"
               style={{
-                width: 44,
-                height: 44,
+                width: 42,
+                height: 42,
                 borderRadius: 12,
                 background: `linear-gradient(135deg, ${progress.avatar.color}, ${progress.avatar.color}88)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 22,
-                border: '2px solid rgba(255,255,255,0.15)',
+                fontSize: 20,
+                border: '2px solid rgba(56,200,255,0.4)',
                 cursor: 'pointer',
                 padding: 0,
+                position: 'relative' as const,
               }}
             >
               {progress.avatar.icon}
+              {/* Edit pencil badge */}
+              <div style={{
+                position: 'absolute' as const,
+                bottom: -3,
+                right: -3,
+                width: 16,
+                height: 16,
+                borderRadius: '50%',
+                background: '#38C8FF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 8,
+                border: '2px solid #1A1A1A',
+              }}>
+                ✏️
+              </div>
             </button>
             <div>
-              <div style={{ color: '#EEE4CE', fontSize: 22, fontWeight: 800, letterSpacing: -0.5 }}>
+              <div style={{ color: '#EEE4CE', fontSize: 18, fontWeight: 800, letterSpacing: -0.5 }}>
                 PadelGenius
               </div>
-              <div style={{ color: '#6889A5', fontSize: 12, marginTop: 2 }}>
-                Learn padel, one play at a time
+              <div style={{ color: '#38C8FF', fontSize: 11, fontWeight: 600 }}>
+                Lv.{current.level} {current.title} · {progress.totalXp.toLocaleString()} XP
               </div>
             </div>
           </div>
           {/* Streak badge */}
-          {progress.streak > 0 && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: '#262626',
-              padding: '6px 12px',
-              borderRadius: 20,
-            }}>
-              <span style={{ fontSize: 16 }}>&#x1F525;</span>
-              <span style={{ color: '#FF4655', fontSize: 16, fontWeight: 800 }}>
-                {progress.streak}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Level progress card */}
-        <div style={{
-          margin: 20,
-          padding: 16,
-          background: '#262626',
-          borderRadius: 16,
-        }}>
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 10,
+            gap: 4,
+            background: progress.streak > 0 ? 'rgba(255,70,85,0.1)' : '#262626',
+            padding: '5px 10px',
+            borderRadius: 16,
+            border: progress.streak > 0 ? '1px solid rgba(255,70,85,0.2)' : '1px solid #333',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                background: `linear-gradient(135deg, ${progress.avatar.color}, ${progress.avatar.color}88)`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18,
-              }}>
-                {progress.avatar.icon}
-              </div>
-              <div>
-                <div style={{ color: '#EEE4CE', fontSize: 14, fontWeight: 700 }}>
-                  Level {current.level} &mdash; {current.title}
-                </div>
-                <div style={{ color: '#6889A5', fontSize: 11 }}>
-                  {xpText}
-                </div>
-              </div>
-            </div>
+            <span style={{ fontSize: 14 }}>🔥</span>
+            <span style={{ color: '#FF4655', fontSize: 14, fontWeight: 800 }}>
+              {progress.streak}
+            </span>
           </div>
-          {/* XP bar */}
+        </div>
+
+        {/* XP progress bar (compact, no card wrapper) */}
+        <div>
           <div style={{
-            height: 6,
+            height: 4,
             background: '#333',
-            borderRadius: 3,
+            borderRadius: 2,
             overflow: 'hidden',
           }}>
             <div style={{
               width: `${Math.round(xpProgress * 100)}%`,
               height: '100%',
               background: 'linear-gradient(90deg, #38C8FF, #7ED321)',
-              borderRadius: 3,
+              borderRadius: 2,
+              transition: 'width 700ms cubic-bezier(0.25, 0.1, 0.25, 1)',
             }} />
           </div>
+          {next && (
+            <div style={{ color: '#4A6F8E', fontSize: 10, marginTop: 3, textAlign: 'right' as const }}>
+              {(next.xpRequired - progress.totalXp).toLocaleString()} XP to Lv.{next.level}
+            </div>
+          )}
         </div>
 
-        {/* Today's theme card */}
+        {/* Today's theme card (compact) */}
         <div style={{
-          margin: '0 20px',
-          padding: 20,
+          padding: '14px 16px',
           background: 'linear-gradient(135deg, #1B4D3E 0%, #0d2e25 100%)',
-          borderRadius: 16,
+          borderRadius: 14,
           border: '1px solid rgba(126,211,33,0.2)',
           position: 'relative' as const,
           overflow: 'hidden',
+          flex: '0 0 auto',
         }}>
-          {/* Decorative circles */}
           <div style={{
-            position: 'absolute' as const,
-            top: -20,
-            right: -20,
-            width: 120,
-            height: 120,
-            borderRadius: '50%',
+            position: 'absolute' as const, top: -20, right: -20,
+            width: 80, height: 80, borderRadius: '50%',
             background: 'rgba(126,211,33,0.05)',
           }} />
-          <div style={{
-            position: 'absolute' as const,
-            bottom: -30,
-            left: -10,
-            width: 80,
-            height: 80,
-            borderRadius: '50%',
-            background: 'rgba(56,200,255,0.05)',
-          }} />
-
           <div style={{ position: 'relative' as const }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 20 }}>{theme.emoji}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 18 }}>{theme.emoji}</span>
               <span style={{
-                color: '#7ED321',
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: 'uppercase' as const,
-                letterSpacing: 1,
+                color: '#7ED321', fontSize: 10, fontWeight: 700,
+                textTransform: 'uppercase' as const, letterSpacing: 1,
               }}>
                 {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
               </span>
             </div>
-            <div style={{ color: '#EEE4CE', fontSize: 24, fontWeight: 800, marginBottom: 4 }}>
+            <div style={{ color: '#EEE4CE', fontSize: 20, fontWeight: 800, marginBottom: 2 }}>
               {theme.name}
             </div>
-            <div style={{ color: '#9AAEC4', fontSize: 13, lineHeight: 1.4 }}>
+            <div style={{ color: '#9AAEC4', fontSize: 12, lineHeight: 1.3 }}>
               {theme.description}
-            </div>
-
-            {/* Mode badges */}
-            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <div style={{
-                padding: '4px 10px',
-                background: 'rgba(56,200,255,0.15)',
-                borderRadius: 8,
-                color: '#38C8FF',
-                fontSize: 11,
-                fontWeight: 600,
-              }}>
-                3x Court Scenario
-              </div>
-              <div style={{
-                padding: '4px 10px',
-                background: 'rgba(244,114,182,0.15)',
-                borderRadius: 8,
-                color: '#F472B6',
-                fontSize: 11,
-                fontWeight: 600,
-              }}>
-                2x Court Tap
-              </div>
             </div>
           </div>
         </div>
 
         {/* CTA Button */}
-        <div style={{ margin: 20 }}>
-          {todayCompleted ? (
-            <div style={{
-              padding: 16,
-              background: '#262626',
-              borderRadius: 14,
-              textAlign: 'center' as const,
-              opacity: 0.7,
-            }}>
-              <div style={{ color: '#7ED321', fontSize: 17, fontWeight: 800 }}>
-                Challenge Completed &#10003;
-              </div>
-              <div style={{ color: '#6889A5', fontSize: 12, marginTop: 2 }}>
-                Come back tomorrow for more
-              </div>
+        {todayCompleted ? (
+          <div style={{
+            padding: 12,
+            background: '#262626',
+            borderRadius: 12,
+            textAlign: 'center' as const,
+            opacity: 0.7,
+          }}>
+            <div style={{ color: '#7ED321', fontSize: 15, fontWeight: 800 }}>
+              Challenge Completed ✓
             </div>
-          ) : (
-            <button
-              onClick={onStart}
-              style={{
-                width: '100%',
-                padding: 16,
-                background: 'linear-gradient(135deg, #38C8FF, #2ba8d9)',
-                borderRadius: 14,
-                textAlign: 'center' as const,
-                cursor: 'pointer',
-                boxShadow: '0 4px 20px rgba(56,200,255,0.3)',
-                border: 'none',
-              }}
-            >
-              <div style={{ color: '#fff', fontSize: 17, fontWeight: 800 }}>
-                Start Today&#39;s Challenge
-              </div>
-              <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
-                5 questions &middot; ~3 min
-              </div>
-            </button>
-          )}
-        </div>
+            <div style={{ color: '#6889A5', fontSize: 11, marginTop: 1 }}>
+              Come back tomorrow for more
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={onStart}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              background: 'linear-gradient(135deg, #38C8FF, #2ba8d9)',
+              borderRadius: 12,
+              textAlign: 'center' as const,
+              cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(56,200,255,0.3)',
+              border: 'none',
+            }}
+          >
+            <div style={{ color: '#fff', fontSize: 16, fontWeight: 800 }}>
+              Start Today&#39;s Challenge
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 1 }}>
+              5 questions · ~3 min
+            </div>
+          </button>
+        )}
 
         {/* Stats row */}
         <div style={{
           display: 'flex',
-          gap: 12,
-          margin: '0 20px 20px',
+          gap: 8,
           textAlign: 'center' as const,
         }}>
-          <div style={{ flex: 1, padding: '14px 8px', background: '#262626', borderRadius: 12 }}>
-            <div style={{ color: '#EEE4CE', fontSize: 20, fontWeight: 800 }}>
+          <div style={{ flex: 1, padding: '10px 6px', background: '#262626', borderRadius: 10 }}>
+            <div style={{ color: '#EEE4CE', fontSize: 18, fontWeight: 800 }}>
               {progress.answeredAll.length}
             </div>
-            <div style={{ color: '#6889A5', fontSize: 11 }}>Questions</div>
+            <div style={{ color: '#6889A5', fontSize: 10 }}>Questions</div>
           </div>
-          <div style={{ flex: 1, padding: '14px 8px', background: '#262626', borderRadius: 12 }}>
-            <div style={{ color: '#7ED321', fontSize: 20, fontWeight: 800 }}>
+          <div style={{ flex: 1, padding: '10px 6px', background: '#262626', borderRadius: 10 }}>
+            <div style={{ color: '#7ED321', fontSize: 18, fontWeight: 800 }}>
               {accuracy}%
             </div>
-            <div style={{ color: '#6889A5', fontSize: 11 }}>Accuracy</div>
+            <div style={{ color: '#6889A5', fontSize: 10 }}>Accuracy</div>
           </div>
-          <div style={{ flex: 1, padding: '14px 8px', background: '#262626', borderRadius: 12 }}>
-            <div style={{ color: '#FF4655', fontSize: 20, fontWeight: 800 }}>
+          <div style={{ flex: 1, padding: '10px 6px', background: '#262626', borderRadius: 10 }}>
+            <div style={{ color: '#FF4655', fontSize: 18, fontWeight: 800 }}>
               {progress.bestStreak}
             </div>
-            <div style={{ color: '#6889A5', fontSize: 11 }}>Best Streak</div>
+            <div style={{ color: '#6889A5', fontSize: 10 }}>Best Streak</div>
           </div>
         </div>
 
-        {/* WeekStrip */}
-        <div style={{ margin: '0 20px 24px' }}>
+        {/* WeekStrip — pushed to bottom */}
+        <div style={{ marginTop: 'auto' }}>
           <WeekStrip completedDays={completedDays} />
         </div>
 

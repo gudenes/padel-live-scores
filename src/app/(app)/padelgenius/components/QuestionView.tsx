@@ -46,8 +46,22 @@ export default function QuestionView({
   const canConfirm = isTapMode ? tapPoint !== null : selectedOption !== null
 
   return (
-    <div style={{ background: '#111', minHeight: '100vh' }}>
-      <div style={{ maxWidth: 390, margin: '0 auto', position: 'relative' as const }}>
+    <div style={{
+      background: '#111',
+      height: 'calc(100vh - 72px)',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column' as const,
+    }}>
+      <div style={{
+        maxWidth: 390,
+        margin: '0 auto',
+        width: '100%',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column' as const,
+        position: 'relative' as const,
+      }}>
 
         {/* Top bar */}
         <div style={{
@@ -118,8 +132,8 @@ export default function QuestionView({
           </div>
         )}
 
-        {/* Court */}
-        <div style={{ padding: '0 12px' }}>
+        {/* Court — fills remaining space, constrained so question panel fits */}
+        <div style={{ padding: '0 8px', flex: '1 1 0', minHeight: 0, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
           <CourtView
             court={question.court}
             avatarColor={avatarColor}
@@ -132,33 +146,31 @@ export default function QuestionView({
         {/* Question panel for court-scenario / rules-card */}
         {!isTapMode && (
           <div style={{
-            background: 'linear-gradient(180deg, rgba(26,26,26,0) 0%, #1A1A1A 15%)',
-            padding: '20px 16px 16px',
-            marginTop: -20,
-            position: 'relative' as const,
+            padding: '8px 12px 0',
+            flex: '0 0 auto',
           }}>
             {/* Question text */}
-            <div style={{ textAlign: 'center' as const, marginBottom: 14 }}>
+            <div style={{ textAlign: 'center' as const, marginBottom: 8 }}>
               <p style={{
                 color: '#EEE4CE',
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: 700,
-                margin: '0 0 4px',
+                margin: '0 0 2px',
                 lineHeight: 1.3,
               }}>
                 {question.question}
               </p>
               {question.context && (
-                <p style={{ color: '#9AAEC4', fontSize: 13, margin: 0 }}>
+                <p style={{ color: '#9AAEC4', fontSize: 11, margin: 0 }}>
                   {question.context}
                 </p>
               )}
             </div>
 
-            {/* Answer options */}
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 8 }}>
+            {/* Answer options — compact */}
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 6 }}>
               {question.options?.map((opt, i) => {
-                const letter = String.fromCharCode(65 + i) // A, B, C
+                const letter = String.fromCharCode(65 + i)
                 const isSelected = selectedOption === opt.id
 
                 return (
@@ -168,49 +180,39 @@ export default function QuestionView({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 12,
-                      padding: '13px 14px',
+                      gap: 10,
+                      padding: '10px 12px',
                       background: '#1F1F1F',
-                      borderRadius: 12,
+                      borderRadius: 10,
                       border: isSelected
                         ? '2px solid #38C8FF'
                         : '2px solid transparent',
                       cursor: 'pointer',
                       textAlign: 'left' as const,
-                      boxShadow: isSelected
-                        ? '0 0 12px rgba(56,200,255,0.1)'
-                        : 'none',
                     }}
                   >
                     <div style={{
-                      width: 30,
-                      height: 30,
+                      width: 26,
+                      height: 26,
                       borderRadius: '50%',
-                      background: '#38C8FF',
+                      background: isSelected ? '#38C8FF' : '#333',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontWeight: 800,
                       color: '#fff',
-                      fontSize: 13,
+                      fontSize: 12,
                       flexShrink: 0,
                     }}>
                       {letter}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ color: '#EEE4CE', fontWeight: 600, fontSize: 14 }}>
+                      <div style={{ color: '#EEE4CE', fontWeight: 600, fontSize: 13 }}>
                         {opt.emoji ? `${opt.emoji} ` : ''}{opt.label}
                       </div>
-                      {opt.description && (
-                        <div style={{ color: '#6889A5', fontSize: 11 }}>
-                          {opt.description}
-                        </div>
-                      )}
                     </div>
                     {isSelected && (
-                      <div style={{ marginLeft: 'auto', color: '#38C8FF', fontSize: 16 }}>
-                        &#10003;
-                      </div>
+                      <div style={{ color: '#38C8FF', fontSize: 14 }}>✓</div>
                     )}
                   </button>
                 )
@@ -229,7 +231,7 @@ export default function QuestionView({
         )}
 
         {/* Confirm button */}
-        <div style={{ padding: '12px 16px 20px' }}>
+        <div style={{ padding: '8px 12px 8px' }}>
           <button
             onClick={handleConfirm}
             disabled={!canConfirm}

@@ -321,14 +321,23 @@ function Ball({ x, y, trajectory }: {
 
   return (
     <g>
-      {/* Ball shadow on court */}
-      <ellipse cx={bx + 3} cy={by + ballR * 4} rx={ballR * 1.5} ry={ballR * 0.5} fill="rgba(0,0,0,0.2)" />
-      {/* Ball glow */}
-      <circle cx={bx} cy={by} r={ballR * 2.5} fill="rgba(204,255,0,0.08)" filter="url(#crt-ballGlow)" />
-      {/* The ball */}
-      <circle cx={bx} cy={by} r={ballR} fill="#CCFF00" stroke="#88aa00" strokeWidth={1.5} />
+      {/* Ball shadow on court — pulses with ball */}
+      <ellipse cx={bx + 3} cy={by + ballR * 4} rx={ballR * 1.5} ry={ballR * 0.5} fill="rgba(0,0,0,0.2)">
+        <animate attributeName="ry" values={`${ballR * 0.4};${ballR * 0.6};${ballR * 0.4}`} dur="2s" repeatCount="indefinite" />
+      </ellipse>
+      {/* Ball glow — pulsing */}
+      <circle cx={bx} cy={by} r={ballR * 2.5} fill="rgba(204,255,0,0.08)" filter="url(#crt-ballGlow)">
+        <animate attributeName="r" values={`${ballR * 2};${ballR * 3.5};${ballR * 2}`} dur="1.5s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.06;0.14;0.06" dur="1.5s" repeatCount="indefinite" />
+      </circle>
+      {/* The ball — gentle float */}
+      <circle cx={bx} cy={by} r={ballR} fill="#CCFF00" stroke="#88aa00" strokeWidth={1.5}>
+        <animate attributeName="cy" values={`${by};${by - 3};${by}`} dur="2s" repeatCount="indefinite" />
+      </circle>
       {/* Highlight */}
-      <circle cx={bx - ballR * 0.25} cy={by - ballR * 0.2} r={ballR * 0.3} fill="rgba(255,255,255,0.4)" />
+      <circle cx={bx - ballR * 0.25} cy={by - ballR * 0.2} r={ballR * 0.3} fill="rgba(255,255,255,0.4)">
+        <animate attributeName="cy" values={`${by - ballR * 0.2};${by - ballR * 0.2 - 3};${by - ballR * 0.2}`} dur="2s" repeatCount="indefinite" />
+      </circle>
       {/* Seam */}
       <path
         d={`M${bx - ballR * 0.6},${by - ballR * 0.3} Q${bx},${by - ballR * 0.8} ${bx + ballR * 0.6},${by - ballR * 0.3}`}
@@ -380,8 +389,12 @@ function TapMarker({ x, y, isCorrect }: { x: number; y: number; isCorrect?: bool
   const color = isCorrect === true ? '#7ED321' : isCorrect === false ? '#FF4655' : '#38C8FF'
   return (
     <g>
-      <circle cx={sx} cy={sy} r={14} fill="none" stroke={color} strokeWidth={2.5} opacity={0.8} />
-      <circle cx={sx} cy={sy} r={5} fill={color} opacity={0.6} />
+      {/* Expanding ripple */}
+      <circle cx={sx} cy={sy} r={14} fill="none" stroke={color} strokeWidth={2} opacity={0.6}>
+        <animate attributeName="r" from="6" to="22" dur="1s" repeatCount="indefinite" />
+        <animate attributeName="opacity" from="0.7" to="0" dur="1s" repeatCount="indefinite" />
+      </circle>
+      <circle cx={sx} cy={sy} r={6} fill={color} stroke="#fff" strokeWidth={2} opacity={0.9} />
     </g>
   )
 }
@@ -393,7 +406,9 @@ function CorrectZoneMarker({ x, y, radius }: { x: number; y: number; radius: num
   const r = radius * scale * 3
   return (
     <g>
-      <circle cx={sx} cy={sy} r={r} fill="rgba(126,211,33,0.12)" stroke="#7ED321" strokeWidth={2} strokeDasharray="6 3" />
+      <circle cx={sx} cy={sy} r={r} fill="rgba(126,211,33,0.12)" stroke="#7ED321" strokeWidth={2} strokeDasharray="6 3">
+        <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite" />
+      </circle>
       <circle cx={sx} cy={sy} r={4} fill="#7ED321" opacity={0.7} />
     </g>
   )
@@ -464,7 +479,7 @@ export default function CourtView({
     <svg
       ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
-      style={{ width: '100%', display: 'block', cursor: tapMode ? 'crosshair' : 'default' }}
+      style={{ width: '100%', height: '100%', maxHeight: '100%', display: 'block', cursor: tapMode ? 'crosshair' : 'default' }}
       onClick={handleClick}
     >
       <CourtDefs />
@@ -512,14 +527,29 @@ export default function CourtView({
         const [px, py] = toSvg(p.x, p.y)
         const scale = playerScale(p.y)
         return (
-          <ChibiPlayer
-            key={p.role}
-            role={p.role}
-            x={px}
-            y={py}
-            scale={scale}
-            jerseyColor={p.role === 'you' ? avatarColor : undefined}
-          />
+          <g key={p.role}>
+            {/* Pulsing glow ring under "YOU" */}
+            {p.role === 'you' && (
+              <>
+                <circle cx={px} cy={py + 10 * scale} r={22 * scale} fill="none"
+                  stroke="rgba(56,200,255,0.2)" strokeWidth={2}>
+                  <animate attributeName="r" values={`${18 * scale};${28 * scale};${18 * scale}`} dur="2.5s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.25;0.08;0.25" dur="2.5s" repeatCount="indefinite" />
+                </circle>
+                <ellipse cx={px} cy={py + 14 * scale} rx={20 * scale} ry={6 * scale}
+                  fill="rgba(56,200,255,0.08)">
+                  <animate attributeName="rx" values={`${18 * scale};${24 * scale};${18 * scale}`} dur="2.5s" repeatCount="indefinite" />
+                </ellipse>
+              </>
+            )}
+            <ChibiPlayer
+              role={p.role}
+              x={px}
+              y={py}
+              scale={scale}
+              jerseyColor={p.role === 'you' ? avatarColor : undefined}
+            />
+          </g>
         )
       })}
 
