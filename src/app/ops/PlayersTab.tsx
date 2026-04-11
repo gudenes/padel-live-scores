@@ -134,6 +134,8 @@ export default function PlayersTab() {
   const [dupScanned, setDupScanned] = useState(0)
   const [dupShowPanel, setDupShowPanel] = useState(false)
   const [dupDismissed, setDupDismissed] = useState<Set<string>>(new Set())
+  const [dupMerging, setDupMerging] = useState<Set<string>>(new Set()) // groups currently being merged
+  const [dupMerged, setDupMerged] = useState<Set<string>>(new Set())   // groups successfully merged
 
   const runDupScan = useCallback(async () => {
     setDupScanning(true)
@@ -150,6 +152,46 @@ export default function PlayersTab() {
     } catch { /* ignore */ }
     setDupScanning(false)
   }, [categoryFilter])
+
+  // Direct merge from scan results — no intermediate step
+  const directMergeFromDup = useCallback(async (keepPlayer: DupGroup['players'][0], deletePlayer: DupGroup['players'][0], groupKey: string) => {
+    setDupMerging(prev => { const s = new Set(prev); s.add(groupKey); return s })
+    try {
+      // Build merged fields: for each field, pick the non-null value from keep, fallback to delete
+      const mergedFields: Record<string, unknown> = {}
+      const fieldKeys = ['name', 'country', 'category', 'ranking', 'points', 'fip_id', 'external_id', 'avatar_url'] as const
+      for (const key of fieldKeys) {
+        const keepVal = keepPlayer[key as keyof typeof keepPlayer]
+        const delVal = deletePlayer[key as keyof typeof deletePlayer]
+        // Use keep's value if present, otherwise take delete's value
+        if (keepVal != null && keepVal !== '') {
+          mergedFields[key] = keepVal
+        } else if (delVal != null && delVal !== '') {
+          mergedFields[key] = delVal
+        }
+      }
+
+      const res = await fetch('/api/ops/players/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keepId: keepPlayer.id, deleteId: deletePlayer.id, mergedFields }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setDupMerged(prev => { const s = new Set(prev); s.add(groupKey); return s })
+        console.log(`[Dup Merge] Kept ${keepPlayer.name}, deleted ${deletePlayer.name}. Matches updated: ${data.matchesUpdated}, draws: ${data.drawsUpdated}`)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        console.error('[Dup Merge] Failed:', err.error ?? res.status)
+        alert(`Merge failed: ${err.error ?? 'Unknown error'}`)
+      }
+    } catch (e) {
+      console.error('[Dup Merge] Error:', e)
+      alert('Merge failed — check console')
+    }
+    setDupMerging(prev => { const s = new Set(prev); s.delete(groupKey); return s })
+  }, [])
 
   // When user clicks a dup group player, load their detail for merge
   const startMergeFromDup = useCallback(async (keepId: string, deleteId: string) => {
@@ -515,7 +557,42 @@ export default function PlayersTab() {
                     })}
                   </div>
                   {/* Actions */}
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  {dupMerged.has(groupKey) ? (
+                    <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Merged successfully</div>
+                  ) : (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                    <button
+                      onClick={() => {
+                        const keep = recommended === 'a' ? a : b
+                        const del = recommended === 'a' ? b : a
+                        directMergeFromDup(keep, del, groupKey)
+                      }}
+                      disabled={dupMerging.has(groupKey)}
+                      style={{
+                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                        border: 'none', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
+                        background: '#22c55e', color: '#fff',
+                        opacity: dupMerging.has(groupKey) ? 0.6 : 1,
+                      }}
+                    >
+                      {dupMerging.has(groupKey) ? 'Merging...' : `⚡ Quick merge → keep ${recommended === 'a' ? 'A' : 'B'}`}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const keep = recommended === 'a' ? b : a
+                        const del = recommended === 'a' ? a : b
+                        directMergeFromDup(keep, del, groupKey)
+                      }}
+                      disabled={dupMerging.has(groupKey)}
+                      style={{
+                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                        border: '1px solid #d1d5db', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
+                        background: '#fff', color: '#333',
+                        opacity: dupMerging.has(groupKey) ? 0.6 : 1,
+                      }}
+                    >
+                      Keep {recommended === 'a' ? 'B' : 'A'} instead
+                    </button>
                     <button
                       onClick={() => {
                         const keepId = recommended === 'a' ? a.id : b.id
@@ -523,29 +600,17 @@ export default function PlayersTab() {
                         startMergeFromDup(keepId, deleteId)
                         setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })
                       }}
+                      disabled={dupMerging.has(groupKey)}
                       style={{
                         fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                        border: 'none', cursor: 'pointer', background: '#22c55e', color: '#fff',
+                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#666',
                       }}
                     >
-                      Merge → keep {recommended === 'a' ? 'A' : 'B'} (richer)
-                    </button>
-                    <button
-                      onClick={() => {
-                        const keepId = recommended === 'a' ? b.id : a.id
-                        const deleteId = recommended === 'a' ? a.id : b.id
-                        startMergeFromDup(keepId, deleteId)
-                        setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })
-                      }}
-                      style={{
-                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#333',
-                      }}
-                    >
-                      Merge → keep {recommended === 'a' ? 'B' : 'A'}
+                      Review fields...
                     </button>
                     <button
                       onClick={() => setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })}
+                      disabled={dupMerging.has(groupKey)}
                       style={{
                         fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
                         border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#999',
@@ -554,6 +619,7 @@ export default function PlayersTab() {
                       Dismiss
                     </button>
                   </div>
+                  )}
                 </div>
               )
             })}
