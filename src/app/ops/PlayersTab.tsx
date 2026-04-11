@@ -128,6 +128,8 @@ export default function PlayersTab() {
   interface DupGroup {
     reasons: string[]
     players: { id: string; name: string; country: string | null; ranking: number | null; points: number | null; category: string | null; avatar_url: string | null; fip_id: string | null; external_id: string | null }[]
+    aiVerified?: boolean
+    mergeGuidance?: string
   }
   const [dupGroups, setDupGroups] = useState<DupGroup[]>([])
   const [dupScanning, setDupScanning] = useState(false)
@@ -137,12 +139,18 @@ export default function PlayersTab() {
   const [dupMerging, setDupMerging] = useState<Set<string>>(new Set()) // groups currently being merged
   const [dupMerged, setDupMerged] = useState<Set<string>>(new Set())   // groups successfully merged
 
-  const runDupScan = useCallback(async () => {
+  const [dupMode, setDupMode] = useState<'rules' | 'ai'>('rules')
+
+  const runDupScan = useCallback(async (mode: 'rules' | 'ai' = 'rules') => {
     setDupScanning(true)
     setDupDismissed(new Set())
+    setDupMerged(new Set())
+    setDupMode(mode)
     try {
-      const catParam = categoryFilter !== 'all' ? `?category=${categoryFilter}` : ''
-      const res = await fetch(`/api/ops/duplicate-scan${catParam}`)
+      const params = new URLSearchParams()
+      if (categoryFilter !== 'all') params.set('category', categoryFilter)
+      params.set('mode', mode)
+      const res = await fetch(`/api/ops/duplicate-scan?${params}`)
       if (res.ok) {
         const data = await res.json()
         setDupGroups(data.groups ?? [])
@@ -474,16 +482,28 @@ export default function PlayersTab() {
         </div>
         {searching && <span style={{ fontSize: 10, color: '#999' }}>Searching...</span>}
         <button
-          onClick={runDupScan}
+          onClick={() => runDupScan('rules')}
           disabled={dupScanning}
           style={{
             padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: dupScanning ? 'default' : 'pointer',
             border: '1px solid #fbbf24', borderRadius: 4,
-            background: dupShowPanel ? '#fef3c7' : '#fffbeb', color: '#92400e',
+            background: dupShowPanel && dupMode === 'rules' ? '#fef3c7' : '#fffbeb', color: '#92400e',
             opacity: dupScanning ? 0.6 : 1, whiteSpace: 'nowrap' as const,
           }}
         >
-          {dupScanning ? 'Scanning...' : '⚠️ Scan Duplicates'}
+          {dupScanning && dupMode === 'rules' ? 'Scanning...' : '⚠️ Rules Scan'}
+        </button>
+        <button
+          onClick={() => runDupScan('ai')}
+          disabled={dupScanning}
+          style={{
+            padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: dupScanning ? 'default' : 'pointer',
+            border: '1px solid #8b5cf6', borderRadius: 4,
+            background: dupShowPanel && dupMode === 'ai' ? '#ede9fe' : '#f5f3ff', color: '#6d28d9',
+            opacity: dupScanning ? 0.6 : 1, whiteSpace: 'nowrap' as const,
+          }}
+        >
+          {dupScanning && dupMode === 'ai' ? '🤖 AI Scanning...' : '🤖 AI Scan'}
         </button>
       </div>
 
@@ -556,6 +576,15 @@ export default function PlayersTab() {
                       )
                     })}
                   </div>
+                  {/* AI merge guidance */}
+                  {group.mergeGuidance && (
+                    <div style={{
+                      padding: '6px 10px', background: '#f5f3ff', borderRadius: 4,
+                      border: '1px solid #ddd6fe', marginBottom: 8, fontSize: 11, color: '#5b21b6',
+                    }}>
+                      <span style={{ fontWeight: 700 }}>🤖 AI recommendation:</span> {group.mergeGuidance}
+                    </div>
+                  )}
                   {/* Actions */}
                   {dupMerged.has(groupKey) ? (
                     <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Merged successfully</div>

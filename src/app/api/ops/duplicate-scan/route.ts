@@ -1,12 +1,13 @@
 // src/app/api/ops/duplicate-scan/route.ts
 // Scans the players table for potential duplicates.
-// Rules:
-//   1. Same normalized first name + surname + same country
-//   2. Same country + ranking within 10 positions
+// Two modes:
+//   ?mode=rules (default) — fast rule-based scan
+//   ?mode=ai — sends players to Claude grouped by country for full AI-driven dedup
 // Auth: reads ops_token cookie
 
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import Anthropic from '@anthropic-ai/sdk'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,16 +49,173 @@ interface PlayerRow {
 interface DuplicateGroup {
   reasons: string[]
   players: PlayerRow[]
+  aiVerified?: boolean
+  mergeGuidance?: string // AI recommendation on which to keep and why
 }
+
+// ── Rule-based scan ─────────────────────────────────────────────
+
+function findRuleBasedDuplicates(players: PlayerRow[]): DuplicateGroup[] {
+  const seen = new Set<string>()
+  const groups: DuplicateGroup[] = []
+
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      const a = players[i]
+      const b = players[j]
+      const pairKey = [a.id, b.id].sort().join('|')
+      if (seen.has(pairKey)) continue
+
+      const tokA = nameTokens(a.name)
+      const tokB = nameTokens(b.name)
+
+      const sameFirstLetter = tokA.first && tokB.first && tokA.first[0] === tokB.first[0]
+      if (!sameFirstLetter) continue
+      const sameSurname = tokA.surname && tokB.surname && tokA.surname === tokB.surname
+      if (!sameSurname) continue
+      const sameCountry = a.country && b.country && a.country === b.country
+      if (!sameCountry) continue
+
+      const bothRanked = a.ranking !== null && b.ranking !== null
+      if (bothRanked) {
+        const rankDiff = Math.abs(a.ranking! - b.ranking!)
+        if (rankDiff > 10) continue
+        groups.push({ reasons: [`Same surname + country (rank diff: ${rankDiff})`], players: [a, b] })
+      } else {
+        groups.push({ reasons: ['Same surname + country'], players: [a, b] })
+      }
+      seen.add(pairKey)
+    }
+  }
+
+  return groups
+}
+
+// ── AI-driven scan ──────────────────────────────────────────────
+
+async function findAiDuplicates(players: PlayerRow[]): Promise<DuplicateGroup[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    return [{ reasons: ['ERROR: ANTHROPIC_API_KEY not set'], players: [] }]
+  }
+
+  const anthropic = new Anthropic({ apiKey })
+
+  // Group players by country for manageable batches
+  const byCountry = new Map<string, PlayerRow[]>()
+  for (const p of players) {
+    const key = p.country ?? '_unknown'
+    const list = byCountry.get(key) || []
+    list.push(p)
+    byCountry.set(key, list)
+  }
+
+  const allGroups: DuplicateGroup[] = []
+
+  // Process each country group (skip if only 1 player)
+  for (const [country, countryPlayers] of byCountry) {
+    if (countryPlayers.length < 2) continue
+
+    // Batch: send up to 150 players per Claude call
+    const batchSize = 150
+    for (let offset = 0; offset < countryPlayers.length; offset += batchSize) {
+      const batch = countryPlayers.slice(offset, offset + batchSize)
+      if (batch.length < 2) continue
+
+      const playerList = batch.map((p, i) => (
+        `${i + 1}. "${p.name}" | ID: ${p.id.slice(0, 8)} | Rank: ${p.ranking ?? '-'} | Pts: ${p.points ?? '-'} | Cat: ${p.category ?? '-'} | FIP: ${p.fip_id ?? '-'}`
+      )).join('\n')
+
+      console.log(`[Dup AI] Scanning ${batch.length} players from ${country}`)
+
+      try {
+        const message = await anthropic.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4000,
+          system: `You are a padel player database deduplication expert. You will receive a list of players from the same country. Find ALL pairs that are likely the SAME real person appearing as duplicate entries.
+
+Look for:
+- Name variations: nicknames (Ale = Alejandro, Bela = Fernando Belasteguin), abbreviations (J. = Juan), initials
+- Reversed name order: "Garcia Juan" vs "Juan Garcia"
+- Middle names included/omitted: "Juan Pablo Garcia" vs "Juan Garcia"
+- Accent/spelling variations: "González" vs "Gonzalez"
+- Compound surnames: "De la Fuente" vs "Fuente"
+- Same FIP ID = definitely same person
+- Different categories (men vs women) = definitely different people, never flag these
+
+For each duplicate pair, explain:
+- WHY you think they're the same person
+- WHICH record to KEEP (the one with more data: ranking, FIP ID, points) and why
+- What fields to preserve from the record being deleted
+
+Return ONLY valid JSON, no markdown:
+{ "duplicates": [
+  {
+    "playerA_index": number,
+    "playerB_index": number,
+    "confidence": "high" | "medium" | "low",
+    "reason": "brief explanation",
+    "keep": "A" | "B",
+    "mergeGuidance": "Keep B (has ranking #45 + FIP ID). Preserve name spelling from A."
+  }
+] }
+
+If no duplicates found, return: { "duplicates": [] }`,
+          messages: [{
+            role: 'user',
+            content: `Find duplicate players in this list (country: ${country}, ${batch.length} players):\n\n${playerList}`,
+          }],
+        })
+
+        const raw = message.content[0].type === 'text' ? message.content[0].text : '{"duplicates":[]}'
+
+        const parsed = JSON.parse(raw) as {
+          duplicates: {
+            playerA_index: number
+            playerB_index: number
+            confidence: string
+            reason: string
+            keep: 'A' | 'B'
+            mergeGuidance: string
+          }[]
+        }
+
+        for (const dup of parsed.duplicates) {
+          const idxA = dup.playerA_index - 1
+          const idxB = dup.playerB_index - 1
+          if (idxA < 0 || idxA >= batch.length || idxB < 0 || idxB >= batch.length) continue
+
+          // Order players so the recommended "keep" is first
+          const keepFirst = dup.keep === 'A'
+            ? [batch[idxA], batch[idxB]]
+            : [batch[idxB], batch[idxA]]
+
+          allGroups.push({
+            reasons: [`AI (${dup.confidence}): ${dup.reason}`],
+            players: keepFirst,
+            aiVerified: true,
+            mergeGuidance: dup.mergeGuidance,
+          })
+        }
+      } catch (err) {
+        console.error(`[Dup AI] Error processing ${country}:`, err)
+      }
+    }
+  }
+
+  return allGroups
+}
+
+// ── Main handler ────────────────────────────────────────────────
 
 export async function GET(request: Request) {
   const authErr = await checkOpsAuth()
   if (authErr) return authErr
 
   const url = new URL(request.url)
-  const category = url.searchParams.get('category') // optional: 'men' | 'women'
+  const category = url.searchParams.get('category')
+  const mode = url.searchParams.get('mode') || 'rules'
 
-  // Fetch all players (with ranking or recently created — cap at 5000 for performance)
   let query = supabase
     .from('players')
     .select('id, name, country, ranking, points, category, avatar_url, fip_id, external_id')
@@ -73,66 +231,19 @@ export async function GET(request: Request) {
     return Response.json({ error: error.message }, { status: 500 })
   }
   if (!players || players.length === 0) {
-    return Response.json({ groups: [], scanned: 0 })
+    return Response.json({ groups: [], scanned: 0, mode })
   }
 
-  // Build duplicate groups
-  const seen = new Set<string>() // track pair keys to avoid duplicate groups
-  const groups: DuplicateGroup[] = []
+  const groups = mode === 'ai'
+    ? await findAiDuplicates(players)
+    : findRuleBasedDuplicates(players)
 
-  for (let i = 0; i < players.length; i++) {
-    for (let j = i + 1; j < players.length; j++) {
-      const a = players[i]
-      const b = players[j]
-      const pairKey = [a.id, b.id].sort().join('|')
-      if (seen.has(pairKey)) continue
-
-      const reasons: string[] = []
-
-      const tokA = nameTokens(a.name)
-      const tokB = nameTokens(b.name)
-
-      // 1. First letter of first name must match
-      const sameFirstLetter = tokA.first && tokB.first && tokA.first[0] === tokB.first[0]
-      if (!sameFirstLetter) continue
-
-      // 2. Surname must be exact match
-      const sameSurname = tokA.surname && tokB.surname && tokA.surname === tokB.surname
-      if (!sameSurname) continue
-
-      // 3. Country must be the same
-      const sameCountry = a.country && b.country && a.country === b.country
-      if (!sameCountry) continue
-
-      // 4. If both have rankings, difference must be ≤ 10
-      const bothRanked = a.ranking !== null && b.ranking !== null
-      if (bothRanked) {
-        const rankDiff = Math.abs(a.ranking! - b.ranking!)
-        if (rankDiff > 10) continue
-        reasons.push(`Same surname + country (rank diff: ${rankDiff})`)
-      } else {
-        reasons.push('Same surname + country')
-      }
-
-      if (reasons.length > 0) {
-        seen.add(pairKey)
-        groups.push({ reasons, players: [a, b] })
-      }
-    }
-  }
-
-  // Sort: by best ranking in the group (top-ranked duplicates first), then name matches before ranking-only
+  // Sort by ranking
   groups.sort((a, b) => {
     const bestRankA = Math.min(...a.players.map(p => p.ranking ?? 99999))
     const bestRankB = Math.min(...b.players.map(p => p.ranking ?? 99999))
-    if (bestRankA !== bestRankB) return bestRankA - bestRankB
-    // Same ranking tier — name matches first
-    const aHasName = a.reasons.some(r => r.includes('name'))
-    const bHasName = b.reasons.some(r => r.includes('name'))
-    if (aHasName && !bHasName) return -1
-    if (!aHasName && bHasName) return 1
-    return 0
+    return bestRankA - bestRankB
   })
 
-  return Response.json({ groups, scanned: players.length })
+  return Response.json({ groups, scanned: players.length, mode })
 }
