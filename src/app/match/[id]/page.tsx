@@ -895,7 +895,6 @@ function PlayerNameLink({ player, dim, muted, bold, router, style }: {
     >
       {player?.country && <FlagImg country={player.country} size={14} />}
       {toShortName(player?.display_name ?? player?.name ?? 'TBD')}
-      {player?.id && <FollowButton type="player" targetId={player.id} variant="heart" size={14} />}
     </div>
   )
 }
@@ -1888,12 +1887,32 @@ function PlayerSquare({ player, winner, router }: { player: any; winner?: boolea
   const bg = winner ? 'rgba(126,211,33,0.05)' : '#0A1A2A'
   const handleClick = player?.id ? (e: React.MouseEvent) => { e.stopPropagation(); router.push(`/player/${player.id}`) } : undefined
   const cursor = player?.id ? 'pointer' : 'default'
+  const ranking = player?.ranking
+
+  const rankBadge = ranking ? (
+    <div style={{
+      position: 'absolute', bottom: -3, right: -3, zIndex: 2,
+      minWidth: 18, height: 16, padding: '0 4px',
+      background: GREEN, clipPath: CHUNKY.badge,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 9, fontWeight: 900, color: '#000',
+      lineHeight: 1,
+    }}>
+      {ranking}
+    </div>
+  ) : null
+
   if (!player) return <div style={{ width: 56, height: 56, clipPath: CHUNKY.card, background: bg, border, flexShrink: 0 }} />
-  return player.avatar_url && !imgError ? (
-    <img onClick={handleClick} src={player.avatar_url} alt={player.name} style={{ width: 56, height: 56, clipPath: CHUNKY.card, objectFit: 'cover', flexShrink: 0, border, cursor }} onError={() => setImgError(true)} />
-  ) : (
-    <div onClick={handleClick} style={{ width: 56, height: 56, clipPath: CHUNKY.card, background: bg, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: winner ? 'rgba(126,211,33,0.7)' : '#4A6A8A', fontWeight: 700, border, cursor }}>
-      {initials}
+  return (
+    <div style={{ position: 'relative', flexShrink: 0 }}>
+      {player.avatar_url && !imgError ? (
+        <img onClick={handleClick} src={player.avatar_url} alt={player.name} style={{ width: 56, height: 56, clipPath: CHUNKY.card, objectFit: 'cover', border, cursor, display: 'block' }} onError={() => setImgError(true)} />
+      ) : (
+        <div onClick={handleClick} style={{ width: 56, height: 56, clipPath: CHUNKY.card, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: winner ? 'rgba(126,211,33,0.7)' : '#4A6A8A', fontWeight: 700, border, cursor }}>
+          {initials}
+        </div>
+      )}
+      {rankBadge}
     </div>
   )
 }
