@@ -18,7 +18,23 @@ import { isTournamentGated } from '@/lib/tournament-utils'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import { reportBatchFailures } from '@/lib/supabase-health'
 
-import { GREEN, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, MEN_BLUE, WOMEN_PURPLE, BG_SUBTLE, TEXT_LOSER, CHUNKY } from '@/lib/theme-colors'
+// ── Brand colors ───────────────────────────────────────────────
+const GREEN = '#7ED321'
+const ORANGE = '#F5A623'
+const LIVE_RED = '#FF4655'
+const BG_BASE = '#1A1A1A'
+const BG_CARD = '#141414'
+const MUTED = '#6B7280'
+const BORDER = 'rgba(255,255,255,0.06)'
+const MEN_BLUE = '#4A9EFF'
+const WOMEN_PURPLE = '#D966FF'
+
+// ── Chunky clip-path presets ───────────────────────────────────
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -346,7 +362,7 @@ function V3MatchRow({ match }: { match: Match }) {
                     <span key={s.id} style={{
                       position: 'relative',
                       fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
-                      color: isCurrent && isLive ? GREEN : wonSet ? '#fff' : TEXT_LOSER,
+                      color: isCurrent && isLive ? GREEN : wonSet ? '#fff' : '#B0B5BE',
                       minWidth: 14, textAlign: 'center',
                     }}>
                       {games}
@@ -429,7 +445,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
           style={{
             display: 'flex', alignItems: 'center', gap: 10, width: '100%',
             padding: '10px 14px',
-            background: BG_SUBTLE,
+            background: '#1e1e1e',
             cursor: 'pointer', position: 'relative',
             WebkitTapHighlightColor: 'transparent',
           }}

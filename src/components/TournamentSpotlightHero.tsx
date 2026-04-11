@@ -22,9 +22,17 @@ function AnimateOnView({ className, children, style }: {
   )
 }
 
-import { GREEN, ORANGE, MUTED, BG_CARD, CHUNKY } from '@/lib/theme-colors'
+// ── Brand colors ───────────────────────────────────────────────
+const GREEN = '#7ED321'
+const AMBER = '#F5A623'
+const MUTED = '#6B7280'
 
-const AMBER = ORANGE
+// ── Chunky clip-path presets ───────────────────────────────────
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 0.5%, 99.5% 0%, 100% 99.5%, 0.5% 100%)',
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
 
 // ── CSS animations ─────────────────────────────────────────────
 // "Puzzle pieces" entrance: each section slides in from a different
@@ -287,7 +295,7 @@ export default function TournamentSpotlightHero({
         ref={cardRef}
         style={{
           margin: '0 16px',
-          background: BG_CARD,
+          background: '#141414',
           border: '1px solid rgba(255,255,255,0.08)',
           clipPath: CHUNKY.card,
           padding: '0 0 22px',

@@ -20,7 +20,18 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useUserCountry } from '@/hooks/useUserCountry'
-import { ORANGE, GREEN, MUTED, BG_CARD, BG_CARD2, BORDER, CHUNKY } from '@/lib/theme-colors'
+
+// ── Brand tokens (match tournament detail page) ─────────────
+const ORANGE = '#F5A623'
+const GREEN = '#7ED321'
+const MUTED = '#6B7280'
+const BG_CARD = '#141414'
+const BG_CARD2 = '#0F0F0F'
+const BORDER = 'rgba(255,255,255,0.06)'
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+}
 
 const ISO2_TO_NAME: Record<string, string> = {
   es: 'Spain', it: 'Italy', fr: 'France', de: 'Germany', gb: 'United Kingdom',

@@ -5,7 +5,6 @@
 // Each variant can pass its own hints array so the messaging matches the page.
 
 import { useEffect, useState } from 'react'
-import { BG_BASE, GREEN, MUTED } from '@/lib/theme-colors'
 
 interface BrandedLoaderProps {
   /** Hints rotated below the logo. Defaults to a generic set if omitted. */
@@ -33,7 +32,7 @@ export default function BrandedLoader({
   hints = DEFAULT_HINTS,
   logoSize = 56,
   fullHeight = true,
-  background = BG_BASE as string,
+  background = '#1A1A1A',
   showDots = true,
   rotateMs = 2000,
 }: BrandedLoaderProps) {
@@ -79,7 +78,7 @@ export default function BrandedLoader({
         <span
           key={hintIdx}
           style={{
-            color: MUTED,
+            color: '#9CA3AF',
             fontSize: 13,
             fontWeight: 600,
             letterSpacing: 0.3,
@@ -100,7 +99,7 @@ export default function BrandedLoader({
               key={i}
               style={{
                 width: 7, height: 7, borderRadius: '50%',
-                background: GREEN,
+                background: '#7ED321',
                 animation: `brandedLoaderDot 1.2s ease-in-out ${i * 0.2}s infinite`,
               }}
             />

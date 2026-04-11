@@ -6,11 +6,14 @@
 // Disabled pills (for sets not played) render greyed out.
 
 import type { CSSProperties } from 'react'
-import { GREEN, MUTED, BORDER, CHUNKY } from '@/lib/theme-colors'
+
+const GREEN = '#7ed321'
+const MUTED = '#8a8f98'
+const BORDER = 'rgba(255, 255, 255, 0.08)'
 
 // Chunky clip-path shape matching the brand system (home/page.tsx CHUNKY.badge).
 // Same shape used by the Live Feed set filter for consistency across tabs.
-const CHUNKY_BADGE = CHUNKY.badge
+const CHUNKY_BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 
 export interface SetTabItem {
   setNumber: number       // 0 = Match aggregate, 1..5 = individual sets

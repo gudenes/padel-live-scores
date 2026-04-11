@@ -17,7 +17,16 @@ import {
 } from '@/lib/badges'
 import BrandedLoader from '@/app/components/BrandedLoader'
 import { useBadgeToast } from '@/components/BadgeToast'
-import { ORANGE, MUTED, BG_CARD, BG_BASE, BG_HEADER, TEXT_PRIMARY, CHUNKY } from '@/lib/theme-colors'
+
+const ORANGE = '#F5A623'
+const MUTED = '#6B7280'
+const BG_CARD = '#141414'
+
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+  button: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
+}
 
 export default function AchievementsPage() {
   const { user, loading: authLoading } = useAuth()
@@ -63,7 +72,7 @@ export default function AchievementsPage() {
 
   return (
     <div style={{
-      maxWidth: 500, margin: '0 auto', background: BG_BASE,
+      maxWidth: 500, margin: '0 auto', background: '#1A1A1A',
       minHeight: '100dvh', paddingBottom: 80,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     }}>
@@ -73,7 +82,7 @@ export default function AchievementsPage() {
         padding: '10px 14px',
         borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: BG_HEADER, height: 62,
+        background: '#0A0A0A', height: 62,
       }}>
         <button
           onClick={() => { if (window.history.length > 1) router.back(); else router.push('/profile') }}
@@ -87,7 +96,7 @@ export default function AchievementsPage() {
             <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div style={{ flex: 1, textAlign: 'center', color: TEXT_PRIMARY, fontSize: 14, fontWeight: 600 }}>
+        <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600 }}>
           Achievements
         </div>
         <div style={{ width: 36 }} />
@@ -106,7 +115,7 @@ export default function AchievementsPage() {
       }}>
         <BadgeIcon svgIcon="trophy" tier={overallTier} size={52} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 900, color: TEXT_PRIMARY }}>
+          <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>
             {overallMeta?.label ?? 'No Level Yet'}
           </div>
           <div style={{ fontSize: 10, color: MUTED, marginTop: 3 }}>

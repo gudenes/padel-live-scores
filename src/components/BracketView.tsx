@@ -7,9 +7,15 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import { Match, countryFlag, toShortName } from '@/types/match'
-import { GREEN, MUTED, BG_CARD, BORDER, LIVE_RED, ORANGE } from '@/lib/theme-colors'
 
+// ── Brand constants ─────────────────────────────────────────────
+const GREEN = '#7ED321'
+const MUTED = '#6B7280'
+const BG_CARD = '#141414'
 const BG_EMPTY = '#0F0F0F'
+const BORDER = 'rgba(255,255,255,0.06)'
+const LIVE_RED = '#FF4655'
+const ORANGE = '#F5A623'
 const CONNECTOR = 'rgba(255,255,255,0.08)'
 
 const ROUND_ORDER = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F'] as const

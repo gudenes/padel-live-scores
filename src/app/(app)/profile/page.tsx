@@ -18,8 +18,21 @@ import { BADGE_CATALOG, TIER_META, overallTierFromBadgeCount } from '@/lib/badge
 import { AmbassadorBadge } from '@/components/AmbassadorBadge'
 import { withTimeout } from '@/lib/with-timeout'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
-import { GREEN, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, BG_HEADER, TEXT_PRIMARY, CHUNKY } from '@/lib/theme-colors'
-import ThemeToggle from '@/components/ThemeToggle'
+
+const V3 = {
+  GREEN: '#7ED321',
+  ORANGE: '#F5A623',
+  LIVE_RED: '#FF4655',
+  BG_BASE: '#1A1A1A',
+  BG_CARD: '#141414',
+  MUTED: '#6B7280',
+  BORDER: 'rgba(255,255,255,0.06)',
+  clip: {
+    badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+    card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+    button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+  },
+} as const
 
 interface CountryOption {
   iso2: string
@@ -185,20 +198,20 @@ export default function ProfilePage() {
   }
 
   const statusColor: Record<string, string> = {
-    live: LIVE_RED,
-    scheduled: MUTED,
+    live: V3.LIVE_RED,
+    scheduled: V3.MUTED,
     finished: '#9ca3af',
   }
 
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 80, background: BG_BASE, minHeight: '100dvh' }}>
+    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 80, background: V3.BG_BASE, minHeight: '100dvh' }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 14px',
         borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: BG_HEADER,
+        background: '#0A0A0A',
         height: 62,
       }}>
         <button
@@ -206,24 +219,24 @@ export default function ProfilePage() {
           style={{
             width: 36, height: 36, border: 'none', cursor: 'pointer',
             background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: MUTED,
+            color: V3.MUTED,
           }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div style={{ flex: 1, textAlign: 'center', color: TEXT_PRIMARY, fontSize: 14, fontWeight: 600 }}>
+        <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600 }}>
           Profile
         </div>
         <div style={{ width: 36 }} />
       </div>
 
       {/* User info */}
-      <div style={{ padding: '24px 16px 16px', textAlign: 'center', borderBottom: `1px solid ${BORDER}` }}>
+      <div style={{ padding: '24px 16px 16px', textAlign: 'center', borderBottom: `1px solid ${V3.BORDER}` }}>
         <div style={{
           width: 64, height: 64, borderRadius: '50%',
-          margin: '0 auto 12px', border: `3px solid ${ORANGE}`,
+          margin: '0 auto 12px', border: `3px solid ${V3.ORANGE}`,
           overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {profile?.avatar_url ? (
@@ -231,7 +244,7 @@ export default function ProfilePage() {
           ) : (
             <div style={{
               width: '100%', height: '100%',
-              background: `linear-gradient(135deg, ${GREEN}, ${ORANGE})`,
+              background: `linear-gradient(135deg, ${V3.GREEN}, ${V3.ORANGE})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#000', fontSize: 24, fontWeight: 700,
             }}>
@@ -239,10 +252,10 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
-        <div style={{ color: TEXT_PRIMARY, fontSize: 16, fontWeight: 600 }}>
+        <div style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>
           {profile?.display_name ?? 'User'}
         </div>
-        <div style={{ color: MUTED, fontSize: 12, marginTop: 2 }}>
+        <div style={{ color: V3.MUTED, fontSize: 12, marginTop: 2 }}>
           {user.email}
         </div>
       </div>
@@ -258,7 +271,7 @@ export default function ProfilePage() {
               alignItems: 'center',
               gap: 14,
               background: 'rgba(255,255,255,0.03)',
-              clipPath: CHUNKY.card,
+              clipPath: V3.clip.card,
               padding: '12px 14px',
               border: 'none',
               marginBottom: 12,
@@ -282,10 +295,10 @@ export default function ProfilePage() {
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_PRIMARY }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
                 Invite friends
               </div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 3 }}>
+              <div style={{ fontSize: 11, color: V3.MUTED, marginTop: 3 }}>
                 {inviteLoading ? 'Loading…' : tier ? (
                   <>
                     <span style={{
@@ -308,7 +321,7 @@ export default function ProfilePage() {
                 )}
               </div>
             </div>
-            <span style={{ color: MUTED, fontSize: 18, flexShrink: 0 }}>›</span>
+            <span style={{ color: V3.MUTED, fontSize: 18, flexShrink: 0 }}>›</span>
           </button>
         </div>
       )}
@@ -323,7 +336,7 @@ export default function ProfilePage() {
               alignItems: 'center',
               gap: 12,
               background: 'rgba(255,255,255,0.03)',
-              clipPath: CHUNKY.card,
+              clipPath: V3.clip.card,
               padding: '12px 14px',
               marginBottom: 12,
               textDecoration: 'none',
@@ -356,10 +369,10 @@ export default function ProfilePage() {
               )}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: TEXT_PRIMARY }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
                 Achievements
               </div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: V3.MUTED, marginTop: 2 }}>
                 {badgesLoading ? 'Loading\u2026' : (() => {
                   const count = new Set(earnedBadges.map(b => b.badge_id)).size
                   const total = BADGE_CATALOG.length
@@ -377,7 +390,7 @@ export default function ProfilePage() {
                 })()}
               </div>
             </div>
-            <span style={{ color: MUTED, fontSize: 18, flexShrink: 0 }}>{'\u203A'}</span>
+            <span style={{ color: V3.MUTED, fontSize: 18, flexShrink: 0 }}>{'\u203A'}</span>
           </Link>
         </div>
       )}
@@ -388,13 +401,13 @@ export default function ProfilePage() {
         borderBottom: `1px solid rgba(255,255,255,0.04)`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={V3.ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
           </svg>
           <div>
-            <div style={{ color: TEXT_PRIMARY, fontSize: 13, fontWeight: 500 }}>Match Notifications</div>
-            <div style={{ color: MUTED, fontSize: 11 }}>
+            <div style={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>Match Notifications</div>
+            <div style={{ color: V3.MUTED, fontSize: 11 }}>
               {permission === 'denied'
                 ? 'Notifications blocked in browser settings'
                 : 'Get notified when bookmarked matches go live'}
@@ -406,7 +419,7 @@ export default function ProfilePage() {
           disabled={!supported || permission === 'denied'}
           style={{
             width: 44, height: 24, border: 'none', cursor: 'pointer',
-            background: enabled ? GREEN : 'rgba(255,255,255,0.15)',
+            background: enabled ? V3.GREEN : 'rgba(255,255,255,0.15)',
             position: 'relative', transition: 'background 0.2s',
             opacity: !supported || permission === 'denied' ? 0.4 : 1,
             clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
@@ -427,14 +440,14 @@ export default function ProfilePage() {
         borderBottom: `1px solid rgba(255,255,255,0.04)`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={V3.ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <line x1="2" y1="12" x2="22" y2="12"/>
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
           </svg>
           <div style={{ flex: 1 }}>
-            <div style={{ color: TEXT_PRIMARY, fontSize: 13, fontWeight: 500 }}>Region</div>
-            <div style={{ color: MUTED, fontSize: 11 }}>
+            <div style={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>Region</div>
+            <div style={{ color: V3.MUTED, fontSize: 11 }}>
               Used to show local broadcasters and content. Defaults to your IP location.
             </div>
           </div>
@@ -447,31 +460,10 @@ export default function ProfilePage() {
         />
       </div>
 
-      {/* Appearance / Theme toggle */}
-      <div style={{
-        padding: '14px 16px',
-        borderBottom: `1px solid rgba(255,255,255,0.04)`,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5" />
-            <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-          </svg>
-          <div style={{ flex: 1 }}>
-            <div style={{ color: TEXT_PRIMARY, fontSize: 13, fontWeight: 500 }}>Appearance</div>
-            <div style={{ color: MUTED, fontSize: 11 }}>Choose dark, light, or follow your system</div>
-          </div>
-        </div>
-        <ThemeToggle />
-      </div>
-
       {/* Bookmarked Matches */}
       <div style={{ padding: '14px 16px' }}>
         <div style={{
-          color: ORANGE, fontSize: 11, fontWeight: 700,
+          color: V3.ORANGE, fontSize: 11, fontWeight: 700,
           textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
         }}>
           Bookmarked Matches ({matches.length})
@@ -479,7 +471,7 @@ export default function ProfilePage() {
         {loadingData ? (
           <Spinner />
         ) : matches.length === 0 ? (
-          <div style={{ color: MUTED, fontSize: 12, padding: '10px 0' }}>
+          <div style={{ color: V3.MUTED, fontSize: 12, padding: '10px 0' }}>
             No bookmarked matches yet. Tap the bookmark icon on any match to save it here.
           </div>
         ) : (
@@ -489,26 +481,26 @@ export default function ProfilePage() {
                 key={m.id}
                 href={`/match/${m.id}`}
                 style={{
-                  background: BG_CARD, padding: '10px 12px',
+                  background: V3.BG_CARD, padding: '10px 12px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   textDecoration: 'none',
-                  clipPath: CHUNKY.card,
+                  clipPath: V3.clip.card,
                 }}
               >
                 <div>
-                  <div style={{ color: TEXT_PRIMARY, fontSize: 12, fontWeight: 500 }}>
+                  <div style={{ color: '#fff', fontSize: 12, fontWeight: 500 }}>
                     {m.pair1_player1_name ?? '?'}/{m.pair1_player2_name ?? '?'} vs {m.pair2_player1_name ?? '?'}/{m.pair2_player2_name ?? '?'}
                   </div>
-                  <div style={{ color: MUTED, fontSize: 10 }}>
+                  <div style={{ color: V3.MUTED, fontSize: 10 }}>
                     {m.tournament_name}{m.round ? ` - ${m.round}` : ''}
                   </div>
                 </div>
                 <div style={{
-                  color: statusColor[m.status] ?? MUTED,
+                  color: statusColor[m.status] ?? V3.MUTED,
                   fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
                   background: 'rgba(255,255,255,0.05)',
                   padding: '2px 8px',
-                  clipPath: CHUNKY.badge,
+                  clipPath: V3.clip.badge,
                 }}>
                   {m.status}
                 </div>
@@ -521,13 +513,13 @@ export default function ProfilePage() {
       {/* Bookmarked Players */}
       <div style={{ padding: '0 16px 14px' }}>
         <div style={{
-          color: ORANGE, fontSize: 11, fontWeight: 700,
+          color: V3.ORANGE, fontSize: 11, fontWeight: 700,
           textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
         }}>
           Bookmarked Players ({players.length})
         </div>
         {players.length === 0 ? (
-          <div style={{ color: MUTED, fontSize: 12, padding: '10px 0' }}>
+          <div style={{ color: V3.MUTED, fontSize: 12, padding: '10px 0' }}>
             No bookmarked players yet.
           </div>
         ) : (
@@ -537,9 +529,9 @@ export default function ProfilePage() {
                 key={p.id}
                 href={`/player/${p.id}`}
                 style={{
-                  background: BG_CARD, padding: '10px 14px',
+                  background: V3.BG_CARD, padding: '10px 14px',
                   textAlign: 'center', textDecoration: 'none', minWidth: 80,
-                  clipPath: CHUNKY.card,
+                  clipPath: V3.clip.card,
                 }}
               >
                 <div style={{
@@ -550,7 +542,7 @@ export default function ProfilePage() {
                     <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   )}
                 </div>
-                <div style={{ color: TEXT_PRIMARY, fontSize: 11, fontWeight: 500 }}>
+                <div style={{ color: '#fff', fontSize: 11, fontWeight: 500 }}>
                   {p.name.split(' ').pop()}
                 </div>
               </Link>
@@ -560,14 +552,14 @@ export default function ProfilePage() {
       </div>
 
       {/* Sign out */}
-      <div style={{ padding: '14px 16px', borderTop: `1px solid ${BORDER}` }}>
+      <div style={{ padding: '14px 16px', borderTop: `1px solid ${V3.BORDER}` }}>
         <button
           onClick={handleSignOut}
           style={{
-            width: '100%', textAlign: 'center', color: LIVE_RED, fontSize: 13, fontWeight: 600,
+            width: '100%', textAlign: 'center', color: V3.LIVE_RED, fontSize: 13, fontWeight: 600,
             cursor: 'pointer', background: 'rgba(255,70,85,0.08)', border: 'none', padding: 12,
             fontFamily: 'inherit',
-            clipPath: CHUNKY.button,
+            clipPath: V3.clip.button,
           }}
         >
           Sign Out

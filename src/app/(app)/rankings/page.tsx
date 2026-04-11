@@ -6,7 +6,24 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
-import { GREEN, GREEN_DIM, BG_BASE, BG_CARD, MUTED, BORDER, MEN_BLUE, WOMEN_PURPLE, BG_HEADER, TEXT_PRIMARY, TEXT_LOSER, CHUNKY } from '@/lib/theme-colors'
+
+// ── Brand colors ───────────────────────────────────────────────
+const GREEN = '#7ED321'
+const GREEN_DIM = 'rgba(126,211,33,0.15)'
+const ORANGE = '#F5A623'
+const BG_BASE = '#1A1A1A'
+const BG_CARD = '#141414'
+const MUTED = '#6B7280'
+const BORDER = 'rgba(255,255,255,0.06)'
+const MEN_BLUE = '#4A9EFF'
+const WOMEN_PURPLE = '#D966FF'
+
+// ── Chunky clip-path presets ───────────────────────────────────
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
 
 // ── Country code → full name ───────────────────────────────────
 const COUNTRY_NAMES: Record<string, string> = {
@@ -67,7 +84,7 @@ interface Player {
 function RankBadge({ rank }: { rank: number | null }) {
   if (!rank) return <span style={{ color: MUTED, fontSize: 14 }}>--</span>
   const isTop3 = rank <= 3
-  const color = rank === 1 ? '#F5A623' : rank === 2 ? '#94A3B8' : rank === 3 ? '#CD7F32' : GREEN  // medal colors intentionally hardcoded
+  const color = rank === 1 ? '#F5A623' : rank === 2 ? '#94A3B8' : rank === 3 ? '#CD7F32' : GREEN
   return (
     <span style={{
       fontWeight: 800, fontSize: isTop3 ? 17 : 15,
@@ -161,7 +178,7 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontWeight: 700, fontSize: 14,
-          color: TEXT_PRIMARY,
+          color: '#E2E8F0',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {(player as any).display_name?.trim() || player.name}
@@ -303,7 +320,7 @@ export default function V3RankingPage() {
         padding: '12px 16px',
         borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 20,
-        background: BG_HEADER,
+        background: '#0A0A0A',
         height: 62,
       }}>
         <button
@@ -318,7 +335,7 @@ export default function V3RankingPage() {
           }}
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: TEXT_PRIMARY, padding: 4, display: 'flex', alignItems: 'center',
+            color: '#E2E8F0', padding: 4, display: 'flex', alignItems: 'center',
           }}
           aria-label="Back"
         >
@@ -327,7 +344,7 @@ export default function V3RankingPage() {
           </svg>
         </button>
 
-        <h1 style={{ fontSize: 17, fontWeight: 800, color: TEXT_PRIMARY, margin: 0, letterSpacing: '-0.01em' }}>
+        <h1 style={{ fontSize: 17, fontWeight: 800, color: '#E2E8F0', margin: 0, letterSpacing: '-0.01em' }}>
           Rankings
         </h1>
 
@@ -371,7 +388,7 @@ export default function V3RankingPage() {
             onChange={e => setQuery(e.target.value)}
             style={{
               flex: 1, border: 'none', outline: 'none', background: 'transparent',
-              color: TEXT_PRIMARY, fontSize: 15, fontFamily: 'inherit',
+              color: '#E2E8F0', fontSize: 15, fontFamily: 'inherit',
             }}
           />
           {query ? (
@@ -497,7 +514,7 @@ export default function V3RankingPage() {
           }}>
             <span style={{ fontSize: 28 }}>{query ? '\uD83D\uDD0D' : '\uD83C\uDFC6'}</span>
           </div>
-          <p style={{ color: TEXT_PRIMARY, fontWeight: 700, fontSize: 15, margin: '0 0 6px' }}>
+          <p style={{ color: '#E2E8F0', fontWeight: 700, fontSize: 15, margin: '0 0 6px' }}>
             {query ? `No results for "${query}"` : rankType === 'race' ? 'No race rankings yet' : 'No rankings yet'}
           </p>
           {!query && rankType === 'race' && (

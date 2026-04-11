@@ -6,7 +6,21 @@ import { useEffect, useState, use } from 'react'
 import { supabase } from '@/lib/supabase'
 import Spinner from '@/app/components/Spinner'
 import BrandedLoader from '@/app/components/BrandedLoader'
-import { GREEN, ORANGE, BG_BASE, BG_CARD, MUTED, BG_HEADER, TEXT_PRIMARY, CHUNKY } from '@/lib/theme-colors'
+
+const V3 = {
+  GREEN: '#7ED321',
+  ORANGE: '#F5A623',
+  LIVE_RED: '#FF4655',
+  BG_BASE: '#1A1A1A',
+  BG_CARD: '#141414',
+  MUTED: '#6B7280',
+  BORDER: 'rgba(255,255,255,0.06)',
+  clip: {
+    badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+    card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+    button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+  },
+} as const
 
 interface Article {
   id: string
@@ -56,7 +70,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100dvh', background: BG_BASE }}>
+      <div style={{ minHeight: '100dvh', background: V3.BG_BASE }}>
         <BrandedLoader hints={['Loading article...', 'Fetching content...', 'Almost ready...']} />
       </div>
     )
@@ -67,10 +81,10 @@ function ArticlePage({ articleId }: { articleId: string }) {
       <div style={{
         minHeight: '100dvh', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 16,
-        background: BG_BASE, color: TEXT_PRIMARY,
+        background: V3.BG_BASE, color: '#fff',
       }}>
         <div style={{ fontSize: 16, fontWeight: 700 }}>Article not found</div>
-        <a href="/feed" style={{ color: GREEN, fontSize: 14, textDecoration: 'none' }}>
+        <a href="/feed" style={{ color: V3.GREEN, fontSize: 14, textDecoration: 'none' }}>
           ← Back to Feed
         </a>
       </div>
@@ -78,14 +92,14 @@ function ArticlePage({ articleId }: { articleId: string }) {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: BG_BASE, color: TEXT_PRIMARY }}>
+    <div style={{ minHeight: '100dvh', background: V3.BG_BASE, color: '#fff' }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 14px',
         borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: BG_HEADER,
+        background: '#0A0A0A',
         height: 62,
       }}>
         <a
@@ -94,7 +108,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
             width: 36, height: 36, border: 'none',
             background: 'transparent', textDecoration: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: MUTED,
+            color: V3.MUTED,
           }}
           aria-label="Back to Feed"
         >
@@ -115,24 +129,24 @@ function ArticlePage({ articleId }: { articleId: string }) {
           {article.favicon_url && (
             <div style={{
               width: 24, height: 24, overflow: 'hidden',
-              clipPath: CHUNKY.badge,
-              background: BG_CARD,
+              clipPath: V3.clip.badge,
+              background: V3.BG_CARD,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <img src={article.favicon_url} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} />
             </div>
           )}
           <span style={{
-            fontSize: 13, fontWeight: 700, color: ORANGE,
+            fontSize: 13, fontWeight: 700, color: V3.ORANGE,
             textTransform: 'uppercase', letterSpacing: 0.5,
           }}>
             {article.source_name}
           </span>
           <span style={{
-            fontSize: 11, color: MUTED,
+            fontSize: 11, color: V3.MUTED,
             background: 'rgba(255,255,255,0.05)',
             padding: '2px 8px',
-            clipPath: CHUNKY.badge,
+            clipPath: V3.clip.badge,
           }}>
             {timeAgo(article.published_at)}
           </span>
@@ -142,8 +156,8 @@ function ArticlePage({ articleId }: { articleId: string }) {
         {article.image_url && (
           <div style={{
             width: '100%', aspectRatio: '16/9', overflow: 'hidden',
-            marginBottom: 16, background: BG_CARD,
-            clipPath: CHUNKY.card,
+            marginBottom: 16, background: V3.BG_CARD,
+            clipPath: V3.clip.card,
           }}>
             <img src={article.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
@@ -152,7 +166,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
         {/* Title */}
         <h1 style={{
           fontSize: 22, fontWeight: 800, lineHeight: 1.3, margin: '0 0 12px',
-          color: TEXT_PRIMARY,
+          color: '#fff',
         }}>
           {article.title}
         </h1>
@@ -160,7 +174,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
         {/* Description */}
         {article.snippet && (
           <p style={{
-            fontSize: 14, lineHeight: 1.6, color: MUTED,
+            fontSize: 14, lineHeight: 1.6, color: V3.MUTED,
             margin: '0 0 24px',
           }}>
             {article.snippet}
@@ -175,8 +189,8 @@ function ArticlePage({ articleId }: { articleId: string }) {
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             width: '100%', padding: '14px 20px',
-            background: GREEN, color: '#000',
-            clipPath: CHUNKY.button,
+            background: V3.GREEN, color: '#000',
+            clipPath: V3.clip.button,
             fontWeight: 700, fontSize: 15,
             textDecoration: 'none', border: 'none',
           }}

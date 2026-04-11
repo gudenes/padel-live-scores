@@ -18,8 +18,11 @@
 import { useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
-import { PAIR1_COLOR, PAIR2_COLOR, MUTED, BORDER } from '@/lib/theme-colors'
 
+const PAIR1_COLOR = '#FF6B2B'
+const PAIR2_COLOR = '#FFD166'
+const MUTED = '#8a8f98'
+const BORDER = 'rgba(255, 255, 255, 0.08)'
 const TRACK_BG = 'rgba(255, 255, 255, 0.04)'
 
 // Chunky bar shape from the app's brand system (home/page.tsx CHUNKY.bar)

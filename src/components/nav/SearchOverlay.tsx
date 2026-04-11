@@ -7,12 +7,20 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { GREEN, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, CHUNKY } from '@/lib/theme-colors'
+
+// ── Brand constants ───────────────────────────────────────────
+const GREEN = '#7ED321'
+const ORANGE = '#F5A623'
+const LIVE_RED = '#FF4655'
+const BG_BASE = '#1A1A1A'
+const BG_CARD = '#141414'
+const MUTED = '#6B7280'
+const BORDER = 'rgba(255,255,255,0.06)'
 
 const CLIP = {
-  badge: CHUNKY.badge,
-  card: CHUNKY.card,
-  button: CHUNKY.button,
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
 // ── Helpers ───────────────────────────────────────────────────

@@ -8,10 +8,15 @@ import { useAuth } from '@/components/AuthProvider'
 import { isAdminEmail } from '@/lib/admin-auth'
 import { supabase } from '@/lib/supabase'
 
-import { GREEN, MUTED, BG_BASE, BORDER, LIVE_RED, BG_HEADER } from '@/lib/theme-colors'
+// ── Brand constants ────────────────────────────────────────────────────────
 
-// Local override — admin dashboard uses a subtle transparent card bg
+const GREEN = '#7ED321'
+const MUTED = '#6B7280'
+const BG_BASE = '#1A1A1A'
 const BG_CARD = 'rgba(255,255,255,0.03)'
+const BORDER = 'rgba(255,255,255,0.06)'
+const LIVE_RED = '#FF4655'
+const BG_HEADER = '#0A0A0A'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

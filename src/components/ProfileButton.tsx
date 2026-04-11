@@ -10,7 +10,6 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import LoginSheet from '@/components/LoginSheet'
 import { supabase } from '@/lib/supabase'
-import { GREEN, ORANGE, BG_HEADER, LIVE_RED, CHUNKY } from '@/lib/theme-colors'
 
 const SEEN_BADGE_COUNT_KEY = 'pn_seen_badge_count'
 const SEEN_REFERRAL_COUNT_KEY = 'pn_seen_referral_count'
@@ -116,12 +115,12 @@ export default function ProfileButton() {
         style={{
           position: 'relative',
           width: 34, height: 34, borderRadius: '50%',
-          border: isLoggedIn ? `2px solid ${ORANGE}` : `1.5px solid rgba(126,211,33,0.5)`,
+          border: isLoggedIn ? '2px solid #F5A623' : '1.5px solid rgba(126,211,33,0.5)',
           cursor: 'pointer',
           background: isLoggedIn ? 'transparent' : 'rgba(126,211,33,0.08)',
           flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: GREEN,
+          color: '#7ED321',
           overflow: 'visible', padding: 0,
         }}
       >
@@ -133,9 +132,9 @@ export default function ProfileButton() {
             right: -4,
             width: 12,
             height: 12,
-            background: LIVE_RED,
-            clipPath: CHUNKY.badge,
-            border: `2px solid ${BG_HEADER}`,
+            background: '#FF4655',
+            clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+            border: '2px solid #0A0A0A',
             zIndex: 3,
           }} />
         )}

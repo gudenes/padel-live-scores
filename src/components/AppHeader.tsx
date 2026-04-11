@@ -8,7 +8,10 @@ import { useState, useEffect, useRef } from 'react'
 import ProfileButton from '@/components/ProfileButton'
 import { useInvite } from '@/hooks/useInvite'
 import { useAuth } from '@/components/AuthProvider'
-import { GREEN, BG_HEADER, BORDER, CHUNKY } from '@/lib/theme-colors'
+
+const CHUNKY = {
+  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+}
 
 const SEARCH_HINTS = [
   'Search players, events, matches...',
@@ -61,7 +64,7 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
       position: 'sticky',
       top: 0,
       zIndex: 100,
-      background: BG_HEADER,
+      background: '#0A0A0A',
       borderBottom: 'none',
       boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
       display: 'flex',
@@ -86,7 +89,7 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
         style={{
           flex: 1,
           height: 34,
-          background: BORDER,
+          background: 'rgba(255,255,255,0.06)',
           border: '1px solid rgba(255,255,255,0.10)',
           clipPath: CHUNKY.button,
           display: 'flex',
@@ -99,7 +102,7 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
           maxWidth: 260,
         }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
           <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
         </svg>
         <span style={{
@@ -120,7 +123,7 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
           onClick={() => { void shareNow() }}
           aria-label="Share PadelNachos"
           style={{
-            background: BORDER,
+            background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.10)',
             clipPath: CHUNKY.button,
             width: 34, height: 34,
@@ -133,7 +136,7 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
             padding: 0,
           }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
             <polyline points="16 6 12 2 8 6" />
             <line x1="12" y1="2" x2="12" y2="15" />
