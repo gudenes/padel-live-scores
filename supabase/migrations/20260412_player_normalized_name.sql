@@ -1,3 +1,6 @@
+-- Enable unaccent extension for accent-stripping
+CREATE EXTENSION IF NOT EXISTS unaccent;
+
 -- Add normalized_name column for fast name lookups
 -- Stores the lowercased, accent-stripped version of the player name
 ALTER TABLE players ADD COLUMN IF NOT EXISTS normalized_name TEXT;
@@ -6,7 +9,7 @@ ALTER TABLE players ADD COLUMN IF NOT EXISTS normalized_name TEXT;
 UPDATE players SET normalized_name = lower(
   regexp_replace(
     regexp_replace(
-      convert_from(convert_to(name, 'UTF8'), 'ASCII'),
+      unaccent(name),
       '[^a-zA-Z0-9 ]', ' ', 'g'
     ),
     '\s+', ' ', 'g'
@@ -23,7 +26,7 @@ BEGIN
   NEW.normalized_name := lower(
     regexp_replace(
       regexp_replace(
-        convert_from(convert_to(NEW.name, 'UTF8'), 'ASCII'),
+        unaccent(NEW.name),
         '[^a-zA-Z0-9 ]', ' ', 'g'
       ),
       '\s+', ' ', 'g'
