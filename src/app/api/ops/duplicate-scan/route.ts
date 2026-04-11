@@ -89,31 +89,30 @@ export async function GET(request: Request) {
 
       const reasons: string[] = []
 
-      // Rule 1: same first + surname + country
       const tokA = nameTokens(a.name)
       const tokB = nameTokens(b.name)
-      const sameFirst = tokA.first && tokB.first && tokA.first === tokB.first
+
+      // 1. First letter of first name must match
+      const sameFirstLetter = tokA.first && tokB.first && tokA.first[0] === tokB.first[0]
+      if (!sameFirstLetter) continue
+
+      // 2. Surname must be exact match
       const sameSurname = tokA.surname && tokB.surname && tokA.surname === tokB.surname
+      if (!sameSurname) continue
+
+      // 3. Country must be the same
       const sameCountry = a.country && b.country && a.country === b.country
+      if (!sameCountry) continue
 
-      // Ranking difference (if both have rankings)
+      // 4. If both have rankings, difference must be ≤ 10
       const bothRanked = a.ranking !== null && b.ranking !== null
-      const rankDiff = bothRanked ? Math.abs(a.ranking! - b.ranking!) : null
-
-      // Rule 1: same first + surname + country
-      // BUT if both have rankings and diff > 10, they're likely different people — skip
-      if (sameFirst && sameSurname && sameCountry) {
-        if (rankDiff !== null && rankDiff > 10) {
-          // Same name but rankings too far apart — not a duplicate
-        } else {
-          reasons.push(rankDiff !== null
-            ? `Same name + country (rank diff: ${rankDiff})`
-            : 'Same name + country')
-        }
+      if (bothRanked) {
+        const rankDiff = Math.abs(a.ranking! - b.ranking!)
+        if (rankDiff > 10) continue
+        reasons.push(`Same surname + country (rank diff: ${rankDiff})`)
+      } else {
+        reasons.push('Same surname + country')
       }
-
-      // Rule 2: same country + ranking within 10 — only if names also partially match
-      // (ranking proximity alone without name similarity is not enough to flag)
 
       if (reasons.length > 0) {
         seen.add(pairKey)

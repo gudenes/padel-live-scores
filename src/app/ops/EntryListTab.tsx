@@ -200,30 +200,30 @@ function findDuplicateCandidates(teams: ParsedTeam[]): DuplicateFlag[] {
       const b = flat[j]
       const reasons: string[] = []
 
-      // Rule 1: same first name + surname + same country
       const tokA = nameTokens(a.player.name)
       const tokB = nameTokens(b.player.name)
-      const sameFirstName = tokA.first && tokB.first && tokA.first === tokB.first
+
+      // 1. First letter of first name must match
+      const sameFirstLetter = tokA.first && tokB.first && tokA.first[0] === tokB.first[0]
+      if (!sameFirstLetter) continue
+
+      // 2. Surname must be exact match
       const sameSurname = tokA.surname && tokB.surname && tokA.surname === tokB.surname
+      if (!sameSurname) continue
+
+      // 3. Country must be the same
       const sameCountry = a.player.country && b.player.country && a.player.country === b.player.country
+      if (!sameCountry) continue
 
-      // Ranking difference (if both have rankings)
+      // 4. If both have rankings, difference must be ≤ 10
       const bothRanked = a.player.ranking !== null && b.player.ranking !== null
-      const rankDiff = bothRanked ? Math.abs(a.player.ranking! - b.player.ranking!) : null
-
-      // Rule 1: same name + country, BUT skip if both ranked and diff > 10
-      if (sameFirstName && sameSurname && sameCountry) {
-        if (rankDiff !== null && rankDiff > 10) {
-          // Same name but rankings too far apart — likely different people
-        } else {
-          reasons.push(rankDiff !== null
-            ? `Same name + country (rank diff: ${rankDiff})`
-            : 'Same name + country')
-        }
+      if (bothRanked) {
+        const rankDiff = Math.abs(a.player.ranking! - b.player.ranking!)
+        if (rankDiff > 10) continue
+        reasons.push(`Same surname + country (rank diff: ${rankDiff})`)
+      } else {
+        reasons.push('Same surname + country')
       }
-
-      // Rule 2: same country + ranking within 10 — only if names also partially match
-      // (ranking proximity alone without name similarity is not enough to flag)
 
       if (reasons.length > 0) {
         flags.push({
