@@ -207,16 +207,24 @@ function findDuplicateCandidates(teams: ParsedTeam[]): DuplicateFlag[] {
       const sameSurname = tokA.surname && tokB.surname && tokA.surname === tokB.surname
       const sameCountry = a.player.country && b.player.country && a.player.country === b.player.country
 
+      // Ranking difference (if both have rankings)
+      const bothRanked = a.player.ranking !== null && b.player.ranking !== null
+      const rankDiff = bothRanked ? Math.abs(a.player.ranking! - b.player.ranking!) : null
+
+      // Rule 1: same name + country, BUT skip if both ranked and diff > 10
       if (sameFirstName && sameSurname && sameCountry) {
-        reasons.push('Same name + country')
+        if (rankDiff !== null && rankDiff > 10) {
+          // Same name but rankings too far apart — likely different people
+        } else {
+          reasons.push(rankDiff !== null
+            ? `Same name + country (rank diff: ${rankDiff})`
+            : 'Same name + country')
+        }
       }
 
       // Rule 2: same country + ranking within 10 (even if names differ)
-      if (sameCountry && a.player.ranking !== null && b.player.ranking !== null) {
-        const diff = Math.abs(a.player.ranking - b.player.ranking)
-        if (diff <= 10) {
-          reasons.push(`Same country, ranking within ${diff}`)
-        }
+      if (sameCountry && rankDiff !== null && rankDiff <= 10) {
+        reasons.push(`Same country, ranking within ${rankDiff}`)
       }
 
       if (reasons.length > 0) {

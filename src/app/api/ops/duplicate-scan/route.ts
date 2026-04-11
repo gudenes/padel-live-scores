@@ -96,16 +96,25 @@ export async function GET(request: Request) {
       const sameSurname = tokA.surname && tokB.surname && tokA.surname === tokB.surname
       const sameCountry = a.country && b.country && a.country === b.country
 
+      // Ranking difference (if both have rankings)
+      const bothRanked = a.ranking !== null && b.ranking !== null
+      const rankDiff = bothRanked ? Math.abs(a.ranking! - b.ranking!) : null
+
+      // Rule 1: same first + surname + country
+      // BUT if both have rankings and diff > 10, they're likely different people — skip
       if (sameFirst && sameSurname && sameCountry) {
-        reasons.push('Same name + country')
+        if (rankDiff !== null && rankDiff > 10) {
+          // Same name but rankings too far apart — not a duplicate
+        } else {
+          reasons.push(rankDiff !== null
+            ? `Same name + country (rank diff: ${rankDiff})`
+            : 'Same name + country')
+        }
       }
 
-      // Rule 2: same country + ranking within 10
-      if (sameCountry && a.ranking !== null && b.ranking !== null) {
-        const diff = Math.abs(a.ranking - b.ranking)
-        if (diff <= 10) {
-          reasons.push(`Same country, ranking within ${diff}`)
-        }
+      // Rule 2: same country + ranking within 10 (even with different names)
+      if (sameCountry && rankDiff !== null && rankDiff <= 10) {
+        reasons.push(`Same country, ranking within ${rankDiff}`)
       }
 
       if (reasons.length > 0) {
