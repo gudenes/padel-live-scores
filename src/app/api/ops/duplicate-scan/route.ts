@@ -115,8 +115,12 @@ export async function GET(request: Request) {
     }
   }
 
-  // Sort: name matches first, then by ranking proximity
+  // Sort: by best ranking in the group (top-ranked duplicates first), then name matches before ranking-only
   groups.sort((a, b) => {
+    const bestRankA = Math.min(...a.players.map(p => p.ranking ?? 99999))
+    const bestRankB = Math.min(...b.players.map(p => p.ranking ?? 99999))
+    if (bestRankA !== bestRankB) return bestRankA - bestRankB
+    // Same ranking tier — name matches first
     const aHasName = a.reasons.some(r => r.includes('name'))
     const bHasName = b.reasons.some(r => r.includes('name'))
     if (aHasName && !bHasName) return -1
