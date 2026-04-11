@@ -105,6 +105,7 @@ interface CachedPlayer {
   externalId: string | null
   fipId: string | null
   name: string
+  normalizedName: string
   country: string | null
   category: string | null
   ranking: number | null
@@ -116,6 +117,7 @@ export class PlayerResolver {
   private byExternalId = new Map<string, CachedPlayer>()
   private byFipId = new Map<string, CachedPlayer>()
   private byNormalizedName = new Map<string, CachedPlayer[]>()
+  private byAlias = new Map<string, CachedPlayer>()  // normalized alias → player
   private loaded = false
 
   constructor(supabase: SupabaseClient) {
@@ -132,7 +134,7 @@ export class PlayerResolver {
     while (true) {
       const { data, error } = await this.supabase
         .from('players')
-        .select('id, external_id, fip_id, name, country, category, ranking, points')
+        .select('id, external_id, fip_id, name, normalized_name, country, category, ranking, points')
         .range(offset, offset + PAGE_SIZE - 1)
 
       if (error || !data) {
@@ -151,6 +153,7 @@ export class PlayerResolver {
         externalId: p.external_id,
         fipId: p.fip_id,
         name: p.name,
+        normalizedName: p.normalized_name ?? normalize(p.name),
         country: p.country,
         category: p.category,
         ranking: p.ranking ?? null,
@@ -158,11 +161,32 @@ export class PlayerResolver {
       }
       if (p.external_id) this.byExternalId.set(p.external_id, cached)
       if (p.fip_id) this.byFipId.set(p.fip_id, cached)
-      const norm = normalize(p.name)
+      const norm = cached.normalizedName
       if (!this.byNormalizedName.has(norm)) this.byNormalizedName.set(norm, [])
       this.byNormalizedName.get(norm)!.push(cached)
     }
-    console.log(`[PlayerResolver] Loaded ${allData.length} players into cache`)
+
+    // Load aliases from entity_external_ids (source = 'alias')
+    const { data: aliases } = await this.supabase
+      .from('entity_external_ids')
+      .select('entity_id, external_id')
+      .eq('entity_type', 'player')
+      .eq('source', 'alias')
+
+    let aliasCount = 0
+    if (aliases) {
+      for (const a of aliases) {
+        const norm = normalize(a.external_id) // alias stored as raw name, normalize for lookup
+        // Find the cached player by entity_id
+        const cached = this.findCachedById(a.entity_id)
+        if (cached) {
+          this.byAlias.set(norm, cached)
+          aliasCount++
+        }
+      }
+    }
+
+    console.log(`[PlayerResolver] Loaded ${allData.length} players + ${aliasCount} aliases into cache`)
     this.loaded = true
   }
 
@@ -194,6 +218,15 @@ export class PlayerResolver {
     // 2. Lookup by external_id
     if (!existing && input.externalId) {
       existing = this.byExternalId.get(input.externalId) ?? null
+    }
+
+    // 2.5. Alias lookup (stored name variants from previous fuzzy matches)
+    if (!existing) {
+      const norm = normalize(input.name)
+      const aliasMatch = this.byAlias.get(norm)
+      if (aliasMatch) {
+        existing = aliasMatch
+      }
     }
 
     // 3. Exact normalized name match (prefer same category, disambiguate by ranking/points)
@@ -236,6 +269,7 @@ export class PlayerResolver {
     }
 
     // 4. Fuzzy name match (token overlap ≥ 0.7, same category)
+    let fuzzyMatched = false
     if (!existing && input.category) {
       let bestScore = 0
       for (const [, players] of this.byNormalizedName) {
@@ -247,9 +281,16 @@ export class PlayerResolver {
             if (input.country && p.country && input.country !== p.country) continue
             bestScore = sim
             existing = p
+            fuzzyMatched = true
           }
         }
       }
+    }
+
+    // Auto-store name variant as alias on fuzzy match success
+    // This makes future lookups instant (alias hit instead of fuzzy scan)
+    if (fuzzyMatched && existing) {
+      await this.storeAlias(existing.id, input.name)
     }
 
     if (existing) {
@@ -344,11 +385,13 @@ export class PlayerResolver {
 
       if (fallback) {
         // Update cache so subsequent lookups succeed
+        const fbName = (fallback as any).name ?? input.name
         const cached: CachedPlayer = {
           id: fallback.id,
           externalId: (fallback as any).external_id ?? null,
           fipId: (fallback as any).fip_id ?? null,
-          name: (fallback as any).name ?? input.name,
+          name: fbName,
+          normalizedName: normalize(fbName),
           country: (fallback as any).country ?? null,
           category: (fallback as any).category ?? null,
           ranking: (fallback as any).ranking ?? null,
@@ -367,11 +410,13 @@ export class PlayerResolver {
     }
 
     // Add to cache
+    const norm = normalize(input.name)
     const cached: CachedPlayer = {
       id: data.id,
       externalId: insertData.external_id,
       fipId: insertData.fip_id ?? null,
       name: input.name,
+      normalizedName: norm,
       country: input.country ?? null,
       category: input.category ?? null,
       ranking: input.ranking ?? null,
@@ -379,7 +424,6 @@ export class PlayerResolver {
     }
     this.byExternalId.set(insertData.external_id, cached)
     if (insertData.fip_id) this.byFipId.set(insertData.fip_id, cached)
-    const norm = normalize(input.name)
     if (!this.byNormalizedName.has(norm)) this.byNormalizedName.set(norm, [])
     this.byNormalizedName.get(norm)!.push(cached)
 
@@ -412,6 +456,16 @@ export class PlayerResolver {
     if (!existing && input.externalId) {
       existing = this.byExternalId.get(input.externalId) ?? null
       if (existing) matchType = 'exact'
+    }
+
+    // 2.5. Alias lookup
+    if (!existing) {
+      const norm = normalize(input.name)
+      const aliasMatch = this.byAlias.get(norm)
+      if (aliasMatch) {
+        existing = aliasMatch
+        matchType = 'exact' // alias is a known variant — treat as exact
+      }
     }
 
     // 3. Exact normalized name match (prefer same category, disambiguate by ranking/points)
@@ -466,7 +520,11 @@ export class PlayerResolver {
           }
         }
       }
-      if (existing) matchType = 'fuzzy'
+      if (existing) {
+        matchType = 'fuzzy'
+        // Auto-store alias for future instant lookup
+        await this.storeAlias(existing.id, input.name)
+      }
     }
 
     if (existing) {
@@ -479,6 +537,40 @@ export class PlayerResolver {
     }
 
     return { found: false, matchType: 'none' }
+  }
+
+  /**
+   * Store a name variant as an alias in entity_external_ids.
+   * Future lookups will hit the alias cache (instant) instead of fuzzy scan.
+   */
+  private async storeAlias(playerId: string, rawName: string): Promise<void> {
+    const norm = normalize(rawName)
+    // Skip if this normalized name is already the player's canonical name
+    const cached = this.findCachedById(playerId)
+    if (cached && cached.normalizedName === norm) return
+    // Skip if already in alias cache
+    if (this.byAlias.has(norm)) return
+
+    try {
+      await this.supabase
+        .from('entity_external_ids')
+        .upsert({
+          entity_type: 'player',
+          entity_id: playerId,
+          source: 'alias',
+          external_id: rawName, // store the original raw name (not normalized)
+          metadata: { normalized: norm },
+          last_seen_at: new Date().toISOString(),
+        }, { onConflict: 'source,entity_type,external_id' })
+
+      // Update in-memory cache
+      if (cached) {
+        this.byAlias.set(norm, cached)
+      }
+      console.log(`[PlayerResolver] Stored alias "${rawName}" → ${cached?.name ?? playerId}`)
+    } catch {
+      // Non-critical — alias storage failure doesn't break resolution
+    }
   }
 
   /** Find a cached player by DB id (for post-enrichment cache updates). */
