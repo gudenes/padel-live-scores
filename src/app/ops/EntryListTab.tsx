@@ -2,7 +2,7 @@
 // src/app/ops/EntryListTab.tsx
 // Entry list seeding UI — ops dashboard tab for uploading PDF/text entry lists and seeding players
 
-import { useEffect, useState, useRef, useCallback, DragEvent } from 'react'
+import React, { useEffect, useState, useRef, useCallback, DragEvent } from 'react'
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -151,6 +151,93 @@ function urgencyDot(tournament: Tournament): { color: string; label: string; sor
   return { color: '#d1d5db', label: `${daysUntil}d away`, sortKey: daysUntil }
 }
 
+// ── Duplicate detection ─────────────────────────────────────────
+
+interface DuplicateFlag {
+  playerA: { teamIdx: number; playerIdx: number; name: string }
+  playerB: { teamIdx: number; playerIdx: number; name: string }
+  reasons: string[]
+}
+
+/** Normalize name: lowercase, strip diacritics, collapse spaces */
+function normalizeName(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
+}
+
+/** Extract [firstName, surname] tokens from a normalized name */
+function nameTokens(name: string): { first: string; surname: string } {
+  const parts = normalizeName(name).split(' ').filter(t => t.length > 1)
+  if (parts.length === 0) return { first: '', surname: '' }
+  if (parts.length === 1) return { first: parts[0], surname: '' }
+  return { first: parts[0], surname: parts[parts.length - 1] }
+}
+
+/** Count how much useful data a parsed player has — higher = richer record */
+function richnessScore(player: ParsedPlayer): number {
+  let score = 0
+  if (player.name) score += 1
+  if (player.country) score += 1
+  if (player.ranking !== null) score += 2
+  if (player.points !== null) score += 1
+  if (player.matchedPlayerId) score += 3
+  return score
+}
+
+function findDuplicateCandidates(teams: ParsedTeam[]): DuplicateFlag[] {
+  // Flatten players with coordinates
+  const flat: { teamIdx: number; playerIdx: number; player: ParsedPlayer }[] = []
+  teams.forEach((team, ti) => {
+    team.players.forEach((p, pi) => {
+      flat.push({ teamIdx: ti, playerIdx: pi, player: p })
+    })
+  })
+
+  const flags: DuplicateFlag[] = []
+
+  for (let i = 0; i < flat.length; i++) {
+    for (let j = i + 1; j < flat.length; j++) {
+      const a = flat[i]
+      const b = flat[j]
+      const reasons: string[] = []
+
+      const tokA = nameTokens(a.player.name)
+      const tokB = nameTokens(b.player.name)
+
+      // 1. First letter of first name must match
+      const sameFirstLetter = tokA.first && tokB.first && tokA.first[0] === tokB.first[0]
+      if (!sameFirstLetter) continue
+
+      // 2. Surname must be exact match
+      const sameSurname = tokA.surname && tokB.surname && tokA.surname === tokB.surname
+      if (!sameSurname) continue
+
+      // 3. Country must be the same
+      const sameCountry = a.player.country && b.player.country && a.player.country === b.player.country
+      if (!sameCountry) continue
+
+      // 4. If both have rankings, difference must be ≤ 10
+      const bothRanked = a.player.ranking !== null && b.player.ranking !== null
+      if (bothRanked) {
+        const rankDiff = Math.abs(a.player.ranking! - b.player.ranking!)
+        if (rankDiff > 10) continue
+        reasons.push(`Same surname + country (rank diff: ${rankDiff})`)
+      } else {
+        reasons.push('Same surname + country')
+      }
+
+      if (reasons.length > 0) {
+        flags.push({
+          playerA: { teamIdx: a.teamIdx, playerIdx: a.playerIdx, name: a.player.name },
+          playerB: { teamIdx: b.teamIdx, playerIdx: b.playerIdx, name: b.player.name },
+          reasons,
+        })
+      }
+    }
+  }
+
+  return flags
+}
+
 function statusBadgeStyle(action: ParsedPlayer['action']): React.CSSProperties {
   switch (action) {
     case 'exact': return { background: '#dcfce7', color: '#166534' }
@@ -205,6 +292,12 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
   const [searchPopoverResults, setSearchPopoverResults] = useState<PlayerSearchResult[]>([])
   const [searchPopoverLoading, setSearchPopoverLoading] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Duplicate detection state
+  const [duplicateFlags, setDuplicateFlags] = useState<DuplicateFlag[]>([])
+  const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set())
+  const [expandedDupKey, setExpandedDupKey] = useState<string | null>(null)
+  const [showOnlyDups, setShowOnlyDups] = useState(false)
 
   // Draw upload state
   const [drawFile, setDrawFile] = useState<File | null>(null)
@@ -440,6 +533,10 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
       }
       setParseResult(data)
       setPlayerOverrides({})
+      // Compute duplicate flags
+      setDuplicateFlags(findDuplicateCandidates(data.teams))
+      setDismissedDups(new Set())
+      setExpandedDupKey(null)
       setStage('preview')
     } catch (err: unknown) {
       setParseError(err instanceof Error ? err.message : 'Parse failed')
@@ -1150,10 +1247,21 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
                 const overrideKey = `${gIdx}-${pi}`
                 const isNew = player.matchStatus === 'new'
                 const currentPlayerId = override.playerId ?? player.matchedPlayerId ?? ''
+                // Find duplicate flags for this player (not dismissed)
+                const dupKey = `${gIdx}-${pi}`
+                const playerDups = duplicateFlags.filter(f => {
+                  const fKey = `${f.playerA.teamIdx}-${f.playerA.playerIdx}|${f.playerB.teamIdx}-${f.playerB.playerIdx}`
+                  if (dismissedDups.has(fKey)) return false
+                  return (f.playerA.teamIdx === gIdx && f.playerA.playerIdx === pi) ||
+                         (f.playerB.teamIdx === gIdx && f.playerB.playerIdx === pi)
+                })
+                // Filter: show only duplicates
+                if (showOnlyDups && playerDups.length === 0) return null
+                const isDupExpanded = expandedDupKey === dupKey
                 return (
+                <React.Fragment key={`${team.teamNumber}-${team.drawType}-${pi}`}>
                 <tr
-                  key={`${team.teamNumber}-${team.drawType}-${pi}`}
-                  style={{ background: teamBg, borderBottom: '1px solid #f3f4f6' }}
+                  style={{ background: teamBg, borderBottom: playerDups.length > 0 && isDupExpanded ? 'none' : '1px solid #f3f4f6' }}
                 >
                   <td style={{ padding: '5px 8px', color: '#999', fontSize: 10 }}>
                     {pi === 0 ? (
@@ -1169,6 +1277,19 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
                     {player.name}
                     {player.ranking !== null && player.ranking <= 100 && isNew && (
                       <span title="Top-100 player not found in DB" style={{ color: '#FF4655', marginLeft: 4, cursor: 'help' }}>&#9888;</span>
+                    )}
+                    {playerDups.length > 0 && (
+                      <button
+                        onClick={() => setExpandedDupKey(isDupExpanded ? null : dupKey)}
+                        title="Potential duplicate detected"
+                        style={{
+                          marginLeft: 4, fontSize: 8, fontWeight: 700, padding: '1px 5px',
+                          borderRadius: 3, background: '#fef3c7', color: '#92400e', border: '1px solid #fbbf24',
+                          cursor: 'pointer', verticalAlign: 'middle',
+                        }}
+                      >
+                        ⚠️ DUP
+                      </button>
                     )}
                   </td>
                   <td style={{ padding: '5px 8px', color: '#555' }}>{player.country ?? '—'}</td>
@@ -1299,6 +1420,116 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
                     </button>
                   </td>
                 </tr>
+                {/* Duplicate resolution panel (expanded) */}
+                {playerDups.length > 0 && isDupExpanded && (
+                  <tr style={{ background: '#fffbeb' }}>
+                    <td colSpan={8} style={{ padding: '8px 12px' }}>
+                      <div style={{ fontSize: 11, color: '#92400e', fontWeight: 600, marginBottom: 6 }}>
+                        ⚠️ Potential duplicate{playerDups.length > 1 ? 's' : ''} detected
+                      </div>
+                      {playerDups.map((dup, di) => {
+                        const other = (dup.playerA.teamIdx === gIdx && dup.playerA.playerIdx === pi)
+                          ? dup.playerB : dup.playerA
+                        const otherTeam = teams[other.teamIdx]
+                        const otherPlayer = otherTeam?.players[other.playerIdx]
+                        if (!otherPlayer) return null
+                        const fKey = `${dup.playerA.teamIdx}-${dup.playerA.playerIdx}|${dup.playerB.teamIdx}-${dup.playerB.playerIdx}`
+                        const scoreThis = richnessScore(player)
+                        const scoreOther = richnessScore(otherPlayer)
+                        const thisRecommended = scoreThis > scoreOther
+                        const otherRecommended = scoreOther > scoreThis
+                        return (
+                          <div key={di} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 10, marginBottom: 6 }}>
+                            <div style={{ fontSize: 10, color: '#666', marginBottom: 6 }}>
+                              Reason: <strong>{dup.reasons.join(', ')}</strong>
+                            </div>
+                            {/* Side-by-side comparison */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                              <div style={{ padding: 6, background: thisRecommended ? '#f0fdf4' : '#f9fafb', borderRadius: 4, border: thisRecommended ? '1px solid #86efac' : '1px solid #e5e7eb' }}>
+                                <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: 3 }}>
+                                  This record {thisRecommended && <span style={{ color: '#16a34a' }}>★ Recommended</span>}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{player.name}</div>
+                                <div style={{ fontSize: 10, color: '#666' }}>
+                                  {player.country ?? '—'} · Rank: {player.ranking ?? '—'} · Pts: {player.points?.toLocaleString() ?? '—'}
+                                </div>
+                                <div style={{ fontSize: 10, color: '#888' }}>
+                                  DB: {player.matchedPlayerId ? player.matchedPlayerId.slice(0, 8) + '...' : 'none'} · Score: {scoreThis}
+                                </div>
+                              </div>
+                              <div style={{ padding: 6, background: otherRecommended ? '#f0fdf4' : '#f9fafb', borderRadius: 4, border: otherRecommended ? '1px solid #86efac' : '1px solid #e5e7eb' }}>
+                                <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase' as const, fontWeight: 600, marginBottom: 3 }}>
+                                  Team #{otherTeam?.teamNumber} {otherRecommended && <span style={{ color: '#16a34a' }}>★ Recommended</span>}
+                                </div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{otherPlayer.name}</div>
+                                <div style={{ fontSize: 10, color: '#666' }}>
+                                  {otherPlayer.country ?? '—'} · Rank: {otherPlayer.ranking ?? '—'} · Pts: {otherPlayer.points?.toLocaleString() ?? '—'}
+                                </div>
+                                <div style={{ fontSize: 10, color: '#888' }}>
+                                  DB: {otherPlayer.matchedPlayerId ? otherPlayer.matchedPlayerId.slice(0, 8) + '...' : 'none'} · Score: {scoreOther}
+                                </div>
+                              </div>
+                            </div>
+                            {/* Resolution buttons */}
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                onClick={() => {
+                                  // Keep this record — link the other player to this one's matched ID
+                                  const keepId = player.matchedPlayerId ?? currentPlayerId
+                                  if (keepId) {
+                                    setPlayerOverride(other.teamIdx, other.playerIdx, { action: 'link', playerId: keepId })
+                                  }
+                                  setDismissedDups(prev => { const s = new Set(prev); s.add(fKey); return s })
+                                  setExpandedDupKey(null)
+                                }}
+                                style={{
+                                  fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                                  border: 'none', cursor: 'pointer',
+                                  background: thisRecommended ? '#22c55e' : '#e5e7eb',
+                                  color: thisRecommended ? '#fff' : '#333',
+                                }}
+                              >
+                                Keep this record
+                              </button>
+                              <button
+                                onClick={() => {
+                                  // Use other record — link this player to the other's matched ID
+                                  const keepId = otherPlayer.matchedPlayerId ?? ''
+                                  if (keepId) {
+                                    setPlayerOverride(gIdx, pi, { action: 'link', playerId: keepId })
+                                  }
+                                  setDismissedDups(prev => { const s = new Set(prev); s.add(fKey); return s })
+                                  setExpandedDupKey(null)
+                                }}
+                                style={{
+                                  fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                                  border: 'none', cursor: 'pointer',
+                                  background: otherRecommended ? '#22c55e' : '#e5e7eb',
+                                  color: otherRecommended ? '#fff' : '#333',
+                                }}
+                              >
+                                Use other record
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDismissedDups(prev => { const s = new Set(prev); s.add(fKey); return s })
+                                  setExpandedDupKey(null)
+                                }}
+                                style={{
+                                  fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                                  border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#666',
+                                }}
+                              >
+                                Dismiss
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
                 )
               })
             })}
@@ -1323,6 +1554,84 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
             {seedError}
           </div>
         )}
+
+        {/* Duplicate detection banner */}
+        {duplicateFlags.length > 0 && (() => {
+          const unresolvedCount = duplicateFlags.filter(f => {
+            const fKey = `${f.playerA.teamIdx}-${f.playerA.playerIdx}|${f.playerB.teamIdx}-${f.playerB.playerIdx}`
+            return !dismissedDups.has(fKey)
+          }).length
+          return (
+          <div style={{
+            ...card, marginBottom: 12,
+            background: '#fffbeb', border: '1px solid #fbbf24',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>
+                  {unresolvedCount > 0
+                    ? `${unresolvedCount} potential duplicate${unresolvedCount !== 1 ? 's' : ''} detected`
+                    : 'All duplicates resolved ✓'}
+                </div>
+                <div style={{ fontSize: 10, color: '#b45309' }}>
+                  Click the DUP badge next to a player name to review and resolve
+                </div>
+              </div>
+            </div>
+            {/* Filter + auto-resolve actions */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                onClick={() => setShowOnlyDups(!showOnlyDups)}
+                style={{
+                  fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                  border: showOnlyDups ? '1px solid #f59e0b' : '1px solid #d1d5db',
+                  cursor: 'pointer',
+                  background: showOnlyDups ? '#fef3c7' : '#fff',
+                  color: showOnlyDups ? '#92400e' : '#666',
+                }}
+              >
+                {showOnlyDups ? '✓ Showing duplicates only' : 'Show duplicates only'}
+              </button>
+              {unresolvedCount > 0 && (
+                <button
+                  onClick={() => {
+                    // Auto-resolve: for each unresolved flag, keep the richer record
+                    duplicateFlags.forEach(f => {
+                      const fKey = `${f.playerA.teamIdx}-${f.playerA.playerIdx}|${f.playerB.teamIdx}-${f.playerB.playerIdx}`
+                      if (dismissedDups.has(fKey)) return
+                      const teamA = teams[f.playerA.teamIdx]
+                      const teamB = teams[f.playerB.teamIdx]
+                      const playerA = teamA?.players[f.playerA.playerIdx]
+                      const playerB = teamB?.players[f.playerB.playerIdx]
+                      if (!playerA || !playerB) return
+                      const scoreA = richnessScore(playerA)
+                      const scoreB = richnessScore(playerB)
+                      if (scoreA >= scoreB) {
+                        // Keep A, link B to A's ID
+                        const keepId = playerA.matchedPlayerId ?? ''
+                        if (keepId) setPlayerOverride(f.playerB.teamIdx, f.playerB.playerIdx, { action: 'link', playerId: keepId })
+                      } else {
+                        // Keep B, link A to B's ID
+                        const keepId = playerB.matchedPlayerId ?? ''
+                        if (keepId) setPlayerOverride(f.playerA.teamIdx, f.playerA.playerIdx, { action: 'link', playerId: keepId })
+                      }
+                      setDismissedDups(prev => { const s = new Set(prev); s.add(fKey); return s })
+                    })
+                  }}
+                  style={{
+                    fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                    border: 'none', cursor: 'pointer',
+                    background: '#22c55e', color: '#fff',
+                  }}
+                >
+                  Auto-resolve all ({unresolvedCount}) — keep richer records
+                </button>
+              )}
+            </div>
+          </div>
+          )
+        })()}
 
         {/* Metadata info bar */}
         <div style={{ ...card, marginBottom: 12 }}>

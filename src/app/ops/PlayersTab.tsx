@@ -2,7 +2,7 @@
 // src/app/ops/PlayersTab.tsx
 // Player management UI — search, edit, and merge players from the ops dashboard
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -123,6 +123,120 @@ export default function PlayersTab() {
   const [merging, setMerging] = useState(false)
   const [mergeMessage, setMergeMessage] = useState<string | null>(null)
   const [mergePreview, setMergePreview] = useState(false)
+
+  // Duplicate scan state
+  interface DupGroup {
+    reasons: string[]
+    players: { id: string; name: string; country: string | null; ranking: number | null; points: number | null; category: string | null; avatar_url: string | null; fip_id: string | null; external_id: string | null }[]
+    aiVerified?: boolean
+    mergeGuidance?: string
+  }
+  const [dupGroups, setDupGroups] = useState<DupGroup[]>([])
+  const [dupScanning, setDupScanning] = useState(false)
+  const [dupScanned, setDupScanned] = useState(0)
+  const [dupShowPanel, setDupShowPanel] = useState(false)
+  const [dupDismissed, setDupDismissed] = useState<Set<string>>(new Set())
+  const [dupMerging, setDupMerging] = useState<Set<string>>(new Set()) // groups currently being merged
+  const [dupMerged, setDupMerged] = useState<Set<string>>(new Set())   // groups successfully merged
+
+  const [dupMode, setDupMode] = useState<'rules' | 'ai'>('rules')
+
+  const runDupScan = useCallback(async (mode: 'rules' | 'ai' = 'rules') => {
+    setDupScanning(true)
+    setDupDismissed(new Set())
+    setDupMerged(new Set())
+    setDupMode(mode)
+    try {
+      const params = new URLSearchParams()
+      if (categoryFilter !== 'all') params.set('category', categoryFilter)
+      params.set('mode', mode)
+      const res = await fetch(`/api/ops/duplicate-scan?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDupGroups(data.groups ?? [])
+        setDupScanned(data.scanned ?? 0)
+        setDupShowPanel(true)
+      }
+    } catch { /* ignore */ }
+    setDupScanning(false)
+  }, [categoryFilter])
+
+  // Direct merge from scan results — no intermediate step
+  const directMergeFromDup = useCallback(async (keepPlayer: DupGroup['players'][0], deletePlayer: DupGroup['players'][0], groupKey: string) => {
+    setDupMerging(prev => { const s = new Set(prev); s.add(groupKey); return s })
+    try {
+      // Build merged fields: for each field, pick the non-null value from keep, fallback to delete
+      const mergedFields: Record<string, unknown> = {}
+      const fieldKeys = ['name', 'country', 'category', 'ranking', 'points', 'fip_id', 'external_id', 'avatar_url'] as const
+      for (const key of fieldKeys) {
+        const keepVal = keepPlayer[key as keyof typeof keepPlayer]
+        const delVal = deletePlayer[key as keyof typeof deletePlayer]
+        // Use keep's value if present, otherwise take delete's value
+        if (keepVal != null && keepVal !== '') {
+          mergedFields[key] = keepVal
+        } else if (delVal != null && delVal !== '') {
+          mergedFields[key] = delVal
+        }
+      }
+
+      const res = await fetch('/api/ops/players/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keepId: keepPlayer.id, deleteId: deletePlayer.id, mergedFields }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setDupMerged(prev => { const s = new Set(prev); s.add(groupKey); return s })
+        console.log(`[Dup Merge] Kept ${keepPlayer.name}, deleted ${deletePlayer.name}. Matches updated: ${data.matchesUpdated}, draws: ${data.drawsUpdated}`)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        console.error('[Dup Merge] Failed:', err.error ?? res.status)
+        alert(`Merge failed: ${err.error ?? 'Unknown error'}`)
+      }
+    } catch (e) {
+      console.error('[Dup Merge] Error:', e)
+      alert('Merge failed — check console')
+    }
+    setDupMerging(prev => { const s = new Set(prev); s.delete(groupKey); return s })
+  }, [])
+
+  // When user clicks a dup group player, load their detail for merge
+  const startMergeFromDup = useCallback(async (keepId: string, deleteId: string) => {
+    setDupShowPanel(false)
+    setLoadingDetail(true)
+    try {
+      // Load the "keep" player as selectedPlayer
+      const keepRes = await fetch(`/api/ops/players?id=${keepId}`)
+      if (!keepRes.ok) return
+      const keepData = await keepRes.json()
+      setSelectedPlayer(keepData.player)
+      setSelectedMatchCount(keepData.matchCount ?? 0)
+      setEditFields({})
+
+      // Activate merge mode and load the "delete" player as target
+      setMergeMode(true)
+      const delRes = await fetch(`/api/ops/players?id=${deleteId}`)
+      if (!delRes.ok) return
+      const delData = await delRes.json()
+      setMergeTarget(delData.player)
+      setMergeTargetMatchCount(delData.matchCount ?? 0)
+
+      // Auto-select richer values for each field
+      const selections: Record<string, 'a' | 'b'> = {}
+      for (const field of MERGE_FIELDS) {
+        const valA = keepData.player[field]
+        const valB = delData.player[field]
+        // Prefer non-null, non-empty values. If both have values, keep A (the richer one)
+        if (valA != null && valA !== '') selections[field] = 'a'
+        else if (valB != null && valB !== '') selections[field] = 'b'
+        else selections[field] = 'a'
+      }
+      setMergeSelections(selections)
+      setMergePreview(false)
+    } catch { /* ignore */ }
+    setLoadingDetail(false)
+  }, [])
 
   // ── Search handler ────────────────────────────────────────────
 
@@ -367,7 +481,180 @@ export default function PlayersTab() {
           ))}
         </div>
         {searching && <span style={{ fontSize: 10, color: '#999' }}>Searching...</span>}
+        <button
+          onClick={() => runDupScan('rules')}
+          disabled={dupScanning}
+          style={{
+            padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: dupScanning ? 'default' : 'pointer',
+            border: '1px solid #fbbf24', borderRadius: 4,
+            background: dupShowPanel && dupMode === 'rules' ? '#fef3c7' : '#fffbeb', color: '#92400e',
+            opacity: dupScanning ? 0.6 : 1, whiteSpace: 'nowrap' as const,
+          }}
+        >
+          {dupScanning && dupMode === 'rules' ? 'Scanning...' : '⚠️ Rules Scan'}
+        </button>
+        <button
+          onClick={() => runDupScan('ai')}
+          disabled={dupScanning}
+          style={{
+            padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: dupScanning ? 'default' : 'pointer',
+            border: '1px solid #8b5cf6', borderRadius: 4,
+            background: dupShowPanel && dupMode === 'ai' ? '#ede9fe' : '#f5f3ff', color: '#6d28d9',
+            opacity: dupScanning ? 0.6 : 1, whiteSpace: 'nowrap' as const,
+          }}
+        >
+          {dupScanning && dupMode === 'ai' ? '🤖 AI Scanning...' : '🤖 AI Scan'}
+        </button>
       </div>
+
+      {/* Duplicate scan results panel */}
+      {dupShowPanel && (
+        <div style={{ ...card, marginBottom: 12, background: '#fffbeb', border: '1px solid #fbbf24' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>
+                {dupGroups.length - dupDismissed.size > 0
+                  ? `⚠️ ${dupGroups.length - dupDismissed.size} potential duplicate group${dupGroups.length - dupDismissed.size !== 1 ? 's' : ''} found`
+                  : '✓ All duplicates resolved'}
+                <span style={{ fontSize: 10, color: '#b45309', marginLeft: 6 }}>({dupScanned} players scanned)</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setDupShowPanel(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 14 }}
+            >✕</button>
+          </div>
+
+          {dupGroups.length === 0 && (
+            <div style={{ fontSize: 11, color: '#666', padding: '8px 0' }}>No duplicates found. Your player database is clean!</div>
+          )}
+
+          <div style={{ maxHeight: 400, overflowY: 'auto' as const }}>
+            {dupGroups.map((group, gi) => {
+              const groupKey = group.players.map(p => p.id).sort().join('|')
+              if (dupDismissed.has(groupKey)) return null
+              const [a, b] = group.players
+              // Richness: count non-null fields
+              const richness = (p: typeof a) => {
+                let s = 0
+                if (p.name) s += 1
+                if (p.country) s += 1
+                if (p.ranking !== null) s += 2
+                if (p.points !== null) s += 1
+                if (p.fip_id) s += 2
+                if (p.external_id) s += 1
+                return s
+              }
+              const scoreA = richness(a)
+              const scoreB = richness(b)
+              const recommended = scoreA >= scoreB ? 'a' : 'b'
+
+              return (
+                <div key={gi} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 10, marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, color: '#666', marginBottom: 6 }}>
+                    {group.reasons.map((r, ri) => (
+                      <span key={ri} style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: '#fef3c7', color: '#92400e', fontSize: 9, fontWeight: 600, marginRight: 4 }}>{r}</span>
+                    ))}
+                  </div>
+                  {/* Side-by-side */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                    {[a, b].map((p, pi) => {
+                      const isRec = (pi === 0 && recommended === 'a') || (pi === 1 && recommended === 'b')
+                      return (
+                        <div key={p.id} style={{ padding: 6, background: isRec ? '#f0fdf4' : '#f9fafb', borderRadius: 4, border: isRec ? '1px solid #86efac' : '1px solid #e5e7eb' }}>
+                          <div style={{ fontSize: 9, color: '#999', fontWeight: 600, textTransform: 'uppercase' as const, marginBottom: 2 }}>
+                            Player {pi === 0 ? 'A' : 'B'} {isRec && <span style={{ color: '#16a34a' }}>★ Richer</span>}
+                          </div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{p.name}</div>
+                          <div style={{ fontSize: 10, color: '#666' }}>
+                            {p.country ?? '—'} · Rank: {p.ranking ?? '—'} · Pts: {p.points?.toLocaleString() ?? '—'}
+                          </div>
+                          <div style={{ fontSize: 9, color: '#999' }}>
+                            {p.category ?? '—'} · FIP: {p.fip_id ?? '—'} · ID: {p.id.slice(0, 8)}...
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* AI merge guidance */}
+                  {group.mergeGuidance && (
+                    <div style={{
+                      padding: '6px 10px', background: '#f5f3ff', borderRadius: 4,
+                      border: '1px solid #ddd6fe', marginBottom: 8, fontSize: 11, color: '#5b21b6',
+                    }}>
+                      <span style={{ fontWeight: 700 }}>🤖 AI recommendation:</span> {group.mergeGuidance}
+                    </div>
+                  )}
+                  {/* Actions */}
+                  {dupMerged.has(groupKey) ? (
+                    <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Merged successfully</div>
+                  ) : (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                    <button
+                      onClick={() => {
+                        const keep = recommended === 'a' ? a : b
+                        const del = recommended === 'a' ? b : a
+                        directMergeFromDup(keep, del, groupKey)
+                      }}
+                      disabled={dupMerging.has(groupKey)}
+                      style={{
+                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                        border: 'none', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
+                        background: '#22c55e', color: '#fff',
+                        opacity: dupMerging.has(groupKey) ? 0.6 : 1,
+                      }}
+                    >
+                      {dupMerging.has(groupKey) ? 'Merging...' : `⚡ Quick merge → keep ${recommended === 'a' ? 'A' : 'B'}`}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const keep = recommended === 'a' ? b : a
+                        const del = recommended === 'a' ? a : b
+                        directMergeFromDup(keep, del, groupKey)
+                      }}
+                      disabled={dupMerging.has(groupKey)}
+                      style={{
+                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                        border: '1px solid #d1d5db', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
+                        background: '#fff', color: '#333',
+                        opacity: dupMerging.has(groupKey) ? 0.6 : 1,
+                      }}
+                    >
+                      Keep {recommended === 'a' ? 'B' : 'A'} instead
+                    </button>
+                    <button
+                      onClick={() => {
+                        const keepId = recommended === 'a' ? a.id : b.id
+                        const deleteId = recommended === 'a' ? b.id : a.id
+                        startMergeFromDup(keepId, deleteId)
+                        setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })
+                      }}
+                      disabled={dupMerging.has(groupKey)}
+                      style={{
+                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#666',
+                      }}
+                    >
+                      Review fields...
+                    </button>
+                    <button
+                      onClick={() => setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })}
+                      disabled={dupMerging.has(groupKey)}
+                      style={{
+                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#999',
+                      }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Results table */}
       {results.length > 0 && (
