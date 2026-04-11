@@ -291,6 +291,7 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
   const [duplicateFlags, setDuplicateFlags] = useState<DuplicateFlag[]>([])
   const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set())
   const [expandedDupKey, setExpandedDupKey] = useState<string | null>(null)
+  const [showOnlyDups, setShowOnlyDups] = useState(false)
 
   // Draw upload state
   const [drawFile, setDrawFile] = useState<File | null>(null)
@@ -1248,6 +1249,8 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
                   return (f.playerA.teamIdx === gIdx && f.playerA.playerIdx === pi) ||
                          (f.playerB.teamIdx === gIdx && f.playerB.playerIdx === pi)
                 })
+                // Filter: show only duplicates
+                if (showOnlyDups && playerDups.length === 0) return null
                 const isDupExpanded = expandedDupKey === dupKey
                 return (
                 <React.Fragment key={`${team.teamNumber}-${team.drawType}-${pi}`}>
@@ -1547,25 +1550,82 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
         )}
 
         {/* Duplicate detection banner */}
-        {duplicateFlags.length > 0 && (
+        {duplicateFlags.length > 0 && (() => {
+          const unresolvedCount = duplicateFlags.filter(f => {
+            const fKey = `${f.playerA.teamIdx}-${f.playerA.playerIdx}|${f.playerB.teamIdx}-${f.playerB.playerIdx}`
+            return !dismissedDups.has(fKey)
+          }).length
+          return (
           <div style={{
             ...card, marginBottom: 12,
             background: '#fffbeb', border: '1px solid #fbbf24',
-            display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <span style={{ fontSize: 16 }}>⚠️</span>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>
-                {duplicateFlags.length - dismissedDups.size > 0
-                  ? `${duplicateFlags.length - dismissedDups.size} potential duplicate${duplicateFlags.length - dismissedDups.size !== 1 ? 's' : ''} detected`
-                  : 'All duplicates resolved ✓'}
-              </div>
-              <div style={{ fontSize: 10, color: '#b45309' }}>
-                Click the DUP badge next to a player name to review and resolve
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e' }}>
+                  {unresolvedCount > 0
+                    ? `${unresolvedCount} potential duplicate${unresolvedCount !== 1 ? 's' : ''} detected`
+                    : 'All duplicates resolved ✓'}
+                </div>
+                <div style={{ fontSize: 10, color: '#b45309' }}>
+                  Click the DUP badge next to a player name to review and resolve
+                </div>
               </div>
             </div>
+            {/* Filter + auto-resolve actions */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                onClick={() => setShowOnlyDups(!showOnlyDups)}
+                style={{
+                  fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                  border: showOnlyDups ? '1px solid #f59e0b' : '1px solid #d1d5db',
+                  cursor: 'pointer',
+                  background: showOnlyDups ? '#fef3c7' : '#fff',
+                  color: showOnlyDups ? '#92400e' : '#666',
+                }}
+              >
+                {showOnlyDups ? '✓ Showing duplicates only' : 'Show duplicates only'}
+              </button>
+              {unresolvedCount > 0 && (
+                <button
+                  onClick={() => {
+                    // Auto-resolve: for each unresolved flag, keep the richer record
+                    duplicateFlags.forEach(f => {
+                      const fKey = `${f.playerA.teamIdx}-${f.playerA.playerIdx}|${f.playerB.teamIdx}-${f.playerB.playerIdx}`
+                      if (dismissedDups.has(fKey)) return
+                      const teamA = teams[f.playerA.teamIdx]
+                      const teamB = teams[f.playerB.teamIdx]
+                      const playerA = teamA?.players[f.playerA.playerIdx]
+                      const playerB = teamB?.players[f.playerB.playerIdx]
+                      if (!playerA || !playerB) return
+                      const scoreA = richnessScore(playerA)
+                      const scoreB = richnessScore(playerB)
+                      if (scoreA >= scoreB) {
+                        // Keep A, link B to A's ID
+                        const keepId = playerA.matchedPlayerId ?? ''
+                        if (keepId) setPlayerOverride(f.playerB.teamIdx, f.playerB.playerIdx, { action: 'link', playerId: keepId })
+                      } else {
+                        // Keep B, link A to B's ID
+                        const keepId = playerB.matchedPlayerId ?? ''
+                        if (keepId) setPlayerOverride(f.playerA.teamIdx, f.playerA.playerIdx, { action: 'link', playerId: keepId })
+                      }
+                      setDismissedDups(prev => { const s = new Set(prev); s.add(fKey); return s })
+                    })
+                  }}
+                  style={{
+                    fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                    border: 'none', cursor: 'pointer',
+                    background: '#22c55e', color: '#fff',
+                  }}
+                >
+                  Auto-resolve all ({unresolvedCount}) — keep richer records
+                </button>
+              )}
+            </div>
           </div>
-        )}
+          )
+        })()}
 
         {/* Metadata info bar */}
         <div style={{ ...card, marginBottom: 12 }}>
