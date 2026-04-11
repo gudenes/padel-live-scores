@@ -1,1 +1,1484 @@
-[]
+[
+  {
+    "id": 1,
+    "type": "rules-card",
+    "difficulty": 1,
+    "theme": "rules",
+    "question": "Where must the serve bounce before the returner can hit it?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 75, "y": 85 },
+        { "role": "partner", "x": 25, "y": 40 },
+        { "role": "opponent1", "x": 25, "y": 15 },
+        { "role": "opponent2", "x": 75, "y": 40 }
+      ],
+      "ball": { "x": 75, "y": 85 },
+      "trajectory": { "from": [75, 85], "to": [25, 25] }
+    },
+    "options": [
+      { "id": "a", "label": "Anywhere on the opponent's side", "emoji": "🎯" },
+      { "id": "b", "label": "In the diagonally opposite service box", "emoji": "✅" },
+      { "id": "c", "label": "In any service box", "emoji": "📦" },
+      { "id": "d", "label": "It doesn't need to bounce", "emoji": "❌" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Diagonal Serve Rule",
+      "text": "Like tennis, the padel serve must land in the diagonally opposite service box. The server stands behind the service line and serves underhand, and the ball must bounce in the correct box before the returner plays it.",
+      "proTip": "Aim for the side wall after the bounce to make the return harder. A serve that kicks off the glass gives the returner less time to set up."
+    },
+    "xp": 100
+  },
+  {
+    "id": 2,
+    "type": "rules-card",
+    "difficulty": 1,
+    "theme": "rules",
+    "question": "How must the serve be struck in padel?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 75, "y": 90 },
+        { "role": "partner", "x": 25, "y": 40 },
+        { "role": "opponent1", "x": 25, "y": 15 },
+        { "role": "opponent2", "x": 75, "y": 40 }
+      ],
+      "ball": { "x": 75, "y": 90 }
+    },
+    "options": [
+      { "id": "a", "label": "Overhand, like tennis", "emoji": "💪" },
+      { "id": "b", "label": "Underhand, at or below waist height", "emoji": "✅" },
+      { "id": "c", "label": "Any way you like", "emoji": "🤷" },
+      { "id": "d", "label": "Sidearm only", "emoji": "🔄" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Underhand Serve",
+      "text": "In padel the ball must be struck at or below waist level. The server bounces the ball on the ground and hits it underhand. Overhand serves are not allowed.",
+      "proTip": "Even though the serve is underhand, you can generate plenty of spin and placement. Focus on accuracy over power — a well-placed serve to the body or the T is more effective than raw speed."
+    },
+    "xp": 100
+  },
+  {
+    "id": 3,
+    "type": "rules-card",
+    "difficulty": 1,
+    "theme": "rules",
+    "question": "What happens when the ball hits the net on a serve but still lands in the correct service box?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 75, "y": 88 },
+        { "role": "partner", "x": 25, "y": 40 },
+        { "role": "opponent1", "x": 25, "y": 20 },
+        { "role": "opponent2", "x": 75, "y": 40 }
+      ],
+      "ball": { "x": 50, "y": 50 },
+      "trajectory": { "from": [75, 88], "to": [25, 25] }
+    },
+    "options": [
+      { "id": "a", "label": "It's a fault", "emoji": "❌" },
+      { "id": "b", "label": "It's a let — serve again", "emoji": "✅" },
+      { "id": "c", "label": "Point goes to the returner", "emoji": "🏃" },
+      { "id": "d", "label": "Play continues normally", "emoji": "▶️" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Service Let",
+      "text": "Just like in tennis, if the serve clips the net but still bounces in the correct service box, it's a let. The server replays that serve without penalty.",
+      "proTip": "If the ball hits the net and bounces into the wrong box or doesn't make it over, it counts as a fault — not a let."
+    },
+    "xp": 100
+  },
+  {
+    "id": 4,
+    "type": "rules-card",
+    "difficulty": 1,
+    "theme": "rules",
+    "question": "How is scoring in padel counted?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 30, "y": 80 },
+        { "role": "partner", "x": 70, "y": 80 },
+        { "role": "opponent1", "x": 30, "y": 20 },
+        { "role": "opponent2", "x": 70, "y": 20 }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "1, 2, 3, 4 — like table tennis", "emoji": "🏓" },
+      { "id": "b", "label": "15, 30, 40 — same as tennis", "emoji": "✅" },
+      { "id": "c", "label": "Rally scoring to 21", "emoji": "🏐" },
+      { "id": "d", "label": "Best of 5 sets to 11", "emoji": "📊" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Tennis Scoring",
+      "text": "Padel uses the same scoring as tennis: 15, 30, 40, game. Matches are best of 3 sets, each set to 6 games with a tiebreak at 6-6.",
+      "proTip": "At professional level, many tournaments use the 'golden point' rule at deuce — a single deciding point instead of advantage, making every deuce a pressure moment."
+    },
+    "xp": 100
+  },
+  {
+    "id": 5,
+    "type": "rules-card",
+    "difficulty": 2,
+    "theme": "rules",
+    "question": "Can the ball leave the court through the open side doors during a rally?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 50, "y": 75 },
+        { "role": "partner", "x": 25, "y": 75 },
+        { "role": "opponent1", "x": 50, "y": 25 },
+        { "role": "opponent2", "x": 75, "y": 25 }
+      ],
+      "ball": { "x": 5, "y": 50 }
+    },
+    "options": [
+      { "id": "a", "label": "No, if it leaves the court the point is over", "emoji": "🛑" },
+      { "id": "b", "label": "Yes, and the player can go outside to hit it back", "emoji": "✅" },
+      { "id": "c", "label": "Only if it bounces twice outside", "emoji": "2️⃣" },
+      { "id": "d", "label": "Only in professional matches", "emoji": "🏟️" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Playing Outside the Court",
+      "text": "If the ball bounces on your side and then exits through the open doors or above the glass, you are allowed to run outside the court and play the ball back — as long as it hasn't bounced twice.",
+      "proTip": "The 'salida por la puerta' (exit through the door) is one of padel's most spectacular plays. It's rare but perfectly legal. Always keep your eyes on the ball even if it leaves the court!"
+    },
+    "xp": 150
+  },
+  {
+    "id": 6,
+    "type": "rules-card",
+    "difficulty": 2,
+    "theme": "rules",
+    "question": "After bouncing on the ground, the ball hits the back glass wall. What happens?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 50, "y": 85 },
+        { "role": "partner", "x": 25, "y": 85 },
+        { "role": "opponent1", "x": 50, "y": 20 },
+        { "role": "opponent2", "x": 75, "y": 20 }
+      ],
+      "ball": { "x": 50, "y": 98 },
+      "trajectory": { "from": [50, 50], "to": [50, 98] }
+    },
+    "options": [
+      { "id": "a", "label": "The point is over — ball went out", "emoji": "🚫" },
+      { "id": "b", "label": "Play continues — the ball is still in play", "emoji": "✅" },
+      { "id": "c", "label": "Only if it was hit as a volley first", "emoji": "🤔" },
+      { "id": "d", "label": "Only if the ball stays on your side", "emoji": "⬇️" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Walls Are In Play",
+      "text": "In padel, the glass walls and metal fences are part of the court. After the ball bounces on the ground, it can hit one or more walls and remain in play. You can hit it back at any point before it bounces on the ground a second time.",
+      "proTip": "Learning to read rebounds off the back wall is one of the most important skills in padel. Step back and let the ball come to you rather than trying to hit it while it's still rising."
+    },
+    "xp": 150
+  },
+  {
+    "id": 7,
+    "type": "rules-card",
+    "difficulty": 2,
+    "theme": "rules",
+    "question": "What is the 'golden point' rule?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 30, "y": 80 },
+        { "role": "partner", "x": 70, "y": 80 },
+        { "role": "opponent1", "x": 30, "y": 20 },
+        { "role": "opponent2", "x": 70, "y": 20 }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "The first point of each game is worth double", "emoji": "2️⃣" },
+      { "id": "b", "label": "At deuce, the next point wins the game (no advantage)", "emoji": "✅" },
+      { "id": "c", "label": "A match tiebreak played to 10 points", "emoji": "🔟" },
+      { "id": "d", "label": "A bonus point awarded for spectacular winners", "emoji": "🌟" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Golden Point at Deuce",
+      "text": "Under the golden point rule (used in many professional padel tournaments), when the score reaches deuce (40-40), the next point decides the game. There is no advantage. The receiving pair chooses which side to receive.",
+      "proTip": "The receiving pair's choice of side is a tactical weapon. If you know the server is weaker to the backhand, choose to receive on the side that forces that serve."
+    },
+    "xp": 150
+  },
+  {
+    "id": 8,
+    "type": "rules-card",
+    "difficulty": 2,
+    "theme": "rules",
+    "question": "What happens if the ball hits the wire mesh/fence directly (without bouncing on the ground first)?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 75 },
+        { "role": "partner", "x": 70, "y": 75 },
+        { "role": "opponent1", "x": 40, "y": 30 },
+        { "role": "opponent2", "x": 70, "y": 30 }
+      ],
+      "ball": { "x": 50, "y": 60 },
+      "trajectory": { "from": [40, 30], "to": [50, 60] }
+    },
+    "options": [
+      { "id": "a", "label": "Play continues — just like the glass", "emoji": "▶️" },
+      { "id": "b", "label": "The point goes to the team that hit the ball", "emoji": "✅" },
+      { "id": "c", "label": "It's a let — replay the point", "emoji": "🔄" },
+      { "id": "d", "label": "The ball is dead only if it goes over", "emoji": "⬆️" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Glass vs Wire Mesh",
+      "text": "If your shot lands on the opponent's side, bounces, and then hits their back glass — the ball is still in play. But if it hits the wire mesh (metallic fence) directly without bouncing first, the point is won by the team that hit the shot. The mesh is only 'in play' after a ground bounce.",
+      "proTip": "Hitting the ball hard enough that it bounces and goes over the mesh or glass is a clean winner. This is why aggressive lobs and deep shots can end points outright."
+    },
+    "xp": 150
+  },
+  {
+    "id": 9,
+    "type": "rules-card",
+    "difficulty": 3,
+    "theme": "rules",
+    "question": "During a serve, the ball bounces in the correct box and then hits the side glass before the returner can play it. What's the call?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 75, "y": 88 },
+        { "role": "partner", "x": 25, "y": 40 },
+        { "role": "opponent1", "x": 25, "y": 20 },
+        { "role": "opponent2", "x": 75, "y": 40 }
+      ],
+      "ball": { "x": 0, "y": 25 },
+      "trajectory": { "from": [75, 88], "to": [25, 25] }
+    },
+    "options": [
+      { "id": "a", "label": "Legal serve — play continues", "emoji": "✅" },
+      { "id": "b", "label": "It's a fault", "emoji": "❌" },
+      { "id": "c", "label": "It's a let", "emoji": "🔄" },
+      { "id": "d", "label": "Only legal if it hits the glass below the line", "emoji": "📏" }
+    ],
+    "correctOption": "a",
+    "explanation": {
+      "title": "Serve and Side Wall",
+      "text": "A serve that bounces in the correct service box and then hits the side wall (glass) is perfectly legal. The returner must play it before it bounces a second time. However, if the serve bounces and hits the wire mesh (fence), it's a fault.",
+      "proTip": "Serving into the side glass can be very effective. The ball kicks awkwardly and gives the returner less time. Aim for the 'T' corner where the side and back walls meet."
+    },
+    "xp": 200
+  },
+  {
+    "id": 10,
+    "type": "rules-card",
+    "difficulty": 3,
+    "theme": "rules",
+    "question": "Can a player reach over the net to hit the ball?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 45 },
+        { "role": "partner", "x": 60, "y": 45 },
+        { "role": "opponent1", "x": 40, "y": 55 },
+        { "role": "opponent2", "x": 60, "y": 55 }
+      ],
+      "ball": { "x": 40, "y": 48 }
+    },
+    "options": [
+      { "id": "a", "label": "Yes, anytime", "emoji": "🤚" },
+      { "id": "b", "label": "Never — it's always a foul", "emoji": "🚫" },
+      { "id": "c", "label": "Only if the ball has bounced back to the hitter's side due to spin or wind", "emoji": "✅" },
+      { "id": "d", "label": "Only on match point", "emoji": "🏆" }
+    ],
+    "correctOption": "c",
+    "explanation": {
+      "title": "Reaching Over the Net",
+      "text": "You can only reach over the net if the ball has bounced on the opponent's side and spun back over the net to your side (or was blown back by wind). In that case, you may reach over to play it. Otherwise, crossing the net plane with your racket is a foul.",
+      "proTip": "This situation is rare but does happen with heavy backspin drop shots. If the ball spins back, you must play it before it bounces again on your side."
+    },
+    "xp": 200
+  },
+  {
+    "id": 11,
+    "type": "rules-card",
+    "difficulty": 1,
+    "theme": "rules",
+    "question": "How many serve attempts does each player get per point?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 25, "y": 88 },
+        { "role": "partner", "x": 75, "y": 40 },
+        { "role": "opponent1", "x": 75, "y": 15 },
+        { "role": "opponent2", "x": 25, "y": 40 }
+      ],
+      "ball": { "x": 25, "y": 88 }
+    },
+    "options": [
+      { "id": "a", "label": "One attempt only", "emoji": "1️⃣" },
+      { "id": "b", "label": "Two attempts (first and second serve)", "emoji": "✅" },
+      { "id": "c", "label": "Three attempts", "emoji": "3️⃣" },
+      { "id": "d", "label": "Unlimited until they get it in", "emoji": "♾️" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Two Serve Attempts",
+      "text": "Like tennis, each server gets two attempts per point. If the first serve is a fault (wrong box, net, etc.), they serve again. A double fault (two faults) gives the point to the returners.",
+      "proTip": "Use your first serve to apply pressure with placement or spin. Your second serve should prioritize getting the ball in — a double fault gives away a free point."
+    },
+    "xp": 100
+  },
+  {
+    "id": 12,
+    "type": "rules-card",
+    "difficulty": 3,
+    "theme": "rules",
+    "question": "During a rally, you hit the ball and it bounces on the opponent's side then flies over the back glass wall. What's the ruling?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 42 },
+        { "role": "partner", "x": 60, "y": 42 },
+        { "role": "opponent1", "x": 40, "y": 70 },
+        { "role": "opponent2", "x": 60, "y": 70 }
+      ],
+      "ball": { "x": 50, "y": 60 },
+      "trajectory": { "from": [40, 42], "to": [50, 100] }
+    },
+    "options": [
+      { "id": "a", "label": "Your point — it's a winner", "emoji": "✅" },
+      { "id": "b", "label": "Their point — ball went out", "emoji": "❌" },
+      { "id": "c", "label": "Let — replay the point", "emoji": "🔄" },
+      { "id": "d", "label": "They can run outside and play it", "emoji": "🏃" }
+    ],
+    "correctOption": "d",
+    "explanation": {
+      "title": "Ball Over the Wall",
+      "text": "If the ball bounces on the opponent's side and then goes over the back glass (or exits through the doors), the opponents can leave the court and play the ball back from outside, as long as it hasn't bounced twice. It's only your point if they can't reach it in time.",
+      "proTip": "High lobs that bounce deep and go over the glass are a double-edged sword. The opponent might play a spectacular 'por fuera' return, or they might not reach it. It depends on how high and deep the lob goes."
+    },
+    "xp": 200
+  },
+  {
+    "id": 13,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "shots",
+    "question": "You're at the net and the opponent lobs over your head. The ball is above you but dropping. What shot should you play?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 40 },
+        { "role": "partner", "x": 60, "y": 40 },
+        { "role": "opponent1", "x": 40, "y": 75 },
+        { "role": "opponent2", "x": 60, "y": 75 }
+      ],
+      "ball": { "x": 40, "y": 45 },
+      "trajectory": { "from": [40, 75], "to": [40, 45] }
+    },
+    "options": [
+      { "id": "a", "label": "Flat smash — hit it as hard as possible", "emoji": "💥" },
+      { "id": "b", "label": "Bandeja — controlled overhead with slice", "emoji": "✅" },
+      { "id": "c", "label": "Let it bounce and play off the back wall", "emoji": "🧱" },
+      { "id": "d", "label": "Volley it back softly", "emoji": "🤲" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "The Bandeja",
+      "text": "The bandeja is the bread-and-butter overhead in padel. It's a controlled overhead with slice that lets you stay at the net while putting pressure on the opponents. Unlike a flat smash, you maintain position and control.",
+      "proTip": "The bandeja should be hit with continental grip and a slicing motion. Aim cross-court into the side glass — the spin makes the ball stay low after the bounce, making it very hard to return aggressively.",
+      "courtOverlay": {
+        "trajectory": { "from": [40, 40], "to": [70, 70] },
+        "label": "Bandeja cross-court"
+      }
+    },
+    "xp": 100
+  },
+  {
+    "id": 14,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "shots",
+    "question": "You're at the back of the court behind the service line. Both opponents are at the net. What shot helps you move forward and take the net?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 80 },
+        { "role": "partner", "x": 65, "y": 80 },
+        { "role": "opponent1", "x": 35, "y": 35 },
+        { "role": "opponent2", "x": 65, "y": 35 }
+      ],
+      "ball": { "x": 35, "y": 78 }
+    },
+    "options": [
+      { "id": "a", "label": "Hard drive to the back glass", "emoji": "💪" },
+      { "id": "b", "label": "Chiquita — soft low shot at their feet", "emoji": "✅" },
+      { "id": "c", "label": "High lob over their heads", "emoji": "🌈" },
+      { "id": "d", "label": "Drop shot just over the net", "emoji": "🪶" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "The Chiquita",
+      "text": "The chiquita is a soft, low shot aimed at the opponents' feet while they're at the net. It forces them to hit up, giving you time to advance and take the net position yourself. It's the primary tool for transitioning from defense to attack.",
+      "proTip": "Aim for the middle of the court at their feet — the 'V' between the two net players. This creates confusion about who should take it and forces a weak volley you can attack.",
+      "courtOverlay": {
+        "trajectory": { "from": [35, 80], "to": [50, 42] },
+        "label": "Chiquita to the feet"
+      }
+    },
+    "xp": 150
+  },
+  {
+    "id": 15,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "shots",
+    "question": "The opponent hits a high lob that bounces deep and comes off the back wall at chest height. What's your best play?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 50, "y": 92 },
+        { "role": "partner", "x": 25, "y": 85 },
+        { "role": "opponent1", "x": 40, "y": 35 },
+        { "role": "opponent2", "x": 60, "y": 35 }
+      ],
+      "ball": { "x": 50, "y": 95 },
+      "trajectory": { "from": [50, 100], "to": [50, 92] }
+    },
+    "options": [
+      { "id": "a", "label": "Hit a hard flat drive", "emoji": "💪" },
+      { "id": "b", "label": "Play a lob back to push them away from the net", "emoji": "✅" },
+      { "id": "c", "label": "Try a drop shot from the back", "emoji": "🪶" },
+      { "id": "d", "label": "Smash it off the back wall", "emoji": "💥" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Lob from the Back Wall",
+      "text": "When you're deep behind the back wall and the opponents own the net, a high lob is the safest and most effective play. It buys you time to recover and can push the opponents back, giving you a chance to move forward.",
+      "proTip": "The 'globo' (high defensive lob) should be aimed deep and high enough that it's difficult to smash. Cross-court lobs are safer because they travel over the lower part of the net.",
+      "courtOverlay": {
+        "trajectory": { "from": [50, 92], "to": [35, 15] },
+        "label": "Deep defensive lob"
+      }
+    },
+    "xp": 150
+  },
+  {
+    "id": 16,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "shots",
+    "question": "You're at the net and the opponents play a lob that you can reach before it bounces. The ball is at a good height for an aggressive shot. What do you play?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 42 },
+        { "role": "partner", "x": 60, "y": 42 },
+        { "role": "opponent1", "x": 40, "y": 80 },
+        { "role": "opponent2", "x": 60, "y": 80 }
+      ],
+      "ball": { "x": 45, "y": 55 },
+      "trajectory": { "from": [60, 80], "to": [45, 55] }
+    },
+    "options": [
+      { "id": "a", "label": "Bandeja — stay controlled", "emoji": "🎯" },
+      { "id": "b", "label": "Bajada — aggressive attack off the lob before it hits the wall", "emoji": "✅" },
+      { "id": "c", "label": "Let it bounce and play off the back wall", "emoji": "🧱" },
+      { "id": "d", "label": "Soft drop volley", "emoji": "🤲" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "The Bajada",
+      "text": "The bajada is an aggressive shot where you attack the opponent's lob before it bounces or hits the back wall. Because the opponents are out of position after lobbing, a well-placed bajada can win the point outright.",
+      "proTip": "The key to a good bajada is timing and placement, not power. Aim for the opponents' feet or into the side glass. If you can catch it early, the opponents won't have time to set up their defense.",
+      "courtOverlay": {
+        "trajectory": { "from": [45, 55], "to": [65, 75] },
+        "label": "Bajada to the body"
+      }
+    },
+    "xp": 200
+  },
+  {
+    "id": 17,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "shots",
+    "question": "You're at the back of the court and the opponents are at the net putting pressure on you. What's the safest defensive option?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 30, "y": 85 },
+        { "role": "partner", "x": 70, "y": 85 },
+        { "role": "opponent1", "x": 30, "y": 35 },
+        { "role": "opponent2", "x": 65, "y": 35 }
+      ],
+      "ball": { "x": 30, "y": 82 }
+    },
+    "options": [
+      { "id": "a", "label": "High deep lob over their heads", "emoji": "✅" },
+      { "id": "b", "label": "Passing shot down the line", "emoji": "📏" },
+      { "id": "c", "label": "Hard drive at their body", "emoji": "💪" },
+      { "id": "d", "label": "Short angle drop shot", "emoji": "🪶" }
+    ],
+    "correctOption": "a",
+    "explanation": {
+      "title": "The Defensive Lob",
+      "text": "When both opponents own the net and you're under pressure at the back, a high deep lob is the safest play. It resets the point by pushing them back and gives you time to recover your position.",
+      "proTip": "Aim your lobs cross-court and deep. A lob that dies in the corner is almost impossible to attack and can shift the momentum of the entire point."
+    },
+    "xp": 100
+  },
+  {
+    "id": 18,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "shots",
+    "question": "You're at the net and a fast ball comes straight at your body. What's the best response?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 40 },
+        { "role": "partner", "x": 60, "y": 40 },
+        { "role": "opponent1", "x": 40, "y": 80 },
+        { "role": "opponent2", "x": 60, "y": 80 }
+      ],
+      "ball": { "x": 40, "y": 50 },
+      "trajectory": { "from": [40, 80], "to": [40, 40] }
+    },
+    "options": [
+      { "id": "a", "label": "Step aside and hit a volley", "emoji": "🏃" },
+      { "id": "b", "label": "Block volley — use their pace and redirect softly", "emoji": "✅" },
+      { "id": "c", "label": "Try to smash it back", "emoji": "💥" },
+      { "id": "d", "label": "Duck and let your partner take it", "emoji": "🦆" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "The Block Volley",
+      "text": "When a hard shot is hit directly at your body, a block volley is the smartest play. Simply present your racket face and redirect the ball using the opponent's pace. No big swing needed.",
+      "proTip": "Keep your racket up and in front of you at net. A short, compact volley motion with a firm wrist is more effective than a big swing when the ball is coming fast."
+    },
+    "xp": 150
+  },
+  {
+    "id": 19,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "shots",
+    "question": "You're in the middle of the court and the ball comes off the side wall at waist height. What's the best attacking option?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 20, "y": 65 },
+        { "role": "partner", "x": 60, "y": 40 },
+        { "role": "opponent1", "x": 40, "y": 35 },
+        { "role": "opponent2", "x": 70, "y": 35 }
+      ],
+      "ball": { "x": 5, "y": 65 },
+      "trajectory": { "from": [0, 65], "to": [20, 65] }
+    },
+    "options": [
+      { "id": "a", "label": "Rulo — side-spin shot using the wall angle", "emoji": "✅" },
+      { "id": "b", "label": "Flat drive down the line", "emoji": "📏" },
+      { "id": "c", "label": "High lob to the opposite corner", "emoji": "🌈" },
+      { "id": "d", "label": "Drop shot over the net", "emoji": "🪶" }
+    ],
+    "correctOption": "a",
+    "explanation": {
+      "title": "The Rulo",
+      "text": "The rulo is a side-spin shot played from close to the side wall. You brush the outside of the ball to create spin that makes it curve and stay low, making it very difficult for net players to volley cleanly.",
+      "proTip": "The rulo works best when you're close to the side wall. Use a semi-western grip and brush from low to high on the outside of the ball. The spin makes the ball curve away from the volleyer.",
+      "courtOverlay": {
+        "trajectory": { "from": [20, 65], "to": [55, 38] },
+        "label": "Rulo with side spin"
+      }
+    },
+    "xp": 150
+  },
+  {
+    "id": 20,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "shots",
+    "question": "You're at the net and the opponent plays a short lob that doesn't go deep. The ball is dropping at head height. What shot finishes the point?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 38 },
+        { "role": "partner", "x": 65, "y": 38 },
+        { "role": "opponent1", "x": 35, "y": 75 },
+        { "role": "opponent2", "x": 65, "y": 75 }
+      ],
+      "ball": { "x": 40, "y": 48 },
+      "trajectory": { "from": [35, 75], "to": [40, 48] }
+    },
+    "options": [
+      { "id": "a", "label": "Bandeja — play it safe", "emoji": "🎯" },
+      { "id": "b", "label": "Vibora — overhead with heavy side spin", "emoji": "✅" },
+      { "id": "c", "label": "Soft volley back", "emoji": "🤲" },
+      { "id": "d", "label": "Let it bounce first", "emoji": "⏳" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "The Vibora",
+      "text": "The vibora is an aggressive overhead with heavy side spin. Unlike the bandeja (which is more about control), the vibora aims to finish the point. It's ideal when the lob is short and you can attack with spin that kicks off the side glass.",
+      "proTip": "Hit the vibora with a pronation of the wrist at contact. Aim into the side glass so the ball bounces unpredictably. The combination of pace and spin makes it almost unreturnable when executed well.",
+      "courtOverlay": {
+        "trajectory": { "from": [40, 48], "to": [15, 72] },
+        "label": "Vibora into side glass"
+      }
+    },
+    "xp": 200
+  },
+  {
+    "id": 21,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "shots",
+    "question": "Your opponent is at the net and plays a short volley that barely clears the net. What shot do you use to respond?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 50, "y": 75 },
+        { "role": "partner", "x": 25, "y": 75 },
+        { "role": "opponent1", "x": 40, "y": 35 },
+        { "role": "opponent2", "x": 65, "y": 35 }
+      ],
+      "ball": { "x": 50, "y": 58 },
+      "trajectory": { "from": [40, 35], "to": [50, 58] }
+    },
+    "options": [
+      { "id": "a", "label": "Hard flat drive", "emoji": "💪" },
+      { "id": "b", "label": "High lob over their heads", "emoji": "🌈" },
+      { "id": "c", "label": "Low chiquita at their feet", "emoji": "✅" },
+      { "id": "d", "label": "Smash from below the net", "emoji": "💥" }
+    ],
+    "correctOption": "c",
+    "explanation": {
+      "title": "Chiquita on Short Balls",
+      "text": "When you're moving forward to a short ball, a low chiquita aimed at the net player's feet forces them to volley upward, giving you an easier next ball. It's also a way to gain the net position yourself.",
+      "proTip": "When approaching a short ball, take it early and move through the shot. After hitting the chiquita, keep moving forward to claim the net."
+    },
+    "xp": 100
+  },
+  {
+    "id": 22,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "shots",
+    "question": "You're at the back and the ball comes off the back wall high, giving you time. Both opponents are at the net but slightly off-center to the right. Where do you aim?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 90 },
+        { "role": "partner", "x": 70, "y": 85 },
+        { "role": "opponent1", "x": 55, "y": 35 },
+        { "role": "opponent2", "x": 75, "y": 35 }
+      ],
+      "ball": { "x": 40, "y": 88 },
+      "trajectory": { "from": [40, 100], "to": [40, 88] }
+    },
+    "options": [
+      { "id": "a", "label": "Down the left line — exploit the open space", "emoji": "✅" },
+      { "id": "b", "label": "Hard at the closest opponent", "emoji": "💪" },
+      { "id": "c", "label": "High lob to the right corner", "emoji": "🌈" },
+      { "id": "d", "label": "Short drop shot to center", "emoji": "🪶" }
+    ],
+    "correctOption": "a",
+    "explanation": {
+      "title": "Exploit Open Space",
+      "text": "When opponents shift to one side, the open court on the other side becomes a prime target. A well-placed shot down the empty line forces them to scramble, often opening up even more court on the next shot.",
+      "proTip": "Don't just aim for the open side — aim deep. A ball that goes to the open side and hits the side glass will be almost impossible to reach.",
+      "courtOverlay": {
+        "trajectory": { "from": [40, 90], "to": [15, 30] },
+        "label": "Down the open line"
+      }
+    },
+    "xp": 150
+  },
+  {
+    "id": 23,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "shots",
+    "question": "You're defending deep and the opponent hits a powerful smash that bounces high off the back wall. You have time to play the ball at shoulder height. What's the highest-percentage attacking play?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 50, "y": 95 },
+        { "role": "partner", "x": 25, "y": 90 },
+        { "role": "opponent1", "x": 45, "y": 40 },
+        { "role": "opponent2", "x": 65, "y": 40 }
+      ],
+      "ball": { "x": 50, "y": 93 },
+      "trajectory": { "from": [50, 100], "to": [50, 93] }
+    },
+    "options": [
+      { "id": "a", "label": "Hard flat drive between them", "emoji": "💪" },
+      { "id": "b", "label": "Counter-lob deep and high", "emoji": "🌈" },
+      { "id": "c", "label": "Chiquita low to their feet then advance", "emoji": "✅" },
+      { "id": "d", "label": "Wide angle to the open side glass", "emoji": "📐" }
+    ],
+    "correctOption": "c",
+    "explanation": {
+      "title": "Counter-Attack After the Smash",
+      "text": "When a smash bounces high off the back wall, it actually gives you a great opportunity. A low chiquita at the net players' feet while advancing lets you turn defense into offense by taking the net.",
+      "proTip": "The moment after a smash is often when the net pair relaxes slightly. A well-timed chiquita followed by quick movement to the net can reverse the momentum of the entire point."
+    },
+    "xp": 200
+  },
+  {
+    "id": 24,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "shots",
+    "question": "Your opponent hits a soft, high ball that lands short. You have time to approach and the ball is at waist height. What do you do?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 65 },
+        { "role": "partner", "x": 65, "y": 42 },
+        { "role": "opponent1", "x": 35, "y": 35 },
+        { "role": "opponent2", "x": 65, "y": 35 }
+      ],
+      "ball": { "x": 40, "y": 58 }
+    },
+    "options": [
+      { "id": "a", "label": "Play a flat drive and stay back", "emoji": "⬇️" },
+      { "id": "b", "label": "Play a controlled approach shot and follow it to the net", "emoji": "✅" },
+      { "id": "c", "label": "Hit a lob and retreat", "emoji": "🌈" },
+      { "id": "d", "label": "Wait for a better ball", "emoji": "⏳" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "The Approach Shot",
+      "text": "When you get a short ball at a comfortable height, play a controlled shot (drive or chiquita) and follow it to the net. Taking the net position is key in padel — the team at the net wins most points.",
+      "proTip": "Your approach shot doesn't need to be a winner. Its job is to make the opponents hit up from a defensive position while you establish yourself at the net."
+    },
+    "xp": 100
+  },
+  {
+    "id": 25,
+    "type": "court-tap",
+    "difficulty": 1,
+    "theme": "positioning",
+    "question": "Your partner is serving from the right side. Where should you stand as the net player?",
+    "context": "Tap the zone where you should position yourself.",
+    "court": {
+      "players": [
+        { "role": "partner", "x": 75, "y": 88 },
+        { "role": "opponent1", "x": 25, "y": 20 },
+        { "role": "opponent2", "x": 75, "y": 42 }
+      ],
+      "ball": { "x": 75, "y": 88 },
+      "highlights": [
+        { "type": "zone", "coords": [0, 33, 50, 50], "label": "Service box", "color": "rgba(255,255,255,0.1)" }
+      ]
+    },
+    "correctZone": { "x": 25, "y": 40, "radius": 15 },
+    "explanation": {
+      "title": "Net Player Position on Serve",
+      "text": "When your partner serves from the right, you should be at the net on the left side (around the center of your service box). This covers the middle and puts pressure on the returner.",
+      "proTip": "Stand about 1-2 meters from the net and slightly toward the center. After the serve, watch the returner's racket to anticipate the return direction."
+    },
+    "xp": 100
+  },
+  {
+    "id": 26,
+    "type": "court-tap",
+    "difficulty": 1,
+    "theme": "positioning",
+    "question": "You are returning serve. The server is on their right side. Where should you stand to return?",
+    "context": "Tap where you should position yourself to receive.",
+    "court": {
+      "players": [
+        { "role": "partner", "x": 75, "y": 42 },
+        { "role": "opponent1", "x": 75, "y": 88 },
+        { "role": "opponent2", "x": 25, "y": 42 }
+      ],
+      "ball": { "x": 75, "y": 88 },
+      "highlights": [
+        { "type": "zone", "coords": [0, 60, 50, 80], "label": "Return zone", "color": "rgba(255,255,255,0.1)" }
+      ]
+    },
+    "correctZone": { "x": 25, "y": 72, "radius": 14 },
+    "explanation": {
+      "title": "Return Position",
+      "text": "Stand in the left service box area, about one step behind the service line. This gives you enough time to react to the serve while being ready to move forward after a good return.",
+      "proTip": "Position yourself slightly toward the center rather than hugging the side wall. This gives you better coverage and a shorter path to the net after your return."
+    },
+    "xp": 100
+  },
+  {
+    "id": 27,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "positioning",
+    "question": "You just hit a deep lob over the opponents' heads. They're running back. What should you and your partner do?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 70 },
+        { "role": "partner", "x": 65, "y": 70 },
+        { "role": "opponent1", "x": 40, "y": 55 },
+        { "role": "opponent2", "x": 60, "y": 55 }
+      ],
+      "ball": { "x": 50, "y": 15 },
+      "trajectory": { "from": [35, 70], "to": [50, 15] }
+    },
+    "options": [
+      { "id": "a", "label": "Stay back and wait", "emoji": "⏳" },
+      { "id": "b", "label": "Both move up to take the net together", "emoji": "✅" },
+      { "id": "c", "label": "Only one of you goes to the net", "emoji": "1️⃣" },
+      { "id": "d", "label": "Split — one forward, one back", "emoji": "↕️" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Take the Net After a Lob",
+      "text": "After a successful lob that pushes opponents back, both you and your partner should advance to the net together. Controlling the net is the primary objective in padel — the net team wins roughly 70% of points.",
+      "proTip": "Move together as a unit. Stay about 3-4 meters apart laterally and at the same depth. If one player is at the net and the other is at the back, you create a gap the opponents can exploit."
+    },
+    "xp": 150
+  },
+  {
+    "id": 28,
+    "type": "court-tap",
+    "difficulty": 2,
+    "theme": "positioning",
+    "question": "Your partner is at the net on the right side. The opponent plays a ball to your partner's side. Where should you position yourself?",
+    "context": "Tap where you should move to cover the court.",
+    "court": {
+      "players": [
+        { "role": "partner", "x": 65, "y": 38 },
+        { "role": "opponent1", "x": 35, "y": 75 },
+        { "role": "opponent2", "x": 65, "y": 75 }
+      ],
+      "ball": { "x": 60, "y": 55 },
+      "trajectory": { "from": [65, 75], "to": [60, 55] }
+    },
+    "correctZone": { "x": 35, "y": 38, "radius": 14 },
+    "explanation": {
+      "title": "Mirror Your Partner",
+      "text": "When the ball goes to your partner's side, you should be at the net on the opposite side, roughly mirroring their position. This ensures full court coverage — you handle anything that comes to the left, they handle the right.",
+      "proTip": "Think of an imaginary rope connecting you and your partner. When they move right, you shift left. When they move back, you move back. Always maintain roughly the same distance from the net as your partner."
+    },
+    "xp": 150
+  },
+  {
+    "id": 29,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "positioning",
+    "question": "Both opponents are at the net. Your partner hits a lob that lands short. The opponents will likely smash. What should you do?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 50, "y": 65 },
+        { "role": "partner", "x": 25, "y": 75 },
+        { "role": "opponent1", "x": 40, "y": 35 },
+        { "role": "opponent2", "x": 65, "y": 35 }
+      ],
+      "ball": { "x": 50, "y": 30 },
+      "trajectory": { "from": [25, 75], "to": [50, 30] }
+    },
+    "options": [
+      { "id": "a", "label": "Stay where you are and hope for the best", "emoji": "🤞" },
+      { "id": "b", "label": "Both retreat to the back wall to defend", "emoji": "✅" },
+      { "id": "c", "label": "Rush the net to put pressure", "emoji": "🏃" },
+      { "id": "d", "label": "Move to the center only", "emoji": "➡️" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Retreat to Defend the Smash",
+      "text": "When the opponents have a clear smash opportunity, both you and your partner should retreat behind the service line (toward the back wall). The back wall is your ally — the smash will bounce off it, giving you a chance to return.",
+      "proTip": "Don't retreat all the way to the back wall. Position yourself about 1-2 meters in front of it so you have room to let the ball bounce and come off the wall before hitting it."
+    },
+    "xp": 150
+  },
+  {
+    "id": 30,
+    "type": "court-tap",
+    "difficulty": 3,
+    "theme": "positioning",
+    "question": "Your partner is defending a smash from the right corner. The opponent's smash is going cross-court. Where should you position yourself?",
+    "context": "Tap the ideal defensive position.",
+    "court": {
+      "players": [
+        { "role": "partner", "x": 75, "y": 88 },
+        { "role": "opponent1", "x": 60, "y": 40 },
+        { "role": "opponent2", "x": 35, "y": 40 }
+      ],
+      "ball": { "x": 70, "y": 55 },
+      "trajectory": { "from": [60, 40], "to": [75, 88] },
+      "highlights": [
+        { "type": "arrow", "coords": [60, 40, 75, 88], "label": "Smash direction", "color": "rgba(255,100,100,0.6)" }
+      ]
+    },
+    "correctZone": { "x": 35, "y": 82, "radius": 15 },
+    "explanation": {
+      "title": "Defensive Cover Position",
+      "text": "When your partner is defending a cross-court smash in the right corner, you should be in the left back area. This covers the counter-attack angle — if the smash is returned, the opponent at the left net position will likely hit to your side.",
+      "proTip": "Stay parallel with your partner (same distance from the net) and cover the opposite half. If the smash comes to the middle, the player closer to the ball takes it."
+    },
+    "xp": 200
+  },
+  {
+    "id": 31,
+    "type": "court-tap",
+    "difficulty": 2,
+    "theme": "positioning",
+    "question": "You just hit a chiquita that forced the net player to volley up. Where should you move to capitalize?",
+    "context": "Tap where you should move after your chiquita.",
+    "court": {
+      "players": [
+        { "role": "partner", "x": 60, "y": 55 },
+        { "role": "opponent1", "x": 35, "y": 38 },
+        { "role": "opponent2", "x": 65, "y": 38 }
+      ],
+      "ball": { "x": 35, "y": 42 },
+      "trajectory": { "from": [35, 70], "to": [35, 42] },
+      "highlights": [
+        { "type": "arrow", "coords": [35, 70, 35, 42], "label": "Your chiquita", "color": "rgba(100,200,100,0.6)" }
+      ]
+    },
+    "correctZone": { "x": 35, "y": 45, "radius": 14 },
+    "explanation": {
+      "title": "Follow Your Chiquita to the Net",
+      "text": "After hitting a good chiquita, you must follow it forward to the net. The whole purpose of the chiquita is to create a weak reply that you can volley from the net position. Staying back wastes the opportunity.",
+      "proTip": "Don't sprint blindly forward — move with split steps so you can react to the opponent's response. Arrive at the net in a ready position, not off-balance."
+    },
+    "xp": 150
+  },
+  {
+    "id": 32,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "positioning",
+    "question": "Both teams are at the net in a fast volley exchange. The opponent plays a sharp angle volley to your left. Your partner is on the right. What should happen?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 40 },
+        { "role": "partner", "x": 65, "y": 40 },
+        { "role": "opponent1", "x": 35, "y": 55 },
+        { "role": "opponent2", "x": 65, "y": 55 }
+      ],
+      "ball": { "x": 15, "y": 45 },
+      "trajectory": { "from": [35, 55], "to": [15, 45] }
+    },
+    "options": [
+      { "id": "a", "label": "You take it and your partner stays put", "emoji": "👋" },
+      { "id": "b", "label": "You take it and your partner slides left to cover center", "emoji": "✅" },
+      { "id": "c", "label": "Let it go — it might hit the glass and come back", "emoji": "🧱" },
+      { "id": "d", "label": "Your partner should run over and take it", "emoji": "🏃" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Dynamic Shifting at the Net",
+      "text": "When you stretch wide to take a ball, your partner must shift toward the center to cover the gap you've left. This is the fundamental movement pattern at the net — always covering each other.",
+      "proTip": "This shift should be automatic, not communicated. Both players need to read the play and move as a unit. Practice this in training until it becomes instinct."
+    },
+    "xp": 200
+  },
+  {
+    "id": 33,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "positioning",
+    "question": "After returning serve, where should you ideally try to move?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 25, "y": 72 },
+        { "role": "partner", "x": 75, "y": 42 },
+        { "role": "opponent1", "x": 75, "y": 88 },
+        { "role": "opponent2", "x": 25, "y": 42 }
+      ],
+      "ball": { "x": 25, "y": 72 }
+    },
+    "options": [
+      { "id": "a", "label": "Stay at the baseline", "emoji": "⬇️" },
+      { "id": "b", "label": "Move to the net alongside your partner", "emoji": "✅" },
+      { "id": "c", "label": "Move to the opposite side", "emoji": "↔️" },
+      { "id": "d", "label": "Run all the way to the back wall", "emoji": "🧱" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Join Your Partner at the Net",
+      "text": "After returning serve, your goal is to move forward and join your partner at the net as quickly as possible. The net position is dominant in padel — use your return to create space and advance.",
+      "proTip": "Hit a deep return (lob or low to their feet) to buy time for your advance. A short, weak return will be punished before you can reach the net."
+    },
+    "xp": 100
+  },
+  {
+    "id": 34,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "positioning",
+    "question": "You're at the net and your partner is at the back defending. The opponents are at the net. What's the problem with this formation?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 40 },
+        { "role": "partner", "x": 65, "y": 85 },
+        { "role": "opponent1", "x": 35, "y": 55 },
+        { "role": "opponent2", "x": 65, "y": 55 }
+      ],
+      "ball": { "x": 50, "y": 60 }
+    },
+    "options": [
+      { "id": "a", "label": "No problem — it gives good coverage", "emoji": "👍" },
+      { "id": "b", "label": "There's a huge gap in the middle that opponents can exploit", "emoji": "✅" },
+      { "id": "c", "label": "Your partner is too far from the ball", "emoji": "📏" },
+      { "id": "d", "label": "You should both be at the net", "emoji": "🤝" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Avoid the Split Formation",
+      "text": "When one player is at the net and the other at the back, the diagonal gap between them is enormous. Opponents can hit into this gap with ease. In padel, partners should always be at roughly the same depth — either both at the net or both at the back.",
+      "proTip": "If your partner gets pushed back, drop back with them. It's better to defend together from the back than to leave a gap. You can always retake the net together on the next opportunity."
+    },
+    "xp": 200
+  },
+  {
+    "id": 35,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "communication",
+    "question": "A lob goes up between you and your partner at the net. Who should take it?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 40 },
+        { "role": "partner", "x": 65, "y": 40 },
+        { "role": "opponent1", "x": 35, "y": 75 },
+        { "role": "opponent2", "x": 65, "y": 75 }
+      ],
+      "ball": { "x": 50, "y": 42 },
+      "trajectory": { "from": [50, 75], "to": [50, 42] }
+    },
+    "options": [
+      { "id": "a", "label": "Both try to hit it", "emoji": "🤷" },
+      { "id": "b", "label": "The player who calls 'Mine!' clearly and first", "emoji": "✅" },
+      { "id": "c", "label": "Always the forehand player", "emoji": "🏸" },
+      { "id": "d", "label": "Nobody — let it bounce", "emoji": "⏳" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Call the Ball",
+      "text": "When a ball comes between partners, clear communication is essential. The player who can take it with the better shot should call 'Mine!' ('Mia!' in Spanish) loudly and early. The other player immediately gives space.",
+      "proTip": "Establish a rule before the match: the forehand player (usually the one on the left if both are right-handed) takes balls in the middle by default, unless one player calls it off."
+    },
+    "xp": 100
+  },
+  {
+    "id": 36,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "communication",
+    "question": "Your partner hits a lob and you both start moving forward. Your partner says 'Switch!' What does this mean?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 65 },
+        { "role": "partner", "x": 60, "y": 65 },
+        { "role": "opponent1", "x": 40, "y": 30 },
+        { "role": "opponent2", "x": 65, "y": 30 }
+      ],
+      "ball": { "x": 50, "y": 15 },
+      "trajectory": { "from": [60, 65], "to": [50, 15] }
+    },
+    "options": [
+      { "id": "a", "label": "Switch rackets", "emoji": "🔄" },
+      { "id": "b", "label": "Switch sides — you go right, they go left", "emoji": "✅" },
+      { "id": "c", "label": "Switch to defensive mode", "emoji": "🛡️" },
+      { "id": "d", "label": "Switch the ball direction", "emoji": "↩️" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "The Switch Call",
+      "text": "'Switch' means you and your partner exchange sides of the court. This often happens during a point when movement takes one player across the center. The call prevents both players from ending up on the same side.",
+      "proTip": "Switching is common and natural. Don't worry about getting back to 'your' side mid-point. After the point ends, you can re-organize. During the point, just make sure you're covering the court efficiently."
+    },
+    "xp": 100
+  },
+  {
+    "id": 37,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "communication",
+    "question": "You're at the net and your partner is about to return serve. What information could you give them before the serve?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 25, "y": 40 },
+        { "role": "partner", "x": 75, "y": 72 },
+        { "role": "opponent1", "x": 75, "y": 88 },
+        { "role": "opponent2", "x": 25, "y": 40 }
+      ],
+      "ball": { "x": 75, "y": 88 }
+    },
+    "options": [
+      { "id": "a", "label": "Nothing — focus on your own position", "emoji": "🤐" },
+      { "id": "b", "label": "Where the opponent net player is positioned (left, center, right)", "emoji": "✅" },
+      { "id": "c", "label": "What shot to hit", "emoji": "🎯" },
+      { "id": "d", "label": "The score", "emoji": "📊" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Be Your Partner's Eyes",
+      "text": "As the net player, you can see the opponent's net player positioning — something your partner can't see while focused on the serve. Signal where they're standing so your partner can aim the return to the open side.",
+      "proTip": "Use hand signals behind your back before the serve: one finger = I'll poach (intercept), open hand = I'll stay, point left/right = where the opponent is positioned. Develop a system with your partner."
+    },
+    "xp": 150
+  },
+  {
+    "id": 38,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "communication",
+    "question": "Your partner makes an error and loses the point. What's the best thing to do?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 40 },
+        { "role": "partner", "x": 65, "y": 75 },
+        { "role": "opponent1", "x": 35, "y": 55 },
+        { "role": "opponent2", "x": 65, "y": 55 }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "Point out what they did wrong", "emoji": "👉" },
+      { "id": "b", "label": "Encourage them briefly and refocus on the next point", "emoji": "✅" },
+      { "id": "c", "label": "Say nothing at all", "emoji": "😶" },
+      { "id": "d", "label": "Show frustration so they know it mattered", "emoji": "😤" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Positive Communication",
+      "text": "In padel, positive communication between partners is crucial. A quick tap of rackets, a 'No worries' or 'Next one' keeps the energy up. Technical corrections should wait for changeovers or after the match.",
+      "proTip": "The best padel pairs have a 5:1 ratio of positive to corrective communication during matches. A confident partner plays better than a criticized one. Save tactical discussions for changeovers."
+    },
+    "xp": 150
+  },
+  {
+    "id": 39,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "communication",
+    "question": "During a fast rally at the net, a ball comes down the middle. Both you and your partner go for it. What went wrong?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 40, "y": 40 },
+        { "role": "partner", "x": 55, "y": 40 },
+        { "role": "opponent1", "x": 40, "y": 55 },
+        { "role": "opponent2", "x": 65, "y": 55 }
+      ],
+      "ball": { "x": 48, "y": 45 }
+    },
+    "options": [
+      { "id": "a", "label": "The ball was too fast to decide", "emoji": "⚡" },
+      { "id": "b", "label": "No pre-agreed rule for who takes the middle ball", "emoji": "✅" },
+      { "id": "c", "label": "The opponents hit a perfect shot", "emoji": "🎯" },
+      { "id": "d", "label": "You were both too close together", "emoji": "📏" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Agree on the Middle Ball",
+      "text": "Before the match, agree who takes balls down the middle. The common rule is the player with the forehand in the middle takes it — typically the left-side player for two right-handers. Without this agreement, both players hesitate or collide.",
+      "proTip": "Another approach: the player who is 'hotter' (more confident and playing better) takes the middle balls. This is a tactical choice you can adjust mid-match during changeovers."
+    },
+    "xp": 150
+  },
+  {
+    "id": 40,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "communication",
+    "question": "You're at the net and see your opponent preparing to lob over your partner. What should you call out?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 38 },
+        { "role": "partner", "x": 65, "y": 38 },
+        { "role": "opponent1", "x": 65, "y": 80 },
+        { "role": "opponent2", "x": 35, "y": 80 }
+      ],
+      "ball": { "x": 65, "y": 78 },
+      "trajectory": { "from": [65, 80], "to": [65, 20] }
+    },
+    "options": [
+      { "id": "a", "label": "'Yours!' — so your partner knows to go back for it", "emoji": "✅" },
+      { "id": "b", "label": "Nothing — your partner should see the lob", "emoji": "😶" },
+      { "id": "c", "label": "'Mine!' — run across to cover", "emoji": "🏃" },
+      { "id": "d", "label": "'Stay!' — don't move", "emoji": "🛑" }
+    ],
+    "correctOption": "a",
+    "explanation": {
+      "title": "Alert Your Partner",
+      "text": "Call 'Yours!' ('Tuya!') immediately when you see a lob going over your partner. They may be watching the ball at the net and not realize the lob is coming. Early communication gives them time to turn and track the ball.",
+      "proTip": "Also add direction: 'Yours, left!' or 'Yours, deep!' This extra detail helps your partner prepare their movement and the type of shot they'll need to play."
+    },
+    "xp": 200
+  },
+  {
+    "id": 41,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "communication",
+    "question": "Before a match, what should you agree on with your partner?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 75 },
+        { "role": "partner", "x": 65, "y": 75 },
+        { "role": "opponent1", "x": 35, "y": 25 },
+        { "role": "opponent2", "x": 65, "y": 25 }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "Which side each of you will play", "emoji": "✅" },
+      { "id": "b", "label": "Who pays for the court", "emoji": "💰" },
+      { "id": "c", "label": "What to eat after", "emoji": "🍕" },
+      { "id": "d", "label": "Nothing — just play naturally", "emoji": "🤷" }
+    ],
+    "correctOption": "a",
+    "explanation": {
+      "title": "Pre-Match Agreement",
+      "text": "Before starting, agree on which side each player will primarily play. Typically, the player with the stronger backhand plays on the left (the 'revs' side), and the player with better overhead/smash plays on the right (the 'drive' side).",
+      "proTip": "Also discuss: who takes the middle balls, preferred serve placement, and any tactical plans against the opponents. Even 2 minutes of discussion makes a big difference."
+    },
+    "xp": 100
+  },
+  {
+    "id": 42,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "communication",
+    "question": "During a changeover, you notice the opponents are struggling with high lobs to the left corner. What do you tell your partner?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 50 },
+        { "role": "partner", "x": 65, "y": 50 },
+        { "role": "opponent1", "x": 35, "y": 50 },
+        { "role": "opponent2", "x": 65, "y": 50 }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "Keep it to yourself to avoid overthinking", "emoji": "🤫" },
+      { "id": "b", "label": "Share the observation and agree to target that corner", "emoji": "✅" },
+      { "id": "c", "label": "Change your game plan completely", "emoji": "🔄" },
+      { "id": "d", "label": "Focus only on your own game", "emoji": "👤" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Changeover Tactics",
+      "text": "Changeovers are the perfect time to share tactical observations. If you've spotted a weakness, communicate it clearly and agree on a simple plan. 'Let's lob to their left corner when we're defending' is a clear, actionable plan.",
+      "proTip": "Keep changeover discussions short and positive. One clear tactical idea is better than overloading your partner with five observations. And always start with something positive before any correction."
+    },
+    "xp": 150
+  },
+  {
+    "id": 43,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "mixed",
+    "question": "What is the most important position to control in padel?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 40 },
+        { "role": "partner", "x": 65, "y": 40 },
+        { "role": "opponent1", "x": 35, "y": 80 },
+        { "role": "opponent2", "x": 65, "y": 80 }
+      ],
+      "highlights": [
+        { "type": "zone", "coords": [10, 33, 90, 50], "label": "Net zone", "color": "rgba(100,200,100,0.2)" }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "The back wall area", "emoji": "🧱" },
+      { "id": "b", "label": "The net position", "emoji": "✅" },
+      { "id": "c", "label": "The center of the court", "emoji": "⭕" },
+      { "id": "d", "label": "Close to the side glass", "emoji": "🪟" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Net Dominance",
+      "text": "The net is the most dominant position in padel. Teams that control the net win approximately 70% of points. From the net, you can volley aggressively, cut off angles, and force opponents into difficult defensive shots.",
+      "proTip": "Every shot you make from the back should have a purpose: either defending safely or creating an opportunity to move forward and take the net."
+    },
+    "xp": 100
+  },
+  {
+    "id": 44,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "mixed",
+    "question": "You're serving at 40-40 (golden point). The receivers get to choose which side to receive on. You're a strong right-side server. What might the receivers do?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 75, "y": 88 },
+        { "role": "partner", "x": 25, "y": 40 },
+        { "role": "opponent1", "x": 25, "y": 20 },
+        { "role": "opponent2", "x": 75, "y": 40 }
+      ],
+      "ball": { "x": 75, "y": 88 }
+    },
+    "options": [
+      { "id": "a", "label": "They can't choose — it follows normal rotation", "emoji": "🔄" },
+      { "id": "b", "label": "Choose to receive from the side that makes you serve to your weaker side", "emoji": "✅" },
+      { "id": "c", "label": "They always receive from the deuce side", "emoji": "➡️" },
+      { "id": "d", "label": "They can choose who serves", "emoji": "👉" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Golden Point Receiving Choice",
+      "text": "At golden point (40-40 in tournaments using this rule), the receiving team chooses which side to return from. This tactical advantage can be significant — they'll choose the side that puts the most pressure on the server.",
+      "proTip": "As the receiving team, study the server's patterns. If they're stronger serving to the right side, choose to receive from the left to force them into an uncomfortable serve. Use this choice wisely."
+    },
+    "xp": 150
+  },
+  {
+    "id": 45,
+    "type": "court-tap",
+    "difficulty": 1,
+    "theme": "mixed",
+    "question": "You're about to serve from the right side of the court. Where must the ball land?",
+    "context": "Tap the area where a legal serve must bounce.",
+    "court": {
+      "players": [
+        { "role": "you", "x": 75, "y": 88 },
+        { "role": "partner", "x": 25, "y": 40 },
+        { "role": "opponent1", "x": 25, "y": 20 },
+        { "role": "opponent2", "x": 75, "y": 40 }
+      ],
+      "ball": { "x": 75, "y": 88 },
+      "highlights": [
+        { "type": "zone", "coords": [0, 0, 50, 33], "label": "Left service box", "color": "rgba(255,255,255,0.08)" },
+        { "type": "zone", "coords": [50, 0, 100, 33], "label": "Right service box", "color": "rgba(255,255,255,0.08)" }
+      ]
+    },
+    "correctZone": { "x": 25, "y": 18, "radius": 16 },
+    "explanation": {
+      "title": "Diagonal Serve Landing",
+      "text": "When serving from the right side of the court, the ball must bounce in the diagonally opposite (left) service box on the opponent's side. The serve is always cross-court, just like in tennis.",
+      "proTip": "Try to make the ball bounce near the T (center line meeting the service line) or toward the side glass. Both spots create awkward returns for the receiver."
+    },
+    "xp": 100
+  },
+  {
+    "id": 46,
+    "type": "court-scenario",
+    "difficulty": 2,
+    "theme": "mixed",
+    "question": "You notice the opponent on the left side has a weak backhand overhead. How can you exploit this?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 75 },
+        { "role": "partner", "x": 65, "y": 75 },
+        { "role": "opponent1", "x": 35, "y": 35 },
+        { "role": "opponent2", "x": 65, "y": 35 }
+      ],
+      "ball": { "x": 35, "y": 73 }
+    },
+    "options": [
+      { "id": "a", "label": "Hit everything to the opponent on the right", "emoji": "➡️" },
+      { "id": "b", "label": "Play lobs consistently to the left-side opponent", "emoji": "✅" },
+      { "id": "c", "label": "Hit low and hard at them", "emoji": "💪" },
+      { "id": "d", "label": "Don't change anything — play your normal game", "emoji": "🤷" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Target the Weakness",
+      "text": "Consistently lobbing to a player with a weak overhead forces them into uncomfortable shots. They'll either make errors or hit weak balls you can attack. This is a fundamental tactical approach in padel.",
+      "proTip": "Don't just lob — vary the height and depth. Some lobs high and deep, some shorter to catch them off guard. The key is persistent pressure on the weakness, not a single big shot."
+    },
+    "xp": 150
+  },
+  {
+    "id": 47,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "mixed",
+    "question": "You're playing in windy conditions. The wind is blowing from behind you (toward the opponents' side). How should you adjust?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 75 },
+        { "role": "partner", "x": 65, "y": 75 },
+        { "role": "opponent1", "x": 35, "y": 35 },
+        { "role": "opponent2", "x": 65, "y": 35 }
+      ],
+      "ball": { "x": 35, "y": 73 },
+      "highlights": [
+        { "type": "arrow", "coords": [50, 80, 50, 20], "label": "Wind direction", "color": "rgba(150,150,255,0.5)" }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "Hit harder — the wind will help", "emoji": "💪" },
+      { "id": "b", "label": "Use more lobs — they'll carry deeper with the wind", "emoji": "🌈" },
+      { "id": "c", "label": "Play lower, flatter shots to reduce the wind's effect", "emoji": "✅" },
+      { "id": "d", "label": "No adjustment needed in a walled court", "emoji": "🤷" }
+    ],
+    "correctOption": "c",
+    "explanation": {
+      "title": "Playing With the Wind",
+      "text": "When the wind is behind you, lobs tend to fly long and go over the back glass. Instead, play lower, flatter shots that stay under the wind. Controlled drives and chiquitas are more reliable than lobs in this situation.",
+      "proTip": "On outdoor courts, wind is a major factor despite the walls. The glass doesn't go all the way up, so lobs catch the wind above the walls. Adjust your lob height and add more topspin to keep the ball in."
+    },
+    "xp": 200
+  },
+  {
+    "id": 48,
+    "type": "court-scenario",
+    "difficulty": 1,
+    "theme": "mixed",
+    "question": "Why is padel always played in doubles?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 30, "y": 75 },
+        { "role": "partner", "x": 70, "y": 75 },
+        { "role": "opponent1", "x": 30, "y": 25 },
+        { "role": "opponent2", "x": 70, "y": 25 }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "The court is too big for singles", "emoji": "📏" },
+      { "id": "b", "label": "The walls make it impossible for one player to cover", "emoji": "✅" },
+      { "id": "c", "label": "It's just a tradition", "emoji": "📜" },
+      { "id": "d", "label": "Singles padel exists and is common", "emoji": "👤" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Why Doubles?",
+      "text": "Padel is designed for doubles because the walls keep the ball in play much longer than tennis. A single player simply can't cover all the angles created by wall rebounds. The court dimensions (10m x 20m) are specifically designed for four players.",
+      "proTip": "Some clubs have smaller 'singles' courts (6m x 20m), but this is a niche format. Standard padel is always doubles, which is part of what makes it such a social sport."
+    },
+    "xp": 100
+  },
+  {
+    "id": 49,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "mixed",
+    "question": "You're down 3-5 in the third set. The opponents are playing well. What's the best strategic approach?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 35, "y": 75 },
+        { "role": "partner", "x": 65, "y": 75 },
+        { "role": "opponent1", "x": 35, "y": 35 },
+        { "role": "opponent2", "x": 65, "y": 35 }
+      ]
+    },
+    "options": [
+      { "id": "a", "label": "Go for big risky shots to finish points quickly", "emoji": "💥" },
+      { "id": "b", "label": "Play more defensively and make them close out the match", "emoji": "✅" },
+      { "id": "c", "label": "Change everything about your game", "emoji": "🔄" },
+      { "id": "d", "label": "Accept the loss and save energy", "emoji": "😔" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Closing Under Pressure",
+      "text": "When trailing late in a match, consistency beats heroics. Make the opponents earn the win by extending rallies and playing solid padel. The pressure of serving for the match often causes the leading team to tighten up.",
+      "proTip": "Focus on the process, not the scoreboard. Win one point at a time. Many padel matches are turned around from 3-5 down because the serving team feels the pressure of closing out. Give them every chance to feel that pressure."
+    },
+    "xp": 200
+  },
+  {
+    "id": 50,
+    "type": "court-scenario",
+    "difficulty": 3,
+    "theme": "mixed",
+    "question": "Both teams are at the net in a fast volley exchange. You notice the ball keeps coming to your backhand side. What's the smart tactical adjustment?",
+    "court": {
+      "players": [
+        { "role": "you", "x": 30, "y": 40 },
+        { "role": "partner", "x": 65, "y": 40 },
+        { "role": "opponent1", "x": 35, "y": 55 },
+        { "role": "opponent2", "x": 65, "y": 55 }
+      ],
+      "ball": { "x": 25, "y": 45 },
+      "trajectory": { "from": [35, 55], "to": [25, 45] }
+    },
+    "options": [
+      { "id": "a", "label": "Keep trying to hit forehand by moving around the ball", "emoji": "🏃" },
+      { "id": "b", "label": "Shift your ready position slightly to favor the backhand side", "emoji": "✅" },
+      { "id": "c", "label": "Tell your partner to take all the middle balls", "emoji": "🗣️" },
+      { "id": "d", "label": "Hit every ball to the same opponent", "emoji": "🎯" }
+    ],
+    "correctOption": "b",
+    "explanation": {
+      "title": "Adjusting Your Ready Position",
+      "text": "If the opponent keeps targeting your backhand, shift your ready position slightly to favor that side. A small adjustment means you can take the backhand volley comfortably while still reaching forehand volleys. Don't over-correct — just a half-step.",
+      "proTip": "At the professional level, net players constantly micro-adjust their position based on where the ball is and what the opponent tends to do. Watch the opponent's racket face — it tells you where the ball is going before it's hit."
+    },
+    "xp": 200
+  }
+]
