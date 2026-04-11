@@ -28,24 +28,7 @@ import TournamentSpotlightHero from '@/components/TournamentSpotlightHero'
 import type { TournamentSpotlightHeroProps } from '@/components/TournamentSpotlightHero'
 import { toShortName } from '@/types/match'
 
-// ── Brand colors ───────────────────────────────────────────────
-const GREEN = '#7ED321'
-const GREEN_DIM = 'rgba(126,211,33,0.15)'
-const ORANGE = '#F5A623'
-const LIVE_RED = '#FF4655'
-const BG_BASE = '#1A1A1A'
-const BG_CARD = '#141414'
-const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
-
-// ── Chunky clip-path presets ───────────────────────────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  bar: 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-  section: 'polygon(0% 2%, 100% 0%, 100% 98%, 0% 100%)',
-}
+import { GREEN, GREEN_DIM, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, MEN_BLUE, WOMEN_PURPLE, BG_HEADER, BG_SUBTLE, TEXT_PRIMARY, TEXT_LOSER, CHUNKY } from '@/lib/theme-colors'
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -197,9 +180,6 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
 
 // ── Gender badge (icon badge in corner) ────────────────────────
 
-const MEN_BLUE = '#4A9EFF'
-const WOMEN_PURPLE = '#D966FF'
-
 function GenderBadge({ category }: { category: string | null }) {
   if (!category) return null
   const isMen = category === 'men'
@@ -330,7 +310,7 @@ function LiveMatchCard({ match }: { match: Match }) {
   return (
     <Wrapper {...(wrapperProps as any)}>
       {gated && (
-        <span style={{ position: 'absolute', top: 6, right: 6, background: '#F5A623', color: '#000', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 6px', clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)', zIndex: 2 }}>COMING SOON</span>
+        <span style={{ position: 'absolute', top: 6, right: 6, background: ORANGE, color: '#000', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 6px', clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)', zIndex: 2 }}>COMING SOON</span>
       )}
       <div style={{
         background: BG_CARD,
@@ -414,7 +394,7 @@ function LiveMatchCard({ match }: { match: Match }) {
               <span style={{
                 fontSize: 14,
                 fontWeight: match.winner_pair && match.winner_pair !== pairNum ? 600 : 700,
-                color: match.winner_pair && match.winner_pair !== pairNum ? '#B0B5BE' : '#fff',
+                color: match.winner_pair && match.winner_pair !== pairNum ? TEXT_LOSER : '#fff',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {pair}
@@ -442,7 +422,7 @@ function LiveMatchCard({ match }: { match: Match }) {
                     fontWeight: 700,
                     fontFamily: 'monospace',
                     fontVariantNumeric: 'tabular-nums',
-                    color: isCurrent ? GREEN : wonThisSet ? '#fff' : '#B0B5BE',
+                    color: isCurrent ? GREEN : wonThisSet ? '#fff' : TEXT_LOSER,
                     width: 18,
                     textAlign: 'center',
                     lineHeight: 1,
@@ -512,7 +492,7 @@ function UpcomingMatchCard({ match }: { match: Match }) {
   return (
     <Wrapper {...(wrapperProps as any)}>
       {gated && (
-        <span style={{ position: 'absolute', top: 6, right: 6, background: '#F5A623', color: '#000', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 6px', clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)', zIndex: 2 }}>COMING SOON</span>
+        <span style={{ position: 'absolute', top: 6, right: 6, background: ORANGE, color: '#000', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 6px', clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)', zIndex: 2 }}>COMING SOON</span>
       )}
       <div style={{
       background: BG_CARD,
@@ -912,7 +892,7 @@ function ResultsSection({ matches }: { matches: Match[] }) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '12px 14px',
-                  background: '#1e1e1e',
+                  background: BG_SUBTLE,
                   cursor: 'pointer',
                   position: 'relative',
                   WebkitTapHighlightColor: 'transparent',
@@ -2126,7 +2106,7 @@ function V3HomePageInner() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: '#0A0A0A',
+        background: BG_HEADER,
         borderBottom: 'none',
         boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         display: 'flex',
@@ -2165,7 +2145,7 @@ function V3HomePageInner() {
             maxWidth: 260,
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
           <span style={{
@@ -2199,7 +2179,7 @@ function V3HomePageInner() {
               padding: 0,
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
               <polyline points="16 6 12 2 8 6" />
               <line x1="12" y1="2" x2="12" y2="15" />
@@ -2299,9 +2279,9 @@ function V3HomePageInner() {
 
       {/* Footer links */}
       <div style={{ padding: '20px 16px 8px', display: 'flex', justifyContent: 'center', gap: 16 }}>
-        <Link href="/privacy" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</Link>
+        <Link href="/privacy" style={{ fontSize: 11, color: MUTED, textDecoration: 'none' }}>Privacy Policy</Link>
         <span style={{ color: '#333' }}>|</span>
-        <Link href="/terms" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>Terms of Service</Link>
+        <Link href="/terms" style={{ fontSize: 11, color: MUTED, textDecoration: 'none' }}>Terms of Service</Link>
       </div>
 
       {/* Bottom spacing */}

@@ -8,6 +8,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
 import { BadgeIcon } from '@/components/BadgeIcon'
 import { BADGE_MAP, TIER_META, type TierNumber } from '@/lib/badges'
+import { BG_BASE } from '@/lib/theme-colors'
 
 interface ToastData {
   badgeId: string
@@ -67,7 +68,7 @@ export function BadgeToastProvider({ children }: { children: ReactNode }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
-                background: '#1A1A1A',
+                background: BG_BASE,
                 border: `1px solid ${tierMeta.color}40`,
                 clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
                 padding: '10px 14px',

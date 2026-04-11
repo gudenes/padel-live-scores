@@ -10,19 +10,7 @@
 
 import Link from 'next/link'
 import { Match, pairName, parseSetScore } from '@/types/match'
-
-// ── Brand colors ───────────────────────────────────────────────
-const GREEN = '#7ED321'
-const LIVE_RED = '#FF4655'
-const BG_CARD = '#141414'
-const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
-
-// ── Chunky clip-path presets ───────────────────────────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-}
+import { GREEN, LIVE_RED, BG_CARD, MUTED, BORDER, CHUNKY } from '@/lib/theme-colors'
 
 // ── FlagImg (local copy — same implementation as the page files) ──
 function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {

@@ -7,9 +7,9 @@
 // auto-dismisses after 4 seconds, and clears the key.
 
 import { useEffect, useState } from 'react'
+import { GREEN, BG_BASE, CHUNKY } from '@/lib/theme-colors'
 
-const GREEN = '#7ED321'
-const CHUNKY_CARD = 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)'
+const CHUNKY_CARD = CHUNKY.card
 
 interface ReferralToastData {
   inviterName: string | null
@@ -86,7 +86,7 @@ export function ReferralToast() {
           display: 'flex',
           alignItems: 'center',
           gap: 12,
-          background: '#1A1A1A',
+          background: BG_BASE,
           border: `1px solid ${GREEN}40`,
           clipPath: CHUNKY_CARD,
           padding: '12px 14px',

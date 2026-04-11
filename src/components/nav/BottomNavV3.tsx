@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useFeedLastVisit, markFeedVisited } from '@/hooks/useFeedLastVisit'
+import { GREEN, GREEN_DIM, LIVE_RED, BG_HEADER } from '@/lib/theme-colors'
 
 // ── Icons ───────────────────────────────────────────────────────
 
@@ -54,10 +55,7 @@ function FollowingIcon({ color }: { color: string }) {
 }
 
 // ── Colors ──────────────────────────────────────────────────────
-const GREEN = '#7ED321'
-const GREEN_DIM = 'rgba(126,211,33,0.15)'
 const DIM = '#4B5563'
-const LIVE_RED = '#FF4655'
 
 // ── Tabs ────────────────────────────────────────────────────────
 const TABS = [
@@ -116,7 +114,7 @@ export default function BottomNavV3() {
         transform: 'translateX(-50%)',
         width: '100%',
         maxWidth: 500,
-        background: 'rgba(10,10,10,0.92)',
+        background: BG_HEADER,
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderTop: '1px solid rgba(255,255,255,0.04)',

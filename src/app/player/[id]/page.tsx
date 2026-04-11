@@ -11,6 +11,7 @@ import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
+import { GREEN, GREEN_DIM, ORANGE, LIVE_RED, BG_BASE, BG_CARD, BG_CARD2, MUTED, BORDER, MEN_BLUE, WOMEN_PURPLE, BG_HEADER, CHUNKY } from '@/lib/theme-colors'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -184,7 +185,7 @@ function MonthlyBar({
           right: 0,
           textAlign: 'center',
           fontSize: 8,
-          color: '#6B7280',
+          color: MUTED,
         }}
       >
         {monthLabel}
@@ -193,26 +194,8 @@ function MonthlyBar({
   )
 }
 
-// ── Brand colors ───────────────────────────────────────────────
-const GREEN = '#7ED321'
-const GREEN_DIM = 'rgba(126,211,33,0.15)'
-const ORANGE = '#F5A623'
-const LIVE_RED = '#FF4655'
-const BG_BASE = '#1A1A1A'
-const BG_CARD = '#141414'
-const BG_CARD2 = '#0F0F0F'
-const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
-const MEN_BLUE = '#4A9EFF'
-const WOMEN_PURPLE = '#D966FF'
-
-// ── Chunky clip-path presets (NO border-radius) ───────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-  iconChip: 'polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%)',
-}
+// Local extension of CHUNKY for player-specific shape
+const CHUNKY_ICON_CHIP = 'polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%)'
 
 // ── Types ──────────────────────────────────────────────────────
 type PageTab = 'overview' | 'season' | 'partners' | 'matches' | 'stats'
@@ -327,7 +310,7 @@ function PartnerAvatar({
         height: Math.round(flagW * 0.75),
         borderRadius: 2,
         overflow: 'hidden',
-        boxShadow: '0 0 0 2px #141414',
+        boxShadow: `0 0 0 2px ${BG_CARD}`,
       }}>
         <FlagImg country={partner.country} size={flagW} />
       </div>
@@ -617,7 +600,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           padding: '10px 14px',
           boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
           position: 'sticky', top: 0, zIndex: 10,
-          background: '#0A0A0A',
+          background: BG_HEADER,
           height: 62,
         }}>
           <button
@@ -1010,7 +993,7 @@ function WidgetIcon({ children }: { children: React.ReactNode }) {
       background: 'rgba(245,166,35,0.1)', color: ORANGE,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: 11, fontWeight: 700,
-      clipPath: CHUNKY.iconChip,
+      clipPath: CHUNKY_ICON_CHIP,
     }}>
       {children}
     </div>

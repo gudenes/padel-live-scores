@@ -17,21 +17,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 
-// ── Brand colors ───────────────────────────────────────────────
-const GREEN = '#7ED321'
-const ORANGE = '#F5A623'
-const LIVE_RED = '#FF4655'
-const BG_BASE = '#1A1A1A'
-const BG_CARD = '#141414'
-const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
-
-// ── Chunky clip-path presets (NO border-radius) ───────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-}
+import { GREEN, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, CHUNKY } from '@/lib/theme-colors'
 
 // ── Types ──────────────────────────────────────────────────────
 

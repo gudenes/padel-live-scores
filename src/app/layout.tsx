@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -107,9 +108,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       />
       <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
         <div style={{ maxWidth: 500, margin: '0 auto', minHeight: '100vh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </ThemeProvider>
           <Analytics />
         </div>
       </div>

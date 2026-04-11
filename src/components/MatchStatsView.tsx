@@ -17,8 +17,7 @@ import { useEffect, useState } from 'react'
 import { MatchStatsBar } from './MatchStatsBar'
 import { MatchStatsSetTabs, type SetTabItem } from './MatchStatsSetTabs'
 import type { MatchStatsRow } from '@/lib/premier-stats-parser'
-
-const MUTED = '#8a8f98'
+import { MUTED } from '@/lib/theme-colors'
 
 type StatsStatus = 'ok' | 'no_mapping' | 'pending_sync' | 'upcoming'
 
@@ -212,7 +211,7 @@ function Section({
           padding: '14px 16px 6px',
           fontSize: 9,
           fontWeight: 700,
-          color: '#8a8f98',
+          color: MUTED,
           textTransform: 'uppercase',
           letterSpacing: '1px',
           borderTop: isFirst ? 'none' : '0.5px solid rgba(255, 255, 255, 0.08)',

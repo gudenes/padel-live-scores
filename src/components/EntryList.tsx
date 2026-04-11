@@ -8,21 +8,9 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import { GREEN, ORANGE, MUTED, BG_CARD, BORDER, CHUNKY } from '@/lib/theme-colors'
 
-// ── Brand colors ───────────────────────────────────────────────
-const GREEN = '#7ED321'
-const ORANGE = '#F5A623'
 const YELLOW = '#FFD166'
-const MUTED = '#6B7280'
-const BG_CARD = '#141414'
-const BORDER = 'rgba(255,255,255,0.06)'
-
-// ── Chunky clip-path presets ───────────────────────────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-}
 
 // ── Types ──────────────────────────────────────────────────────
 

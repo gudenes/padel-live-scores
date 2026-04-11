@@ -10,11 +10,7 @@ import { useState, useRef, useEffect } from 'react'
 import { BADGE_CATALOG, BADGE_CATEGORIES, TIER_META, type BadgeDefinition, type TierNumber } from '@/lib/badges'
 import { BadgeIcon } from '@/components/BadgeIcon'
 import type { EarnedBadge } from '@/hooks/useBadges'
-
-const MUTED = '#6B7280'
-const GREEN = '#7ED321'
-const BG_CARD = '#1A1A1A'
-const BORDER = 'rgba(255,255,255,0.08)'
+import { MUTED, GREEN, BG_BASE, BG_SUBTLE, BORDER } from '@/lib/theme-colors'
 
 interface BadgeGridProps {
   earned: EarnedBadge[]
@@ -218,7 +214,7 @@ export function BadgeGrid({ earned, categoryFilter }: BadgeGridProps) {
                 zIndex: 101,
                 width: 280,
                 maxWidth: 'calc(100vw - 40px)',
-                background: '#1E1E1E',
+                background: BG_SUBTLE,
                 border: `1.5px solid ${accentColor}40`,
                 clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
                 padding: '20px',

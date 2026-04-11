@@ -10,7 +10,7 @@ export default function TermsPage() {
     <div style={{
       maxWidth: 700, margin: '0 auto', padding: '40px 20px 80px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      color: '#E2E8F0', background: '#1A1A1A', minHeight: '100vh',
+      color: 'var(--text-primary)', background: 'var(--bg-base)', minHeight: '100vh',
       lineHeight: 1.7, fontSize: 15,
     }}>
       <h1 style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Terms of Service</h1>

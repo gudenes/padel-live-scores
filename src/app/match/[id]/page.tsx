@@ -21,32 +21,7 @@ import { logActivity } from '@/lib/activity-log'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
-// ── V3 Brand colors ─────────────────────────────────────────────────────────
-const GREEN = '#7ED321'
-const GREEN_DIM = 'rgba(126,211,33,0.15)'
-const ORANGE = '#F5A623'
-const LIVE_RED = '#FF4655'
-const BG_BASE = '#1A1A1A'
-const BG_CARD = '#141414'
-const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
-const MEN_BLUE = '#4A9EFF'
-const WOMEN_PURPLE = '#D966FF'
-
-// ── Pair identity colors ────────────────────────────────────────────────────
-const PAIR1_COLOR = '#FF6B2B'         // brand orange
-const PAIR2_COLOR = '#FFD166'         // brand yellow
-const PAIR1_BG    = 'rgba(255,107,43,0.08)'
-const PAIR2_BG    = 'rgba(255,209,102,0.08)'
-const PAIR1_BORDER = 'rgba(255,107,43,0.28)'
-const PAIR2_BORDER = 'rgba(255,209,102,0.28)'
-
-// ── Chunky clip-path presets ────────────────────────────────────────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-}
+import { GREEN, GREEN_DIM, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, MEN_BLUE, WOMEN_PURPLE, BG_HEADER, TEXT_LOSER, PAIR1_COLOR, PAIR2_COLOR, PAIR1_BG, PAIR2_BG, PAIR1_BORDER, PAIR2_BORDER, CHUNKY } from '@/lib/theme-colors'
 
 // ── FlagImg (replaces emoji flags) ──────────────────────────────────────────
 function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
@@ -459,7 +434,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         padding: '12px 16px',
         borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 100,
-        background: '#0A0A0A',
+        background: BG_HEADER,
         height: 62,
         transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
         transition: 'transform 0.3s ease',
@@ -612,7 +587,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const parsed = parseSetScore(set.set_score)
                 const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                 return (
-                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p1WonSet ? '#fff' : '#B0B5BE' }}>
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p1WonSet ? '#fff' : TEXT_LOSER }}>
                     {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
                   </span>
                 )
@@ -628,7 +603,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const parsed = parseSetScore(set.set_score)
                 const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                 return (
-                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p2WonSet ? '#fff' : '#B0B5BE' }}>
+                  <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p2WonSet ? '#fff' : TEXT_LOSER }}>
                     {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
                   </span>
                 )
@@ -870,7 +845,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     {shareToast && (
       <div style={{
         position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
-        background: '#7ED321', color: '#000', padding: '8px 20px',
+        background: GREEN, color: '#000', padding: '8px 20px',
         borderRadius: 8, fontSize: 13, fontWeight: 700, zIndex: 1000,
         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}>
@@ -1634,7 +1609,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                   flex: 1, minWidth: 0,
                   fontSize: 12,
                   fontWeight: team1Won ? 700 : 600,
-                  color: team1Won ? '#fff' : '#B0B5BE',
+                  color: team1Won ? '#fff' : TEXT_LOSER,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {topName}
@@ -1653,7 +1628,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                   {setGames.map((sg, i) => (
                     <span key={i} style={{
                       fontSize: 14, fontWeight: 700, fontFamily: 'monospace',
-                      color: Number(sg.top) > Number(sg.bot) ? '#fff' : '#B0B5BE',
+                      color: Number(sg.top) > Number(sg.bot) ? '#fff' : TEXT_LOSER,
                       minWidth: 13, textAlign: 'center',
                     }}>
                       {sg.top}
@@ -1680,7 +1655,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                   flex: 1, minWidth: 0,
                   fontSize: 12,
                   fontWeight: team2Won ? 700 : 600,
-                  color: team2Won ? '#fff' : '#B0B5BE',
+                  color: team2Won ? '#fff' : TEXT_LOSER,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {botName}
@@ -1699,7 +1674,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                   {setGames.map((sg, i) => (
                     <span key={i} style={{
                       fontSize: 14, fontWeight: 700, fontFamily: 'monospace',
-                      color: Number(sg.bot) > Number(sg.top) ? '#fff' : '#B0B5BE',
+                      color: Number(sg.bot) > Number(sg.top) ? '#fff' : TEXT_LOSER,
                       minWidth: 13, textAlign: 'center',
                     }}>
                       {sg.bot}

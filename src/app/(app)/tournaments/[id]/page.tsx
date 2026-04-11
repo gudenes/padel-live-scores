@@ -18,23 +18,7 @@ import { EntryList } from '@/components/EntryList'
 import { V3MatchCard } from '@/components/V3MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
 
-// ── Brand colors ───────────────────────────────────────────────
-const GREEN = '#7ED321'
-const ORANGE = '#F5A623'
-const LIVE_RED = '#FF4655'
-const BG_BASE = '#1A1A1A'
-const BG_CARD = '#141414'
-const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
-const MEN_BLUE = '#4A9EFF'
-const WOMEN_PURPLE = '#D966FF'
-
-// ── Chunky clip-path presets (NO border-radius) ───────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-}
+import { GREEN, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, MEN_BLUE, WOMEN_PURPLE, BG_HEADER, CHUNKY } from '@/lib/theme-colors'
 
 // ── Coverage levels with live point-by-point scoring ──────────
 const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platinum'])
@@ -596,7 +580,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
         {/* ── Sticky header ── */}
         <div style={{
-          background: '#0A0A0A', borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
+          background: BG_HEADER, borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
           position: 'sticky', top: 0, zIndex: 10,
         }}>
 
@@ -792,7 +776,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             <div style={{
               margin: '0 16px', padding: '12px 16px',
               background: 'rgba(245, 166, 35, 0.1)',
-              borderLeft: '3px solid #F5A623',
+              borderLeft: `3px solid ${ORANGE}`,
             }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Matches Coming Soon</div>
               <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Entry list data is being processed for accurate player information</div>
@@ -1414,7 +1398,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       {startsAt && (
         <div style={{
           background: isLive ? 'rgba(126,211,33,0.08)' : 'rgba(245,166,35,0.08)',
-          borderLeft: `3px solid ${isLive ? GREEN : '#F5A623'}`,
+          borderLeft: `3px solid ${isLive ? GREEN : ORANGE}`,
           borderRadius: 4, padding: '10px 14px', marginBottom: 14,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
@@ -1429,7 +1413,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           {isUpcoming && daysUntilStart != null && (
             <div style={{
               fontSize: 13, fontWeight: 800,
-              color: daysUntilStart <= 2 ? '#FF4655' : daysUntilStart <= 7 ? '#F5A623' : GREEN,
+              color: daysUntilStart <= 2 ? LIVE_RED : daysUntilStart <= 7 ? ORANGE : GREEN,
             }}>
               {daysUntilStart === 1 ? 'Tomorrow' : `${daysUntilStart} days`}
             </div>
@@ -1475,7 +1459,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
             names={defendingChampion.names}
             country1={defendingChampion.country1}
             country2={defendingChampion.country2}
-            accent="#F5A623"
+            accent={ORANGE}
             clickable
           />
         </Link>
@@ -1497,14 +1481,14 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
               background: 'rgba(245,166,35,0.12)',
               clipPath: CHUNKY.badge,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#F5A623', fontSize: 14,
+              color: ORANGE, fontSize: 14,
             }}>
               🏆
             </div>
             <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: '#fff' }}>
               View {previousEdition.year || 'last'} edition
             </span>
-            <span style={{ fontSize: 16, color: '#F5A623', fontWeight: 800 }}>→</span>
+            <span style={{ fontSize: 16, color: ORANGE, fontWeight: 800 }}>→</span>
           </div>
         </Link>
       )}

@@ -10,10 +10,10 @@
 //   3. Profile button — "Unlock badges as you explore..."
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { GREEN, BG_SUBTLE, CHUNKY } from '@/lib/theme-colors'
 
-const GREEN = '#7ED321'
 const CHUNKY_CARD = 'polygon(0% 2%, 100% 0%, 99.5% 98%, 0.5% 100%)'
-const CHUNKY_BUTTON = 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)'
+const CHUNKY_BUTTON = CHUNKY.button
 const CHUNKY_DOT = 'polygon(2% 0%, 98% 0%, 100% 100%, 0% 100%)'
 
 const STORAGE_KEY = 'pn_onboarding_done'
@@ -289,7 +289,7 @@ export function SpotlightCoachmarks() {
       <div
         style={{
           ...tipStyle,
-          background: '#1E1E1E',
+          background: BG_SUBTLE,
           clipPath: CHUNKY_CARD,
           padding: '16px 18px',
           boxShadow: '0 8px 30px rgba(0,0,0,0.6)',

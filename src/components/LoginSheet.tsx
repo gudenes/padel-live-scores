@@ -6,18 +6,11 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase, siteUrl } from '@/lib/supabase'
-
-// ── V3 Brand constants ────────────────────────────────────────
-const GREEN = '#7ED321'
-const ORANGE = '#F5A623'
-const BG_BASE = '#0A0A0A'
-const BG_CARD = '#141414'
-const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
+import { GREEN, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, CHUNKY } from '@/lib/theme-colors'
 
 const CLIP = {
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+  button: CHUNKY.button,
+  card: CHUNKY.card,
 }
 
 interface LoginSheetProps {
@@ -242,7 +235,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
             </div>
 
             {error && (
-              <div style={{ textAlign: 'center', color: '#FF4655', fontSize: 12, fontWeight: 600, marginTop: 8 }}>{error}</div>
+              <div style={{ textAlign: 'center', color: LIVE_RED, fontSize: 12, fontWeight: 600, marginTop: 8 }}>{error}</div>
             )}
           </>
         )}

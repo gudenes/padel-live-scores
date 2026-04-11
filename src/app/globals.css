@@ -5,55 +5,63 @@
 
   /* Backgrounds */
   --bg-base:     #1A1A1A;
-  --bg-card:     #1F1F1F;
-  --bg-card-alt: #1C1C1C;
+  --bg-card:     #141414;
+  --bg-card-alt: #0F0F0F;
   --bg-input:    #1C1C1C;
   --bg-subtle:   #1E1E1E;
+  --bg-header:   #0A0A0A;
 
   /* Borders — neutral dark */
-  --border-base:   #2A2A2A;
+  --border-base:   rgba(255,255,255,0.06);
   --border-card:   #2E2E2E;
   --border-strong: #383838;
   --border-inner:  #252525;
 
-  /* Text — warm parchment hierarchy (improved contrast) */
-  --text-primary:   #EEE4CE;
+  /* Text */
+  --text-primary:   #FFFFFF;
   --text-secondary: #9AAEC4;
-  --text-muted:     #6889A5;
+  --text-muted:     #6B7280;
   --text-dim:       #4A6F8E;
   --text-faint:     #365A78;
   --text-ghost:     #1A3450;
   --text-invisible: #0E2438;
+  --text-loser:     #B0B5BE;
 
-  /* Live — punchy red-rose */
+  /* Brand colors */
+  --brand-green:     #7ED321;
+  --brand-green-dim: rgba(126,211,33,0.15);
+  --brand-orange:    #F5A623;
+  --live-red:        #FF4655;
+  --men-blue:        #4A9EFF;
+  --women-purple:    #D966FF;
+
+  /* Match pair colors */
+  --pair1-color:  #FF6B2B;
+  --pair2-color:  #FFD166;
+  --pair1-bg:     rgba(255,107,43,0.08);
+  --pair2-bg:     rgba(255,209,102,0.08);
+  --pair1-border: rgba(255,107,43,0.28);
+  --pair2-border: rgba(255,209,102,0.28);
+
+  /* Legacy vars (kept for back-compat) */
   --color-live:        #FF4655;
   --color-live-bg:     rgba(255,70,85,0.10);
   --color-live-border: rgba(255,70,85,0.35);
-
-  /* Accent — Electric sky blue (replaces gold) */
   --color-accent:        #38C8FF;
   --color-accent-bg:     rgba(56,200,255,0.08);
   --color-accent-border: rgba(56,200,255,0.25);
-
-  /* Success — crisp white (replaces teal for scores/winners) */
   --color-success:        #FFFFFF;
   --color-success-bg:     rgba(255,255,255,0.06);
   --color-success-border: rgba(255,255,255,0.22);
-
-  /* Bookmark — electric blue (same as accent) */
   --color-bookmark:        #38C8FF;
   --color-bookmark-bg:     rgba(56,200,255,0.10);
   --color-bookmark-border: rgba(56,200,255,0.25);
-
-  /* Category accents */
   --color-men:         #5BA8FF;
   --color-men-bg:      rgba(91,168,255,0.10);
   --color-men-border:  rgba(91,168,255,0.28);
   --color-women:       #F472B6;
   --color-women-bg:    rgba(244,114,182,0.10);
   --color-women-border:rgba(244,114,182,0.28);
-
-  /* Misc */
   --color-p1:   #38C8FF;
   --color-p2:   #818CF8;
   --color-star: #38C8FF;
@@ -62,6 +70,96 @@
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+}
+
+/* ── Light mode ──────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base:     #F5F5F5;
+  --bg-card:     #FFFFFF;
+  --bg-card-alt: #F0F0F0;
+  --bg-input:    #FFFFFF;
+  --bg-subtle:   #F8F8F8;
+  --bg-header:   #FFFFFF;
+
+  --border-base:   rgba(0,0,0,0.08);
+  --border-card:   #E5E7EB;
+  --border-strong: #D1D5DB;
+  --border-inner:  #E5E7EB;
+
+  --text-primary:   #1A1A1A;
+  --text-secondary: #374151;
+  --text-muted:     #6B7280;
+  --text-dim:       #9CA3AF;
+  --text-loser:     #8A8F98;
+
+  --brand-green:     #5BA418;
+  --brand-green-dim: rgba(91,164,24,0.12);
+  --brand-orange:    #E8941A;
+  --live-red:        #E8384F;
+  --men-blue:        #2563EB;
+  --women-purple:    #9333EA;
+
+  --pair1-color:  #FF6B2B;
+  --pair2-color:  #D4A843;
+  --pair1-bg:     rgba(255,107,43,0.08);
+  --pair2-bg:     rgba(212,168,67,0.08);
+  --pair1-border: rgba(255,107,43,0.2);
+  --pair2-border: rgba(212,168,67,0.2);
+
+  --color-live:    #E8384F;
+  --color-live-bg: rgba(232,56,79,0.08);
+  --color-accent:  #2563EB;
+  --color-success: #1A1A1A;
+  --color-success-bg: rgba(0,0,0,0.04);
+  --color-bookmark: #2563EB;
+  --color-men:    #2563EB;
+  --color-women:  #9333EA;
+}
+
+/* System preference — applies light vars when OS is light AND no explicit data-theme is set */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    --bg-base:     #F5F5F5;
+    --bg-card:     #FFFFFF;
+    --bg-card-alt: #F0F0F0;
+    --bg-input:    #FFFFFF;
+    --bg-subtle:   #F8F8F8;
+    --bg-header:   #FFFFFF;
+
+    --border-base:   rgba(0,0,0,0.08);
+    --border-card:   #E5E7EB;
+    --border-strong: #D1D5DB;
+    --border-inner:  #E5E7EB;
+
+    --text-primary:   #1A1A1A;
+    --text-secondary: #374151;
+    --text-muted:     #6B7280;
+    --text-dim:       #9CA3AF;
+    --text-loser:     #8A8F98;
+
+    --brand-green:     #5BA418;
+    --brand-green-dim: rgba(91,164,24,0.12);
+    --brand-orange:    #E8941A;
+    --live-red:        #E8384F;
+    --men-blue:        #2563EB;
+    --women-purple:    #9333EA;
+
+    --pair1-color:  #FF6B2B;
+    --pair2-color:  #D4A843;
+    --pair1-bg:     rgba(255,107,43,0.08);
+    --pair2-bg:     rgba(212,168,67,0.08);
+    --pair1-border: rgba(255,107,43,0.2);
+    --pair2-border: rgba(212,168,67,0.2);
+
+    --color-live:    #E8384F;
+    --color-live-bg: rgba(232,56,79,0.08);
+    --color-accent:  #2563EB;
+    --color-success: #1A1A1A;
+    --color-success-bg: rgba(0,0,0,0.04);
+    --color-bookmark: #2563EB;
+    --color-men:    #2563EB;
+    --color-women:  #9333EA;
+  }
 }
 
 *, *::before, *::after { box-sizing: border-box; }

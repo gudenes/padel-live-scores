@@ -7,11 +7,9 @@
 
 import React from 'react'
 import { useFollowing, FollowType } from '@/hooks/useFollowing'
+import { GREEN, ORANGE, MUTED } from '@/lib/theme-colors'
 
-// ── Brand colors ────────────────────────────────────────────────
-const GREEN  = '#7ED321'
-const GOLD   = '#F5A623'
-const MUTED  = '#6B7280'
+const GOLD = ORANGE
 
 // ── Props ────────────────────────────────────────────────────────
 interface FollowButtonProps {

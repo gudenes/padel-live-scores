@@ -12,13 +12,11 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { resolveInviterByCode } from '@/lib/referral'
 import { useAuth } from '@/components/AuthProvider'
+import { GREEN, ORANGE, BG_CARD, MUTED, CHUNKY } from '@/lib/theme-colors'
 
-const GREEN = '#7ED321'
-const BG_CARD = '#141414'
-const MUTED = '#8a8f98'
-const CHUNKY_CARD = 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)'
+const CHUNKY_CARD = CHUNKY.card
 const CHUNKY_BADGE = 'polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%)'
-const CHUNKY_BUTTON = 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)'
+const CHUNKY_BUTTON = CHUNKY.button
 
 export function InviteWelcomeBanner() {
   const searchParams = useSearchParams()
@@ -265,7 +263,7 @@ export function InviteWelcomeBanner() {
             onClick={handleDismiss}
             style={{
               width: '100%', padding: 14,
-              background: '#F5A623', color: '#000',
+              background: ORANGE, color: '#000',
               fontSize: 14, fontWeight: 800,
               textTransform: 'uppercase', letterSpacing: 0.5,
               border: 'none', clipPath: CHUNKY_BUTTON,

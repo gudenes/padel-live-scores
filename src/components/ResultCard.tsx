@@ -12,18 +12,7 @@
 
 import Link from 'next/link'
 import { Match, pairName, parseSetScore } from '@/types/match'
-
-// ── Brand colors ───────────────────────────────────────────────
-const GREEN = '#7ED321'
-const MUTED = '#6B7280'
-const MEN_BLUE = '#4A9EFF'
-const WOMEN_PURPLE = '#D966FF'
-
-// ── Chunky clip-path presets ───────────────────────────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-}
+import { GREEN, MUTED, MEN_BLUE, WOMEN_PURPLE, BORDER, CHUNKY } from '@/lib/theme-colors'
 
 // ── FlagImg (local copy — same implementation as the page files) ──
 function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
@@ -77,7 +66,7 @@ export function ResultCard({ match }: { match: Match }) {
             <span style={{
               fontSize: 9, fontWeight: 700, padding: '2px 6px',
               clipPath: CHUNKY.badge, textTransform: 'uppercase',
-              background: 'rgba(255,255,255,0.06)', color: MUTED,
+              background: BORDER, color: MUTED,
             }}>
               {match.round}
             </span>
@@ -86,7 +75,7 @@ export function ResultCard({ match }: { match: Match }) {
             <span style={{
               fontSize: 9, fontWeight: 700, padding: '2px 6px',
               clipPath: CHUNKY.badge, textTransform: 'uppercase',
-              background: 'rgba(255,255,255,0.06)', color: MUTED,
+              background: BORDER, color: MUTED,
             }}>
               {match.court}
             </span>
@@ -103,7 +92,7 @@ export function ResultCard({ match }: { match: Match }) {
             <span style={{
               fontSize: 9, fontWeight: 700, padding: '2px 6px',
               clipPath: CHUNKY.badge,
-              background: 'rgba(255,255,255,0.06)', color: MUTED,
+              background: BORDER, color: MUTED,
             }}>
               {new Date(match.finished_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>

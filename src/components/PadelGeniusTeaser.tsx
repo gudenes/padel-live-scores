@@ -17,19 +17,9 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 import LoginSheet from '@/components/LoginSheet'
+import { ORANGE, GREEN, MUTED, BG_CARD, CHUNKY } from '@/lib/theme-colors'
 
 const FEATURE_KEY = 'padel_genius'
-
-// ── Brand tokens (match home page) ─────────────────────────────
-const ORANGE = '#F5A623'
-const GREEN = '#7ED321'
-const MUTED = '#6B7280'
-const BG_CARD = '#141414'
-
-const CHUNKY = {
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-}
 
 export default function PadelGeniusTeaser() {
   const { user, loading: authLoading } = useAuth()

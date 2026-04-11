@@ -27,10 +27,11 @@ interface GameSummary {
   globalIndex: number
 }
 
+import { PAIR1_COLOR, PAIR2_COLOR, LIVE_RED } from '@/lib/theme-colors'
+
 // ── Colors — brand identity (orange / yellow) ──────────────────────────────
-const P1_COLOR = '#FF6B2B'
-const P2_COLOR = '#FFD166'
-const LIVE_RED = '#FF4455'
+const P1_COLOR = PAIR1_COLOR
+const P2_COLOR = PAIR2_COLOR
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

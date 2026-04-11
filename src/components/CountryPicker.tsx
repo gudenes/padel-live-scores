@@ -15,6 +15,7 @@
 //   anchor to viewport edges)
 
 import { useEffect, useRef, useState } from 'react'
+import { GREEN, MUTED, BG_CARD, BG_CARD2, BORDER, CHUNKY } from '@/lib/theme-colors'
 
 export interface CountryOption {
   iso2: string
@@ -28,13 +29,7 @@ interface CountryPickerProps {
   disabled?: boolean
 }
 
-const GREEN = '#7ED321'
-const MUTED = '#6B7280'
-const BG_CARD = '#141414'
-const BG_CARD2 = '#0F0F0F'
-const BORDER = 'rgba(255,255,255,0.10)'
-
-const CHUNKY_BUTTON = 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)'
+const CHUNKY_BUTTON = CHUNKY.button
 
 export default function CountryPicker({ options, value, onChange, disabled }: CountryPickerProps) {
   const [open, setOpen] = useState(false)

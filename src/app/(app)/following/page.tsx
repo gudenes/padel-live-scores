@@ -11,24 +11,10 @@ import { useFollowing } from '@/hooks/useFollowing'
 import FollowButton from '@/components/FollowButton'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { pairName, parseSetScore } from '@/types/match'
+import { GREEN, GREEN_DIM, MUTED, BORDER, LIVE_RED, MEN_BLUE, WOMEN_PURPLE, BG_BASE, TEXT_PRIMARY, CHUNKY } from '@/lib/theme-colors'
 
-// ── Brand colors ───────────────────────────────────────────────
-const GREEN       = '#7ED321'
-const GREEN_DIM   = 'rgba(126,211,33,0.12)'
-const MUTED       = '#6B7280'
-const BORDER      = 'rgba(255,255,255,0.06)'
-const BG_CARD     = 'rgba(255,255,255,0.03)'
-const LIVE_RED    = '#FF4655'
-const MEN_BLUE    = '#4A9EFF'
-const WOMEN_PURPLE = '#D966FF'
-const BG_BASE     = '#1A1A1A'
-
-// ── Chunky clip-path shapes ────────────────────────────────────
-const CHUNKY = {
-  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-}
+// Local override — different from the standard BG_CARD (#141414)
+const BG_CARD = 'rgba(255,255,255,0.03)'
 
 // ── Flag helper ───────────────────────────────────────────────
 function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
@@ -127,7 +113,7 @@ function SectionHeader({
         <span style={{
           fontSize: 13,
           fontWeight: 800,
-          color: '#fff',
+          color: TEXT_PRIMARY,
           letterSpacing: 0.5,
           textTransform: 'uppercase',
         }}>
@@ -249,14 +235,14 @@ function MatchCard({ match }: { match: MatchRow }) {
         {[match.pair1_player1, match.pair1_player2].map((p, i) => (
           <div key={`p1-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <FlagImg country={p?.country ?? null} size={13} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: TEXT_PRIMARY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
           </div>
         ))}
         <div style={{ fontSize: 9, color: MUTED, margin: '2px 0', paddingLeft: 2 }}>vs</div>
         {[match.pair2_player1, match.pair2_player2].map((p, i) => (
           <div key={`p2-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
             <FlagImg country={p?.country ?? null} size={13} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: TEXT_PRIMARY, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
           </div>
         ))}
 
@@ -349,7 +335,7 @@ function PlayerCard({ player }: { player: PlayerData }) {
         <div style={{
           fontSize: 11,
           fontWeight: 700,
-          color: '#fff',
+          color: TEXT_PRIMARY,
           textAlign: 'center',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -397,7 +383,7 @@ function TournamentCard({ tournament }: { tournament: TournamentData }) {
         <div style={{
           fontSize: 11,
           fontWeight: 700,
-          color: '#fff',
+          color: TEXT_PRIMARY,
           textAlign: 'center',
           display: '-webkit-box',
           WebkitLineClamp: 2,
@@ -533,7 +519,7 @@ function EmptyState({ onOpen }: { onOpen: () => void }) {
       </svg>
 
       <div>
-        <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
+        <div style={{ fontSize: 17, fontWeight: 800, color: TEXT_PRIMARY, marginBottom: 6 }}>
           Follow players and tournaments
         </div>
         <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.5 }}>

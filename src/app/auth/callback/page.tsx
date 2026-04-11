@@ -7,6 +7,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { BG_BASE, MUTED, GREEN } from '@/lib/theme-colors'
 
 const HINTS = [
   'Loading your profile...',
@@ -97,7 +98,7 @@ function AuthCallbackInner() {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      minHeight: '100vh', background: '#1A1A1A', gap: 20,
+      minHeight: '100vh', background: BG_BASE, gap: 20,
     }}>
       {/* Animated logo */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -116,7 +117,7 @@ function AuthCallbackInner() {
         <span
           key={hintIdx}
           style={{
-            color: '#6B7280',
+            color: MUTED,
             fontSize: 13,
             fontWeight: 600,
             letterSpacing: 0.3,
@@ -135,7 +136,7 @@ function AuthCallbackInner() {
             key={i}
             style={{
               width: 6, height: 6, borderRadius: '50%',
-              background: '#7ED321',
+              background: GREEN,
               animation: `authDot 1.2s ease-in-out ${i * 0.2}s infinite`,
             }}
           />
@@ -164,7 +165,7 @@ function AuthCallbackInner() {
 
 export default function AuthCallback() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#1A1A1A' }} />}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: BG_BASE }} />}>
       <AuthCallbackInner />
     </Suspense>
   )
