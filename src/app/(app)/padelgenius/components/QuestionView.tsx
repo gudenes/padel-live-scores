@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { scoreAnswer, scoreTapAnswer } from '@/lib/genius-engine'
 import type { GeniusQuestion, AnswerResult } from '@/lib/genius-engine'
+import type { CourtOverlay } from './CourtView'
 import CourtView from './CourtView'
 
 interface QuestionViewProps {
@@ -29,21 +30,60 @@ export default function QuestionView({
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [tapPoint, setTapPoint] = useState<{ x: number; y: number } | null>(null)
 
+  // Animation state — brief play animation after confirm, before transitioning
+  const [animating, setAnimating] = useState(false)
+  const [animResult, setAnimResult] = useState<{
+    result: AnswerResult
+    userAnswer: string | { x: number; y: number }
+    overlay: CourtOverlay | undefined
+  } | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [])
+
   const isTapMode = question.type === 'court-tap'
 
   const handleConfirm = () => {
+    let result: AnswerResult
+    let userAnswer: string | { x: number; y: number }
+
     if (isTapMode) {
       if (!tapPoint) return
-      const result = scoreTapAnswer(question, tapPoint.x, tapPoint.y, xpMultiplier)
-      onAnswer(result, tapPoint)
+      result = scoreTapAnswer(question, tapPoint.x, tapPoint.y, xpMultiplier)
+      userAnswer = tapPoint
     } else {
       if (!selectedOption) return
-      const result = scoreAnswer(question, selectedOption, xpMultiplier)
-      onAnswer(result, selectedOption)
+      result = scoreAnswer(question, selectedOption, xpMultiplier)
+      userAnswer = selectedOption
     }
+
+    // Build overlay from explanation courtOverlay
+    const overlay: CourtOverlay | undefined = question.explanation.courtOverlay
+      ? {
+          trajectory: question.explanation.courtOverlay.trajectory,
+          wrongTrajectory: question.explanation.courtOverlay.wrongTrajectory,
+          label: question.explanation.courtOverlay.label,
+        }
+      : undefined
+
+    // Enter animation state
+    setAnimating(true)
+    setAnimResult({ result, userAnswer, overlay })
+
+    // After 1.5s, transition to explanation
+    timerRef.current = setTimeout(() => {
+      onAnswer(result, userAnswer)
+    }, 1500)
   }
 
-  const canConfirm = isTapMode ? tapPoint !== null : selectedOption !== null
+  const canConfirm = !animating && (isTapMode ? tapPoint !== null : selectedOption !== null)
+
+  // During animation: determine button state
+  const animCorrect = animResult?.result.correct
+  const animXp = animResult?.result.xp ?? 0
 
   return (
     <div style={{
@@ -72,16 +112,18 @@ export default function QuestionView({
         }}>
           <button
             onClick={onExit}
+            disabled={animating}
             style={{
               background: 'none',
               border: 'none',
               color: '#6889A5',
               fontSize: 13,
-              cursor: 'pointer',
+              cursor: animating ? 'default' : 'pointer',
               padding: 0,
+              opacity: animating ? 0.4 : 1,
             }}
           >
-            &#10005; Exit
+            ✕ Exit
           </button>
 
           {/* Progress dots */}
@@ -107,7 +149,7 @@ export default function QuestionView({
 
           {/* Streak */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 13 }}>&#x1F525;</span>
+            <span style={{ fontSize: 13 }}>🔥</span>
             <span style={{ color: '#FF4655', fontSize: 13, fontWeight: 700 }}>
               {streak}
             </span>
@@ -126,21 +168,77 @@ export default function QuestionView({
             }}>
               {question.question}
             </p>
-            <p style={{ color: '#38C8FF', fontSize: 14, margin: 0, fontWeight: 600 }}>
-              &#x1F446; Tap where you should stand
-            </p>
+            {!animating && (
+              <p style={{ color: '#38C8FF', fontSize: 14, margin: 0, fontWeight: 600 }}>
+                👆 Tap where you should stand
+              </p>
+            )}
           </div>
         )}
 
-        {/* Court — fills remaining space, constrained so question panel fits */}
-        <div style={{ padding: '0 8px', flex: '1 1 0', minHeight: 0, overflow: 'hidden', display: 'flex', alignItems: 'center' }}>
+        {/* Court — fills remaining space */}
+        <div style={{
+          padding: '0 8px',
+          flex: '1 1 0',
+          minHeight: 0,
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          position: 'relative' as const,
+        }}>
           <CourtView
             court={question.court}
             avatarColor={avatarColor}
-            tapMode={isTapMode}
+            tapMode={isTapMode && !animating}
             onTap={(x, y) => setTapPoint({ x, y })}
             tapPoint={tapPoint}
+            overlay={animating ? animResult?.overlay : undefined}
+            correctZone={animating && isTapMode ? question.correctZone : undefined}
           />
+
+          {/* Result flash overlay during animation */}
+          {animating && (
+            <div style={{
+              position: 'absolute' as const,
+              top: '35%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center' as const,
+              zIndex: 50,
+              animation: 'none',
+            }}>
+              <div style={{
+                fontSize: 40,
+                marginBottom: 4,
+                filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.6))',
+              }}>
+                {animCorrect ? '🎯' : '😤'}
+              </div>
+              <div style={{
+                fontSize: 24,
+                fontWeight: 900,
+                color: animCorrect ? '#7ED321' : '#FF4655',
+                textShadow: '0 2px 12px rgba(0,0,0,0.8)',
+                letterSpacing: -0.5,
+              }}>
+                {animCorrect ? 'Correct!' : 'Wrong!'}
+              </div>
+              {animCorrect && animXp > 0 && (
+                <div style={{
+                  marginTop: 4,
+                  display: 'inline-block',
+                  padding: '3px 12px',
+                  background: 'rgba(126,211,33,0.2)',
+                  borderRadius: 12,
+                  color: '#7ED321',
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}>
+                  +{animXp} XP
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Question panel for court-scenario / rules-card */}
@@ -148,6 +246,9 @@ export default function QuestionView({
           <div style={{
             padding: '8px 12px 0',
             flex: '0 0 auto',
+            opacity: animating ? 0.4 : 1,
+            pointerEvents: animating ? 'none' as const : 'auto' as const,
+            transition: 'opacity 0.3s',
           }}>
             {/* Question text */}
             <div style={{ textAlign: 'center' as const, marginBottom: 8 }}>
@@ -172,30 +273,39 @@ export default function QuestionView({
               {question.options?.map((opt, i) => {
                 const letter = String.fromCharCode(65 + i)
                 const isSelected = selectedOption === opt.id
+                // During animation: highlight correct/wrong
+                const isCorrect = animating && opt.id === question.correctOption
+                const isWrong = animating && isSelected && opt.id !== question.correctOption
+
+                let borderColor = 'transparent'
+                let bgColor = '#1F1F1F'
+                if (isCorrect) { borderColor = '#7ED321'; bgColor = 'rgba(126,211,33,0.08)' }
+                else if (isWrong) { borderColor = '#FF4655'; bgColor = 'rgba(255,70,85,0.08)' }
+                else if (isSelected && !animating) { borderColor = '#38C8FF' }
 
                 return (
                   <button
                     key={opt.id}
-                    onClick={() => setSelectedOption(opt.id)}
+                    onClick={() => !animating && setSelectedOption(opt.id)}
+                    disabled={animating}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: 10,
                       padding: '10px 12px',
-                      background: '#1F1F1F',
+                      background: bgColor,
                       borderRadius: 10,
-                      border: isSelected
-                        ? '2px solid #38C8FF'
-                        : '2px solid transparent',
-                      cursor: 'pointer',
+                      border: `2px solid ${borderColor}`,
+                      cursor: animating ? 'default' : 'pointer',
                       textAlign: 'left' as const,
+                      transition: 'all 0.3s',
                     }}
                   >
                     <div style={{
                       width: 26,
                       height: 26,
                       borderRadius: '50%',
-                      background: isSelected ? '#38C8FF' : '#333',
+                      background: isCorrect ? '#7ED321' : isWrong ? '#FF4655' : isSelected ? '#38C8FF' : '#333',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -203,17 +313,15 @@ export default function QuestionView({
                       color: '#fff',
                       fontSize: 12,
                       flexShrink: 0,
+                      transition: 'background 0.3s',
                     }}>
-                      {letter}
+                      {isCorrect ? '✓' : isWrong ? '✕' : letter}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ color: '#EEE4CE', fontWeight: 600, fontSize: 13 }}>
                         {opt.emoji ? `${opt.emoji} ` : ''}{opt.label}
                       </div>
                     </div>
-                    {isSelected && (
-                      <div style={{ color: '#38C8FF', fontSize: 14 }}>✓</div>
-                    )}
                   </button>
                 )
               })}
@@ -222,7 +330,7 @@ export default function QuestionView({
         )}
 
         {/* Tap mode hint */}
-        {isTapMode && !tapPoint && (
+        {isTapMode && !tapPoint && !animating && (
           <div style={{ padding: '12px 16px', textAlign: 'center' as const }}>
             <p style={{ color: '#6889A5', fontSize: 12, margin: 0 }}>
               Tap anywhere on the court to place yourself
@@ -230,26 +338,46 @@ export default function QuestionView({
           </div>
         )}
 
-        {/* Confirm button */}
+        {/* Confirm / Result button */}
         <div style={{ padding: '8px 12px 8px' }}>
-          <button
-            onClick={handleConfirm}
-            disabled={!canConfirm}
-            style={{
+          {animating ? (
+            <div style={{
               width: '100%',
               padding: 14,
-              background: canConfirm ? '#38C8FF' : '#333',
+              background: animCorrect ? 'rgba(126,211,33,0.15)' : 'rgba(255,70,85,0.15)',
               borderRadius: 12,
               textAlign: 'center' as const,
-              cursor: canConfirm ? 'pointer' : 'default',
-              border: 'none',
-              opacity: canConfirm ? 1 : 0.5,
-            }}
-          >
-            <span style={{ color: canConfirm ? '#1A1A1A' : '#666', fontWeight: 800, fontSize: 15 }}>
-              {isTapMode ? 'Confirm Position' : 'Confirm Answer'}
-            </span>
-          </button>
+              border: `1px solid ${animCorrect ? 'rgba(126,211,33,0.3)' : 'rgba(255,70,85,0.3)'}`,
+              transition: 'all 0.3s',
+            }}>
+              <span style={{
+                color: animCorrect ? '#7ED321' : '#FF4655',
+                fontWeight: 800,
+                fontSize: 15,
+              }}>
+                {animCorrect ? `Correct! +${animXp} XP` : 'Wrong!'}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={handleConfirm}
+              disabled={!canConfirm}
+              style={{
+                width: '100%',
+                padding: 14,
+                background: canConfirm ? '#38C8FF' : '#333',
+                borderRadius: 12,
+                textAlign: 'center' as const,
+                cursor: canConfirm ? 'pointer' : 'default',
+                border: 'none',
+                opacity: canConfirm ? 1 : 0.5,
+              }}
+            >
+              <span style={{ color: canConfirm ? '#1A1A1A' : '#666', fontWeight: 800, fontSize: 15 }}>
+                {isTapMode ? 'Confirm Position' : 'Confirm Answer'}
+              </span>
+            </button>
+          )}
         </div>
 
       </div>

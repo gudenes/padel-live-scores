@@ -147,6 +147,19 @@ export default function ChibiPlayer({ role, x, y, scale, jerseyColor }: ChibiPla
         </>
       )}
 
+      {/* "YOU" floating label — only for the player character */}
+      {role === 'you' && (
+        <g>
+          {/* Pill badge */}
+          <rect x={-16} y={-36} width={32} height={14} rx={7} fill="#38C8FF" />
+          <text x={0} y={-26} textAnchor="middle" fill="#fff" fontSize={9} fontWeight={800} letterSpacing={1}>
+            YOU
+          </text>
+          {/* Down arrow */}
+          <polygon points="-4,-22 4,-22 0,-17" fill="#38C8FF" />
+        </g>
+      )}
+
       {/* Racket */}
       {racketSide === 'right' ? (
         <g transform="rotate(-20, 14, 12)">

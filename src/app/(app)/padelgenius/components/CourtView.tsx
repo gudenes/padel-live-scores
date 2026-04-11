@@ -300,28 +300,40 @@ function Ball({ x, y, trajectory }: {
   const [bx, by] = toSvg(x, y)
   const ballR = 4 + playerScale(y) * 4  // scales with depth
 
-  // Generate trajectory trail dots
-  const trailDots: { cx: number; cy: number; r: number; opacity: number }[] = []
+  // Animated trajectory line from origin to ball
+  let trajLine: { x1: number; y1: number; x2: number; y2: number } | null = null
   if (trajectory) {
-    const [fx, fy] = trajectory.from
-    const [tx, ty] = trajectory.to
-    for (let i = 1; i <= 3; i++) {
-      const frac = i / 4
-      const mx = tx + (fx - tx) * frac
-      const my = ty + (fy - ty) * frac
-      const [dx, dy] = toSvg(mx, my)
-      trailDots.push({
-        cx: dx,
-        cy: dy,
-        r: ballR * (0.6 - i * 0.12),
-        opacity: 0.15 - i * 0.04,
-      })
-    }
+    const [fx, fy] = toSvg(trajectory.from[0], trajectory.from[1])
+    trajLine = { x1: fx, y1: fy, x2: bx, y2: by }
   }
 
   return (
     <g>
-      {/* Ball shadow on court — pulses with ball */}
+      {/* Animated trajectory line — dashed, flowing toward ball */}
+      {trajLine && (
+        <>
+          {/* Glow behind the line */}
+          <line
+            x1={trajLine.x1} y1={trajLine.y1}
+            x2={trajLine.x2} y2={trajLine.y2}
+            stroke="#FFDD00" strokeWidth={4} opacity={0.08}
+            filter="url(#crt-ballGlow)"
+          />
+          {/* Main dashed line with flowing animation */}
+          <line
+            x1={trajLine.x1} y1={trajLine.y1}
+            x2={trajLine.x2} y2={trajLine.y2}
+            stroke="#FFDD00" strokeWidth={2} strokeDasharray="8 6"
+            opacity={0.4}
+          >
+            <animate attributeName="stroke-dashoffset" from="28" to="0" dur="1s" repeatCount="indefinite" />
+          </line>
+          {/* Origin dot (where the ball came from) */}
+          <circle cx={trajLine.x1} cy={trajLine.y1} r={3} fill="#FFDD00" opacity={0.25} />
+        </>
+      )}
+
+      {/* Ball shadow on court — pulses */}
       <ellipse cx={bx + 3} cy={by + ballR * 4} rx={ballR * 1.5} ry={ballR * 0.5} fill="rgba(0,0,0,0.2)">
         <animate attributeName="ry" values={`${ballR * 0.4};${ballR * 0.6};${ballR * 0.4}`} dur="2s" repeatCount="indefinite" />
       </ellipse>
@@ -346,10 +358,6 @@ function Ball({ x, y, trajectory }: {
         fill="none"
         opacity={0.5}
       />
-      {/* Trail dots */}
-      {trailDots.map((dot, i) => (
-        <circle key={i} cx={dot.cx} cy={dot.cy} r={dot.r} fill="#CCFF00" opacity={dot.opacity} />
-      ))}
     </g>
   )
 }
