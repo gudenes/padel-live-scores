@@ -984,10 +984,18 @@ function SectionHeader({ label, color, dot, right, rightColor }: {
 // ══════════════════════════════════════════════════════════════
 
 function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match; genderColor: string; estimatedLabel?: string }) {
-  const time = match.scheduled_at
-    ? new Date(match.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-    : ''
   const scheduleLabel = (match as any).schedule_label as string | null
+  const scheduleDisplay = (() => {
+    if (!match.scheduled_at) return { time: '', date: '', approximate: false }
+    const d = new Date(match.scheduled_at)
+    const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0
+    const time = hasTime
+      ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      : ''
+    const date = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+    const approximate = /not before|followed by/i.test(scheduleLabel ?? '')
+    return { time, date, approximate }
+  })()
 
   return (
     <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 6 }}>
@@ -1005,51 +1013,72 @@ function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match;
           width: 3, background: genderColor,
         }} />
 
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        {/* Header — round + court only */}
+        <div style={{ marginBottom: 10 }}>
           <span style={{ fontSize: 10, fontWeight: 600, color: MUTED }}>
             {match.round ?? ''}{match.court ? ` \u00B7 ${match.court}` : ''}
           </span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: GREEN, fontFamily: 'monospace' }}>
-            {scheduleLabel ?? (time || (estimatedLabel ?? 'TBD'))}
-          </span>
         </div>
 
-        {/* Players */}
-        {[
-          { p1: match.pair1_player1, p2: match.pair1_player2, key: 'pair1' },
-          { p1: match.pair2_player1, p2: match.pair2_player2, key: 'pair2' },
-        ].map(({ p1, p2, key }, idx) => {
-          const seed = Math.min(p1?.ranking ?? 9999, p2?.ranking ?? 9999)
-          return (
-            <div key={key}>
-              {idx === 1 && (
-                <div style={{ fontSize: 9, color: MUTED, margin: '3px 0', paddingLeft: 2, fontWeight: 700, letterSpacing: 0.5 }}>VS</div>
-              )}
-              {[p1, p2].map((p, i) => (
-                <div key={`${key}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
-                  <FlagImg country={p?.country ?? null} size={14} />
-                  <span style={{
-                    fontSize: 12, fontWeight: 600, color: '#fff', flex: 1,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {p?.name ?? 'TBD'}
-                  </span>
-                  {i === 0 && seed < 9999 && (
-                    <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, opacity: 0.7 }}>#{seed}</span>
+        {/* Players + schedule */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {/* Player names */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {[
+              { p1: match.pair1_player1, p2: match.pair1_player2, key: 'pair1' },
+              { p1: match.pair2_player1, p2: match.pair2_player2, key: 'pair2' },
+            ].map(({ p1, p2, key }, idx) => {
+              const seed = Math.min(p1?.ranking ?? 9999, p2?.ranking ?? 9999)
+              return (
+                <div key={key}>
+                  {idx === 1 && (
+                    <div style={{ fontSize: 9, color: MUTED, margin: '3px 0', paddingLeft: 2, fontWeight: 700, letterSpacing: 0.5 }}>VS</div>
                   )}
+                  {[p1, p2].map((p, i) => (
+                    <div key={`${key}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
+                      <FlagImg country={p?.country ?? null} size={14} />
+                      <span style={{
+                        fontSize: 12, fontWeight: 600, color: '#fff', flex: 1,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {p?.name ?? 'TBD'}
+                      </span>
+                      {i === 0 && seed < 9999 && (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, opacity: 0.7 }}>#{seed}</span>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )
-        })}
-
-        {/* Estimated time if available */}
-        {estimatedLabel && !scheduleLabel && (
-          <div style={{ marginTop: 6, fontSize: 9, color: ORANGE, fontWeight: 600, letterSpacing: 0.3, textTransform: 'uppercase' }}>
-            Est. {estimatedLabel}
+              )
+            })}
           </div>
-        )}
+
+          {/* Date + time — right side, aligned with players */}
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+            justifyContent: 'center', flexShrink: 0, marginLeft: 10,
+            minWidth: 48,
+          }}>
+            {scheduleDisplay.date && (
+              <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, lineHeight: 1.3 }}>
+                {scheduleDisplay.date}
+              </span>
+            )}
+            {scheduleDisplay.time ? (
+              <span style={{ fontSize: 14, fontWeight: 800, color: GREEN, lineHeight: 1.3 }}>
+                {scheduleDisplay.time}{scheduleDisplay.approximate ? '*' : ''}
+              </span>
+            ) : estimatedLabel ? (
+              <span style={{ fontSize: 9, fontWeight: 600, color: ORANGE, lineHeight: 1.3, textTransform: 'uppercase' }}>
+                {estimatedLabel}
+              </span>
+            ) : (
+              <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, lineHeight: 1.3, opacity: 0.5 }}>
+                TBD
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </Link>
   )
