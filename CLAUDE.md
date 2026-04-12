@@ -10,7 +10,7 @@ Mobile-first PWA for real-time padel score tracking, rankings, news, and tournam
 - **Database:** Supabase (PostgreSQL) with Realtime subscriptions
 - **Real-time:** Pusher WebSocket (via padelapi.org) → Railway relay → Supabase
 - **Deployment:** Vercel (app + cron jobs), Railway (relay service)
-- **External APIs:** padelapi.org (matches/players/tournaments), YouTube Data API, FIP WordPress API, Google News RSS
+- **External APIs:** padelapi.org (matches/players/tournaments), Premier Padel beforeauth API (stats/broadcasters), YouTube Data API, FIP WordPress API, matchscorerlive.com (OOP/draws), Google News RSS, Anthropic Claude API (social drafts + AI dedup)
 
 ## Project Structure
 
@@ -21,21 +21,29 @@ src/
     match/[id]/            # Match detail + momentum chart
     player/[id]/           # Player profile
     api/
-      cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings, premier-discovery, premier-stats)
+      cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings, premier-discovery, premier-stats, social-drafts, oop-monitor)
       admin/               # Protected maintenance endpoints (resync, backfill, seed, migrate)
-      ops/                 # Ops dashboard APIs (seed-entry-list, parse-draw, seed-draw)
+      ops/                 # Ops dashboard APIs (seed-entry-list, parse-draw, seed-draw, schedule-review, duplicate-scan, search-players, players)
       feed/                # Article click tracking, video reporting
       match-stats/         # GET endpoint for the Stats tab (reads from match_stats table)
     components/            # Shared components (MatchCard, CompactMatchCard, BottomNav, Spinner, MatchStatsView, MatchStatsBar, MatchStatsSetTabs)
   lib/
     supabase.ts            # Client factory (browser anon + server service key)
     score-inference.ts     # Final score inference from point data
-    player-resolver.ts     # Player deduplication (with ranking/points disambiguation)
+    player-resolver.ts     # Player deduplication (5-tier: fip_id → external_id → alias → name → fuzzy, auto-stores aliases)
+    genius-engine.ts       # PadelGenius game engine: question selection, scoring, difficulty adjustment
     draw-parser.ts         # FIP draw PDF text parser (pure function)
     feed-scoring.ts        # Feed ranking engine (personalization, dedup, quality signals)
     premier-api.ts         # REST client for premierpadel.com beforeauth API (fetch + retry + throttle)
     premier-stats-parser.ts  # Pure parser: PremierMatchDetail → MatchStatsRow[] (tested)
     source-matcher.ts      # Token-subset tournament matcher + round normalizer (tested)
+    fip-scraper.ts         # FIP tournament/match scraping + OOP (Order of Play) parser
+    external-id-registry.ts  # Unified lookup API for source IDs (hot columns + sidecar)
+  data/
+    genius-questions.json   # PadelGenius 50-question bank
+    genius-avatars.ts       # Avatar definitions (icons, colors, names)
+    genius-levels.ts        # Level thresholds and titles
+    genius-themes.ts        # Daily theme schedule
   types/
     match.ts               # Core interfaces (Match, Set, Game, Player) + utility functions
   hooks/
@@ -43,6 +51,8 @@ src/
     useHiddenFeedItems.ts  # localStorage hidden feed items (videos + news)
     useFeedPreferences.ts  # localStorage feed preferences (language, category, channel)
     useInViewOnce.ts       # IntersectionObserver hook for scroll-triggered animations (honors prefers-reduced-motion)
+    useGeniusProgress.ts   # PadelGenius localStorage progress (streak, XP, level, avatar)
+    useMatchPrediction.ts  # Match prediction localStorage (pair + margin)
 relay/
   index.js                 # Railway Node.js service — persistent Pusher WebSocket relay
 supabase/
@@ -65,6 +75,7 @@ supabase/
 | `entity_external_ids` | Sidecar for non-primary source IDs | `entity_type`, `entity_id`, `source`, `external_id`, `metadata` |
 | `match_stats` | Per-match + per-set stats from Premier Padel | `match_id` + `set_number` (composite PK, `set_number=0` is match aggregate), 34 stat columns (service/return/total), `source`, `source_match_id`, `raw_payload`, `computed_at` |
 | `match_stats_unresolved` | Queue for tournaments/matches the auto-matcher couldn't link | `source`, `source_kind`, `source_id`, `source_payload`, `reason`, `resolved_at`, `resolved_match_id`, `resolved_tournament_id` |
+| `social_posts` | Auto-generated social media post drafts | `title`, `caption`, `hashtags`, `platform`, `pillar`, `status` (draft/approved/posted), `source_data` |
 
 ### Relationships
 - `matches` → `tournaments` (via `tournament_id`)
@@ -205,6 +216,8 @@ Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and do
 | `/api/cron/sync-highlights` | Hourly at :20 | YouTube highlights from padel channels |
 | `/api/cron/premier-discovery` | Mon 4am UTC | Link Premier tournaments + matches to our DB |
 | `/api/cron/premier-stats` | Hourly at :13 | Sync per-set stats from Premier Padel API |
+| `/api/cron/social-drafts` | Mon 8am UTC | Generate social media post drafts via Claude API → `social_posts` table |
+| `/api/cron/oop-monitor` | Every 2h at :30 | Monitor Order of Play changes on matchscorerlive.com for active tournaments |
 
 ## Relay Service (Railway)
 
@@ -249,6 +262,26 @@ User preferences tracked in localStorage via `useFeedPreferences` hook. Hidden i
 
 ### Avatar Hosting
 Player avatars hosted on Supabase Storage (bucket: `avatars`), not proxied from external sources. Migration done via `/api/admin/migrate-avatars`.
+
+### Player Name Aliases
+When `PlayerResolver` matches a player via fuzzy match (token similarity ≥ 0.7), it auto-stores the raw name variant as an alias in `entity_external_ids` (source='alias'). Future lookups for the same variant hit the alias cache instantly instead of scanning all players. The `players` table also has a `normalized_name` column (indexed, auto-populated by trigger using `unaccent` extension).
+
+### Scheduled Time Pipeline
+Match schedule times come from multiple sources with different quality:
+1. **PadelAPI** provides `played_at` (date-only, e.g. "2026-04-14") and optional `schedule_label` (e.g. "Starting at 4:00 PM")
+2. **OOP Schedule Review** (ops dashboard) parses times from matchscorerlive.com Order of Play widget and writes proper UTC timestamps
+3. **Sync cron protection**: when PadelAPI only has a date-only value, the sync cron will NOT overwrite `scheduled_at` if it already has a real time (set via OOP). This prevents hourly syncs from erasing operator-reviewed times.
+4. **"Followed by" estimation**: OOP matches with "Followed by" get estimated as previous match + 90 minutes.
+5. **Display**: approximate times (from "Not before" or "Followed by") show `*` suffix in the UI.
+
+### Next.js 16 Proxy (formerly Middleware)
+Next.js 16 deprecated `middleware.ts` → renamed to `proxy.ts` with `export function proxy()`. The file at `src/proxy.ts` handles redirects, auth, geo-country cookies, and invite ref capture. Old `src/middleware.ts.deprecated` kept for reference.
+
+### Ops Dashboard Tabs
+The ops dashboard (`/ops`) has these tabs: Ongoing Events, Integration Health, Data Quality, Readiness, Entry Lists, Draw Editor, Simulator, Players, Schedule, Architecture. Key additions:
+- **Players**: Search + edit + merge + duplicate scan (rules-based + AI-powered via Claude)
+- **Schedule**: OOP-based schedule review with human-in-the-loop approval
+- **Architecture**: Live SVG system diagram showing all 15 data integrations
 
 ### Scroll-Triggered Animations
 Stat bars across the app (match stats, player profile win-rate bars, Last 10 sparkline, Season monthly chart) use a shared animation pattern driven by `src/hooks/useInViewOnce.ts`:
