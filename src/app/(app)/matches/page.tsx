@@ -4,6 +4,7 @@
 // Chunky clip-path brand language, no border-radius anywhere.
 
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
+import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, pairName, parseSetScore, isWarmingUp } from '@/types/match'
@@ -624,6 +625,32 @@ const KEYFRAMES = `
 }
 `
 
+// ── Empty state helper ────────────────────────────────────────
+
+function EmptyState({ tab, leagueFilter }: { tab: 'live' | 'upcoming' | 'results'; leagueFilter: string }) {
+  return (
+    <div style={{
+      clipPath: CHUNKY.card,
+      background: BG_CARD,
+      border: `1px solid ${BORDER}`,
+      padding: '28px 20px',
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 32, marginBottom: 10 }}>&#127934;</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
+        {tab === 'live' ? 'No live matches right now' : tab === 'upcoming' ? 'No upcoming matches' : 'No recent results'}
+      </div>
+      <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.5 }}>
+        {leagueFilter !== 'all'
+          ? `Try switching the league filter to see ${leagueFilter === 'premier' ? 'FIP Tour' : 'Premier Padel'} or All matches.`
+          : tab === 'live' ? 'Check back during tournament days'
+          : tab === 'upcoming' ? 'Schedules will appear closer to match day'
+          : 'Results will appear after matches finish'}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────
 
 export default function V3ScoresPageWrapper() {
@@ -652,6 +679,14 @@ function V3ScoresPage() {
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'live' | 'upcoming' | 'results'>('live')
+  const TAB_KEYS = useMemo(() => ['live', 'upcoming', 'results'] as const, [])
+
+  const { goTo: swipeGoTo, trackStyle, handlers: swipeHandlers, isDragging } = useSwipeTabs({
+    count: 3,
+    initial: TAB_KEYS.indexOf(tab),
+    onTabChange: (idx) => setTab(TAB_KEYS[idx]),
+  })
+
   const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all')
   const [leagueFilter, setLeagueFilter] = useState<'premier' | 'fip' | 'all'>('premier')
   const [searchOpen, setSearchOpen] = useState(false)
@@ -722,6 +757,7 @@ function V3ScoresPage() {
         else if (hasUpcoming) setTab('upcoming')
         else setTab('results')
         initialLoadDone.current = true
+        swipeGoTo(TAB_KEYS.indexOf(hasLive ? 'live' : hasUpcoming ? 'upcoming' : 'results'))
       }
     } catch (e) {
       console.error('[V3 Scores] fetchData error:', e)
@@ -825,12 +861,14 @@ function V3ScoresPage() {
   // Recently finished matches still lingering in the live tab
   const lingeringMatches = recentMatches.filter(m => lingeringIds.has(m.id))
 
-  // Current tab data — live tab includes lingering recently-finished matches.
-  // Apply league filter first, then gender filter.
-  const currentMatches = tab === 'live' ? gf(lf([...liveMatches, ...lingeringMatches]))
-    : tab === 'upcoming' ? gf(lf(scheduledMatches.filter(hasPlayers)))
-    : gf(lf(recentMatches))
-  const grouped = groupByTournament(currentMatches)
+  // Per-tab filtered + grouped data for swipe viewport
+  const liveFiltered = gf(lf([...liveMatches, ...lingeringMatches]))
+  const upcomingFiltered = gf(lf(scheduledMatches.filter(hasPlayers)))
+  const resultsFiltered = gf(lf(recentMatches))
+
+  const liveGrouped = groupByTournament(liveFiltered)
+  const upcomingGrouped = groupByTournament(upcomingFiltered)
+  const resultsGrouped = groupByTournament(resultsFiltered)
 
   const liveCount = gf(lf(liveMatches)).filter(m => !isWarmingUp(m)).length
 
@@ -915,7 +953,7 @@ function V3ScoresPage() {
                 return (
                   <button
                     key={t.key}
-                    onClick={() => setTab(t.key)}
+                    onClick={() => { setTab(t.key); swipeGoTo(TAB_KEYS.indexOf(t.key)) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6,
                       padding: '7px 16px',
@@ -979,60 +1017,59 @@ function V3ScoresPage() {
             </div>
           </div>
 
-          {/* Grouped matches */}
-          <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
-            {grouped.length > 0 ? grouped.map((group, idx) => (
-              <TournamentGroup
-                key={group.tournament?.id ?? idx}
-                tournament={group.tournament}
-                matches={group.matches}
-                defaultOpen={tab === 'live' || tab === 'upcoming' || (tab === 'results' && idx === 0)}
-                tab={tab}
-              />
-            )) : (
-              <div style={{
-                clipPath: CHUNKY.card,
-                background: BG_CARD,
-                border: `1px solid ${BORDER}`,
-                padding: '28px 20px',
-                textAlign: 'center',
-              }}>
-                <div style={{ fontSize: 32, marginBottom: 10 }}>&#127934;</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
-                  {tab === 'live' ? 'No live matches right now' : tab === 'upcoming' ? 'No upcoming matches' : 'No recent results'}
-                </div>
-                <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.5 }}>
-                  {leagueFilter !== 'all'
-                    ? `Try switching the league filter to see ${leagueFilter === 'premier' ? 'FIP Tour' : 'Premier Padel'} or All matches.`
-                    : tab === 'live' ? 'Check back during tournament days'
-                    : tab === 'upcoming' ? 'Schedules will appear closer to match day'
-                    : 'Results will appear after matches finish'}
+          {/* Swipe viewport */}
+          <div style={{ overflow: 'hidden', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
+            <div style={{ display: 'flex', width: '300%', ...trackStyle }}>
+              {/* Live panel */}
+              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+                <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
+                  {liveGrouped.length > 0 ? liveGrouped.map((group, idx) => (
+                    <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={true} tab="live" />
+                  )) : (
+                    <EmptyState tab="live" leagueFilter={leagueFilter} />
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-
-          {/* View previous seasons → home Events view */}
-          {tab === 'results' && (
-            <div style={{ padding: '0 16px 32px', textAlign: 'center' }}>
-              <Link
-                href="/home?view=tournaments"
-                style={{
-                  display: 'inline-block',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${BORDER}`,
-                  clipPath: CHUNKY.button,
-                  padding: '10px 28px',
-                  fontSize: 12, fontWeight: 700,
-                  color: GREEN,
-                  textDecoration: 'none',
-                  fontFamily: 'inherit',
-                }}
-              >
-                View previous seasons
-              </Link>
+              {/* Upcoming panel */}
+              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+                <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
+                  {upcomingGrouped.length > 0 ? upcomingGrouped.map((group, idx) => (
+                    <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={true} tab="upcoming" />
+                  )) : (
+                    <EmptyState tab="upcoming" leagueFilter={leagueFilter} />
+                  )}
+                </div>
+              </div>
+              {/* Results panel */}
+              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+                <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
+                  {resultsGrouped.length > 0 ? resultsGrouped.map((group, idx) => (
+                    <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={idx === 0} tab="results" />
+                  )) : (
+                    <EmptyState tab="results" leagueFilter={leagueFilter} />
+                  )}
+                </div>
+                <div style={{ padding: '0 16px 32px', textAlign: 'center' }}>
+                  <Link
+                    href="/home?view=tournaments"
+                    style={{
+                      display: 'inline-block',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${BORDER}`,
+                      clipPath: CHUNKY.button,
+                      padding: '10px 28px',
+                      fontSize: 12, fontWeight: 700,
+                      color: GREEN,
+                      textDecoration: 'none',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    View previous seasons
+                  </Link>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </>
       )}
     </main>
