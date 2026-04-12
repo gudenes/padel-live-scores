@@ -448,7 +448,7 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
   // Get the tournament DB id first
   const { data: tournamentRow } = await supabase
     .from('tournaments')
-    .select('id')
+    .select('id, timezone')
     .eq('external_id', tournamentExternalId)
     .single()
 
@@ -549,9 +549,47 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
           ? new Date(match.started_time).toISOString()
           : null
 
+        // Build scheduled_at: combine played_at (date) + schedule_label (time) + timezone
+        // If schedule_label has a time (e.g. "Starting at 4:00 PM", "Not before 5:30 PM"),
+        // parse it and create a proper UTC timestamp using the tournament timezone.
+        // If no time is available, store the date-only value.
+        let scheduledAt: string | null = match.played_at ?? null
+        if (match.played_at && match.schedule_label) {
+          const timeMatch = (match.schedule_label as string).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+          if (timeMatch && tournamentRow?.timezone) {
+            let hours = parseInt(timeMatch[1])
+            const minutes = parseInt(timeMatch[2])
+            const ampm = timeMatch[3].toUpperCase()
+            if (ampm === 'PM' && hours < 12) hours += 12
+            if (ampm === 'AM' && hours === 12) hours = 0
+            try {
+              // Create a date string in tournament local time, then convert to UTC
+              // played_at is "YYYY-MM-DD", we add the parsed time
+              const localStr = `${match.played_at}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
+              // Use Intl to find the UTC offset for this timezone on this date
+              const probe = new Date(localStr + 'Z') // treat as UTC initially
+              const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: tournamentRow.timezone,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+              })
+              // Get the offset by comparing local formatted time with UTC
+              const utcParts = formatter.formatToParts(probe)
+              const localHour = parseInt(utcParts.find(p => p.type === 'hour')?.value ?? '0')
+              const utcHour = probe.getUTCHours()
+              const offsetHours = localHour - utcHour
+              // Shift the time by the offset to get true UTC
+              const utcDate = new Date(`${match.played_at}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`)
+              utcDate.setHours(utcDate.getHours() - offsetHours)
+              scheduledAt = utcDate.toISOString()
+            } catch {
+              // Fallback to date-only if timezone conversion fails
+              scheduledAt = match.played_at
+            }
+          }
+        }
+
         // Upsert match — only columns that exist in DB schema
-        // Removed: played_at (does not exist), round_name (does not exist)
-        // scheduled_at uses played_at as the date the match is scheduled to be played
         const { data: matchRow, error: matchError } = await supabase
           .from('matches')
           .upsert(
@@ -565,7 +603,7 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
               court_order: match.court_order ?? null,
               schedule_label: match.schedule_label ?? null,
               category: match.category ?? null,
-              scheduled_at: match.played_at ?? null,
+              scheduled_at: scheduledAt,
               started_at: startedAt,
               duration: match.duration ?? null,
               updated_at: new Date().toISOString(),

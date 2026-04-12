@@ -160,9 +160,13 @@ function V3MatchRow({ match }: { match: Match }) {
   const roundLabel = match.round ?? ''
   const courtLabel = match.court ?? ''
 
-  const timeStr = match.scheduled_at
-    ? new Date(match.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-    : ''
+  const timeStr = (() => {
+    if (!match.scheduled_at) return ''
+    const d = new Date(match.scheduled_at)
+    // If midnight UTC (00:00), it's a date-only value — no time to display
+    if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return ''
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+  })()
 
   // ── Score-change flash animation ──────────────────────────
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
