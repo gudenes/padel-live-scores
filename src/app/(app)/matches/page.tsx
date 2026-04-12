@@ -175,7 +175,16 @@ function V3MatchRow({ match }: { match: Match }) {
   })()
   const timeStr = scheduleDisplay.time
 
-  // ── Score-change flash animation ──────────────────────────
+  // ── Prediction check (hydration-safe) ─────────────────────
+  const [hasPrediction, setHasPrediction] = useState(false)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pn_match_predictions')
+      if (raw) setHasPrediction(!!JSON.parse(raw)[match.id])
+    } catch {}
+  }, [match.id])
+
+  // ���─ Score-change flash animation ──────────────────────────
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
   const flashKeyRef = useRef(0)
 
@@ -299,6 +308,20 @@ function V3MatchRow({ match }: { match: Match }) {
             )}
             {isFinished && !isLingering && (match as any).status === 'walkover' && (
               <span style={{ fontSize: 9, fontWeight: 700, color: ORANGE }}>W/O</span>
+            )}
+            {hasPrediction && !isLive && !isFinished && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 3,
+                background: 'rgba(126,211,33,0.06)',
+                padding: '2px 8px',
+                clipPath: CHUNKY.badge,
+                border: '0.5px solid rgba(126,211,33,0.15)',
+              }}>
+                <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="10" r="8"/><path d="M8 18h8"/><path d="M7 21h10"/>
+                </svg>
+                <span style={{ fontSize: 7, fontWeight: 700, color: '#7ED321', letterSpacing: 0.3 }}>PREDICTED</span>
+              </div>
             )}
           </div>
         </div>
