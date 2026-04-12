@@ -179,7 +179,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           .from('matches')
           .select(`
             *,
-            tournament:tournaments(id, name, starts_at, ends_at, country, timezone),
+            tournament:tournaments(id, name, starts_at, ends_at, country, timezone, source),
             pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
             pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
             pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
@@ -786,20 +786,42 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* ── SCHEDULED: prediction + countdown + info ─────────────────── */}
-      {isScheduled && (
-        <>
-          <PredictionSection
-            match={match}
-            pair1Label={pair1Label}
-            pair2Label={pair2Label}
-            prediction={prediction}
-            predStep={predStep}
-            setPredStep={setPredStep}
-            setPrediction={setPrediction}
-            clearPrediction={clearPrediction}
-          />
-          <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
-        </>
+      {isScheduled && (() => {
+        // Only show predictions for tournaments with PBP coverage (padelapi source)
+        const tournamentSource = ((match as any).tournament)?.source as string | null
+        const hasPbp = tournamentSource === 'padelapi' || !!(match as any).padelapi_id || !!(match as any).external_id
+        return (
+          <>
+            {hasPbp && (
+              <PredictionSection
+                match={match}
+                pair1Label={pair1Label}
+                pair2Label={pair2Label}
+                prediction={prediction}
+                predStep={predStep}
+                setPredStep={setPredStep}
+                setPrediction={setPrediction}
+                clearPrediction={clearPrediction}
+              />
+            )}
+            <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
+          </>
+        )
+      })()}
+
+      {/* ── LIVE: show prediction result (locked, no changes allowed) ── */}
+      {isLive && prediction && (
+        <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>
+            Your Prediction 🔒
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: GREEN }}>
+            {prediction.pair === 1 ? pair1Label : pair2Label}
+          </div>
+          <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
+            Predictions are locked once the match starts
+          </div>
+        </div>
       )}
 
       {/* ── Rate this match (above journey for prominence) ────────── */}
