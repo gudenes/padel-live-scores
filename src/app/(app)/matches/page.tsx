@@ -963,7 +963,7 @@ function V3ScoresPage() {
                 key={group.tournament?.id ?? idx}
                 tournament={group.tournament}
                 matches={group.matches}
-                defaultOpen={tab === 'live' || (tab === 'results' && idx === 0)}
+                defaultOpen={tab === 'live' || tab === 'upcoming' || (tab === 'results' && idx === 0)}
                 tab={tab}
               />
             )) : (
