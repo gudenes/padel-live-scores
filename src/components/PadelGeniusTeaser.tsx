@@ -1,10 +1,20 @@
 'use client'
+// src/components/PadelGeniusTeaser.tsx
+//
+// "Coming soon" teaser for the PadelGenius daily quiz feature.
+// Logged out → "Sign in to get notified" → opens login sheet
+// Logged in, not opted-in → "Notify Me →" → inserts feature_interest row
+// Logged in, already opted-in → "✓ You'll be notified" disabled
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/components/AuthProvider'
+import LoginSheet from '@/components/LoginSheet'
 
-const GREEN = '#7ED321'
+const FEATURE_KEY = 'padel_genius'
+
 const ORANGE = '#F5A623'
+const GREEN = '#7ED321'
 const MUTED = '#6B7280'
 const BG_CARD = '#141414'
 
@@ -13,24 +23,78 @@ const CHUNKY = {
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
-function getGeniusStats(): { streak: number; level: number } | null {
-  try {
-    const raw = localStorage.getItem('pn_genius_progress')
-    if (!raw) return null
-    const p = JSON.parse(raw)
-    return { streak: p.streak || 0, level: p.level || 1 }
-  } catch {
-    return null
-  }
-}
-
 export default function PadelGeniusTeaser() {
-  const router = useRouter()
-  const [stats, setStats] = useState<{ streak: number; level: number } | null>(null)
+  const { user, loading: authLoading } = useAuth()
 
+  const [optedIn, setOptedIn] = useState<boolean | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [loginOpen, setLoginOpen] = useState(false)
+
+  // Check if the current user has already opted in
   useEffect(() => {
-    setStats(getGeniusStats())
-  }, [])
+    let cancelled = false
+    if (authLoading) return
+    if (!user) {
+      setOptedIn(false)
+      return
+    }
+    async function check() {
+      const { data, error } = await supabase
+        .from('feature_interest')
+        .select('id')
+        .eq('user_id', user!.id)
+        .eq('feature_key', FEATURE_KEY)
+        .maybeSingle()
+      if (cancelled) return
+      if (error) {
+        console.warn('[PadelGeniusTeaser] check failed:', error.message)
+        setOptedIn(false)
+        return
+      }
+      setOptedIn(!!data)
+    }
+    void check()
+    return () => { cancelled = true }
+  }, [user, authLoading])
+
+  const handleClick = useCallback(async () => {
+    if (submitting) return
+
+    if (!user) {
+      setLoginOpen(true)
+      return
+    }
+
+    if (optedIn) return
+
+    setSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('feature_interest')
+        .insert({ user_id: user.id, feature_key: FEATURE_KEY })
+      if (error) {
+        if (error.code === '23505') {
+          setOptedIn(true)
+          return
+        }
+        console.warn('[PadelGeniusTeaser] insert failed:', error.message)
+        return
+      }
+      setOptedIn(true)
+    } finally {
+      setSubmitting(false)
+    }
+  }, [submitting, user, optedIn])
+
+  const buttonLabel = !user
+    ? 'Sign in to get notified'
+    : optedIn
+      ? "✓ You'll be notified"
+      : submitting
+        ? 'Saving…'
+        : 'Notify Me →'
+
+  const buttonDisabled = !!user && (optedIn === true || submitting || optedIn === null)
 
   return (
     <div style={{
@@ -43,7 +107,6 @@ export default function PadelGeniusTeaser() {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Soft radial glow in the corner */}
       <div style={{
         position: 'absolute', top: -30, left: -30, width: 120, height: 120,
         background: 'radial-gradient(circle, rgba(126,211,33,0.12) 0%, transparent 70%)',
@@ -55,7 +118,6 @@ export default function PadelGeniusTeaser() {
         pointerEvents: 'none',
       }} />
 
-      {/* Brain icon */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10, position: 'relative' }}>
         <svg
           width="40"
@@ -73,7 +135,6 @@ export default function PadelGeniusTeaser() {
         </svg>
       </div>
 
-      {/* Title */}
       <div style={{
         fontSize: 18, fontWeight: 800, color: '#fff',
         marginBottom: 4, letterSpacing: '-0.3px', position: 'relative',
@@ -81,48 +142,43 @@ export default function PadelGeniusTeaser() {
         PadelGenius
       </div>
 
-      {/* Tagline */}
       <div style={{
         fontSize: 10, color: ORANGE, fontWeight: 800,
         textTransform: 'uppercase', letterSpacing: 1.5,
         marginBottom: 12, position: 'relative',
       }}>
-        Play · Learn · Win
+        Coming Soon
       </div>
 
-      {/* Description or stats */}
       <div style={{
         fontSize: 12, color: MUTED, marginBottom: 18,
         lineHeight: 1.5, maxWidth: 280, margin: '0 auto 18px', position: 'relative',
       }}>
-        {stats ? (
-          <>
-            🔥 {stats.streak} day streak · Level {stats.level}<br />
-            Keep your streak alive!
-          </>
-        ) : (
-          <>
-            Daily padel tactics quizzes.<br />
-            Build streaks, earn badges, become a padel genius.
-          </>
-        )}
+        Daily padel tactics quizzes.<br />
+        Build streaks, earn badges, become a padel genius.
       </div>
 
-      {/* CTA */}
       <button
         type="button"
-        onClick={() => router.push('/padelgenius')}
+        onClick={handleClick}
+        disabled={buttonDisabled}
         style={{
           display: 'inline-block', padding: '11px 28px',
-          background: ORANGE, color: '#000',
+          background: optedIn ? 'rgba(126,211,33,0.15)' : ORANGE,
+          color: optedIn ? GREEN : '#000',
           fontSize: 12, fontWeight: 800, textTransform: 'uppercase',
           letterSpacing: 0.5, clipPath: CHUNKY.button,
-          cursor: 'pointer', border: 'none', fontFamily: 'inherit',
+          cursor: buttonDisabled ? 'default' : 'pointer',
+          border: 'none', fontFamily: 'inherit',
+          opacity: submitting ? 0.7 : 1,
+          transition: 'opacity 0.15s',
           position: 'relative',
         }}
       >
-        Play Now →
+        {buttonLabel}
       </button>
+
+      <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   )
 }
