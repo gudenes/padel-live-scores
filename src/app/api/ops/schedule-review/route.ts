@@ -53,6 +53,7 @@ export async function GET(request: Request) {
   const tournamentId = url.searchParams.get('tournament_id')
   const matchscorerCode = url.searchParams.get('code') // e.g. "FIP-2026-4401"
   const dayStr = url.searchParams.get('day')
+  const dateParam = url.searchParams.get('date') // e.g. "2026-04-13" — operator provides the actual date
 
   if (!tournamentId || !matchscorerCode || !dayStr) {
     return Response.json({ error: 'Required params: tournament_id, code, day' }, { status: 400 })
@@ -78,14 +79,13 @@ export async function GET(request: Request) {
     .single()
 
   const timezone = tournament?.timezone || 'UTC'
-  const tournamentStart = tournament?.starts_at ? new Date(tournament.starts_at) : null
 
-  // Calculate the actual date for this day number
-  let dayDate: string | null = null
-  if (tournamentStart) {
-    const d = new Date(tournamentStart)
+  // Date for this day — operator-provided takes priority, otherwise calculate from starts_at
+  let dayDate: string | null = dateParam || null
+  if (!dayDate && tournament?.starts_at) {
+    const d = new Date(tournament.starts_at)
     d.setDate(d.getDate() + day - 1)
-    dayDate = d.toISOString().slice(0, 10) // "2026-04-13"
+    dayDate = d.toISOString().slice(0, 10)
   }
 
   // 3. Get all DB matches for this tournament

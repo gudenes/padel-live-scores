@@ -49,6 +49,7 @@ export default function ScheduleTab() {
   const [tournamentId, setTournamentId] = useState('')
   const [matchscorerCode, setMatchscorerCode] = useState('')
   const [day, setDay] = useState('3')
+  const [dateOverride, setDateOverride] = useState('')
 
   // Result state
   const [result, setResult] = useState<FetchResult | null>(null)
@@ -69,7 +70,8 @@ export default function ScheduleTab() {
     setSelected(new Set())
     setApplyResult(null)
     try {
-      const res = await fetch(`/api/ops/schedule-review?tournament_id=${tournamentId}&code=${encodeURIComponent(matchscorerCode)}&day=${day}`)
+      const dateParam = dateOverride ? `&date=${dateOverride}` : ''
+      const res = await fetch(`/api/ops/schedule-review?tournament_id=${tournamentId}&code=${encodeURIComponent(matchscorerCode)}&day=${day}${dateParam}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error || `HTTP ${res.status}`)
@@ -157,13 +159,22 @@ export default function ScheduleTab() {
           />
         </div>
         <div>
-          <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Day</div>
+          <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Day #</div>
           <input
             type="number"
             value={day}
             onChange={e => setDay(e.target.value)}
             min={1} max={10}
             style={{ width: 60, padding: '6px 8px', fontSize: 12, border: '1px solid #d1d5db', borderRadius: 4, color: '#111' }}
+          />
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Actual Date</div>
+          <input
+            type="date"
+            value={dateOverride}
+            onChange={e => setDateOverride(e.target.value)}
+            style={{ width: 150, padding: '6px 8px', fontSize: 12, border: '1px solid #d1d5db', borderRadius: 4, color: '#111' }}
           />
         </div>
         <button
@@ -187,10 +198,11 @@ export default function ScheduleTab() {
             setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
             setMatchscorerCode('FIP-2026-4401')
             setDay('3')
+            setDateOverride('2026-04-13')
           }}
           style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
         >
-          NewGiza P2 Day 3 (Apr 13)
+          NewGiza Day 3 = Apr 13 (R32)
         </button>
         {' '}
         <button
@@ -198,10 +210,23 @@ export default function ScheduleTab() {
             setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
             setMatchscorerCode('FIP-2026-4401')
             setDay('4')
+            setDateOverride('2026-04-14')
           }}
           style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
         >
-          NewGiza P2 Day 4 (Apr 14)
+          NewGiza Day 4 = Apr 14 (R16)
+        </button>
+        {' '}
+        <button
+          onClick={() => {
+            setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
+            setMatchscorerCode('FIP-2026-4401')
+            setDay('5')
+            setDateOverride('2026-04-15')
+          }}
+          style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
+        >
+          NewGiza Day 5 = Apr 15 (QF)
         </button>
       </div>
 
