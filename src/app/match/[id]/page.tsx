@@ -16,6 +16,7 @@ import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
 import { MatchStatsView } from '@/components/MatchStatsView'
+import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 
@@ -867,45 +868,48 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
       {/* ── Sub-tabs: scheduled shows Players + H2H, live/finished shows all ── */}
       {(() => {
-        const tabs: SubTab[] = isFinished
-          ? ['recap', 'live', 'players', 'h2h']
+        const tabList: { key: string; label: string }[] = isFinished
+          ? [{ key: 'recap', label: 'Score Recap' }, { key: 'live', label: 'Live Feed' }, { key: 'players', label: 'Players' }, { key: 'h2h', label: 'H2H' }]
           : isScheduled
-            ? ['players', 'h2h']
-            : ['live', 'players', 'h2h']
+            ? [{ key: 'players', label: 'Players' }, { key: 'h2h', label: 'H2H' }]
+            : [{ key: 'live', label: 'Live Feed' }, { key: 'players', label: 'Players' }, { key: 'h2h', label: 'H2H' }]
+
+        const tabKeys = tabList.map(t => t.key)
+        const currentIdx = Math.max(0, tabKeys.indexOf(subTab))
+
         return (
-        <>
-          <div style={{ display: 'flex', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
-            {tabs.map(tab => (
-              <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? GREEN : MUTED, borderBottom: subTab === tab ? `2px solid ${GREEN}` : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
-                {tab === 'recap' ? 'Score Recap' : tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
-              </button>
-            ))}
-          </div>
-          <div style={{ background: BG_CARD, minHeight: 300 }}>
-            {subTab === 'recap' && isFinished && (
-              <MatchStatsView matchId={match.id} />
-            )}
-            {subTab === 'live' && (
-              <LiveFeedTab match={match} pair1Label={pair1Label} pair2Label={pair2Label} isLive={isLive} />
-            )}
-            {subTab === 'players' && (
-              <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {match.pair1_player1 && <PlayerCard player={match.pair1_player1} winner={p1Won} accent={PAIR1_COLOR} />}
-                {match.pair1_player2 && <PlayerCard player={match.pair1_player2} winner={p1Won} accent={PAIR1_COLOR} />}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-                  <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
-                  <span style={{ fontSize: 10, fontWeight: 800, color: MUTED, letterSpacing: '2px' }}>VS</span>
-                  <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
-                </div>
-                {match.pair2_player1 && <PlayerCard player={match.pair2_player1} winner={p2Won} accent={PAIR2_COLOR} />}
-                {match.pair2_player2 && <PlayerCard player={match.pair2_player2} winner={p2Won} accent={PAIR2_COLOR} />}
+          <SwipeTabView
+            tabs={tabList}
+            currentTab={currentIdx}
+            onTabChange={(idx) => handleSubTab(tabKeys[idx] as SubTab)}
+          >
+            {tabList.map(t => (
+              <div key={t.key} style={{ background: BG_CARD, minHeight: 300 }}>
+                {t.key === 'recap' && isFinished && (
+                  <MatchStatsView matchId={match.id} />
+                )}
+                {t.key === 'live' && (
+                  <LiveFeedTab match={match} pair1Label={pair1Label} pair2Label={pair2Label} isLive={isLive} />
+                )}
+                {t.key === 'players' && (
+                  <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {match.pair1_player1 && <PlayerCard player={match.pair1_player1} winner={p1Won} accent={PAIR1_COLOR} />}
+                    {match.pair1_player2 && <PlayerCard player={match.pair1_player2} winner={p1Won} accent={PAIR1_COLOR} />}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                      <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+                      <span style={{ fontSize: 10, fontWeight: 800, color: MUTED, letterSpacing: '2px' }}>VS</span>
+                      <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
+                    </div>
+                    {match.pair2_player1 && <PlayerCard player={match.pair2_player1} winner={p2Won} accent={PAIR2_COLOR} />}
+                    {match.pair2_player2 && <PlayerCard player={match.pair2_player2} winner={p2Won} accent={PAIR2_COLOR} />}
+                  </div>
+                )}
+                {t.key === 'h2h' && (
+                  <H2HTab match={match} h2hMatches={h2hMatches} h2hLoading={h2hLoading} pair1Label={pair1Label} pair2Label={pair2Label} pair1Recent={pair1Recent} pair2Recent={pair2Recent} />
+                )}
               </div>
-            )}
-            {subTab === 'h2h' && (
-              <H2HTab match={match} h2hMatches={h2hMatches} h2hLoading={h2hLoading} pair1Label={pair1Label} pair2Label={pair2Label} pair1Recent={pair1Recent} pair2Recent={pair2Recent} />
-            )}
-          </div>
-        </>
+            ))}
+          </SwipeTabView>
         )
       })()}
     </main>
