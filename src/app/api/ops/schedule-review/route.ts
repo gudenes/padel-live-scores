@@ -102,6 +102,30 @@ export async function GET(request: Request) {
     .eq('tournament_id', tournamentId)
     .in('status', ['scheduled', 'live', 'finished'])
 
+  // Helper: convert local time string to UTC ISO using tournament timezone
+  function localTimeToUtc(dateStr: string, hours: number, minutes: number): string | null {
+    try {
+      const localStr = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
+      const probe = new Date(localStr + 'Z')
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hour: '2-digit', hour12: false,
+      })
+      const parts = formatter.formatToParts(probe)
+      const localHour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0')
+      const utcHour = probe.getUTCHours()
+      const offsetHours = localHour - utcHour
+      const utcDate = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`)
+      utcDate.setHours(utcDate.getHours() - offsetHours)
+      return utcDate.toISOString()
+    } catch {
+      return null
+    }
+  }
+
+  // Track last proposed time per court for "Followed by" estimation (+90 min)
+  const lastTimePerCourt = new Map<string, Date>()
+
   // 4. Match OOP entries against DB matches
   const scheduleMatches: ScheduleMatch[] = oopDay.matches.map((oop, idx) => {
     const team1Display = `${oop.team1[0].fullDisplay} (${oop.team1[0].country}) / ${oop.team1[1].fullDisplay} (${oop.team1[1].country})`
@@ -176,29 +200,27 @@ export async function GET(request: Request) {
 
     // Build proposed scheduled_at from OOP time + day date + timezone
     let proposedScheduledAt: string | null = null
-    if (dayDate && oop.scheduleLabel) {
+    if (dayDate) {
       const timeMatch = oop.scheduleLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
       if (timeMatch) {
+        // "Starting at X:XX AM/PM" or "Not before X:XX PM" — parse exact time
         let hours = parseInt(timeMatch[1])
         const minutes = parseInt(timeMatch[2])
         const ampm = timeMatch[3].toUpperCase()
         if (ampm === 'PM' && hours < 12) hours += 12
         if (ampm === 'AM' && hours === 12) hours = 0
-        try {
-          const localStr = `${dayDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
-          const probe = new Date(localStr + 'Z')
-          const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: timezone,
-            hour: '2-digit', hour12: false,
-          })
-          const parts = formatter.formatToParts(probe)
-          const localHour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0')
-          const utcHour = probe.getUTCHours()
-          const offsetHours = localHour - utcHour
-          const utcDate = new Date(`${dayDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`)
-          utcDate.setHours(utcDate.getHours() - offsetHours)
-          proposedScheduledAt = utcDate.toISOString()
-        } catch { /* keep null */ }
+        proposedScheduledAt = localTimeToUtc(dayDate, hours, minutes)
+        if (proposedScheduledAt) {
+          lastTimePerCourt.set(oop.court, new Date(proposedScheduledAt))
+        }
+      } else if (/followed by/i.test(oop.scheduleLabel)) {
+        // "Followed by" — estimate as previous match on same court + 90 minutes
+        const lastTime = lastTimePerCourt.get(oop.court)
+        if (lastTime) {
+          const estimated = new Date(lastTime.getTime() + 90 * 60 * 1000)
+          proposedScheduledAt = estimated.toISOString()
+          lastTimePerCourt.set(oop.court, estimated)
+        }
       }
     }
 
