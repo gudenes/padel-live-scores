@@ -1894,7 +1894,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
 // ── PlayerCard ──────────────────────────────────────────────────────────────
 function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean; accent?: string }) {
   return (
-    <div style={{ background: BG_CARD, overflow: 'hidden', border: winner ? `0.5px solid ${accent ?? 'rgba(255,255,255,0.15)'}` : `0.5px solid ${BORDER}`, clipPath: CHUNKY.card }}>
+    <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+    <div style={{ background: BG_CARD, overflow: 'hidden', border: winner ? `0.5px solid ${accent ?? 'rgba(255,255,255,0.15)'}` : `0.5px solid ${BORDER}`, clipPath: CHUNKY.card, cursor: 'pointer' }}>
       <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: `0.5px solid ${BORDER}`, gap: 8 }}>
         <PlayerAvatar player={player} size={36} winner={winner} accent={accent} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1904,6 +1905,8 @@ function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean;
           </div>
           {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{player.side === 'drive' ? 'Drive' : 'Backhand'}</div>}
         </div>
+        {/* Chevron indicator */}
+        <span style={{ fontSize: 14, color: MUTED, flexShrink: 0 }}>›</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
@@ -1922,6 +1925,7 @@ function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean;
         </div>
       </div>
     </div>
+    </Link>
   )
 }
 
