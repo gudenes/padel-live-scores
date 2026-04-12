@@ -35,6 +35,7 @@ interface ScheduleMatch {
   team2Display: string
   // DB match link (if found)
   dbMatchId: string | null
+  oopRound: string | null  // round from OOP header ("Q3", "Round of 32")
   dbMatchRound: string | null
   dbScheduledAt: string | null
   dbHasTime: boolean // true if scheduled_at already has a non-midnight time
@@ -213,6 +214,7 @@ export async function GET(request: Request) {
       matchCode: oop.matchCode,
       team1Display,
       team2Display,
+      oopRound: oop.round,
       dbMatchId: confidence !== 'none' && bestMatch ? bestMatch.id : null,
       dbMatchRound: bestMatch?.round ?? null,
       dbScheduledAt: bestMatch?.scheduled_at ?? null,

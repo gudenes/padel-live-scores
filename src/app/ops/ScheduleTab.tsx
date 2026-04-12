@@ -14,6 +14,7 @@ interface ScheduleMatch {
   team1Display: string
   team2Display: string
   dbMatchId: string | null
+  oopRound: string | null
   dbMatchRound: string | null
   dbScheduledAt: string | null
   dbHasTime: boolean
@@ -356,7 +357,7 @@ export default function ScheduleTab() {
                           background: m.category === 'men' ? '#dbeafe' : m.category === 'women' ? '#fce7f3' : '#f3f4f6',
                           color: m.category === 'men' ? '#1e40af' : m.category === 'women' ? '#9d174d' : '#666',
                         }}>
-                          {m.matchCode || (m.category === 'men' ? 'M' : m.category === 'women' ? 'W' : '?')}
+                          {m.category === 'men' ? 'M' : m.category === 'women' ? 'W' : '?'}{m.oopRound ? ` ${m.oopRound}` : ''}
                         </span>
                       </td>
                       <td style={{ padding: '5px 8px', color: '#111', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
