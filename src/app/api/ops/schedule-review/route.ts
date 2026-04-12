@@ -125,17 +125,38 @@ export async function GET(request: Request) {
       if (oop.category && dbm.category && oop.category !== dbm.category) continue
 
       // Score: count how many OOP player surnames match DB player names
-      const oopSurnames = [
-        oop.team1[0].surname, oop.team1[1].surname,
-        oop.team2[0].surname, oop.team2[1].surname,
+      // OOP has abbreviated names ("H. Barbosa"), DB has full names ("Hugo Barbosa")
+      // Strategy: check if OOP surname appears as a token in any DB player name
+      const oopPlayers = [
+        oop.team1[0], oop.team1[1],
+        oop.team2[0], oop.team2[1],
       ]
 
       let matchCount = 0
-      for (const surname of oopSurnames) {
-        const normSurname = normalize(surname)
-        for (const dbName of dbNames) {
-          if (tokenSimilarity(surname, dbName) >= 0.5 || normalize(dbName).includes(normSurname)) {
+      const usedDbNames = new Set<number>()
+      for (const oopPlayer of oopPlayers) {
+        const normSurname = normalize(oopPlayer.surname)
+        // Split surname into tokens for multi-part surnames (e.g. "Perez Parra")
+        const surTokens = normSurname.split(' ').filter(t => t.length > 1)
+        if (surTokens.length === 0) continue
+
+        for (let di = 0; di < dbNames.length; di++) {
+          if (usedDbNames.has(di)) continue
+          const normDb = normalize(dbNames[di])
+          const dbTokens = normDb.split(' ').filter(t => t.length > 1)
+
+          // Check if the OOP surname's last token matches any DB name token
+          // (last token is the most distinctive part of the surname)
+          const lastSurToken = surTokens[surTokens.length - 1]
+          const surnameMatch = dbTokens.includes(lastSurToken)
+
+          // Also check if OOP initial matches DB first name initial
+          const initialMatch = oopPlayer.initial.length > 0 &&
+            normDb.startsWith(oopPlayer.initial[0].toLowerCase())
+
+          if (surnameMatch) {
             matchCount++
+            usedDbNames.add(di)
             break
           }
         }
