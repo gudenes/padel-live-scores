@@ -148,8 +148,10 @@ export function useSwipeTabs({
   }, [count, dragOffset, threshold, onTabChange])
 
   // Build track style
+  // The track is count*100% wide, so each tab is (100/count)% of track width.
+  // translateX % is relative to the element's own width, so we divide by count.
   const vw = typeof window !== 'undefined' ? window.innerWidth : 375
-  const baseTranslate = -(currentTab * 100) // % units
+  const baseTranslate = -(currentTab * (100 / count)) // % of track width
 
   const translateX = `calc(${baseTranslate}% + ${dragOffset}px)`
 
