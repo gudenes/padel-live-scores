@@ -160,13 +160,18 @@ function V3MatchRow({ match }: { match: Match }) {
   const roundLabel = match.round ?? ''
   const courtLabel = match.court ?? ''
 
-  const timeStr = (() => {
-    if (!match.scheduled_at) return ''
+  const scheduleDisplay = (() => {
+    if (!match.scheduled_at) return { time: '', date: '' }
     const d = new Date(match.scheduled_at)
-    // If midnight UTC (00:00), it's a date-only value — no time to display
-    if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return ''
-    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    // If midnight UTC (00:00), it's a date-only value — show date only
+    const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0
+    const time = hasTime
+      ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      : ''
+    const date = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+    return { time, date }
   })()
+  const timeStr = scheduleDisplay.time
 
   // ── Score-change flash animation ──────────────────────────
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
@@ -286,8 +291,10 @@ function V3MatchRow({ match }: { match: Match }) {
                 <span style={{ fontSize: 8, fontWeight: 800, color: '#000', letterSpacing: 0.5 }}>FINAL</span>
               </div>
             )}
-            {!isLive && !isFinished && timeStr && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: GREEN }}>{timeStr}</span>
+            {!isLive && !isFinished && (timeStr || scheduleDisplay.date) && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: GREEN, marginRight: 20 }}>
+                {scheduleDisplay.date}{timeStr ? ` · ${timeStr}` : ''}
+              </span>
             )}
             {isFinished && !isLingering && (match as any).status === 'retired' && (
               <span style={{ fontSize: 9, fontWeight: 700, color: ORANGE }}>RET</span>
