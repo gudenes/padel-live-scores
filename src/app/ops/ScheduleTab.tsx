@@ -3,7 +3,7 @@
 // Schedule Review UI — fetches OOP from MatchScorer, previews against DB matches,
 // operator approves changes, then writes schedule times to DB.
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 
 interface ScheduleMatch {
   oopIndex: number
@@ -14,6 +14,7 @@ interface ScheduleMatch {
   team1Display: string
   team2Display: string
   dbMatchId: string | null
+  oopRound: string | null
   dbMatchRound: string | null
   dbScheduledAt: string | null
   dbHasTime: boolean
@@ -44,11 +45,34 @@ const confidenceColor: Record<string, { bg: string; text: string; label: string 
   none: { bg: '#f3f4f6', text: '#666', label: 'NO MATCH' },
 }
 
+interface OopChange {
+  tournament_name: string
+  day: number
+  date: string
+  match_count: number
+  change_type: string
+  created_at: string
+  tournament_id: string
+  matchscorer_code?: string
+}
+
 export default function ScheduleTab() {
+  // OOP change alerts
+  const [oopChanges, setOopChanges] = useState<OopChange[]>([])
+
+  useEffect(() => {
+    // Fetch recent OOP changes from ops_events (last 24h)
+    fetch('/api/ops/schedule-review/changes')
+      .then(r => r.ok ? r.json() : { changes: [] })
+      .then(d => setOopChanges(d.changes || []))
+      .catch(() => {})
+  }, [])
+
   // Input state
   const [tournamentId, setTournamentId] = useState('')
   const [matchscorerCode, setMatchscorerCode] = useState('')
   const [day, setDay] = useState('3')
+  const [dateOverride, setDateOverride] = useState('')
 
   // Result state
   const [result, setResult] = useState<FetchResult | null>(null)
@@ -60,6 +84,9 @@ export default function ScheduleTab() {
   const [applying, setApplying] = useState(false)
   const [applyResult, setApplyResult] = useState<{ updated: number; skipped: number; errors: string[] } | null>(null)
 
+  // Manual overrides — operator can link NO MATCH entries to a DB match ID
+  const [manualLinks, setManualLinks] = useState<Record<number, string>>({})
+
   // Fetch OOP and match against DB
   const handleFetch = useCallback(async () => {
     if (!tournamentId || !matchscorerCode || !day) return
@@ -69,7 +96,8 @@ export default function ScheduleTab() {
     setSelected(new Set())
     setApplyResult(null)
     try {
-      const res = await fetch(`/api/ops/schedule-review?tournament_id=${tournamentId}&code=${encodeURIComponent(matchscorerCode)}&day=${day}`)
+      const dateParam = dateOverride ? `&date=${dateOverride}` : ''
+      const res = await fetch(`/api/ops/schedule-review?tournament_id=${tournamentId}&code=${encodeURIComponent(matchscorerCode)}&day=${day}${dateParam}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error || `HTTP ${res.status}`)
@@ -97,13 +125,17 @@ export default function ScheduleTab() {
     setApplyResult(null)
     const updates = result.matches
       .filter((_, i) => selected.has(i))
-      .filter(m => m.dbMatchId && m.proposedScheduledAt)
-      .map(m => ({
-        matchId: m.dbMatchId!,
-        scheduledAt: m.proposedScheduledAt!,
-        court: m.proposedCourt,
-        scheduleLabel: m.proposedScheduleLabel,
-      }))
+      .map((m, i) => {
+        const matchId = manualLinks[i] || m.dbMatchId
+        if (!matchId || !m.proposedScheduledAt) return null
+        return {
+          matchId,
+          scheduledAt: m.proposedScheduledAt,
+          court: m.proposedCourt,
+          scheduleLabel: m.proposedScheduleLabel,
+        }
+      })
+      .filter(Boolean) as { matchId: string; scheduledAt: string; court: string | null; scheduleLabel: string | null }[]
 
     try {
       const res = await fetch('/api/ops/schedule-review', {
@@ -134,6 +166,28 @@ export default function ScheduleTab() {
 
   return (
     <div>
+      {/* OOP Change Alerts */}
+      {oopChanges.length > 0 && (
+        <div style={{ ...card, marginBottom: 12, background: '#fffbeb', border: '1px solid #fbbf24' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', marginBottom: 6 }}>
+            ⚠️ {oopChanges.length} OOP change{oopChanges.length !== 1 ? 's' : ''} detected — review needed
+          </div>
+          {oopChanges.map((c, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#666', marginBottom: 4 }}>
+              <span style={{
+                fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
+                background: c.change_type === 'NEW' ? '#dbeafe' : '#fef3c7',
+                color: c.change_type === 'NEW' ? '#1e40af' : '#92400e',
+              }}>
+                {c.change_type}
+              </span>
+              <span><strong>{c.tournament_name}</strong> Day {c.day} ({c.date}) — {c.match_count} matches</span>
+              <span style={{ color: '#999', fontSize: 10 }}>{new Date(c.created_at).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Input form */}
       <div style={{ ...card, marginBottom: 12, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
@@ -157,13 +211,22 @@ export default function ScheduleTab() {
           />
         </div>
         <div>
-          <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Day</div>
+          <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Day #</div>
           <input
             type="number"
             value={day}
             onChange={e => setDay(e.target.value)}
             min={1} max={10}
             style={{ width: 60, padding: '6px 8px', fontSize: 12, border: '1px solid #d1d5db', borderRadius: 4, color: '#111' }}
+          />
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Actual Date</div>
+          <input
+            type="date"
+            value={dateOverride}
+            onChange={e => setDateOverride(e.target.value)}
+            style={{ width: 150, padding: '6px 8px', fontSize: 12, border: '1px solid #d1d5db', borderRadius: 4, color: '#111' }}
           />
         </div>
         <button
@@ -187,10 +250,11 @@ export default function ScheduleTab() {
             setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
             setMatchscorerCode('FIP-2026-4401')
             setDay('3')
+            setDateOverride('2026-04-13')
           }}
           style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
         >
-          NewGiza P2 Day 3 (Apr 13)
+          NewGiza Day 3 = Apr 13 (R32)
         </button>
         {' '}
         <button
@@ -198,10 +262,23 @@ export default function ScheduleTab() {
             setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
             setMatchscorerCode('FIP-2026-4401')
             setDay('4')
+            setDateOverride('2026-04-14')
           }}
           style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
         >
-          NewGiza P2 Day 4 (Apr 14)
+          NewGiza Day 4 = Apr 14 (R16)
+        </button>
+        {' '}
+        <button
+          onClick={() => {
+            setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
+            setMatchscorerCode('FIP-2026-4401')
+            setDay('5')
+            setDateOverride('2026-04-15')
+          }}
+          style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
+        >
+          NewGiza Day 5 = Apr 15 (QF)
         </button>
       </div>
 
@@ -288,9 +365,12 @@ export default function ScheduleTab() {
               </thead>
               <tbody>
                 {result.matches.map((m, i) => {
-                  const conf = confidenceColor[m.confidence]
+                  const hasManualLink = !!manualLinks[i]
+                  const effectiveConf = hasManualLink ? 'high' : m.confidence
+                  const conf = confidenceColor[effectiveConf]
                   const isSelected = selected.has(i)
-                  const canSelect = m.dbMatchId && !m.dbHasTime && m.proposedScheduledAt
+                  const effectiveMatchId = manualLinks[i] || m.dbMatchId
+                  const canSelect = effectiveMatchId && !m.dbHasTime && m.proposedScheduledAt
 
                   return (
                     <tr key={i} style={{
@@ -321,7 +401,7 @@ export default function ScheduleTab() {
                           background: m.category === 'men' ? '#dbeafe' : m.category === 'women' ? '#fce7f3' : '#f3f4f6',
                           color: m.category === 'men' ? '#1e40af' : m.category === 'women' ? '#9d174d' : '#666',
                         }}>
-                          {m.matchCode || (m.category === 'men' ? 'M' : m.category === 'women' ? 'W' : '?')}
+                          {m.category === 'men' ? 'M' : m.category === 'women' ? 'W' : '?'}{m.oopRound ? ` ${m.oopRound}` : ''}
                         </span>
                       </td>
                       <td style={{ padding: '5px 8px', color: '#111', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -331,12 +411,27 @@ export default function ScheduleTab() {
                         {m.team2Display}
                       </td>
                       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
-                        <span style={{
-                          fontSize: 8, fontWeight: 700, padding: '2px 5px', borderRadius: 3,
-                          background: conf.bg, color: conf.text,
-                        }}>
-                          {conf.label}
-                        </span>
+                        {m.confidence === 'none' && !hasManualLink ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <input
+                              type="text"
+                              placeholder="paste match UUID"
+                              value={manualLinks[i] || ''}
+                              onChange={e => {
+                                const val = e.target.value.trim()
+                                setManualLinks(prev => val ? { ...prev, [i]: val } : (() => { const n = { ...prev }; delete n[i]; return n })())
+                              }}
+                              style={{ width: 90, padding: '2px 4px', fontSize: 9, fontFamily: 'monospace', border: '1px solid #d1d5db', borderRadius: 3, color: '#333' }}
+                            />
+                          </div>
+                        ) : (
+                          <span style={{
+                            fontSize: 8, fontWeight: 700, padding: '2px 5px', borderRadius: 3,
+                            background: conf.bg, color: conf.text,
+                          }}>
+                            {hasManualLink ? 'MANUAL' : conf.label}
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '5px 8px', color: '#666', fontSize: 10 }}>{m.dbMatchRound || '—'}</td>
                       <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 10, color: '#555' }}>

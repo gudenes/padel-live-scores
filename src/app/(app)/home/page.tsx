@@ -1954,24 +1954,27 @@ function V3HomePageInner() {
           }
         }
 
-        // Look up player avatars for the first player of each seed pair
+        // Look up player avatars + display names for the first player of each seed pair
         const playerIds = topSeedEntries.map(e => e.player1_id).filter(Boolean)
-        let avatarMap: Record<string, string | null> = {}
+        let playerMap: Record<string, { avatar_url: string | null; display_name: string | null }> = {}
         if (playerIds.length > 0) {
           const { data: players } = await supabase
             .from('players')
-            .select('id, avatar_url')
+            .select('id, avatar_url, display_name')
             .in('id', playerIds)
           if (players) {
-            avatarMap = Object.fromEntries(players.map(p => [p.id, p.avatar_url]))
+            playerMap = Object.fromEntries(players.map(p => [p.id, { avatar_url: p.avatar_url, display_name: p.display_name }]))
           }
         }
 
-        setSpotlightSeeds(topSeedEntries.map(e => ({
-          name: e.player1_name ?? 'TBD',
-          avatarUrl: e.player1_id ? (avatarMap[e.player1_id] ?? null) : null,
-          seed: e.seed!,
-        })))
+        setSpotlightSeeds(topSeedEntries.map(e => {
+          const playerInfo = e.player1_id ? playerMap[e.player1_id] : null
+          return {
+            name: playerInfo?.display_name || e.player1_name || 'TBD',
+            avatarUrl: playerInfo?.avatar_url ?? null,
+            seed: e.seed!,
+          }
+        }))
       }
 
       // ── 3. Stats from tournament_draws (both genders) ─────

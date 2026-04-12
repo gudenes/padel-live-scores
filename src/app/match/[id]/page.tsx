@@ -179,7 +179,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           .from('matches')
           .select(`
             *,
-            tournament:tournaments(id, name, starts_at, ends_at, country, timezone),
+            tournament:tournaments(id, name, starts_at, ends_at, country, timezone, source),
             pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
             pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
             pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
@@ -315,14 +315,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   useEffect(() => {
     if (match?.status === 'finished') setSubTab('recap')
+    else if (match?.status === 'scheduled') setSubTab('players')
   }, [match?.status])
 
   useEffect(() => {
     if (!match || match.status !== 'scheduled') return
-    const scheduledAt = (match as any).starts_at
+    const scheduledAt = match.scheduled_at
     if (!scheduledAt) return
+    // Skip countdown if scheduled_at is date-only (midnight UTC — no real time)
+    const d = new Date(scheduledAt)
+    if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return
     const tick = () => {
-      const diff = Math.max(0, (new Date(scheduledAt).getTime() - Date.now()) / 1000)
+      const diff = Math.max(0, (d.getTime() - Date.now()) / 1000)
       setCountdown({ h: Math.floor(diff / 3600), m: Math.floor((diff % 3600) / 60), s: Math.floor(diff % 60) })
     }
     tick()
@@ -783,20 +787,42 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       </div>
 
       {/* ── SCHEDULED: prediction + countdown + info ─────────────────── */}
-      {isScheduled && (
-        <>
-          <PredictionSection
-            match={match}
-            pair1Label={pair1Label}
-            pair2Label={pair2Label}
-            prediction={prediction}
-            predStep={predStep}
-            setPredStep={setPredStep}
-            setPrediction={setPrediction}
-            clearPrediction={clearPrediction}
-          />
-          <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
-        </>
+      {isScheduled && (() => {
+        // Only show predictions for tournaments with PBP coverage (padelapi source)
+        const tournamentSource = ((match as any).tournament)?.source as string | null
+        const hasPbp = tournamentSource === 'padelapi' || !!(match as any).padelapi_id || !!(match as any).external_id
+        return (
+          <>
+            {hasPbp && (
+              <PredictionSection
+                match={match}
+                pair1Label={pair1Label}
+                pair2Label={pair2Label}
+                prediction={prediction}
+                predStep={predStep}
+                setPredStep={setPredStep}
+                setPrediction={setPrediction}
+                clearPrediction={clearPrediction}
+              />
+            )}
+            <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
+          </>
+        )
+      })()}
+
+      {/* ── LIVE: show prediction result (locked, no changes allowed) ── */}
+      {isLive && prediction && (
+        <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', textAlign: 'center' }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>
+            Your Prediction 🔒
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: GREEN }}>
+            {prediction.pair === 1 ? pair1Label : pair2Label}
+          </div>
+          <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
+            Predictions are locked once the match starts
+          </div>
+        </div>
       )}
 
       {/* ── Rate this match (above journey for prominence) ────────── */}
@@ -829,11 +855,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         />
       )}
 
-      {/* ── LIVE / FINISHED: sub-tabs ─────────────────────────────────── */}
-      {!isScheduled && (
+      {/* ── Sub-tabs: scheduled shows Players + H2H, live/finished shows all ── */}
+      {(() => {
+        const tabs: SubTab[] = isFinished
+          ? ['recap', 'live', 'players', 'h2h']
+          : isScheduled
+            ? ['players', 'h2h']
+            : ['live', 'players', 'h2h']
+        return (
         <>
           <div style={{ display: 'flex', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
-            {(isFinished ? ['recap', 'live', 'players', 'h2h'] as SubTab[] : ['live', 'players', 'h2h'] as SubTab[]).map(tab => (
+            {tabs.map(tab => (
               <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? GREEN : MUTED, borderBottom: subTab === tab ? `2px solid ${GREEN}` : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {tab === 'recap' ? 'Score Recap' : tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
               </button>
@@ -864,7 +896,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             )}
           </div>
         </>
-      )}
+        )
+      })()}
     </main>
     <BottomNav />
     {shareToast && (
@@ -1069,22 +1102,50 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
 }) {
   const pad = (n: number) => String(n).padStart(2, '0')
   const tournamentName = ((match as any).tournament)?.name ?? null
+  const scheduleLabel = (match as any).schedule_label as string | null
+  const isApproximate = /not before|followed by/i.test(scheduleLabel ?? '')
+  const hasTime = match.scheduled_at
+    ? (() => { const d = new Date(match.scheduled_at); return d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0 })()
+    : false
+  const hasCountdown = hasTime && (countdown.h > 0 || countdown.m > 0 || countdown.s > 0)
+
   return (
     <>
       {/* Countdown */}
       <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Starts in</div>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-          {[{ n: countdown.h, l: 'HRS' }, { n: countdown.m, l: 'MIN' }, { n: countdown.s, l: 'SEC' }].map(({ n, l }, i) => (
-            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {i > 0 && <span style={{ fontSize: 22, fontWeight: 900, color: BORDER, marginTop: -6 }}>:</span>}
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'monospace', color: GREEN, lineHeight: 1 }}>{pad(n)}</div>
-                <div style={{ fontSize: 8, color: MUTED, marginTop: 2, letterSpacing: '0.5px' }}>{l}</div>
-              </div>
+        {hasCountdown ? (
+          <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>
+            {isApproximate ? 'Estimated start in' : 'Starts in'}
+          </div>
+        ) : (
+          <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>
+            {hasTime ? 'Starting soon' : 'Start time TBD'}
+          </div>
+        )}
+        {hasCountdown ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+              {[{ n: countdown.h, l: 'HRS' }, { n: countdown.m, l: 'MIN' }, { n: countdown.s, l: 'SEC' }].map(({ n, l }, i) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {i > 0 && <span style={{ fontSize: 22, fontWeight: 900, color: BORDER, marginTop: -6 }}>:</span>}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'monospace', color: isApproximate ? '#F5A623' : GREEN, lineHeight: 1 }}>{pad(n)}</div>
+                    <div style={{ fontSize: 8, color: MUTED, marginTop: 2, letterSpacing: '0.5px' }}>{l}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            {isApproximate && (
+              <div style={{ fontSize: 9, color: '#F5A623', marginTop: 8, fontWeight: 600 }}>
+                ⚠ Time is estimated — actual start may vary
+              </div>
+            )}
+          </>
+        ) : hasTime ? (
+          <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>Match is about to start</div>
+        ) : (
+          <div style={{ fontSize: 11, color: MUTED }}>Schedule will be updated when available</div>
+        )}
       </div>
 
       {/* Tournament info */}
@@ -1833,7 +1894,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
 // ── PlayerCard ──────────────────────────────────────────────────────────────
 function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean; accent?: string }) {
   return (
-    <div style={{ background: BG_CARD, overflow: 'hidden', border: winner ? `0.5px solid ${accent ?? 'rgba(255,255,255,0.15)'}` : `0.5px solid ${BORDER}`, clipPath: CHUNKY.card }}>
+    <Link href={`/player/${player.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+    <div style={{ background: BG_CARD, overflow: 'hidden', border: winner ? `0.5px solid ${accent ?? 'rgba(255,255,255,0.15)'}` : `0.5px solid ${BORDER}`, clipPath: CHUNKY.card, cursor: 'pointer' }}>
       <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: `0.5px solid ${BORDER}`, gap: 8 }}>
         <PlayerAvatar player={player} size={36} winner={winner} accent={accent} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -1843,6 +1905,8 @@ function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean;
           </div>
           {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{player.side === 'drive' ? 'Drive' : 'Backhand'}</div>}
         </div>
+        {/* Chevron indicator */}
+        <span style={{ fontSize: 14, color: MUTED, flexShrink: 0 }}>›</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <div style={{ flex: 1, textAlign: 'center', padding: '7px 0' }}>
@@ -1861,6 +1925,7 @@ function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean;
         </div>
       </div>
     </div>
+    </Link>
   )
 }
 

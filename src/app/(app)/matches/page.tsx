@@ -160,13 +160,20 @@ function V3MatchRow({ match }: { match: Match }) {
   const roundLabel = match.round ?? ''
   const courtLabel = match.court ?? ''
 
-  const timeStr = (() => {
-    if (!match.scheduled_at) return ''
+  const scheduleDisplay = (() => {
+    if (!match.scheduled_at) return { time: '', date: '', approximate: false }
     const d = new Date(match.scheduled_at)
-    // If midnight UTC (00:00), it's a date-only value — no time to display
-    if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return ''
-    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0
+    const time = hasTime
+      ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      : ''
+    const date = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+    // Check if schedule_label indicates approximate time ("Not before", "Followed by")
+    const label = (match as any).schedule_label ?? ''
+    const approximate = /not before|followed by/i.test(label)
+    return { time, date, approximate }
   })()
+  const timeStr = scheduleDisplay.time
 
   // ── Score-change flash animation ──────────────────────────
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
@@ -286,9 +293,7 @@ function V3MatchRow({ match }: { match: Match }) {
                 <span style={{ fontSize: 8, fontWeight: 800, color: '#000', letterSpacing: 0.5 }}>FINAL</span>
               </div>
             )}
-            {!isLive && !isFinished && timeStr && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: GREEN }}>{timeStr}</span>
-            )}
+            {/* Date/time moved to player row area — see below */}
             {isFinished && !isLingering && (match as any).status === 'retired' && (
               <span style={{ fontSize: 9, fontWeight: 700, color: ORANGE }}>RET</span>
             )}
@@ -298,7 +303,9 @@ function V3MatchRow({ match }: { match: Match }) {
           </div>
         </div>
 
-        {/* Pair rows with scores */}
+        {/* Pair rows with scores + schedule */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
         {[
           { pair: pair1Name, p1: match.pair1_player1, p2: match.pair1_player2, pairNum: 1 },
           { pair: pair2Name, p1: match.pair2_player1, p2: match.pair2_player2, pairNum: 2 },
@@ -395,6 +402,25 @@ function V3MatchRow({ match }: { match: Match }) {
             </div>
           )
         })}
+        </div>
+        {/* Schedule date/time — right side, aligned with player rows */}
+        {!isLive && !isFinished && (scheduleDisplay.date || timeStr) && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
+            justifyContent: 'center', flexShrink: 0, marginLeft: 8, marginRight: 16,
+            minWidth: 42,
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', lineHeight: 1.2 }}>
+              {scheduleDisplay.date}
+            </span>
+            {timeStr && (
+              <span style={{ fontSize: 13, fontWeight: 800, color: GREEN, lineHeight: 1.2 }}>
+                {timeStr}{scheduleDisplay.approximate ? '*' : ''}
+              </span>
+            )}
+          </div>
+        )}
+        </div>
       </div>
     </Link>
   )
@@ -937,7 +963,7 @@ function V3ScoresPage() {
                 key={group.tournament?.id ?? idx}
                 tournament={group.tournament}
                 matches={group.matches}
-                defaultOpen={tab === 'live' || (tab === 'results' && idx === 0)}
+                defaultOpen={tab === 'live' || tab === 'upcoming' || (tab === 'results' && idx === 0)}
                 tab={tab}
               />
             )) : (

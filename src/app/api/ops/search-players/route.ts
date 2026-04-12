@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('players')
-    .select('id, name, country, ranking, points, category, avatar_url')
+    .select('id, name, display_name, country, ranking, points, category, avatar_url')
     .ilike('name', `%${q}%`)
 
   if (category === 'men' || category === 'women') {

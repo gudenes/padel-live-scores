@@ -35,6 +35,7 @@ interface ScheduleMatch {
   team2Display: string
   // DB match link (if found)
   dbMatchId: string | null
+  oopRound: string | null  // round from OOP header ("Q3", "Round of 32")
   dbMatchRound: string | null
   dbScheduledAt: string | null
   dbHasTime: boolean // true if scheduled_at already has a non-midnight time
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
   const tournamentId = url.searchParams.get('tournament_id')
   const matchscorerCode = url.searchParams.get('code') // e.g. "FIP-2026-4401"
   const dayStr = url.searchParams.get('day')
+  const dateParam = url.searchParams.get('date') // e.g. "2026-04-13" — operator provides the actual date
 
   if (!tournamentId || !matchscorerCode || !dayStr) {
     return Response.json({ error: 'Required params: tournament_id, code, day' }, { status: 400 })
@@ -78,14 +80,13 @@ export async function GET(request: Request) {
     .single()
 
   const timezone = tournament?.timezone || 'UTC'
-  const tournamentStart = tournament?.starts_at ? new Date(tournament.starts_at) : null
 
-  // Calculate the actual date for this day number
-  let dayDate: string | null = null
-  if (tournamentStart) {
-    const d = new Date(tournamentStart)
+  // Date for this day — operator-provided takes priority, otherwise calculate from starts_at
+  let dayDate: string | null = dateParam || null
+  if (!dayDate && tournament?.starts_at) {
+    const d = new Date(tournament.starts_at)
     d.setDate(d.getDate() + day - 1)
-    dayDate = d.toISOString().slice(0, 10) // "2026-04-13"
+    dayDate = d.toISOString().slice(0, 10)
   }
 
   // 3. Get all DB matches for this tournament
@@ -100,6 +101,30 @@ export async function GET(request: Request) {
     `)
     .eq('tournament_id', tournamentId)
     .in('status', ['scheduled', 'live', 'finished'])
+
+  // Helper: convert local time string to UTC ISO using tournament timezone
+  function localTimeToUtc(dateStr: string, hours: number, minutes: number): string | null {
+    try {
+      const localStr = `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
+      const probe = new Date(localStr + 'Z')
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hour: '2-digit', hour12: false,
+      })
+      const parts = formatter.formatToParts(probe)
+      const localHour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0')
+      const utcHour = probe.getUTCHours()
+      const offsetHours = localHour - utcHour
+      const utcDate = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`)
+      utcDate.setHours(utcDate.getHours() - offsetHours)
+      return utcDate.toISOString()
+    } catch {
+      return null
+    }
+  }
+
+  // Track last proposed time per court for "Followed by" estimation (+90 min)
+  const lastTimePerCourt = new Map<string, Date>()
 
   // 4. Match OOP entries against DB matches
   const scheduleMatches: ScheduleMatch[] = oopDay.matches.map((oop, idx) => {
@@ -125,17 +150,38 @@ export async function GET(request: Request) {
       if (oop.category && dbm.category && oop.category !== dbm.category) continue
 
       // Score: count how many OOP player surnames match DB player names
-      const oopSurnames = [
-        oop.team1[0].surname, oop.team1[1].surname,
-        oop.team2[0].surname, oop.team2[1].surname,
+      // OOP has abbreviated names ("H. Barbosa"), DB has full names ("Hugo Barbosa")
+      // Strategy: check if OOP surname appears as a token in any DB player name
+      const oopPlayers = [
+        oop.team1[0], oop.team1[1],
+        oop.team2[0], oop.team2[1],
       ]
 
       let matchCount = 0
-      for (const surname of oopSurnames) {
-        const normSurname = normalize(surname)
-        for (const dbName of dbNames) {
-          if (tokenSimilarity(surname, dbName) >= 0.5 || normalize(dbName).includes(normSurname)) {
+      const usedDbNames = new Set<number>()
+      for (const oopPlayer of oopPlayers) {
+        const normSurname = normalize(oopPlayer.surname)
+        // Split surname into tokens for multi-part surnames (e.g. "Perez Parra")
+        const surTokens = normSurname.split(' ').filter(t => t.length > 1)
+        if (surTokens.length === 0) continue
+
+        for (let di = 0; di < dbNames.length; di++) {
+          if (usedDbNames.has(di)) continue
+          const normDb = normalize(dbNames[di])
+          const dbTokens = normDb.split(' ').filter(t => t.length > 1)
+
+          // Check if the OOP surname's last token matches any DB name token
+          // (last token is the most distinctive part of the surname)
+          const lastSurToken = surTokens[surTokens.length - 1]
+          const surnameMatch = dbTokens.includes(lastSurToken)
+
+          // Also check if OOP initial matches DB first name initial
+          const initialMatch = oopPlayer.initial.length > 0 &&
+            normDb.startsWith(oopPlayer.initial[0].toLowerCase())
+
+          if (surnameMatch) {
             matchCount++
+            usedDbNames.add(di)
             break
           }
         }
@@ -154,29 +200,27 @@ export async function GET(request: Request) {
 
     // Build proposed scheduled_at from OOP time + day date + timezone
     let proposedScheduledAt: string | null = null
-    if (dayDate && oop.scheduleLabel) {
+    if (dayDate) {
       const timeMatch = oop.scheduleLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
       if (timeMatch) {
+        // "Starting at X:XX AM/PM" or "Not before X:XX PM" — parse exact time
         let hours = parseInt(timeMatch[1])
         const minutes = parseInt(timeMatch[2])
         const ampm = timeMatch[3].toUpperCase()
         if (ampm === 'PM' && hours < 12) hours += 12
         if (ampm === 'AM' && hours === 12) hours = 0
-        try {
-          const localStr = `${dayDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
-          const probe = new Date(localStr + 'Z')
-          const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: timezone,
-            hour: '2-digit', hour12: false,
-          })
-          const parts = formatter.formatToParts(probe)
-          const localHour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0')
-          const utcHour = probe.getUTCHours()
-          const offsetHours = localHour - utcHour
-          const utcDate = new Date(`${dayDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`)
-          utcDate.setHours(utcDate.getHours() - offsetHours)
-          proposedScheduledAt = utcDate.toISOString()
-        } catch { /* keep null */ }
+        proposedScheduledAt = localTimeToUtc(dayDate, hours, minutes)
+        if (proposedScheduledAt) {
+          lastTimePerCourt.set(oop.court, new Date(proposedScheduledAt))
+        }
+      } else if (/followed by/i.test(oop.scheduleLabel)) {
+        // "Followed by" — estimate as previous match on same court + 90 minutes
+        const lastTime = lastTimePerCourt.get(oop.court)
+        if (lastTime) {
+          const estimated = new Date(lastTime.getTime() + 90 * 60 * 1000)
+          proposedScheduledAt = estimated.toISOString()
+          lastTimePerCourt.set(oop.court, estimated)
+        }
       }
     }
 
@@ -192,6 +236,7 @@ export async function GET(request: Request) {
       matchCode: oop.matchCode,
       team1Display,
       team2Display,
+      oopRound: oop.round,
       dbMatchId: confidence !== 'none' && bestMatch ? bestMatch.id : null,
       dbMatchRound: bestMatch?.round ?? null,
       dbScheduledAt: bestMatch?.scheduled_at ?? null,

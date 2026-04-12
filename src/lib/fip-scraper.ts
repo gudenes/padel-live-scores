@@ -137,8 +137,16 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'")
+    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
     .replace(/&apos;/g, "'")
+    .replace(/&ntilde;/g, 'ñ')
+    .replace(/&Ntilde;/g, 'Ñ')
+    .replace(/&oacute;/g, 'ó')
+    .replace(/&eacute;/g, 'é')
+    .replace(/&iacute;/g, 'í')
+    .replace(/&uacute;/g, 'ú')
+    .replace(/&aacute;/g, 'á')
 }
 
 // ---------------------------------------------------------------------------
@@ -771,6 +779,7 @@ export interface OopMatch {
   team1: [OopPlayer, OopPlayer]
   team2: [OopPlayer, OopPlayer]
   category: 'men' | 'women' | null
+  round: string | null  // "Q3", "Round of 32", etc.
   matchCode: string | null  // e.g. "MD019", "WQ004" from data-mid
 }
 
@@ -831,17 +840,40 @@ export function parseOopHtml(html: string): OopMatch[] {
     const between = html.slice(lastPos, tableMatch.index)
     lastPos = tableMatch.index + tableMatch[0].length
 
-    // Update court name if we find one
-    const courtInBetween = /class="[^"]*court">\s*([A-Z][A-Za-z0-9 -]+)/i.exec(between)
-    if (courtInBetween) currentCourt = courtInBetween[1].trim()
+    // Update schedule label FIRST (before court, since court-name class also contains schedule labels)
+    // Check for all schedule-related text in the between section
+    const allLabels = [...between.matchAll(/(?:class="[^"]*(?:court-name|court-start)[^"]*"[^>]*>|>)\s*(Starting at \d+:\d+ [AP]M|Not before \d+:\d+ [AP]M|Followed by)/gi)]
+    if (allLabels.length > 0) {
+      currentSchedule = allLabels[allLabels.length - 1][1].trim()
+    }
 
-    // Update schedule label
-    const schedLabels = between.match(/Starting at \d+:\d+ [AP]M|Not before \d+:\d+ [AP]M|Followed by/gi)
-    if (schedLabels) currentSchedule = schedLabels[schedLabels.length - 1]
+    // Update court name — only from actual court divs (has uppercase letters + " - C"), not schedule labels
+    const courtMatches = [...between.matchAll(/class="[^"]*court">\s*([A-Z][A-Z0-9 ]+ - [A-Z0-9]+)/gi)]
+    if (courtMatches.length > 0) {
+      currentCourt = courtMatches[courtMatches.length - 1][1].trim()
+    }
 
     const tableHtml = tableMatch[0]
     // Only process tables with player data (flags)
     if (!tableHtml.includes('class="flags"')) continue
+
+    // Schedule label is INSIDE the table (in the scorebox-header)
+    const insideLabels = tableHtml.match(/Starting at \d+:\d+ [AP]M|Not before \d+:\d+ [AP]M|Followed by/gi)
+    if (insideLabels) currentSchedule = insideLabels[insideLabels.length - 1]
+
+    // Category + round from scorebox-header (e.g. "Starting at 9:30 AM Women Q2", "Men Round of 32")
+    const headerText = (() => {
+      const hm = /scorebox-header[^"]*"[^>]*>([\s\S]*?)<\/tr/i.exec(tableHtml)
+      if (!hm) return ''
+      return hm[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    })()
+    let matchCategory: 'men' | 'women' | null = null
+    let matchRound: string | null = null
+    if (/\bWomen\b/i.test(headerText)) matchCategory = 'women'
+    else if (/\bMen\b/i.test(headerText)) matchCategory = 'men'
+    // Extract round: Q1, Q2, Q3, Round of 32, Round of 16, etc.
+    const roundMatch = headerText.match(/\b(Q[1-3]|Round of \d+|Quarterfinals?|Quarter|Semifinals?|Semi|Finals?)\b/i)
+    if (roundMatch) matchRound = roundMatch[1]
 
     // Extract players from this table
     const playerRe = /<img class="flags" src="\/images\/flags\/([A-Z]+)\.jpg"[\s\S]*?<span>([^<]+)<\/span>\s*<span[^>]*>([^<]+)<\/span>(?:\s*<small>\((\d+)\)<\/small>)?/gi
@@ -868,9 +900,9 @@ export function parseOopHtml(html: string): OopMatch[] {
     const midMatch = /data-mid="([^"]+)"/.exec(tableHtml)
     const matchCode = midMatch ? midMatch[1] : null
 
-    // Determine category from match code
-    let category: 'men' | 'women' | null = null
-    if (matchCode) {
+    // Use header-parsed category, fallback to match code prefix
+    let category = matchCategory
+    if (!category && matchCode) {
       if (matchCode.startsWith('MD') || matchCode.startsWith('MQ')) category = 'men'
       else if (matchCode.startsWith('WD') || matchCode.startsWith('WQ')) category = 'women'
     }
@@ -881,6 +913,7 @@ export function parseOopHtml(html: string): OopMatch[] {
       team1: [players[0], players[1]],
       team2: [players[2], players[3]],
       category,
+      round: matchRound,
       matchCode,
     })
   }

@@ -589,11 +589,14 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
           }
         }
 
+        // Only include scheduled_at in the upsert if we have a real time
+        // (not just a date-only value). This prevents the hourly sync from
+        // overwriting OOP-derived times with PadelAPI's date-only played_at.
+        const scheduledAtHasTime = scheduledAt && /T\d{2}:\d{2}/.test(scheduledAt) &&
+          !scheduledAt.endsWith('T00:00:00') && !scheduledAt.endsWith('T00:00:00.000Z')
+
         // Upsert match — only columns that exist in DB schema
-        const { data: matchRow, error: matchError } = await supabase
-          .from('matches')
-          .upsert(
-            {
+        const upsertData: Record<string, unknown> = {
               external_id: externalId,
               tournament_id: tournamentRow?.id ?? null,
               status: status,
@@ -603,10 +606,54 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
               court_order: match.court_order ?? null,
               schedule_label: match.schedule_label ?? null,
               category: match.category ?? null,
-              scheduled_at: scheduledAt,
               started_at: startedAt,
               duration: match.duration ?? null,
               updated_at: new Date().toISOString(),
+        }
+        // Only set scheduled_at if we have a proper time, OR the match doesn't exist yet
+        // (for new matches, always set it even if date-only so we have the date)
+        if (scheduledAtHasTime) {
+          upsertData.scheduled_at = scheduledAt
+        } else if (scheduledAt) {
+          // Date-only: only set if creating a new match (not updating an existing one)
+          // We handle this by checking if the match exists first
+          const { data: existingMatch } = await supabase
+            .from('matches')
+            .select('scheduled_at')
+            .eq('external_id', externalId)
+            .maybeSingle()
+
+          if (!existingMatch) {
+            // New match — set date-only scheduled_at
+            upsertData.scheduled_at = scheduledAt
+          } else if (existingMatch.scheduled_at) {
+            const existingDt = new Date(existingMatch.scheduled_at)
+            const hasExistingTime = existingDt.getUTCHours() !== 0 || existingDt.getUTCMinutes() !== 0
+            if (!hasExistingTime) {
+              // Existing match has date-only — safe to update with new date-only
+              upsertData.scheduled_at = scheduledAt
+            }
+            // else: existing has a real time (OOP-set) — don't overwrite with date-only
+          }
+        }
+
+        const { data: matchRow, error: matchError } = await supabase
+          .from('matches')
+          .upsert(
+            upsertData as {
+              external_id: string
+              tournament_id: string | null
+              status: string
+              winner_pair: number | null
+              round: string | null
+              court: string | null
+              court_order: number | null
+              schedule_label: string | null
+              category: string | null
+              started_at: string | null
+              duration: number | null
+              updated_at: string
+              scheduled_at?: string | null
             },
             { onConflict: 'external_id' }
           )
