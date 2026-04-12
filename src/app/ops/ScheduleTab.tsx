@@ -3,7 +3,7 @@
 // Schedule Review UI — fetches OOP from MatchScorer, previews against DB matches,
 // operator approves changes, then writes schedule times to DB.
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 
 interface ScheduleMatch {
   oopIndex: number
@@ -45,7 +45,29 @@ const confidenceColor: Record<string, { bg: string; text: string; label: string 
   none: { bg: '#f3f4f6', text: '#666', label: 'NO MATCH' },
 }
 
+interface OopChange {
+  tournament_name: string
+  day: number
+  date: string
+  match_count: number
+  change_type: string
+  created_at: string
+  tournament_id: string
+  matchscorer_code?: string
+}
+
 export default function ScheduleTab() {
+  // OOP change alerts
+  const [oopChanges, setOopChanges] = useState<OopChange[]>([])
+
+  useEffect(() => {
+    // Fetch recent OOP changes from ops_events (last 24h)
+    fetch('/api/ops/schedule-review/changes')
+      .then(r => r.ok ? r.json() : { changes: [] })
+      .then(d => setOopChanges(d.changes || []))
+      .catch(() => {})
+  }, [])
+
   // Input state
   const [tournamentId, setTournamentId] = useState('')
   const [matchscorerCode, setMatchscorerCode] = useState('')
@@ -144,6 +166,28 @@ export default function ScheduleTab() {
 
   return (
     <div>
+      {/* OOP Change Alerts */}
+      {oopChanges.length > 0 && (
+        <div style={{ ...card, marginBottom: 12, background: '#fffbeb', border: '1px solid #fbbf24' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#92400e', marginBottom: 6 }}>
+            ⚠️ {oopChanges.length} OOP change{oopChanges.length !== 1 ? 's' : ''} detected — review needed
+          </div>
+          {oopChanges.map((c, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#666', marginBottom: 4 }}>
+              <span style={{
+                fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
+                background: c.change_type === 'NEW' ? '#dbeafe' : '#fef3c7',
+                color: c.change_type === 'NEW' ? '#1e40af' : '#92400e',
+              }}>
+                {c.change_type}
+              </span>
+              <span><strong>{c.tournament_name}</strong> Day {c.day} ({c.date}) — {c.match_count} matches</span>
+              <span style={{ color: '#999', fontSize: 10 }}>{new Date(c.created_at).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Input form */}
       <div style={{ ...card, marginBottom: 12, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
         <div>
