@@ -319,10 +319,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   useEffect(() => {
     if (!match || match.status !== 'scheduled') return
-    const scheduledAt = (match as any).starts_at
+    const scheduledAt = match.scheduled_at
     if (!scheduledAt) return
+    // Skip countdown if scheduled_at is date-only (midnight UTC — no real time)
+    const d = new Date(scheduledAt)
+    if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return
     const tick = () => {
-      const diff = Math.max(0, (new Date(scheduledAt).getTime() - Date.now()) / 1000)
+      const diff = Math.max(0, (d.getTime() - Date.now()) / 1000)
       setCountdown({ h: Math.floor(diff / 3600), m: Math.floor((diff % 3600) / 60), s: Math.floor(diff % 60) })
     }
     tick()
@@ -1069,22 +1072,50 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
 }) {
   const pad = (n: number) => String(n).padStart(2, '0')
   const tournamentName = ((match as any).tournament)?.name ?? null
+  const scheduleLabel = (match as any).schedule_label as string | null
+  const isApproximate = /not before|followed by/i.test(scheduleLabel ?? '')
+  const hasTime = match.scheduled_at
+    ? (() => { const d = new Date(match.scheduled_at); return d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0 })()
+    : false
+  const hasCountdown = hasTime && (countdown.h > 0 || countdown.m > 0 || countdown.s > 0)
+
   return (
     <>
       {/* Countdown */}
       <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>Starts in</div>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-          {[{ n: countdown.h, l: 'HRS' }, { n: countdown.m, l: 'MIN' }, { n: countdown.s, l: 'SEC' }].map(({ n, l }, i) => (
-            <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {i > 0 && <span style={{ fontSize: 22, fontWeight: 900, color: BORDER, marginTop: -6 }}>:</span>}
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'monospace', color: GREEN, lineHeight: 1 }}>{pad(n)}</div>
-                <div style={{ fontSize: 8, color: MUTED, marginTop: 2, letterSpacing: '0.5px' }}>{l}</div>
-              </div>
+        {hasCountdown ? (
+          <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>
+            {isApproximate ? 'Estimated start in' : 'Starts in'}
+          </div>
+        ) : (
+          <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>
+            {hasTime ? 'Starting soon' : 'Start time TBD'}
+          </div>
+        )}
+        {hasCountdown ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+              {[{ n: countdown.h, l: 'HRS' }, { n: countdown.m, l: 'MIN' }, { n: countdown.s, l: 'SEC' }].map(({ n, l }, i) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {i > 0 && <span style={{ fontSize: 22, fontWeight: 900, color: BORDER, marginTop: -6 }}>:</span>}
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 26, fontWeight: 900, fontFamily: 'monospace', color: isApproximate ? '#F5A623' : GREEN, lineHeight: 1 }}>{pad(n)}</div>
+                    <div style={{ fontSize: 8, color: MUTED, marginTop: 2, letterSpacing: '0.5px' }}>{l}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            {isApproximate && (
+              <div style={{ fontSize: 9, color: '#F5A623', marginTop: 8, fontWeight: 600 }}>
+                ⚠ Time is estimated — actual start may vary
+              </div>
+            )}
+          </>
+        ) : hasTime ? (
+          <div style={{ fontSize: 13, fontWeight: 700, color: GREEN }}>Match is about to start</div>
+        ) : (
+          <div style={{ fontSize: 11, color: MUTED }}>Schedule will be updated when available</div>
+        )}
       </div>
 
       {/* Tournament info */}
