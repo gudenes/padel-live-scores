@@ -839,17 +839,26 @@ export function parseOopHtml(html: string): OopMatch[] {
     const between = html.slice(lastPos, tableMatch.index)
     lastPos = tableMatch.index + tableMatch[0].length
 
-    // Update court name if we find one
-    const courtInBetween = /class="[^"]*court">\s*([A-Z][A-Za-z0-9 -]+)/i.exec(between)
-    if (courtInBetween) currentCourt = courtInBetween[1].trim()
+    // Update schedule label FIRST (before court, since court-name class also contains schedule labels)
+    // Check for all schedule-related text in the between section
+    const allLabels = [...between.matchAll(/(?:class="[^"]*(?:court-name|court-start)[^"]*"[^>]*>|>)\s*(Starting at \d+:\d+ [AP]M|Not before \d+:\d+ [AP]M|Followed by)/gi)]
+    if (allLabels.length > 0) {
+      currentSchedule = allLabels[allLabels.length - 1][1].trim()
+    }
 
-    // Update schedule label
-    const schedLabels = between.match(/Starting at \d+:\d+ [AP]M|Not before \d+:\d+ [AP]M|Followed by/gi)
-    if (schedLabels) currentSchedule = schedLabels[schedLabels.length - 1]
+    // Update court name — only from actual court divs (has uppercase letters + " - C"), not schedule labels
+    const courtMatches = [...between.matchAll(/class="[^"]*court">\s*([A-Z][A-Z0-9 ]+ - [A-Z0-9]+)/gi)]
+    if (courtMatches.length > 0) {
+      currentCourt = courtMatches[courtMatches.length - 1][1].trim()
+    }
 
     const tableHtml = tableMatch[0]
     // Only process tables with player data (flags)
     if (!tableHtml.includes('class="flags"')) continue
+
+    // Schedule label is INSIDE the table (in the scorebox-header)
+    const insideLabels = tableHtml.match(/Starting at \d+:\d+ [AP]M|Not before \d+:\d+ [AP]M|Followed by/gi)
+    if (insideLabels) currentSchedule = insideLabels[insideLabels.length - 1]
 
     // Extract players from this table
     const playerRe = /<img class="flags" src="\/images\/flags\/([A-Z]+)\.jpg"[\s\S]*?<span>([^<]+)<\/span>\s*<span[^>]*>([^<]+)<\/span>(?:\s*<small>\((\d+)\)<\/small>)?/gi

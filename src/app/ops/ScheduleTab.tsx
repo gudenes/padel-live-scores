@@ -61,6 +61,9 @@ export default function ScheduleTab() {
   const [applying, setApplying] = useState(false)
   const [applyResult, setApplyResult] = useState<{ updated: number; skipped: number; errors: string[] } | null>(null)
 
+  // Manual overrides — operator can link NO MATCH entries to a DB match ID
+  const [manualLinks, setManualLinks] = useState<Record<number, string>>({})
+
   // Fetch OOP and match against DB
   const handleFetch = useCallback(async () => {
     if (!tournamentId || !matchscorerCode || !day) return
@@ -99,13 +102,17 @@ export default function ScheduleTab() {
     setApplyResult(null)
     const updates = result.matches
       .filter((_, i) => selected.has(i))
-      .filter(m => m.dbMatchId && m.proposedScheduledAt)
-      .map(m => ({
-        matchId: m.dbMatchId!,
-        scheduledAt: m.proposedScheduledAt!,
-        court: m.proposedCourt,
-        scheduleLabel: m.proposedScheduleLabel,
-      }))
+      .map((m, i) => {
+        const matchId = manualLinks[i] || m.dbMatchId
+        if (!matchId || !m.proposedScheduledAt) return null
+        return {
+          matchId,
+          scheduledAt: m.proposedScheduledAt,
+          court: m.proposedCourt,
+          scheduleLabel: m.proposedScheduleLabel,
+        }
+      })
+      .filter(Boolean) as { matchId: string; scheduledAt: string; court: string | null; scheduleLabel: string | null }[]
 
     try {
       const res = await fetch('/api/ops/schedule-review', {
@@ -313,9 +320,12 @@ export default function ScheduleTab() {
               </thead>
               <tbody>
                 {result.matches.map((m, i) => {
-                  const conf = confidenceColor[m.confidence]
+                  const hasManualLink = !!manualLinks[i]
+                  const effectiveConf = hasManualLink ? 'high' : m.confidence
+                  const conf = confidenceColor[effectiveConf]
                   const isSelected = selected.has(i)
-                  const canSelect = m.dbMatchId && !m.dbHasTime && m.proposedScheduledAt
+                  const effectiveMatchId = manualLinks[i] || m.dbMatchId
+                  const canSelect = effectiveMatchId && !m.dbHasTime && m.proposedScheduledAt
 
                   return (
                     <tr key={i} style={{
@@ -356,12 +366,27 @@ export default function ScheduleTab() {
                         {m.team2Display}
                       </td>
                       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
-                        <span style={{
-                          fontSize: 8, fontWeight: 700, padding: '2px 5px', borderRadius: 3,
-                          background: conf.bg, color: conf.text,
-                        }}>
-                          {conf.label}
-                        </span>
+                        {m.confidence === 'none' && !hasManualLink ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <input
+                              type="text"
+                              placeholder="paste match UUID"
+                              value={manualLinks[i] || ''}
+                              onChange={e => {
+                                const val = e.target.value.trim()
+                                setManualLinks(prev => val ? { ...prev, [i]: val } : (() => { const n = { ...prev }; delete n[i]; return n })())
+                              }}
+                              style={{ width: 90, padding: '2px 4px', fontSize: 9, fontFamily: 'monospace', border: '1px solid #d1d5db', borderRadius: 3, color: '#333' }}
+                            />
+                          </div>
+                        ) : (
+                          <span style={{
+                            fontSize: 8, fontWeight: 700, padding: '2px 5px', borderRadius: 3,
+                            background: conf.bg, color: conf.text,
+                          }}>
+                            {hasManualLink ? 'MANUAL' : conf.label}
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '5px 8px', color: '#666', fontSize: 10 }}>{m.dbMatchRound || '—'}</td>
                       <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 10, color: '#555' }}>
