@@ -7,6 +7,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import { startSessionKeepalive, refreshSessionIfNeeded } from '@/lib/supabase-health'
+import { checkBadgeInline } from '@/lib/badge-check-inline'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface Profile {
@@ -233,6 +234,9 @@ async function updateLoginStreak(userId: string) {
         longest_streak: newLongest,
       })
       .eq('id', userId)
+
+    void checkBadgeInline(userId, 'login_streak')
+    void checkBadgeInline(userId, 'longest_streak')
   } catch (e) {
     console.warn('[Auth] updateLoginStreak failed:', (e as Error)?.message)
   }
