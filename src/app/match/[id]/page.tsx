@@ -315,6 +315,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   useEffect(() => {
     if (match?.status === 'finished') setSubTab('recap')
+    else if (match?.status === 'scheduled') setSubTab('players')
   }, [match?.status])
 
   useEffect(() => {
@@ -854,11 +855,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         />
       )}
 
-      {/* ── LIVE / FINISHED: sub-tabs ─────────────────────────────────── */}
-      {!isScheduled && (
+      {/* ── Sub-tabs: scheduled shows Players + H2H, live/finished shows all ── */}
+      {(() => {
+        const tabs: SubTab[] = isFinished
+          ? ['recap', 'live', 'players', 'h2h']
+          : isScheduled
+            ? ['players', 'h2h']
+            : ['live', 'players', 'h2h']
+        return (
         <>
           <div style={{ display: 'flex', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
-            {(isFinished ? ['recap', 'live', 'players', 'h2h'] as SubTab[] : ['live', 'players', 'h2h'] as SubTab[]).map(tab => (
+            {tabs.map(tab => (
               <button key={tab} onClick={() => handleSubTab(tab)} style={{ flex: 1, fontSize: 11, fontWeight: subTab === tab ? 700 : 500, padding: '10px 4px', background: 'transparent', border: 'none', color: subTab === tab ? GREEN : MUTED, borderBottom: subTab === tab ? `2px solid ${GREEN}` : '2px solid transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {tab === 'recap' ? 'Score Recap' : tab === 'live' ? 'Live Feed' : tab === 'h2h' ? 'H2H' : 'Players'}
               </button>
@@ -889,7 +896,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             )}
           </div>
         </>
-      )}
+        )
+      })()}
     </main>
     <BottomNav />
     {shareToast && (
