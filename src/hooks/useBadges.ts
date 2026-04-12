@@ -8,9 +8,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import {
-  BADGE_CATALOG, BADGE_MAP, OG_FAN_CUTOFF,
-  type BadgeDefinition,
+  BADGE_CATALOG, BADGE_MAP,
 } from '@/lib/badges'
+import { getBadgeCount } from '@/lib/badge-eval'
 
 export interface EarnedBadge {
   badge_id: string
@@ -61,97 +61,13 @@ export function useBadges(): UseBadgesResult {
     return () => { cancelled = true }
   }, [authLoading, user])
 
-  /** Get the current count for a badge's eval type. */
-  const getCount = useCallback(async (badge: BadgeDefinition): Promise<number> => {
-    if (!user) return 0
-
-    switch (badge.evalType) {
-      case 'bookmark_count': {
-        const { count } = await supabase
-          .from('user_bookmarks')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('bookmark_type', badge.evalParam ?? '')
-        return count ?? 0
-      }
-      case 'rating_count': {
-        const { count } = await supabase
-          .from('match_ratings')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-        return count ?? 0
-      }
-      case 'activity_count': {
-        const { count } = await supabase
-          .from('user_activity_log')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('action', badge.evalParam ?? '')
-        return count ?? 0
-      }
-      case 'login_streak': {
-        const { data } = await supabase
-          .from('profiles')
-          .select('login_streak')
-          .eq('id', user.id)
-          .single()
-        return data?.login_streak ?? 0
-      }
-      case 'longest_streak': {
-        const { data } = await supabase
-          .from('profiles')
-          .select('longest_streak')
-          .eq('id', user.id)
-          .single()
-        return data?.longest_streak ?? 0
-      }
-      case 'referral_count': {
-        const { count } = await supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .eq('referred_by', user.id)
-        return count ?? 0
-      }
-      case 'profile_complete': {
-        // Simply having an account counts — tied to sign-up, not profile fields.
-        return 1
-      }
-      case 'early_adopter': {
-        const { data } = await supabase
-          .from('profiles')
-          .select('created_at')
-          .eq('id', user.id)
-          .single()
-        if (!data?.created_at) return 0
-        return new Date(data.created_at) < OG_FAN_CUTOFF ? 1 : 0
-      }
-      case 'feature_interest': {
-        const { count } = await supabase
-          .from('feature_interest')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('feature_key', badge.evalParam ?? '')
-        return (count ?? 0) > 0 ? 1 : 0
-      }
-      case 'push_enabled': {
-        const { count } = await supabase
-          .from('push_subscriptions')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-        return (count ?? 0) > 0 ? 1 : 0
-      }
-      default:
-        return 0
-    }
-  }, [user])
-
   /** Check one badge and award any newly earned tiers. */
   const checkAndAward = useCallback(async (badgeId: string): Promise<EarnedBadge[]> => {
     if (!user) return []
     const badge = BADGE_MAP[badgeId]
     if (!badge) return []
 
-    const count = await getCount(badge)
+    const count = await getBadgeCount(user.id, badge)
     const alreadyEarned = new Set(
       badges.filter(b => b.badge_id === badgeId).map(b => b.tier)
     )
@@ -185,7 +101,7 @@ export function useBadges(): UseBadgesResult {
       setBadges(prev => [...prev, ...newBadges])
     }
     return newBadges
-  }, [user, badges, getCount])
+  }, [user, badges])
 
   /** Evaluate all badges at once (lazy batch). */
   const evaluateAll = useCallback(async (): Promise<EarnedBadge[]> => {
