@@ -9,6 +9,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 interface PlayerSummary {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   ranking: number | null
   points: number | null
@@ -19,6 +20,7 @@ interface PlayerSummary {
 interface PlayerDetail {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   category: string | null
   ranking: number | null
@@ -50,6 +52,7 @@ type CategoryFilter = 'all' | 'men' | 'women'
 // Fields displayed in the edit panel
 const EDITABLE_FIELDS: { key: keyof PlayerDetail; label: string; type: 'text' | 'number' | 'date' }[] = [
   { key: 'name', label: 'Name', type: 'text' },
+  { key: 'display_name', label: 'Display Name', type: 'text' },
   { key: 'country', label: 'Country', type: 'text' },
   { key: 'category', label: 'Category', type: 'text' },
   { key: 'ranking', label: 'Ranking', type: 'number' },
@@ -70,7 +73,7 @@ const EDITABLE_FIELDS: { key: keyof PlayerDetail; label: string; type: 'text' | 
 
 // Fields to compare during merge
 const MERGE_FIELDS: (keyof PlayerDetail)[] = [
-  'name', 'country', 'category', 'ranking', 'points', 'ranking_move',
+  'name', 'display_name', 'country', 'category', 'ranking', 'points', 'ranking_move',
   'external_id', 'fip_id', 'side', 'avatar_url', 'height', 'birthdate',
   'birthplace', 'hand', 'titles', 'finals', 'semifinals',
 ]
@@ -703,7 +706,12 @@ export default function PlayersTab() {
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: '5px 6px', fontWeight: 500, color: '#111' }}>{player.name}</td>
+                  <td style={{ padding: '5px 6px', fontWeight: 500, color: '#111' }}>
+                    {player.name}
+                    {player.display_name && player.display_name !== player.name && (
+                      <div style={{ fontSize: 10, color: '#888', fontWeight: 400 }}>{player.display_name}</div>
+                    )}
+                  </td>
                   <td style={{ padding: '5px 6px', color: '#6B7280' }}>{player.country ?? '—'}</td>
                   <td style={{ padding: '5px 6px', color: '#333' }}>{player.ranking ?? '—'}</td>
                   <td style={{ padding: '5px 6px', color: '#333' }}>{player.points ?? '—'}</td>
