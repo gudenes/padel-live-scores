@@ -7,6 +7,8 @@ import EntryListTab from './EntryListTab'
 import SimulatorTab from './SimulatorTab'
 import DrawEditorTab from './DrawEditorTab'
 import PlayersTab from './PlayersTab'
+import ArchitectureTab from './ArchitectureTab'
+import ScheduleTab from './ScheduleTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -321,7 +323,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'entry-lists' | 'readiness' | 'simulator' | 'draw-editor' | 'players'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'entry-lists' | 'readiness' | 'simulator' | 'draw-editor' | 'players' | 'architecture' | 'schedule'>('ongoing')
   const [preSelectedTournamentId, setPreSelectedTournamentId] = useState<string | null>(null)
   const [drawEditorTournament, setDrawEditorTournament] = useState<{ id: string; name: string } | null>(null)
   const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
@@ -433,6 +435,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       label: 'Data Management',
       items: [
         { key: 'players' as const, label: 'Players', badge: null },
+        { key: 'schedule' as const, label: 'Schedule', badge: null },
+        { key: 'architecture' as const, label: 'Architecture', badge: null },
       ],
     },
   ]
@@ -921,6 +925,16 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       {tab === 'players' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Players</div>
         <PlayersTab />
+      </>}
+
+      {tab === 'schedule' && <>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Schedule Review</div>
+        <ScheduleTab />
+      </>}
+
+      {tab === 'architecture' && <>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>System Architecture</div>
+        <ArchitectureTab />
       </>}
 
       </div>

@@ -752,3 +752,140 @@ export async function fetchMediaUrl(mediaId: number): Promise<string | null> {
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
+
+// ---------------------------------------------------------------------------
+// parseOopHtml — parse Order of Play from widget.matchscorerlive.com
+// ---------------------------------------------------------------------------
+
+export interface OopPlayer {
+  initial: string   // "L."
+  surname: string   // "Perez Parra"
+  country: string   // "ESP"
+  seed: number | null
+  fullDisplay: string // "L. Perez Parra"
+}
+
+export interface OopMatch {
+  court: string
+  scheduleLabel: string  // "Starting at 9:30 AM", "Followed by", "Not before 4:00 PM"
+  team1: [OopPlayer, OopPlayer]
+  team2: [OopPlayer, OopPlayer]
+  category: 'men' | 'women' | null
+  matchCode: string | null  // e.g. "MD019", "WQ004" from data-mid
+}
+
+export interface OopDay {
+  day: number
+  matches: OopMatch[]
+}
+
+/**
+ * Fetch and parse an Order of Play page for a given tournament day.
+ * URL: widget.matchscorerlive.com/screen/oopbyday/{code}/{day}
+ */
+export async function fetchOopDay(
+  matchscorerCode: string,
+  day: number,
+): Promise<OopDay> {
+  const url = `${MATCHSCORER_WIDGET}/screen/oopbyday/${matchscorerCode}/${day}?t=tol`
+  const res = await fetch(url, { next: { revalidate: 0 } })
+  if (!res.ok) return { day, matches: [] }
+  const html = await res.text()
+  return { day, matches: parseOopHtml(html) }
+}
+
+/**
+ * Parse OOP HTML into structured match data.
+ *
+ * HTML structure:
+ * - Court groups: each court section starts with a schedule label
+ *   ("Starting at X:XX AM/PM") followed by match tables
+ * - Match tables: contain two team rows, each with 2 players
+ *   (flag img + initial span + surname span + optional seed small)
+ * - Schedule flow: "Starting at..." then "Followed by" for subsequent matches
+ *   on the same court, "Not before..." for afternoon sessions
+ */
+export function parseOopHtml(html: string): OopMatch[] {
+  const matches: OopMatch[] = []
+
+  // Extract courts from the HTML
+  const courtNames: string[] = []
+  const courtRe = /class="[^"]*court">\s*([A-Z][^<]+)/gi
+  let cm: RegExpExecArray | null
+  while ((cm = courtRe.exec(html)) !== null) {
+    const name = cm[1].trim()
+    if (name && !courtNames.includes(name)) courtNames.push(name)
+  }
+
+  // Find all match tables (same pattern as draw parser)
+  const tableRe = /<table\b[^>]*class="[^"]*w-100[^"]*"[^>]*>([\s\S]*?)<\/table>/gi
+  let tableMatch: RegExpExecArray | null
+
+  // Track current court and schedule label as we iterate
+  let currentCourt = ''
+  let currentSchedule = ''
+  let lastPos = 0
+
+  while ((tableMatch = tableRe.exec(html)) !== null) {
+    // Look for court name and schedule label between last position and this table
+    const between = html.slice(lastPos, tableMatch.index)
+    lastPos = tableMatch.index + tableMatch[0].length
+
+    // Update court name if we find one
+    const courtInBetween = /class="[^"]*court">\s*([A-Z][A-Za-z0-9 -]+)/i.exec(between)
+    if (courtInBetween) currentCourt = courtInBetween[1].trim()
+
+    // Update schedule label
+    const schedLabels = between.match(/Starting at \d+:\d+ [AP]M|Not before \d+:\d+ [AP]M|Followed by/gi)
+    if (schedLabels) currentSchedule = schedLabels[schedLabels.length - 1]
+
+    const tableHtml = tableMatch[0]
+    // Only process tables with player data (flags)
+    if (!tableHtml.includes('class="flags"')) continue
+
+    // Extract players from this table
+    const playerRe = /<img class="flags" src="\/images\/flags\/([A-Z]+)\.jpg"[\s\S]*?<span>([^<]+)<\/span>\s*<span[^>]*>([^<]+)<\/span>(?:\s*<small>\((\d+)\)<\/small>)?/gi
+    const players: OopPlayer[] = []
+    let pm: RegExpExecArray | null
+    while ((pm = playerRe.exec(tableHtml)) !== null) {
+      const country = pm[1]
+      const initial = decodeHtmlEntities(pm[2].trim())
+      const surname = decodeHtmlEntities(pm[3].trim())
+      const seed = pm[4] ? parseInt(pm[4]) : null
+      players.push({
+        initial,
+        surname,
+        country,
+        seed,
+        fullDisplay: `${initial} ${surname}`,
+      })
+    }
+
+    // Need exactly 4 players (2 per team) for a doubles match
+    if (players.length !== 4) continue
+
+    // Extract match code from MATCH STATS link if present
+    const midMatch = /data-mid="([^"]+)"/.exec(tableHtml)
+    const matchCode = midMatch ? midMatch[1] : null
+
+    // Determine category from match code
+    let category: 'men' | 'women' | null = null
+    if (matchCode) {
+      if (matchCode.startsWith('MD') || matchCode.startsWith('MQ')) category = 'men'
+      else if (matchCode.startsWith('WD') || matchCode.startsWith('WQ')) category = 'women'
+    }
+
+    matches.push({
+      court: currentCourt || 'Unknown',
+      scheduleLabel: currentSchedule || 'TBD',
+      team1: [players[0], players[1]],
+      team2: [players[2], players[3]],
+      category,
+      matchCode,
+    })
+  }
+
+  return matches
+}
+
+// decodeHtmlEntities already defined above at line 133
