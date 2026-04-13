@@ -121,8 +121,8 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
         </span>
       </div>
 
-      {/* Share icon — logged-in users only (deferred to avoid hydration mismatch) */}
-      {mounted && user && (
+      {/* Share icon — always visible */}
+      {mounted && (
         <button
           onClick={() => { void shareNow() }}
           aria-label="Share PadelNachos"

@@ -2191,8 +2191,8 @@ function V3HomePageInner() {
           </span>
         </div>
 
-        {/* Share icon — logged-in users only */}
-        {user && (
+        {/* Share icon — always visible */}
+        {(
           <button
             onClick={() => { void shareNow() }}
             aria-label="Share PadelNachos"
