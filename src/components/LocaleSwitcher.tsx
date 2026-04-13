@@ -1,15 +1,17 @@
 'use client'
 // src/components/LocaleSwitcher.tsx
 //
-// Language switcher — circular flag button that toggles between locales.
-// Shows the current locale's flag. Tap to switch to the other locale.
+// Language switcher — circular flag button that cycles through locales.
+// Shows the current locale's flag. Tap to switch to the next locale.
 
 import { useLocale } from 'next-intl'
 import { useRouter, usePathname } from '@/i18n/navigation'
+import { routing } from '@/i18n/routing'
 
 const LOCALE_FLAGS: Record<string, { code: string; label: string }> = {
   en: { code: 'gb', label: 'English' },
   es: { code: 'es', label: 'Español' },
+  pt: { code: 'br', label: 'Português' },
 }
 
 interface LocaleSwitcherProps {
@@ -23,12 +25,17 @@ export default function LocaleSwitcher({ size = 28 }: LocaleSwitcherProps) {
   const pathname = usePathname()
 
   const handleSwitch = () => {
-    const nextLocale = locale === 'en' ? 'es' : 'en'
-    router.replace(pathname, { locale: nextLocale })
+    const locales = routing.locales
+    const currentIdx = locales.indexOf(locale as typeof locales[number])
+    const nextIdx = (currentIdx + 1) % locales.length
+    router.replace(pathname, { locale: locales[nextIdx] })
   }
 
   const current = LOCALE_FLAGS[locale] ?? LOCALE_FLAGS.en
-  const next = locale === 'en' ? LOCALE_FLAGS.es : LOCALE_FLAGS.en
+  const locales = routing.locales
+  const currentIdx = locales.indexOf(locale as typeof locales[number])
+  const nextIdx = (currentIdx + 1) % locales.length
+  const next = LOCALE_FLAGS[locales[nextIdx]] ?? LOCALE_FLAGS.en
 
   return (
     <button
