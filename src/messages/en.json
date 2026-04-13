@@ -224,7 +224,8 @@
     "achievements": "Achievements",
     "bookmarks": "Bookmarks",
     "following": "Following",
-    "loading": "Loading your profile..."
+    "loading": "Loading your profile...",
+    "language": "Language"
   },
   "badges": {
     "badgeUnlocked": "Badge Unlocked",

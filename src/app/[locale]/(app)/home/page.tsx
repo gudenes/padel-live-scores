@@ -15,7 +15,6 @@ import { withTimeout } from '@/lib/with-timeout'
 import { reportBatchFailures } from '@/lib/supabase-health'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
-import LocaleSwitcher from '@/components/LocaleSwitcher'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -2218,9 +2217,6 @@ function V3HomePageInner() {
             </svg>
           </button>
         )}
-
-        {/* Language switcher */}
-        <LocaleSwitcher />
 
         {/* Profile / Login */}
         <ProfileButton />

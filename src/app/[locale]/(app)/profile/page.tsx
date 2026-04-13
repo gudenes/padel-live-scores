@@ -18,6 +18,7 @@ import { BADGE_CATALOG, TIER_META, overallTierFromBadgeCount } from '@/lib/badge
 import { AmbassadorBadge } from '@/components/AmbassadorBadge'
 import { withTimeout } from '@/lib/with-timeout'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
+import LocaleSwitcher from '@/components/LocaleSwitcher'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -550,6 +551,12 @@ export default function ProfilePage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Language */}
+      <div style={{ padding: '14px 16px', borderTop: `1px solid ${V3.BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{t('language')}</span>
+        <LocaleSwitcher />
       </div>
 
       {/* Sign out */}

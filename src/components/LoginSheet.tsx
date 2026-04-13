@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase, siteUrl } from '@/lib/supabase'
+import LocaleSwitcher from '@/components/LocaleSwitcher'
 
 // ── V3 Brand constants ────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -246,6 +247,12 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
             )}
           </>
         )}
+
+        {/* Language switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${BORDER}` }}>
+          <span style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>Language</span>
+          <LocaleSwitcher />
+        </div>
       </div>
 
       <style>{`

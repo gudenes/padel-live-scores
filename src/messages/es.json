@@ -224,7 +224,8 @@
     "achievements": "Logros",
     "bookmarks": "Guardados",
     "following": "Siguiendo",
-    "loading": "Cargando tu perfil..."
+    "loading": "Cargando tu perfil...",
+    "language": "Idioma"
   },
   "badges": {
     "badgeUnlocked": "Logro desbloqueado",
