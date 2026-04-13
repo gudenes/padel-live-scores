@@ -46,7 +46,12 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
   const currentSet = sets.find(s => s.is_current)
   const currentGame = currentSet?.games?.find(g => g.is_current)
-  const gamePoints = currentGame?.game_score ?? ''
+  // Live point score comes from the last entry in the points[] array
+  // (game_score is the running game count like "2-1", NOT the point score)
+  const lastPoint = currentGame?.points?.length
+    ? currentGame.points[currentGame.points.length - 1]
+    : ''
+  const gamePoints = lastPoint ?? ''
   const isLive = match.status === 'live'
   const isFinished = ['finished', 'retired', 'walkover', 'ended'].includes(match.status as string)
 
