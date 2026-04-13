@@ -7,7 +7,7 @@
 // partners and New this season.
 
 import * as React from 'react'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'

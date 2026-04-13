@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 
 // ── Brand constants ───────────────────────────────────────────
 const GREEN = '#7ED321'

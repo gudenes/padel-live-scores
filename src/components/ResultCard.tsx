@@ -10,7 +10,7 @@
 // Extracted from src/app/(app)/home/page.tsx — preserved verbatim so
 // the home page renders identically after the extraction.
 
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { Match, pairName, parseSetScore } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────

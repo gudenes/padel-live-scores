@@ -3,7 +3,7 @@
 // V3 Rankings — FIP Official & Race rankings with chunky brand styling.
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'

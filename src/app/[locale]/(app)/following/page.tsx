@@ -4,7 +4,7 @@
 // followed players, followed tournaments, and news sources.
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import AppHeader from '@/components/AppHeader'
 import { useFollowing } from '@/hooks/useFollowing'

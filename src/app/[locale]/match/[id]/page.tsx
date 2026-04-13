@@ -3,8 +3,7 @@
 // V3 Match Detail — chunky clip-path brand language, no border-radius except circles.
 
 import { useState, useEffect, useCallback, use, useRef, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toShortName } from '@/types/match'
 import MomentumChart from './MomentumChart'

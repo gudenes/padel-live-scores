@@ -6,7 +6,7 @@
 // always up to date.
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { useBadges } from '@/hooks/useBadges'
 import { BadgeGrid } from '@/components/BadgeGrid'

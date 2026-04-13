@@ -3,7 +3,7 @@
 // Player profile — v3 brand styling with tabbed dashboard + widget grid (A2 layout).
 
 import { useState, useEffect, useMemo, useRef, use } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'

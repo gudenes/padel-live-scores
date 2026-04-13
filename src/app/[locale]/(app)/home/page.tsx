@@ -5,10 +5,10 @@
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
 
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
+import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, pairName, isWarmingUp, parseSetScore } from '@/types/match'
-import Link from 'next/link'
 import Spinner from '@/app/components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'

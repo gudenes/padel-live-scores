@@ -5,10 +5,10 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
+import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, pairName, parseSetScore, isWarmingUp } from '@/types/match'
-import Link from 'next/link'
 import BrandedLoader, { LOADER_HINTS } from '../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'

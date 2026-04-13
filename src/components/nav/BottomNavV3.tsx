@@ -4,8 +4,7 @@
 // Uses PadelNachos brand language: chunky shapes, green active state.
 
 import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
+import { usePathname, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { useFeedLastVisit, markFeedVisited } from '@/hooks/useFeedLastVisit'
 
