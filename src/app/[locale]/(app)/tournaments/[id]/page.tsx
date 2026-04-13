@@ -4,6 +4,7 @@
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
+import { useFormatter } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
@@ -118,6 +119,7 @@ export default function TournamentDetailWrapper({ params }: { params: Promise<{ 
 // ══════════════════════════════════════════════════════════════
 
 function TournamentDetail({ tournamentId }: { tournamentId: string }) {
+  const format = useFormatter()
   const searchParams = useSearchParams()
   const paramRound = searchParams.get('round')
   const paramTab = searchParams.get('tab')
@@ -413,7 +415,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       }
       const sorted = [...dates].sort()
       if (sorted.length === 0) continue
-      const fmt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      const fmt = (iso: string) => format.dateTime(new Date(iso), { day: 'numeric', month: 'short' })
       map[round] = sorted.length === 1 ? fmt(sorted[0]) : `${fmt(sorted[0])} - ${fmt(sorted[sorted.length - 1])}`
     }
     return map
@@ -704,9 +706,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                   {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
                     <span style={{ fontSize: 10, color: MUTED }}>
-                      {new Date(activeTournamentObj.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      {format.dateTime(new Date(activeTournamentObj.starts_at), { day: 'numeric', month: 'short' })}
                       {' - '}
-                      {new Date(activeTournamentObj.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      {format.dateTime(new Date(activeTournamentObj.ends_at), { day: 'numeric', month: 'short' })}
                     </span>
                   )}
                   {activeTournamentObj.prize_money && (
@@ -984,6 +986,7 @@ function SectionHeader({ label, color, dot, right, rightColor }: {
 // ══════════════════════════════════════════════════════════════
 
 function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match; genderColor: string; estimatedLabel?: string }) {
+  const format = useFormatter()
   // Prediction check (hydration-safe)
   const [hasPrediction, setHasPrediction] = useState(false)
   useEffect(() => {
@@ -999,9 +1002,9 @@ function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match;
     const d = new Date(match.scheduled_at)
     const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0
     const time = hasTime
-      ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      ? format.dateTime(d, { hour: '2-digit', minute: '2-digit', hour12: false })
       : ''
-    const date = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+    const date = format.dateTime(d, { day: 'numeric', month: 'short' })
     const approximate = /not before|followed by/i.test(scheduleLabel ?? '')
     return { time, date, approximate }
   })()
@@ -1247,6 +1250,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   playerMap: Record<string, { avatar_url: string | null; ranking: number | null }>
   debutStatusMap: Record<string, 'fresh' | 'newThisSeason' | null>
 }) {
+  const format = useFormatter()
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const totalMatches = genderMatches.length
 
@@ -1480,7 +1484,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const isUpcoming = daysUntilStart != null && daysUntilStart > 0
   const isLive = startsAt && endsAt && now >= startsAt && now <= endsAt
 
-  const formatDate = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  const formatDate = (d: Date) => format.dateTime(d, { weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
     <div style={{ padding: '14px 14px 20px' }}>

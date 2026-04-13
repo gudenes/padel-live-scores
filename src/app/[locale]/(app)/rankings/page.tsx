@@ -3,7 +3,7 @@
 // V3 Rankings — FIP Official & Race rankings with chunky brand styling.
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
@@ -223,6 +223,7 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
 
 export default function V3RankingPage() {
   const t = useTranslations('rankings')
+  const format = useFormatter()
   const router = useRouter()
   const [rankType, setRankType] = useState<RankType>('official')
   const [gender, setGender] = useState<Gender>('men')
@@ -318,7 +319,7 @@ export default function V3RankingPage() {
   }, [players, query])
 
   const formattedDate = updatedAt
-    ? new Date(updatedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+    ? format.dateTime(new Date(updatedAt), { day: 'numeric', month: 'long', year: 'numeric' })
     : null
 
   // ── Gender accent ──────────────────────────────────────────

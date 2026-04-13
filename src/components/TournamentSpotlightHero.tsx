@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, type ReactNode } from 'react'
+import { useFormatter } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import FollowButton from '@/components/FollowButton'
@@ -185,11 +186,10 @@ function countryName(code: string | null): string {
   return COUNTRY_NAMES[code.toUpperCase()] ?? code
 }
 
-function formatDateRange(start: string, end: string): string {
+function formatDateRange(format: ReturnType<typeof useFormatter>, start: string, end: string): string {
   const s = new Date(start)
   const e = new Date(end)
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
-  return `${s.toLocaleDateString('en-US', opts)} - ${e.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
+  return `${format.dateTime(s, { month: 'short', day: 'numeric' })} - ${format.dateTime(e, { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
 
 // ── Types ──────────────────────────────────────────────────────
@@ -240,6 +240,7 @@ export default function TournamentSpotlightHero({
   topSeeds,
   stats,
 }: TournamentSpotlightHeroProps) {
+  const format = useFormatter()
   const cardRef = useRef<HTMLDivElement>(null)
   const inView = useInViewOnce(cardRef, { threshold: 0.15 })
 
@@ -362,7 +363,7 @@ export default function TournamentSpotlightHero({
             {tournament.location ? `${tournament.location}, ${countryName(tournament.country)}` : countryName(tournament.country)}
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
-            {formatDateRange(tournament.starts_at, tournament.ends_at)}
+            {formatDateRange(format, tournament.starts_at, tournament.ends_at)}
             {tournament.prize_money && tournament.prize_money !== 'EUR 0' && (
               <span style={{ color: GREEN, fontWeight: 600 }}> &middot; {tournament.prize_money}</span>
             )}

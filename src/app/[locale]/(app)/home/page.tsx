@@ -17,6 +17,7 @@ import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
+import { useFormatter } from 'next-intl'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { ResultCard } from '@/components/ResultCard'
@@ -135,11 +136,10 @@ function daysUntil(dateStr: string): number {
   return Math.max(0, Math.ceil((target.getTime() - now.getTime()) / 86400000))
 }
 
-function formatDateRange(start: string, end: string): string {
+function formatDateRange(format: ReturnType<typeof useFormatter>, start: string, end: string): string {
   const s = new Date(start)
   const e = new Date(end)
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
-  return `${s.toLocaleDateString('en-US', opts)} - ${e.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
+  return `${format.dateTime(s, { month: 'short', day: 'numeric' })} - ${format.dateTime(e, { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
 
 function levelLabel(level: string | null): string {
@@ -484,13 +484,14 @@ function LiveMatchCard({ match }: { match: Match }) {
 // ── Upcoming Match Card ────────────────────────────────────────
 
 function UpcomingMatchCard({ match }: { match: Match }) {
+  const format = useFormatter()
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
   const time = match.scheduled_at
-    ? new Date(match.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    ? format.dateTime(new Date(match.scheduled_at), { hour: '2-digit', minute: '2-digit', hour12: false })
     : ''
   const date = match.scheduled_at
-    ? new Date(match.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    ? format.dateTime(new Date(match.scheduled_at), { month: 'short', day: 'numeric' })
     : ''
   const tournament = (match as any).tournament
   const isLive = match.status === 'live'
@@ -600,6 +601,7 @@ function UpcomingMatchCard({ match }: { match: Match }) {
 // ── Tournament Spotlight Card ──────────────────────────────────
 
 function TournamentSpotlight({ tournament, matchCount }: { tournament: Tournament; matchCount: number }) {
+  const format = useFormatter()
   const isLive = daysUntil(tournament.starts_at) === 0
   const days = daysUntil(tournament.starts_at)
   const level = levelLabel(tournament.level)
@@ -639,7 +641,7 @@ function TournamentSpotlight({ tournament, matchCount }: { tournament: Tournamen
             {tournament.location ? `${tournament.location}, ${countryName(tournament.country)}` : countryName(tournament.country)}
           </div>
           <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>
-            {formatDateRange(tournament.starts_at, tournament.ends_at)}
+            {formatDateRange(format, tournament.starts_at, tournament.ends_at)}
             {tournament.prize_money && tournament.prize_money !== 'EUR 0' && (
               <span style={{ color: GREEN, fontWeight: 600 }}> &middot; {tournament.prize_money}</span>
             )}
@@ -830,6 +832,7 @@ function RankingsSection({ men, women, gender }: { men: RankedPlayer[]; women: R
 // ── Results Section ────────────────────────────────────────────
 
 function ResultsSection({ matches }: { matches: Match[] }) {
+  const format = useFormatter()
   // 3-state: undefined = default (show 3), 'collapsed' = hide all, 'expanded' = show all
   const [tournamentState, setTournamentState] = useState<Record<string, 'collapsed' | 'expanded'>>({})
 
@@ -881,14 +884,14 @@ function ResultsSection({ matches }: { matches: Match[] }) {
     if (!start) return ''
     const s = new Date(start)
     const e = end ? new Date(end) : null
-    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+    const opts = { month: 'short', day: 'numeric' } as const
     if (e && s.getMonth() !== e.getMonth()) {
-      return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', opts)}`
+      return `${format.dateTime(s, opts)} – ${format.dateTime(e, opts)}`
     }
     if (e) {
-      return `${s.toLocaleDateString('en-US', opts)} – ${e.getDate()}`
+      return `${format.dateTime(s, opts)} – ${e.getDate()}`
     }
-    return s.toLocaleDateString('en-US', opts)
+    return format.dateTime(s, opts)
   }
 
   return (
@@ -1271,6 +1274,7 @@ interface TournamentWithWinners extends Tournament {
 }
 
 function TournamentsView({ onBack }: { onBack: () => void }) {
+  const format = useFormatter()
   const [tab, setTab] = useState<TournamentTab>('premier')
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set())
@@ -1490,7 +1494,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                         </span>
                       </div>
                       <div style={{ fontSize: 11, color: MUTED }}>
-                        {formatDateRange(hero.starts_at, hero.ends_at)}
+                        {formatDateRange(format, hero.starts_at, hero.ends_at)}
                       </div>
                       {hero.location && (
                         <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
@@ -1543,7 +1547,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                 }}>
                   {restUpcoming.map(t => {
                     const d = daysUntil(t.starts_at)
-                    const dateLabel = new Date(t.starts_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+                    const dateLabel = format.dateTime(new Date(t.starts_at), { month: 'short', day: 'numeric' }).toUpperCase()
                     return (
                       <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
                         <div style={{
@@ -1601,7 +1605,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{titleCase(t.name)}</div>
                               <div style={{ fontSize: 10, color: MUTED }}>
-                                {formatDateRange(t.starts_at, t.ends_at)}
+                                {formatDateRange(format, t.starts_at, t.ends_at)}
                               </div>
                             </div>
                           </div>
@@ -1696,6 +1700,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
 }
 
 function CollapsibleSeasonV3({ year, tournaments }: { year: number; tournaments: TournamentWithWinners[] }) {
+  const format = useFormatter()
   const [open, setOpen] = useState(false)
   return (
     <div>
@@ -1740,7 +1745,7 @@ function CollapsibleSeasonV3({ year, tournaments }: { year: number; tournaments:
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>{titleCase(t.name)}</span>
                 </div>
                 <div style={{ fontSize: 10, color: MUTED }}>
-                  {formatDateRange(t.starts_at, t.ends_at)}
+                  {formatDateRange(format, t.starts_at, t.ends_at)}
                 </div>
                 {t.winners.length > 0 && (
                   <div style={{ marginTop: 6 }}>

@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { useFormatter } from 'next-intl'
 import type { GeniusProgressState } from '@/hooks/useGeniusProgress'
 import { getTodayTheme } from '@/data/genius-themes'
 import { getXpProgress } from '@/data/genius-levels'
@@ -14,6 +15,7 @@ interface HubViewProps {
 }
 
 export default function HubView({ progress, todayCompleted, onStart, onOpenAvatarPicker }: HubViewProps) {
+  const format = useFormatter()
   const theme = getTodayTheme()
   const { current, next, progress: xpProgress } = getXpProgress(progress.totalXp)
 
@@ -174,7 +176,7 @@ export default function HubView({ progress, todayCompleted, onStart, onOpenAvata
                 color: '#7ED321', fontSize: 10, fontWeight: 700,
                 textTransform: 'uppercase' as const, letterSpacing: 1,
               }}>
-                {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+                {format.dateTime(new Date(), { weekday: 'long' })}
               </span>
             </div>
             <div style={{ color: '#EEE4CE', fontSize: 20, fontWeight: 800, marginBottom: 2 }}>

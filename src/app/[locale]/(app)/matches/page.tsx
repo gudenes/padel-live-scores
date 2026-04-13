@@ -4,7 +4,7 @@
 // Chunky clip-path brand language, no border-radius anywhere.
 
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useFormatter } from 'next-intl'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
@@ -142,6 +142,7 @@ const LINGER_MS = 2 * 60 * 1000 // 2 minutes
 // ── Inline match row (replaces MatchCard for v3) ──────────────
 
 function V3MatchRow({ match }: { match: Match }) {
+  const format = useFormatter()
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
   const currentSet = sets.find(s => s.is_current)
   const currentGame = currentSet?.games?.find(g => g.is_current)
@@ -167,9 +168,9 @@ function V3MatchRow({ match }: { match: Match }) {
     const d = new Date(match.scheduled_at)
     const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0
     const time = hasTime
-      ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      ? format.dateTime(d, { hour: '2-digit', minute: '2-digit', hour12: false })
       : ''
-    const date = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+    const date = format.dateTime(d, { day: 'numeric', month: 'short' })
     // Check if schedule_label indicates approximate time ("Not before", "Followed by")
     const label = (match as any).schedule_label ?? ''
     const approximate = /not before|followed by/i.test(label)
@@ -459,13 +460,14 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
   defaultOpen: boolean
   tab: 'live' | 'upcoming' | 'results'
 }) {
+  const format = useFormatter()
   const gated = isTournamentGated(tournament ?? {})
   const badge = tournament?.level ? levelLabel(tournament.level) : null
   const status = tournamentStatus(matches, tournament)
 
   const dateRange = tournament?.starts_at
-    ? new Date(tournament.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-      + (tournament.ends_at ? ` \u2013 ${new Date(tournament.ends_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : '')
+    ? format.dateTime(new Date(tournament.starts_at), { day: 'numeric', month: 'short' })
+      + (tournament.ends_at ? ` \u2013 ${format.dateTime(new Date(tournament.ends_at), { day: 'numeric', month: 'short' })}` : '')
     : ''
 
   // Derive the most advanced round

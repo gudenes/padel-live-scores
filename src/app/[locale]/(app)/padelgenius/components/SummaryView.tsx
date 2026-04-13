@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { useFormatter } from 'next-intl'
 import type { GeniusQuestion, AnswerResult } from '@/lib/genius-engine'
 import type { GeniusProgressState } from '@/hooks/useGeniusProgress'
 import type { DailyTheme } from '@/data/genius-themes'
@@ -22,6 +23,7 @@ export default function SummaryView({
   onReviewMistakes,
   onBackToHub,
 }: SummaryViewProps) {
+  const format = useFormatter()
   const correctCount = results.filter(r => r.result.correct).length
   const totalXpEarned = results.reduce((sum, r) => sum + r.result.xp, 0)
   const hasMistakes = results.some(r => !r.result.correct)
@@ -44,7 +46,7 @@ export default function SummaryView({
             Challenge Complete!
           </div>
           <div style={{ color: '#9AAEC4', fontSize: 14, marginTop: 4 }}>
-            {theme.name} {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+            {theme.name} {format.dateTime(new Date(), { weekday: 'long' })}
           </div>
         </div>
 

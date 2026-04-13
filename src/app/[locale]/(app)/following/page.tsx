@@ -4,6 +4,7 @@
 // followed players, followed tournaments, and news sources.
 
 import { useEffect, useState } from 'react'
+import { useFormatter } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import AppHeader from '@/components/AppHeader'
@@ -187,19 +188,19 @@ function matchScoreLabel(sets: SetRow[]): string {
     .join('  ')
 }
 
-function formatTime(iso: string | null): string {
+function formatTime(format: ReturnType<typeof useFormatter>, iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return format.dateTime(d, { hour: '2-digit', minute: '2-digit' })
 }
 
-function formatTournamentStatus(t: TournamentData): string {
+function formatTournamentStatus(format: ReturnType<typeof useFormatter>, t: TournamentData): string {
   const now = new Date()
   const start = t.starts_at ? new Date(t.starts_at) : null
   const end = t.ends_at ? new Date(t.ends_at) : null
   if (start && end && now >= start && now <= end) return 'Live'
   if (start && now < start) {
-    return start.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    return format.dateTime(start, { month: 'short', day: 'numeric' })
   }
   return 'Finished'
 }
@@ -207,6 +208,7 @@ function formatTournamentStatus(t: TournamentData): string {
 // ── Match Card ─────────────────────────────────────────────────
 
 function MatchCard({ match }: { match: MatchRow }) {
+  const format = useFormatter()
   const isLive = match.status === 'live'
   const p1 = pairName(match.pair1_player1 as any, match.pair1_player2 as any)
   const p2 = pairName(match.pair2_player1 as any, match.pair2_player2 as any)
@@ -287,7 +289,7 @@ function MatchCard({ match }: { match: MatchRow }) {
             </>
           ) : (
             <span style={{ fontSize: 11, color: GREEN, fontWeight: 700 }}>
-              {formatTime(match.scheduled_at)}
+              {formatTime(format, match.scheduled_at)}
             </span>
           )}
 
@@ -372,7 +374,8 @@ function PlayerCard({ player }: { player: PlayerData }) {
 // ── Tournament Card ────────────────────────────────────────────
 
 function TournamentCard({ tournament }: { tournament: TournamentData }) {
-  const status = formatTournamentStatus(tournament)
+  const format = useFormatter()
+  const status = formatTournamentStatus(format, tournament)
   const isLive = status === 'Live'
 
   return (
