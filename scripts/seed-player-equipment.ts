@@ -7,7 +7,21 @@
 // manufacturer product pages, Premier Padel broadcast data.
 
 import { createClient } from '@supabase/supabase-js'
-import 'dotenv/config'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Load .env.local manually (dotenv not installed)
+const envPath = resolve(process.cwd(), '.env.local')
+try {
+  const envContent = readFileSync(envPath, 'utf-8')
+  for (const line of envContent.split('\n')) {
+    const match = line.match(/^([^#=]+)=(.*)$/)
+    if (match) {
+      const [, key, value] = match
+      process.env[key.trim()] = value.trim()
+    }
+  }
+} catch { /* fallback to existing env */ }
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
