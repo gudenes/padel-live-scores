@@ -580,7 +580,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
       <div style={{
         background: BG_CARD,
         overflow: 'hidden',
-        maxHeight: isExpanded ? matchCount * 80 + 60 : 0,
+        maxHeight: isExpanded ? matchCount * 130 + 60 : 0,
         transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         <div style={gated ? { opacity: 0.4, filter: 'grayscale(60%)', pointerEvents: 'none' } : undefined}>
