@@ -110,6 +110,11 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           borderRadius: 2, margin: '0 auto 24px',
         }} />
 
+        {/* Language switcher — top right */}
+        <div style={{ position: 'absolute', top: 16, right: 20 }}>
+          <LocaleSwitcher size={28} />
+        </div>
+
         {/* Pending referral invite — shown when user arrived via ref link */}
         {pendingRef && (
           <div style={{
@@ -248,11 +253,6 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           </>
         )}
 
-        {/* Language switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 20, paddingTop: 16, borderTop: `1px solid ${BORDER}` }}>
-          <span style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>Language</span>
-          <LocaleSwitcher />
-        </div>
       </div>
 
       <style>{`
