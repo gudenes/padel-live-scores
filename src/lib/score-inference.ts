@@ -505,9 +505,15 @@ export async function inferWinnerPair(
   }
 
   if (winner) {
+    // Set winner + transition ended→finished in one update
     await supabase
       .from('matches')
-      .update({ winner_pair: winner, updated_at: new Date().toISOString() })
+      .update({
+        winner_pair: winner,
+        status: 'finished',
+        finished_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', matchId)
       .is('winner_pair', null) // only if not already set
 
