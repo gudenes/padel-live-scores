@@ -426,6 +426,16 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const [imgError, setImgError] = useState(false)
   const [activeTab, setActiveTab] = useState<PageTab>('overview')
   const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [currentEquipment, setCurrentEquipment] = useState<{
+    racket: {
+      id: string
+      model: string | null
+      year: number | null
+      image_url: string | null
+      product_url: string | null
+      brand: { name: string; logo_url: string | null } | null
+    } | null
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -453,6 +463,16 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         const p = playerResult.data
         if (!p) return
         setPlayer(p)
+
+        // Fetch equipment from relational tables
+        const { data: eqData } = await supabase
+          .from('player_equipment')
+          .select('racket:padel_rackets(id, model, year, image_url, product_url, brand:padel_brands(name, logo_url))')
+          .eq('player_id', id)
+          .is('ended_at', null)
+          .limit(1)
+          .maybeSingle()
+        if (!cancelled) setCurrentEquipment(eqData as { racket: { id: string; model: string | null; year: number | null; image_url: string | null; product_url: string | null; brand: { name: string; logo_url: string | null } | null } | null } | null)
 
         // Fetch ALL career matches. Supabase's default range cap is 1000
         // rows, which comfortably covers every player in the DB today
@@ -768,6 +788,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             playerId={id}
             router={router}
             setActiveTab={setActiveTab}
+            currentEquipment={currentEquipment}
           />
         )}
         {activeTab === 'season' && (
@@ -812,7 +833,7 @@ interface DerivedData {
 }
 
 function OverviewTab({
-  player, matches, derived, playerId, router, setActiveTab,
+  player, matches, derived, playerId, router, setActiveTab, currentEquipment,
 }: {
   player: PlayerRow
   matches: MatchRow[]
@@ -820,6 +841,16 @@ function OverviewTab({
   playerId: string
   router: ReturnType<typeof useRouter>
   setActiveTab: (t: PageTab) => void
+  currentEquipment: {
+    racket: {
+      id: string
+      model: string | null
+      year: number | null
+      image_url: string | null
+      product_url: string | null
+      brand: { name: string; logo_url: string | null } | null
+    } | null
+  } | null
 }) {
   const t = useTranslations('player')
   const age = computeAge(player.birthdate)
@@ -932,51 +963,84 @@ function OverviewTab({
       })()}
 
       {/* Equipment — "Plays with" (replaces FIP Ranking — ranking shown in hero) */}
-      {player.equipment?.racket_brand ? (
-        <Widget label={t('playsWith')}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Brand logo or fallback */}
-            {player.equipment.brand_logo ? (
+      {(() => {
+        // New relational tables take priority; fall back to legacy JSONB if not migrated yet
+        const racket = currentEquipment?.racket
+        const brandName = racket?.brand?.name ?? player.equipment?.racket_brand
+        const brandLogo = racket?.brand?.logo_url ?? player.equipment?.brand_logo ?? null
+        const racketModel = racket?.model ?? player.equipment?.racket_model ?? null
+        const racketImage = racket?.image_url ?? player.equipment?.racket_image ?? null
+        const racketUrl = racket?.product_url ?? player.equipment?.racket_url ?? null
+        const racketId = racket?.id ?? null
+        const racketYear = racket?.year ?? null
+
+        const handleRacketClick = async (e: React.MouseEvent) => {
+          e.preventDefault()
+          if (!racketUrl) return
+          if (racketId) {
+            try {
+              const res = await fetch('/api/racket-click', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ racket_id: racketId, player_id: player.id }),
+              })
+              if (res.ok) {
+                const { url } = await res.json()
+                window.open(url, '_blank', 'noopener,noreferrer')
+                return
+              }
+            } catch { /* silent */ }
+          }
+          window.open(racketUrl, '_blank', 'noopener,noreferrer')
+        }
+
+        if (!brandName) return null
+        return (
+          <Widget label={t('playsWith')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Brand logo or fallback */}
+              {brandLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={brandLogo}
+                  alt={brandName}
+                  style={{ height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }}
+                />
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 800, color: ORANGE }}>{brandName}</span>
+              )}
+            </div>
+            {/* Racket image */}
+            {racketImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={player.equipment.brand_logo}
-                alt={player.equipment.racket_brand}
-                style={{ height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }}
+                src={racketImage}
+                alt={racketModel ?? ''}
+                style={{ height: 44, objectFit: 'contain', margin: '6px auto 2px', display: 'block', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}
               />
-            ) : (
-              <span style={{ fontSize: 10, fontWeight: 800, color: ORANGE }}>{player.equipment.racket_brand}</span>
             )}
-          </div>
-          {/* Racket image */}
-          {player.equipment.racket_image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={player.equipment.racket_image}
-              alt={player.equipment.racket_model ?? ''}
-              style={{ height: 44, objectFit: 'contain', margin: '6px auto 2px', display: 'block', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}
-            />
-          )}
-          <div style={{ fontSize: 10, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginTop: player.equipment.racket_image ? 0 : 6 }}>
-            {player.equipment.racket_model}
-          </div>
-          {player.equipment.racket_url && (
-            <a
-              href={player.equipment.racket_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 4, textDecoration: 'none' }}
-            >
-              <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>{t('learnMore')}</span>
-              <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </a>
-          )}
-          <WidgetIcon>
-            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
-            </svg>
-          </WidgetIcon>
-        </Widget>
-      ) : player.ranking != null ? (
+            <div style={{ fontSize: 10, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginTop: racketImage ? 0 : 6 }}>
+              {racketModel}{racketYear ? ` (${racketYear})` : ''}
+            </div>
+            {racketUrl && (
+              <button
+                onClick={handleRacketClick}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>{t('learnMore')}</span>
+                <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            )}
+            <WidgetIcon>
+              <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
+              </svg>
+            </WidgetIcon>
+          </Widget>
+        )
+      })()}
+      {/* FIP Ranking fallback — shown only when no equipment data */}
+      {!currentEquipment?.racket && !player.equipment?.racket_brand && player.ranking != null ? (
         /* Fallback: show FIP Ranking if no equipment data */
         <Widget label="FIP Ranking">
           <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
