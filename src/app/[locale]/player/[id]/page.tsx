@@ -240,6 +240,8 @@ interface PlayerRow {
     racket_brand?: string
     racket_model?: string
     racket_url?: string
+    racket_image?: string
+    brand_logo?: string
   } | null
 }
 
@@ -929,26 +931,32 @@ function OverviewTab({
         )
       })()}
 
-      {/* Ranking */}
-      {player.ranking != null && (
-        <Widget label="FIP Ranking">
-          <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
-          {player.points && (
-            <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
-              {player.points.toLocaleString()} pts
-            </div>
-          )}
-          <WidgetIcon>#</WidgetIcon>
-        </Widget>
-      )}
-
-      {/* Equipment — "Plays with" */}
-      {player.equipment?.racket_brand && (
+      {/* Equipment — "Plays with" (replaces FIP Ranking — ranking shown in hero) */}
+      {player.equipment?.racket_brand ? (
         <Widget label={t('playsWith')}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: ORANGE, marginBottom: 2 }}>
-            {player.equipment.racket_brand}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Brand logo or fallback */}
+            {player.equipment.brand_logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={player.equipment.brand_logo}
+                alt={player.equipment.racket_brand}
+                style={{ height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }}
+              />
+            ) : (
+              <span style={{ fontSize: 10, fontWeight: 800, color: ORANGE }}>{player.equipment.racket_brand}</span>
+            )}
           </div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
+          {/* Racket image */}
+          {player.equipment.racket_image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={player.equipment.racket_image}
+              alt={player.equipment.racket_model ?? ''}
+              style={{ height: 44, objectFit: 'contain', margin: '6px auto 2px', display: 'block', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}
+            />
+          )}
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginTop: player.equipment.racket_image ? 0 : 6 }}>
             {player.equipment.racket_model}
           </div>
           {player.equipment.racket_url && (
@@ -956,7 +964,7 @@ function OverviewTab({
               href={player.equipment.racket_url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 6, textDecoration: 'none' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 4, textDecoration: 'none' }}
             >
               <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>{t('learnMore')}</span>
               <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -968,7 +976,18 @@ function OverviewTab({
             </svg>
           </WidgetIcon>
         </Widget>
-      )}
+      ) : player.ranking != null ? (
+        /* Fallback: show FIP Ranking if no equipment data */
+        <Widget label="FIP Ranking">
+          <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
+          {player.points && (
+            <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
+              {player.points.toLocaleString()} pts
+            </div>
+          )}
+          <WidgetIcon>#</WidgetIcon>
+        </Widget>
+      ) : null}
 
       {/* Profile Info — wide */}
       {availableProfileRows.length > 0 && (
