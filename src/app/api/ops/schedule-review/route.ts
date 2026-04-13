@@ -128,8 +128,9 @@ export async function GET(request: Request) {
 
   // 4. Match OOP entries against DB matches
   const scheduleMatches: ScheduleMatch[] = oopDay.matches.map((oop, idx) => {
-    const team1Display = `${oop.team1[0].fullDisplay} (${oop.team1[0].country}) / ${oop.team1[1].fullDisplay} (${oop.team1[1].country})`
-    const team2Display = `${oop.team2[0].fullDisplay} (${oop.team2[0].country}) / ${oop.team2[1].fullDisplay} (${oop.team2[1].country})`
+    const fmtPlayer = (p: { fullDisplay: string; country: string | null }) => p.country ? `${p.fullDisplay} (${p.country})` : p.fullDisplay
+    const team1Display = `${fmtPlayer(oop.team1[0])} / ${fmtPlayer(oop.team1[1])}`
+    const team2Display = `${fmtPlayer(oop.team2[0])} / ${fmtPlayer(oop.team2[1])}`
 
     // Try to match against DB matches by player name similarity
     let bestMatch: any = null

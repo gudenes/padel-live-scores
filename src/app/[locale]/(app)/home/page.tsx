@@ -18,6 +18,7 @@ import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import { useFormatter, useTranslations } from 'next-intl'
+import { TIME_24H, DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { ResultCard } from '@/components/ResultCard'
@@ -139,7 +140,7 @@ function daysUntil(dateStr: string): number {
 function formatDateRange(format: ReturnType<typeof useFormatter>, start: string, end: string): string {
   const s = new Date(start)
   const e = new Date(end)
-  return `${format.dateTime(s, { month: 'short', day: 'numeric' })} - ${format.dateTime(e, { month: 'short', day: 'numeric', year: 'numeric' })}`
+  return `${format.dateTime(s, DATE_SHORT)} - ${format.dateTime(e, DATE_WITH_YEAR)}`
 }
 
 function levelLabel(level: string | null): string {
@@ -491,10 +492,10 @@ function UpcomingMatchCard({ match }: { match: Match }) {
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
   const time = match.scheduled_at
-    ? format.dateTime(new Date(match.scheduled_at), { hour: '2-digit', minute: '2-digit', hour12: false })
+    ? format.dateTime(new Date(match.scheduled_at), TIME_24H)
     : ''
   const date = match.scheduled_at
-    ? format.dateTime(new Date(match.scheduled_at), { month: 'short', day: 'numeric' })
+    ? format.dateTime(new Date(match.scheduled_at), DATE_SHORT)
     : ''
   const tournament = (match as any).tournament
   const isLive = match.status === 'live'
@@ -887,14 +888,13 @@ function ResultsSection({ matches }: { matches: Match[] }) {
     if (!start) return ''
     const s = new Date(start)
     const e = end ? new Date(end) : null
-    const opts = { month: 'short', day: 'numeric' } as const
     if (e && s.getMonth() !== e.getMonth()) {
-      return `${format.dateTime(s, opts)} – ${format.dateTime(e, opts)}`
+      return `${format.dateTime(s, DATE_SHORT)} – ${format.dateTime(e, DATE_SHORT)}`
     }
     if (e) {
-      return `${format.dateTime(s, opts)} – ${e.getDate()}`
+      return `${format.dateTime(s, DATE_SHORT)} – ${e.getDate()}`
     }
-    return format.dateTime(s, opts)
+    return format.dateTime(s, DATE_SHORT)
   }
 
   return (
@@ -1551,7 +1551,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                 }}>
                   {restUpcoming.map(t => {
                     const d = daysUntil(t.starts_at)
-                    const dateLabel = format.dateTime(new Date(t.starts_at), { month: 'short', day: 'numeric' }).toUpperCase()
+                    const dateLabel = format.dateTime(new Date(t.starts_at), DATE_SHORT).toUpperCase()
                     return (
                       <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
                         <div style={{

@@ -8,6 +8,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Link } from '@/i18n/navigation'
+import { DATE_SHORT } from '@/lib/format-patterns'
 
 // ── Brand constants ───────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -28,9 +29,8 @@ const CLIP = {
 
 function formatDateRange(format: ReturnType<typeof useFormatter>, start: string, end: string): string {
   const s = new Date(start), e = new Date(end)
-  const opts = { month: 'short', day: 'numeric' } as const
-  if (s.getMonth() === e.getMonth()) return `${format.dateTime(s, opts)}–${e.getDate()}`
-  return `${format.dateTime(s, opts)} – ${format.dateTime(e, opts)}`
+  if (s.getMonth() === e.getMonth()) return `${format.dateTime(s, DATE_SHORT)}–${e.getDate()}`
+  return `${format.dateTime(s, DATE_SHORT)} – ${format.dateTime(e, DATE_SHORT)}`
 }
 
 function levelLabel(level: string | null): string {
@@ -259,7 +259,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         const p1 = [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).join(' / ')
         const p2 = [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).join(' / ')
         const matchDate = m.started_at ?? m.scheduled_at
-        const date = matchDate ? new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(matchDate)) : ''
+        const date = matchDate ? format.dateTime(new Date(matchDate), DATE_SHORT) : ''
 
         // Determine W/L from the searched player's perspective.
         // Check which pair the searched player(s) belong to, then

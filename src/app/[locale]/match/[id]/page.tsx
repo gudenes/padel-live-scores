@@ -3,7 +3,7 @@
 // V3 Match Detail — chunky clip-path brand language, no border-radius except circles.
 
 import { useState, useEffect, useCallback, use, useRef, useMemo } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toShortName } from '@/types/match'
@@ -12,6 +12,7 @@ import BottomNav from '@/components/nav/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
+import { DATE_WITH_WEEKDAY, MONTH_YEAR } from '@/lib/format-patterns'
 import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
@@ -124,6 +125,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const tPred = useTranslations('prediction')
   const tCommon = useTranslations('common')
   const tRating = useTranslations('rating')
+  const format = useFormatter()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const [match, setMatch] = useState<Match | null>(null)
@@ -434,7 +436,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   const category = (match as any).category as string | null
   const duration = (match as any).duration as string | null
-  const matchDate = match.started_at ? new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(match.started_at)) : null
+  const matchDate = match.started_at ? format.dateTime(new Date(match.started_at), DATE_WITH_WEEKDAY) : null
 
   const tz = ((match as any).tournament)?.timezone ?? 'UTC'
   const scheduledAt = (match as any).starts_at as string | null
@@ -1745,6 +1747,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
   match: Match; h2hMatches: any[]; h2hLoading: boolean; pair1Label: string; pair2Label: string; pair1Recent: any[]; pair2Recent: any[]
 }) {
   const t = useTranslations('matchDetail')
+  const format = useFormatter()
   const [showAll, setShowAll] = useState(false)
   const p1Ids = [match.pair1_player1?.id, match.pair1_player2?.id].filter(Boolean) as string[]
 
@@ -1767,7 +1770,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
     if (!dateStr) return ''
     try {
       const d = new Date(dateStr)
-      return new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(d)
+      return format.dateTime(d, MONTH_YEAR)
     } catch { return '' }
   }
 

@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useRef, use } from 'react'
 import { useRouter } from '@/i18n/navigation'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
@@ -12,6 +12,7 @@ import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
+import { DATE_WITH_YEAR } from '@/lib/format-patterns'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -383,9 +384,9 @@ function resolveMatchRoles(match: MatchRow, playerId: string) {
   return { isP1, partner, opp1, opp2, myPair, won, lost }
 }
 
-function formatDate(iso: string | null): string {
+function formatDate(iso: string | null, format: ReturnType<typeof useFormatter>): string {
   if (!iso) return ''
-  return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
+  return format.dateTime(new Date(iso), DATE_WITH_YEAR)
 }
 
 // Proper age calculation — accounts for whether the birthday has passed this year.
@@ -418,6 +419,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const router = useRouter()
   const tPlayer = useTranslations('player')
   const tCommon = useTranslations('common')
+  const format = useFormatter()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const [player, setPlayer] = useState<PlayerRow | null>(null)
@@ -803,7 +805,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           <PartnersTab derived={derived} router={router} />
         )}
         {activeTab === 'matches' && (
-          <MatchesTab matches={matches} playerId={id} router={router} />
+          <MatchesTab matches={matches} playerId={id} router={router} format={format} />
         )}
         {activeTab === 'stats' && (
           <StatsTab player={player} derived={derived} matches={matches} playerId={id} />
@@ -853,9 +855,10 @@ function OverviewTab({
   } | null
 }) {
   const t = useTranslations('player')
+  const format = useFormatter()
   const age = computeAge(player.birthdate)
   const profileRows: Array<[string, string | null]> = [
-    [t('born'), player.birthdate ? formatDate(player.birthdate) : null],
+    [t('born'), player.birthdate ? formatDate(player.birthdate, format) : null],
     [t('age'), age != null ? t('ageYrs', { count: age }) : null],
     [t('height'), player.height ? t('heightCm', { count: player.height }) : null],
     [t('plays'), player.hand === 'left' ? t('leftHanded') : player.hand === 'right' ? t('rightHanded') : null],
@@ -891,12 +894,12 @@ function OverviewTab({
                 </div>
                 {cpTotal > 0 && (
                   <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
-                    {cpTotal} {cpTotal === 1 ? 'match' : 'matches'} · {derived.cpWins}-{derived.cpLosses} · Last {derived.lastPartneredIso ? formatDate(derived.lastPartneredIso) : '—'}
+                    {cpTotal} {cpTotal === 1 ? 'match' : 'matches'} · {derived.cpWins}-{derived.cpLosses} · Last {derived.lastPartneredIso ? formatDate(derived.lastPartneredIso, format) : '—'}
                   </div>
                 )}
                 {derived.firstPartneredIso && (
                   <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>
-                    First match together {formatDate(derived.firstPartneredIso)}
+                    First match together {formatDate(derived.firstPartneredIso, format)}
                   </div>
                 )}
               </div>
@@ -1096,6 +1099,7 @@ function OverviewTab({
               match={m}
               playerId={playerId}
               onClick={() => router.push(`/match/${m.id}`)}
+              format={format}
             />
           ))}
           <div
@@ -1304,6 +1308,7 @@ function PartnersTab({
   derived: DerivedData
   router: ReturnType<typeof useRouter>
 }) {
+  const format = useFormatter()
   if (derived.partnersList.length === 0) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>
@@ -1340,7 +1345,7 @@ function PartnersTab({
                 </span>
               </div>
               <div style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>
-                {total} {total === 1 ? 'match' : 'matches'} · {wins}-{losses} · Last {lastIso ? formatDate(lastIso) : '—'}
+                {total} {total === 1 ? 'match' : 'matches'} · {wins}-{losses} · Last {lastIso ? formatDate(lastIso, format) : '—'}
               </div>
             </div>
             <div style={{
@@ -1363,16 +1368,17 @@ function PartnersTab({
 // ═══════════════════════════════════════════════════════════════
 // Shared list item used by both the Matches tab and the Overview "Recent Matches" widget.
 function MatchListItem({
-  match, playerId, onClick,
+  match, playerId, onClick, format,
 }: {
   match: MatchRow
   playerId: string
   onClick: () => void
+  format: ReturnType<typeof useFormatter>
 }) {
   const roles = resolveMatchRoles(match, playerId)
   const score = scoreString(match.sets)
   const tournamentName = match.tournament?.name ? titleCase(match.tournament.name) : ''
-  const date = formatDate(matchDate(match))
+  const date = formatDate(matchDate(match), format)
 
   return (
     <div
@@ -1421,11 +1427,12 @@ function MatchListItem({
 }
 
 function MatchesTab({
-  matches, playerId, router,
+  matches, playerId, router, format,
 }: {
   matches: MatchRow[]
   playerId: string
   router: ReturnType<typeof useRouter>
+  format: ReturnType<typeof useFormatter>
 }) {
   if (matches.length === 0) {
     return (
@@ -1443,6 +1450,7 @@ function MatchesTab({
           match={m}
           playerId={playerId}
           onClick={() => router.push(`/match/${m.id}`)}
+          format={format}
         />
       ))}
     </div>

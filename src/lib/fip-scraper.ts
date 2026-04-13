@@ -768,7 +768,7 @@ function escapeRegex(str: string): string {
 export interface OopPlayer {
   initial: string   // "L."
   surname: string   // "Perez Parra"
-  country: string   // "ESP"
+  country: string | null   // "ESP" or null if flag missing in OOP HTML
   seed: number | null
   fullDisplay: string // "L. Perez Parra"
 }
@@ -876,11 +876,14 @@ export function parseOopHtml(html: string): OopMatch[] {
     if (roundMatch) matchRound = roundMatch[1]
 
     // Extract players from this table
-    const playerRe = /<img class="flags" src="\/images\/flags\/([A-Z]+)\.jpg"[\s\S]*?<span>([^<]+)<\/span>\s*<span[^>]*>([^<]+)<\/span>(?:\s*<small>\((\d+)\)<\/small>)?/gi
+    // Flag image is optional — some players (e.g. Sharifova) lack a country flag in the OOP HTML
+    const playerRe = /(?:<img class="flags" src="\/images\/flags\/([A-Z]+)\.jpg"[\s\S]*?)?<span>([^<]+)<\/span>\s*<span[^>]*>([^<]+)<\/span>(?:\s*<small>\((\d+)\)<\/small>)?/gi
     const players: OopPlayer[] = []
     let pm: RegExpExecArray | null
     while ((pm = playerRe.exec(tableHtml)) !== null) {
-      const country = pm[1]
+      // Skip non-player span matches (e.g. court names, headers) — player initials end with "."
+      if (!pm[2].trim().endsWith('.')) continue
+      const country = pm[1] || null
       const initial = decodeHtmlEntities(pm[2].trim())
       const surname = decodeHtmlEntities(pm[3].trim())
       const seed = pm[4] ? parseInt(pm[4]) : null

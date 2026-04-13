@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
+import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
@@ -416,7 +417,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       }
       const sorted = [...dates].sort()
       if (sorted.length === 0) continue
-      const fmt = (iso: string) => format.dateTime(new Date(iso), { day: 'numeric', month: 'short' })
+      const fmt = (iso: string) => format.dateTime(new Date(iso), DATE_SHORT)
       map[round] = sorted.length === 1 ? fmt(sorted[0]) : `${fmt(sorted[0])} - ${fmt(sorted[sorted.length - 1])}`
     }
     return map
@@ -707,9 +708,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                   {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
                     <span style={{ fontSize: 10, color: MUTED }}>
-                      {format.dateTime(new Date(activeTournamentObj.starts_at), { day: 'numeric', month: 'short' })}
+                      {format.dateTime(new Date(activeTournamentObj.starts_at), DATE_SHORT)}
                       {' - '}
-                      {format.dateTime(new Date(activeTournamentObj.ends_at), { day: 'numeric', month: 'short' })}
+                      {format.dateTime(new Date(activeTournamentObj.ends_at), DATE_SHORT)}
                     </span>
                   )}
                   {activeTournamentObj.prize_money && (
@@ -1003,9 +1004,9 @@ function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match;
     const d = new Date(match.scheduled_at)
     const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0
     const time = hasTime
-      ? format.dateTime(d, { hour: '2-digit', minute: '2-digit', hour12: false })
+      ? format.dateTime(d, TIME_24H)
       : ''
-    const date = format.dateTime(d, { day: 'numeric', month: 'short' })
+    const date = format.dateTime(d, DATE_SHORT)
     const approximate = /not before|followed by/i.test(scheduleLabel ?? '')
     return { time, date, approximate }
   })()
@@ -1486,7 +1487,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const isUpcoming = daysUntilStart != null && daysUntilStart > 0
   const isLive = startsAt && endsAt && now >= startsAt && now <= endsAt
 
-  const formatDate = (d: Date) => format.dateTime(d, { weekday: 'short', month: 'short', day: 'numeric' })
+  const formatDate = (d: Date) => format.dateTime(d, DATE_WITH_WEEKDAY)
 
   return (
     <div style={{ padding: '14px 14px 20px' }}>
