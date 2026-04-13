@@ -43,6 +43,13 @@ interface PlayerDetail {
   semifinals: number | null
   win_rate: number | null
   total_matches: number | null
+  equipment: {
+    racket_brand?: string
+    racket_model?: string
+    racket_url?: string
+    racket_image?: string
+    brand_logo?: string
+  } | null
   created_at: string | null
   updated_at: string | null
 }
@@ -110,6 +117,9 @@ export default function PlayersTab() {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerDetail | null>(null)
   const [selectedMatchCount, setSelectedMatchCount] = useState(0)
   const [editFields, setEditFields] = useState<Record<string, unknown>>({})
+  const [equipmentFields, setEquipmentFields] = useState<{
+    racket_brand: string; racket_model: string; racket_url: string; racket_image: string; brand_logo: string
+  }>({ racket_brand: '', racket_model: '', racket_url: '', racket_image: '', brand_logo: '' })
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [savingPlayer, setSavingPlayer] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
@@ -297,6 +307,15 @@ export default function PlayersTab() {
         fields[f.key] = detail.player[f.key]
       }
       setEditFields(fields)
+      // Init equipment fields
+      const eq = detail.player.equipment
+      setEquipmentFields({
+        racket_brand: eq?.racket_brand ?? '',
+        racket_model: eq?.racket_model ?? '',
+        racket_url: eq?.racket_url ?? '',
+        racket_image: eq?.racket_image ?? '',
+        brand_logo: eq?.brand_logo ?? '',
+      })
     }
     setLoadingDetail(false)
   }, [fetchPlayerDetail])
@@ -317,6 +336,19 @@ export default function PlayersTab() {
           updates[f.key] = newVal === '' ? null : newVal
         }
       }
+      // Build equipment update if changed
+      const newEquipment = {
+        ...(equipmentFields.racket_brand ? { racket_brand: equipmentFields.racket_brand } : {}),
+        ...(equipmentFields.racket_model ? { racket_model: equipmentFields.racket_model } : {}),
+        ...(equipmentFields.racket_url ? { racket_url: equipmentFields.racket_url } : {}),
+        ...(equipmentFields.racket_image ? { racket_image: equipmentFields.racket_image } : {}),
+        ...(equipmentFields.brand_logo ? { brand_logo: equipmentFields.brand_logo } : {}),
+      }
+      const oldEquipment = selectedPlayer.equipment ?? {}
+      if (JSON.stringify(newEquipment) !== JSON.stringify(oldEquipment)) {
+        updates.equipment = Object.keys(newEquipment).length > 0 ? newEquipment : null
+      }
+
       if (Object.keys(updates).length === 0) {
         setSaveMessage('No changes to save')
         setSavingPlayer(false)
@@ -840,6 +872,107 @@ export default function PlayersTab() {
                 />
               </div>
             ))}
+          </div>
+
+          {/* ── Equipment Section ──────────────────────── */}
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#111', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🏓</span> Equipment
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+              {([
+                { key: 'racket_brand', label: 'Brand' },
+                { key: 'racket_model', label: 'Model' },
+                { key: 'brand_logo', label: 'Brand Logo URL' },
+                { key: 'racket_image', label: 'Racket Image URL' },
+                { key: 'racket_url', label: 'Affiliate URL' },
+              ] as const).map(f => (
+                <div key={f.key} style={f.key === 'racket_url' ? { gridColumn: '1 / -1' } : undefined}>
+                  <label style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 2 }}>
+                    {f.label}
+                  </label>
+                  <input
+                    type="text"
+                    value={equipmentFields[f.key]}
+                    onChange={e => setEquipmentFields(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    placeholder={f.key === 'brand_logo' || f.key === 'racket_image' ? 'https://...' : ''}
+                    style={{
+                      width: '100%', padding: '5px 7px', fontSize: 11,
+                      border: '1px solid #e5e7eb', borderRadius: 4,
+                      boxSizing: 'border-box' as const,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* ── Live Preview (dark card matching player profile) ── */}
+            {(equipmentFields.racket_brand || equipmentFields.racket_model) && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>Preview (as shown on player profile)</div>
+                <div style={{
+                  background: '#141414',
+                  clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+                  padding: 12,
+                  position: 'relative',
+                  minHeight: 92,
+                  maxWidth: 180,
+                }}>
+                  {/* Widget label */}
+                  <div style={{ fontSize: 9, color: '#F5A623', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>
+                    Plays with
+                  </div>
+                  {/* Brand logo or text */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {equipmentFields.brand_logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={equipmentFields.brand_logo}
+                        alt={equipmentFields.racket_brand}
+                        style={{ height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }}
+                      />
+                    ) : equipmentFields.racket_brand ? (
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#F5A623' }}>{equipmentFields.racket_brand}</span>
+                    ) : null}
+                  </div>
+                  {/* Racket image */}
+                  {equipmentFields.racket_image && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={equipmentFields.racket_image}
+                      alt={equipmentFields.racket_model}
+                      style={{ height: 44, objectFit: 'contain', margin: '6px auto 2px', display: 'block', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }}
+                    />
+                  )}
+                  {/* Model name */}
+                  {equipmentFields.racket_model && (
+                    <div style={{ fontSize: 10, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginTop: equipmentFields.racket_image ? 0 : 6 }}>
+                      {equipmentFields.racket_model}
+                    </div>
+                  )}
+                  {/* Affiliate link indicator */}
+                  {equipmentFields.racket_url && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 4 }}>
+                      <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>Learn more</span>
+                      <span style={{ fontSize: 8, color: '#4A6F8E' }}>›</span>
+                    </div>
+                  )}
+                  {/* Paddle icon chip */}
+                  <div style={{
+                    position: 'absolute', top: 10, right: 10,
+                    width: 22, height: 22,
+                    background: 'rgba(245,166,35,0.1)',
+                    color: '#F5A623',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    clipPath: 'polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%)',
+                  }}>
+                    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#F5A623" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action buttons */}
