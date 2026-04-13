@@ -4,17 +4,14 @@
 
 import BottomNavV3 from '@/components/nav/BottomNavV3'
 import { BadgeToastProvider } from '@/components/BadgeToast'
-import { BookmarkToastProvider } from '@/components/BookmarkToast'
 import { SpotlightCoachmarks } from '@/components/SpotlightCoachmarks'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <BadgeToastProvider>
-    <BookmarkToastProvider>
       <div style={{ paddingBottom: 72 }}>{children}</div>
       <BottomNavV3 />
       <SpotlightCoachmarks />
-    </BookmarkToastProvider>
     </BadgeToastProvider>
   )
 }
