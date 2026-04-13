@@ -135,7 +135,7 @@ async function main() {
         console.log(`  brand CREATED "${brandName}" → ${brandId}`)
       }
 
-      brandIdCache.set(brandKey, brandId)
+      brandIdCache.set(brandKey, brandId!)
     }
 
     // ── 4. Upsert racket ─────────────────────────────────────────
@@ -186,7 +186,7 @@ async function main() {
         console.log(`    racket CREATED "${brandName} ${modelName}" (year=${year ?? 'n/a'}) → ${racketId}`)
       }
 
-      racketIdCache.set(racketKey, racketId)
+      racketIdCache.set(racketKey, racketId!)
     }
 
     // ── 5. Upsert player_equipment assignment ────────────────────
