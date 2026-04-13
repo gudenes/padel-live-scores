@@ -288,7 +288,10 @@ async function upsertSetsAndGames(
   isMatchFinished: boolean
 ): Promise<void> {
   for (const set of sets) {
-    if (isMatchFinished && !set.set_score) continue
+    // Don't skip sets without a set_score — they may be the decisive set
+    // that's still in progress (e.g. Set 3 at 5-3). We still want to write
+    // the pair1_games/pair2_games so the UI shows the current state.
+    // Previously: if (isMatchFinished && !set.set_score) continue
 
     const isCurrentSet =
       !isMatchFinished &&
@@ -449,12 +452,26 @@ async function refreshTournamentDraw(tournamentDbId: string): Promise<void> {
 
 // ── Write final authoritative state from detail endpoint ───────
 // Called when a match finishes — uses GET /api/matches/{id} which
-// returns the correct winner and clean set scores
+// returns the correct winner and clean set scores.
+// Falls back to live endpoint if detail has no score data.
 async function writeFinalState(matchDbId: string, externalId: string): Promise<boolean> {
   const detail = await fetchMatchDetail(externalId)
   if (!detail) {
     console.warn(`[Score Agent] Could not fetch final state for match ${externalId}`)
     return false
+  }
+
+  // If the detail endpoint has no score, fall back to the live endpoint
+  // to at least write the current set data (games in progress)
+  if (!detail.score && !isRateLimited()) {
+    const liveState = await fetchMatchLiveState(Number(externalId))
+    if (liveState?.sets?.length) {
+      console.log(`[Score Agent] Detail has no score for ${externalId}, using live endpoint (${liveState.sets.length} sets)`)
+      await upsertSetsAndGames(matchDbId, liveState.sets, false)
+      // Try to infer winner from whatever data we have
+      await inferWinnerPair(supabase, matchDbId)
+      return true
+    }
   }
 
   // Parse winner: "team_1" → 1, "team_2" → 2
@@ -511,12 +528,19 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
       )
   }
 
-  // Delete any orphan null sets
-  await supabase
-    .from('sets')
-    .delete()
-    .eq('match_id', matchDbId)
-    .is('set_score', null)
+  // Delete orphan null sets ONLY if we actually wrote replacement sets from the detail endpoint.
+  // If detail.score was null/empty (match still in progress), don't delete anything —
+  // the live-tracked sets with null set_score are the most recent data we have.
+  if (sets.length > 0) {
+    // Only delete null sets with set_numbers NOT in the sets we just wrote
+    const writtenSetNumbers = sets.map(s => s.set_number)
+    await supabase
+      .from('sets')
+      .delete()
+      .eq('match_id', matchDbId)
+      .is('set_score', null)
+      .not('set_number', 'in', `(${writtenSetNumbers.join(',')})`)
+  }
 
   console.log(`[Score Agent] ✓ Final state written for match ${externalId} — winner: pair ${winnerPair}, sets: ${sets.length}`)
   return true
