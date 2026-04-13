@@ -17,6 +17,8 @@ function getTimezoneOffset(tz: string, date: Date): number {
 import { useRouter } from '@/i18n/navigation'
 import { useRef, useEffect, useState } from 'react'
 import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarmingUp } from '@/types/match'
+import { useFormatter } from 'next-intl'
+import { TIME_24H } from '@/lib/format-patterns'
 
 interface MatchCardProps {
   match: Match
@@ -35,6 +37,7 @@ interface MatchCardProps {
 
 export default function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embedded }: MatchCardProps) {
   const router = useRouter()
+  const format = useFormatter()
 
   const { pair1Sets, pair2Sets, currentSet, currentGame } = getCurrentScore(match)
   // Get last point — exclude '0:0' serve marker (it is not a scored point)
@@ -136,7 +139,6 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
         try {
           const tournamentTz = (match as any).tournament?.timezone
           if (!tournamentTz) return effectiveLabel
-          const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
           let hours = parseInt(timeMatch[1])
           const minutes = parseInt(timeMatch[2])
           const ampm = timeMatch[3].toUpperCase()
@@ -146,7 +148,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
           const naiveUTC = new Date(`${today}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00Z`)
           const tournamentOffset = getTimezoneOffset(tournamentTz, naiveUTC)
           const realUTC = new Date(naiveUTC.getTime() - tournamentOffset * 60000)
-          return realUTC.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz })
+          return format.dateTime(realUTC, TIME_24H)
         } catch {
           return effectiveLabel
         }
@@ -158,8 +160,7 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     try {
       const d = new Date(src)
       if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null
-      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-      return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz }).format(d)
+      return format.dateTime(d, TIME_24H)
     } catch { return null }
   })()
 
