@@ -163,7 +163,15 @@
     "entryList": "Entry List",
     "whereToWatch": "Where to Watch",
     "previousEdition": "Previous Edition",
-    "seeds": "Seeds"
+    "seeds": "Seeds",
+    "liveNow": "Live Now",
+    "nextUp": "Next Up",
+    "viewEventDetails": "View Event Details",
+    "menChampion": "Men Champion {year}",
+    "womenChampion": "Women Champion {year}",
+    "pairsLabel": "Pairs",
+    "countriesLabel": "Countries",
+    "matchesLabel": "Matches"
   },
   "following": {
     "followPlayersAndTournaments": "Follow players and tournaments",
@@ -207,7 +215,9 @@
     "drive": "Drive",
     "backhand": "Backhand",
     "hometown": "Hometown",
-    "playerNotFound": "Player not found"
+    "playerNotFound": "Player not found",
+    "playsWith": "Plays with",
+    "learnMore": "Learn more"
   },
   "followButton": {
     "follow": "Follow",

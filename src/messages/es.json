@@ -162,8 +162,16 @@
     "pairs": "{count} parejas",
     "entryList": "Lista de inscritos",
     "whereToWatch": "D\u00f3nde ver",
-    "previousEdition": "Edici\u00f3n anterior",
-    "seeds": "Cabezas de serie"
+    "previousEdition": "Edición anterior",
+    "seeds": "Cabezas de serie",
+    "liveNow": "En directo",
+    "nextUp": "Próximo",
+    "viewEventDetails": "Ver detalles del evento",
+    "menChampion": "Campeón masculino {year}",
+    "womenChampion": "Campeona femenina {year}",
+    "pairsLabel": "Parejas",
+    "countriesLabel": "Países",
+    "matchesLabel": "Partidos"
   },
   "following": {
     "followPlayersAndTournaments": "Sigue a jugadores y torneos",
@@ -207,7 +215,9 @@
     "drive": "Drive",
     "backhand": "Rev\u00e9s",
     "hometown": "Ciudad natal",
-    "playerNotFound": "Jugador no encontrado"
+    "playerNotFound": "Jugador no encontrado",
+    "playsWith": "Juega con",
+    "learnMore": "Saber más"
   },
   "followButton": {
     "follow": "Seguir",

@@ -236,6 +236,11 @@ interface PlayerRow {
   height: number | null
   hand: string | null
   side: string | null
+  equipment: {
+    racket_brand?: string
+    racket_model?: string
+    racket_url?: string
+  } | null
 }
 
 interface MatchRow {
@@ -934,6 +939,34 @@ function OverviewTab({
             </div>
           )}
           <WidgetIcon>#</WidgetIcon>
+        </Widget>
+      )}
+
+      {/* Equipment — "Plays with" */}
+      {player.equipment?.racket_brand && (
+        <Widget label={t('playsWith')}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: ORANGE, marginBottom: 2 }}>
+            {player.equipment.racket_brand}
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
+            {player.equipment.racket_model}
+          </div>
+          {player.equipment.racket_url && (
+            <a
+              href={player.equipment.racket_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginTop: 6, textDecoration: 'none' }}
+            >
+              <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>{t('learnMore')}</span>
+              <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+          )}
+          <WidgetIcon>
+            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
+            </svg>
+          </WidgetIcon>
         </Widget>
       )}
 

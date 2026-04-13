@@ -113,7 +113,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
 
         {/* Language switcher — top right, below clip area */}
         <div style={{ position: 'absolute', top: 32, right: 20, zIndex: 2 }}>
-          <LocaleSwitcher size={28} />
+          <LocaleSwitcher size={28} direction="down" />
         </div>
 
         {/* Pending referral invite — shown when user arrived via ref link */}

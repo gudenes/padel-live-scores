@@ -146,11 +146,15 @@ function V3MatchRow({ match }: { match: Match }) {
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
   const currentSet = sets.find(s => s.is_current)
   const currentGame = currentSet?.games?.find(g => g.is_current)
-  // game_score can be "0-0", "15:30", "30-15", etc. — normalise separator
-  const rawGameScore = currentGame?.game_score ?? ''
-  const gamePointsParts = rawGameScore.split(/[:\-]/)
-  const p1GamePts = gamePointsParts[0] ?? ''
-  const p2GamePts = gamePointsParts[1] ?? ''
+  // Live point score comes from the last entry in the points[] array
+  // (game_score is the running game count like "1-1", NOT the point score)
+  // Points format: "30:40", "A:40", "15:15", etc.
+  const currentPoints = currentGame?.points?.length
+    ? currentGame.points[currentGame.points.length - 1]
+    : ''
+  const pointsParts = (currentPoints ?? '').split(/[:\-]/)
+  const p1GamePts = pointsParts[0] ?? ''
+  const p2GamePts = pointsParts[1] ?? ''
   const isLive = match.status === 'live'
   const isFinished = ['finished', 'retired', 'walkover'].includes(match.status)
   const isLingering = isFinished && _finishedAt.has(match.id)
@@ -249,7 +253,7 @@ function V3MatchRow({ match }: { match: Match }) {
           width: 3,
           background: genderColor,
         }} />
-        <FollowButton type="match" targetId={match.id} variant="star" size={14} style={{ position: 'absolute', top: 8, right: 8 }} />
+        {!isLive && <FollowButton type="match" targetId={match.id} variant="star" size={14} style={{ position: 'absolute', top: 8, right: 8 }} />}
 
         {/* Top row: round + court + status/time */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -576,7 +580,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
       <div style={{
         background: BG_CARD,
         overflow: 'hidden',
-        maxHeight: isExpanded ? matchCount * 80 + 60 : 0,
+        maxHeight: isExpanded ? matchCount * 130 + 60 : 0,
         transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         <div style={gated ? { opacity: 0.4, filter: 'grayscale(60%)', pointerEvents: 'none' } : undefined}>
@@ -1023,10 +1027,10 @@ function V3ScoresPage() {
           </div>
 
           {/* Swipe viewport */}
-          <div style={{ overflow: 'hidden', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
-            <div style={{ display: 'flex', width: '300%', ...trackStyle }}>
+          <div style={{ overflow: 'clip', overflowY: 'visible', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
+            <div style={{ display: 'flex', width: '300%', alignItems: 'stretch', ...trackStyle }}>
               {/* Live panel */}
-              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+              <div style={{ width: '33.333%', flexShrink: 0 }}>
                 <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
                   {liveGrouped.length > 0 ? liveGrouped.map((group, idx) => (
                     <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={true} tab="live" />
@@ -1036,7 +1040,7 @@ function V3ScoresPage() {
                 </div>
               </div>
               {/* Upcoming panel */}
-              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+              <div style={{ width: '33.333%', flexShrink: 0 }}>
                 <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
                   {upcomingGrouped.length > 0 ? upcomingGrouped.map((group, idx) => (
                     <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={true} tab="upcoming" />
@@ -1046,7 +1050,7 @@ function V3ScoresPage() {
                 </div>
               </div>
               {/* Results panel */}
-              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+              <div style={{ width: '33.333%', flexShrink: 0 }}>
                 <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
                   {resultsGrouped.length > 0 ? resultsGrouped.map((group, idx) => (
                     <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={idx === 0} tab="results" />

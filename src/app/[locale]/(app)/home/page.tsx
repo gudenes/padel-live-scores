@@ -268,12 +268,15 @@ function LiveMatchCard({ match }: { match: Match }) {
     ? currentGames.reduce((latest, g) =>
         (g.game_number ?? 0) > (latest.game_number ?? 0) ? g : latest)
     : null
-  // game_score format varies by source — padelapi uses "30-30", relay
-  // sometimes uses "30:30". Split on either to be safe.
-  const rawGameScore = currentGame?.game_score ?? ''
-  const gamePointsParts = rawGameScore.split(/[:\-]/)
-  const p1GamePts = gamePointsParts[0] ?? ''
-  const p2GamePts = gamePointsParts[1] ?? ''
+  // Live point score comes from the last entry in the points[] array
+  // (game_score is the running game count like "1-1", NOT the point score)
+  // Points format: "30:40", "A:40", "15:15", etc.
+  const currentPoints = currentGame?.points?.length
+    ? currentGame.points[currentGame.points.length - 1]
+    : ''
+  const pointsParts = (currentPoints ?? '').split(/[:\-]/)
+  const p1GamePts = pointsParts[0] ?? ''
+  const p2GamePts = pointsParts[1] ?? ''
   const hasLivePts = !!(p1GamePts || p2GamePts)
 
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)

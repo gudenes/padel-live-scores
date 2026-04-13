@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, type ReactNode } from 'react'
-import { useFormatter } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import FollowButton from '@/components/FollowButton'
@@ -241,6 +241,7 @@ export default function TournamentSpotlightHero({
   stats,
 }: TournamentSpotlightHeroProps) {
   const format = useFormatter()
+  const t = useTranslations('tournament')
   const cardRef = useRef<HTMLDivElement>(null)
   const inView = useInViewOnce(cardRef, { threshold: 0.15 })
 
@@ -327,7 +328,7 @@ export default function TournamentSpotlightHero({
             display: 'inline-flex', alignItems: 'center',
           }}>
             <span style={{ fontSize: 9, fontWeight: 800, color: GREEN, letterSpacing: 1.2, textTransform: 'uppercase' }}>
-              {isLive ? 'LIVE NOW' : 'NEXT UP'}
+              {isLive ? t('liveNow').toUpperCase() : t('nextUp').toUpperCase()}
             </span>
           </div>
           {level && (
@@ -374,13 +375,13 @@ export default function TournamentSpotlightHero({
         {(defendingChampionMen || defendingChampionWomen) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
             {[
-              { champion: defendingChampionMen, label: 'Men', color: '#4A9EFF' },
-              { champion: defendingChampionWomen, label: 'Women', color: '#D966FF' },
-            ].map(({ champion, label, color }) => {
+              { champion: defendingChampionMen, labelKey: 'menChampion' as const, color: '#4A9EFF' },
+              { champion: defendingChampionWomen, labelKey: 'womenChampion' as const, color: '#D966FF' },
+            ].map(({ champion, labelKey, color }) => {
               if (!champion) return null
               return (
                 <div
-                  key={label}
+                  key={labelKey}
                   className='sp-piece sp-piece-4'
                   style={{
                     background: 'linear-gradient(135deg, rgba(245,166,35,0.12), rgba(245,166,35,0.03))',
@@ -438,7 +439,7 @@ export default function TournamentSpotlightHero({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ marginBottom: 1 }}>
                         <span style={{ fontSize: 7, fontWeight: 800, color: AMBER, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                          {label} Champion {champion.year}
+                          {t(labelKey, { year: champion.year })}
                         </span>
                       </div>
                       <div style={{
@@ -503,7 +504,7 @@ export default function TournamentSpotlightHero({
             }}
           >
             <div style={{ fontSize: 14, fontWeight: 800, color: GREEN, letterSpacing: 2 }}>
-              LIVE NOW
+              {t('liveNow').toUpperCase()}
             </div>
           </div>
         )}
@@ -515,9 +516,9 @@ export default function TournamentSpotlightHero({
             style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 16 }}
           >
             {[
-              { label: 'Pairs', value: stats.pairsCount },
-              { label: 'Countries', value: stats.countriesCount },
-              { label: 'Matches', value: stats.matchesCount },
+              { label: t('pairsLabel'), value: stats.pairsCount },
+              { label: t('countriesLabel'), value: stats.countriesCount },
+              { label: t('matchesLabel'), value: stats.matchesCount },
             ].map(({ label, value }) => (
               <div
                 key={label}
@@ -603,7 +604,7 @@ export default function TournamentSpotlightHero({
               letterSpacing: 0.5,
             }}
           >
-            View Event Details &rarr;
+            {t('viewEventDetails')} →
           </Link>
         </AnimateOnView>
         </div>{/* end content padding */}
