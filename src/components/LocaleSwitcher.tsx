@@ -20,9 +20,11 @@ const LOCALE_FLAGS: Record<string, { code: string; label: string }> = {
 interface LocaleSwitcherProps {
   /** Size in px (default 28) */
   size?: number
+  /** Dropdown direction (default 'up') */
+  direction?: 'up' | 'down'
 }
 
-export default function LocaleSwitcher({ size = 28 }: LocaleSwitcherProps) {
+export default function LocaleSwitcher({ size = 28, direction = 'up' }: LocaleSwitcherProps) {
   const locale = useLocale()
   const router = useRouter()
   const pathname = usePathname()
@@ -90,13 +92,13 @@ export default function LocaleSwitcher({ size = 28 }: LocaleSwitcherProps) {
       {open && (
         <div style={{
           position: 'absolute',
-          bottom: size + 6,
+          ...(direction === 'up' ? { bottom: size + 6 } : { top: size + 6 }),
           right: 0,
           background: '#1A1A1A',
           border: '1px solid rgba(255,255,255,0.10)',
           borderRadius: 12,
           padding: 4,
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.6)',
+          boxShadow: direction === 'up' ? '0 -4px 24px rgba(0,0,0,0.6)' : '0 8px 24px rgba(0,0,0,0.6)',
           zIndex: 200,
           display: 'flex',
           flexDirection: 'column',
