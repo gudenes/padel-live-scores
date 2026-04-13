@@ -855,6 +855,7 @@ function OverviewTab({
   } | null
 }) {
   const t = useTranslations('player')
+  const format = useFormatter()
   const age = computeAge(player.birthdate)
   const profileRows: Array<[string, string | null]> = [
     [t('born'), player.birthdate ? formatDate(player.birthdate, format) : null],
@@ -1307,6 +1308,7 @@ function PartnersTab({
   derived: DerivedData
   router: ReturnType<typeof useRouter>
 }) {
+  const format = useFormatter()
   if (derived.partnersList.length === 0) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>
