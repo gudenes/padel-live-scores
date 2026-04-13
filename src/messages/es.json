@@ -261,8 +261,20 @@
     "tierAdvanced": "Avanzado",
     "tierPadelGenius": "Padel Genius"
   },
+  "genius": {
+    "comingSoon": "Próximamente",
+    "description": "Quizzes diarios de táctica de pádel.\nAcumula rachas, gana logros, conviértete en un genio del pádel.",
+    "signInToGetNotified": "Inicia sesión para que te avisemos",
+    "youllBeNotified": "Te avisaremos",
+    "notifyMe": "Avísame",
+    "saving": "Guardando…"
+  },
+  "footer": {
+    "privacyPolicy": "Política de Privacidad",
+    "termsOfService": "Términos del Servicio"
+  },
   "common": {
-    "back": "Atr\u00e1s",
+    "back": "Atrás",
     "share": "Compartir",
     "search": "Buscar jugadores, eventos, partidos...",
     "loading": "Cargando...",

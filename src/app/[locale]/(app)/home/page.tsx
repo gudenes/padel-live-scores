@@ -1786,6 +1786,7 @@ function V3HomePageInner() {
   const { user } = useAuth()
   const { shareNow } = useInvite()
   const tHome = useTranslations('home')
+  const tFooter = useTranslations('footer')
   const initialView: 'home' | 'tournaments' = searchParams.get('view') === 'tournaments' ? 'tournaments' : 'home'
 
   const [loading, setLoading] = useState(true)
@@ -2313,9 +2314,9 @@ function V3HomePageInner() {
 
       {/* Footer links */}
       <div style={{ padding: '20px 16px 8px', display: 'flex', justifyContent: 'center', gap: 16 }}>
-        <Link href="/privacy" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>Privacy Policy</Link>
+        <Link href="/privacy" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('privacyPolicy')}</Link>
         <span style={{ color: '#333' }}>|</span>
-        <Link href="/terms" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>Terms of Service</Link>
+        <Link href="/terms" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('termsOfService')}</Link>
       </div>
 
       {/* Bottom spacing */}

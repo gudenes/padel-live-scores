@@ -261,6 +261,18 @@
     "tierAdvanced": "Advanced",
     "tierPadelGenius": "Padel Genius"
   },
+  "genius": {
+    "comingSoon": "Coming Soon",
+    "description": "Daily padel tactics quizzes.\nBuild streaks, earn badges, become a padel genius.",
+    "signInToGetNotified": "Sign in to get notified",
+    "youllBeNotified": "You'll be notified",
+    "notifyMe": "Notify Me",
+    "saving": "Saving…"
+  },
+  "footer": {
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service"
+  },
   "common": {
     "back": "Back",
     "share": "Share",
