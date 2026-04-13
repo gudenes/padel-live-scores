@@ -106,6 +106,17 @@ export default async function proxy(request: NextRequest) {
     })
   }
 
+  // Geo-timezone cookie (IANA timezone from Vercel IP geolocation)
+  const timezone = request.headers.get('x-vercel-ip-timezone') ?? ''
+  if (timezone) {
+    response.cookies.set('geo-timezone', timezone, {
+      path: '/',
+      httpOnly: false,
+      sameSite: 'lax',
+      maxAge: 86400,
+    })
+  }
+
   // Invite ref code capture — ?ref=XXXXXX into a cookie for signup attribution
   const ref = searchParams.get('ref')
   if (ref && /^[A-Z0-9]{6}$/.test(ref)) {
