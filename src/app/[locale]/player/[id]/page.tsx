@@ -996,66 +996,60 @@ function OverviewTab({
 
         if (!brandName) return null
         return (
-          <Widget wide label={t('playsWith')}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              {/* Racket image — large, left side */}
-              {racketImage ? (
+          <Widget label={t('playsWith')}>
+            {/* Brand logo */}
+            <div style={{ marginBottom: 6 }}>
+              {brandLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={racketImage}
-                  alt={racketModel ?? ''}
-                  style={{
-                    height: 80, width: 80, objectFit: 'contain', flexShrink: 0,
-                    filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))',
-                  }}
+                  src={brandLogo}
+                  alt={brandName}
+                  style={{ height: 14, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.6 }}
                 />
               ) : (
-                <div style={{
-                  width: 80, height: 80, flexShrink: 0,
-                  background: 'rgba(255,255,255,0.03)',
-                  borderRadius: 8,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
-                  </svg>
-                </div>
+                <span style={{ fontSize: 10, fontWeight: 800, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.5 }}>{brandName}</span>
               )}
-              {/* Text + brand — right side */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {/* Brand logo */}
-                {brandLogo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={brandLogo}
-                    alt={brandName}
-                    style={{ height: 18, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.6, marginBottom: 6 }}
-                  />
-                ) : (
-                  <div style={{ fontSize: 11, fontWeight: 800, color: ORANGE, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{brandName}</div>
-                )}
-                {/* Model name */}
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>
-                  {racketModel}
-                </div>
-                {racketYear && (
-                  <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>{racketYear}</div>
-                )}
-                {/* Learn more link */}
-                {racketUrl && (
-                  <button
-                    onClick={handleRacketClick}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      marginTop: 8, background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ fontSize: 9, color: '#4A6F8E', fontWeight: 600 }}>{t('learnMore')}</span>
-                    <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                  </button>
-                )}
-              </div>
             </div>
+            {/* Racket image — centered, tall */}
+            {racketImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={racketImage}
+                alt={racketModel ?? ''}
+                style={{
+                  height: 64, objectFit: 'contain', display: 'block', margin: '0 auto 6px',
+                  filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
+                }}
+              />
+            ) : (
+              <div style={{
+                height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6,
+              }}>
+                <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
+                </svg>
+              </div>
+            )}
+            {/* Model name */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+              {racketModel}
+            </div>
+            {racketYear && (
+              <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>{racketYear}</div>
+            )}
+            {/* Learn more */}
+            {racketUrl && (
+              <button
+                onClick={handleRacketClick}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  marginTop: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>{t('learnMore')}</span>
+                <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            )}
           </Widget>
         )
       })()}
