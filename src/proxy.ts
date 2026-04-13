@@ -80,7 +80,12 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 4. Admin routes — auth checked client-side and in API routes
+  // 4. Auth routes — outside [locale], skip i18n routing
+  if (pathname.startsWith('/auth')) {
+    return NextResponse.next()
+  }
+
+  // 5. Admin routes — auth checked client-side and in API routes
   if (pathname.startsWith('/admin')) {
     return NextResponse.next()
   }
