@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import ProfileButton from '@/components/ProfileButton'
+import LocaleSwitcher from '@/components/LocaleSwitcher'
 import { useInvite } from '@/hooks/useInvite'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -119,6 +120,9 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
           {searchHints[hintIdx]}
         </span>
       </div>
+
+      {/* Language switcher */}
+      <LocaleSwitcher />
 
       {/* Share icon — logged-in users only (deferred to avoid hydration mismatch) */}
       {mounted && user && (
