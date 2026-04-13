@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 
   const { data: player, error } = await supabase
     .from('players')
-    .select('id, name, display_name, country, category, ranking, points, ranking_move, race_ranking, race_points, race_move, external_id, fip_id, avatar_url, profile_url, side, height, birthdate, birthplace, hand, titles, finals, semifinals, win_rate, total_matches, created_at, updated_at')
+    .select('id, name, display_name, country, category, ranking, points, ranking_move, race_ranking, race_points, race_move, external_id, fip_id, avatar_url, profile_url, side, height, birthdate, birthplace, hand, titles, finals, semifinals, win_rate, total_matches, equipment, created_at, updated_at')
     .eq('id', id)
     .single()
 

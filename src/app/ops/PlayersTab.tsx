@@ -43,6 +43,13 @@ interface PlayerDetail {
   semifinals: number | null
   win_rate: number | null
   total_matches: number | null
+  equipment: {
+    racket_brand?: string
+    racket_model?: string
+    racket_url?: string
+    racket_image?: string
+    brand_logo?: string
+  } | null
   created_at: string | null
   updated_at: string | null
 }
@@ -110,6 +117,13 @@ export default function PlayersTab() {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerDetail | null>(null)
   const [selectedMatchCount, setSelectedMatchCount] = useState(0)
   const [editFields, setEditFields] = useState<Record<string, unknown>>({})
+  // Equipment state (dropdown-based)
+  const [brands, setBrands] = useState<Array<{ id: string; name: string; logo_url: string | null }>>([])
+  const [rackets, setRackets] = useState<Array<{ id: string; model: string; year: number | null; brand_id: string; image_url: string | null; product_url: string | null; brand?: { id: string; name: string; logo_url: string | null } }>>([])
+  const [selectedBrandId, setSelectedBrandId] = useState('')
+  const [selectedRacketId, setSelectedRacketId] = useState('')
+  const [playerEquipment, setPlayerEquipment] = useState<Array<{ id: string; started_at: string; ended_at: string | null; racket: { id: string; model: string; year: number | null; image_url: string | null; product_url: string | null; brand: { id: string; name: string; logo_url: string | null } } }>>([])
+  const [assigningEquipment, setAssigningEquipment] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [savingPlayer, setSavingPlayer] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
@@ -267,6 +281,12 @@ export default function PlayersTab() {
     doSearch(searchQuery, categoryFilter)
   }, [searchQuery, categoryFilter, doSearch])
 
+  // Fetch brands and rackets on mount
+  useEffect(() => {
+    fetch('/api/ops/brands').then(r => r.json()).then(d => setBrands(d.brands ?? [])).catch(() => {})
+    fetch('/api/ops/rackets').then(r => r.json()).then(d => setRackets(d.rackets ?? [])).catch(() => {})
+  }, [])
+
   // ── Fetch player detail ───────────────────────────────────────
 
   const fetchPlayerDetail = useCallback(async (id: string): Promise<{ player: PlayerDetail; matchCount: number } | null> => {
@@ -297,6 +317,15 @@ export default function PlayersTab() {
         fields[f.key] = detail.player[f.key]
       }
       setEditFields(fields)
+      // Fetch player equipment
+      setPlayerEquipment([])
+      setSelectedBrandId('')
+      setSelectedRacketId('')
+      try {
+        const eqRes = await fetch(`/api/ops/player-equipment?player_id=${id}`)
+        const eqData = await eqRes.json()
+        setPlayerEquipment(eqData.equipment ?? [])
+      } catch { /* ignore */ }
     }
     setLoadingDetail(false)
   }, [fetchPlayerDetail])
@@ -840,6 +869,203 @@ export default function PlayersTab() {
                 />
               </div>
             ))}
+          </div>
+
+          {/* ── Equipment Section ──────────────────────── */}
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#111', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🏓</span> Equipment
+            </div>
+
+            {/* Current equipment display */}
+            {(() => {
+              const current = playerEquipment.find(e => !e.ended_at)
+              if (current) {
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: 8,
+                    background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 6, marginBottom: 10,
+                  }}>
+                    {current.racket.brand?.logo_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={current.racket.brand.logo_url} alt={current.racket.brand.name} style={{ height: 16, objectFit: 'contain' }} />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>
+                        {current.racket.brand?.name} {current.racket.model}
+                        {current.racket.year && <span style={{ color: '#6B7280', fontWeight: 400 }}> ({current.racket.year})</span>}
+                      </div>
+                      <div style={{ fontSize: 9, color: '#6B7280' }}>Since {current.started_at}</div>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedBrandId(current.racket.brand?.id ?? ''); setSelectedRacketId('') }}
+                      style={{
+                        padding: '3px 8px', fontSize: 10, fontWeight: 600,
+                        background: 'white', border: '1px solid #d1d5db', borderRadius: 4,
+                        cursor: 'pointer', color: '#6B7280',
+                      }}
+                    >
+                      Change
+                    </button>
+                  </div>
+                )
+              }
+              return null
+            })()}
+
+            {/* Brand + Racket dropdowns */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', marginBottom: 8 }}>
+              <div>
+                <label style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 2 }}>
+                  Brand
+                </label>
+                <select
+                  value={selectedBrandId}
+                  onChange={e => { setSelectedBrandId(e.target.value); setSelectedRacketId('') }}
+                  style={{
+                    width: '100%', padding: '5px 7px', fontSize: 11,
+                    border: '1px solid #e5e7eb', borderRadius: 4,
+                    boxSizing: 'border-box' as const, background: 'white',
+                  }}
+                >
+                  <option value="">Select brand...</option>
+                  {brands.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 2 }}>
+                  Racket
+                </label>
+                <select
+                  value={selectedRacketId}
+                  onChange={e => setSelectedRacketId(e.target.value)}
+                  disabled={!selectedBrandId}
+                  style={{
+                    width: '100%', padding: '5px 7px', fontSize: 11,
+                    border: '1px solid #e5e7eb', borderRadius: 4,
+                    boxSizing: 'border-box' as const, background: 'white',
+                    opacity: selectedBrandId ? 1 : 0.5,
+                  }}
+                >
+                  <option value="">Select racket...</option>
+                  {rackets.filter(r => r.brand_id === selectedBrandId).map(r => (
+                    <option key={r.id} value={r.id}>{r.model}{r.year ? ` (${r.year})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Assign button */}
+            {selectedRacketId && (
+              <button
+                onClick={async () => {
+                  if (!selectedPlayer) return
+                  setAssigningEquipment(true)
+                  try {
+                    const res = await fetch('/api/ops/player-equipment', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ player_id: selectedPlayer.id, racket_id: selectedRacketId }),
+                    })
+                    if (res.ok) {
+                      // Refresh equipment list
+                      const eqRes = await fetch(`/api/ops/player-equipment?player_id=${selectedPlayer.id}`)
+                      const eqData = await eqRes.json()
+                      setPlayerEquipment(eqData.equipment ?? [])
+                      setSelectedBrandId('')
+                      setSelectedRacketId('')
+                    }
+                  } catch { /* ignore */ }
+                  setAssigningEquipment(false)
+                }}
+                disabled={assigningEquipment}
+                style={{
+                  padding: '5px 12px', fontSize: 11, fontWeight: 600,
+                  background: '#111', color: 'white', border: 'none', borderRadius: 4,
+                  cursor: 'pointer', opacity: assigningEquipment ? 0.6 : 1, marginBottom: 10,
+                }}
+              >
+                {assigningEquipment ? 'Assigning...' : 'Assign Racket'}
+              </button>
+            )}
+
+            {/* Equipment history */}
+            {playerEquipment.length > 1 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 4 }}>History</div>
+                {playerEquipment.filter(e => e.ended_at).map(e => (
+                  <div key={e.id} style={{ fontSize: 10, color: '#999', marginBottom: 2 }}>
+                    {e.racket.brand?.name} {e.racket.model}{e.racket.year ? ` (${e.racket.year})` : ''}
+                    <span style={{ marginLeft: 6 }}>{e.started_at} - {e.ended_at}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Live Preview (dark card matching player profile) ── */}
+            {(() => {
+              const previewRacket = selectedRacketId
+                ? rackets.find(r => r.id === selectedRacketId)
+                : playerEquipment.find(e => !e.ended_at)?.racket
+              if (!previewRacket) return null
+              const brandInfo = previewRacket.brand ?? brands.find(b => b.id === (previewRacket as { brand_id?: string }).brand_id)
+              const brandName = brandInfo?.name ?? ''
+              const brandLogo = brandInfo?.logo_url ?? null
+              return (
+                <div style={{ marginTop: 4 }}>
+                  <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>Preview (as shown on player profile)</div>
+                  <div style={{
+                    background: '#141414',
+                    clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+                    padding: 12,
+                    position: 'relative',
+                    minHeight: 92,
+                    maxWidth: 180,
+                  }}>
+                    <div style={{ fontSize: 9, color: '#F5A623', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>
+                      Plays with
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {brandLogo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={brandLogo} alt={brandName} style={{ height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }} />
+                      ) : brandName ? (
+                        <span style={{ fontSize: 10, fontWeight: 800, color: '#F5A623' }}>{brandName}</span>
+                      ) : null}
+                    </div>
+                    {previewRacket.image_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={previewRacket.image_url} alt={previewRacket.model} style={{ height: 44, objectFit: 'contain', margin: '6px auto 2px', display: 'block', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }} />
+                    )}
+                    {previewRacket.model && (
+                      <div style={{ fontSize: 10, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginTop: previewRacket.image_url ? 0 : 6 }}>
+                        {previewRacket.model}
+                      </div>
+                    )}
+                    {previewRacket.product_url && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 4 }}>
+                        <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>Learn more</span>
+                        <span style={{ fontSize: 8, color: '#4A6F8E' }}>&rsaquo;</span>
+                      </div>
+                    )}
+                    <div style={{
+                      position: 'absolute', top: 10, right: 10,
+                      width: 22, height: 22,
+                      background: 'rgba(245,166,35,0.1)',
+                      color: '#F5A623',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      clipPath: 'polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%)',
+                    }}>
+                      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#F5A623" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Action buttons */}

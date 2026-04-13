@@ -452,28 +452,57 @@ export async function inferWinnerPair(
   supabase: SupabaseClient,
   matchId: string,
 ): Promise<1 | 2 | null> {
-  const { data: sets } = await supabase
+  // Fetch ALL sets (including those without set_score — needed for retirement detection)
+  const { data: allSets } = await supabase
     .from('sets')
     .select('set_number, set_score, pair1_games, pair2_games')
     .eq('match_id', matchId)
-    .not('set_score', 'is', null)
     .order('set_number', { ascending: true })
 
-  if (!sets || sets.length < 2) return null
+  if (!allSets || allSets.length === 0) return null
 
+  // Count completed sets (have a set_score or clear winner from games)
   let p1Sets = 0
   let p2Sets = 0
 
-  for (const set of sets) {
+  for (const set of allSets) {
     const p1 = set.pair1_games ?? 0
     const p2 = set.pair2_games ?? 0
     if (p1 > p2) p1Sets++
     else if (p2 > p1) p2Sets++
-    // tied sets (e.g. tiebreaker in progress) — skip
   }
 
-  // Best-of-3: need 2 sets to win
-  const winner = p1Sets >= 2 ? 1 : p2Sets >= 2 ? 2 : null
+  // Standard best-of-3: need 2 sets to win
+  let winner: 1 | 2 | null = p1Sets >= 2 ? 1 : p2Sets >= 2 ? 2 : null
+
+  // Retirement/walkover fallback: if the match is finished/ended but no pair
+  // has 2 sets, the winner is whoever was leading (retirement by the other pair).
+  // Only applies when the match status confirms it's over.
+  if (!winner && (p1Sets > 0 || p2Sets > 0)) {
+    const { data: match } = await supabase
+      .from('matches')
+      .select('status')
+      .eq('id', matchId)
+      .single()
+
+    if (match && ['finished', 'ended', 'retired', 'walkover'].includes(match.status)) {
+      if (p1Sets > p2Sets) winner = 1
+      else if (p2Sets > p1Sets) winner = 2
+      // If tied sets (e.g. 1-1 with retirement mid-set 3), check which pair
+      // was leading in the latest incomplete set
+      else if (p1Sets === p2Sets && allSets.length > p1Sets + p2Sets) {
+        const lastSet = allSets[allSets.length - 1]
+        const p1g = lastSet.pair1_games ?? 0
+        const p2g = lastSet.pair2_games ?? 0
+        if (p1g > p2g) winner = 1
+        else if (p2g > p1g) winner = 2
+      }
+
+      if (winner) {
+        console.log(`[score-inference] Match ${matchId}: retirement/walkover winner = pair ${winner} (${p1Sets}-${p2Sets} sets)`)
+      }
+    }
+  }
 
   if (winner) {
     await supabase
