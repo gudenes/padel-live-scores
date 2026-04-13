@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
+import { TIME_24H, DATE_SHORT } from '@/lib/format-patterns'
 import { Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import AppHeader from '@/components/AppHeader'
@@ -191,7 +192,7 @@ function matchScoreLabel(sets: SetRow[]): string {
 function formatTime(format: ReturnType<typeof useFormatter>, iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
-  return format.dateTime(d, { hour: '2-digit', minute: '2-digit' })
+  return format.dateTime(d, TIME_24H)
 }
 
 function formatTournamentStatus(format: ReturnType<typeof useFormatter>, t: TournamentData, labels: { live: string; finished: string }): string {
@@ -200,7 +201,7 @@ function formatTournamentStatus(format: ReturnType<typeof useFormatter>, t: Tour
   const end = t.ends_at ? new Date(t.ends_at) : null
   if (start && end && now >= start && now <= end) return labels.live
   if (start && now < start) {
-    return format.dateTime(start, { month: 'short', day: 'numeric' })
+    return format.dateTime(start, DATE_SHORT)
   }
   return labels.finished
 }

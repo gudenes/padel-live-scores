@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
+import { TIME_24H, DATE_SHORT } from '@/lib/format-patterns'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
@@ -172,9 +173,9 @@ function V3MatchRow({ match }: { match: Match }) {
     const d = new Date(match.scheduled_at)
     const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0
     const time = hasTime
-      ? format.dateTime(d, { hour: '2-digit', minute: '2-digit', hour12: false })
+      ? format.dateTime(d, TIME_24H)
       : ''
-    const date = format.dateTime(d, { day: 'numeric', month: 'short' })
+    const date = format.dateTime(d, DATE_SHORT)
     // Check if schedule_label indicates approximate time ("Not before", "Followed by")
     const label = (match as any).schedule_label ?? ''
     const approximate = /not before|followed by/i.test(label)
@@ -470,8 +471,8 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
   const status = tournamentStatus(matches, tournament)
 
   const dateRange = tournament?.starts_at
-    ? format.dateTime(new Date(tournament.starts_at), { day: 'numeric', month: 'short' })
-      + (tournament.ends_at ? ` \u2013 ${format.dateTime(new Date(tournament.ends_at), { day: 'numeric', month: 'short' })}` : '')
+    ? format.dateTime(new Date(tournament.starts_at), DATE_SHORT)
+      + (tournament.ends_at ? ` \u2013 ${format.dateTime(new Date(tournament.ends_at), DATE_SHORT)}` : '')
     : ''
 
   // Derive the most advanced round

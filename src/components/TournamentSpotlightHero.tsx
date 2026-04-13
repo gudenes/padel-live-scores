@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, type ReactNode } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
+import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 import { Link } from '@/i18n/navigation'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import FollowButton from '@/components/FollowButton'
@@ -189,7 +190,7 @@ function countryName(code: string | null): string {
 function formatDateRange(format: ReturnType<typeof useFormatter>, start: string, end: string): string {
   const s = new Date(start)
   const e = new Date(end)
-  return `${format.dateTime(s, { month: 'short', day: 'numeric' })} - ${format.dateTime(e, { month: 'short', day: 'numeric', year: 'numeric' })}`
+  return `${format.dateTime(s, DATE_SHORT)} - ${format.dateTime(e, DATE_WITH_YEAR)}`
 }
 
 // ── Types ──────────────────────────────────────────────────────

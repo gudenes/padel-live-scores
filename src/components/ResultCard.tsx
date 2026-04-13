@@ -11,6 +11,7 @@
 // the home page renders identically after the extraction.
 
 import { useFormatter } from 'next-intl'
+import { DATE_SHORT } from '@/lib/format-patterns'
 import { Link } from '@/i18n/navigation'
 import { Match, pairName, parseSetScore } from '@/types/match'
 
@@ -107,7 +108,7 @@ export function ResultCard({ match }: { match: Match }) {
               clipPath: CHUNKY.badge,
               background: 'rgba(255,255,255,0.06)', color: MUTED,
             }}>
-              {format.dateTime(new Date(match.finished_at), { month: 'short', day: 'numeric' })}
+              {format.dateTime(new Date(match.finished_at), DATE_SHORT)}
             </span>
           )}
         </div>
