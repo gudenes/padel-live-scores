@@ -102,6 +102,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           padding: '32px 20px 100px',
           borderTop: `2px solid ${GREEN}`,
           animation: 'loginSlideUp 0.3s ease-out',
+          position: 'relative',
         }}
       >
         {/* Drag handle */}
@@ -110,8 +111,8 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           borderRadius: 2, margin: '0 auto 24px',
         }} />
 
-        {/* Language switcher — top right */}
-        <div style={{ position: 'absolute', top: 16, right: 20 }}>
+        {/* Language switcher — top right, below clip area */}
+        <div style={{ position: 'absolute', top: 32, right: 20, zIndex: 2 }}>
           <LocaleSwitcher size={28} />
         </div>
 
