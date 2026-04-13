@@ -262,6 +262,15 @@
     "tierAdvanced": "Avanzado",
     "tierPadelGenius": "Padel Genius"
   },
+  "bookmark": {
+    "matchBookmarked": "Partido guardado",
+    "playerFollowed": "Jugador seguido",
+    "tournamentFollowed": "Torneo seguido",
+    "followingPlayer": "Siguiendo a {name}",
+    "followingTournament": "Siguiendo {name}",
+    "bookmarkRemoved": "Guardado eliminado",
+    "findInFollowing": "Encuéntralo en tu pestaña Siguiendo"
+  },
   "genius": {
     "comingSoon": "Próximamente",
     "description": "Quizzes diarios de táctica de pádel.\nAcumula rachas, gana logros, conviértete en un genio del pádel.",

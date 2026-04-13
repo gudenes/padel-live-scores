@@ -262,6 +262,15 @@
     "tierAdvanced": "Advanced",
     "tierPadelGenius": "Padel Genius"
   },
+  "bookmark": {
+    "matchBookmarked": "Match bookmarked",
+    "playerFollowed": "Player followed",
+    "tournamentFollowed": "Tournament followed",
+    "followingPlayer": "Following {name}",
+    "followingTournament": "Following {name}",
+    "bookmarkRemoved": "Bookmark removed",
+    "findInFollowing": "Find it in your Following tab"
+  },
   "genius": {
     "comingSoon": "Coming Soon",
     "description": "Daily padel tactics quizzes.\nBuild streaks, earn badges, become a padel genius.",

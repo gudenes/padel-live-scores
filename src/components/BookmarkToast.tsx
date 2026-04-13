@@ -1,0 +1,205 @@
+'use client'
+// src/components/BookmarkToast.tsx
+//
+// Contextual feedback toast for bookmark/follow actions.
+// Slides up from bottom with icon pop animation, auto-dismisses after 3s.
+// Listens for pn-bookmark-action DOM events fired by useFollowing.
+
+import { useState, useCallback, useEffect, type ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
+
+const GREEN = '#7ED321'
+const GOLD = '#FFD166'
+const MUTED = '#6B7280'
+const CHUNKY_CARD = 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)'
+const CHUNKY_BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
+
+export const BOOKMARK_EVENT = 'pn-bookmark-action'
+
+export interface BookmarkEventDetail {
+  type: 'match' | 'player' | 'tournament'
+  action: 'add' | 'remove'
+  name?: string // entity name for display (e.g. player name, tournament name)
+}
+
+interface ToastData {
+  id: number
+  type: 'match' | 'player' | 'tournament'
+  action: 'add' | 'remove'
+  name?: string
+  dismissing: boolean
+}
+
+// Icons per bookmark type (add action)
+function BookmarkIcon({ type }: { type: string }) {
+  if (type === 'match') {
+    return (
+      <svg width={14} height={14} viewBox="0 0 24 24" fill={GOLD} stroke={GOLD} strokeWidth="2">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    )
+  }
+  if (type === 'player') {
+    return (
+      <svg width={14} height={14} viewBox="0 0 24 24" fill={GREEN} stroke={GREEN} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+    )
+  }
+  // tournament
+  return (
+    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+  )
+}
+
+let toastCounter = 0
+
+export function BookmarkToastProvider({ children }: { children: ReactNode }) {
+  const [toasts, setToasts] = useState<ToastData[]>([])
+
+  const show = useCallback((detail: BookmarkEventDetail) => {
+    const id = ++toastCounter
+    setToasts(prev => [...prev, { ...detail, id, dismissing: false }])
+    // Start dismiss animation
+    setTimeout(() => {
+      setToasts(prev => prev.map(t => t.id === id ? { ...t, dismissing: true } : t))
+    }, 2700)
+    // Remove from DOM
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id))
+    }, 3000)
+  }, [])
+
+  useEffect(() => {
+    function handler(e: Event) {
+      const detail = (e as CustomEvent<BookmarkEventDetail>).detail
+      if (detail?.type && detail?.action) {
+        show(detail)
+      }
+    }
+    window.addEventListener(BOOKMARK_EVENT, handler)
+    return () => window.removeEventListener(BOOKMARK_EVENT, handler)
+  }, [show])
+
+  return (
+    <>
+      {children}
+      {toasts.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: 80,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9998,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+          maxWidth: 360,
+          width: '90%',
+          pointerEvents: 'none',
+        }}>
+          {toasts.map(toast => (
+            <BookmarkToastItem key={toast.id} toast={toast} />
+          ))}
+        </div>
+      )}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes bk-toast-slide {
+          0% { transform: translateY(100%); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes bk-toast-dismiss {
+          0% { transform: translateY(0); opacity: 1; }
+          100% { transform: translateY(10px); opacity: 0; }
+        }
+        @keyframes bk-icon-pop {
+          0% { transform: scale(0); }
+          60% { transform: scale(1.2); }
+          100% { transform: scale(1); }
+        }
+        @keyframes bk-text-fade {
+          0% { opacity: 0; transform: translateX(-4px); }
+          100% { opacity: 1; transform: translateX(0); }
+        }
+      `}} />
+    </>
+  )
+}
+
+function BookmarkToastItem({ toast }: { toast: ToastData }) {
+  const t = useTranslations('bookmark')
+  const isAdd = toast.action === 'add'
+  const isMatch = toast.type === 'match'
+  const borderColor = isAdd
+    ? (isMatch ? `rgba(255,209,102,0.15)` : `rgba(126,211,33,0.15)`)
+    : 'rgba(255,255,255,0.06)'
+  const iconBg = isAdd
+    ? (isMatch ? 'rgba(255,209,102,0.12)' : 'rgba(126,211,33,0.12)')
+    : 'rgba(255,255,255,0.06)'
+
+  // Title text
+  let title: string
+  if (isAdd) {
+    if (toast.type === 'match') title = t('matchBookmarked')
+    else if (toast.type === 'player') title = toast.name ? t('followingPlayer', { name: toast.name }) : t('playerFollowed')
+    else title = toast.name ? t('followingTournament', { name: toast.name }) : t('tournamentFollowed')
+  } else {
+    title = t('bookmarkRemoved')
+  }
+
+  // Hint text (only for add)
+  const hint = isAdd ? t('findInFollowing') : null
+
+  return (
+    <div style={{
+      animation: toast.dismissing
+        ? 'bk-toast-dismiss 0.3s ease-out forwards'
+        : 'bk-toast-slide 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+      pointerEvents: 'auto',
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        background: '#1A1A1A',
+        border: `1px solid ${borderColor}`,
+        clipPath: CHUNKY_CARD,
+        padding: '12px 14px',
+        boxShadow: `0 4px 20px rgba(0,0,0,0.5)`,
+      }}>
+        {/* Icon */}
+        <div style={{
+          width: 28, height: 28, flexShrink: 0,
+          clipPath: CHUNKY_BADGE,
+          background: iconBg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'bk-icon-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}>
+          {isAdd ? (
+            <BookmarkIcon type={toast.type} />
+          ) : (
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          )}
+        </div>
+        {/* Text */}
+        <div style={{
+          flex: 1, minWidth: 0,
+          animation: 'bk-text-fade 0.3s ease-out 0.1s both',
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: isAdd ? '#fff' : '#9AAEC4' }}>
+            {title}
+          </div>
+          {hint && (
+            <div style={{ fontSize: 10, color: '#6889A5', marginTop: 1 }}>
+              {hint}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
