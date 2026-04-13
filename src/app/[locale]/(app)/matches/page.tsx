@@ -253,7 +253,7 @@ function V3MatchRow({ match }: { match: Match }) {
           width: 3,
           background: genderColor,
         }} />
-        <FollowButton type="match" targetId={match.id} variant="star" size={14} style={{ position: 'absolute', top: 8, right: 8 }} />
+        {!isLive && <FollowButton type="match" targetId={match.id} variant="star" size={14} style={{ position: 'absolute', top: 8, right: 8 }} />}
 
         {/* Top row: round + court + status/time */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -1027,7 +1027,7 @@ function V3ScoresPage() {
           </div>
 
           {/* Swipe viewport */}
-          <div style={{ overflow: 'hidden', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
+          <div style={{ overflowX: 'hidden', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
             <div style={{ display: 'flex', width: '300%', ...trackStyle }}>
               {/* Live panel */}
               <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
