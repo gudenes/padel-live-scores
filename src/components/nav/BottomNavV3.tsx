@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname, Link } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useFeedLastVisit, markFeedVisited } from '@/hooks/useFeedLastVisit'
 
@@ -60,14 +61,15 @@ const LIVE_RED = '#FF4655'
 
 // ── Tabs ────────────────────────────────────────────────────────
 const TABS = [
-  { key: 'home',      label: 'Home',      href: '/home',       icon: null },
-  { key: 'scores',    label: 'Matches',   href: '/matches',    icon: ScoresIcon },
-  { key: 'following', label: 'Following', href: '/following',  icon: FollowingIcon },
-  { key: 'feed',      label: 'Feed',      href: '/feed',       icon: FeedIcon },
+  { key: 'home',      labelKey: 'home' as const,      href: '/home',       icon: null },
+  { key: 'scores',    labelKey: 'matches' as const,   href: '/matches',    icon: ScoresIcon },
+  { key: 'following', labelKey: 'following' as const, href: '/following',  icon: FollowingIcon },
+  { key: 'feed',      labelKey: 'feed' as const,      href: '/feed',       icon: FeedIcon },
 ] as const
 
 export default function BottomNavV3() {
   const pathname = usePathname()
+  const t = useTranslations('nav')
   const [liveCount, setLiveCount] = useState(0)
   const [newsCount, setNewsCount] = useState(0)
   const feedLastVisit = useFeedLastVisit()
@@ -194,7 +196,7 @@ export default function BottomNavV3() {
                   position: 'relative',
                   zIndex: 1,
                 }}>
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </span>
             </Link>
           )

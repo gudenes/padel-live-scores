@@ -3,6 +3,7 @@
 // V3 Match Detail — chunky clip-path brand language, no border-radius except circles.
 
 import { useState, useEffect, useCallback, use, useRef, useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toShortName } from '@/types/match'
@@ -119,6 +120,9 @@ function pairMatchesIds(p1Id: string | null, p2Id: string | null, targetIds: str
 export default function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const tMatch = useTranslations('matchDetail')
+  const tPred = useTranslations('prediction')
+  const tCommon = useTranslations('common')
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const [match, setMatch] = useState<Match | null>(null)
@@ -486,7 +490,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         </button>
 
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', textTransform: 'uppercase' as const }}>Match Detail</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', textTransform: 'uppercase' as const }}>{tMatch('matchDetail')}</div>
         </div>
         {isLive && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,68,85,0.15)', border: '1px solid rgba(255,68,85,0.4)', clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
@@ -557,7 +561,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           textDecoration: 'none',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', flexShrink: 0 }}>Tournament</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', flexShrink: 0 }}>{tMatch('tournament')}</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(match as any).tournament.name}</span>
           </div>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -819,13 +823,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </svg>
           <div>
             <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(126,211,33,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 2 }}>
-              Your prediction
+              {tPred('yourPrediction')}
             </div>
             <div style={{ fontSize: 13, fontWeight: 800, color: GREEN }}>
-              {prediction.pair === 1 ? pair1Label : pair2Label} win {prediction.margin}
+              {tPred('win', { pair: prediction.pair === 1 ? pair1Label : pair2Label, margin: prediction.margin })}
             </div>
             <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>
-              Predictions are locked once the match starts
+              {tPred('locked')}
             </div>
           </div>
         </div>
@@ -1014,6 +1018,7 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
   setPrediction: (p: Prediction) => void
   clearPrediction: () => void
 }) {
+  const tPred = useTranslations('prediction')
   const [selectedPair, setSelectedPair] = useState<1 | 2 | null>(prediction?.pair ?? null)
   const [pollAnimated, setPollAnimated] = useState(false)
 
@@ -1071,7 +1076,7 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
           <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
         </svg>
         <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '2px' }}>
-          Who takes it?
+          {tPred('whoTakesIt')}
         </span>
       </div>
 
@@ -1123,7 +1128,7 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
                     <span style={{ fontSize: 9, color: MUTED }}>Avg #{ranking}</span>
                   )}
                   {isSelected && (
-                    <span style={{ fontSize: 8, fontWeight: 700, color, letterSpacing: '0.5px', textTransform: 'uppercase' }}>YOUR PICK</span>
+                    <span style={{ fontSize: 8, fontWeight: 700, color, letterSpacing: '0.5px', textTransform: 'uppercase' }}>{tPred('yourPick')}</span>
                   )}
                 </button>
               )
@@ -1157,12 +1162,12 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
 
           {/* Prompt or margin selector */}
           {predStep === 'pick' && (
-            <div style={{ textAlign: 'center', fontSize: 9, color: '#4A6F8E' }}>Tap the pair you fancy</div>
+            <div style={{ textAlign: 'center', fontSize: 9, color: '#4A6F8E' }}>{tPred('tapThePair')}</div>
           )}
 
           {predStep === 'margin' && selectedPair && (
             <div>
-              <div style={{ textAlign: 'center', fontSize: 9, color: '#6889A5', fontWeight: 600, marginBottom: 8 }}>How does it end?</div>
+              <div style={{ textAlign: 'center', fontSize: 9, color: '#6889A5', fontWeight: 600, marginBottom: 8 }}>{tPred('howDoesItEnd')}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => handlePickMargin('2-0')} style={{
                   flex: 1, padding: '12px 8px', clipPath: CHUNKY.button,
@@ -1171,7 +1176,7 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                 }}>
                   <span style={{ fontSize: 18, fontWeight: 900, color: GREEN, fontFamily: 'monospace' }}>2–0</span>
-                  <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(126,211,33,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Straight sets</span>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(126,211,33,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{tPred('straightSets')}</span>
                 </button>
                 <button onClick={() => handlePickMargin('2-1')} style={{
                   flex: 1, padding: '12px 8px', clipPath: CHUNKY.button,
@@ -1180,7 +1185,7 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                 }}>
                   <span style={{ fontSize: 18, fontWeight: 900, color: ORANGE, fontFamily: 'monospace' }}>2–1</span>
-                  <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(245,166,35,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Three-set battle</span>
+                  <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(245,166,35,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{tPred('threeSetBattle')}</span>
                 </button>
               </div>
             </div>
@@ -1202,9 +1207,9 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
               <div>
-                <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(126,211,33,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 2 }}>Your prediction</div>
+                <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(126,211,33,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 2 }}>{tPred('yourPrediction')}</div>
                 <div style={{ fontSize: 13, fontWeight: 800, color: GREEN }}>
-                  {prediction.pair === 1 ? p1Short : p2Short} win {prediction.margin === '2-0' ? '2–0' : '2–1'}
+                  {tPred('win', { pair: prediction.pair === 1 ? p1Short : p2Short, margin: prediction.margin === '2-0' ? '2–0' : '2–1' })}
                 </div>
               </div>
             </div>
@@ -1213,14 +1218,14 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
               padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit',
               fontSize: 8, fontWeight: 700, color: GREEN,
             }}>
-              Change
+              {tPred('change')}
             </button>
           </div>
 
           {/* Community poll */}
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 8, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 8, textAlign: 'center' }}>
-              What others think
+              {tPred('whatOthersThink')}
             </div>
             <div style={{ position: 'relative', height: 34, overflow: 'hidden', clipPath: CHUNKY.card, background: '#1F1F1F' }}>
               <div style={{
@@ -1242,10 +1247,10 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
               </div>
             </div>
             <div style={{ fontSize: 9, color: '#4A6F8E', marginTop: 5, textAlign: 'center' }}>
-              {poll.totalVotes} fans have predicted{' '}
+              {tPred('fansHavePredicted', { count: poll.totalVotes })}{' '}
               {prediction.pair === 1
-                ? (poll.pair1Pct >= 50 ? '· You\'re with the majority' : '· Bold pick!')
-                : (pair2Pct >= 50 ? '· You\'re with the majority' : '· Bold pick!')}
+                ? (poll.pair1Pct >= 50 ? `· ${tPred('withMajority')}` : `· ${tPred('boldPick')}`)
+                : (pair2Pct >= 50 ? `· ${tPred('withMajority')}` : `· ${tPred('boldPick')}`)}
             </div>
           </div>
 
@@ -1253,11 +1258,11 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1, padding: 9, background: '#1F1F1F', textAlign: 'center', clipPath: CHUNKY.card }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: GREEN, fontFamily: 'monospace' }}>2–0</div>
-              <div style={{ fontSize: 8, color: MUTED, marginTop: 2 }}>{poll.straightPct}% predict</div>
+              <div style={{ fontSize: 8, color: MUTED, marginTop: 2 }}>{poll.straightPct}% {tPred('predict')}</div>
             </div>
             <div style={{ flex: 1, padding: 9, background: '#1F1F1F', textAlign: 'center', clipPath: CHUNKY.card }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: ORANGE, fontFamily: 'monospace' }}>2–1</div>
-              <div style={{ fontSize: 8, color: MUTED, marginTop: 2 }}>{100 - poll.straightPct}% predict</div>
+              <div style={{ fontSize: 8, color: MUTED, marginTop: 2 }}>{100 - poll.straightPct}% {tPred('predict')}</div>
             </div>
           </div>
         </>
@@ -1270,6 +1275,7 @@ function PredictionSection({ match, pair1Label, pair2Label, prediction, predStep
 function PredictionResult({ match, prediction, pair1Label, pair2Label }: {
   match: Match; prediction: Prediction; pair1Label: string; pair2Label: string
 }) {
+  const tPred = useTranslations('prediction')
   const ref = useRef<HTMLDivElement>(null)
   const p1Short = pair1Label.split(' / ').map(n => n.split(' ').pop()).join(' / ')
   const p2Short = pair2Label.split(' / ').map(n => n.split(' ').pop()).join(' / ')
@@ -1297,8 +1303,8 @@ function PredictionResult({ match, prediction, pair1Label, pair2Label }: {
   const config = {
     correct: {
       bg: 'rgba(126,211,33,0.05)', border: 'rgba(126,211,33,0.15)', color: GREEN,
-      title: 'Spot on!',
-      desc: `${winnerLabel} won ${actualMargin} — just as you called it`,
+      title: tPred('spotOn'),
+      desc: tPred('calledIt', { pair: winnerLabel, margin: actualMargin }),
       icon: (
         <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -1307,10 +1313,10 @@ function PredictionResult({ match, prediction, pair1Label, pair2Label }: {
     },
     close: {
       bg: 'rgba(245,166,35,0.04)', border: 'rgba(245,166,35,0.12)', color: ORANGE,
-      title: 'Close call',
+      title: tPred('closeCall'),
       desc: prediction.margin === '2-0'
-        ? 'You picked the right pair but it went to three sets instead of two'
-        : 'You picked the right pair but it was a straight-sets win instead',
+        ? tPred('wrongMarginThree')
+        : tPred('wrongMarginTwo'),
       icon: (
         <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
@@ -1319,8 +1325,8 @@ function PredictionResult({ match, prediction, pair1Label, pair2Label }: {
     },
     wrong: {
       bg: 'rgba(255,70,85,0.04)', border: 'rgba(255,70,85,0.12)', color: LIVE_RED,
-      title: 'Not this time',
-      desc: `You backed ${prediction.pair === 1 ? p1Short : p2Short} but ${winnerLabel} pulled through ${actualMargin}`,
+      title: tPred('notThisTime'),
+      desc: tPred('youBacked', { picked: prediction.pair === 1 ? p1Short : p2Short, winner: winnerLabel, margin: actualMargin }),
       icon: (
         <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={LIVE_RED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 20h20"/><path d="M4 20V10l4 4 4-8 4 8 4-4v10"/>
@@ -1343,7 +1349,7 @@ function PredictionResult({ match, prediction, pair1Label, pair2Label }: {
         {variant === 'close' && (
           <div style={{ marginTop: 8 }}>
             <span style={{ clipPath: CHUNKY.badge, padding: '4px 10px', background: 'rgba(245,166,35,0.08)', fontSize: 10, fontWeight: 700, color: ORANGE }}>
-              Right pair, wrong margin
+              {tPred('rightPairWrongMargin')}
             </span>
           </div>
         )}
@@ -1353,7 +1359,7 @@ function PredictionResult({ match, prediction, pair1Label, pair2Label }: {
               <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 22c4-2.5 7-6.5 7-11a7 7 0 0 0-14 0c0 4.5 3 8.5 7 11z"/><path d="M12 22c-1.5-1.5-3-4-3-7a3 3 0 0 1 6 0c0 3-1.5 5.5-3 7z"/>
               </svg>
-              Nailed it
+              {tPred('nailedIt')}
             </span>
           </div>
         )}
@@ -1367,6 +1373,8 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
   match: Match; pair1Label: string; pair2Label: string
   countdown: { h: number; m: number; s: number }; tz: string
 }) {
+  const tMatch = useTranslations('matchDetail')
+  const tCommon = useTranslations('common')
   const pad = (n: number) => String(n).padStart(2, '0')
   const tournamentName = ((match as any).tournament)?.name ?? null
   const scheduleLabel = (match as any).schedule_label as string | null
@@ -1382,17 +1390,17 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
       <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', textAlign: 'center' }}>
         {hasCountdown ? (
           <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>
-            {isApproximate ? 'Estimated start in' : 'Starts in'}
+            {isApproximate ? tMatch('estimatedStartIn') : tMatch('startsIn')}
           </div>
         ) : (
           <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>
-            {hasTime ? 'Starting soon' : 'Start time TBD'}
+            {hasTime ? tMatch('startingSoon') : tMatch('startTimeTbd')}
           </div>
         )}
         {hasCountdown ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-              {[{ n: countdown.h, l: 'HRS' }, { n: countdown.m, l: 'MIN' }, { n: countdown.s, l: 'SEC' }].map(({ n, l }, i) => (
+              {[{ n: countdown.h, l: tCommon('hrs') }, { n: countdown.m, l: tCommon('min') }, { n: countdown.s, l: tCommon('sec') }].map(({ n, l }, i) => (
                 <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {i > 0 && <span style={{ fontSize: 22, fontWeight: 900, color: BORDER, marginTop: -6 }}>:</span>}
                   <div style={{ textAlign: 'center' }}>
@@ -1404,7 +1412,7 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
             </div>
             {isApproximate && (
               <div style={{ fontSize: 9, color: '#F5A623', marginTop: 8, fontWeight: 600 }}>
-                ⚠ Time is estimated — actual start may vary
+                ⚠ {tMatch('timeEstimated')}
               </div>
             )}
           </>
@@ -1418,10 +1426,10 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
       {/* Tournament info */}
       <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}` }}>
         {[
-          tournamentName && { key: 'Tournament', val: tournamentName },
-          match.round && { key: 'Round', val: match.round },
-          match.court && { key: 'Court', val: match.court },
-          { key: 'Timezone', val: tz.replace(/_/g, ' ') },
+          tournamentName && { key: tMatch('tournament'), val: tournamentName },
+          match.round && { key: tMatch('round'), val: match.round },
+          match.court && { key: tMatch('court'), val: match.court },
+          { key: tMatch('timezone'), val: tz.replace(/_/g, ' ') },
         ].filter(Boolean).map((row: any) => (
           <div key={row.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', borderBottom: `0.5px solid ${BORDER}` }}>
             <span style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>{row.key}</span>

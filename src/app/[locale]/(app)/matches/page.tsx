@@ -4,6 +4,7 @@
 // Chunky clip-path brand language, no border-radius anywhere.
 
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
+import { useTranslations } from 'next-intl'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
@@ -628,6 +629,7 @@ const KEYFRAMES = `
 // ── Empty state helper ────────────────────────────────────────
 
 function EmptyState({ tab, leagueFilter }: { tab: 'live' | 'upcoming' | 'results'; leagueFilter: string }) {
+  const t = useTranslations('matches')
   return (
     <div style={{
       clipPath: CHUNKY.card,
@@ -638,11 +640,11 @@ function EmptyState({ tab, leagueFilter }: { tab: 'live' | 'upcoming' | 'results
     }}>
       <div style={{ fontSize: 32, marginBottom: 10 }}>&#127934;</div>
       <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
-        {tab === 'live' ? 'No live matches right now' : tab === 'upcoming' ? 'No upcoming matches' : 'No recent results'}
+        {tab === 'live' ? t('noLive') : tab === 'upcoming' ? t('noUpcoming') : t('noResults')}
       </div>
       <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.5 }}>
         {leagueFilter !== 'all'
-          ? `Try switching the league filter to see ${leagueFilter === 'premier' ? 'FIP Tour' : 'Premier Padel'} or All matches.`
+          ? t('filterHint', { league: leagueFilter === 'premier' ? 'FIP Tour' : 'Premier Padel' })
           : tab === 'live' ? 'Check back during tournament days'
           : tab === 'upcoming' ? 'Schedules will appear closer to match day'
           : 'Results will appear after matches finish'}
@@ -662,6 +664,7 @@ export default function V3ScoresPageWrapper() {
 }
 
 function V3ScoresPage() {
+  const t = useTranslations('matches')
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -873,9 +876,9 @@ function V3ScoresPage() {
   const liveCount = gf(lf(liveMatches)).filter(m => !isWarmingUp(m)).length
 
   const tabs: { key: typeof tab; label: string; isLive?: boolean }[] = [
-    { key: 'live', label: 'Live', isLive: true },
-    { key: 'upcoming', label: 'Upcoming' },
-    { key: 'results', label: 'Results' },
+    { key: 'live', label: t('live'), isLive: true },
+    { key: 'upcoming', label: t('upcoming') },
+    { key: 'results', label: t('results') },
   ]
 
   return (
@@ -1064,7 +1067,7 @@ function V3ScoresPage() {
                       fontFamily: 'inherit',
                     }}
                   >
-                    View previous seasons
+                    {t('viewPreviousSeasons')}
                   </Link>
                 </div>
               </div>

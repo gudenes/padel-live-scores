@@ -3,6 +3,7 @@
 // V3 Rankings — FIP Official & Race rankings with chunky brand styling.
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
@@ -221,6 +222,7 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
 // ── Main page ─────────────────────────────────────────────────
 
 export default function V3RankingPage() {
+  const t = useTranslations('rankings')
   const router = useRouter()
   const [rankType, setRankType] = useState<RankType>('official')
   const [gender, setGender] = useState<Gender>('men')
@@ -356,7 +358,7 @@ export default function V3RankingPage() {
         </button>
 
         <h1 style={{ fontSize: 17, fontWeight: 800, color: '#E2E8F0', margin: 0, letterSpacing: '-0.01em' }}>
-          Rankings
+          {t('rankings')}
         </h1>
 
         <button
@@ -447,7 +449,7 @@ export default function V3RankingPage() {
                     transition: 'all 0.2s',
                   }}
                 >
-                  {g === 'men' ? 'Men' : 'Women'}
+                  {g === 'men' ? t('men') : t('women')}
                 </button>
               )
             })}
@@ -483,7 +485,7 @@ export default function V3RankingPage() {
                 transition: 'all 0.2s',
               }}
             >
-              {rt === 'official' ? 'Official' : 'Race'}
+              {rt === 'official' ? t('official') : t('race')}
             </button>
           )
         })}
@@ -498,10 +500,10 @@ export default function V3RankingPage() {
         padding: '8px 16px', gap: 12,
         borderBottom: `1px solid ${BORDER}`,
       }}>
-        <span style={{ width: 36, textAlign: 'right', fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Rank</span>
+        <span style={{ width: 36, textAlign: 'right', fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('rank')}</span>
         <span style={{ width: 40, flexShrink: 0 }} />
-        <span style={{ flex: 1, fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Player</span>
-        <span style={{ fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Points</span>
+        <span style={{ flex: 1, fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('player')}</span>
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('points')}</span>
       </div>
 
       {/* ── Player list ───────────────────────────────────── */}
@@ -514,7 +516,7 @@ export default function V3RankingPage() {
             borderRadius: '50%',
             animation: 'v3-rank-spin 0.8s linear infinite',
           }} />
-          <div style={{ color: MUTED, fontSize: 13, fontWeight: 600 }}>Loading rankings...</div>
+          <div style={{ color: MUTED, fontSize: 13, fontWeight: 600 }}>{t('loadingRankings')}</div>
           <style dangerouslySetInnerHTML={{ __html: `@keyframes v3-rank-spin { to { transform: rotate(360deg); } }` }} />
         </div>
       ) : filtered.length === 0 ? (
@@ -529,7 +531,7 @@ export default function V3RankingPage() {
             <span style={{ fontSize: 28 }}>{query ? '\uD83D\uDD0D' : '\uD83C\uDFC6'}</span>
           </div>
           <p style={{ color: '#E2E8F0', fontWeight: 700, fontSize: 15, margin: '0 0 6px' }}>
-            {query ? `No results for "${query}"` : rankType === 'race' ? 'No race rankings yet' : 'No rankings yet'}
+            {query ? t('noResults', { query }) : rankType === 'race' ? t('noRaceRankings') : t('noRankings')}
           </p>
           {!query && rankType === 'race' && (
             <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>

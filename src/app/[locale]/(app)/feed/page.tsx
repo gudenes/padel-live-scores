@@ -3,6 +3,7 @@
 // V3 Feed — videos + news with chunky brand styling, no border-radius.
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useHiddenFeedItems } from '@/hooks/useHiddenFeedItems'
 import { useFeedPreferences } from '@/hooks/useFeedPreferences'
@@ -616,6 +617,8 @@ export default function V3FeedPageWrapper() {
 }
 
 function V3FeedPage() {
+  const tFeed = useTranslations('feed')
+  const tCommon = useTranslations('common')
   const { user } = useAuth()
   const [playing, setPlayingRaw] = useState<Highlight | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
@@ -866,7 +869,7 @@ function V3FeedPage() {
               textTransform: 'uppercase', letterSpacing: 0.3,
             }}
           >
-            All
+            {tCommon('all')}
           </button>
           <button
             onClick={() => setShowSaved(true)}
@@ -879,7 +882,7 @@ function V3FeedPage() {
               textTransform: 'uppercase', letterSpacing: 0.3,
             }}
           >
-            Saved ({savedCount})
+            {tFeed('saved')} ({savedCount})
           </button>
         </div>
       )}

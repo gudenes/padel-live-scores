@@ -3,6 +3,7 @@
 // User profile — v3 brand styling with chunky clip-path shapes.
 
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRouter, Link } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
@@ -56,6 +57,7 @@ interface BookmarkedPlayer {
 }
 
 export default function ProfilePage() {
+  const t = useTranslations('profile')
   const { user, profile, loading: authLoading, retryKey, signOut } = useAuth()
   const router = useRouter()
   const { enabled, supported, permission, toggle: togglePush } = usePushNotifications()
@@ -189,7 +191,7 @@ export default function ProfilePage() {
   // Recover from tab-idle Supabase auth lock deadlock
   useWakeRefresh(fetchBookmarks)
 
-  if (authLoading || !user) return <BrandedLoader hints={['Loading your profile...', 'Almost ready...']} />
+  if (authLoading || !user) return <BrandedLoader hints={[t('loading'), 'Almost ready...']} />
 
   const handleSignOut = async () => {
     await signOut()
@@ -226,7 +228,7 @@ export default function ProfilePage() {
           </svg>
         </button>
         <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600 }}>
-          Profile
+          {t('profile')}
         </div>
         <div style={{ width: 36 }} />
       </div>
@@ -369,7 +371,7 @@ export default function ProfilePage() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                Achievements
+                {t('achievements')}
               </div>
               <div style={{ fontSize: 11, color: V3.MUTED, marginTop: 2 }}>
                 {badgesLoading ? 'Loading\u2026' : (() => {
@@ -561,7 +563,7 @@ export default function ProfilePage() {
             clipPath: V3.clip.button,
           }}
         >
-          Sign Out
+          {t('signOut')}
         </button>
       </div>
     </div>

@@ -5,6 +5,7 @@
 // Hides on scroll down, shows on scroll up.
 
 import { useState, useEffect, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import ProfileButton from '@/components/ProfileButton'
 import { useInvite } from '@/hooks/useInvite'
 import { useAuth } from '@/components/AuthProvider'
@@ -13,8 +14,8 @@ const CHUNKY = {
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
-const SEARCH_HINTS = [
-  'Search players, events, matches...',
+// First hint is translated; the rest are example queries that stay as-is
+const STATIC_HINTS = [
   'Try "Arturo Coello"',
   'Try "Miami P1"',
   'Try "Live matches"',
@@ -22,6 +23,7 @@ const SEARCH_HINTS = [
 ]
 
 export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void }) {
+  const t = useTranslations('common')
   const { user } = useAuth()
   const { shareNow } = useInvite()
 
@@ -31,18 +33,19 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
   useEffect(() => { setMounted(true) }, [])
 
   // Rotating search hints
+  const searchHints = [t('search'), ...STATIC_HINTS]
   const [hintIdx, setHintIdx] = useState(0)
   const [hintFading, setHintFading] = useState(false)
   useEffect(() => {
     const interval = setInterval(() => {
       setHintFading(true)
       setTimeout(() => {
-        setHintIdx(i => (i + 1) % SEARCH_HINTS.length)
+        setHintIdx(i => (i + 1) % searchHints.length)
         setHintFading(false)
       }, 300)
     }, 3000)
     return () => clearInterval(interval)
-  }, [])
+  }, [searchHints.length])
 
   // Hide on scroll down, show on scroll up
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -113,7 +116,7 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
           transform: hintFading ? 'translateY(-4px)' : 'translateY(0)',
           transition: 'opacity 0.3s, transform 0.3s',
         }}>
-          {SEARCH_HINTS[hintIdx]}
+          {searchHints[hintIdx]}
         </span>
       </div>
 
