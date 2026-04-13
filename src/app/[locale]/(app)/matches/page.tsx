@@ -1027,10 +1027,10 @@ function V3ScoresPage() {
           </div>
 
           {/* Swipe viewport */}
-          <div style={{ overflowX: 'hidden', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
-            <div style={{ display: 'flex', width: '300%', ...trackStyle }}>
+          <div style={{ overflow: 'clip', overflowY: 'visible', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
+            <div style={{ display: 'flex', width: '300%', alignItems: 'stretch', ...trackStyle }}>
               {/* Live panel */}
-              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+              <div style={{ width: '33.333%', flexShrink: 0 }}>
                 <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
                   {liveGrouped.length > 0 ? liveGrouped.map((group, idx) => (
                     <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={true} tab="live" />
@@ -1040,7 +1040,7 @@ function V3ScoresPage() {
                 </div>
               </div>
               {/* Upcoming panel */}
-              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+              <div style={{ width: '33.333%', flexShrink: 0 }}>
                 <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
                   {upcomingGrouped.length > 0 ? upcomingGrouped.map((group, idx) => (
                     <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={true} tab="upcoming" />
@@ -1050,7 +1050,7 @@ function V3ScoresPage() {
                 </div>
               </div>
               {/* Results panel */}
-              <div style={{ width: '33.333%', flexShrink: 0, minHeight: 200 }}>
+              <div style={{ width: '33.333%', flexShrink: 0 }}>
                 <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
                   {resultsGrouped.length > 0 ? resultsGrouped.map((group, idx) => (
                     <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={idx === 0} tab="results" />
