@@ -14,6 +14,7 @@ const LOCALE_FLAGS: Record<string, { code: string; label: string }> = {
   es: { code: 'es', label: 'Español' },
   pt: { code: 'br', label: 'Português' },
   it: { code: 'it', label: 'Italiano' },
+  fr: { code: 'fr', label: 'Français' },
 }
 
 interface LocaleSwitcherProps {
