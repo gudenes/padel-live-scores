@@ -66,8 +66,10 @@ export function useInvite(): UseInviteResult {
     return () => {}
   }, [user, authLoading])
 
-  const inviteUrl = code && typeof window !== 'undefined'
-    ? `${window.location.origin}/home?ref=${code}`
+  const inviteUrl = typeof window !== 'undefined'
+    ? code
+      ? `${window.location.origin}/home?ref=${code}`
+      : window.location.origin
     : null
 
   const tier = tierForCount(inviteCount)

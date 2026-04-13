@@ -10,6 +10,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
 import LoginSheet from '@/components/LoginSheet'
+import { useTranslations } from 'next-intl'
 
 const FEATURE_KEY = 'padel_genius'
 
@@ -25,6 +26,7 @@ const CHUNKY = {
 
 export default function PadelGeniusTeaser() {
   const { user, loading: authLoading } = useAuth()
+  const t = useTranslations('genius')
 
   const [optedIn, setOptedIn] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -87,12 +89,12 @@ export default function PadelGeniusTeaser() {
   }, [submitting, user, optedIn])
 
   const buttonLabel = !user
-    ? 'Sign in to get notified'
+    ? t('signInToGetNotified')
     : optedIn
-      ? "✓ You'll be notified"
+      ? `✓ ${t('youllBeNotified')}`
       : submitting
-        ? 'Saving…'
-        : 'Notify Me →'
+        ? t('saving')
+        : `${t('notifyMe')} →`
 
   const buttonDisabled = !!user && (optedIn === true || submitting || optedIn === null)
 
@@ -147,15 +149,15 @@ export default function PadelGeniusTeaser() {
         textTransform: 'uppercase', letterSpacing: 1.5,
         marginBottom: 12, position: 'relative',
       }}>
-        Coming Soon
+        {t('comingSoon')}
       </div>
 
       <div style={{
         fontSize: 12, color: MUTED, marginBottom: 18,
         lineHeight: 1.5, maxWidth: 280, margin: '0 auto 18px', position: 'relative',
+        whiteSpace: 'pre-line',
       }}>
-        Daily padel tactics quizzes.<br />
-        Build streaks, earn badges, become a padel genius.
+        {t('description')}
       </div>
 
       <button

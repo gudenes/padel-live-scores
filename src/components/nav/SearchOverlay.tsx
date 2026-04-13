@@ -5,8 +5,9 @@
 // recent searches in localStorage, popular section.
 
 import { useEffect, useState, useRef } from 'react'
+import { useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 
 // ── Brand constants ───────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -25,11 +26,11 @@ const CLIP = {
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function formatDateRange(start: string, end: string): string {
+function formatDateRange(format: ReturnType<typeof useFormatter>, start: string, end: string): string {
   const s = new Date(start), e = new Date(end)
-  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
-  if (s.getMonth() === e.getMonth()) return `${s.toLocaleDateString('en-US', opts)}–${e.getDate()}`
-  return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', opts)}`
+  const opts = { month: 'short', day: 'numeric' } as const
+  if (s.getMonth() === e.getMonth()) return `${format.dateTime(s, opts)}–${e.getDate()}`
+  return `${format.dateTime(s, opts)} – ${format.dateTime(e, opts)}`
 }
 
 function levelLabel(level: string | null): string {
@@ -98,6 +99,7 @@ const TYPE_META: Record<string, { label: string; letter: string; bg: string; fg:
 // ── Component ─────────────────────────────────────────────────
 
 export default function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const format = useFormatter()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [popular, setPopular] = useState<SearchResult[]>([])
@@ -155,7 +157,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         })
       }
       for (const t of (tournamentsRes.data ?? []) as any[]) {
-        const dateStr = t.starts_at && t.ends_at ? ` · ${formatDateRange(t.starts_at, t.ends_at)}` : ''
+        const dateStr = t.starts_at && t.ends_at ? ` · ${formatDateRange(format, t.starts_at, t.ends_at)}` : ''
         items.push({
           type: 'tournament', id: t.id,
           title: t.name,
@@ -237,7 +239,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         })
       }
       for (const t of (tournamentsRes.data ?? []) as any[]) {
-        const dateStr = t.starts_at && t.ends_at ? ` · ${formatDateRange(t.starts_at, t.ends_at)}` : ''
+        const dateStr = t.starts_at && t.ends_at ? ` · ${formatDateRange(format, t.starts_at, t.ends_at)}` : ''
         items.push({
           type: 'tournament', id: t.id,
           title: t.name,

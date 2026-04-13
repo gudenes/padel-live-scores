@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase, siteUrl } from '@/lib/supabase'
+import LocaleSwitcher from '@/components/LocaleSwitcher'
 
 // ── V3 Brand constants ────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -101,6 +102,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           padding: '32px 20px 100px',
           borderTop: `2px solid ${GREEN}`,
           animation: 'loginSlideUp 0.3s ease-out',
+          position: 'relative',
         }}
       >
         {/* Drag handle */}
@@ -108,6 +110,11 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           width: 36, height: 4, background: 'rgba(255,255,255,0.12)',
           borderRadius: 2, margin: '0 auto 24px',
         }} />
+
+        {/* Language switcher — top right, below clip area */}
+        <div style={{ position: 'absolute', top: 32, right: 20, zIndex: 2 }}>
+          <LocaleSwitcher size={28} />
+        </div>
 
         {/* Pending referral invite — shown when user arrived via ref link */}
         {pendingRef && (
@@ -246,6 +253,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
             )}
           </>
         )}
+
       </div>
 
       <style>{`

@@ -8,7 +8,7 @@
 // Extracted from src/app/(app)/tournaments/[id]/page.tsx — preserved verbatim
 // so existing call sites render identically.
 
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { Match, pairName, parseSetScore } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────

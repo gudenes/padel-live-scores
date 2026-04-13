@@ -5,7 +5,7 @@
 // Mobile-first: horizontal scroll, compact team cards, connecting lines.
 
 import { useMemo } from 'react'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { Match, countryFlag, toShortName } from '@/types/match'
 
 // ── Brand constants ─────────────────────────────────────────────

@@ -6,6 +6,7 @@
 //   follow — players/tournaments (text button)
 
 import React from 'react'
+import { useTranslations } from 'next-intl'
 import { useFollowing, FollowType } from '@/hooks/useFollowing'
 
 // ── Brand colors ────────────────────────────────────────────────
@@ -71,6 +72,7 @@ export default function FollowButton({
   style,
 }: FollowButtonProps) {
   const { isFollowing, toggle } = useFollowing()
+  const t = useTranslations('followButton')
   const active = isFollowing(type, targetId)
 
   function handleClick(e: React.MouseEvent) {
@@ -82,8 +84,8 @@ export default function FollowButton({
   // ── star / heart icon-only buttons ───────────────────────────
   if (variant === 'star' || variant === 'heart') {
     const label = variant === 'star'
-      ? active ? 'Remove bookmark' : 'Bookmark match'
-      : active ? 'Unfollow player' : 'Follow player'
+      ? active ? t('removeBookmark') : t('bookmarkMatch')
+      : active ? t('unfollowPlayer') : t('followPlayer')
 
     return (
       <button
@@ -110,7 +112,7 @@ export default function FollowButton({
   }
 
   // ── follow text button ────────────────────────────────────────
-  const label = active ? 'Unfollow' : 'Follow'
+  const label = active ? t('following') : t('follow')
 
   return (
     <button
@@ -141,7 +143,7 @@ export default function FollowButton({
             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="2 6 5 9 10 3" />
           </svg>
-          Following
+          {t('following')}
         </>
       ) : (
         <>
@@ -150,7 +152,7 @@ export default function FollowButton({
             <line x1="6" y1="2" x2="6" y2="10" />
             <line x1="2" y1="6" x2="10" y2="6" />
           </svg>
-          Follow
+          {t('follow')}
         </>
       )}
     </button>

@@ -5,7 +5,7 @@
 // Used on the home page for finished/recent matches.
 // Live variant: date column replaced by pulsing LIVE indicator.
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useRef, useEffect, useState } from 'react'
 import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarmingUp } from '@/types/match'
 

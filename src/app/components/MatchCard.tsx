@@ -14,7 +14,7 @@ function getTimezoneOffset(tz: string, date: Date): number {
 
 // src/app/components/MatchCard.tsx
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useRef, useEffect, useState } from 'react'
 import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarmingUp } from '@/types/match'
 

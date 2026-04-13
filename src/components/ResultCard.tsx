@@ -10,7 +10,8 @@
 // Extracted from src/app/(app)/home/page.tsx — preserved verbatim so
 // the home page renders identically after the extraction.
 
-import Link from 'next/link'
+import { useFormatter } from 'next-intl'
+import { Link } from '@/i18n/navigation'
 import { Match, pairName, parseSetScore } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -44,6 +45,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
 // ── ResultCard ─────────────────────────────────────────────────
 
 export function ResultCard({ match }: { match: Match }) {
+  const format = useFormatter()
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
@@ -105,7 +107,7 @@ export function ResultCard({ match }: { match: Match }) {
               clipPath: CHUNKY.badge,
               background: 'rgba(255,255,255,0.06)', color: MUTED,
             }}>
-              {new Date(match.finished_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {format.dateTime(new Date(match.finished_at), { month: 'short', day: 'numeric' })}
             </span>
           )}
         </div>

@@ -6,7 +6,7 @@
 // visit to /achievements.
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import LoginSheet from '@/components/LoginSheet'
 import { supabase } from '@/lib/supabase'

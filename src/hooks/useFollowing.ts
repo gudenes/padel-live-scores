@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { checkBadgeInline } from '@/lib/badge-check-inline'
+import { BOOKMARK_EVENT, type BookmarkEventDetail } from '@/components/BookmarkToast'
 
 export type FollowType = 'match' | 'player' | 'tournament' | 'news_source'
 
@@ -157,6 +158,16 @@ export function useFollowing() {
 
         return next
       })
+
+      // Fire bookmark feedback toast (skip news_source — not a user-facing bookmark)
+      if (type !== 'news_source' && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(BOOKMARK_EVENT, {
+          detail: {
+            type,
+            action: isCurrently ? 'remove' : 'add',
+          } satisfies BookmarkEventDetail,
+        }))
+      }
 
       // Persist to Supabase for authenticated users (non-news_source types only)
       if (user && type !== 'news_source') {
