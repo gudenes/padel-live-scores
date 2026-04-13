@@ -163,7 +163,15 @@
     "entryList": "Lista de Inscrições",
     "whereToWatch": "Onde Assistir",
     "previousEdition": "Edição Anterior",
-    "seeds": "Cabeças de Chave"
+    "seeds": "Cabeças de Chave",
+    "liveNow": "Ao vivo",
+    "nextUp": "Próximo",
+    "viewEventDetails": "Ver detalhes do evento",
+    "menChampion": "Campeão masculino {year}",
+    "womenChampion": "Campeã feminina {year}",
+    "pairsLabel": "Duplas",
+    "countriesLabel": "Países",
+    "matchesLabel": "Partidas"
   },
   "following": {
     "followPlayersAndTournaments": "Siga jogadores e torneios",
