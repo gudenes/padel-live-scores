@@ -215,7 +215,9 @@
     "drive": "Drive",
     "backhand": "Backhand",
     "hometown": "Hometown",
-    "playerNotFound": "Player not found"
+    "playerNotFound": "Player not found",
+    "playsWith": "Plays with",
+    "learnMore": "Learn more"
   },
   "followButton": {
     "follow": "Follow",

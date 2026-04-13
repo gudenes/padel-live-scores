@@ -215,7 +215,9 @@
     "drive": "Drive",
     "backhand": "Rovescio",
     "hometown": "Città natale",
-    "playerNotFound": "Giocatore non trovato"
+    "playerNotFound": "Giocatore non trovato",
+    "playsWith": "Gioca con",
+    "learnMore": "Scopri di più"
   },
   "followButton": {
     "follow": "Segui",
