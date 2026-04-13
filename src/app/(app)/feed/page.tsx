@@ -15,6 +15,7 @@ import SearchOverlay from '@/components/nav/SearchOverlay'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
+import { checkBadgeInline } from '@/lib/badge-check-inline'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -635,7 +636,10 @@ function V3FeedPage() {
 
   const handleArticleClick = useCallback((id: string) => {
     trackClick(id)
-    if (user) void logActivity(user.id, 'article_click', id)
+    if (user) {
+      void logActivity(user.id, 'article_click', id)
+      void checkBadgeInline(user.id, 'read_articles')
+    }
     setVisitedArticles(prev => { const s = new Set(prev); s.add(id); return s })
     const article = news.find(a => a.id === id)
     if (article) trackArticlePref(article.language, article.category)

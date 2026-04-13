@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
+import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -223,6 +224,16 @@ export default function V3RankingPage() {
   const router = useRouter()
   const [rankType, setRankType] = useState<RankType>('official')
   const [gender, setGender] = useState<Gender>('men')
+
+  // Swipe between Official / Race tabs
+  const RANK_KEYS = useMemo(() => ['official', 'race'] as const, [])
+  const rankIndex = RANK_KEYS.indexOf(rankType)
+  const { goTo: swipeGoTo, handlers: swipeHandlers } = useSwipeTabs({
+    count: 2,
+    initial: rankIndex,
+    onTabChange: (idx) => { setRankType(RANK_KEYS[idx]); setQuery(''); setVisibleCount(50) },
+  })
+  useEffect(() => { swipeGoTo(RANK_KEYS.indexOf(rankType)) }, [rankType, swipeGoTo, RANK_KEYS])
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
@@ -461,7 +472,7 @@ export default function V3RankingPage() {
           return (
             <button
               key={rt}
-              onClick={() => { setRankType(rt); setQuery(''); setVisibleCount(50) }}
+              onClick={() => { setRankType(rt); setQuery(''); setVisibleCount(50); swipeGoTo(RANK_KEYS.indexOf(rt)) }}
               style={{
                 flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer',
                 fontWeight: 800, fontSize: 13, letterSpacing: '0.04em',
@@ -477,6 +488,9 @@ export default function V3RankingPage() {
           )
         })}
       </div>
+
+      {/* ── Swipeable content area (Official ↔ Race) ────── */}
+      <div {...swipeHandlers}>
 
       {/* ── Column labels ─────────────────────────────────── */}
       <div style={{
@@ -556,6 +570,7 @@ export default function V3RankingPage() {
           )}
         </>
       )}
+      </div>{/* end swipeable content area */}
     </div>
   )
 }
