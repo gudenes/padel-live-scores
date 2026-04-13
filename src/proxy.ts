@@ -1,15 +1,21 @@
 // src/proxy.ts
 // Next.js 16 proxy (formerly middleware.ts)
-// Handles redirects, auth, geo-country cookies, and invite ref capture.
+// Composes pre-i18n auth/redirect logic with next-intl locale routing,
+// then decorates the response with geo-country and invite ref cookies.
 
+import createMiddleware from 'next-intl/middleware'
+import { routing } from './i18n/routing'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function proxy(request: NextRequest) {
+const handleI18nRouting = createMiddleware(routing)
+
+export default async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
 
-  // ── Auth param rescue — if Supabase redirects to wrong page with auth params, forward to callback ──
-  // Supabase verify endpoint redirects with ?code=<auth_code> (36+ char random string)
+  // ── Pre-i18n: short-circuit routes ─────────────────────────────
+
+  // 1. Auth param rescue — if Supabase redirects to wrong page with auth params, forward to callback
   const code = searchParams.get('code')
   const hasAuthCode = code && code.length >= 20 && !/^[0-9]{1,10}$/.test(code)
   const hasTokenHash = searchParams.has('token_hash')
@@ -19,12 +25,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(callbackUrl)
   }
 
-  // ── Root → Home redirect ────────────────────────────────────
-  if (pathname === '/') {
-    return NextResponse.redirect(new URL('/home', request.url), 308)
-  }
-
-  // ── Legacy /v3/* redirects ─────────────────────────────────
+  // 2. Legacy /v3/* redirects
   if (pathname === '/v3' || pathname === '/v3/') {
     return NextResponse.redirect(new URL('/home', request.url), 308)
   }
@@ -47,7 +48,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(pathname.replace('/v3/tournaments', '/tournaments'), request.url), 308)
   }
 
-  // ── Ops dashboard auth ──────────────────────────────────────
+  // 3. Ops dashboard auth
   if (pathname.startsWith('/ops')) {
     const cronSecret = process.env.CRON_SECRET
     if (!cronSecret) {
@@ -79,18 +80,17 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ── Admin routes — auth checked client-side and in API routes ──
+  // 4. Admin routes — auth checked client-side and in API routes
   if (pathname.startsWith('/admin')) {
     return NextResponse.next()
   }
 
-  // ── Invite ref code capture ────────────────────────────────
-  // Capture ?ref=XXXXXX into a cookie so we can claim it on signup.
-  // Only accept codes matching the 6-char base36 format.
-  const ref = request.nextUrl.searchParams.get('ref')
+  // ── Run next-intl locale routing ───────────────────────────────
+  const response = handleI18nRouting(request)
 
-  // ── Geo-country cookie (existing) ───────────────────────────
-  const response = NextResponse.next()
+  // ── Post-i18n: decorate response with cookies ──────────────────
+
+  // Geo-country cookie
   const country = request.headers.get('x-vercel-ip-country') ?? ''
   if (country) {
     response.cookies.set('geo-country', country, {
@@ -101,7 +101,8 @@ export function proxy(request: NextRequest) {
     })
   }
 
-  // Set ref code cookie if valid
+  // Invite ref code capture — ?ref=XXXXXX into a cookie for signup attribution
+  const ref = searchParams.get('ref')
   if (ref && /^[A-Z0-9]{6}$/.test(ref)) {
     response.cookies.set('pn_invite_ref', ref, {
       maxAge: 60 * 60 * 24 * 30, // 30 days
@@ -120,7 +121,8 @@ export const config = {
      * - _next/static, _next/image (static files)
      * - favicon.ico, manifest.json, icons, sw.js (public assets)
      * - api routes (handled separately)
+     * - _vercel (Vercel internals)
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|icons/|sw\\.js|api/).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|icons/|sw\\.js|api/|_vercel).*)',
   ],
 }
