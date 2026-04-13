@@ -147,10 +147,16 @@ function V3MatchRow({ match }: { match: Match }) {
   const currentSet = sets.find(s => s.is_current)
   const currentGame = currentSet?.games?.find(g => g.is_current)
   // game_score can be "0-0", "15:30", "30-15", etc. — normalise separator
+  // Filter out game_scores that are just running game counts (e.g. "1-1", "2-1")
+  // Real point scores use padel/tennis values: 0, 15, 30, 40, AD
+  const VALID_POINTS = new Set(['0', '15', '30', '40', 'AD', 'ad', 'A'])
   const rawGameScore = currentGame?.game_score ?? ''
   const gamePointsParts = rawGameScore.split(/[:\-]/)
-  const p1GamePts = gamePointsParts[0] ?? ''
-  const p2GamePts = gamePointsParts[1] ?? ''
+  const rawP1 = gamePointsParts[0] ?? ''
+  const rawP2 = gamePointsParts[1] ?? ''
+  const isRealPointScore = VALID_POINTS.has(rawP1) && VALID_POINTS.has(rawP2)
+  const p1GamePts = isRealPointScore ? rawP1 : ''
+  const p2GamePts = isRealPointScore ? rawP2 : ''
   const isLive = match.status === 'live'
   const isFinished = ['finished', 'retired', 'walkover'].includes(match.status)
   const isLingering = isFinished && _finishedAt.has(match.id)
