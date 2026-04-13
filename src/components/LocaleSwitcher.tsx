@@ -90,13 +90,13 @@ export default function LocaleSwitcher({ size = 28 }: LocaleSwitcherProps) {
       {open && (
         <div style={{
           position: 'absolute',
-          top: size + 6,
+          bottom: size + 6,
           right: 0,
           background: '#1A1A1A',
           border: '1px solid rgba(255,255,255,0.10)',
           borderRadius: 12,
           padding: 4,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.6)',
           zIndex: 200,
           display: 'flex',
           flexDirection: 'column',
@@ -163,7 +163,7 @@ export default function LocaleSwitcher({ size = 28 }: LocaleSwitcherProps) {
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes locale-dropdown-in {
-          0% { opacity: 0; transform: scale(0.9) translateY(-4px); }
+          0% { opacity: 0; transform: scale(0.9) translateY(4px); }
           100% { opacity: 1; transform: scale(1) translateY(0); }
         }
       `}} />
