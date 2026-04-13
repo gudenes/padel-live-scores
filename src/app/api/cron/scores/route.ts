@@ -536,6 +536,20 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
     .eq('external_id', externalId)
     .single()
 
+  // Guard: don't regress a match that's already finished/ended in our DB
+  // The live API feed can lag behind — it may still list a match as 'live' after
+  // it's been transitioned to 'finished' by reconciliation or the detail endpoint.
+  if (existing && ['finished', 'retired', 'walkover'].includes(existing.status)) {
+    console.log(`[Score Agent] Skip ${externalId}: already ${existing.status} in DB, live feed is stale`)
+    return
+  }
+  // Don't regress 'ended' back to 'live' — ended means relay detected finish,
+  // reconciliation will handle the final transition
+  if (existing?.status === 'ended' && liveState.status === 'live') {
+    console.log(`[Score Agent] Skip ${externalId}: DB has 'ended', live feed still shows 'live' (stale)`)
+    return
+  }
+
   // Only fetch detail for brand new matches (row doesn't exist yet)
   // For existing matches, tournament sync backfills players/metadata — skip detail to save rate limits
   // GET /api/matches/{id} costs 1 extra API call per match — too expensive for every 2-min cron
