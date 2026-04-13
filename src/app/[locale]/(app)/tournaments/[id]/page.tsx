@@ -4,7 +4,7 @@
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
-import { useFormatter } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
@@ -120,6 +120,7 @@ export default function TournamentDetailWrapper({ params }: { params: Promise<{ 
 
 function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const format = useFormatter()
+  const tTournament = useTranslations('tournament')
   const searchParams = useSearchParams()
   const paramRound = searchParams.get('round')
   const paramTab = searchParams.get('tab')
@@ -763,7 +764,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                     textTransform: 'uppercase',
                   }}
                 >
-                  {tab}
+                  {tTournament(tab)}
                   {active && (
                     <span style={{
                       position: 'absolute', bottom: -1, left: '15%', right: '15%',
@@ -909,8 +910,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
                   <div style={{ textAlign: 'center', paddingTop: 80 }}>
                     <div style={{ fontSize: 36, marginBottom: 12 }}>&#127934;</div>
-                    <p style={{ color: MUTED, fontWeight: 700, fontSize: 14, margin: 0 }}>No matches for this stage</p>
-                    <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, marginTop: 6 }}>Try selecting a different round</p>
+                    <p style={{ color: MUTED, fontWeight: 700, fontSize: 14, margin: 0 }}>{tTournament('noMatchesForStage')}</p>
+                    <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, marginTop: 6 }}>{tTournament('tryDifferentRound')}</p>
                   </div>
                 )}
               </>
@@ -1251,6 +1252,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   debutStatusMap: Record<string, 'fresh' | 'newThisSeason' | null>
 }) {
   const format = useFormatter()
+  const tTournament = useTranslations('tournament')
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const totalMatches = genderMatches.length
 
@@ -1498,7 +1500,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              {isLive ? 'Tournament In Progress' : isUpcoming ? 'Main Draw Starts' : 'Tournament Ended'}
+              {isLive ? tTournament('tournamentInProgress') : isUpcoming ? tTournament('mainDrawStarts') : tTournament('tournamentEnded')}
             </div>
             <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
               {formatDate(startsAt)}{endsAt ? ` — ${formatDate(endsAt)}` : ''}
@@ -1509,7 +1511,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
               fontSize: 13, fontWeight: 800,
               color: daysUntilStart <= 2 ? '#FF4655' : daysUntilStart <= 7 ? '#F5A623' : GREEN,
             }}>
-              {daysUntilStart === 1 ? 'Tomorrow' : `${daysUntilStart} days`}
+              {daysUntilStart === 1 ? tTournament('tomorrow') : tTournament('daysAway', { count: daysUntilStart })}
             </div>
           )}
           {isLive && (
@@ -1526,16 +1528,16 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
 
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-        <StatCard value={totalTeams || (tournament?.draw_size_md ? `${tournament.draw_size_md} pairs` : '\u2014')} label="Teams" accent />
-        <StatCard value={displayMatches || '\u2014'} label="Matches" />
-        <StatCard value={totalCountries || '\u2014'} label="Countries" />
-        <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label="Prize Money" />
+        <StatCard value={totalTeams || (tournament?.draw_size_md ? tTournament('pairs', { count: tournament.draw_size_md }) : '\u2014')} label={tTournament('teams')} accent />
+        <StatCard value={displayMatches || '\u2014'} label={tTournament('matches')} />
+        <StatCard value={totalCountries || '\u2014'} label={tTournament('countries')} />
+        <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label={tTournament('prizeMoney')} />
       </div>
 
       {/* Champion (current tournament, only once the final has been played) */}
       {currentChampion && (
         <ChampionTile
-          label="Champion"
+          label={tTournament('champion')}
           year={currentChampion.year}
           names={currentChampion.names}
           country1={currentChampion.country1}
@@ -1548,7 +1550,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       {defendingChampion && previousEdition && (
         <Link href={`/tournaments/${previousEdition.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
           <ChampionTile
-            label="Defending Champion"
+            label={tTournament('defendingChampion')}
             year={defendingChampion.year}
             names={defendingChampion.names}
             country1={defendingChampion.country1}

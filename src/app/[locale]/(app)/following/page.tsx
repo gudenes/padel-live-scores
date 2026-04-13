@@ -4,7 +4,7 @@
 // followed players, followed tournaments, and news sources.
 
 import { useEffect, useState } from 'react'
-import { useFormatter } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import AppHeader from '@/components/AppHeader'
@@ -194,15 +194,15 @@ function formatTime(format: ReturnType<typeof useFormatter>, iso: string | null)
   return format.dateTime(d, { hour: '2-digit', minute: '2-digit' })
 }
 
-function formatTournamentStatus(format: ReturnType<typeof useFormatter>, t: TournamentData): string {
+function formatTournamentStatus(format: ReturnType<typeof useFormatter>, t: TournamentData, labels: { live: string; finished: string }): string {
   const now = new Date()
   const start = t.starts_at ? new Date(t.starts_at) : null
   const end = t.ends_at ? new Date(t.ends_at) : null
-  if (start && end && now >= start && now <= end) return 'Live'
+  if (start && end && now >= start && now <= end) return labels.live
   if (start && now < start) {
     return format.dateTime(start, { month: 'short', day: 'numeric' })
   }
-  return 'Finished'
+  return labels.finished
 }
 
 // ── Match Card ─────────────────────────────────────────────────
@@ -375,8 +375,13 @@ function PlayerCard({ player }: { player: PlayerData }) {
 
 function TournamentCard({ tournament }: { tournament: TournamentData }) {
   const format = useFormatter()
-  const status = formatTournamentStatus(format, tournament)
-  const isLive = status === 'Live'
+  const tFollow = useTranslations('following')
+  const tCommon = useTranslations('common')
+  const now = new Date()
+  const start = tournament.starts_at ? new Date(tournament.starts_at) : null
+  const end = tournament.ends_at ? new Date(tournament.ends_at) : null
+  const isLive = !!(start && end && now >= start && now <= end)
+  const status = formatTournamentStatus(format, tournament, { live: tCommon('live'), finished: tFollow('finished') })
 
   return (
     <Link
@@ -477,6 +482,7 @@ function NewsSourceCard({ source }: { source: string }) {
 // ── Add Player placeholder card ────────────────────────────────
 
 function AddPlayerCard({ onOpen }: { onOpen: () => void }) {
+  const t = useTranslations('following')
   return (
     <button
       onClick={onOpen}
@@ -511,7 +517,7 @@ function AddPlayerCard({ onOpen }: { onOpen: () => void }) {
         </svg>
       </div>
       <span style={{ fontSize: 10, color: GREEN, fontWeight: 700, textAlign: 'center' }}>
-        Add Player
+        {t('addPlayer')}
       </span>
     </button>
   )
@@ -520,6 +526,7 @@ function AddPlayerCard({ onOpen }: { onOpen: () => void }) {
 // ── Empty state ────────────────────────────────────────────────
 
 function EmptyState({ onOpen }: { onOpen: () => void }) {
+  const t = useTranslations('following')
   return (
     <div style={{
       display: 'flex',
@@ -537,10 +544,10 @@ function EmptyState({ onOpen }: { onOpen: () => void }) {
 
       <div>
         <div style={{ fontSize: 17, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
-          Follow players and tournaments
+          {t('followPlayersAndTournaments')}
         </div>
         <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
-          Bookmark matches to track them here
+          {t('bookmarkMatchesHint')}
         </div>
       </div>
 
@@ -559,7 +566,7 @@ function EmptyState({ onOpen }: { onOpen: () => void }) {
           letterSpacing: 0.3,
         }}
       >
-        Browse Players
+        {t('browsePlayers')}
       </Link>
     </div>
   )
@@ -569,6 +576,8 @@ function EmptyState({ onOpen }: { onOpen: () => void }) {
 
 export default function FollowingPage() {
   const { getFollowed, counts, loaded } = useFollowing()
+  const t = useTranslations('following')
+  const tCommon = useTranslations('common')
   const [searchOpen, setSearchOpen] = useState(false)
 
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -677,7 +686,7 @@ export default function FollowingPage() {
       {/* ── Section 1: Live & Upcoming ───────────────────────────── */}
       {loaded && matches.length > 0 && (
         <>
-          <SectionHeader title="Live & Upcoming" />
+          <SectionHeader title={t('liveAndUpcoming')} />
           <ScrollRow>
             {matches.map(m => (
               <MatchCard key={m.id} match={m} />
@@ -690,8 +699,8 @@ export default function FollowingPage() {
       {loaded && (players.length > 0 || counts.player === 0 && totalFollows > 0) && (
         <>
           <SectionHeader
-            title="Players"
-            action="Rankings"
+            title={t('players')}
+            action={t('browsePlayers')}
             href="/rankings"
           />
           <ScrollRow>
@@ -707,8 +716,8 @@ export default function FollowingPage() {
       {loaded && tournaments.length > 0 && (
         <>
           <SectionHeader
-            title="Tournaments"
-            action="All"
+            title={t('tournaments')}
+            action={tCommon('all')}
             href="/tournaments"
           />
           <ScrollRow>
@@ -722,7 +731,7 @@ export default function FollowingPage() {
       {/* ── Section 4: News Sources ──────────────────────────────── */}
       {loaded && followedNewsSources.length > 0 && (
         <>
-          <SectionHeader title="News Sources" />
+          <SectionHeader title={t('newsSources')} />
           <ScrollRow>
             {followedNewsSources.map(src => (
               <NewsSourceCard key={src} source={src} />

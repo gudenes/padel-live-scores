@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useMemo, useRef, use } from 'react'
 import { useRouter } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
@@ -408,6 +409,8 @@ function scoreString(sets: Array<{ set_score: string | null; set_number: number 
 export default function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const tPlayer = useTranslations('player')
+  const tCommon = useTranslations('common')
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const [player, setPlayer] = useState<PlayerRow | null>(null)
@@ -592,19 +595,19 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
   // Hero stat chips — pick the 4 most relevant available metrics
   const heroStats: Array<{ label: string; value: string; accent?: 'green' | 'orange' }> = []
-  if (derived.winRate != null) heroStats.push({ label: 'Win Rate', value: `${derived.winRate}%`, accent: 'green' })
-  else if (player.win_rate) heroStats.push({ label: 'Win Rate', value: `${player.win_rate}%`, accent: 'green' })
-  if (player.titles) heroStats.push({ label: 'Titles', value: String(player.titles), accent: 'orange' })
-  if (derived.finished.length > 0) heroStats.push({ label: 'Record', value: `${derived.wins}-${derived.losses}`, accent: 'green' })
-  else if (player.total_matches) heroStats.push({ label: 'Matches', value: String(player.total_matches) })
-  if (player.points) heroStats.push({ label: 'FIP Pts', value: player.points.toLocaleString(), accent: 'orange' })
+  if (derived.winRate != null) heroStats.push({ label: tPlayer('winRate'), value: `${derived.winRate}%`, accent: 'green' })
+  else if (player.win_rate) heroStats.push({ label: tPlayer('winRate'), value: `${player.win_rate}%`, accent: 'green' })
+  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange' })
+  if (derived.finished.length > 0) heroStats.push({ label: tPlayer('record'), value: `${derived.wins}-${derived.losses}`, accent: 'green' })
+  else if (player.total_matches) heroStats.push({ label: tPlayer('matches'), value: String(player.total_matches) })
+  if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange' })
 
   const tabs: Array<{ id: PageTab; label: string }> = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'season', label: 'Season' },
-    { id: 'partners', label: 'Partners' },
-    { id: 'matches', label: 'Matches' },
-    { id: 'stats', label: 'Stats' },
+    { id: 'overview', label: tPlayer('overview') },
+    { id: 'season', label: tPlayer('season') },
+    { id: 'partners', label: tPlayer('partners') },
+    { id: 'matches', label: tPlayer('matches') },
+    { id: 'stats', label: tPlayer('stats') },
   ]
 
   return (
@@ -635,7 +638,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             </svg>
           </button>
           <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Player Profile
+            {tPlayer('playerProfile')}
           </div>
           <div style={{ width: 36 }} />
         </div>
@@ -811,14 +814,15 @@ function OverviewTab({
   router: ReturnType<typeof useRouter>
   setActiveTab: (t: PageTab) => void
 }) {
+  const t = useTranslations('player')
   const age = computeAge(player.birthdate)
   const profileRows: Array<[string, string | null]> = [
-    ['Born', player.birthdate ? formatDate(player.birthdate) : null],
-    ['Age', age != null ? `${age} yrs` : null],
-    ['Height', player.height ? `${player.height} cm` : null],
-    ['Plays', player.hand === 'left' ? 'Left-handed' : player.hand === 'right' ? 'Right-handed' : null],
-    ['Side', player.side === 'drive' ? 'Drive' : player.side === 'backhand' ? 'Backhand' : null],
-    ['Hometown', player.birthplace ?? null],
+    [t('born'), player.birthdate ? formatDate(player.birthdate) : null],
+    [t('age'), age != null ? t('ageYrs', { count: age }) : null],
+    [t('height'), player.height ? t('heightCm', { count: player.height }) : null],
+    [t('plays'), player.hand === 'left' ? t('leftHanded') : player.hand === 'right' ? t('rightHanded') : null],
+    [t('side'), player.side === 'drive' ? t('drive') : player.side === 'backhand' ? t('backhand') : null],
+    [t('hometown'), player.birthplace ?? null],
   ]
   const availableProfileRows = profileRows.filter(([, v]) => v != null)
 
@@ -880,7 +884,7 @@ function OverviewTab({
         const winCount = derived.last10Matches.filter(m => resolveMatchRoles(m, playerId).won).length
         const lossCount = derived.last10Matches.length - winCount
         return (
-          <Widget label={`Last ${derived.last10Matches.length} matches`}>
+          <Widget label={t('last10', { count: derived.last10Matches.length })}>
             {/* Bars row — top padding leaves space for the "latest" marker */}
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 44, marginTop: 8, position: 'relative' }}>
               {ordered.map((m, i) => {
@@ -914,7 +918,7 @@ function OverviewTab({
             </div>
             <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>
               <b style={{ color: GREEN, fontSize: 14 }}>{winCount}-{lossCount}</b>{' '}
-              last {derived.last10Matches.length}
+              {t('last10Short', { count: derived.last10Matches.length })}
             </div>
           </Widget>
         )
@@ -954,7 +958,7 @@ function OverviewTab({
             fontSize: 9, color: ORANGE, textTransform: 'uppercase',
             letterSpacing: 1, fontWeight: 700, padding: '0 4px',
           }}>
-            Recent Matches
+            {t('recentMatches')}
           </div>
           {recentForShow.map(m => (
             <MatchListItem
@@ -973,7 +977,7 @@ function OverviewTab({
               cursor: 'pointer',
             }}
           >
-            View All Matches →
+            {t('viewAllMatches')} →
           </div>
         </div>
       )}
@@ -1028,6 +1032,7 @@ function SeasonTab({
   selectedYear: number
   onYearChange: (year: number) => void
 }) {
+  const t = useTranslations('player')
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
   // Compute season data for the selected year from the full finished match list.
@@ -1060,7 +1065,7 @@ function SeasonTab({
       overflowX: 'auto', scrollbarWidth: 'none',
     } as React.CSSProperties}>
       {derived.availableYears.length === 0 ? (
-        <div style={{ fontSize: 11, color: MUTED }}>No seasons available</div>
+        <div style={{ fontSize: 11, color: MUTED }}>{t('noSeasonsAvailable')}</div>
       ) : derived.availableYears.map(year => {
         const active = year === selectedYear
         return (
@@ -1090,7 +1095,7 @@ function SeasonTab({
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {yearSelector}
         <div style={{ padding: '32px 12px', textAlign: 'center', color: MUTED, fontSize: 12 }}>
-          No matches found for {selectedYear} season.
+          {t('noMatchesForSeason', { year: selectedYear })}
         </div>
       </div>
     )
@@ -1102,16 +1107,16 @@ function SeasonTab({
       {yearSelector}
 
       {/* Summary stat row */}
-      <Widget wide label={`${selectedYear} Season`}>
+      <Widget wide label={t('seasonLabel', { year: selectedYear })}>
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-          <SeasonStat value={`${seasonWins}-${seasonLosses}`} label="Record" />
-          <SeasonStat value={seasonWr != null ? `${seasonWr}%` : '—'} label="Win Rate" accent="green" />
-          <SeasonStat value={String(seasonTotal)} label="Matches" />
+          <SeasonStat value={`${seasonWins}-${seasonLosses}`} label={t('record')} />
+          <SeasonStat value={seasonWr != null ? `${seasonWr}%` : '—'} label={t('winRate')} accent="green" />
+          <SeasonStat value={String(seasonTotal)} label={t('matches')} />
         </div>
       </Widget>
 
       {/* Monthly chart */}
-      <Widget wide label="Monthly Performance">
+      <Widget wide label={t('monthlyPerformance')}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 100, padding: '8px 0 22px', marginTop: 4 }}>
           {monthly.map((mo, i) => {
             const total = mo.wins + mo.losses

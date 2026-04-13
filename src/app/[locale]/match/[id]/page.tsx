@@ -123,6 +123,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const tMatch = useTranslations('matchDetail')
   const tPred = useTranslations('prediction')
   const tCommon = useTranslations('common')
+  const tRating = useTranslations('rating')
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const [match, setMatch] = useState<Match | null>(null)
@@ -873,10 +874,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* ── Sub-tabs: scheduled shows Players + H2H, live/finished shows all ── */}
       {(() => {
         const tabList: { key: string; label: string }[] = isFinished
-          ? [{ key: 'recap', label: 'Score Recap' }, { key: 'live', label: 'Live Feed' }, { key: 'players', label: 'Players' }, { key: 'h2h', label: 'H2H' }]
+          ? [{ key: 'recap', label: tMatch('scoreRecap') }, { key: 'live', label: tMatch('liveFeed') }, { key: 'players', label: tMatch('players') }, { key: 'h2h', label: tMatch('h2h') }]
           : isScheduled
-            ? [{ key: 'players', label: 'Players' }, { key: 'h2h', label: 'H2H' }]
-            : [{ key: 'live', label: 'Live Feed' }, { key: 'players', label: 'Players' }, { key: 'h2h', label: 'H2H' }]
+            ? [{ key: 'players', label: tMatch('players') }, { key: 'h2h', label: tMatch('h2h') }]
+            : [{ key: 'live', label: tMatch('liveFeed') }, { key: 'players', label: tMatch('players') }, { key: 'h2h', label: tMatch('h2h') }]
 
         const tabKeys = tabList.map(t => t.key)
         const currentIdx = Math.max(0, tabKeys.indexOf(subTab))
@@ -925,7 +926,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         borderRadius: 8, fontSize: 13, fontWeight: 700, zIndex: 1000,
         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}>
-        Link copied!
+        {tMatch('linkCopied')}
       </div>
     )}
     </>
@@ -1442,7 +1443,10 @@ function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz }: {
 }
 
 // ── Match Rating Card ───────────────────────────────────────────────────────
-const REACTION_LABELS: Record<number, string> = { 1: 'Boring', 2: 'Meh', 3: 'Decent', 4: 'Great match!', 5: 'Epic' }
+function useReactionLabels(): Record<number, string> {
+  const t = useTranslations('rating')
+  return { 1: t('boring'), 2: t('meh'), 3: t('decent'), 4: t('greatMatch'), 5: t('epic') }
+}
 
 function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
   rating: number | null
@@ -1450,6 +1454,8 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
   avgRating: number | null
   ratingCount: number
 }) {
+  const t = useTranslations('rating')
+  const REACTION_LABELS = useReactionLabels()
   const [justRated, setJustRated] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(rating != null)
   const [showPoints, setShowPoints] = useState(false)
@@ -1492,7 +1498,7 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
           {ratingCount >= 10 && avgRating != null && (
             <>
               <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />
-              <span style={{ fontSize: 10, color: MUTED }}>avg {avgRating}</span>
+              <span style={{ fontSize: 10, color: MUTED }}>{t('avg', { value: avgRating })}</span>
             </>
           )}
         </div>
@@ -1544,7 +1550,7 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
                 fontSize: 12, fontWeight: 900, color: '#000',
                 whiteSpace: 'nowrap',
               }}>
-                +10 pts
+                {t('pts')}
               </div>
             </div>
           )}
@@ -1563,10 +1569,10 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
   return (
     <div style={{ padding: '16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD }}>
       <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center', marginBottom: 14 }}>
-        Rate this match
+        {t('rateThisMatch')}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>Boring</span>
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>{t('boring')}</span>
         {[1, 2, 3, 4, 5].map(n => (
           <button key={n} onClick={() => handleRate(n)} style={{
             width: 36, height: 36,
@@ -1579,7 +1585,7 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
             <span style={{ fontSize: 14, fontWeight: 900, color: MUTED }}>{n}</span>
           </button>
         ))}
-        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>Epic</span>
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>{t('epic')}</span>
       </div>
     </div>
   )
@@ -1589,13 +1595,14 @@ function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
 function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
   match: Match; pair1Label: string; pair2Label: string; isLive: boolean
 }) {
+  const t = useTranslations('matchDetail')
   const allSets = [...(match.sets ?? [])].sort((a, b) => b.set_number - a.set_number) // newest set first
   const [setFilter, setSetFilter] = useState<number | 'all'>('all')
 
   if (allSets.length === 0 || allSets.every(s => (s.games ?? []).length === 0)) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 16px', color: MUTED, fontSize: 12 }}>
-        {isLive ? 'Waiting for first point...' : 'No point data available'}
+        {isLive ? t('waitingForFirstPoint') : t('noPointData')}
       </div>
     )
   }
@@ -1619,7 +1626,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
               cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
             }}
           >
-            All Sets
+            {t('allSets')}
           </button>
           {[...allSets].reverse().map(s => {
             const active = setFilter === s.set_number
@@ -1639,7 +1646,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
                   cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
                 }}
               >
-                Set {s.set_number}{scoreLabel}
+                {t('set', { number: s.set_number })}{scoreLabel}
               </button>
             )
           })}
@@ -1656,7 +1663,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px 4px' }}>
               <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
               <span style={{ fontSize: 9, fontWeight: 700, color: GREEN, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Set {set.set_number}{set.set_score ? ` · ${set.set_score}` : ' · In progress'}
+                {t('set', { number: set.set_number })}{set.set_score ? ` · ${set.set_score}` : ` · ${t('inProgress')}`}
               </span>
               <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
             </div>
@@ -1681,14 +1688,14 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 16px 4px', background: 'rgba(0,0,0,0.15)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: MUTED }}>
-                        Game {game.game_number}
+                        {t('game', { number: game.game_number })}
                       </span>
                       {isCurrent && isLive
-                        ? <span style={{ fontSize: 10, fontWeight: 700, color: LIVE_RED }}>In progress</span>
+                        ? <span style={{ fontSize: 10, fontWeight: 700, color: LIVE_RED }}>{t('inProgress')}</span>
                         : winner === 1
-                        ? <span style={{ fontSize: 10, fontWeight: 700, color: PAIR1_COLOR }}>{pair1Label} won</span>
+                        ? <span style={{ fontSize: 10, fontWeight: 700, color: PAIR1_COLOR }}>{t('won', { pair: pair1Label })}</span>
                         : winner === 2
-                        ? <span style={{ fontSize: 10, fontWeight: 700, color: PAIR2_COLOR }}>{pair2Label} won</span>
+                        ? <span style={{ fontSize: 10, fontWeight: 700, color: PAIR2_COLOR }}>{t('won', { pair: pair2Label })}</span>
                         : null
                       }
                     </div>
@@ -1714,14 +1721,14 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
                         <span style={{ flex: 1, fontSize: 10, color: MUTED }}>
                           {pt.scorer === 1 ? pair1Label : pair2Label}
                         </span>
-                        {isLatest && <span style={{ fontSize: 8, fontWeight: 700, color: LIVE_RED, letterSpacing: '0.5px' }}>now</span>}
+                        {isLatest && <span style={{ fontSize: 8, fontWeight: 700, color: LIVE_RED, letterSpacing: '0.5px' }}>{t('now')}</span>}
                         {pt.isSP && !isLatest && <span style={{ fontSize: 8, fontWeight: 700, color: ORANGE, background: 'rgba(245,166,35,0.12)', border: '0.5px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 5px' }}>SP</span>}
                       </div>
                     )
                   })}
 
                   {points.length === 0 && isCurrent && (
-                    <div style={{ padding: '8px 28px', fontSize: 10, color: MUTED }}>Waiting for first point...</div>
+                    <div style={{ padding: '8px 28px', fontSize: 10, color: MUTED }}>{t('waitingForFirstPoint')}</div>
                   )}
                 </div>
               )
@@ -1737,6 +1744,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
 function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Recent, pair2Recent }: {
   match: Match; h2hMatches: any[]; h2hLoading: boolean; pair1Label: string; pair2Label: string; pair1Recent: any[]; pair2Recent: any[]
 }) {
+  const t = useTranslations('matchDetail')
   const [showAll, setShowAll] = useState(false)
   const p1Ids = [match.pair1_player1?.id, match.pair1_player2?.id].filter(Boolean) as string[]
 
@@ -1779,8 +1787,8 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
             <div style={{ fontSize: 10, fontWeight: 600, color: PAIR1_COLOR, marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pair1Label}</div>
           </div>
           <div style={{ textAlign: 'center', flexShrink: 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px' }}>H2H</div>
-            <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{h2hMatches.length} matches</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px' }}>{t('h2h')}</div>
+            <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{t('h2hMatches', { count: h2hMatches.length })}</div>
           </div>
           <div style={{ flex: 1, textAlign: 'center' }}>
             <div style={{ fontSize: 36, fontWeight: 900, fontFamily: 'monospace', color: PAIR2_COLOR, lineHeight: 1 }}>{p2Wins}</div>
@@ -1792,7 +1800,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
       {/* Match list */}
       {h2hMatches.length === 0 && !h2hLoading && (
         <div style={{ textAlign: 'center', padding: '40px 16px', color: MUTED, fontSize: 12 }}>
-          No previous meetings found
+          {t('noPreviousMeetings')}
         </div>
       )}
 
@@ -2010,7 +2018,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
             WebkitTapHighlightColor: 'transparent',
           }}
         >
-          {showAll ? 'Show less' : `Show all ${h2hMatches.length} matches`}
+          {showAll ? t('showLess') : t('showAll', { count: h2hMatches.length })}
         </button>
       )}
 
@@ -2020,7 +2028,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
           {/* Section header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 8px' }}>
             <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
-            <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px' }}>Last 5 Matches</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px' }}>{t('last5Matches')}</span>
             <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
           </div>
 
@@ -2032,7 +2040,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 <div style={{ fontSize: 10, fontWeight: 700, color: PAIR1_COLOR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pair1Label}</div>
               </div>
               {pair1Recent.length === 0 ? (
-                <div style={{ padding: '16px 10px', fontSize: 10, color: MUTED, textAlign: 'center' }}>No recent data</div>
+                <div style={{ padding: '16px 10px', fontSize: 10, color: MUTED, textAlign: 'center' }}>{t('noRecentData')}</div>
               ) : pair1Recent.map((m, idx) => {
                 const isPair1InSlot1 = pairMatchesIds(m.pair1_player1?.id, m.pair1_player2?.id, p1Ids)
                 const won = (isPair1InSlot1 && m.winner_pair === 1) || (!isPair1InSlot1 && m.winner_pair === 2)
@@ -2070,7 +2078,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 <div style={{ fontSize: 10, fontWeight: 700, color: PAIR2_COLOR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pair2Label}</div>
               </div>
               {pair2Recent.length === 0 ? (
-                <div style={{ padding: '16px 10px', fontSize: 10, color: MUTED, textAlign: 'center' }}>No recent data</div>
+                <div style={{ padding: '16px 10px', fontSize: 10, color: MUTED, textAlign: 'center' }}>{t('noRecentData')}</div>
               ) : pair2Recent.map((m, idx) => {
                 const p2Ids = [match.pair2_player1?.id, match.pair2_player2?.id].filter(Boolean) as string[]
                 const isPair2InSlot1 = pairMatchesIds(m.pair1_player1?.id, m.pair1_player2?.id, p2Ids)

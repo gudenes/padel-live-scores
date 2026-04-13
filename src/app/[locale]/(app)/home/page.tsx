@@ -18,7 +18,7 @@ import ProfileButton from '@/components/ProfileButton'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
-import { useFormatter } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { ResultCard } from '@/components/ResultCard'
@@ -1276,6 +1276,7 @@ interface TournamentWithWinners extends Tournament {
 
 function TournamentsView({ onBack }: { onBack: () => void }) {
   const format = useFormatter()
+  const tHome = useTranslations('home')
   const [tab, setTab] = useState<TournamentTab>('premier')
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set())
@@ -1452,7 +1453,7 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
           {/* ── Hero + Upcoming ── */}
           {hero && (
             <>
-              <SectionTitle>{heroIsLive ? 'Live Now' : 'Upcoming'}</SectionTitle>
+              <SectionTitle>{heroIsLive ? tHome('liveNow') : tHome('comingUp')}</SectionTitle>
 
               {/* Hero card */}
               <Link href={`/tournaments/${hero.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -1784,6 +1785,7 @@ function V3HomePageInner() {
   const router = useRouter()
   const { user } = useAuth()
   const { shareNow } = useInvite()
+  const tHome = useTranslations('home')
   const initialView: 'home' | 'tournaments' = searchParams.get('view') === 'tournaments' ? 'tournaments' : 'home'
 
   const [loading, setLoading] = useState(true)
@@ -1819,11 +1821,11 @@ function V3HomePageInner() {
 
   // Rotating search hints
   const SEARCH_HINTS = [
-    'Search players, events, matches...',
-    'Try "Arturo Coello"',
-    'Try "Miami P1"',
-    'Try "Live matches"',
-    'Try "Gemma Triay"',
+    tHome('searchHint0'),
+    tHome('searchHint1'),
+    tHome('searchHint2'),
+    tHome('searchHint3'),
+    tHome('searchHint4'),
   ]
   const [hintIdx, setHintIdx] = useState(0)
   const [hintFading, setHintFading] = useState(false)
@@ -2229,7 +2231,7 @@ function V3HomePageInner() {
       {/* ── LIVE NOW ────────────────────────────────────────── */}
       {liveScorable.length > 0 && (
         <>
-          <SectionTitle action="All Scores" href="/matches">Live Now</SectionTitle>
+          <SectionTitle action={tHome('allScores')} href="/matches">{tHome('liveNow')}</SectionTitle>
           <div style={{
             display: 'flex',
             gap: 12,
@@ -2252,8 +2254,8 @@ function V3HomePageInner() {
       {/* ── COMING UP ───────────────────────────────────────── */}
       {upcoming.length > 0 && (
         <>
-          <SectionTitle action="All Scores" href="/matches">
-            Coming Up
+          <SectionTitle action={tHome('allScores')} href="/matches">
+            {tHome('comingUp')}
           </SectionTitle>
           <div style={{
             display: 'flex',
@@ -2277,7 +2279,7 @@ function V3HomePageInner() {
       {/* ── HIGHLIGHTS & NEWS ───────────────────────────────── */}
       {(highlights.length > 0 || latestNews.length > 0) && (
         <>
-          <SectionTitle action="See All" href="/feed">Highlights &amp; News</SectionTitle>
+          <SectionTitle action={tHome('seeAll')} href="/feed">{tHome('highlightsAndNews')}</SectionTitle>
           <HighlightsPreview highlights={highlights} news={latestNews} />
         </>
       )}
@@ -2285,7 +2287,7 @@ function V3HomePageInner() {
       {/* ── TOURNAMENT SPOTLIGHT HERO ──────────────────────── */}
       {spotlightTournament && (
         <>
-          <SectionTitle action="Full Events" onAction={() => { switchView('tournaments'); window.scrollTo(0, 0) }}>Tournament Spotlight</SectionTitle>
+          <SectionTitle action={tHome('fullEvents')} onAction={() => { switchView('tournaments'); window.scrollTo(0, 0) }}>{tHome('tournamentSpotlight')}</SectionTitle>
           <TournamentSpotlightHero
             tournament={spotlightTournament}
             defendingChampionMen={spotlightChampionMen}
@@ -2297,11 +2299,11 @@ function V3HomePageInner() {
       )}
 
       {/* ── RANKINGS ────────────────────────────────────────── */}
-      <SectionTitle action="Full Rankings" href="/rankings">Rankings</SectionTitle>
+      <SectionTitle action={tHome('fullRankings')} href="/rankings">{tHome('rankings')}</SectionTitle>
       <RankingsSection men={topMen} women={topWomen} gender={gender} />
 
       {/* ── LATEST RESULTS ──────────────────────────────────── */}
-      <SectionTitle action="All Results" href="/matches">Latest Results</SectionTitle>
+      <SectionTitle action={tHome('allResults')} href="/matches">{tHome('latestResults')}</SectionTitle>
       <ResultsSection matches={filteredRecent} />
 
       {/* ── PADELGENIUS TEASER ──────────────────────────────── */}
