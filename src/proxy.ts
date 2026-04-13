@@ -119,10 +119,10 @@ export const config = {
     /*
      * Match all request paths except:
      * - _next/static, _next/image (static files)
-     * - favicon.ico, manifest.json, icons, sw.js (public assets)
+     * - Files with extensions (e.g. .png, .ico, .webp — static assets)
      * - api routes (handled separately)
      * - _vercel (Vercel internals)
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|icons/|sw\\.js|api/|_vercel).*)',
+    '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
 }
