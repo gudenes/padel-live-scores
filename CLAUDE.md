@@ -426,3 +426,41 @@ Eliminates TBD player names on FIP tournament matches. Two subsystems:
 - Middleware injects `geo-country` cookie from Vercel's `x-vercel-ip-country` header
 - `next.config.ts` allows remote images from `storage.googleapis.com` and `jwqaesjjoghzobngxejn.supabase.co`
 - Admin endpoints require `Authorization: Bearer {CRON_SECRET}` header
+
+## i18n (Internationalization)
+
+- **Library:** `next-intl` with Next.js 16 App Router
+- **Locales:** `en` (default), `es`, `pt`, `it`, `fr`
+- **Config:** `src/i18n/routing.ts` (defineRouting), `src/i18n/request.ts` (server messages), `src/i18n/navigation.ts` (locale-aware Link/useRouter/usePathname)
+- **Messages:** `src/messages/{en,es,pt,it,fr}.json` (~200 keys each)
+- **Folder structure:** All user-facing pages under `src/app/[locale]/`. API, ops, auth routes stay outside.
+- **Proxy:** `src/proxy.ts` composes next-intl middleware with auth/redirect/cookie logic. `/auth`, `/ops`, `/admin`, `/api` skip i18n routing.
+- **Prefix:** `localePrefix: 'as-needed'` — no prefix for English, `/es/` etc. for others
+- **Switcher:** `src/components/LocaleSwitcher.tsx` — circular flag button with dropdown picker. In profile page (direction=up) and login sheet (direction=down).
+- **Imports:** All user-facing files use `import { Link, useRouter, usePathname } from '@/i18n/navigation'` instead of `next/link` and `next/navigation`.
+
+## Equipment Database (2026-04-13)
+
+Four tables for structured padel equipment tracking:
+- `padel_brands` — brand entity (name, logo_url, website_url)
+- `padel_rackets` — racket entity (brand FK, model, year, shape, weight, balance, surface, image_url, product_url, click_count)
+- `player_equipment` — junction table with history (player FK, racket FK, started_at, ended_at)
+- `racket_clicks` — affiliate click tracking (racket FK, player FK, user FK, created_at)
+
+APIs: `/api/ops/brands`, `/api/ops/rackets`, `/api/ops/player-equipment`, `/api/racket-click`
+Ops tab: "Brands & Equipment" in ops dashboard for brand/racket CRUD
+Player profile: "Plays with" widget reads from joined tables with JSONB fallback
+
+## Score Pipeline Guards (2026-04-13)
+
+Critical fixes to prevent data loss in the scores cron:
+1. **Guard:** `upsertMatch` skips matches already `finished`/`retired`/`walkover` in DB (stale live feed protection)
+2. **Guard:** Don't regress `ended` back to `live`
+3. **Live fallback:** `writeFinalState` falls back to `/api/matches/{id}/live` when detail endpoint returns `score: null`
+4. **No orphan deletion:** Only delete null-score sets when replacement data exists
+5. **Write all sets:** Removed filter that skipped sets without `set_score`
+6. **Retirement inference:** `inferWinnerPair` handles 1-set retirements and mid-Set-3 retirements
+7. **Auto-transition:** `inferWinnerPair` atomically sets `status: 'finished'` when winner is inferred
+
+### Backlog: PBP Backfill
+`backfillPointData` function exists in scores cron but the sweep query has a PostgREST syntax bug. Spec at `docs/superpowers/specs/2026-04-13-pbp-backfill-design.md`.
