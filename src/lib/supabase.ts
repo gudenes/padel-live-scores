@@ -11,8 +11,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   || (typeof window !== 'undefined' ? window.location.origin : '')
 
-// Feature flag — cookie auth is on by default; set NEXT_PUBLIC_USE_COOKIE_AUTH=false to opt out
-export const cookieAuthEnabled = process.env.NEXT_PUBLIC_USE_COOKIE_AUTH !== 'false'
+// Feature flag — cookie auth is OFF by default after production issues.
+// The @supabase/ssr browser client still uses the same GoTrue internals
+// that cause idle wedges. Set NEXT_PUBLIC_USE_COOKIE_AUTH=true to opt in.
+export const cookieAuthEnabled = process.env.NEXT_PUBLIC_USE_COOKIE_AUTH === 'true'
 
 // ── Custom auth lock (legacy path only) ─────────────────────────────────────
 //
