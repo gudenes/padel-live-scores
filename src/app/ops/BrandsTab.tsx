@@ -216,8 +216,9 @@ export default function BrandsTab() {
     setBrandMessage(null)
     try {
       const method = editingBrandId ? 'PATCH' : 'POST'
+      // PATCH expects { id, updates }, POST expects flat fields
       const body = editingBrandId
-        ? { id: editingBrandId, ...brandForm }
+        ? { id: editingBrandId, updates: brandForm }
         : brandForm
       const res = await fetch('/api/ops/brands', {
         method,
@@ -255,7 +256,7 @@ export default function BrandsTab() {
     setRacketMessage(null)
     try {
       const method = editingRacketId ? 'PATCH' : 'POST'
-      const payload: Record<string, unknown> = {
+      const fields: Record<string, unknown> = {
         brand_id: racketForm.brand_id,
         model: racketForm.model,
         shape: racketForm.shape || null,
@@ -267,7 +268,8 @@ export default function BrandsTab() {
         year: racketForm.year ? parseInt(racketForm.year, 10) : null,
         weight_grams: racketForm.weight_grams ? parseInt(racketForm.weight_grams, 10) : null,
       }
-      if (editingRacketId) payload.id = editingRacketId
+      // PATCH expects { id, updates }, POST expects flat fields
+      const payload = editingRacketId ? { id: editingRacketId, updates: fields } : fields
       const res = await fetch('/api/ops/rackets', {
         method,
         headers: { 'Content-Type': 'application/json' },
