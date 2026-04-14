@@ -426,7 +426,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const starPoint = currentGame ? isStarPoint(currentGame.points ?? []) : false
 
   const isScheduled = match.status === 'scheduled'
-  const isFinished = match.status === 'finished'
+  const isFinished = ['finished', 'retired', 'walkover'].includes(match.status)
+  const isRetired = match.status === 'retired'
+  const isWalkover = match.status === 'walkover'
   const isLive = match.status === 'live'
   const winnerPair = (match as any).winner_pair
   const p1Won = isFinished && winnerPair === 1
@@ -703,7 +705,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <PlayerNameLink player={match.pair1_player1} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
-            <PlayerNameLink player={match.pair1_player2} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} style={{ marginTop: 4 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+              <PlayerNameLink player={match.pair1_player2} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
+              {isRetired && p2Won && <span style={{ fontSize: 8, fontWeight: 700, color: '#F5A623', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 6px', flexShrink: 0 }}>RET</span>}
+            </div>
           </div>
           {!isScheduled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -759,7 +764,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <PlayerNameLink player={match.pair2_player1} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
-            <PlayerNameLink player={match.pair2_player2} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} style={{ marginTop: 4 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+              <PlayerNameLink player={match.pair2_player2} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
+              {isRetired && p1Won && <span style={{ fontSize: 8, fontWeight: 700, color: '#F5A623', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 6px', flexShrink: 0 }}>RET</span>}
+            </div>
           </div>
           {!isScheduled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
