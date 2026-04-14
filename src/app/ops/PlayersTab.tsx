@@ -1,84 +1,16 @@
 'use client'
 // src/app/ops/PlayersTab.tsx
-// Player management UI — search, edit, and merge players from the ops dashboard
+// Player management UI — slim orchestrator composing sub-components.
+// Merge/duplicate detection flow is preserved intact here.
 
 import React, { useState, useRef, useCallback, useEffect } from 'react'
+import type { PlayerSummary, PlayerDetail, DataFilter, CategoryFilter, FilterCounts } from './players/types'
+import FilterChips from './players/FilterChips'
+import PlayersTable from './players/PlayersTable'
+import BulkActionsBar from './players/BulkActionsBar'
+import PlayerDrawer from './players/PlayerDrawer'
 
-// ── Types ────────────────────────────────────────────────────────
-
-interface PlayerSummary {
-  id: string
-  name: string
-  display_name: string | null
-  country: string | null
-  ranking: number | null
-  points: number | null
-  category: string | null
-  avatar_url: string | null
-}
-
-interface PlayerDetail {
-  id: string
-  name: string
-  display_name: string | null
-  country: string | null
-  category: string | null
-  ranking: number | null
-  points: number | null
-  ranking_move: number | null
-  race_ranking: number | null
-  race_points: number | null
-  race_move: number | null
-  external_id: string | null
-  fip_id: string | null
-  avatar_url: string | null
-  profile_url: string | null
-  side: string | null
-  height: string | null
-  birthdate: string | null
-  birthplace: string | null
-  hand: string | null
-  titles: number | null
-  finals: number | null
-  semifinals: number | null
-  win_rate: number | null
-  total_matches: number | null
-  equipment: {
-    racket_brand?: string
-    racket_model?: string
-    racket_url?: string
-    racket_image?: string
-    brand_logo?: string
-  } | null
-  created_at: string | null
-  updated_at: string | null
-}
-
-type CategoryFilter = 'all' | 'men' | 'women'
-
-// Fields displayed in the edit panel
-const EDITABLE_FIELDS: { key: keyof PlayerDetail; label: string; type: 'text' | 'number' | 'date' }[] = [
-  { key: 'name', label: 'Name', type: 'text' },
-  { key: 'display_name', label: 'Display Name', type: 'text' },
-  { key: 'country', label: 'Country', type: 'text' },
-  { key: 'category', label: 'Category', type: 'text' },
-  { key: 'ranking', label: 'Ranking', type: 'number' },
-  { key: 'points', label: 'Points', type: 'number' },
-  { key: 'ranking_move', label: 'Ranking Move', type: 'number' },
-  { key: 'external_id', label: 'External ID', type: 'text' },
-  { key: 'fip_id', label: 'FIP ID', type: 'text' },
-  { key: 'side', label: 'Side', type: 'text' },
-  { key: 'avatar_url', label: 'Avatar URL', type: 'text' },
-  { key: 'height', label: 'Height', type: 'text' },
-  { key: 'birthdate', label: 'Birthdate', type: 'date' },
-  { key: 'birthplace', label: 'Birthplace', type: 'text' },
-  { key: 'hand', label: 'Hand', type: 'text' },
-  { key: 'titles', label: 'Titles', type: 'number' },
-  { key: 'finals', label: 'Finals', type: 'number' },
-  { key: 'semifinals', label: 'Semifinals', type: 'number' },
-]
-
-// Fields to compare during merge
+// ── Fields to compare during merge ──────────────────────────────
 const MERGE_FIELDS: (keyof PlayerDetail)[] = [
   'name', 'display_name', 'country', 'category', 'ranking', 'points', 'ranking_move',
   'external_id', 'fip_id', 'side', 'avatar_url', 'height', 'birthdate',
@@ -106,30 +38,30 @@ const sectionLabel: React.CSSProperties = {
 // ── Component ────────────────────────────────────────────────────
 
 export default function PlayersTab() {
-  // Search state
+  // ── Search / list state ────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
   const [results, setResults] = useState<PlayerSummary[]>([])
   const [searching, setSearching] = useState(false)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Detail/Edit state
+  const [dataFilter, setDataFilter] = useState<DataFilter>('all')
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all')
+  const [filterCounts, setFilterCounts] = useState<FilterCounts | null>(null)
+
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const perPage = 25
+
+  // ── Selection state ────────────────────────────────────────────
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // ── Drawer state ───────────────────────────────────────────────
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null)
+
+  // ── Merge state ────────────────────────────────────────────────
+  const [mergeMode, setMergeMode] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerDetail | null>(null)
   const [selectedMatchCount, setSelectedMatchCount] = useState(0)
-  const [editFields, setEditFields] = useState<Record<string, unknown>>({})
-  // Equipment state (dropdown-based)
-  const [brands, setBrands] = useState<Array<{ id: string; name: string; logo_url: string | null }>>([])
-  const [rackets, setRackets] = useState<Array<{ id: string; model: string; year: number | null; brand_id: string; image_url: string | null; product_url: string | null; brand?: { id: string; name: string; logo_url: string | null } }>>([])
-  const [selectedBrandId, setSelectedBrandId] = useState('')
-  const [selectedRacketId, setSelectedRacketId] = useState('')
-  const [playerEquipment, setPlayerEquipment] = useState<Array<{ id: string; started_at: string; ended_at: string | null; racket: { id: string; model: string; year: number | null; image_url: string | null; product_url: string | null; brand: { id: string; name: string; logo_url: string | null } } }>>([])
-  const [assigningEquipment, setAssigningEquipment] = useState(false)
-  const [loadingDetail, setLoadingDetail] = useState(false)
-  const [savingPlayer, setSavingPlayer] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<string | null>(null)
-
-  // Merge state
-  const [mergeMode, setMergeMode] = useState(false)
   const [mergeTarget, setMergeTarget] = useState<PlayerDetail | null>(null)
   const [mergeTargetMatchCount, setMergeTargetMatchCount] = useState(0)
   const [mergeSelections, setMergeSelections] = useState<Record<string, 'a' | 'b'>>({})
@@ -140,8 +72,9 @@ export default function PlayersTab() {
   const [merging, setMerging] = useState(false)
   const [mergeMessage, setMergeMessage] = useState<string | null>(null)
   const [mergePreview, setMergePreview] = useState(false)
+  const [loadingDetail, setLoadingDetail] = useState(false)
 
-  // Duplicate scan state
+  // ── Duplicate scan state ───────────────────────────────────────
   interface DupGroup {
     reasons: string[]
     players: { id: string; name: string; country: string | null; ranking: number | null; points: number | null; category: string | null; avatar_url: string | null; fip_id: string | null; external_id: string | null }[]
@@ -153,10 +86,208 @@ export default function PlayersTab() {
   const [dupScanned, setDupScanned] = useState(0)
   const [dupShowPanel, setDupShowPanel] = useState(false)
   const [dupDismissed, setDupDismissed] = useState<Set<string>>(new Set())
-  const [dupMerging, setDupMerging] = useState<Set<string>>(new Set()) // groups currently being merged
-  const [dupMerged, setDupMerged] = useState<Set<string>>(new Set())   // groups successfully merged
-
+  const [dupMerging, setDupMerging] = useState<Set<string>>(new Set())
+  const [dupMerged, setDupMerged] = useState<Set<string>>(new Set())
   const [dupMode, setDupMode] = useState<'rules' | 'ai'>('rules')
+
+  // ── Data fetching ──────────────────────────────────────────────
+
+  const fetchData = useCallback(async () => {
+    setSearching(true)
+    try {
+      const params = new URLSearchParams()
+      if (searchQuery.trim()) params.set('q', searchQuery.trim())
+      if (dataFilter !== 'all') params.set('filter', dataFilter)
+      if (categoryFilter !== 'all') params.set('category', categoryFilter)
+      params.set('page', String(page))
+      params.set('per_page', String(perPage))
+      const res = await fetch(`/api/ops/search-players?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setResults(data.players ?? [])
+        setTotal(data.total ?? 0)
+      }
+    } catch { /* ignore */ }
+    setSearching(false)
+  }, [searchQuery, dataFilter, categoryFilter, page])
+
+  const fetchCounts = useCallback(async () => {
+    try {
+      const base = '/api/ops/search-players?per_page=1'
+      const [all, eq, av, rk] = await Promise.all([
+        fetch(base).then(r => r.json()),
+        fetch(`${base}&filter=missing_equipment`).then(r => r.json()),
+        fetch(`${base}&filter=missing_avatar`).then(r => r.json()),
+        fetch(`${base}&filter=missing_ranking`).then(r => r.json()),
+      ])
+      setFilterCounts({
+        total: all.total ?? 0,
+        missing_equipment: eq.total ?? 0,
+        missing_avatar: av.total ?? 0,
+        missing_ranking: rk.total ?? 0,
+      })
+    } catch { /* ignore */ }
+  }, [])
+
+  // Debounce search query changes
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => {
+      fetchData()
+    }, 300)
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    }
+  }, [searchQuery, fetchData])
+
+  useEffect(() => { fetchCounts() }, [fetchCounts])
+
+  // Refetch when non-search params change (filter/page)
+  useEffect(() => {
+    fetchData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataFilter, categoryFilter, page])
+
+  // ── Handlers ───────────────────────────────────────────────────
+
+  const handleFilterChange = useCallback((filter: DataFilter) => {
+    setDataFilter(filter)
+    setPage(1)
+    setSelectedIds(new Set())
+  }, [])
+
+  const handleCategoryChange = useCallback((category: CategoryFilter) => {
+    setCategoryFilter(category)
+    setPage(1)
+    setSelectedIds(new Set())
+  }, [])
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const handleToggleSelectAll = useCallback(() => {
+    setSelectedIds(prev => {
+      if (prev.size === results.length) return new Set()
+      return new Set(results.map(p => p.id))
+    })
+  }, [results])
+
+  const handleRowClick = useCallback((id: string) => {
+    setActivePlayerId(id)
+  }, [])
+
+  const handlePageChange = useCallback((p: number) => {
+    setPage(p)
+    setSelectedIds(new Set())
+  }, [])
+
+  const handleDrawerNavigate = useCallback((dir: 'prev' | 'next') => {
+    if (!activePlayerId) return
+    const idx = results.findIndex(p => p.id === activePlayerId)
+    if (idx === -1) return
+    const nextIdx = dir === 'prev' ? idx - 1 : idx + 1
+    if (nextIdx >= 0 && nextIdx < results.length) {
+      setActivePlayerId(results[nextIdx].id)
+    }
+  }, [activePlayerId, results])
+
+  // ── Merge: fetch player detail ─────────────────────────────────
+
+  const fetchPlayerDetail = useCallback(async (id: string): Promise<{ player: PlayerDetail; matchCount: number } | null> => {
+    try {
+      const res = await fetch(`/api/ops/players?id=${id}`)
+      if (!res.ok) return null
+      const data = await res.json()
+      return { player: data.player, matchCount: data.matchCount }
+    } catch {
+      return null
+    }
+  }, [])
+
+  // ── Merge: search for Player B ─────────────────────────────────
+
+  const doMergeSearch = useCallback((query: string) => {
+    if (mergeSearchDebounceRef.current) clearTimeout(mergeSearchDebounceRef.current)
+    if (!query.trim()) {
+      setMergeSearchResults([])
+      return
+    }
+    mergeSearchDebounceRef.current = setTimeout(async () => {
+      setMergeSearching(true)
+      try {
+        const catParam = selectedPlayer?.category ? `&category=${selectedPlayer.category}` : ''
+        const res = await fetch(`/api/ops/search-players?q=${encodeURIComponent(query)}${catParam}`)
+        if (res.ok) {
+          const data = await res.json()
+          setMergeSearchResults((data.players ?? []).filter((p: PlayerSummary) => p.id !== selectedPlayer?.id))
+        }
+      } catch { /* ignore */ }
+      setMergeSearching(false)
+    }, 300)
+  }, [selectedPlayer])
+
+  const selectMergeTarget = useCallback(async (id: string) => {
+    const detail = await fetchPlayerDetail(id)
+    if (detail) {
+      setMergeTarget(detail.player)
+      setMergeTargetMatchCount(detail.matchCount)
+      setMergeSearchResults([])
+      setMergeSearchQuery('')
+      setMergePreview(false)
+      const selections: Record<string, 'a' | 'b'> = {}
+      for (const field of MERGE_FIELDS) {
+        const aVal = selectedPlayer?.[field]
+        const bVal = detail.player[field]
+        if (aVal != null && bVal == null) selections[field] = 'a'
+        else if (aVal == null && bVal != null) selections[field] = 'b'
+        else if (aVal != null && bVal != null) selections[field] = 'a'
+      }
+      setMergeSelections(selections)
+    }
+  }, [fetchPlayerDetail, selectedPlayer])
+
+  // ── Execute merge ──────────────────────────────────────────────
+
+  const handleMerge = useCallback(async () => {
+    if (!selectedPlayer || !mergeTarget) return
+    setMerging(true)
+    setMergeMessage(null)
+    const mergedFields: Record<string, unknown> = {}
+    for (const field of MERGE_FIELDS) {
+      const selection = mergeSelections[field]
+      if (selection === 'b') mergedFields[field] = mergeTarget[field]
+    }
+    try {
+      const res = await fetch('/api/ops/players/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keepId: selectedPlayer.id, deleteId: mergeTarget.id, mergedFields }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setMergeMessage(`Error: ${body.error ?? 'Merge failed'}`)
+      } else {
+        const data = await res.json()
+        setMergeMessage(`Merged! ${data.matchesUpdated} matches + ${data.drawsUpdated} draws reassigned.`)
+        setMergeMode(false)
+        setMergeTarget(null)
+        setMergePreview(false)
+        setSelectedPlayer(null)
+        fetchData()
+      }
+    } catch (e: unknown) {
+      setMergeMessage(`Error: ${e instanceof Error ? e.message : 'Merge failed'}`)
+    }
+    setMerging(false)
+  }, [selectedPlayer, mergeTarget, mergeSelections, fetchData])
+
+  // ── Duplicate scan ─────────────────────────────────────────────
 
   const runDupScan = useCallback(async (mode: 'rules' | 'ai' = 'rules') => {
     setDupScanning(true)
@@ -178,34 +309,26 @@ export default function PlayersTab() {
     setDupScanning(false)
   }, [categoryFilter])
 
-  // Direct merge from scan results — no intermediate step
   const directMergeFromDup = useCallback(async (keepPlayer: DupGroup['players'][0], deletePlayer: DupGroup['players'][0], groupKey: string) => {
     setDupMerging(prev => { const s = new Set(prev); s.add(groupKey); return s })
     try {
-      // Build merged fields: for each field, pick the non-null value from keep, fallback to delete
       const mergedFields: Record<string, unknown> = {}
       const fieldKeys = ['name', 'country', 'category', 'ranking', 'points', 'fip_id', 'external_id', 'avatar_url'] as const
       for (const key of fieldKeys) {
         const keepVal = keepPlayer[key as keyof typeof keepPlayer]
         const delVal = deletePlayer[key as keyof typeof deletePlayer]
-        // Use keep's value if present, otherwise take delete's value
-        if (keepVal != null && keepVal !== '') {
-          mergedFields[key] = keepVal
-        } else if (delVal != null && delVal !== '') {
-          mergedFields[key] = delVal
-        }
+        if (keepVal != null && keepVal !== '') mergedFields[key] = keepVal
+        else if (delVal != null && delVal !== '') mergedFields[key] = delVal
       }
-
       const res = await fetch('/api/ops/players/merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keepId: keepPlayer.id, deleteId: deletePlayer.id, mergedFields }),
       })
-
       if (res.ok) {
         const data = await res.json()
         setDupMerged(prev => { const s = new Set(prev); s.add(groupKey); return s })
-        console.log(`[Dup Merge] Kept ${keepPlayer.name}, deleted ${deletePlayer.name}. Matches updated: ${data.matchesUpdated}, draws: ${data.drawsUpdated}`)
+        console.log(`[Dup Merge] Kept ${keepPlayer.name}, deleted ${deletePlayer.name}. Matches: ${data.matchesUpdated}, draws: ${data.drawsUpdated}`)
       } else {
         const err = await res.json().catch(() => ({}))
         console.error('[Dup Merge] Failed:', err.error ?? res.status)
@@ -218,33 +341,25 @@ export default function PlayersTab() {
     setDupMerging(prev => { const s = new Set(prev); s.delete(groupKey); return s })
   }, [])
 
-  // When user clicks a dup group player, load their detail for merge
   const startMergeFromDup = useCallback(async (keepId: string, deleteId: string) => {
     setDupShowPanel(false)
     setLoadingDetail(true)
     try {
-      // Load the "keep" player as selectedPlayer
       const keepRes = await fetch(`/api/ops/players?id=${keepId}`)
       if (!keepRes.ok) return
       const keepData = await keepRes.json()
       setSelectedPlayer(keepData.player)
       setSelectedMatchCount(keepData.matchCount ?? 0)
-      setEditFields({})
-
-      // Activate merge mode and load the "delete" player as target
       setMergeMode(true)
       const delRes = await fetch(`/api/ops/players?id=${deleteId}`)
       if (!delRes.ok) return
       const delData = await delRes.json()
       setMergeTarget(delData.player)
       setMergeTargetMatchCount(delData.matchCount ?? 0)
-
-      // Auto-select richer values for each field
       const selections: Record<string, 'a' | 'b'> = {}
       for (const field of MERGE_FIELDS) {
         const valA = keepData.player[field]
         const valB = delData.player[field]
-        // Prefer non-null, non-empty values. If both have values, keep A (the richer one)
         if (valA != null && valA !== '') selections[field] = 'a'
         else if (valB != null && valB !== '') selections[field] = 'b'
         else selections[field] = 'a'
@@ -255,234 +370,15 @@ export default function PlayersTab() {
     setLoadingDetail(false)
   }, [])
 
-  // ── Search handler ────────────────────────────────────────────
-
-  const doSearch = useCallback((query: string, cat: CategoryFilter) => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
-    if (!query.trim()) {
-      setResults([])
-      return
-    }
-    searchDebounceRef.current = setTimeout(async () => {
-      setSearching(true)
-      try {
-        const catParam = cat !== 'all' ? `&category=${cat}` : ''
-        const res = await fetch(`/api/ops/search-players?q=${encodeURIComponent(query)}${catParam}`)
-        if (res.ok) {
-          const data = await res.json()
-          setResults(data.players ?? [])
-        }
-      } catch { /* ignore */ }
-      setSearching(false)
-    }, 300)
-  }, [])
-
-  useEffect(() => {
-    doSearch(searchQuery, categoryFilter)
-  }, [searchQuery, categoryFilter, doSearch])
-
-  // Fetch brands and rackets on mount
-  useEffect(() => {
-    fetch('/api/ops/brands').then(r => r.json()).then(d => setBrands(d.brands ?? [])).catch(() => {})
-    fetch('/api/ops/rackets').then(r => r.json()).then(d => setRackets(d.rackets ?? [])).catch(() => {})
-  }, [])
-
-  // ── Fetch player detail ───────────────────────────────────────
-
-  const fetchPlayerDetail = useCallback(async (id: string): Promise<{ player: PlayerDetail; matchCount: number } | null> => {
-    try {
-      const res = await fetch(`/api/ops/players?id=${id}`)
-      if (!res.ok) return null
-      const data = await res.json()
-      return { player: data.player, matchCount: data.matchCount }
-    } catch {
-      return null
-    }
-  }, [])
-
-  const selectPlayer = useCallback(async (id: string) => {
-    setLoadingDetail(true)
-    setSaveMessage(null)
-    setMergeMode(false)
-    setMergeTarget(null)
-    setMergeMessage(null)
-    setMergePreview(false)
-    const detail = await fetchPlayerDetail(id)
-    if (detail) {
-      setSelectedPlayer(detail.player)
-      setSelectedMatchCount(detail.matchCount)
-      // Init edit fields from player
-      const fields: Record<string, unknown> = {}
-      for (const f of EDITABLE_FIELDS) {
-        fields[f.key] = detail.player[f.key]
-      }
-      setEditFields(fields)
-      // Fetch player equipment
-      setPlayerEquipment([])
-      setSelectedBrandId('')
-      setSelectedRacketId('')
-      try {
-        const eqRes = await fetch(`/api/ops/player-equipment?player_id=${id}`)
-        const eqData = await eqRes.json()
-        setPlayerEquipment(eqData.equipment ?? [])
-      } catch { /* ignore */ }
-    }
-    setLoadingDetail(false)
-  }, [fetchPlayerDetail])
-
-  // ── Save player edits ─────────────────────────────────────────
-
-  const handleSavePlayer = useCallback(async () => {
-    if (!selectedPlayer) return
-    setSavingPlayer(true)
-    setSaveMessage(null)
-    try {
-      // Build updates: only changed fields
-      const updates: Record<string, unknown> = {}
-      for (const f of EDITABLE_FIELDS) {
-        const newVal = editFields[f.key]
-        const oldVal = selectedPlayer[f.key]
-        if (newVal !== oldVal) {
-          updates[f.key] = newVal === '' ? null : newVal
-        }
-      }
-      if (Object.keys(updates).length === 0) {
-        setSaveMessage('No changes to save')
-        setSavingPlayer(false)
-        return
-      }
-      const res = await fetch('/api/ops/players', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedPlayer.id, updates }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        setSaveMessage(`Error: ${body.error ?? 'Failed to save'}`)
-      } else {
-        setSaveMessage('Saved successfully')
-        // Refresh
-        const detail = await fetchPlayerDetail(selectedPlayer.id)
-        if (detail) {
-          setSelectedPlayer(detail.player)
-          setSelectedMatchCount(detail.matchCount)
-        }
-        doSearch(searchQuery, categoryFilter)
-      }
-    } catch (e: unknown) {
-      setSaveMessage(`Error: ${e instanceof Error ? e.message : 'Failed to save'}`)
-    }
-    setSavingPlayer(false)
-  }, [selectedPlayer, editFields, fetchPlayerDetail, doSearch, searchQuery, categoryFilter])
-
-  // ── Merge: search for Player B ────────────────────────────────
-
-  const doMergeSearch = useCallback((query: string) => {
-    if (mergeSearchDebounceRef.current) clearTimeout(mergeSearchDebounceRef.current)
-    if (!query.trim()) {
-      setMergeSearchResults([])
-      return
-    }
-    mergeSearchDebounceRef.current = setTimeout(async () => {
-      setMergeSearching(true)
-      try {
-        const catParam = selectedPlayer?.category ? `&category=${selectedPlayer.category}` : ''
-        const res = await fetch(`/api/ops/search-players?q=${encodeURIComponent(query)}${catParam}`)
-        if (res.ok) {
-          const data = await res.json()
-          // Exclude Player A from results
-          setMergeSearchResults((data.players ?? []).filter((p: PlayerSummary) => p.id !== selectedPlayer?.id))
-        }
-      } catch { /* ignore */ }
-      setMergeSearching(false)
-    }, 300)
-  }, [selectedPlayer])
-
-  const selectMergeTarget = useCallback(async (id: string) => {
-    const detail = await fetchPlayerDetail(id)
-    if (detail) {
-      setMergeTarget(detail.player)
-      setMergeTargetMatchCount(detail.matchCount)
-      setMergeSearchResults([])
-      setMergeSearchQuery('')
-      setMergePreview(false)
-
-      // Auto-select non-null values
-      const selections: Record<string, 'a' | 'b'> = {}
-      for (const field of MERGE_FIELDS) {
-        const aVal = selectedPlayer?.[field]
-        const bVal = detail.player[field]
-        if (aVal != null && bVal == null) selections[field] = 'a'
-        else if (aVal == null && bVal != null) selections[field] = 'b'
-        else if (aVal != null && bVal != null) {
-          // Both non-null: default to A (the kept player)
-          selections[field] = 'a'
-        }
-        // Both null: no selection needed
-      }
-      setMergeSelections(selections)
-    }
-  }, [fetchPlayerDetail, selectedPlayer])
-
-  // ── Execute merge ─────────────────────────────────────────────
-
-  const handleMerge = useCallback(async () => {
-    if (!selectedPlayer || !mergeTarget) return
-    setMerging(true)
-    setMergeMessage(null)
-
-    // Build merged fields from selections
-    const mergedFields: Record<string, unknown> = {}
-    for (const field of MERGE_FIELDS) {
-      const selection = mergeSelections[field]
-      if (selection === 'b') {
-        mergedFields[field] = mergeTarget[field]
-      }
-      // 'a' means keep existing — no update needed
-    }
-
-    try {
-      const res = await fetch('/api/ops/players/merge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          keepId: selectedPlayer.id,
-          deleteId: mergeTarget.id,
-          mergedFields,
-        }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        setMergeMessage(`Error: ${body.error ?? 'Merge failed'}`)
-      } else {
-        const data = await res.json()
-        setMergeMessage(`Merged! ${data.matchesUpdated} matches + ${data.drawsUpdated} draws reassigned.`)
-        // Reset merge mode
-        setMergeMode(false)
-        setMergeTarget(null)
-        setMergePreview(false)
-        // Refresh player
-        const detail = await fetchPlayerDetail(selectedPlayer.id)
-        if (detail) {
-          setSelectedPlayer(detail.player)
-          setSelectedMatchCount(detail.matchCount)
-        }
-        doSearch(searchQuery, categoryFilter)
-      }
-    } catch (e: unknown) {
-      setMergeMessage(`Error: ${e instanceof Error ? e.message : 'Merge failed'}`)
-    }
-    setMerging(false)
-  }, [selectedPlayer, mergeTarget, mergeSelections, fetchPlayerDetail, doSearch, searchQuery, categoryFilter])
-
-  // ── Render ────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────
 
   return (
     <div className="players-tab">
       <style>{`
         .players-tab input, .players-tab select, .players-tab textarea { color: #111 !important; }
       `}</style>
-      {/* Search bar */}
+
+      {/* Search bar + dup scan buttons */}
       <div style={{ ...card, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
         <input
           type="text"
@@ -494,24 +390,6 @@ export default function PlayersTab() {
             border: '1px solid #d1d5db', borderRadius: 6,
           }}
         />
-        <div style={{ display: 'flex', gap: 0 }}>
-          {(['all', 'men', 'women'] as CategoryFilter[]).map((cat, i) => (
-            <button
-              key={cat}
-              onClick={() => setCategoryFilter(cat)}
-              style={{
-                padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                border: '1px solid #d1d5db',
-                borderRadius: i === 0 ? '4px 0 0 4px' : i === 2 ? '0 4px 4px 0' : '0',
-                background: categoryFilter === cat ? '#111' : 'white',
-                color: categoryFilter === cat ? 'white' : '#333',
-                borderLeft: i > 0 ? 'none' : undefined,
-              }}
-            >
-              {cat === 'all' ? 'All' : cat === 'men' ? 'Men' : 'Women'}
-            </button>
-          ))}
-        </div>
         {searching && <span style={{ fontSize: 10, color: '#9ca3af' }}>Searching...</span>}
         <button
           onClick={() => runDupScan('rules')}
@@ -538,6 +416,15 @@ export default function PlayersTab() {
           {dupScanning && dupMode === 'ai' ? '🤖 AI Scanning...' : '🤖 AI Scan'}
         </button>
       </div>
+
+      {/* Filter chips */}
+      <FilterChips
+        counts={filterCounts}
+        activeFilter={dataFilter}
+        activeCategory={categoryFilter}
+        onFilterChange={handleFilterChange}
+        onCategoryChange={handleCategoryChange}
+      />
 
       {/* Duplicate scan results panel */}
       {dupShowPanel && (
@@ -566,7 +453,6 @@ export default function PlayersTab() {
               const groupKey = group.players.map(p => p.id).sort().join('|')
               if (dupDismissed.has(groupKey)) return null
               const [a, b] = group.players
-              // Richness: count non-null fields
               const richness = (p: typeof a) => {
                 let s = 0
                 if (p.name) s += 1
@@ -588,7 +474,6 @@ export default function PlayersTab() {
                       <span key={ri} style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: '#fef3c7', color: '#92400e', fontSize: 9, fontWeight: 600, marginRight: 4 }}>{r}</span>
                     ))}
                   </div>
-                  {/* Side-by-side */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                     {[a, b].map((p, pi) => {
                       const isRec = (pi === 0 && recommended === 'a') || (pi === 1 && recommended === 'b')
@@ -608,7 +493,6 @@ export default function PlayersTab() {
                       )
                     })}
                   </div>
-                  {/* AI merge guidance */}
                   {group.mergeGuidance && (
                     <div style={{
                       padding: '6px 10px', background: '#f5f3ff', borderRadius: 4,
@@ -617,69 +501,68 @@ export default function PlayersTab() {
                       <span style={{ fontWeight: 700 }}>🤖 AI recommendation:</span> {group.mergeGuidance}
                     </div>
                   )}
-                  {/* Actions */}
                   {dupMerged.has(groupKey) ? (
                     <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>✓ Merged successfully</div>
                   ) : (
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
-                    <button
-                      onClick={() => {
-                        const keep = recommended === 'a' ? a : b
-                        const del = recommended === 'a' ? b : a
-                        directMergeFromDup(keep, del, groupKey)
-                      }}
-                      disabled={dupMerging.has(groupKey)}
-                      style={{
-                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                        border: 'none', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
-                        background: '#22c55e', color: '#fff',
-                        opacity: dupMerging.has(groupKey) ? 0.6 : 1,
-                      }}
-                    >
-                      {dupMerging.has(groupKey) ? 'Merging...' : `⚡ Quick merge → keep ${recommended === 'a' ? 'A' : 'B'}`}
-                    </button>
-                    <button
-                      onClick={() => {
-                        const keep = recommended === 'a' ? b : a
-                        const del = recommended === 'a' ? a : b
-                        directMergeFromDup(keep, del, groupKey)
-                      }}
-                      disabled={dupMerging.has(groupKey)}
-                      style={{
-                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                        border: '1px solid #d1d5db', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
-                        background: '#fff', color: '#111',
-                        opacity: dupMerging.has(groupKey) ? 0.6 : 1,
-                      }}
-                    >
-                      Keep {recommended === 'a' ? 'B' : 'A'} instead
-                    </button>
-                    <button
-                      onClick={() => {
-                        const keepId = recommended === 'a' ? a.id : b.id
-                        const deleteId = recommended === 'a' ? b.id : a.id
-                        startMergeFromDup(keepId, deleteId)
-                        setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })
-                      }}
-                      disabled={dupMerging.has(groupKey)}
-                      style={{
-                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#6B7280',
-                      }}
-                    >
-                      Review fields...
-                    </button>
-                    <button
-                      onClick={() => setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })}
-                      disabled={dupMerging.has(groupKey)}
-                      style={{
-                        fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#9ca3af',
-                      }}
-                    >
-                      Dismiss
-                    </button>
-                  </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
+                      <button
+                        onClick={() => {
+                          const keep = recommended === 'a' ? a : b
+                          const del = recommended === 'a' ? b : a
+                          directMergeFromDup(keep, del, groupKey)
+                        }}
+                        disabled={dupMerging.has(groupKey)}
+                        style={{
+                          fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                          border: 'none', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
+                          background: '#22c55e', color: '#fff',
+                          opacity: dupMerging.has(groupKey) ? 0.6 : 1,
+                        }}
+                      >
+                        {dupMerging.has(groupKey) ? 'Merging...' : `⚡ Quick merge → keep ${recommended === 'a' ? 'A' : 'B'}`}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const keep = recommended === 'a' ? b : a
+                          const del = recommended === 'a' ? a : b
+                          directMergeFromDup(keep, del, groupKey)
+                        }}
+                        disabled={dupMerging.has(groupKey)}
+                        style={{
+                          fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                          border: '1px solid #d1d5db', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
+                          background: '#fff', color: '#111',
+                          opacity: dupMerging.has(groupKey) ? 0.6 : 1,
+                        }}
+                      >
+                        Keep {recommended === 'a' ? 'B' : 'A'} instead
+                      </button>
+                      <button
+                        onClick={() => {
+                          const keepId = recommended === 'a' ? a.id : b.id
+                          const deleteId = recommended === 'a' ? b.id : a.id
+                          startMergeFromDup(keepId, deleteId)
+                          setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })
+                        }}
+                        disabled={dupMerging.has(groupKey)}
+                        style={{
+                          fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                          border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#6B7280',
+                        }}
+                      >
+                        Review fields...
+                      </button>
+                      <button
+                        onClick={() => setDupDismissed(prev => { const s = new Set(prev); s.add(groupKey); return s })}
+                        disabled={dupMerging.has(groupKey)}
+                        style={{
+                          fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
+                          border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#9ca3af',
+                        }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
                   )}
                 </div>
               )
@@ -688,443 +571,47 @@ export default function PlayersTab() {
         </div>
       )}
 
-      {/* Results table */}
-      {results.length > 0 && (
-        <div style={{ ...card, padding: 0, marginBottom: 12, overflow: 'auto' }}>
-          <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
-                {['', 'Name', 'Country', 'Ranking', 'Points', 'Category', 'Equipment', 'Actions'].map(h => (
-                  <th
-                    key={h}
-                    style={{
-                      ...sectionLabel, padding: '8px 6px', textAlign: 'left', marginBottom: 0,
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {results.map(player => (
-                <tr
-                  key={player.id}
-                  style={{
-                    borderBottom: '1px solid #f3f4f6',
-                    cursor: 'pointer',
-                    background: selectedPlayer?.id === player.id ? '#F0F7FF' : undefined,
-                  }}
-                  onClick={() => selectPlayer(player.id)}
-                >
-                  {/* Avatar */}
-                  <td style={{ padding: '5px 6px', width: 32 }}>
-                    {player.avatar_url ? (
-                      <img
-                        src={player.avatar_url}
-                        alt=""
-                        style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }}
-                      />
-                    ) : (
-                      <div style={{
-                        width: 24, height: 24, borderRadius: '50%',
-                        background: '#e5e7eb', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: 10, color: '#9ca3af',
-                      }}>
-                        ?
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '5px 6px', fontWeight: 500, color: '#111' }}>
-                    {player.name}
-                    {player.display_name && player.display_name !== player.name && (
-                      <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 400 }}>{player.display_name}</div>
-                    )}
-                  </td>
-                  <td style={{ padding: '5px 6px', color: '#6B7280' }}>{player.country ?? '—'}</td>
-                  <td style={{ padding: '5px 6px', color: '#111' }}>{player.ranking ?? '—'}</td>
-                  <td style={{ padding: '5px 6px', color: '#111' }}>{player.points ?? '—'}</td>
-                  <td style={{ padding: '5px 6px' }}>
-                    {player.category && (
-                      <span style={{
-                        fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
-                        padding: '2px 6px', borderRadius: 3,
-                        background: player.category === 'men' ? '#DBEAFE' : '#FCE7F3',
-                        color: player.category === 'men' ? '#1E40AF' : '#9D174D',
-                      }}>
-                        {player.category}
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: '5px 6px', color: '#6B7280', maxWidth: 180 }}>
-                    {(player as any).equipment ? (
-                      <span style={{ fontSize: 10 }}>
-                        <span style={{ fontWeight: 600, color: '#111' }}>{(player as any).equipment.brand}</span>
-                        {' '}{(player as any).equipment.model}
-                        {(player as any).equipment.year && <span style={{ color: '#9ca3af' }}> {(player as any).equipment.year}</span>}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: 10, color: '#d1d5db' }}>—</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '5px 6px' }} onClick={e => e.stopPropagation()}>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button
-                        onClick={() => selectPlayer(player.id)}
-                        style={{
-                          padding: '3px 8px', fontSize: 10, fontWeight: 600,
-                          background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 4,
-                          cursor: 'pointer', color: '#111',
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => {
-                          selectPlayer(player.id).then(() => {
-                            setMergeMode(true)
-                            setMergeTarget(null)
-                            setMergePreview(false)
-                            setMergeMessage(null)
-                          })
-                        }}
-                        style={{
-                          padding: '3px 8px', fontSize: 10, fontWeight: 600,
-                          background: '#FEF3C7', border: '1px solid #F5A623', borderRadius: 4,
-                          cursor: 'pointer', color: '#92400E',
-                        }}
-                      >
-                        Merge
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Bulk actions bar */}
+      <BulkActionsBar
+        selectedCount={selectedIds.size}
+        selectedIds={Array.from(selectedIds)}
+        onClearSelection={() => setSelectedIds(new Set())}
+        onBulkComplete={() => { fetchData(); fetchCounts() }}
+      />
 
-      {/* Empty state */}
-      {searchQuery.trim() && !searching && results.length === 0 && (
-        <div style={{ ...card, textAlign: 'center', color: '#9ca3af', fontSize: 12, marginBottom: 12 }}>
-          No players found
-        </div>
-      )}
+      {/* Players table */}
+      <PlayersTable
+        players={results}
+        selectedIds={selectedIds}
+        activePlayerId={activePlayerId}
+        page={page}
+        totalPages={Math.ceil(total / perPage)}
+        onToggleSelect={handleToggleSelect}
+        onToggleSelectAll={handleToggleSelectAll}
+        onRowClick={handleRowClick}
+        onPageChange={handlePageChange}
+        loading={searching}
+      />
 
-      {/* Loading detail */}
+      {/* Merge mode — detailed field comparison panel */}
       {loadingDetail && (
-        <div style={{ ...card, textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>Loading player details...</div>
-      )}
-
-      {/* Detail / Edit panel */}
-      {selectedPlayer && !loadingDetail && !mergeMode && (
-        <div style={{ ...card, marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>{selectedPlayer.name}</span>
-              <span style={{
-                fontSize: 10, fontWeight: 600, padding: '2px 8px',
-                background: '#F0F7FF', border: '1px solid #DBEAFE', borderRadius: 10,
-                color: '#1E40AF',
-              }}>
-                Referenced in {selectedMatchCount} matches
-              </span>
-            </div>
-            <button
-              onClick={() => { setSelectedPlayer(null); setSaveMessage(null) }}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: 16, color: '#9ca3af', padding: '2px 6px',
-              }}
-            >
-              &times;
-            </button>
-          </div>
-
-          {/* Save message */}
-          {saveMessage && (
-            <div style={{
-              marginBottom: 10, padding: '6px 10px', borderRadius: 4, fontSize: 11,
-              background: saveMessage.startsWith('Error') ? '#FEF2F2' : '#F0FDF4',
-              color: saveMessage.startsWith('Error') ? '#991B1B' : '#166534',
-              border: saveMessage.startsWith('Error') ? '1px solid #FECACA' : '1px solid #BBF7D0',
-            }}>
-              {saveMessage}
-            </div>
-          )}
-
-          {/* Two-column field grid */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px',
-          }}>
-            {EDITABLE_FIELDS.map(f => (
-              <div key={f.key}>
-                <label style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 2 }}>
-                  {f.label}
-                </label>
-                <input
-                  type={f.type === 'number' ? 'number' : 'text'}
-                  value={(editFields[f.key] as string | number | undefined) ?? ''}
-                  onChange={e => {
-                    const val = f.type === 'number'
-                      ? (e.target.value === '' ? null : Number(e.target.value))
-                      : e.target.value
-                    setEditFields(prev => ({ ...prev, [f.key]: val }))
-                  }}
-                  style={{
-                    width: '100%', padding: '5px 7px', fontSize: 11,
-                    border: '1px solid #e5e7eb', borderRadius: 4,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* ── Equipment Section ──────────────────────── */}
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#111', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>🏓</span> Equipment
-            </div>
-
-            {/* Current equipment display */}
-            {(() => {
-              const current = playerEquipment.find(e => !e.ended_at)
-              if (current) {
-                return (
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: 8,
-                    background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 6, marginBottom: 10,
-                  }}>
-                    {current.racket.brand?.logo_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={current.racket.brand.logo_url} alt={current.racket.brand.name} style={{ height: 16, objectFit: 'contain' }} />
-                    )}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>
-                        {current.racket.brand?.name} {current.racket.model}
-                        {current.racket.year && <span style={{ color: '#6B7280', fontWeight: 400 }}> ({current.racket.year})</span>}
-                      </div>
-                      <div style={{ fontSize: 9, color: '#6B7280' }}>Since {current.started_at}</div>
-                    </div>
-                    <button
-                      onClick={() => { setSelectedBrandId(current.racket.brand?.id ?? ''); setSelectedRacketId('') }}
-                      style={{
-                        padding: '3px 8px', fontSize: 10, fontWeight: 600,
-                        background: 'white', border: '1px solid #d1d5db', borderRadius: 4,
-                        cursor: 'pointer', color: '#6B7280',
-                      }}
-                    >
-                      Change
-                    </button>
-                  </div>
-                )
-              }
-              return null
-            })()}
-
-            {/* Brand + Racket dropdowns */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', marginBottom: 8 }}>
-              <div>
-                <label style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 2 }}>
-                  Brand
-                </label>
-                <select
-                  value={selectedBrandId}
-                  onChange={e => { setSelectedBrandId(e.target.value); setSelectedRacketId('') }}
-                  style={{
-                    width: '100%', padding: '5px 7px', fontSize: 11,
-                    border: '1px solid #e5e7eb', borderRadius: 4,
-                    boxSizing: 'border-box' as const, background: 'white',
-                  }}
-                >
-                  <option value="">Select brand...</option>
-                  {brands.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, display: 'block', marginBottom: 2 }}>
-                  Racket
-                </label>
-                <select
-                  value={selectedRacketId}
-                  onChange={e => setSelectedRacketId(e.target.value)}
-                  disabled={!selectedBrandId}
-                  style={{
-                    width: '100%', padding: '5px 7px', fontSize: 11,
-                    border: '1px solid #e5e7eb', borderRadius: 4,
-                    boxSizing: 'border-box' as const, background: 'white',
-                    opacity: selectedBrandId ? 1 : 0.5,
-                  }}
-                >
-                  <option value="">Select racket...</option>
-                  {rackets.filter(r => r.brand_id === selectedBrandId).map(r => (
-                    <option key={r.id} value={r.id}>{r.model}{r.year ? ` (${r.year})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Assign button */}
-            {selectedRacketId && (
-              <button
-                onClick={async () => {
-                  if (!selectedPlayer) return
-                  setAssigningEquipment(true)
-                  try {
-                    const res = await fetch('/api/ops/player-equipment', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ player_id: selectedPlayer.id, racket_id: selectedRacketId }),
-                    })
-                    if (res.ok) {
-                      // Refresh equipment list
-                      const eqRes = await fetch(`/api/ops/player-equipment?player_id=${selectedPlayer.id}`)
-                      const eqData = await eqRes.json()
-                      setPlayerEquipment(eqData.equipment ?? [])
-                      setSelectedBrandId('')
-                      setSelectedRacketId('')
-                    }
-                  } catch { /* ignore */ }
-                  setAssigningEquipment(false)
-                }}
-                disabled={assigningEquipment}
-                style={{
-                  padding: '5px 12px', fontSize: 11, fontWeight: 600,
-                  background: '#111', color: 'white', border: 'none', borderRadius: 4,
-                  cursor: 'pointer', opacity: assigningEquipment ? 0.6 : 1, marginBottom: 10,
-                }}
-              >
-                {assigningEquipment ? 'Assigning...' : 'Assign Racket'}
-              </button>
-            )}
-
-            {/* Equipment history */}
-            {playerEquipment.length > 1 && (
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 4 }}>History</div>
-                {playerEquipment.filter(e => e.ended_at).map(e => (
-                  <div key={e.id} style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2 }}>
-                    {e.racket.brand?.name} {e.racket.model}{e.racket.year ? ` (${e.racket.year})` : ''}
-                    <span style={{ marginLeft: 6 }}>{e.started_at} - {e.ended_at}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* ── Live Preview (dark card matching player profile) ── */}
-            {(() => {
-              const previewRacket = selectedRacketId
-                ? rackets.find(r => r.id === selectedRacketId)
-                : playerEquipment.find(e => !e.ended_at)?.racket
-              if (!previewRacket) return null
-              const brandInfo = previewRacket.brand ?? brands.find(b => b.id === (previewRacket as { brand_id?: string }).brand_id)
-              const brandName = brandInfo?.name ?? ''
-              const brandLogo = brandInfo?.logo_url ?? null
-              return (
-                <div style={{ marginTop: 4 }}>
-                  <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 6 }}>Preview (as shown on player profile)</div>
-                  <div style={{
-                    background: '#141414',
-                    clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-                    padding: 12,
-                    position: 'relative',
-                    minHeight: 92,
-                    maxWidth: 180,
-                  }}>
-                    <div style={{ fontSize: 9, color: '#F5A623', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>
-                      Plays with
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {brandLogo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={brandLogo} alt={brandName} style={{ height: 16, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }} />
-                      ) : brandName ? (
-                        <span style={{ fontSize: 10, fontWeight: 800, color: '#F5A623' }}>{brandName}</span>
-                      ) : null}
-                    </div>
-                    {previewRacket.image_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={previewRacket.image_url} alt={previewRacket.model} style={{ height: 44, objectFit: 'contain', margin: '6px auto 2px', display: 'block', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))' }} />
-                    )}
-                    {previewRacket.model && (
-                      <div style={{ fontSize: 10, fontWeight: 600, color: '#fff', lineHeight: 1.3, marginTop: previewRacket.image_url ? 0 : 6 }}>
-                        {previewRacket.model}
-                      </div>
-                    )}
-                    {previewRacket.product_url && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 4 }}>
-                        <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>Learn more</span>
-                        <span style={{ fontSize: 8, color: '#4A6F8E' }}>&rsaquo;</span>
-                      </div>
-                    )}
-                    <div style={{
-                      position: 'absolute', top: 10, right: 10,
-                      width: 22, height: 22,
-                      background: 'rgba(245,166,35,0.1)',
-                      color: '#F5A623',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      clipPath: 'polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%)',
-                    }}>
-                      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#F5A623" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-
-          {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <button
-              onClick={handleSavePlayer}
-              disabled={savingPlayer}
-              style={{
-                padding: '6px 14px', fontSize: 11, fontWeight: 600,
-                background: '#111', color: 'white', border: 'none', borderRadius: 6,
-                cursor: 'pointer', opacity: savingPlayer ? 0.6 : 1,
-              }}
-            >
-              {savingPlayer ? 'Saving...' : 'Save'}
-            </button>
-            <button
-              onClick={() => { setSelectedPlayer(null); setSaveMessage(null) }}
-              style={{
-                padding: '6px 14px', fontSize: 11, fontWeight: 600,
-                background: 'white', border: '1px solid #d1d5db', borderRadius: 6,
-                cursor: 'pointer', color: '#111',
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+        <div style={{ ...card, textAlign: 'center', color: '#9ca3af', fontSize: 12, marginBottom: 12 }}>
+          Loading player details...
         </div>
       )}
 
-      {/* Merge mode */}
       {selectedPlayer && !loadingDetail && mergeMode && (
         <div style={{ ...card, marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>
-              Merge Players
-            </span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>Merge Players</span>
             <button
-              onClick={() => { setMergeMode(false); setMergeTarget(null); setMergePreview(false); setMergeMessage(null) }}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: 16, color: '#9ca3af', padding: '2px 6px',
-              }}
+              onClick={() => { setMergeMode(false); setMergeTarget(null); setMergePreview(false); setMergeMessage(null); setSelectedPlayer(null) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9ca3af', padding: '2px 6px' }}
             >
               &times;
             </button>
           </div>
 
-          {/* Merge message */}
           {mergeMessage && (
             <div style={{
               marginBottom: 10, padding: '6px 10px', borderRadius: 4, fontSize: 11,
@@ -1136,14 +623,11 @@ export default function PlayersTab() {
             </div>
           )}
 
-          {/* Player A (left column) */}
           <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
+            {/* Player A */}
             <div style={{ flex: 1 }}>
               <div style={sectionLabel}>Player A (Keep)</div>
-              <div style={{
-                padding: 10, border: '1px solid #BBF7D0', borderRadius: 6,
-                background: '#F0FDF4',
-              }}>
+              <div style={{ padding: 10, border: '1px solid #BBF7D0', borderRadius: 6, background: '#F0FDF4' }}>
                 <div style={{ fontWeight: 600, fontSize: 12, color: '#111' }}>{selectedPlayer.name}</div>
                 <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
                   {selectedPlayer.country ?? 'No country'} &middot; Rank #{selectedPlayer.ranking ?? '—'} &middot; {selectedMatchCount} matches
@@ -1151,7 +635,7 @@ export default function PlayersTab() {
               </div>
             </div>
 
-            {/* Player B (right column) */}
+            {/* Player B */}
             <div style={{ flex: 1 }}>
               <div style={sectionLabel}>Player B (Delete)</div>
               {!mergeTarget ? (
@@ -1159,31 +643,18 @@ export default function PlayersTab() {
                   <input
                     type="text"
                     value={mergeSearchQuery}
-                    onChange={e => {
-                      setMergeSearchQuery(e.target.value)
-                      doMergeSearch(e.target.value)
-                    }}
+                    onChange={e => { setMergeSearchQuery(e.target.value); doMergeSearch(e.target.value) }}
                     placeholder="Search for player to merge..."
-                    style={{
-                      width: '100%', padding: '7px 10px', fontSize: 11,
-                      border: '1px solid #d1d5db', borderRadius: 4,
-                      boxSizing: 'border-box',
-                    }}
+                    style={{ width: '100%', padding: '7px 10px', fontSize: 11, border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' }}
                   />
                   {mergeSearching && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>Searching...</div>}
                   {mergeSearchResults.length > 0 && (
-                    <div style={{
-                      border: '1px solid #e5e7eb', borderRadius: 4, marginTop: 4,
-                      maxHeight: 180, overflowY: 'auto',
-                    }}>
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: 4, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
                       {mergeSearchResults.map(r => (
                         <div
                           key={r.id}
                           onClick={() => selectMergeTarget(r.id)}
-                          style={{
-                            padding: '6px 8px', cursor: 'pointer', fontSize: 11,
-                            borderBottom: '1px solid #f3f4f6',
-                          }}
+                          style={{ padding: '6px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid #f3f4f6' }}
                           onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
@@ -1196,21 +667,14 @@ export default function PlayersTab() {
                   )}
                 </div>
               ) : (
-                <div style={{
-                  padding: 10, border: '1px solid #FECACA', borderRadius: 6,
-                  background: '#FEF2F2',
-                }}>
+                <div style={{ padding: 10, border: '1px solid #FECACA', borderRadius: 6, background: '#FEF2F2' }}>
                   <div style={{ fontWeight: 600, fontSize: 12, color: '#111' }}>{mergeTarget.name}</div>
                   <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
                     {mergeTarget.country ?? 'No country'} &middot; Rank #{mergeTarget.ranking ?? '—'} &middot; {mergeTargetMatchCount} matches
                   </div>
                   <button
                     onClick={() => { setMergeTarget(null); setMergePreview(false) }}
-                    style={{
-                      marginTop: 6, padding: '2px 8px', fontSize: 10, fontWeight: 600,
-                      background: 'white', border: '1px solid #d1d5db', borderRadius: 3,
-                      cursor: 'pointer', color: '#6B7280',
-                    }}
+                    style={{ marginTop: 6, padding: '2px 8px', fontSize: 10, fontWeight: 600, background: 'white', border: '1px solid #d1d5db', borderRadius: 3, cursor: 'pointer', color: '#6B7280' }}
                   >
                     Change
                   </button>
@@ -1219,7 +683,7 @@ export default function PlayersTab() {
             </div>
           </div>
 
-          {/* Side-by-side comparison */}
+          {/* Field comparison table */}
           {mergeTarget && (
             <>
               <div style={{ ...card, padding: 0, overflow: 'auto', marginBottom: 12, border: '1px solid #e5e7eb' }}>
@@ -1227,13 +691,9 @@ export default function PlayersTab() {
                   <thead>
                     <tr style={{ borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
                       <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0, width: 100 }}>Field</th>
-                      <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0 }}>
-                        Player A (Keep)
-                      </th>
+                      <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0 }}>Player A (Keep)</th>
                       <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'center', marginBottom: 0, width: 50 }}>Pick</th>
-                      <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0 }}>
-                        Player B (Delete)
-                      </th>
+                      <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0 }}>Player B (Delete)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1242,60 +702,27 @@ export default function PlayersTab() {
                       const bVal = mergeTarget[field]
                       const bothNonNull = aVal != null && aVal !== '' && bVal != null && bVal !== ''
                       const isConflict = bothNonNull && String(aVal) !== String(bVal)
-
                       return (
-                        <tr
-                          key={field}
-                          style={{
-                            borderBottom: '1px solid #f3f4f6',
-                            background: isConflict ? '#FFF7ED' : undefined,
-                          }}
-                        >
-                          <td style={{ padding: '5px 8px', fontWeight: 600, color: '#6B7280', fontSize: 10 }}>
-                            {field}
-                          </td>
-                          <td
-                            style={{
-                              padding: '5px 8px', color: '#111',
-                              fontWeight: mergeSelections[field] === 'a' ? 600 : 400,
-                              opacity: mergeSelections[field] === 'b' ? 0.5 : 1,
-                            }}
-                          >
+                        <tr key={field} style={{ borderBottom: '1px solid #f3f4f6', background: isConflict ? '#FFF7ED' : undefined }}>
+                          <td style={{ padding: '5px 8px', fontWeight: 600, color: '#6B7280', fontSize: 10 }}>{field}</td>
+                          <td style={{ padding: '5px 8px', color: '#111', fontWeight: mergeSelections[field] === 'a' ? 600 : 400, opacity: mergeSelections[field] === 'b' ? 0.5 : 1 }}>
                             {aVal != null ? String(aVal) : <span style={{ color: '#d1d5db' }}>null</span>}
                           </td>
                           <td style={{ padding: '5px 8px', textAlign: 'center' }}>
                             {(aVal != null || bVal != null) && (
                               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
                                 <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-                                  <input
-                                    type="radio"
-                                    name={`merge-${field}`}
-                                    checked={mergeSelections[field] === 'a'}
-                                    onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'a' }))}
-                                    style={{ margin: 0 }}
-                                  />
+                                  <input type="radio" name={`merge-${field}`} checked={mergeSelections[field] === 'a'} onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'a' }))} style={{ margin: 0 }} />
                                   A
                                 </label>
                                 <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-                                  <input
-                                    type="radio"
-                                    name={`merge-${field}`}
-                                    checked={mergeSelections[field] === 'b'}
-                                    onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'b' }))}
-                                    style={{ margin: 0 }}
-                                  />
+                                  <input type="radio" name={`merge-${field}`} checked={mergeSelections[field] === 'b'} onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'b' }))} style={{ margin: 0 }} />
                                   B
                                 </label>
                               </div>
                             )}
                           </td>
-                          <td
-                            style={{
-                              padding: '5px 8px', color: '#111',
-                              fontWeight: mergeSelections[field] === 'b' ? 600 : 400,
-                              opacity: mergeSelections[field] === 'a' ? 0.5 : 1,
-                            }}
-                          >
+                          <td style={{ padding: '5px 8px', color: '#111', fontWeight: mergeSelections[field] === 'b' ? 600 : 400, opacity: mergeSelections[field] === 'a' ? 0.5 : 1 }}>
                             {bVal != null ? String(bVal) : <span style={{ color: '#d1d5db' }}>null</span>}
                           </td>
                         </tr>
@@ -1310,31 +737,19 @@ export default function PlayersTab() {
                 {!mergePreview ? (
                   <button
                     onClick={() => setMergePreview(true)}
-                    style={{
-                      padding: '6px 14px', fontSize: 11, fontWeight: 600,
-                      background: '#F5A623', color: 'white', border: 'none', borderRadius: 6,
-                      cursor: 'pointer',
-                    }}
+                    style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: '#F5A623', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}
                   >
                     Preview Merge
                   </button>
                 ) : (
                   <>
-                    <div style={{
-                      flex: 1, padding: '8px 10px', borderRadius: 6, fontSize: 11,
-                      background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B',
-                    }}>
+                    <div style={{ flex: 1, padding: '8px 10px', borderRadius: 6, fontSize: 11, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B' }}>
                       Will reassign {mergeTargetMatchCount} matches and draw entries from <strong>{mergeTarget.name}</strong> to <strong>{selectedPlayer.name}</strong>. Player B will be deleted.
                     </div>
                     <button
                       onClick={handleMerge}
                       disabled={merging}
-                      style={{
-                        padding: '6px 14px', fontSize: 11, fontWeight: 600,
-                        background: '#FF4655', color: 'white', border: 'none', borderRadius: 6,
-                        cursor: 'pointer', opacity: merging ? 0.6 : 1,
-                        whiteSpace: 'nowrap',
-                      }}
+                      style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: '#FF4655', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', opacity: merging ? 0.6 : 1, whiteSpace: 'nowrap' }}
                     >
                       {merging ? 'Merging...' : 'Confirm Merge'}
                     </button>
@@ -1345,6 +760,14 @@ export default function PlayersTab() {
           )}
         </div>
       )}
+
+      {/* Player drawer (edit panel) */}
+      <PlayerDrawer
+        playerId={activePlayerId}
+        onClose={() => setActivePlayerId(null)}
+        onSaved={() => fetchData()}
+        onNavigate={handleDrawerNavigate}
+      />
     </div>
   )
 }
