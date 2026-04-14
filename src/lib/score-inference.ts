@@ -506,11 +506,21 @@ export async function inferWinnerPair(
 
   if (winner) {
     // Set winner + transition ended→finished in one update
+    // Preserve retired/walkover status if already set in DB
+    const { data: currentMatch } = await supabase
+      .from('matches')
+      .select('status')
+      .eq('id', matchId)
+      .single()
+    const preserveStatus = currentMatch && ['retired', 'walkover'].includes(currentMatch.status)
+      ? currentMatch.status
+      : 'finished'
+
     await supabase
       .from('matches')
       .update({
         winner_pair: winner,
-        status: 'finished',
+        status: preserveStatus,
         finished_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

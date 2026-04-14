@@ -454,7 +454,7 @@ async function refreshTournamentDraw(tournamentDbId: string): Promise<void> {
 // Called when a match finishes — uses GET /api/matches/{id} which
 // returns the correct winner and clean set scores.
 // Falls back to live endpoint if detail has no score data.
-async function writeFinalState(matchDbId: string, externalId: string): Promise<boolean> {
+async function writeFinalState(matchDbId: string, externalId: string, apiStatus: string = 'finished'): Promise<boolean> {
   const detail = await fetchMatchDetail(externalId)
   if (!detail) {
     console.warn(`[Score Agent] Could not fetch final state for match ${externalId}`)
@@ -489,11 +489,14 @@ async function writeFinalState(matchDbId: string, externalId: string): Promise<b
     ? new Date(detail.started_time).toISOString()
     : null
 
+  // Preserve the original API status (retired, walkover) instead of always writing 'finished'
+  const finalStatus = apiStatus === 'retired' || apiStatus === 'walkover' ? apiStatus : 'finished'
+
   await supabase
     .from('matches')
     .update({
       winner_pair: winnerPair,
-      status: 'finished',
+      status: finalStatus,
       finished_at: new Date().toISOString(),
       duration: detail.duration ?? null,
       started_at: startedAt,
@@ -667,7 +670,7 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
 
   if (isFinished) {
     // ── Finish transition: immediately fetch authoritative final state ──
-    const written = await writeFinalState(matchRow.id, externalId)
+    const written = await writeFinalState(matchRow.id, externalId, liveState.status)
 
     // ── Refresh draw: update scheduled matches in this tournament ──
     if (written && existing?.tournament_id && !isRateLimited()) {
@@ -702,6 +705,9 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
 
     // Clean up is_current flags and compute coverage from actual data
     await cleanupMatchFinish(matchRow.id)
+
+    // Backfill any missing games/points from live endpoint
+    await backfillPointData(matchRow.id, externalId)
   } else {
     await upsertSetsAndGames(matchRow.id, liveState.sets, false)
   }
@@ -785,6 +791,7 @@ async function reconcileIncompleteMatches(): Promise<{
 
     if (written) {
       await cleanupMatchFinish(match.id)
+      await backfillPointData(match.id, match.external_id)
       console.log(`[Reconciliation] ✓ Repaired match ${match.external_id}`)
       repaired++
     } else {
@@ -802,6 +809,24 @@ async function reconcileIncompleteMatches(): Promise<{
     console.log(`[Reconciliation] Inference: fixed ${inferredCount} additional match(es)`)
   }
   // ── END inference reconciliation ──
+
+  // ── PBP backfill sweep ──
+  // Find finished PBP matches with incomplete coverage and backfill points
+  const { data: incompleteCoverage } = await supabase
+    .from('matches')
+    .select('id, external_id')
+    .eq('status', 'finished')
+    .not('external_id', 'is', null)
+    .or('coverage.is.null,coverage.eq.partial')
+    .gte('finished_at', sevenDaysAgo)
+    .order('finished_at', { ascending: false })
+    .limit(5)
+
+  for (const match of incompleteCoverage ?? []) {
+    if (isRateLimited()) break
+    await backfillPointData(match.id, match.external_id)
+  }
+  // ── END PBP backfill sweep ──
 
   return { checked: incompleteMatches.length, repaired, skipped, inferred: inferredCount }
 }
@@ -871,6 +896,118 @@ async function cleanupMatchFinish(matchDbId: string): Promise<void> {
   if (matchCheck && !matchCheck.winner_pair) {
     await inferWinnerPair(supabase, matchDbId)
   }
+}
+
+// ── PBP backfill on match finish ─────────────────────────────
+// Fills missing games and points from the padelapi live endpoint.
+// Only runs for PBP-tracked matches (padelapi source) that don't
+// already have full coverage. Uses "keep longer array" merge rule.
+async function backfillPointData(
+  matchDbId: string,
+  externalId: string,
+): Promise<{ gamesAdded: number; pointsUpdated: number }> {
+  const result = { gamesAdded: 0, pointsUpdated: 0 }
+
+  // Only backfill PBP matches without full coverage
+  const { data: match } = await supabase
+    .from('matches')
+    .select('coverage, padelapi_id, external_id')
+    .eq('id', matchDbId)
+    .single()
+
+  if (!match) return result
+  if (match.coverage === 'full') return result
+  if (!match.padelapi_id && !match.external_id) return result
+
+  if (isRateLimited()) return result
+  const liveState = await fetchMatchLiveState(Number(externalId))
+  if (!liveState?.sets) return result
+
+  for (const apiSet of liveState.sets) {
+    // Find the DB set row
+    const { data: dbSet } = await supabase
+      .from('sets')
+      .select('id')
+      .eq('match_id', matchDbId)
+      .eq('set_number', apiSet.set_number)
+      .maybeSingle()
+
+    if (!dbSet) continue // Set missing — should have been created by writeFinalState
+
+    for (const apiGame of (apiSet.games ?? [])) {
+      const apiPoints = apiGame.points ?? []
+      if (apiPoints.length === 0) continue // API has no points for this game
+
+      // Check if game exists in DB
+      const { data: dbGame } = await supabase
+        .from('games')
+        .select('id, points')
+        .eq('set_id', dbSet.id)
+        .eq('game_number', apiGame.game_number)
+        .maybeSingle()
+
+      if (!dbGame) {
+        // Game missing — insert with full points
+        await supabase.from('games').insert({
+          set_id: dbSet.id,
+          match_id: matchDbId,
+          game_number: apiGame.game_number,
+          game_score: apiGame.game_score,
+          points: apiPoints,
+          is_current: false,
+        })
+        result.gamesAdded++
+      } else {
+        // Game exists — update if API has more points
+        const dbPoints = (dbGame.points as string[]) ?? []
+        if (apiPoints.length > dbPoints.length) {
+          await supabase
+            .from('games')
+            .update({ points: apiPoints, game_score: apiGame.game_score })
+            .eq('id', dbGame.id)
+          result.pointsUpdated++
+        }
+      }
+    }
+  }
+
+  if (result.gamesAdded > 0 || result.pointsUpdated > 0) {
+    console.log(`[Backfill] Match ${externalId}: +${result.gamesAdded} games, ${result.pointsUpdated} points updated`)
+
+    // Recompute coverage since we added data
+    const { data: allSets } = await supabase
+      .from('sets')
+      .select('set_score')
+      .eq('match_id', matchDbId)
+      .not('set_score', 'is', null)
+
+    let expectedGames = 0
+    for (const s of allSets ?? []) {
+      if (!s.set_score) continue
+      const parts = s.set_score.split('-')
+      const p1 = parseInt(parts[0]) || 0
+      const p2 = parseInt((parts[1]?.match(/^\d+/) ?? ['0'])[0]) || 0
+      expectedGames += p1 + p2
+    }
+
+    const { count: gamesWithPoints } = await supabase
+      .from('games')
+      .select('id', { count: 'exact', head: true })
+      .eq('match_id', matchDbId)
+      .not('points', 'is', null)
+      .neq('points', '{}')
+
+    const actualGames = gamesWithPoints ?? 0
+    const coverage = expectedGames === 0 ? null
+      : actualGames >= expectedGames ? 'full'
+      : actualGames > 0 ? 'partial'
+      : null
+
+    await supabase.from('matches').update({ coverage }).eq('id', matchDbId)
+    console.log(`[Backfill] Coverage recomputed: ${actualGames}/${expectedGames} → ${coverage}`)
+  }
+
+  return result
 }
 
 // ── Stale match detector ──────────────────────────────────────
