@@ -20,7 +20,8 @@ function lastName(fullName: string | null | undefined): string {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
 
-  const supabase = createServerClient()
+  let supabase
+  try { supabase = createServerClient() } catch { return { title: 'Match | Padel Nachos' } }
 
   const { data: match } = await supabase
     .from('matches')
@@ -114,53 +115,58 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function MatchLayout({ params, children }: Props) {
-  const { id } = await params
+  let jsonLd: object | null = null
 
-  const supabase = createServerClient()
+  try {
+    const { id } = await params
+    const supabase = createServerClient()
 
-  const { data: match } = await supabase
-    .from('matches')
-    .select(`
-      id,
-      status,
-      pair1_player1:players!matches_pair1_player1_id_fkey(name),
-      pair1_player2:players!matches_pair1_player2_id_fkey(name),
-      pair2_player1:players!matches_pair2_player1_id_fkey(name),
-      pair2_player2:players!matches_pair2_player2_id_fkey(name),
-      tournament:tournaments(name, starts_at, ends_at)
-    `)
-    .eq('id', id)
-    .single()
+    const { data: match } = await supabase
+      .from('matches')
+      .select(`
+        id,
+        status,
+        pair1_player1:players!matches_pair1_player1_id_fkey(name),
+        pair1_player2:players!matches_pair1_player2_id_fkey(name),
+        pair2_player1:players!matches_pair2_player1_id_fkey(name),
+        pair2_player2:players!matches_pair2_player2_id_fkey(name),
+        tournament:tournaments(name, starts_at, ends_at)
+      `)
+      .eq('id', id)
+      .single()
 
-  type PlayerRef = { name: string } | null
-  type TournamentRef = { name: string; starts_at: string | null; ends_at: string | null } | null
+    type PlayerRef = { name: string } | null
+    type TournamentRef = { name: string; starts_at: string | null; ends_at: string | null } | null
 
-  const tournament = match?.tournament as unknown as TournamentRef
-  const p1 = [
-    (match?.pair1_player1 as unknown as PlayerRef)?.name,
-    (match?.pair1_player2 as unknown as PlayerRef)?.name,
-  ]
-    .filter(Boolean)
-    .join(' / ')
-  const p2 = [
-    (match?.pair2_player1 as unknown as PlayerRef)?.name,
-    (match?.pair2_player2 as unknown as PlayerRef)?.name,
-  ]
-    .filter(Boolean)
-    .join(' / ')
+    const tournament = match?.tournament as unknown as TournamentRef
+    const p1 = [
+      (match?.pair1_player1 as unknown as PlayerRef)?.name,
+      (match?.pair1_player2 as unknown as PlayerRef)?.name,
+    ]
+      .filter(Boolean)
+      .join(' / ')
+    const p2 = [
+      (match?.pair2_player1 as unknown as PlayerRef)?.name,
+      (match?.pair2_player2 as unknown as PlayerRef)?.name,
+    ]
+      .filter(Boolean)
+      .join(' / ')
 
-  const jsonLd =
-    match && tournament
-      ? {
-          '@context': 'https://schema.org',
-          '@type': 'SportsEvent',
-          name: `${p1} vs ${p2}`,
-          startDate: tournament.starts_at,
-          endDate: tournament.ends_at,
-          location: { '@type': 'Place', name: tournament.name },
-          sport: 'Padel',
-        }
-      : null
+    jsonLd =
+      match && tournament
+        ? {
+            '@context': 'https://schema.org',
+            '@type': 'SportsEvent',
+            name: `${p1} vs ${p2}`,
+            startDate: tournament.starts_at,
+            endDate: tournament.ends_at,
+            location: { '@type': 'Place', name: tournament.name },
+            sport: 'Padel',
+          }
+        : null
+  } catch {
+    // DB unavailable — render children without JSON-LD
+  }
 
   return (
     <>
