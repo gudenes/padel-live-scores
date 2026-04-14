@@ -299,14 +299,23 @@ async function handleLiveUpdate(data) {
     //    we touch the matches row.  The client watches the matches table; by
     //    writing matches LAST we guarantee fetchAll always sees a complete snapshot.
     for (const set of data.sets ?? []) {
-      // Skip null sets on finished/ended/bye matches
-      if ((data.status === 'finished' || data.status === 'ended' || data.status === 'bye') && !set.set_score) continue
-
-      const isCurrentSet =
-        set.set_score === null &&
-        set.set_number === Math.max(...(data.sets ?? []).map((s) => s.set_number))
+      const isMatchDone = data.status === 'finished' || data.status === 'ended' || data.status === 'bye'
 
       const { pair1_games, pair2_games } = computePairGames(set)
+
+      // Derive set_score from games when API doesn't provide it (e.g. final set on finish event)
+      let setScore = normalizeSetScoreFromLive(set.set_score)
+      if (!setScore && isMatchDone && (pair1_games > 0 || pair2_games > 0)) {
+        setScore = `${pair1_games}-${pair2_games}`
+        console.log(`[Relay] Derived set_score "${setScore}" for set ${set.set_number} from games (match ${externalId})`)
+      }
+
+      // Skip truly empty sets on finished matches (no score AND no games)
+      if (isMatchDone && !setScore && pair1_games === 0 && pair2_games === 0) continue
+
+      const isCurrentSet = !isMatchDone &&
+        set.set_score === null &&
+        set.set_number === Math.max(...(data.sets ?? []).map((s) => s.set_number))
 
       const { data: setRow, error: setError } = await supabase
         .from('sets')
@@ -314,11 +323,11 @@ async function handleLiveUpdate(data) {
           {
             match_id: matchDbId,
             set_number: set.set_number,
-            set_score: normalizeSetScoreFromLive(set.set_score),
+            set_score: setScore,
             pair1_games,
             pair2_games,
-            is_current: isCurrentSet,
-            score_source: 'live',  // ← NEW: tag source
+            is_current: isMatchDone ? false : isCurrentSet,
+            score_source: 'live',
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'match_id, set_number' }
