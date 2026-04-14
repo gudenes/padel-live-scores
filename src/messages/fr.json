@@ -220,7 +220,14 @@
     "learnMore": "En savoir plus",
     "shape": "Forme",
     "weight": "Poids",
-    "balance": "Équilibre"
+    "balance": "Équilibre",
+    "shape_diamond": "Diamant",
+    "shape_round": "Ronde",
+    "shape_teardrop": "Goutte d'eau",
+    "shape_hybrid": "Hybride",
+    "balance_head-heavy": "Haut",
+    "balance_balanced": "Moyen",
+    "balance_head-light": "Bas"
   },
   "followButton": {
     "follow": "Suivre",

@@ -1047,7 +1047,7 @@ function OverviewTab({
                     {racketShape && (
                       <div style={specRowStyle}>
                         <span>{t('shape')}</span>
-                        <span style={specValueStyle}>{racketShape.charAt(0).toUpperCase() + racketShape.slice(1)}</span>
+                        <span style={specValueStyle}>{t(`shape_${racketShape}`)}</span>
                       </div>
                     )}
                     {racketWeight && (
@@ -1059,7 +1059,7 @@ function OverviewTab({
                     {racketBalance && (
                       <div style={specRowStyle}>
                         <span>{t('balance')}</span>
-                        <span style={specValueStyle}>{racketBalance.charAt(0).toUpperCase() + racketBalance.slice(1)}</span>
+                        <span style={specValueStyle}>{t(`balance_${racketBalance}`)}</span>
                       </div>
                     )}
                   </div>

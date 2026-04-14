@@ -220,7 +220,14 @@
     "learnMore": "Learn more",
     "shape": "Shape",
     "weight": "Weight",
-    "balance": "Balance"
+    "balance": "Balance",
+    "shape_diamond": "Diamond",
+    "shape_round": "Round",
+    "shape_teardrop": "Teardrop",
+    "shape_hybrid": "Hybrid",
+    "balance_head-heavy": "Head Heavy",
+    "balance_balanced": "Balanced",
+    "balance_head-light": "Head Light"
   },
   "followButton": {
     "follow": "Follow",
