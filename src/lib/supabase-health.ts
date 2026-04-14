@@ -122,12 +122,91 @@ async function attemptRecovery(context: string): Promise<void> {
     return
   }
 
-  // Either auth or query is wedged. Hard reload is the only reliable
-  // recovery — recreating the supabase client mid-session would orphan
-  // every page that imported it.
-  console.warn(`[supabase-health] client wedged (auth=${authOk} query=${queryOk}) — forcing reload`)
+  // ── Soft recovery: try to restart the auth state machine ──
+  // Before forcing a hard reload, attempt to reset the auth client by
+  // re-setting the session from localStorage. This kicks the internal
+  // state machine and often unwedges the client without a visible reload.
+  console.warn(`[supabase-health] client wedged (auth=${authOk} query=${queryOk}) — attempting soft recovery...`)
+
+  let softRecoveryOk = false
+  try {
+    // 1. Restart Supabase's internal auth ticker
+    await supabase.auth.startAutoRefresh()
+
+    // 2. Re-set session from localStorage cache (resets internal state)
+    const cachedTokens = readCachedSessionTokens()
+    if (cachedTokens) {
+      console.warn(`[supabase-health] soft recovery: re-setting session from cache`)
+      await Promise.race([
+        supabase.auth.setSession(cachedTokens),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('setSession-timeout')), 4_000)),
+      ])
+    } else {
+      console.warn(`[supabase-health] soft recovery: no cached session, trying getSession`)
+      await Promise.race([
+        supabase.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('getSession-timeout')), 4_000)),
+      ])
+    }
+
+    // 3. Wait for auth state to settle
+    await new Promise(resolve => setTimeout(resolve, 1_000))
+
+    // 4. Re-probe both auth and query
+    let retryAuthOk = false
+    let retryQueryOk = false
+    try {
+      await Promise.race([
+        supabase.auth.getSession().then(() => { retryAuthOk = true }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('retry-auth-timeout')), 4_000)),
+      ])
+    } catch { /* swallow */ }
+    try {
+      await Promise.race([
+        supabase.from('matches').select('id').limit(1).then(() => { retryQueryOk = true }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('retry-query-timeout')), 4_000)),
+      ])
+    } catch { /* swallow */ }
+
+    console.warn(
+      `[supabase-health] soft recovery probes: auth=${retryAuthOk} query=${retryQueryOk}`
+    )
+    softRecoveryOk = retryAuthOk && retryQueryOk
+  } catch (e) {
+    console.warn(`[supabase-health] soft recovery threw:`, (e as Error)?.message)
+  }
+
+  if (softRecoveryOk) {
+    console.warn(`[supabase-health] soft recovery succeeded — no reload needed`)
+    // Stop the auto-refresh ticker we started (our manual keepalive handles this)
+    await supabase.auth.stopAutoRefresh()
+    return
+  }
+
+  // ── Hard reload: last resort ──
+  console.warn(`[supabase-health] soft recovery failed — forcing hard reload`)
   if (typeof window !== 'undefined') {
     setTimeout(() => window.location.reload(), 200)
+  }
+}
+
+/**
+ * Read cached session tokens from localStorage for soft recovery.
+ * Same key pattern as AuthProvider.readCachedSession().
+ */
+function readCachedSessionTokens(): { access_token: string; refresh_token: string } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+    const ref = supabaseUrl.match(/\/\/(.*?)\.supabase/)?.[1]
+    if (!ref) return null
+    const raw = localStorage.getItem(`sb-${ref}-auth-token`)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (!data?.access_token || !data?.refresh_token) return null
+    return { access_token: data.access_token, refresh_token: data.refresh_token }
+  } catch {
+    return null
   }
 }
 
