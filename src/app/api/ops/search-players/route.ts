@@ -26,38 +26,50 @@ async function checkOpsAuth(): Promise<Response | null> {
   return null
 }
 
-// ── GET: Search players by name ────────────────────────────────
+// ── GET: Search/browse players with pagination + filters ───────
 export async function GET(request: Request) {
   const authErr = await checkOpsAuth()
   if (authErr) return authErr
 
   const url = new URL(request.url)
-  const q = url.searchParams.get('q')
+  const q = url.searchParams.get('q')?.trim() || null
   const category = url.searchParams.get('category')
-
-  if (!q || !q.trim()) {
-    return Response.json({ error: 'Missing required query parameter: q' }, { status: 400 })
-  }
+  const filter = url.searchParams.get('filter')
+  const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
+  const perPage = Math.min(100, Math.max(1, parseInt(url.searchParams.get('per_page') ?? '25', 10)))
+  const from = (page - 1) * perPage
+  const to = from + perPage - 1
 
   let query = supabase
     .from('players')
-    .select('id, name, display_name, country, ranking, points, category, avatar_url')
-    .ilike('name', `%${q}%`)
+    .select('id, name, display_name, country, ranking, points, category, avatar_url, fip_id', { count: 'exact' })
+
+  if (q) {
+    query = query.ilike('name', `%${q}%`)
+  }
 
   if (category === 'men' || category === 'women') {
     query = query.eq('category', category)
   }
 
-  const { data, error } = await query
+  // Data quality filters (DB-side where possible)
+  if (filter === 'missing_avatar') {
+    query = query.is('avatar_url', null)
+  } else if (filter === 'missing_ranking') {
+    query = query.is('ranking', null)
+  }
+  // missing_equipment is handled post-fetch after equipment lookup
+
+  const { data, error, count } = await query
     .order('ranking', { ascending: true, nullsFirst: false })
-    .limit(50)
+    .range(from, to)
 
   if (error) {
     console.error('[Search Players] Query failed:', error.message)
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  // Fetch current equipment for all returned players in one query
+  // Batch-fetch current equipment for all returned players
   const playerIds = (data ?? []).map(p => p.id)
   let equipmentMap: Record<string, { brand: string; model: string; year: number | null }> = {}
 
@@ -80,10 +92,20 @@ export async function GET(request: Request) {
     }
   }
 
-  const players = (data ?? []).map(p => ({
+  let players = (data ?? []).map(p => ({
     ...p,
     equipment: equipmentMap[p.id] ?? null,
   }))
 
-  return Response.json({ players })
+  // Post-filter for missing_equipment (can't do this at DB level without a join)
+  if (filter === 'missing_equipment') {
+    players = players.filter(p => !p.equipment)
+  }
+
+  return Response.json({
+    players,
+    total: count ?? 0,
+    page,
+    per_page: perPage,
+  })
 }
