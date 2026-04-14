@@ -315,5 +315,22 @@
     "sec": "SEC",
     "live": "LIVE",
     "goBack": "Go back"
+  },
+  "about": {
+    "title": "About Padel Nachos",
+    "tagline": "Live padel scores with a side of fun",
+    "storyTitle": "Our Story",
+    "storyP1": "Padel Nachos was born from a simple frustration — it was too hard to follow live padel matches. Scores were scattered across apps, social media, and official sites with no single place to get everything.",
+    "storyP2": "We built PadelNachos to be that place: a fast, beautiful, free platform where fans can follow every point, every tournament, every player — from Premier Padel majors to FIP Gold events.",
+    "offerTitle": "What We Offer",
+    "offerScores": "Real-time live scores updated every 2 minutes",
+    "offerRankings": "Official FIP rankings for men and women",
+    "offerDraws": "Tournament draws and order of play",
+    "offerHighlights": "Video highlights from top padel channels",
+    "offerNews": "Breaking news aggregated from trusted sources",
+    "offerGenius": "PadelGenius — test your padel knowledge",
+    "dataTitle": "Data & Accuracy",
+    "dataP1": "Our scores come from official tournament APIs and are verified against multiple sources. During live matches, data refreshes every 2 minutes to keep you as close to real-time as possible.",
+    "dataP2": "Player rankings are synced daily from the official FIP rankings database, covering the top 1,000 players in both men's and women's categories."
   }
 }
