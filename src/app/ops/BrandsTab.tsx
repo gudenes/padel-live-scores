@@ -69,7 +69,7 @@ const card: React.CSSProperties = {
 
 const sectionLabel: React.CSSProperties = {
   fontSize: 10,
-  color: '#999',
+  color: '#9ca3af',
   textTransform: 'uppercase' as const,
   fontWeight: 700,
   letterSpacing: 1,
@@ -111,7 +111,7 @@ const btnPrimary: React.CSSProperties = {
 
 const btnSecondary: React.CSSProperties = {
   background: '#f3f4f6',
-  color: '#333',
+  color: '#111',
   border: '1px solid #e5e7eb',
   borderRadius: 6,
   fontSize: 11,
@@ -413,9 +413,9 @@ export default function BrandsTab() {
 
         {/* Brands table */}
         {loadingBrands ? (
-          <div style={{ fontSize: 11, color: '#999', padding: 12 }}>Loading brands...</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>Loading brands...</div>
         ) : brands.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#999', padding: 12 }}>No brands found. Add one to get started.</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>No brands found. Add one to get started.</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -440,7 +440,7 @@ export default function BrandsTab() {
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                     ) : (
-                      <span style={{ color: '#ccc', fontSize: 10 }}>--</span>
+                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
                     )}
                   </td>
                   <td style={tdStyle}>
@@ -454,7 +454,7 @@ export default function BrandsTab() {
                         {b.website_url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
                       </a>
                     ) : (
-                      <span style={{ color: '#ccc', fontSize: 10 }}>--</span>
+                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
                     )}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>{b.racket_count ?? 0}</td>
@@ -636,9 +636,9 @@ export default function BrandsTab() {
 
         {/* Rackets table */}
         {loadingRackets ? (
-          <div style={{ fontSize: 11, color: '#999', padding: 12 }}>Loading rackets...</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>Loading rackets...</div>
         ) : rackets.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#999', padding: 12 }}>
+          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>
             {brandFilter ? 'No rackets for this brand.' : 'No rackets found. Add one to get started.'}
           </div>
         ) : (
@@ -676,7 +676,7 @@ export default function BrandsTab() {
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                     ) : (
-                      <span style={{ color: '#ccc', fontSize: 10 }}>--</span>
+                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
                     )}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>{r.click_count ?? 0}</td>
