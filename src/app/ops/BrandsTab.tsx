@@ -69,7 +69,7 @@ const card: React.CSSProperties = {
 
 const sectionLabel: React.CSSProperties = {
   fontSize: 10,
-  color: '#999',
+  color: '#9ca3af',
   textTransform: 'uppercase' as const,
   fontWeight: 700,
   letterSpacing: 1,
@@ -111,7 +111,7 @@ const btnPrimary: React.CSSProperties = {
 
 const btnSecondary: React.CSSProperties = {
   background: '#f3f4f6',
-  color: '#333',
+  color: '#111',
   border: '1px solid #e5e7eb',
   borderRadius: 6,
   fontSize: 11,
@@ -132,6 +132,7 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   fontSize: 11,
+  color: '#111',
   padding: '6px 8px',
   borderBottom: '1px solid #f3f4f6',
   verticalAlign: 'middle',
@@ -187,7 +188,12 @@ export default function BrandsTab() {
       const res = await fetch(url)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
-      setRackets(json.rackets ?? [])
+      // Map nested brand object to flat brand_name for display
+      const mapped = (json.rackets ?? []).map((r: any) => ({
+        ...r,
+        brand_name: r.brand?.name ?? r.brand_name ?? null,
+      }))
+      setRackets(mapped)
     } catch (err) {
       console.error('Failed to fetch rackets:', err)
       setRacketMessage('Failed to load rackets')
@@ -210,8 +216,9 @@ export default function BrandsTab() {
     setBrandMessage(null)
     try {
       const method = editingBrandId ? 'PATCH' : 'POST'
+      // PATCH expects { id, updates }, POST expects flat fields
       const body = editingBrandId
-        ? { id: editingBrandId, ...brandForm }
+        ? { id: editingBrandId, updates: brandForm }
         : brandForm
       const res = await fetch('/api/ops/brands', {
         method,
@@ -249,7 +256,7 @@ export default function BrandsTab() {
     setRacketMessage(null)
     try {
       const method = editingRacketId ? 'PATCH' : 'POST'
-      const payload: Record<string, unknown> = {
+      const fields: Record<string, unknown> = {
         brand_id: racketForm.brand_id,
         model: racketForm.model,
         shape: racketForm.shape || null,
@@ -257,11 +264,11 @@ export default function BrandsTab() {
         surface_material: racketForm.surface_material || null,
         image_url: racketForm.image_url || null,
         product_url: racketForm.product_url || null,
-        affiliate_url: racketForm.affiliate_url || null,
         year: racketForm.year ? parseInt(racketForm.year, 10) : null,
         weight_grams: racketForm.weight_grams ? parseInt(racketForm.weight_grams, 10) : null,
       }
-      if (editingRacketId) payload.id = editingRacketId
+      // PATCH expects { id, updates }, POST expects flat fields
+      const payload = editingRacketId ? { id: editingRacketId, updates: fields } : fields
       const res = await fetch('/api/ops/rackets', {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -413,9 +420,9 @@ export default function BrandsTab() {
 
         {/* Brands table */}
         {loadingBrands ? (
-          <div style={{ fontSize: 11, color: '#999', padding: 12 }}>Loading brands...</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>Loading brands...</div>
         ) : brands.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#999', padding: 12 }}>No brands found. Add one to get started.</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>No brands found. Add one to get started.</div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -440,7 +447,7 @@ export default function BrandsTab() {
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                     ) : (
-                      <span style={{ color: '#ccc', fontSize: 10 }}>--</span>
+                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
                     )}
                   </td>
                   <td style={tdStyle}>
@@ -454,7 +461,7 @@ export default function BrandsTab() {
                         {b.website_url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
                       </a>
                     ) : (
-                      <span style={{ color: '#ccc', fontSize: 10 }}>--</span>
+                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
                     )}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>{b.racket_count ?? 0}</td>
@@ -504,6 +511,27 @@ export default function BrandsTab() {
             <div style={{ fontSize: 11, fontWeight: 600, color: '#111', marginBottom: 8 }}>
               {editingRacketId ? 'Edit Racket' : 'New Racket'}
             </div>
+
+            {/* Import from URL */}
+            <ImportFromUrl
+              brands={brands}
+              onExtracted={(specs) => {
+                const matchedBrand = brands.find(b => b.name.toLowerCase() === specs.brand?.toLowerCase())
+                setRacketForm(f => ({
+                  ...f,
+                  brand_id: matchedBrand?.id ?? f.brand_id,
+                  model: specs.model ?? f.model,
+                  year: specs.year?.toString() ?? f.year,
+                  shape: specs.shape ?? f.shape,
+                  weight_grams: specs.weight_grams?.toString() ?? f.weight_grams,
+                  balance: specs.balance ?? f.balance,
+                  surface_material: specs.surface_material ?? f.surface_material,
+                  image_url: specs.image_url ?? f.image_url,
+                  product_url: specs.product_url ?? f.product_url,
+                }))
+              }}
+            />
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
                 <label style={labelStyle}>Brand *</label>
@@ -636,9 +664,9 @@ export default function BrandsTab() {
 
         {/* Rackets table */}
         {loadingRackets ? (
-          <div style={{ fontSize: 11, color: '#999', padding: 12 }}>Loading rackets...</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>Loading rackets...</div>
         ) : rackets.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#999', padding: 12 }}>
+          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>
             {brandFilter ? 'No rackets for this brand.' : 'No rackets found. Add one to get started.'}
           </div>
         ) : (
@@ -676,7 +704,7 @@ export default function BrandsTab() {
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                     ) : (
-                      <span style={{ color: '#ccc', fontSize: 10 }}>--</span>
+                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
                     )}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>{r.click_count ?? 0}</td>
@@ -694,6 +722,90 @@ export default function BrandsTab() {
           </table>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Import from URL sub-component ─────────────────────────────
+function ImportFromUrl({
+  brands,
+  onExtracted,
+}: {
+  brands: { id: string; name: string }[]
+  onExtracted: (specs: {
+    brand: string | null; model: string | null; year: number | null
+    shape: string | null; weight_grams: number | null; balance: string | null
+    image_url: string | null; product_url: string | null; surface_material: string | null
+  }) => void
+}) {
+  const [url, setUrl] = React.useState('')
+  const [extracting, setExtracting] = React.useState(false)
+  const [message, setMessage] = React.useState<string | null>(null)
+
+  const handleExtract = async () => {
+    if (!url.trim()) return
+    setExtracting(true)
+    setMessage(null)
+    try {
+      const res = await fetch('/api/ops/extract-racket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url.trim() }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setMessage(`Error: ${json.error}`)
+        return
+      }
+      onExtracted(json.specs)
+      setMessage('Specs extracted! Review the form below and save.')
+    } catch (e) {
+      setMessage(`Error: ${(e as Error).message}`)
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  return (
+    <div style={{
+      marginBottom: 12, padding: 10, borderRadius: 6,
+      background: '#f0f7ff', border: '1px solid #bfdbfe',
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+        Import from URL
+      </div>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <input
+          style={{
+            flex: 1, padding: '6px 8px', fontSize: 12, border: '1px solid #bfdbfe',
+            borderRadius: 4, color: '#111', background: '#fff',
+          }}
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          placeholder="Paste product page URL (e.g. https://www.bullpadel.com/...)"
+          onKeyDown={e => { if (e.key === 'Enter') handleExtract() }}
+        />
+        <button
+          onClick={handleExtract}
+          disabled={extracting || !url.trim()}
+          style={{
+            padding: '6px 14px', fontSize: 11, fontWeight: 600, borderRadius: 4, border: 'none',
+            background: extracting || !url.trim() ? '#d1d5db' : '#1e40af', color: '#fff',
+            cursor: extracting || !url.trim() ? 'default' : 'pointer',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {extracting ? 'Extracting...' : 'Extract Specs'}
+        </button>
+      </div>
+      {message && (
+        <div style={{
+          fontSize: 10, marginTop: 6,
+          color: message.startsWith('Error') ? '#dc2626' : '#16a34a',
+        }}>
+          {message}
+        </div>
+      )}
     </div>
   )
 }

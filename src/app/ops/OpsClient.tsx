@@ -444,7 +444,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   ]
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#f8f9fa', display: 'flex' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#f8f9fa', color: '#111', display: 'flex' }}>
       {/* ── Sidebar ── */}
       <nav style={{
         width: 220, flexShrink: 0, background: '#fff', borderRight: '1px solid #e5e7eb',
