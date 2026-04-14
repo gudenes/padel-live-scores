@@ -4,7 +4,7 @@
 // Auth: reads ops_token cookie (httpOnly, set by middleware on /ops login).
 
 import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
+import { checkOpsAuth } from '@/lib/ops-auth'
 import { PlayerResolver } from '@/lib/player-resolver'
 import { toIso2 } from '@/lib/fip-scraper'
 
@@ -23,22 +23,6 @@ function getServiceClient() {
 }
 
 const supabase = getServiceClient()
-
-// ── Auth ────────────────────────────────────────────────────────
-async function checkOpsAuth(): Promise<Response | null> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('ops_token')?.value
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    console.error('[Ops Auth] CRON_SECRET env var is not set')
-    return Response.json({ error: 'Unauthorized', reason: 'server_misconfigured' }, { status: 401 })
-  }
-  if (token !== cronSecret) {
-    console.error('[Ops Auth] Token mismatch', { hasToken: !!token, tokenLength: token?.length })
-    return Response.json({ error: 'Unauthorized', reason: 'token_mismatch' }, { status: 401 })
-  }
-  return null
-}
 
 // ── GET: List FIP tournaments for dropdown ──────────────────────
 export async function GET(request: Request) {

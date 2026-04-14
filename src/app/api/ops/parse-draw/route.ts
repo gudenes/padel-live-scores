@@ -3,19 +3,12 @@
 // Uses Claude Sonnet for structured extraction — no text parsing step needed.
 // Auth: reads ops_token cookie (httpOnly, set by middleware on /ops login).
 
-import { cookies } from 'next/headers'
+import { checkOpsAuth } from '@/lib/ops-auth'
 import { parseDrawPdfWithSonnet } from '@/lib/pdf-parse-sonnet'
 
 export async function POST(request: Request) {
-  // Auth check
-  const cookieStore = await cookies()
-  const token = cookieStore.get('ops_token')?.value
-  if (!process.env.CRON_SECRET) {
-    return Response.json({ error: 'Unauthorized', reason: 'server_misconfigured' }, { status: 401 })
-  }
-  if (token !== process.env.CRON_SECRET) {
-    return Response.json({ error: 'Unauthorized', reason: 'token_mismatch' }, { status: 401 })
-  }
+  const authErr = await checkOpsAuth()
+  if (authErr) return authErr
 
   const contentType = request.headers.get('content-type') ?? ''
 

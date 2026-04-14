@@ -2,6 +2,7 @@
 // Supabase client helpers — browser (anon) and server (service role)
 
 import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
@@ -10,7 +11,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   || (typeof window !== 'undefined' ? window.location.origin : '')
 
-// ── Custom auth lock ─────────────────────────────────────────────────
+// Feature flag — cookie auth is on by default; set NEXT_PUBLIC_USE_COOKIE_AUTH=false to opt out
+export const cookieAuthEnabled = process.env.NEXT_PUBLIC_USE_COOKIE_AUTH !== 'false'
+
+// ── Custom auth lock (legacy path only) ─────────────────────────────────────
 //
 // History: Supabase's default `navigator.locks`-based lock was timing out
 // at 5s on slow DB responses (commit df59f6a April 2). The original fix
@@ -53,7 +57,12 @@ async function serializingLock<R>(
   return tail
 }
 
-// Browser client — uses anon key, respects RLS.
+// Browser client — cookie-aware when cookieAuthEnabled, localStorage otherwise.
+//
+// Cookie path: createBrowserClient from @supabase/ssr — handles cookie
+// read/write automatically, works with the server-side cookie client.
+//
+// Legacy path: uses anon key, respects RLS.
 // Auth options:
 // - detectSessionInUrl: pick up tokens from OAuth/magic-link redirects
 // - flowType: 'pkce'
@@ -69,19 +78,25 @@ async function serializingLock<R>(
 // we use placeholder values to prevent the module from crashing. The
 // placeholder client is never used — real env vars are always baked into
 // the client-side JS bundle at build time and available on the server at runtime.
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key',
-  {
-    auth: {
-      detectSessionInUrl: true,
-      flowType: 'pkce',
-      autoRefreshToken: false,
-      persistSession: true,
-      lock: serializingLock,
-    },
-  },
-)
+export const supabase = cookieAuthEnabled
+  ? createBrowserClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseAnonKey || 'placeholder-key',
+      { isSingleton: true },
+    )
+  : createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseAnonKey || 'placeholder-key',
+      {
+        auth: {
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          autoRefreshToken: false,
+          persistSession: true,
+          lock: serializingLock,
+        },
+      },
+    )
 
 // Expose the client on window for debugging — only in the browser, never SSR.
 // Lets you paste diagnostic scripts into the console that touch supabase.*
@@ -94,12 +109,12 @@ if (typeof window !== 'undefined') {
 // Only use in API routes and server components.
 // Auth is disabled: no session persistence, no token refresh, no URL detection —
 // none of these make sense for a service-key client running on the server.
-export function createServerClient() {
+export function createServiceClient() {
   const url = supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const serviceKey = process.env.SUPABASE_SERVICE_KEY ?? ''
   if (!url || !serviceKey) {
     throw new Error(
-      'createServerClient requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY'
+      'createServiceClient requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY'
     )
   }
   return createClient(url, serviceKey, {
@@ -110,3 +125,6 @@ export function createServerClient() {
     },
   })
 }
+
+// Legacy alias — keep existing call sites working without changes
+export { createServiceClient as createServerClient }

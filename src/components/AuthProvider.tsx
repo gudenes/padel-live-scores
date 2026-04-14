@@ -5,7 +5,7 @@
 // On first sign-in, migrates localStorage bookmarks to Supabase.
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, cookieAuthEnabled } from '@/lib/supabase'
 import { startSessionKeepalive, startClickRecovery, refreshSessionIfNeeded } from '@/lib/supabase-health'
 import { checkBadgeInline } from '@/lib/badge-check-inline'
 import type { User, Session } from '@supabase/supabase-js'
@@ -265,6 +265,7 @@ async function fetchProfile(userId: string): Promise<Profile | null> {
 // Supabase stores the session under `sb-{projectRef}-auth-token`
 // in localStorage when persistSession is true.
 function readCachedSession(): { user: User; session: Session } | null {
+  if (cookieAuthEnabled) return null
   if (typeof window === 'undefined') return null
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
@@ -301,57 +302,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    let safetyTimeout: ReturnType<typeof setTimeout> | undefined
 
-    // If we already have a cached user, fetch profile immediately
-    // (don't wait for getSession network call)
-    if (cached?.user) {
-      fetchProfile(cached.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
-      void updateLoginStreak(cached.user.id)
-    }
-
-    // Safety timeout — if getSession() hangs, we already rendered
-    // optimistically so this just ensures loading is false.
-    const safetyTimeout = setTimeout(() => {
-      if (!cancelled) {
-        console.warn('[Auth] getSession() timed out after 3s — unblocking UI')
+    // ── Cookie auth path: proxy handles session refresh via cookies ──
+    // No localStorage cache, no safety timeout, no proactive refresh needed.
+    if (cookieAuthEnabled) {
+      // Cookie auth: proxy already validated the token via getUser() on every
+      // request. We only need getSession() to read the (already-validated)
+      // session from cookies — no redundant network call to Supabase Auth.
+      supabase.auth.getSession().then(({ data: { session: s } }) => {
+        if (cancelled) return
+        setSession(s)
+        setUser(s?.user ?? null)
         setLoading(false)
-      }
-    }, 3000)
-
-    // ── Fix 2: Fallback to cached session on getSession timeout ──
-    // Verify the session with the server. If it fails or times out,
-    // we already have the cached session rendering — no spinner.
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (cancelled) return
-      clearTimeout(safetyTimeout)
-      setSession(s)
-      setUser(s?.user ?? null)
-      setLoading(false)
-      // Profile fetch in background — never blocks loading state
-      if (s?.user) {
-        // Only re-fetch profile if user changed (or wasn't cached)
-        if (!cached?.user || s.user.id !== cached.user.id) {
+        if (s?.user) {
           fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
           void updateLoginStreak(s.user.id)
         }
+      }).catch(err => {
+        console.error('[Auth] cookie auth init failed:', err)
+        if (!cancelled) setLoading(false)
+      })
+    } else {
+      // ── Legacy path: localStorage-based session with recovery ──
+
+      // If we already have a cached user, fetch profile immediately
+      // (don't wait for getSession network call)
+      if (cached?.user) {
+        fetchProfile(cached.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
+        void updateLoginStreak(cached.user.id)
       }
-      // Refresh proactively if token is close to expiry.
-      // Defer by 2s to let the network radio stabilize after a hard
-      // reload — avoids the getSession-timeout cascade on mobile wake.
-      if (s) {
-        setTimeout(() => { void refreshSessionIfNeeded('mount') }, 2000)
-      }
-    }).catch(err => {
-      console.error('[Auth] getSession() failed:', err)
-      if (!cancelled) {
+
+      // Safety timeout — if getSession() hangs, we already rendered
+      // optimistically so this just ensures loading is false.
+      safetyTimeout = setTimeout(() => {
+        if (!cancelled) {
+          console.warn('[Auth] getSession() timed out after 3s — unblocking UI')
+          setLoading(false)
+        }
+      }, 3000)
+
+      // ── Fix 2: Fallback to cached session on getSession timeout ──
+      // Verify the session with the server. If it fails or times out,
+      // we already have the cached session rendering — no spinner.
+      supabase.auth.getSession().then(({ data: { session: s } }) => {
+        if (cancelled) return
         clearTimeout(safetyTimeout)
-        // Fix 2: Don't leave user in spinner — we already have
-        // the cached session rendered. Just ensure loading is false.
+        setSession(s)
+        setUser(s?.user ?? null)
         setLoading(false)
-        // Schedule a background retry instead of leaving broken
-        setTimeout(() => { void refreshSessionIfNeeded('retry-after-failure') }, 3000)
-      }
-    })
+        // Profile fetch in background — never blocks loading state
+        if (s?.user) {
+          // Only re-fetch profile if user changed (or wasn't cached)
+          if (!cached?.user || s.user.id !== cached.user.id) {
+            fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
+            void updateLoginStreak(s.user.id)
+          }
+        }
+        // Refresh proactively if token is close to expiry.
+        // Defer by 2s to let the network radio stabilize after a hard
+        // reload — avoids the getSession-timeout cascade on mobile wake.
+        if (s) {
+          setTimeout(() => { void refreshSessionIfNeeded('mount') }, 2000)
+        }
+      }).catch(err => {
+        console.error('[Auth] getSession() failed:', err)
+        if (!cancelled) {
+          clearTimeout(safetyTimeout)
+          // Fix 2: Don't leave user in spinner — we already have
+          // the cached session rendered. Just ensure loading is false.
+          setLoading(false)
+          // Schedule a background retry instead of leaving broken
+          setTimeout(() => { void refreshSessionIfNeeded('retry-after-failure') }, 3000)
+        }
+      })
+    }
 
     // Listen for auth changes — log every event with timestamps so we can
     // diagnose wedge issues from console history.
@@ -395,15 +420,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Periodic session keepalive — pings supabase.auth.getSession every
     // 5 minutes to keep the client warm and detect wedges before the next
     // user interaction. Only runs in the browser.
-    const stopKeepalive = startSessionKeepalive()
+    // Cookie auth: proxy handles refresh, no keepalive needed.
+    const stopKeepalive = cookieAuthEnabled ? () => {} : startSessionKeepalive()
 
     // Click-triggered recovery — detects wedged client on first user
     // interaction after tab wake and triggers soft recovery immediately.
-    const stopClickRecovery = startClickRecovery()
+    // Cookie auth: no client-side recovery needed.
+    const stopClickRecovery = cookieAuthEnabled ? () => {} : startClickRecovery()
 
     return () => {
       cancelled = true
-      clearTimeout(safetyTimeout)
+      if (safetyTimeout) clearTimeout(safetyTimeout)
       subscription.unsubscribe()
       stopKeepalive()
       stopClickRecovery()

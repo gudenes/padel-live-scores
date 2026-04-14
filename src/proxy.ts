@@ -4,11 +4,13 @@
 // then decorates the response with geo-country and invite ref cookies.
 
 import createMiddleware from 'next-intl/middleware'
+import { createServerClient } from '@supabase/ssr'
 import { routing } from './i18n/routing'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const handleI18nRouting = createMiddleware(routing)
+const cookieAuthEnabled = process.env.NEXT_PUBLIC_USE_COOKIE_AUTH !== 'false'
 
 export default async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
@@ -48,27 +50,29 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(pathname.replace('/v3/tournaments', '/tournaments'), request.url), 308)
   }
 
-  // 3. Ops dashboard auth
-  if (pathname.startsWith('/ops')) {
+  // 3. Ops dashboard auth (covers /ops pages and /api/ops routes)
+  if (pathname.startsWith('/ops') || pathname.startsWith('/api/ops')) {
     const cronSecret = process.env.CRON_SECRET
     if (!cronSecret) {
       return new NextResponse('Server misconfigured', { status: 500 })
     }
 
-    // Check for token in query param (first visit / bookmark)
-    const tokenParam = request.nextUrl.searchParams.get('token')
-    if (tokenParam === cronSecret) {
-      // Set cookie and redirect without token in URL
-      const cleanUrl = new URL(pathname, request.url)
-      const response = NextResponse.redirect(cleanUrl)
-      // Set cookie with path=/ so it's sent to both /ops/* and /api/ops/*
-      response.cookies.set('ops_token', cronSecret, {
-        httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: '/',
-      })
-      return response
+    // Check for token in query param (first visit / bookmark) — pages only
+    if (pathname.startsWith('/ops')) {
+      const tokenParam = request.nextUrl.searchParams.get('token')
+      if (tokenParam === cronSecret) {
+        // Set cookie and redirect without token in URL
+        const cleanUrl = new URL(pathname, request.url)
+        const response = NextResponse.redirect(cleanUrl)
+        // Set cookie with path=/ so it's sent to both /ops/* and /api/ops/*
+        response.cookies.set('ops_token', cronSecret, {
+          httpOnly: true,
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+          path: '/',
+        })
+        return response
+      }
     }
 
     // Check cookie
@@ -77,7 +81,14 @@ export default async function proxy(request: NextRequest) {
       return new NextResponse('Unauthorized', { status: 401 })
     }
 
-    return NextResponse.next()
+    // /api/ops routes: validate and pass through (skip i18n)
+    if (pathname.startsWith('/api/ops')) {
+      const headers = new Headers(request.headers)
+      headers.set('x-ops-authenticated', 'true')
+      return NextResponse.next({ request: { headers } })
+    }
+
+    // /ops pages: fall through to i18n routing below
   }
 
   // 4. Auth routes — outside [locale], skip i18n routing
@@ -90,10 +101,49 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ── Supabase cookie refresh ─────────────────────────────────────
+  let supabaseResponse = NextResponse.next({
+    request: { headers: request.headers },
+  })
+
+  if (cookieAuthEnabled) {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => request.cookies.getAll(),
+          setAll: (cookiesToSet) => {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            )
+            supabaseResponse = NextResponse.next({ request })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+
+    // Triggers token refresh if access token expired
+    await supabase.auth.getUser()
+  }
+
   // ── Run next-intl locale routing ───────────────────────────────
   const response = handleI18nRouting(request)
 
   // ── Post-i18n: decorate response with cookies ──────────────────
+
+  // Merge Supabase auth cookies into the i18n response.
+  // Copy raw Set-Cookie headers to preserve options (httpOnly, sameSite, maxAge)
+  // that getAll() may not carry. This ensures the browser receives the full
+  // cookie attributes that @supabase/ssr set in the setAll callback.
+  if (cookieAuthEnabled) {
+    supabaseResponse.headers.getSetCookie().forEach((setCookieHeader) => {
+      response.headers.append('Set-Cookie', setCookieHeader)
+    })
+  }
 
   // Geo-country cookie
   const country = request.headers.get('x-vercel-ip-country') ?? ''
@@ -139,6 +189,6 @@ export const config = {
      * - api routes (handled separately)
      * - _vercel (Vercel internals)
      */
-    '/((?!api|_next|_vercel|.*\\..*).*)',
+    '/((?!api(?!/ops)|_next|_vercel|.*\\..*).*)',
   ],
 }

@@ -35,7 +35,7 @@
 // ```
 
 import { useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, cookieAuthEnabled } from '@/lib/supabase'
 import { refreshSessionIfNeeded } from '@/lib/supabase-health'
 
 interface UseWakeRefreshOptions {
@@ -77,30 +77,42 @@ export function useWakeRefresh(
 
       console.log(`[useWakeRefresh] tab visible after ${Math.round(hiddenForMs / 1000)}s — refreshing`)
 
-      // Proactively kick Supabase's internal auth ticker. When the tab is
-      // backgrounded, Chrome throttles timers and the ticker stops. Calling
-      // startAutoRefresh() restarts it, reducing the chance of the auth
-      // client getting wedged before our manual refresh even runs.
-      try { await supabase.auth.startAutoRefresh() } catch { /* safe to ignore */ }
+      if (cookieAuthEnabled) {
+        // Cookie auth: proxy handles session refresh via cookies.
+        // Just refetch data directly — no auth recovery dance needed.
+        try {
+          await refetchRef.current()
+        } catch (e) {
+          console.warn('[useWakeRefresh] refetch failed:', e)
+        }
+      } else {
+        // Legacy path: restart auth ticker, wait for network, refresh session
 
-      // Fix 3: Wait 1.5s before attempting refresh. After waking from
-      // sleep, the device's network radio (WiFi/LTE) needs time to
-      // reconnect. Hitting the network immediately causes timeouts that
-      // cascade into auth failures and infinite spinners. Discord and
-      // Slack use the same pattern.
-      await new Promise(resolve => setTimeout(resolve, 1500))
+        // Proactively kick Supabase's internal auth ticker. When the tab is
+        // backgrounded, Chrome throttles timers and the ticker stops. Calling
+        // startAutoRefresh() restarts it, reducing the chance of the auth
+        // client getting wedged before our manual refresh even runs.
+        try { await supabase.auth.startAutoRefresh() } catch { /* safe to ignore */ }
 
-      if (refreshSession) {
-        // refreshSessionIfNeeded handles its own timeout and only calls
-        // refreshSession() when the token is actually close to expiring.
-        // Cheap when the token is fresh, important when it's not.
-        await refreshSessionIfNeeded('wake')
-      }
+        // Fix 3: Wait 1.5s before attempting refresh. After waking from
+        // sleep, the device's network radio (WiFi/LTE) needs time to
+        // reconnect. Hitting the network immediately causes timeouts that
+        // cascade into auth failures and infinite spinners. Discord and
+        // Slack use the same pattern.
+        await new Promise(resolve => setTimeout(resolve, 1500))
 
-      try {
-        await refetchRef.current()
-      } catch (e) {
-        console.warn('[useWakeRefresh] refetch failed:', e)
+        if (refreshSession) {
+          // refreshSessionIfNeeded handles its own timeout and only calls
+          // refreshSession() when the token is actually close to expiring.
+          // Cheap when the token is fresh, important when it's not.
+          await refreshSessionIfNeeded('wake')
+        }
+
+        try {
+          await refetchRef.current()
+        } catch (e) {
+          console.warn('[useWakeRefresh] refetch failed:', e)
+        }
       }
     }
 
