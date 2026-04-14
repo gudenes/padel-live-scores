@@ -217,7 +217,17 @@
     "hometown": "Ciudad natal",
     "playerNotFound": "Jugador no encontrado",
     "playsWith": "Juega con",
-    "learnMore": "Saber más"
+    "learnMore": "Saber más",
+    "shape": "Forma",
+    "weight": "Peso",
+    "balance": "Balance",
+    "shape_diamond": "Diamante",
+    "shape_round": "Redonda",
+    "shape_teardrop": "Lágrima",
+    "shape_hybrid": "Híbrida",
+    "balance_head-heavy": "Alto",
+    "balance_balanced": "Medio",
+    "balance_head-light": "Bajo"
   },
   "followButton": {
     "follow": "Seguir",
