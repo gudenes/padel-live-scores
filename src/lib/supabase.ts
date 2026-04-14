@@ -4,8 +4,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { createBrowserClient } from '@supabase/ssr'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
 // Canonical site URL — uses env var in production, falls back to window.location.origin for local dev
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
@@ -71,17 +71,32 @@ async function serializingLock<R>(
 //   racing with in-flight queries
 // - persistSession: keep the session in localStorage across reloads
 // - lock: our serializing in-memory lock (see comment above)
+//
+// Guard: during Next.js build ("Collecting page data" phase), NEXT_PUBLIC_*
+// env vars may not be available in worker processes. Server-side code that
+// only needs createServerClient() also triggers this module evaluation, so
+// we use placeholder values to prevent the module from crashing. The
+// placeholder client is never used — real env vars are always baked into
+// the client-side JS bundle at build time and available on the server at runtime.
 export const supabase = cookieAuthEnabled
-  ? createBrowserClient(supabaseUrl, supabaseAnonKey, { isSingleton: true })
-  : createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        detectSessionInUrl: true,
-        flowType: 'pkce',
-        autoRefreshToken: false,
-        persistSession: true,
-        lock: serializingLock,
+  ? createBrowserClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseAnonKey || 'placeholder-key',
+      { isSingleton: true },
+    )
+  : createClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseAnonKey || 'placeholder-key',
+      {
+        auth: {
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          autoRefreshToken: false,
+          persistSession: true,
+          lock: serializingLock,
+        },
       },
-    })
+    )
 
 // Expose the client on window for debugging — only in the browser, never SSR.
 // Lets you paste diagnostic scripts into the console that touch supabase.*
@@ -90,10 +105,25 @@ if (typeof window !== 'undefined') {
   ;(window as any).__pn_supabase = supabase
 }
 
-// Service client — uses service key, bypasses RLS
-// Only use in API routes and server components
+// Server client — uses service key, bypasses RLS.
+// Only use in API routes and server components.
+// Auth is disabled: no session persistence, no token refresh, no URL detection —
+// none of these make sense for a service-key client running on the server.
 export function createServiceClient() {
-  return createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY!)
+  const url = supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY ?? ''
+  if (!url || !serviceKey) {
+    throw new Error(
+      'createServiceClient requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY'
+    )
+  }
+  return createClient(url, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
 }
 
 // Legacy alias — keep existing call sites working without changes

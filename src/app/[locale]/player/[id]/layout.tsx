@@ -14,7 +14,8 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
 
-  const supabase = createServerClient()
+  let supabase
+  try { supabase = createServerClient() } catch { return { title: 'Player | Padel Nachos' } }
 
   const { data: player } = await supabase
     .from('players')
@@ -48,25 +49,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PlayerLayout({ params, children }: Props) {
-  const { id } = await params
+  let jsonLd: object | null = null
 
-  const supabase = createServerClient()
+  try {
+    const { id } = await params
+    const supabase = createServerClient()
 
-  const { data: player } = await supabase
-    .from('players')
-    .select('id, name, country')
-    .eq('id', id)
-    .single()
+    const { data: player } = await supabase
+      .from('players')
+      .select('id, name, country')
+      .eq('id', id)
+      .single()
 
-  const jsonLd = player
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'Person',
-        name: player.name,
-        nationality: player.country,
-        sport: 'Padel',
-      }
-    : null
+    jsonLd = player
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'Person',
+          name: player.name,
+          nationality: player.country,
+          sport: 'Padel',
+        }
+      : null
+  } catch {
+    // DB unavailable — render children without JSON-LD
+  }
 
   return (
     <>
