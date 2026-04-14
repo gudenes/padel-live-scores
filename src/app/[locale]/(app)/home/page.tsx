@@ -2313,6 +2313,8 @@ function V3HomePageInner() {
 
       {/* Footer links */}
       <div style={{ padding: '20px 16px 8px', display: 'flex', justifyContent: 'center', gap: 16 }}>
+        <Link href="/about" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('about')}</Link>
+        <span style={{ color: '#333' }}>|</span>
         <Link href="/privacy" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('privacyPolicy')}</Link>
         <span style={{ color: '#333' }}>|</span>
         <Link href="/terms" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('termsOfService')}</Link>

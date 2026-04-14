@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { buildAlternates } from '@/lib/seo-helpers'
 
 export const metadata: Metadata = {
   title: 'Player Rankings',
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
     title: 'Player Rankings | Padel Nachos',
     description: 'Official FIP padel rankings and race standings. Track the top padel players worldwide.',
   },
+  ...buildAlternates('/rankings'),
 }
 
 export default function RankingLayout({ children }: { children: React.ReactNode }) {

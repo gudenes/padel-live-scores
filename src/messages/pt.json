@@ -300,6 +300,7 @@
     "saving": "Salvando…"
   },
   "footer": {
+    "about": "Sobre nós",
     "privacyPolicy": "Política de Privacidade",
     "termsOfService": "Termos de Serviço"
   },
@@ -315,5 +316,24 @@
     "sec": "SEG",
     "live": "AO VIVO",
     "goBack": "Voltar"
+  },
+  "about": {
+    "title": "Sobre o Padel Nachos",
+    "tagline": "Resultados ao vivo com muito sabor",
+    "back": "Voltar ao início",
+    "storyTitle": "Nossa História",
+    "storyP1": "O Padel Nachos nasceu de uma frustração simples. Era muito difícil acompanhar as partidas de padel ao vivo. Os resultados estavam espalhados em aplicativos, redes sociais e sites oficiais, sem um único lugar para encontrar tudo.",
+    "storyP2": "Criamos o PadelNachos para ser esse lugar. Uma plataforma rápida, bonita e gratuita onde os fãs podem acompanhar cada ponto, cada torneio, cada jogador, dos majors do Premier Padel aos eventos FIP Gold.",
+    "offerTitle": "O Que Oferecemos",
+    "offerScores": "Resultados ao vivo em tempo real",
+    "offerRankings": "Rankings FIP oficiais masculinos e femininos",
+    "offerDraws": "Chaves de torneios e ordem de jogo",
+    "offerHighlights": "Melhores momentos em vídeo dos principais canais de padel",
+    "offerNews": "Notícias de última hora de fontes confiáveis",
+    "offerGenius": "PadelGenius: teste seus conhecimentos sobre padel",
+    "dataTitle": "Dados e Precisão",
+    "dataP1": "Nossos resultados vêm das APIs oficiais dos torneios e são verificados em múltiplas fontes. Durante as partidas ao vivo, os dados são atualizados constantemente para manter você o mais próximo possível do tempo real.",
+    "dataP2": "Já acompanhamos mais de 3.000 jogadores nas categorias masculina e feminina, e nosso banco de dados continua crescendo a cada semana.",
+    "contact": "Dúvidas? Escreva para"
   }
 }

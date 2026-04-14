@@ -300,6 +300,7 @@
     "saving": "Salvataggio…"
   },
   "footer": {
+    "about": "Chi siamo",
     "privacyPolicy": "Privacy Policy",
     "termsOfService": "Termini di Servizio"
   },
@@ -315,5 +316,24 @@
     "sec": "SEC",
     "live": "LIVE",
     "goBack": "Torna indietro"
+  },
+  "about": {
+    "title": "Chi Siamo — Padel Nachos",
+    "tagline": "Risultati di padel in diretta con un tocco di gusto",
+    "back": "Torna alla home",
+    "storyTitle": "La Nostra Storia",
+    "storyP1": "Padel Nachos è nato da una semplice frustrazione. Era troppo difficile seguire le partite di padel in diretta. I punteggi erano sparsi tra app, social media e siti ufficiali, senza un unico posto dove trovare tutto.",
+    "storyP2": "Abbiamo costruito PadelNachos per essere quel posto. Una piattaforma veloce, bella e gratuita dove i tifosi possono seguire ogni punto, ogni torneo, ogni giocatore, dai major del Premier Padel agli eventi FIP Gold.",
+    "offerTitle": "Cosa Offriamo",
+    "offerScores": "Risultati in diretta in tempo reale",
+    "offerRankings": "Classifiche FIP ufficiali maschili e femminili",
+    "offerDraws": "Tabelloni dei tornei e ordine di gioco",
+    "offerHighlights": "Highlights video dai migliori canali di padel",
+    "offerNews": "Ultime notizie da fonti affidabili",
+    "offerGenius": "PadelGenius: metti alla prova le tue conoscenze di padel",
+    "dataTitle": "Dati e Precisione",
+    "dataP1": "I nostri punteggi provengono dalle API ufficiali dei tornei e vengono verificati su più fonti. Durante le partite in diretta, i dati si aggiornano costantemente per tenerti il più vicino possibile al tempo reale.",
+    "dataP2": "Seguiamo già più di 3.000 giocatori nelle categorie maschile e femminile, e il nostro database continua a crescere ogni settimana.",
+    "contact": "Domande? Scrivici a"
   }
 }
