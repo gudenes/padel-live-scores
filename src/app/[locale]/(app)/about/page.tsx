@@ -3,6 +3,16 @@ import { Link } from '@/i18n/navigation'
 
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
+const BG = '#0D0D0D'
+const BG_CARD = 'rgba(255,255,255,0.03)'
+const BORDER = 'rgba(255,255,255,0.06)'
+const MUTED = '#6B7280'
+const TEXT = '#CBD5E0'
+
+const CHUNKY = {
+  badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+  card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+}
 
 export default async function AboutPage() {
   const t = await getTranslations('about')
@@ -18,89 +28,150 @@ export default async function AboutPage() {
 
   return (
     <div style={{
-      maxWidth: 700, margin: '0 auto', padding: '0 20px 80px',
+      maxWidth: 480, margin: '0 auto', padding: '0 0 100px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      color: '#E2E8F0', background: '#1A1A1A', minHeight: '100vh',
-      lineHeight: 1.7, fontSize: 15,
+      color: TEXT, background: BG, minHeight: '100vh',
     }}>
-      {/* Back button */}
-      <div style={{ padding: '16px 0 8px' }}>
-        <Link href="/home" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          color: '#A0AEC0', textDecoration: 'none', fontSize: 13, fontWeight: 600,
-        }}>
-          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
+      {/* Header bar — matches match detail + player profile pattern */}
+      <div style={{
+        display: 'flex', alignItems: 'center', padding: '14px 16px',
+        borderBottom: `0.5px solid ${BORDER}`,
+      }}>
+        <Link
+          href="/home"
+          style={{
+            width: 36, height: 36, border: 'none', cursor: 'pointer',
+            background: 'rgba(255,255,255,0.06)', clipPath: CHUNKY.badge,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', textDecoration: 'none', flexShrink: 0,
+          }}
+          aria-label="Go back"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
           </svg>
-          {t('back')}
         </Link>
+        <div style={{
+          flex: 1, textAlign: 'center',
+          fontSize: 14, fontWeight: 600, textTransform: 'uppercase',
+          letterSpacing: '0.5px', color: '#fff',
+        }}>
+          {t('title')}
+        </div>
+        <div style={{ width: 36 }} />
       </div>
 
-      {/* Hero */}
-      <div style={{ textAlign: 'center', marginBottom: 48 }}>
+      {/* Hero with logo */}
+      <div style={{
+        textAlign: 'center', padding: '32px 20px 28px',
+        background: `linear-gradient(180deg, rgba(126,211,33,0.04) 0%, transparent 100%)`,
+      }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/padel-nachos-logo.png"
+          src="/padelnachos-logo.png"
           alt="Padel Nachos"
-          style={{ height: 64, objectFit: 'contain', marginBottom: 12 }}
+          style={{ height: 48, objectFit: 'contain', marginBottom: 16 }}
         />
-        <h1 style={{ fontSize: 32, fontWeight: 900, color: '#fff', margin: '0 0 8px' }}>
-          <span style={{ color: GREEN }}>Padel</span>{' '}
-          <span style={{ color: ORANGE }}>Nachos</span>
-        </h1>
-        <p style={{ fontSize: 17, color: '#A0AEC0', margin: 0 }}>
+        <p style={{
+          fontSize: 14, color: MUTED, margin: 0,
+          fontWeight: 500, letterSpacing: '0.3px',
+        }}>
           {t('tagline')}
         </p>
       </div>
 
       {/* Our Story */}
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 16 }}>
+      <section style={{ padding: '24px 20px' }}>
+        <div style={{
+          fontSize: 9, fontWeight: 700, color: ORANGE,
+          textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 10,
+        }}>
           {t('storyTitle')}
-        </h2>
-        <p style={{ color: '#CBD5E0', marginBottom: 12 }}>{t('storyP1')}</p>
-        <p style={{ color: '#CBD5E0', margin: 0 }}>{t('storyP2')}</p>
+        </div>
+        <p style={{ fontSize: 14, lineHeight: 1.7, color: TEXT, margin: '0 0 10px' }}>
+          {t('storyP1')}
+        </p>
+        <p style={{ fontSize: 14, lineHeight: 1.7, color: TEXT, margin: 0 }}>
+          {t('storyP2')}
+        </p>
       </section>
 
-      {/* What We Offer */}
-      <section style={{
-        marginBottom: 40,
-        background: '#141414',
-        borderRadius: 16,
-        padding: '24px 28px',
-        border: '1px solid rgba(126,211,33,0.12)',
-      }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 20 }}>
-          {t('offerTitle')}
-        </h2>
-        <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {offers.map((item, i) => (
-            <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span style={{
-                color: GREEN, fontWeight: 800, fontSize: 16, lineHeight: 1.6, flexShrink: 0,
-              }}>✓</span>
-              <span style={{ color: '#CBD5E0' }}>{item}</span>
-            </li>
-          ))}
-        </ul>
+      {/* What We Offer — chunky card */}
+      <section style={{ padding: '0 20px 24px' }}>
+        <div style={{
+          background: BG_CARD, clipPath: CHUNKY.card,
+          padding: '16px 18px',
+        }}>
+          <div style={{
+            fontSize: 9, fontWeight: 700, color: GREEN,
+            textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 14,
+          }}>
+            {t('offerTitle')}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {offers.map((text, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                fontSize: 13, color: TEXT,
+              }}>
+                <span style={{
+                  color: GREEN, fontWeight: 900, fontSize: 14, lineHeight: 1.5, flexShrink: 0,
+                }}>✓</span>
+                <span>{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Data & Accuracy */}
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 16 }}>
+      <section style={{ padding: '0 20px 24px' }}>
+        <div style={{
+          fontSize: 9, fontWeight: 700, color: ORANGE,
+          textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 10,
+        }}>
           {t('dataTitle')}
-        </h2>
-        <p style={{ color: '#CBD5E0', marginBottom: 12 }}>{t('dataP1')}</p>
-        <p style={{ color: '#CBD5E0', margin: 0 }}>{t('dataP2')}</p>
+        </div>
+        <p style={{ fontSize: 14, lineHeight: 1.7, color: TEXT, margin: '0 0 10px' }}>
+          {t('dataP1')}
+        </p>
+        <p style={{ fontSize: 14, lineHeight: 1.7, color: TEXT, margin: 0 }}>
+          {t('dataP2')}
+        </p>
       </section>
 
-      {/* Footer note */}
-      <p style={{ color: '#4B5563', fontSize: 13, textAlign: 'center', marginTop: 48 }}>
-        {t('contact')}{' '}
-        <a href="mailto:hello@padelnachos.com" style={{ color: GREEN, textDecoration: 'none' }}>
-          hello@padelnachos.com
-        </a>
-      </p>
+      {/* Stat highlights — chunky cards */}
+      <section style={{ padding: '0 20px 32px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{
+            background: BG_CARD, clipPath: CHUNKY.card,
+            padding: '14px 16px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: GREEN }}>3,000+</div>
+            <div style={{ fontSize: 9, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginTop: 2, fontWeight: 600 }}>Players</div>
+          </div>
+          <div style={{
+            background: BG_CARD, clipPath: CHUNKY.card,
+            padding: '14px 16px', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 24, fontWeight: 900, color: ORANGE }}>5</div>
+            <div style={{ fontSize: 9, color: MUTED, textTransform: 'uppercase', letterSpacing: '1px', marginTop: 2, fontWeight: 600 }}>Languages</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact */}
+      <div style={{
+        textAlign: 'center', padding: '20px',
+        borderTop: `0.5px solid ${BORDER}`,
+      }}>
+        <p style={{ color: MUTED, fontSize: 12, margin: 0 }}>
+          {t('contact')}{' '}
+          <a href="mailto:hello@padelnachos.com" style={{ color: GREEN, textDecoration: 'none', fontWeight: 600 }}>
+            hello@padelnachos.com
+          </a>
+        </p>
+      </div>
     </div>
   )
 }
