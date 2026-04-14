@@ -50,12 +50,40 @@ export async function GET(request: Request) {
 
   const { data, error } = await query
     .order('ranking', { ascending: true, nullsFirst: false })
-    .limit(10)
+    .limit(50)
 
   if (error) {
     console.error('[Search Players] Query failed:', error.message)
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  return Response.json({ players: data ?? [] })
+  // Fetch current equipment for all returned players in one query
+  const playerIds = (data ?? []).map(p => p.id)
+  let equipmentMap: Record<string, { brand: string; model: string; year: number | null }> = {}
+
+  if (playerIds.length > 0) {
+    const { data: eqData } = await supabase
+      .from('player_equipment')
+      .select('player_id, racket:padel_rackets(model, year, brand:padel_brands(name))')
+      .in('player_id', playerIds)
+      .is('ended_at', null)
+
+    for (const eq of eqData ?? []) {
+      const racket = eq.racket as any
+      if (racket) {
+        equipmentMap[eq.player_id] = {
+          brand: racket.brand?.name ?? '',
+          model: racket.model ?? '',
+          year: racket.year ?? null,
+        }
+      }
+    }
+  }
+
+  const players = (data ?? []).map(p => ({
+    ...p,
+    equipment: equipmentMap[p.id] ?? null,
+  }))
+
+  return Response.json({ players })
 }

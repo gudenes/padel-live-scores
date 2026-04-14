@@ -694,7 +694,7 @@ export default function PlayersTab() {
           <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
-                {['', 'Name', 'Country', 'Ranking', 'Points', 'Category', 'Actions'].map(h => (
+                {['', 'Name', 'Country', 'Ranking', 'Points', 'Category', 'Equipment', 'Actions'].map(h => (
                   <th
                     key={h}
                     style={{
@@ -754,6 +754,17 @@ export default function PlayersTab() {
                       }}>
                         {player.category}
                       </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '5px 6px', color: '#6B7280', maxWidth: 180 }}>
+                    {(player as any).equipment ? (
+                      <span style={{ fontSize: 10 }}>
+                        <span style={{ fontWeight: 600, color: '#333' }}>{(player as any).equipment.brand}</span>
+                        {' '}{(player as any).equipment.model}
+                        {(player as any).equipment.year && <span style={{ color: '#9ca3af' }}> {(player as any).equipment.year}</span>}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 10, color: '#d1d5db' }}>—</span>
                     )}
                   </td>
                   <td style={{ padding: '5px 6px' }} onClick={e => e.stopPropagation()}>
