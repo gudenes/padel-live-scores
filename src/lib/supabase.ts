@@ -82,7 +82,22 @@ export const supabase = cookieAuthEnabled
   ? createBrowserClient(
       supabaseUrl || 'https://placeholder.supabase.co',
       supabaseAnonKey || 'placeholder-key',
-      { isSingleton: true },
+      {
+        isSingleton: true,
+        auth: {
+          flowType: 'pkce',
+          // CRITICAL: use our custom lock, not navigator.locks (5s timeout issue)
+          lock: serializingLock,
+          // Proxy handles refresh via cookies — disable browser-side auto-refresh
+          // to prevent lock storms from two refresh paths racing each other
+          autoRefreshToken: false,
+          // Session is in cookies, not localStorage
+          persistSession: false,
+          // Let the proxy/callback handle URL tokens — browser client shouldn't
+          // race to exchange the same code
+          detectSessionInUrl: false,
+        },
+      },
     )
   : createClient(
       supabaseUrl || 'https://placeholder.supabase.co',
