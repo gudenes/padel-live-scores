@@ -93,6 +93,40 @@ export async function POST(request: Request) {
   return Response.json({ assignment })
 }
 
+// -- PUT: Bulk assign equipment to multiple players ──────────────
+export async function PUT(request: Request) {
+  const authErr = await checkOpsAuth()
+  if (authErr) return authErr
+
+  const body = await request.json() as { player_ids?: string[]; racket_id?: string }
+  const { player_ids, racket_id } = body
+
+  if (!player_ids?.length || !racket_id) {
+    return Response.json({ error: 'Missing required fields: player_ids, racket_id' }, { status: 400 })
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  let assigned = 0
+
+  for (const playerId of player_ids) {
+    // End current assignment if exists
+    await supabase
+      .from('player_equipment')
+      .update({ ended_at: today })
+      .eq('player_id', playerId)
+      .is('ended_at', null)
+
+    // Create new assignment
+    const { error } = await supabase
+      .from('player_equipment')
+      .insert({ player_id: playerId, racket_id, started_at: today })
+
+    if (!error) assigned++
+  }
+
+  return Response.json({ assigned, total: player_ids.length })
+}
+
 // -- PATCH: End an equipment assignment ──────────────────────────
 export async function PATCH(request: Request) {
   const authErr = await checkOpsAuth()
