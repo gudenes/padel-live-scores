@@ -132,6 +132,7 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   fontSize: 11,
+  color: '#111',
   padding: '6px 8px',
   borderBottom: '1px solid #f3f4f6',
   verticalAlign: 'middle',
@@ -187,7 +188,12 @@ export default function BrandsTab() {
       const res = await fetch(url)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
-      setRackets(json.rackets ?? [])
+      // Map nested brand object to flat brand_name for display
+      const mapped = (json.rackets ?? []).map((r: any) => ({
+        ...r,
+        brand_name: r.brand?.name ?? r.brand_name ?? null,
+      }))
+      setRackets(mapped)
     } catch (err) {
       console.error('Failed to fetch rackets:', err)
       setRacketMessage('Failed to load rackets')
