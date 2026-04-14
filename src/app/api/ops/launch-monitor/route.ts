@@ -2,8 +2,8 @@
 // Returns launch readiness data for spotlighted upcoming tournaments.
 // Used by the ops dashboard to surface critical events ahead of major launches.
 
-import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { checkOpsAuth } from '@/lib/ops-auth'
 
 function getServiceClient() {
   return createClient(
@@ -11,18 +11,6 @@ function getServiceClient() {
     process.env.SUPABASE_SERVICE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false } }
   )
-}
-
-async function checkOpsAuth(): Promise<Response | null> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('ops_token')?.value
-  if (!process.env.CRON_SECRET) {
-    return Response.json({ error: 'Unauthorized', reason: 'server_misconfigured' }, { status: 401 })
-  }
-  if (token !== process.env.CRON_SECRET) {
-    return Response.json({ error: 'Unauthorized', reason: 'token_mismatch' }, { status: 401 })
-  }
-  return null
 }
 
 // Tournaments to spotlight as launch monitors. Add more here as needed.

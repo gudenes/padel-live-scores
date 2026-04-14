@@ -6,22 +6,13 @@
 // Auth: reads ops_token cookie
 
 import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
 import Anthropic from '@anthropic-ai/sdk'
+import { checkOpsAuth } from '@/lib/ops-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 )
-
-async function checkOpsAuth(): Promise<Response | null> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('ops_token')?.value
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) return Response.json({ error: 'Unauthorized', reason: 'server_misconfigured' }, { status: 401 })
-  if (token !== cronSecret) return Response.json({ error: 'Unauthorized', reason: 'token_mismatch' }, { status: 401 })
-  return null
-}
 
 function normalize(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()

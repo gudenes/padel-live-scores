@@ -4,7 +4,7 @@
 // Auth: reads ops_token cookie
 
 import { createClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
+import { checkOpsAuth } from '@/lib/ops-auth'
 import { fetchOopDay } from '@/lib/fip-scraper'
 import type { OopMatch } from '@/lib/fip-scraper'
 import { normalize, tokenSimilarity } from '@/lib/player-resolver'
@@ -13,15 +13,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 )
-
-async function checkOpsAuth(): Promise<Response | null> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('ops_token')?.value
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) return Response.json({ error: 'Unauthorized', reason: 'server_misconfigured' }, { status: 401 })
-  if (token !== cronSecret) return Response.json({ error: 'Unauthorized', reason: 'token_mismatch' }, { status: 401 })
-  return null
-}
 
 // ── GET: Fetch OOP and match against DB ────────────────────────
 

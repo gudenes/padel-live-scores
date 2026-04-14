@@ -2,22 +2,8 @@
 // Extract racket specs from a product URL using Claude AI.
 // Auth: reads ops_token cookie.
 
-import { cookies } from 'next/headers'
 import Anthropic from '@anthropic-ai/sdk'
-
-// ── Auth ────────────────────────────────────────────────────────
-async function checkOpsAuth(): Promise<Response | null> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('ops_token')?.value
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    return Response.json({ error: 'Unauthorized', reason: 'server_misconfigured' }, { status: 401 })
-  }
-  if (token !== cronSecret) {
-    return Response.json({ error: 'Unauthorized', reason: 'token_mismatch' }, { status: 401 })
-  }
-  return null
-}
+import { checkOpsAuth } from '@/lib/ops-auth'
 
 // ── Fetch + extract structured data from page ───────────────────
 async function fetchPageContent(url: string): Promise<string> {

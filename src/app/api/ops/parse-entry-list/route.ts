@@ -3,8 +3,8 @@
 // Returns teams with player matching info.
 // Auth: reads ops_token cookie (httpOnly, set by middleware on /ops login).
 
-import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { checkOpsAuth } from '@/lib/ops-auth'
 import { parseEntryListText, type ParsedEntryPlayer } from '@/lib/entry-list-parser'
 import { parseEntryListPdfWithSonnet } from '@/lib/pdf-parse-sonnet'
 import { PlayerResolver } from '@/lib/player-resolver'
@@ -32,12 +32,8 @@ interface EnrichedTeam {
 }
 
 export async function POST(request: Request) {
-  // Auth check
-  const cookieStore = await cookies()
-  const token = cookieStore.get('ops_token')?.value
-  if (!process.env.CRON_SECRET || token !== process.env.CRON_SECRET) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const authErr = await checkOpsAuth()
+  if (authErr) return authErr
 
   const contentType = request.headers.get('content-type') ?? ''
   const url = new URL(request.url)
