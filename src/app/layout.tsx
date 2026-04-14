@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "@/components/AuthProvider";
+import { buildAlternates } from "@/lib/seo-helpers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -46,6 +47,17 @@ export const metadata: Metadata = {
   },
   verification: {
     google: '8IikbOTQM3xnjHsanK2iCR8B6tVQeSzCT5HMXyiyHlM',
+  },
+  alternates: {
+    canonical: 'https://padelnachos.com',
+    languages: {
+      'en': 'https://padelnachos.com',
+      'es': 'https://padelnachos.com/es',
+      'pt': 'https://padelnachos.com/pt',
+      'fr': 'https://padelnachos.com/fr',
+      'it': 'https://padelnachos.com/it',
+      'x-default': 'https://padelnachos.com',
+    },
   },
   other: {
     'mobile-web-app-capable': 'yes',
