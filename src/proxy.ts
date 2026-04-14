@@ -135,10 +135,13 @@ export default async function proxy(request: NextRequest) {
 
   // ── Post-i18n: decorate response with cookies ──────────────────
 
-  // Merge Supabase auth cookies into the i18n response
+  // Merge Supabase auth cookies into the i18n response.
+  // Copy raw Set-Cookie headers to preserve options (httpOnly, sameSite, maxAge)
+  // that getAll() may not carry. This ensures the browser receives the full
+  // cookie attributes that @supabase/ssr set in the setAll callback.
   if (cookieAuthEnabled) {
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      response.cookies.set(cookie.name, cookie.value, cookie)
+    supabaseResponse.headers.getSetCookie().forEach((setCookieHeader) => {
+      response.headers.append('Set-Cookie', setCookieHeader)
     })
   }
 

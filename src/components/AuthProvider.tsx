@@ -307,19 +307,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // ── Cookie auth path: proxy handles session refresh via cookies ──
     // No localStorage cache, no safety timeout, no proactive refresh needed.
     if (cookieAuthEnabled) {
-      // Use getUser() for authoritative session init (validates with server)
-      // and getSession() in parallel to populate session state.
-      Promise.all([
-        supabase.auth.getUser(),
-        supabase.auth.getSession(),
-      ]).then(([{ data: { user: u } }, { data: { session: s } }]) => {
+      // Cookie auth: proxy already validated the token via getUser() on every
+      // request. We only need getSession() to read the (already-validated)
+      // session from cookies — no redundant network call to Supabase Auth.
+      supabase.auth.getSession().then(({ data: { session: s } }) => {
         if (cancelled) return
-        setUser(u)
         setSession(s)
+        setUser(s?.user ?? null)
         setLoading(false)
-        if (u) {
-          fetchProfile(u.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
-          void updateLoginStreak(u.id)
+        if (s?.user) {
+          fetchProfile(s.user.id).then(p => { if (!cancelled) setProfile(p) }).catch(() => {})
+          void updateLoginStreak(s.user.id)
         }
       }).catch(err => {
         console.error('[Auth] cookie auth init failed:', err)
