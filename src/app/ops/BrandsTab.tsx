@@ -264,7 +264,6 @@ export default function BrandsTab() {
         surface_material: racketForm.surface_material || null,
         image_url: racketForm.image_url || null,
         product_url: racketForm.product_url || null,
-        affiliate_url: racketForm.affiliate_url || null,
         year: racketForm.year ? parseInt(racketForm.year, 10) : null,
         weight_grams: racketForm.weight_grams ? parseInt(racketForm.weight_grams, 10) : null,
       }
