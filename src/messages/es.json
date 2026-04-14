@@ -320,18 +320,20 @@
   "about": {
     "title": "Sobre Padel Nachos",
     "tagline": "Marcadores en vivo con mucho sabor",
+    "back": "Volver al inicio",
     "storyTitle": "Nuestra Historia",
-    "storyP1": "Padel Nachos nació de una frustración muy simple — era demasiado difícil seguir los partidos de pádel en vivo. Los marcadores estaban dispersos entre apps, redes sociales y páginas oficiales sin un lugar único donde encontrar todo.",
-    "storyP2": "Construimos PadelNachos para ser ese lugar: una plataforma rápida, bonita y gratuita donde los aficionados pueden seguir cada punto, cada torneo y cada jugador — desde los majors del Premier Padel hasta los eventos FIP Gold.",
+    "storyP1": "Padel Nachos nació de una frustración muy simple. Era demasiado difícil seguir los partidos de pádel en vivo. Los marcadores estaban dispersos entre apps, redes sociales y páginas oficiales sin un lugar único donde encontrar todo.",
+    "storyP2": "Construimos PadelNachos para ser ese lugar. Una plataforma rápida, bonita y gratuita donde los aficionados pueden seguir cada punto, cada torneo y cada jugador, desde los majors del Premier Padel hasta los eventos FIP Gold.",
     "offerTitle": "Qué Ofrecemos",
-    "offerScores": "Marcadores en vivo actualizados cada 2 minutos",
+    "offerScores": "Marcadores en vivo en tiempo real",
     "offerRankings": "Rankings oficiales FIP masculinos y femeninos",
     "offerDraws": "Cuadros de torneos y orden de juego",
     "offerHighlights": "Highlights en vídeo de los mejores canales de pádel",
     "offerNews": "Noticias de última hora de fuentes de confianza",
-    "offerGenius": "PadelGenius — pon a prueba tu conocimiento del pádel",
+    "offerGenius": "PadelGenius: pon a prueba tu conocimiento del pádel",
     "dataTitle": "Datos y Precisión",
-    "dataP1": "Nuestros marcadores provienen de las APIs oficiales de los torneos y se verifican con múltiples fuentes. Durante los partidos en vivo, los datos se actualizan cada 2 minutos para mantenerte lo más cerca posible del tiempo real.",
-    "dataP2": "Los rankings de jugadores se sincronizan diariamente con la base de datos oficial de rankings FIP, cubriendo los 1.000 mejores jugadores en las categorías masculina y femenina."
+    "dataP1": "Nuestros marcadores provienen de las APIs oficiales de los torneos y se verifican con múltiples fuentes. Durante los partidos en vivo, los datos se actualizan constantemente para mantenerte lo más cerca posible del tiempo real.",
+    "dataP2": "Ya seguimos a más de 3.000 jugadores en las categorías masculina y femenina, y nuestra base de datos sigue creciendo cada semana.",
+    "contact": "¿Preguntas? Escríbenos a"
   }
 }
