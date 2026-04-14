@@ -210,6 +210,60 @@ function readCachedSessionTokens(): { access_token: string; refresh_token: strin
   }
 }
 
+/**
+ * Click-triggered health check — detects a wedged client on the first
+ * user interaction after the tab was idle and triggers soft recovery
+ * immediately, before the user sees a loading spinner.
+ *
+ * Call once from a top-level component (e.g. AuthProvider).
+ * @returns cleanup function to remove the listener
+ */
+export function startClickRecovery(): () => void {
+  if (typeof window === 'undefined') return () => {}
+
+  let tabWasHidden = false
+  let checkPending = false
+
+  function onVisibilityChange() {
+    if (document.visibilityState === 'hidden') {
+      tabWasHidden = true
+    } else if (tabWasHidden) {
+      // Tab just came back — arm the click check
+      checkPending = true
+    }
+  }
+
+  async function onClick() {
+    if (!checkPending) return
+    checkPending = false
+    tabWasHidden = false
+
+    // Quick probe — if this resolves fast, client is fine
+    let ok = false
+    try {
+      await Promise.race([
+        supabase.from('matches').select('id').limit(1).then(() => { ok = true }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('click-probe-timeout')), 3_000)),
+      ])
+    } catch { /* swallow */ }
+
+    if (ok) return // Client is healthy, nothing to do
+
+    console.warn(`[supabase-health] click probe failed — triggering soft recovery`)
+    // Reuse the existing recovery flow (debounced, with soft recovery)
+    void reportBatchFailures(3, 3, 'click-recovery')
+  }
+
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  // Use capture phase so we run before any navigation/click handlers
+  document.addEventListener('click', onClick, { capture: true })
+
+  return () => {
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+    document.removeEventListener('click', onClick, { capture: true })
+  }
+}
+
 // Refresh proactively when the token has less than this much time left.
 // 10 minutes gives us plenty of buffer before the 1-hour JWT expires,
 // and matches a common Supabase pattern.

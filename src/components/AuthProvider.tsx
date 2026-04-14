@@ -6,7 +6,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
-import { startSessionKeepalive, refreshSessionIfNeeded } from '@/lib/supabase-health'
+import { startSessionKeepalive, startClickRecovery, refreshSessionIfNeeded } from '@/lib/supabase-health'
 import { checkBadgeInline } from '@/lib/badge-check-inline'
 import type { User, Session } from '@supabase/supabase-js'
 
@@ -397,11 +397,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // user interaction. Only runs in the browser.
     const stopKeepalive = startSessionKeepalive()
 
+    // Click-triggered recovery — detects wedged client on first user
+    // interaction after tab wake and triggers soft recovery immediately.
+    const stopClickRecovery = startClickRecovery()
+
     return () => {
       cancelled = true
       clearTimeout(safetyTimeout)
       subscription.unsubscribe()
       stopKeepalive()
+      stopClickRecovery()
     }
   }, [])
 
