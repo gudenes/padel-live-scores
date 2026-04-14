@@ -524,6 +524,7 @@ export default function BrandsTab() {
                   shape: specs.shape ?? f.shape,
                   weight_grams: specs.weight_grams?.toString() ?? f.weight_grams,
                   balance: specs.balance ?? f.balance,
+                  surface_material: specs.surface_material ?? f.surface_material,
                   image_url: specs.image_url ?? f.image_url,
                   product_url: specs.product_url ?? f.product_url,
                 }))
@@ -733,7 +734,7 @@ function ImportFromUrl({
   onExtracted: (specs: {
     brand: string | null; model: string | null; year: number | null
     shape: string | null; weight_grams: number | null; balance: string | null
-    image_url: string | null; product_url: string | null
+    image_url: string | null; product_url: string | null; surface_material: string | null
   }) => void
 }) {
   const [url, setUrl] = React.useState('')
