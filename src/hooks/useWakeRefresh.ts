@@ -35,6 +35,7 @@
 // ```
 
 import { useEffect, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
 import { refreshSessionIfNeeded } from '@/lib/supabase-health'
 
 interface UseWakeRefreshOptions {
@@ -75,6 +76,12 @@ export function useWakeRefresh(
       if (hiddenForMs < idleThresholdMs) return
 
       console.log(`[useWakeRefresh] tab visible after ${Math.round(hiddenForMs / 1000)}s — refreshing`)
+
+      // Proactively kick Supabase's internal auth ticker. When the tab is
+      // backgrounded, Chrome throttles timers and the ticker stops. Calling
+      // startAutoRefresh() restarts it, reducing the chance of the auth
+      // client getting wedged before our manual refresh even runs.
+      try { await supabase.auth.startAutoRefresh() } catch { /* safe to ignore */ }
 
       // Fix 3: Wait 1.5s before attempting refresh. After waking from
       // sleep, the device's network radio (WiFi/LTE) needs time to
