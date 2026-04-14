@@ -21,7 +21,7 @@
 // 4. Debounce so we don't reload more than once per minute (prevents
 //    refresh loops if something is genuinely broken)
 
-import { supabase } from '@/lib/supabase'
+import { supabase, cookieAuthEnabled } from '@/lib/supabase'
 
 const RECOVERY_DEBOUNCE_MS = 60_000
 
@@ -41,6 +41,8 @@ export async function reportBatchFailures(
   totalCount: number,
   context: string
 ): Promise<void> {
+  if (cookieAuthEnabled) return
+
   // Threshold: more than half the queries failed AND at least 3 failed.
   // 3 is the minimum to rule out network blips on individual queries.
   const ratio = totalCount > 0 ? failureCount / totalCount : 0
@@ -219,6 +221,7 @@ function readCachedSessionTokens(): { access_token: string; refresh_token: strin
  * @returns cleanup function to remove the listener
  */
 export function startClickRecovery(): () => void {
+  if (cookieAuthEnabled) return () => {}
   if (typeof window === 'undefined') return () => {}
 
   let tabWasHidden = false
@@ -282,6 +285,7 @@ const REFRESH_BEFORE_EXPIRY_MS = 10 * 60_000
 let _refreshInFlight: Promise<boolean> | null = null
 
 export function refreshSessionIfNeeded(reason: string): Promise<boolean> {
+  if (cookieAuthEnabled) return Promise.resolve(false)
   if (_refreshInFlight) {
     console.log(`[supabase-health] refresh already in flight, joining (${reason})`)
     return _refreshInFlight
@@ -339,6 +343,7 @@ async function _doRefreshSessionIfNeeded(reason: string): Promise<boolean> {
  * @returns cleanup function to stop the keepalive
  */
 export function startSessionKeepalive(intervalMs: number = 5 * 60_000): () => void {
+  if (cookieAuthEnabled) return () => {}
   if (typeof window === 'undefined') return () => {}
 
   const tick = () => {
