@@ -217,7 +217,10 @@
     "hometown": "Hometown",
     "playerNotFound": "Player not found",
     "playsWith": "Plays with",
-    "learnMore": "Learn more"
+    "learnMore": "Learn more",
+    "shape": "Shape",
+    "weight": "Weight",
+    "balance": "Balance"
   },
   "followButton": {
     "follow": "Follow",

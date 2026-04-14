@@ -1046,19 +1046,19 @@ function OverviewTab({
                   <div style={{ marginTop: 6 }}>
                     {racketShape && (
                       <div style={specRowStyle}>
-                        <span>Shape</span>
+                        <span>{t('shape')}</span>
                         <span style={specValueStyle}>{racketShape.charAt(0).toUpperCase() + racketShape.slice(1)}</span>
                       </div>
                     )}
                     {racketWeight && (
                       <div style={specRowStyle}>
-                        <span>Weight</span>
+                        <span>{t('weight')}</span>
                         <span style={specValueStyle}>{racketWeight}g</span>
                       </div>
                     )}
                     {racketBalance && (
                       <div style={specRowStyle}>
-                        <span>Balance</span>
+                        <span>{t('balance')}</span>
                         <span style={specValueStyle}>{racketBalance.charAt(0).toUpperCase() + racketBalance.slice(1)}</span>
                       </div>
                     )}

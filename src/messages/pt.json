@@ -217,7 +217,10 @@
     "hometown": "Cidade natal",
     "playerNotFound": "Jogador não encontrado",
     "playsWith": "Joga com",
-    "learnMore": "Saiba mais"
+    "learnMore": "Saiba mais",
+    "shape": "Formato",
+    "weight": "Peso",
+    "balance": "Equilíbrio"
   },
   "followButton": {
     "follow": "Seguir",
