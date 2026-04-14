@@ -20,7 +20,7 @@ import type { MatchStatsRow } from '@/lib/premier-stats-parser'
 
 const MUTED = '#8a8f98'
 
-type StatsStatus = 'ok' | 'no_mapping' | 'pending_sync' | 'upcoming'
+type StatsStatus = 'ok' | 'no_mapping' | 'pending_sync' | 'upcoming' | 'unavailable'
 
 interface ApiResponse {
   stats: MatchStatsRow[] | null
@@ -62,7 +62,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
   if (!response) return <ErrorState message="No data" />
   if (response.status === 'upcoming')
     return <EmptyState icon="⏰" text="Match hasn't started yet" />
-  if (response.status === 'no_mapping')
+  if (response.status === 'no_mapping' || response.status === 'unavailable')
     return <EmptyState icon="📊" text="Stats not available for this match" />
   if (response.status === 'pending_sync')
     return <EmptyState icon="⏳" text="Stats coming soon — sync runs hourly" />
