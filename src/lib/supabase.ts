@@ -91,8 +91,10 @@ export const supabase = cookieAuthEnabled
           // Proxy handles refresh via cookies — disable browser-side auto-refresh
           // to prevent lock storms from two refresh paths racing each other
           autoRefreshToken: false,
-          // Session is in cookies, not localStorage
-          persistSession: false,
+          // Must be true: @supabase/ssr stores the PKCE code verifier in cookies
+          // before the OAuth redirect. Without this, the code exchange fails after
+          // the redirect because the verifier is gone.
+          persistSession: true,
           // Let the proxy/callback handle URL tokens — browser client shouldn't
           // race to exchange the same code
           detectSessionInUrl: false,
