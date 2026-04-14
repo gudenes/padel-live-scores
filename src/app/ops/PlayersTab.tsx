@@ -96,7 +96,7 @@ const card: React.CSSProperties = {
 
 const sectionLabel: React.CSSProperties = {
   fontSize: 10,
-  color: '#999',
+  color: '#9ca3af',
   textTransform: 'uppercase' as const,
   fontWeight: 700,
   letterSpacing: 1,
@@ -512,7 +512,7 @@ export default function PlayersTab() {
             </button>
           ))}
         </div>
-        {searching && <span style={{ fontSize: 10, color: '#999' }}>Searching...</span>}
+        {searching && <span style={{ fontSize: 10, color: '#9ca3af' }}>Searching...</span>}
         <button
           onClick={() => runDupScan('rules')}
           disabled={dupScanning}
@@ -553,12 +553,12 @@ export default function PlayersTab() {
             </div>
             <button
               onClick={() => setDupShowPanel(false)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 14 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 14 }}
             >✕</button>
           </div>
 
           {dupGroups.length === 0 && (
-            <div style={{ fontSize: 11, color: '#666', padding: '8px 0' }}>No duplicates found. Your player database is clean!</div>
+            <div style={{ fontSize: 11, color: '#6B7280', padding: '8px 0' }}>No duplicates found. Your player database is clean!</div>
           )}
 
           <div style={{ maxHeight: 400, overflowY: 'auto' as const }}>
@@ -583,7 +583,7 @@ export default function PlayersTab() {
 
               return (
                 <div key={gi} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 10, marginBottom: 6 }}>
-                  <div style={{ fontSize: 10, color: '#666', marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 6 }}>
                     {group.reasons.map((r, ri) => (
                       <span key={ri} style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: '#fef3c7', color: '#92400e', fontSize: 9, fontWeight: 600, marginRight: 4 }}>{r}</span>
                     ))}
@@ -594,14 +594,14 @@ export default function PlayersTab() {
                       const isRec = (pi === 0 && recommended === 'a') || (pi === 1 && recommended === 'b')
                       return (
                         <div key={p.id} style={{ padding: 6, background: isRec ? '#f0fdf4' : '#f9fafb', borderRadius: 4, border: isRec ? '1px solid #86efac' : '1px solid #e5e7eb' }}>
-                          <div style={{ fontSize: 9, color: '#999', fontWeight: 600, textTransform: 'uppercase' as const, marginBottom: 2 }}>
+                          <div style={{ fontSize: 9, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' as const, marginBottom: 2 }}>
                             Player {pi === 0 ? 'A' : 'B'} {isRec && <span style={{ color: '#16a34a' }}>★ Richer</span>}
                           </div>
                           <div style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>{p.name}</div>
-                          <div style={{ fontSize: 10, color: '#666' }}>
+                          <div style={{ fontSize: 10, color: '#6B7280' }}>
                             {p.country ?? '—'} · Rank: {p.ranking ?? '—'} · Pts: {p.points?.toLocaleString() ?? '—'}
                           </div>
-                          <div style={{ fontSize: 9, color: '#999' }}>
+                          <div style={{ fontSize: 9, color: '#9ca3af' }}>
                             {p.category ?? '—'} · FIP: {p.fip_id ?? '—'} · ID: {p.id.slice(0, 8)}...
                           </div>
                         </div>
@@ -648,7 +648,7 @@ export default function PlayersTab() {
                       style={{
                         fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
                         border: '1px solid #d1d5db', cursor: dupMerging.has(groupKey) ? 'default' : 'pointer',
-                        background: '#fff', color: '#333',
+                        background: '#fff', color: '#111',
                         opacity: dupMerging.has(groupKey) ? 0.6 : 1,
                       }}
                     >
@@ -664,7 +664,7 @@ export default function PlayersTab() {
                       disabled={dupMerging.has(groupKey)}
                       style={{
                         fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#666',
+                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#6B7280',
                       }}
                     >
                       Review fields...
@@ -674,7 +674,7 @@ export default function PlayersTab() {
                       disabled={dupMerging.has(groupKey)}
                       style={{
                         fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#999',
+                        border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#9ca3af',
                       }}
                     >
                       Dismiss
@@ -729,7 +729,7 @@ export default function PlayersTab() {
                       <div style={{
                         width: 24, height: 24, borderRadius: '50%',
                         background: '#e5e7eb', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: 10, color: '#999',
+                        justifyContent: 'center', fontSize: 10, color: '#9ca3af',
                       }}>
                         ?
                       </div>
@@ -738,12 +738,12 @@ export default function PlayersTab() {
                   <td style={{ padding: '5px 6px', fontWeight: 500, color: '#111' }}>
                     {player.name}
                     {player.display_name && player.display_name !== player.name && (
-                      <div style={{ fontSize: 10, color: '#888', fontWeight: 400 }}>{player.display_name}</div>
+                      <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 400 }}>{player.display_name}</div>
                     )}
                   </td>
                   <td style={{ padding: '5px 6px', color: '#6B7280' }}>{player.country ?? '—'}</td>
-                  <td style={{ padding: '5px 6px', color: '#333' }}>{player.ranking ?? '—'}</td>
-                  <td style={{ padding: '5px 6px', color: '#333' }}>{player.points ?? '—'}</td>
+                  <td style={{ padding: '5px 6px', color: '#111' }}>{player.ranking ?? '—'}</td>
+                  <td style={{ padding: '5px 6px', color: '#111' }}>{player.points ?? '—'}</td>
                   <td style={{ padding: '5px 6px' }}>
                     {player.category && (
                       <span style={{
@@ -759,7 +759,7 @@ export default function PlayersTab() {
                   <td style={{ padding: '5px 6px', color: '#6B7280', maxWidth: 180 }}>
                     {(player as any).equipment ? (
                       <span style={{ fontSize: 10 }}>
-                        <span style={{ fontWeight: 600, color: '#333' }}>{(player as any).equipment.brand}</span>
+                        <span style={{ fontWeight: 600, color: '#111' }}>{(player as any).equipment.brand}</span>
                         {' '}{(player as any).equipment.model}
                         {(player as any).equipment.year && <span style={{ color: '#9ca3af' }}> {(player as any).equipment.year}</span>}
                       </span>
@@ -774,7 +774,7 @@ export default function PlayersTab() {
                         style={{
                           padding: '3px 8px', fontSize: 10, fontWeight: 600,
                           background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 4,
-                          cursor: 'pointer', color: '#333',
+                          cursor: 'pointer', color: '#111',
                         }}
                       >
                         Edit
@@ -814,7 +814,7 @@ export default function PlayersTab() {
 
       {/* Loading detail */}
       {loadingDetail && (
-        <div style={{ ...card, textAlign: 'center', color: '#999', fontSize: 12 }}>Loading player details...</div>
+        <div style={{ ...card, textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>Loading player details...</div>
       )}
 
       {/* Detail / Edit panel */}
@@ -1007,7 +1007,7 @@ export default function PlayersTab() {
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600, marginBottom: 4 }}>History</div>
                 {playerEquipment.filter(e => e.ended_at).map(e => (
-                  <div key={e.id} style={{ fontSize: 10, color: '#999', marginBottom: 2 }}>
+                  <div key={e.id} style={{ fontSize: 10, color: '#9ca3af', marginBottom: 2 }}>
                     {e.racket.brand?.name} {e.racket.model}{e.racket.year ? ` (${e.racket.year})` : ''}
                     <span style={{ marginLeft: 6 }}>{e.started_at} - {e.ended_at}</span>
                   </div>
@@ -1097,7 +1097,7 @@ export default function PlayersTab() {
               style={{
                 padding: '6px 14px', fontSize: 11, fontWeight: 600,
                 background: 'white', border: '1px solid #d1d5db', borderRadius: 6,
-                cursor: 'pointer', color: '#333',
+                cursor: 'pointer', color: '#111',
               }}
             >
               Cancel
@@ -1170,7 +1170,7 @@ export default function PlayersTab() {
                       boxSizing: 'border-box',
                     }}
                   />
-                  {mergeSearching && <div style={{ fontSize: 10, color: '#999', marginTop: 4 }}>Searching...</div>}
+                  {mergeSearching && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>Searching...</div>}
                   {mergeSearchResults.length > 0 && (
                     <div style={{
                       border: '1px solid #e5e7eb', borderRadius: 4, marginTop: 4,
@@ -1188,8 +1188,8 @@ export default function PlayersTab() {
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
                           <span style={{ fontWeight: 500, color: '#111' }}>{r.name}</span>
-                          {r.country && <span style={{ color: '#999', marginLeft: 4 }}>({r.country})</span>}
-                          {r.ranking && <span style={{ color: '#888', fontSize: 10, marginLeft: 4 }}>#{r.ranking}</span>}
+                          {r.country && <span style={{ color: '#9ca3af', marginLeft: 4 }}>({r.country})</span>}
+                          {r.ranking && <span style={{ color: '#6B7280', fontSize: 10, marginLeft: 4 }}>#{r.ranking}</span>}
                         </div>
                       ))}
                     </div>
