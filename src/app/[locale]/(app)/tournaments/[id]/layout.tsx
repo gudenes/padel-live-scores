@@ -14,7 +14,8 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
 
-  const supabase = createServerClient()
+  let supabase
+  try { supabase = createServerClient() } catch { return { title: 'Tournament | Padel Nachos' } }
 
   const { data: tournament } = await supabase
     .from('tournaments')
@@ -46,27 +47,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function TournamentLayout({ params, children }: Props) {
-  const { id } = await params
+  let jsonLd: object | null = null
 
-  const supabase = createServerClient()
+  try {
+    const { id } = await params
+    const supabase = createServerClient()
 
-  const { data: tournament } = await supabase
-    .from('tournaments')
-    .select('id, name, country, starts_at, ends_at')
-    .eq('id', id)
-    .single()
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('id, name, country, starts_at, ends_at')
+      .eq('id', id)
+      .single()
 
-  const jsonLd = tournament
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'SportsEvent',
-        name: tournament.name,
-        startDate: tournament.starts_at,
-        endDate: tournament.ends_at,
-        location: { '@type': 'Place', name: tournament.country },
-        sport: 'Padel',
-      }
-    : null
+    jsonLd = tournament
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'SportsEvent',
+          name: tournament.name,
+          startDate: tournament.starts_at,
+          endDate: tournament.ends_at,
+          location: { '@type': 'Place', name: tournament.country },
+          sport: 'Padel',
+        }
+      : null
+  } catch {
+    // DB unavailable — render children without JSON-LD
+  }
 
   return (
     <>
