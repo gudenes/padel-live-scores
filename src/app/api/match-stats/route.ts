@@ -35,6 +35,7 @@ function mapApiStatsToRow(
   matchId: string,
   setNumber: number,
   block: Record<string, { team_1: string; team_2: string }>,
+  padelapiId: string,
 ) {
   // For percentage fields: store as value out of 100
   // For count fields: store as raw number (total = null)
@@ -85,7 +86,7 @@ function mapApiStatsToRow(
     team2_longest_streak: pct('longest_streak', 'team_2'),
     // Metadata
     source: 'padelapi',
-    source_match_id: null,
+    source_match_id: padelapiId,
     computed_at: new Date().toISOString(),
   }
 }
@@ -168,12 +169,12 @@ export async function GET(request: Request) {
   const statsRows = []
 
   // Match aggregate (set_number = 0)
-  statsRows.push(mapApiStatsToRow(matchId, 0, apiStats.match))
+  statsRows.push(mapApiStatsToRow(matchId, 0, apiStats.match, match.padelapi_id))
 
   // Per-set stats
   let setNum = 1
   while (apiStats[`set_${setNum}`]) {
-    statsRows.push(mapApiStatsToRow(matchId, setNum, apiStats[`set_${setNum}`]))
+    statsRows.push(mapApiStatsToRow(matchId, setNum, apiStats[`set_${setNum}`], match.padelapi_id))
     setNum++
   }
 

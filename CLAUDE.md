@@ -73,7 +73,7 @@ supabase/
 | `highlights` | YouTube videos | `youtube_id`, `channel_name`, `view_count`, `like_count`, `comment_count`, `description`, `channel_quality_score` |
 | `tournament_draws` | Parsed draw brackets | `tournament_id`, `category`, `draw_position`, `seed`, `marker`, `player1/2_name`, `player1/2_id` |
 | `entity_external_ids` | Sidecar for non-primary source IDs | `entity_type`, `entity_id`, `source`, `external_id`, `metadata` |
-| `match_stats` | Per-match + per-set stats from Premier Padel | `match_id` + `set_number` (composite PK, `set_number=0` is match aggregate), 34 stat columns (service/return/total), `source`, `source_match_id`, `raw_payload`, `computed_at` |
+| `match_stats` | Per-match + per-set stats (padelapi.org source, cached on first access) | `match_id` + `set_number` (composite PK, `set_number=0` is match aggregate), 34 stat columns (service/return/total), `source`, `source_match_id`, `raw_payload`, `computed_at` |
 | `match_stats_unresolved` | Queue for tournaments/matches the auto-matcher couldn't link | `source`, `source_kind`, `source_id`, `source_payload`, `reason`, `resolved_at`, `resolved_match_id`, `resolved_tournament_id` |
 | `social_posts` | Auto-generated social media post drafts | `title`, `caption`, `hashtags`, `platform`, `pillar`, `status` (draft/approved/posted), `source_data` |
 
@@ -464,3 +464,60 @@ Critical fixes to prevent data loss in the scores cron:
 
 ### Backlog: PBP Backfill
 `backfillPointData` function exists in scores cron but the sweep query has a PostgREST syntax bug. Spec at `docs/superpowers/specs/2026-04-13-pbp-backfill-design.md`.
+
+## Score Pipeline Fixes (2026-04-14)
+
+1. **Relay: derive set_score** — When API returns `set_score: null` on finish but has `pair1_games`/`pair2_games`, relay now computes the score string (e.g. "6-3") instead of skipping the set
+2. **Relay: is_current on finish** — All sets get `is_current: false` when match status is finished/ended
+3. **Preserve retired/walkover status** — `writeFinalState` and `inferWinnerPair` no longer hardcode `status: 'finished'`. They preserve `retired`/`walkover` from the API, so the UI "RET" badge renders correctly
+
+## Timezone Display (2026-04-14)
+
+All match/tournament times display in the **user's local timezone** (not UTC, not tournament tz).
+- `src/proxy.ts` sets `geo-timezone` cookie from Vercel's `x-vercel-ip-timezone` header
+- `src/i18n/request.ts` reads cookie, passes `timeZone` to next-intl config
+- `src/lib/format-patterns.ts` — shared format constants (TIME_24H, DATE_SHORT, etc.)
+- All `format.dateTime()` calls auto-use the user's timezone globally
+
+## SEO (2026-04-14)
+
+- **Dynamic sitemap** (`src/app/sitemap.ts`) — tournaments, matches (90 days), players
+- **JSON-LD** — `SportsEvent` on match/tournament pages, `Person` on player pages
+- **generateMetadata** — dynamic titles/descriptions for tournament, player, home pages
+- **Canonical + hreflang** — all layouts include canonical URLs and alternates for 5 locales
+- **About page** — `/about` with i18n, chunky design, brand story
+
+## Match Stats from PadelAPI (2026-04-14)
+
+- `/api/match-stats` fetches from `padelapi.org/api/matches/{id}/stats` (no Premier Padel pipeline needed)
+- On-demand fetch + DB cache in `match_stats` table
+- Maps percentage strings to value/100 format for existing MatchStatsBar UI
+- Available for any match with a `padelapi_id` (~6,500 matches)
+
+## Supabase Soft Recovery (2026-04-14)
+
+When the Supabase auth client gets wedged after tab idle:
+1. `supabase-health.ts` tries **soft recovery** before hard reload: restarts auth ticker → re-sets session from localStorage → re-probes
+2. `useWakeRefresh.ts` proactively calls `startAutoRefresh()` on tab wake
+3. **Click-triggered recovery** — on first click after tab wake, a quick probe runs. If it fails, soft recovery triggers immediately
+
+## Ops Players Tab Redesign (2026-04-14)
+
+Decomposed 1,350-line monolith into 5 components under `src/app/ops/players/`:
+- `PlayersTable.tsx` — checkboxes, completeness dots, avatar+flag, pagination
+- `FilterChips.tsx` — All, Missing Equipment/Avatar/Ranking + Men/Women with counts
+- `BulkActionsBar.tsx` — multi-select + bulk equipment assignment modal
+- `PlayerDrawer.tsx` — right overlay drawer with tabbed edit form
+- `types.ts` — shared types and `computeCompleteness()`
+
+Search API (`/api/ops/search-players`) updated with pagination + filter params.
+
+## Racket Enrichment Scripts (2026-04-14)
+
+- `scripts/enrich-brand-logos.ts` — populates brand logos from Brandfetch CDN
+- `scripts/enrich-racket-specs.ts` — uses Claude Sonnet + web search to extract specs
+- Ops "Import from URL" — paste product page URL, Claude Haiku extracts specs into form
+
+## OOP Parser Fix (2026-04-14)
+
+Player regex in `parseOopHtml()` required flag image as anchor. Players without country flag (e.g. Sharifova) were skipped → match dropped. Fixed by making flag optional.
