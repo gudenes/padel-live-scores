@@ -9,9 +9,23 @@ import Resend from 'next-auth/providers/resend'
 import PostgresAdapter from '@auth/pg-adapter'
 import { Pool } from 'pg'
 
+// Parse DATABASE_URL manually to avoid issues with special characters in passwords.
+// The pg Pool's connectionString parser doesn't handle URL-encoded chars reliably.
+function parseDbUrl(url: string) {
+  const u = new URL(url)
+  return {
+    host: u.hostname,
+    port: parseInt(u.port || '5432', 10),
+    database: u.pathname.slice(1) || 'postgres',
+    user: decodeURIComponent(u.username),
+    password: decodeURIComponent(u.password),
+  }
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  ...parseDbUrl(process.env.DATABASE_URL ?? ''),
   max: 5,
+  ssl: { rejectUnauthorized: false },
 })
 
 export const { handlers, auth, signIn, signOut } = NextAuth({

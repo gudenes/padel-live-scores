@@ -48,8 +48,20 @@ function AuthInner({ children }: { children: ReactNode }) {
     await doSignOut({ redirect: false })
   }, [])
 
+  // Derive a profile from session data so existing consumers (profile page,
+  // header, etc.) work without changes. The profile page can later fetch
+  // richer data from /api/user/profile if needed.
+  const profile: Profile | null = user
+    ? {
+        id: user.id,
+        display_name: user.name ?? null,
+        avatar_url: user.image ?? null,
+        preferred_country: null,
+      }
+    : null
+
   return (
-    <AuthContext.Provider value={{ user, profile: null, loading: status === 'loading', signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading: status === 'loading', signOut }}>
       {children}
     </AuthContext.Provider>
   )
