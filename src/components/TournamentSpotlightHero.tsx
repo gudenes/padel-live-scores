@@ -137,7 +137,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://flagcdn.com/w40/${code}.png`}
+      src={`/flags/${code}.png`}
       alt={country}
       width={size}
       height={size * 0.75}

@@ -39,12 +39,12 @@ function levelLabel(level: string | null): string {
   return map[level] ?? level
 }
 
-/** Flag image from flagcdn.com (replaces emoji flags) */
+/** Flag image from self-hosted /flags/ (replaces emoji flags) */
 function FlagImg({ country, size = 18 }: { country: string; size?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://flagcdn.com/w40/${country.toLowerCase()}.png`}
+      src={`/flags/${country.toLowerCase()}.png`}
       alt={country}
       style={{ width: size, height: Math.round(size * 0.75), objectFit: 'cover', borderRadius: 2, flexShrink: 0 }}
     />

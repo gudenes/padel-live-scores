@@ -82,7 +82,7 @@ export default function LocaleSwitcher({ size = 28, direction = 'up' }: LocaleSw
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`https://flagcdn.com/w80/${current.code}.png`}
+          src={`/flags/${current.code}.png`}
           alt={current.label}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
@@ -138,7 +138,7 @@ export default function LocaleSwitcher({ size = 28, direction = 'up' }: LocaleSw
                 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`https://flagcdn.com/w80/${flag.code}.png`}
+                    src={`/flags/${flag.code}.png`}
                     alt={flag.label}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />

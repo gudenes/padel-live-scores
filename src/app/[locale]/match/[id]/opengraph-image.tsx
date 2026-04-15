@@ -42,7 +42,7 @@ function lastName(fullName: string | null): string {
 
 function flagUrl(country: string | null): string | null {
   if (!country) return null
-  return `https://flagcdn.com/w40/${country.toLowerCase()}.png`
+  return `/flags/${country.toLowerCase()}.png`
 }
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {

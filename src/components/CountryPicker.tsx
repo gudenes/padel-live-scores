@@ -5,7 +5,7 @@
 // can't render images or colored SVGs in <option> elements (browser
 // limitation), so this is a custom replacement that supports:
 //
-// - Real flag images (from flagcdn.com, same source the rest of the
+// - Real flag images (self-hosted in /flags/, same source the rest of the
 //   app uses for FlagImg)
 // - A green stroke "map pin" SVG for the auto/use-my-location option
 // - Click-outside-to-close
@@ -210,7 +210,7 @@ function FlagImg({ country, size }: { country: string; size: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://flagcdn.com/w40/${country.toLowerCase()}.png`}
+      src={`/flags/${country.toLowerCase()}.png`}
       alt=""
       width={size}
       height={Math.round(size * 0.75)}

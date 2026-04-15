@@ -4,7 +4,7 @@
 // Sections: Header → Live Now → Coming Up → Tournament Spotlight →
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
 
-import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
@@ -180,7 +180,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://flagcdn.com/w40/${code}.png`}
+      src={`/flags/${code}.png`}
       alt={country}
       loading="lazy"
       width={size}
@@ -840,14 +840,14 @@ function ResultsSection({ matches }: { matches: Match[] }) {
   // 3-state: undefined = default (show 3), 'collapsed' = hide all, 'expanded' = show all
   const [tournamentState, setTournamentState] = useState<Record<string, 'collapsed' | 'expanded'>>({})
 
-  const filtered = matches
+  const filtered = useMemo(() => matches
     .filter(m => hasPlayers(m))
     .sort((a, b) => {
       const aDate = a.finished_at ? new Date(a.finished_at).getTime() : 0
       const bDate = b.finished_at ? new Date(b.finished_at).getTime() : 0
       return bDate - aDate
     })
-    .slice(0, 20)
+    .slice(0, 20), [matches])
 
   // Group by tournament
   const grouped: { tournament: any; matches: Match[] }[] = []
@@ -1389,24 +1389,27 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
     })()
   }, [tab])
 
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const live = tournaments.filter(t => liveIds.has(t.id))
-  const upcoming = tournaments.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id))
-    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
-  const completed = tournaments.filter(t => {
-    const end = new Date(t.ends_at); end.setHours(23, 59, 59)
-    return end < now && !liveIds.has(t.id)
-  })
-  const currentSeasonCompleted = completed.filter(t => new Date(t.starts_at).getFullYear() === currentYear)
-  const prevByYear: Record<number, TournamentWithWinners[]> = {}
-  for (const t of completed) {
-    const yr = new Date(t.starts_at).getFullYear()
-    if (yr < currentYear) {
-      if (!prevByYear[yr]) prevByYear[yr] = []
-      prevByYear[yr].push(t)
+  const { live, upcoming, currentSeasonCompleted, prevByYear, currentYear } = useMemo(() => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const live = tournaments.filter(t => liveIds.has(t.id))
+    const upcoming = tournaments.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id))
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+    const completed = tournaments.filter(t => {
+      const end = new Date(t.ends_at); end.setHours(23, 59, 59)
+      return end < now && !liveIds.has(t.id)
+    })
+    const currentSeasonCompleted = completed.filter(t => new Date(t.starts_at).getFullYear() === currentYear)
+    const prevByYear: Record<number, TournamentWithWinners[]> = {}
+    for (const t of completed) {
+      const yr = new Date(t.starts_at).getFullYear()
+      if (yr < currentYear) {
+        if (!prevByYear[yr]) prevByYear[yr] = []
+        prevByYear[yr].push(t)
+      }
     }
-  }
+    return { live, upcoming, currentSeasonCompleted, prevByYear, currentYear }
+  }, [tournaments, liveIds])
 
   const hero = live[0] ?? upcoming[0] ?? null
   const heroIsLive = live.length > 0
