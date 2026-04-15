@@ -24,7 +24,7 @@ function parseDbUrl(url: string) {
 
 const pool = new Pool({
   ...parseDbUrl(process.env.DATABASE_URL ?? ''),
-  max: 5,
+  max: 1, // Vercel serverless: each function instance gets its own pool, keep minimal
   ssl: { rejectUnauthorized: false },
 })
 
