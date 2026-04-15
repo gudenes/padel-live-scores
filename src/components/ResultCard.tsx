@@ -160,7 +160,7 @@ export function ResultCard({ match }: { match: Match }) {
                 const games = pairNum === 1 ? p1g : p2g
                 const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
                 return (
-                  <span key={s.id} style={{
+                  <span key={s.set_number} style={{
                     fontSize: 16, fontWeight: 700, fontFamily: 'monospace',
                     color: wonThisSet ? '#fff' : '#B0B5BE',
                     minWidth: 16, textAlign: 'center',
