@@ -699,15 +699,18 @@ function V3ScoresPage() {
   const [leagueFilter, setLeagueFilter] = useState<'premier' | 'fip' | 'all'>('premier')
   const [searchOpen, setSearchOpen] = useState(false)
 
-  const matchSelect = `
-    *,
+  // Player joins shared by all match queries
+  const matchPlayerJoins = `
     tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url, source, entry_list_status),
     pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, avatar_url, side),
     pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, avatar_url, side),
     pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, avatar_url, side),
-    pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, avatar_url, side),
-    sets(*, games(*))
-  `
+    pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, avatar_url, side)`
+
+  // Live matches need games(*) for current point score display
+  const matchSelectLive = `*, ${matchPlayerJoins}, sets(*, games(*))`
+  // Scheduled/finished only need set scores — no game-level data
+  const matchSelectLean = `*, ${matchPlayerJoins}, sets(set_number, set_score, pair1_games, pair2_games, is_current, score_source)`
 
   const sortSets = (data: any[]) =>
     data.map(m => ({ ...m, sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number) }))
@@ -723,14 +726,14 @@ function V3ScoresPage() {
     try {
       const wrap = <T,>(p: Promise<T>, label: string) => withTimeout(p, 10_000, label)
       const results = await Promise.allSettled([
-        wrap(supabase.from('matches').select(matchSelect)
+        wrap(supabase.from('matches').select(matchSelectLive)
           .eq('status', 'live')
           .order('court_order', { ascending: true }) as any, 'matches:live'),
-        wrap(supabase.from('matches').select(matchSelect)
+        wrap(supabase.from('matches').select(matchSelectLean)
           .eq('status', 'scheduled')
           .order('scheduled_at', { ascending: true })
           .limit(50) as any, 'matches:scheduled'),
-        wrap(supabase.from('matches').select(matchSelect)
+        wrap(supabase.from('matches').select(matchSelectLean)
           .in('status', ['finished', 'retired', 'walkover'])
           .not('finished_at', 'is', null)
           .gte('finished_at', `${new Date().getFullYear()}-01-01`)

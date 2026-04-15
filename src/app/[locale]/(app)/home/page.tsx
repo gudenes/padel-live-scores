@@ -1244,16 +1244,21 @@ const LIVE_SCORE_LEVELS = ['finals', 'major', 'p1', 'p2', 'fip_platinum']
 const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'AD': 4 }
 const _liveScoresPrev = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
 
-// ── Match select query (reused) ────────────────────────────────
-const MATCH_SELECT = `
-  *,
+// ── Match select queries ──────────────────────────────────────
+// LIVE matches need games(*) for current point score display (e.g. "30:40").
+// All other statuses (scheduled, finished, etc.) only need set scores.
+const MATCH_PLAYER_JOINS = `
   tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url, entry_list_status, source),
   pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
   pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
   pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-  pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-  sets(*, games(*))
-`
+  pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side)`
+
+// Full select with games — only for live matches
+const MATCH_SELECT_LIVE = `*, ${MATCH_PLAYER_JOINS}, sets(*, games(*))`
+
+// Lean select without games — for scheduled, finished, results
+const MATCH_SELECT_LEAN = `*, ${MATCH_PLAYER_JOINS}, sets(set_number, set_score, pair1_games, pair2_games, is_current, score_source)`
 
 // ── Tournaments View ──────────────────────────────────────────
 
@@ -2028,8 +2033,8 @@ function V3HomePageInner() {
         withTimeout(p as Promise<T>, 10_000, label)
 
       const results = await Promise.allSettled([
-        wrap(supabase.from('matches').select(MATCH_SELECT).eq('status', 'live').order('court_order', { ascending: true }) as any, 'home:live'),
-        wrap(supabase.from('matches').select(MATCH_SELECT).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
+        wrap(supabase.from('matches').select(MATCH_SELECT_LIVE).eq('status', 'live').order('court_order', { ascending: true }) as any, 'home:live'),
+        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
         wrap(supabase.from('tournaments')
           .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url')
           .in('level', ['finals', 'major', 'p1', 'p2'])
@@ -2038,7 +2043,7 @@ function V3HomePageInner() {
           .limit(2) as any, 'home:tournaments'),
         wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'men').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topMen'),
         wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'women').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topWomen'),
-        wrap(supabase.from('matches').select(MATCH_SELECT).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
+        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
         wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
         wrap(supabase.from('articles').select('id, title, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(10) as any, 'home:articles'),
       ])
