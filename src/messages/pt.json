@@ -337,5 +337,35 @@
     "dataP1": "Nossos resultados vêm das APIs oficiais dos torneios e são verificados em múltiplas fontes. Durante as partidas ao vivo, os dados são atualizados constantemente para manter você o mais próximo possível do tempo real.",
     "dataP2": "Já acompanhamos mais de 3.000 jogadores nas categorias masculina e feminina, e nosso banco de dados continua crescendo a cada semana.",
     "contact": "Dúvidas? Escreva para"
+  },
+  "login": {
+    "heading": "Entrar no Padel Nachos",
+    "headingReferral": "Entre para começar",
+    "subtitle": "Sincronize favoritos e receba notificações",
+    "subtitleReferral": "Resultados ao vivo, rankings e alertas esperam por você",
+    "inviterFallback": "Alguém",
+    "invitedYou": "convidou você",
+    "joinSubtitle": "Entre para se juntar ao PadelNachos",
+    "checkEmail": "Verifique seu e-mail",
+    "sentLink": "Enviamos um link para {email}",
+    "continueGoogle": "Continuar com Google",
+    "or": "ou",
+    "emailPlaceholder": "Endereço de e-mail",
+    "sending": "Enviando...",
+    "sendLink": "Enviar link",
+    "helperText": "Enviaremos um link — sem senha necessária",
+    "errorSignIn": "Erro ao entrar, tente novamente",
+    "errorSendLink": "Erro ao enviar link, tente novamente"
+  },
+  "onboarding": {
+    "step1Title": "Encontre tudo",
+    "step1Desc": "Encontre seus jogadores favoritos, torneios e partidas.",
+    "step2Title": "Seu feed personalizado",
+    "step2Desc": "Siga os jogadores e torneios que você ama. Tudo que importa em um só lugar!",
+    "step3Title": "Ganhe medalhas",
+    "step3Desc": "Desbloqueie medalhas enquanto explora! De Novato a Gênio do Padel, colecione todas.",
+    "skip": "Pular",
+    "next": "Próximo →",
+    "done": "Pronto"
   }
 }

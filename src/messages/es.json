@@ -337,5 +337,35 @@
     "dataP1": "Nuestros marcadores provienen de las APIs oficiales de los torneos y se verifican con múltiples fuentes. Durante los partidos en vivo, los datos se actualizan constantemente para mantenerte lo más cerca posible del tiempo real.",
     "dataP2": "Ya seguimos a más de 3.000 jugadores en las categorías masculina y femenina, y nuestra base de datos sigue creciendo cada semana.",
     "contact": "¿Preguntas? Escríbenos a"
+  },
+  "login": {
+    "heading": "Inicia sesión en Padel Nachos",
+    "headingReferral": "Inicia sesión para empezar",
+    "subtitle": "Sincroniza favoritos y recibe notificaciones",
+    "subtitleReferral": "Resultados en vivo, rankings y alertas te esperan",
+    "inviterFallback": "Alguien",
+    "invitedYou": "te invitó",
+    "joinSubtitle": "Inicia sesión para unirte a PadelNachos",
+    "checkEmail": "Revisa tu correo",
+    "sentLink": "Enviamos un enlace a {email}",
+    "continueGoogle": "Continuar con Google",
+    "or": "o",
+    "emailPlaceholder": "Correo electrónico",
+    "sending": "Enviando...",
+    "sendLink": "Enviar enlace",
+    "helperText": "Te enviaremos un enlace — sin contraseña",
+    "errorSignIn": "Error al iniciar sesión, intenta de nuevo",
+    "errorSendLink": "Error al enviar el enlace, intenta de nuevo"
+  },
+  "onboarding": {
+    "step1Title": "Busca lo que quieras",
+    "step1Desc": "Encuentra tus jugadores favoritos, torneos y partidos.",
+    "step2Title": "Tu feed personalizado",
+    "step2Desc": "Sigue a los jugadores y torneos que te gustan. ¡Todo lo que te importa en un solo lugar!",
+    "step3Title": "Gana insignias",
+    "step3Desc": "¡Desbloquea insignias mientras exploras! De Novato a Genio del Pádel, colecciónalas todas.",
+    "skip": "Saltar",
+    "next": "Siguiente →",
+    "done": "Listo"
   }
 }

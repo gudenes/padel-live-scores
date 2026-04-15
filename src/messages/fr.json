@@ -337,5 +337,35 @@
     "dataP1": "Nos scores proviennent des API officielles des tournois et sont vérifiés auprès de plusieurs sources. Pendant les matchs en direct, les données sont actualisées en continu pour vous tenir au plus près du temps réel.",
     "dataP2": "Nous suivons déjà plus de 3 000 joueurs dans les catégories hommes et femmes, et notre base de données continue de grandir chaque semaine.",
     "contact": "Des questions ? Écrivez-nous à"
+  },
+  "login": {
+    "heading": "Se connecter à Padel Nachos",
+    "headingReferral": "Connectez-vous pour commencer",
+    "subtitle": "Synchronisez vos favoris et recevez des notifications",
+    "subtitleReferral": "Scores en direct, classements et alertes vous attendent",
+    "inviterFallback": "Quelqu'un",
+    "invitedYou": "vous a invité",
+    "joinSubtitle": "Connectez-vous pour rejoindre PadelNachos",
+    "checkEmail": "Vérifiez votre e-mail",
+    "sentLink": "Nous avons envoyé un lien à {email}",
+    "continueGoogle": "Continuer avec Google",
+    "or": "ou",
+    "emailPlaceholder": "Adresse e-mail",
+    "sending": "Envoi...",
+    "sendLink": "Envoyer le lien",
+    "helperText": "Nous vous enverrons un lien — pas de mot de passe",
+    "errorSignIn": "Échec de la connexion, réessayez",
+    "errorSendLink": "Échec de l'envoi du lien, réessayez"
+  },
+  "onboarding": {
+    "step1Title": "Trouvez tout",
+    "step1Desc": "Trouvez vos joueurs préférés, tournois et matchs.",
+    "step2Title": "Votre flux personnalisé",
+    "step2Desc": "Suivez les joueurs et tournois que vous aimez. Tout ce qui compte, au même endroit !",
+    "step3Title": "Gagnez des badges",
+    "step3Desc": "Débloquez des badges en explorant ! De Débutant à Génie du Padel, collectionnez-les tous.",
+    "skip": "Passer",
+    "next": "Suivant →",
+    "done": "Terminé"
   }
 }
