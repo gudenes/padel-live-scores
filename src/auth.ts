@@ -37,7 +37,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
     Resend({
       apiKey: process.env.RESEND_API_KEY!,
-      from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos <noreply@padelnachos.com>',
+      from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos <hello@padelnachos.com>',
+      async sendVerificationRequest({ identifier: email, url }) {
+        const { Resend: ResendClient } = await import('resend')
+        const resend = new ResendClient(process.env.RESEND_API_KEY!)
+        await resend.emails.send({
+          from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos <hello@padelnachos.com>',
+          to: email,
+          subject: 'Sign in to PadelNachos',
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+              <div style="text-align: center; margin-bottom: 32px;">
+                <div style="font-size: 28px; font-weight: 800; color: #000;">
+                  🎾 Padel<span style="color: #7ED321;">Nachos</span>
+                </div>
+              </div>
+              <div style="background: #f9fafb; border-radius: 12px; padding: 32px 24px; text-align: center;">
+                <h1 style="font-size: 20px; font-weight: 700; color: #111; margin: 0 0 8px;">
+                  Sign in to PadelNachos
+                </h1>
+                <p style="font-size: 14px; color: #6b7280; margin: 0 0 24px;">
+                  Click the button below to sign in. This link expires in 24 hours.
+                </p>
+                <a href="${url}" style="display: inline-block; background: #7ED321; color: #000; font-weight: 700; font-size: 14px; padding: 12px 32px; border-radius: 6px; text-decoration: none;">
+                  Sign in
+                </a>
+              </div>
+              <p style="font-size: 11px; color: #9ca3af; text-align: center; margin-top: 24px;">
+                If you didn't request this email, you can safely ignore it.
+              </p>
+            </div>
+          `,
+        })
+      },
     }),
   ],
   session: {
