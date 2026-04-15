@@ -5,7 +5,7 @@
       "name": "Next.js (frontend)",
       "runtimeExecutable": "/bin/bash",
       "runtimeArgs": [".claude/start-dev.sh"],
-      "port": 3000
+      "port": 3002
     },
     {
       "name": "Relay (Pusher bridge)",

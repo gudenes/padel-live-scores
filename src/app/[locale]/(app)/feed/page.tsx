@@ -16,8 +16,6 @@ import SearchOverlay from '@/components/nav/SearchOverlay'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
-import { checkBadgeInline } from '@/lib/badge-check-inline'
-import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -641,7 +639,6 @@ function V3FeedPage() {
     trackClick(id)
     if (user) {
       void logActivity(user.id, 'article_click', id)
-      void checkBadgeInline(user.id, 'read_articles')
     }
     setVisitedArticles(prev => { const s = new Set(prev); s.add(id); return s })
     const article = news.find(a => a.id === id)
@@ -762,9 +759,6 @@ function V3FeedPage() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
-
-  // Recover from tab-idle Supabase auth lock deadlock — see useWakeRefresh
-  useWakeRefresh(fetchData)
 
   useEffect(() => {
     setUserCountry(getUserCountry())

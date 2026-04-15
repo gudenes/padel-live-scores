@@ -9,7 +9,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
-import { checkBadgeInline } from '@/lib/badge-check-inline'
 import { BOOKMARK_EVENT, type BookmarkEventDetail } from '@/components/BookmarkToast'
 
 export type FollowType = 'match' | 'player' | 'tournament' | 'news_source'
@@ -185,13 +184,6 @@ export function useFollowing() {
             bookmark_type: dbType,
             target_id: targetId,
           })
-          const badgeForType: Record<string, string> = {
-            match: 'follow_matches',
-            player: 'follow_players',
-            tournament: 'follow_tournaments',
-          }
-          const badgeId = badgeForType[type]
-          if (badgeId && user) void checkBadgeInline(user.id, badgeId)
         }
       }
     },

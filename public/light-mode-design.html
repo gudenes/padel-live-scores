@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PadelNachos — Light Mode Design Review</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'SF Mono', ui-monospace, 'Fira Code', 'Cascadia Code', monospace;
+
+    /* Chunky clip-paths — THE brand */
+    --clip-card: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --clip-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    --clip-frame: polygon(0% 0.5%, 99.5% 0%, 100% 99.5%, 0.5% 100%);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: #111;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+
+  /* ── Page Header ────────────────────────────────── */
+  .page-header {
+    text-align: center;
+    padding: 48px 24px 16px;
+  }
+  .page-header h1 {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .page-header h1 span { color: #7ED321; }
+  .page-header p {
+    color: #6B7280;
+    font-size: 13px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+
+  /* Toggle bar */
+  .toggle-bar {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(17,17,17,0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .toggle-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    border: none;
+    cursor: pointer;
+    clip-path: var(--clip-badge);
+    transition: all 0.25s;
+  }
+  .toggle-btn.active {
+    background: #7ED321;
+    color: #000;
+  }
+  .toggle-btn:not(.active) {
+    background: rgba(255,255,255,0.06);
+    color: #6B7280;
+  }
+  .toggle-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.1);
+    color: #aaa;
+  }
+
+  /* ── Color Palette Section ──────────────────────── */
+  .palette-section {
+    max-width: 900px;
+    margin: 32px auto;
+    padding: 0 24px;
+  }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #6B7280;
+    margin-bottom: 16px;
+    padding-left: 4px;
+  }
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .swatch {
+    position: relative;
+    clip-path: var(--clip-card);
+    overflow: hidden;
+  }
+  .swatch-colors {
+    display: flex;
+    height: 52px;
+  }
+  .swatch-dark, .swatch-light {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .swatch-dot {
+    width: 20px;
+    height: 20px;
+    clip-path: var(--clip-badge);
+  }
+  .swatch-info {
+    background: #1a1a1a;
+    padding: 6px 10px 8px;
+    font-size: 10px;
+  }
+  .swatch-name {
+    font-weight: 700;
+    color: #ccc;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .swatch-values {
+    display: flex;
+    gap: 8px;
+    color: #666;
+    font-family: var(--font-mono);
+    font-size: 9px;
+  }
+
+  /* ── Comparison Layout ──────────────────────────── */
+  .comparison-section {
+    max-width: 960px;
+    margin: 40px auto 0;
+    padding: 0 16px;
+  }
+  .comparison-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #7ED321;
+    margin-bottom: 4px;
+    padding-left: 4px;
+  }
+  .comparison-desc {
+    font-size: 11px;
+    color: #555;
+    margin-bottom: 16px;
+    padding-left: 4px;
+  }
+  .comparison-pair {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 56px;
+  }
+
+  /* Phone frames */
+  .phone {
+    width: 375px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .phone-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 8px;
+    color: #555;
+  }
+  .phone-screen {
+    width: 375px;
+    position: relative;
+    overflow: hidden;
+    clip-path: var(--clip-frame);
+    padding: 16px;
+  }
+  .phone-screen.dark {
+    background: #0A0A0A;
+    color: #ffffff;
+  }
+  .phone-screen.light {
+    background: #F7F6F3;
+    color: #1A1A1A;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     COMPONENT STYLES — each has .dark / .light variants
+     ═══════════════════════════════════════════════════ */
+
+  /* ── 1. AppHeader ───────────────────────────────── */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px 10px;
+    margin: -16px -16px 0 -16px;
+  }
+  .dark .app-header {
+    background: #0A0A0A;
+  }
+  .light .app-header {
+    background: #FFFFFF;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  }
+  .logo-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+  .logo-text {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+  }
+  .dark .logo-text .logo-padel { color: #fff; }
+  .dark .logo-text .logo-nachos { color: #F5A623; }
+  .light .logo-text .logo-padel { color: #1A1A1A; }
+  .light .logo-text .logo-nachos { color: #D4870F; }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    clip-path: var(--clip-badge);
+    width: 120px;
+  }
+  .dark .search-bar {
+    background: rgba(126,211,33,0.08);
+    border: 1px solid rgba(126,211,33,0.25);
+    color: rgba(126,211,33,0.6);
+  }
+  .light .search-bar {
+    background: rgba(74,140,18,0.05);
+    border: 1px solid rgba(74,140,18,0.2);
+    color: rgba(74,140,18,0.5);
+  }
+  .header-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+  .dark .header-icon { color: #6B7280; }
+  .light .header-icon { color: #9CA3AF; }
+
+  /* ── 2. Live Match Card ─────────────────────────── */
+  .match-card {
+    margin: 12px 0;
+    padding: 0;
+    clip-path: var(--clip-card);
+    position: relative;
+    overflow: hidden;
+  }
+  .dark .match-card {
+    background: #141414;
+  }
+  .light .match-card {
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .match-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .dark .match-header {
+    background: rgba(255,255,255,0.03);
+    color: #6B7280;
+  }
+  .light .match-header {
+    background: rgba(0,0,0,0.02);
+    color: #9CA3AF;
+  }
+
+  .live-dot {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .dark .live-dot { color: #FF4655; }
+  .light .live-dot { color: #DC2626; }
+
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .dark .pulse-dot { background: #FF4655; }
+  .light .pulse-dot { background: #DC2626; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.3); }
+  }
+
+  .match-body {
+    padding: 10px 14px 14px;
+  }
+  .team-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+  }
+  .team-flag { font-size: 14px; }
+  .team-names {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dark .team-names { color: #fff; }
+  .light .team-names { color: #1A1A1A; }
+  .team-names.serving::after {
+    content: '';
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+  .dark .team-names.serving::after { background: #7ED321; }
+  .light .team-names.serving::after { background: #4A8C12; }
+
+  .set-scores {
+    display: flex;
+    gap: 2px;
+  }
+  .set-score-box {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    clip-path: var(--clip-badge);
+  }
+  .dark .set-score-box {
+    background: rgba(255,255,255,0.04);
+    color: #aaa;
+  }
+  .dark .set-score-box.won { color: #fff; background: rgba(126,211,33,0.15); }
+  .dark .set-score-box.current {
+    background: rgba(126,211,33,0.2);
+    color: #7ED321;
+  }
+  .light .set-score-box {
+    background: rgba(0,0,0,0.03);
+    color: #9CA3AF;
+  }
+  .light .set-score-box.won { color: #1A1A1A; background: rgba(74,140,18,0.1); }
+  .light .set-score-box.current {
+    background: rgba(74,140,18,0.12);
+    color: #4A8C12;
+  }
+
+  .game-score-area {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    margin-left: 6px;
+  }
+  .game-score {
+    font-size: 20px;
+    font-weight: 900;
+    font-family: var(--font-mono);
+    width: 28px;
+    text-align: center;
+    line-height: 1;
+  }
+  .dark .game-score.p1 { color: #FF6B2B; }
+  .dark .game-score.p2 { color: #FFD166; }
+  .light .game-score.p1 { color: #D4580A; }
+  .light .game-score.p2 { color: #B8860B; }
+
+  .game-score-separator {
+    font-size: 14px;
+    font-weight: 300;
+    color: #333;
+    margin: 0 1px;
+  }
+  .light .game-score-separator { color: #ccc; }
+
+  /* ── 3. Result Card (finished match) ────────────── */
+  .result-card {
+    margin: 8px 0;
+    clip-path: var(--clip-card);
+    overflow: hidden;
+  }
+  .dark .result-card { background: #141414; }
+  .light .result-card {
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .result-body {
+    padding: 10px 14px 12px;
+  }
+  .result-team {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .w-badge {
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    color: #fff;
+    clip-path: var(--clip-badge);
+  }
+  .dark .w-badge { background: #7ED321; }
+  .light .w-badge { background: #4A8C12; }
+
+  .result-team.loser .team-names {
+    opacity: 0.45;
+  }
+  .dark .result-team.loser .team-names { color: #888; }
+  .light .result-team.loser .team-names { color: #9CA3AF; }
+
+  .dark .result-team.loser .set-score-box { color: #555; }
+  .light .result-team.loser .set-score-box { color: #ccc; }
+
+  /* ── 4. Tournament Group ────────────────────────── */
+  .tournament-group {
+    margin: 16px 0;
+    overflow: hidden;
+  }
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    position: relative;
+    clip-path: var(--clip-card);
+  }
+  .dark .group-header {
+    background: #1e1e1e;
+  }
+  .light .group-header {
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .group-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+  .dark .group-accent { background: #7ED321; clip-path: var(--clip-card); }
+  .light .group-accent { background: #4A8C12; clip-path: var(--clip-card); }
+
+  .group-logo {
+    width: 28px;
+    height: 28px;
+    clip-path: var(--clip-badge);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .dark .group-logo { background: rgba(126,211,33,0.12); }
+  .light .group-logo { background: rgba(74,140,18,0.08); }
+
+  .group-info { flex: 1; min-width: 0; }
+  .group-name {
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .group-meta {
+    font-size: 10px;
+    margin-top: 1px;
+  }
+  .dark .group-meta { color: #6B7280; }
+  .light .group-meta { color: #9CA3AF; }
+
+  .match-count-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    clip-path: var(--clip-badge);
+  }
+  .dark .match-count-badge {
+    background: rgba(126,211,33,0.12);
+    color: #7ED321;
+  }
+  .light .match-count-badge {
+    background: rgba(74,140,18,0.08);
+    color: #4A8C12;
+  }
+  .group-chevron {
+    font-size: 12px;
+    transition: transform 0.2s;
+  }
+  .dark .group-chevron { color: #555; }
+  .light .group-chevron { color: #ccc; }
+
+  .group-cards {
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* ── 5. Tournament Spotlight Hero ───────────────── */
+  .spotlight-card {
+    margin: 12px 0;
+    clip-path: var(--clip-card);
+    overflow: hidden;
+    position: relative;
+  }
+  .dark .spotlight-card { background: #141414; }
+  .light .spotlight-card {
+    background: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  .spotlight-accent {
+    height: 4px;
+    clip-path: var(--clip-card);
+  }
+  .dark .spotlight-accent { background: #7ED321; }
+  .light .spotlight-accent { background: #4A8C12; }
+
+  .spotlight-body {
+    padding: 16px;
+  }
+  .spotlight-toprow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .next-badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 4px 10px;
+    text-transform: uppercase;
+    color: #fff;
+    clip-path: var(--clip-badge);
+  }
+  .dark .next-badge { background: #F5A623; }
+  .light .next-badge { background: #D4870F; }
+
+  .level-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 8px;
+    clip-path: var(--clip-badge);
+  }
+  .dark .level-badge {
+    background: rgba(126,211,33,0.15);
+    color: #7ED321;
+  }
+  .light .level-badge {
+    background: rgba(74,140,18,0.1);
+    color: #4A8C12;
+  }
+
+  .spotlight-name {
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.15;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .dark .spotlight-name { color: #fff; }
+  .light .spotlight-name { color: #1A1A1A; }
+
+  .spotlight-location {
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  .dark .spotlight-location { color: #9CA3AF; }
+  .light .spotlight-location { color: #6B7280; }
+
+  /* Countdown boxes */
+  .countdown-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .cd-box {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    clip-path: var(--clip-badge);
+  }
+  .dark .cd-box { background: rgba(255,255,255,0.04); }
+  .light .cd-box { background: rgba(0,0,0,0.03); }
+  .cd-value {
+    font-size: 20px;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    line-height: 1;
+  }
+  .dark .cd-value { color: #fff; }
+  .light .cd-value { color: #1A1A1A; }
+  .cd-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+  .dark .cd-label { color: #6B7280; }
+  .light .cd-label { color: #9CA3AF; }
+
+  /* Champions section */
+  .spot-section-title {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .dark .spot-section-title { color: #6B7280; }
+  .light .spot-section-title { color: #9CA3AF; }
+
+  .champ-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 8px;
+  }
+  .champ-cat {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .dark .champ-cat.men { color: #4A9EFF; }
+  .dark .champ-cat.women { color: #D966FF; }
+  .light .champ-cat.men { color: #2563EB; }
+  .light .champ-cat.women { color: #7C3AED; }
+
+  .champ-avatar {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+    clip-path: var(--clip-badge);
+  }
+  .dark .champ-avatar {
+    background: rgba(126,211,33,0.1);
+    color: #7ED321;
+  }
+  .light .champ-avatar {
+    background: rgba(74,140,18,0.08);
+    color: #4A8C12;
+  }
+  .champ-names {
+    font-size: 12px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .dark .champ-names { color: #ddd; }
+  .light .champ-names { color: #333; }
+  .champ-year {
+    font-size: 10px;
+  }
+  .dark .champ-year { color: #6B7280; }
+  .light .champ-year { color: #9CA3AF; }
+
+  /* Seeds row */
+  .seeds-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 12px 0 14px;
+  }
+  .seed-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .seed-circle {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    clip-path: var(--clip-badge);
+  }
+  .dark .seed-circle {
+    background: rgba(245,166,35,0.12);
+    color: #F5A623;
+  }
+  .light .seed-circle {
+    background: rgba(212,135,15,0.08);
+    color: #D4870F;
+  }
+  .seed-num {
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .dark .seed-num { color: #F5A623; }
+  .light .seed-num { color: #D4870F; }
+  .seed-name {
+    font-size: 8px;
+    text-align: center;
+    max-width: 50px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dark .seed-name { color: #6B7280; }
+  .light .seed-name { color: #9CA3AF; }
+
+  /* CTA button */
+  .spotlight-cta {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    clip-path: var(--clip-badge);
+    color: #fff;
+  }
+  .dark .spotlight-cta { background: #7ED321; color: #000; }
+  .light .spotlight-cta { background: #4A8C12; color: #fff; }
+
+  /* ── 6. Match Rating Card ───────────────────────── */
+  .rating-card {
+    margin: 12px 0;
+    clip-path: var(--clip-card);
+    overflow: hidden;
+    padding: 14px 16px;
+  }
+  .dark .rating-card { background: #141414; }
+  .light .rating-card {
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .rating-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  .dark .rating-label { color: #ddd; }
+  .light .rating-label { color: #333; }
+
+  .rating-buttons {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 6px;
+  }
+  .rating-btn {
+    width: 48px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    border: none;
+    cursor: pointer;
+    clip-path: var(--clip-badge);
+    transition: all 0.15s;
+  }
+  .dark .rating-btn {
+    background: rgba(255,255,255,0.05);
+    color: #888;
+  }
+  .dark .rating-btn:hover {
+    background: rgba(126,211,33,0.15);
+    color: #7ED321;
+  }
+  .light .rating-btn {
+    background: rgba(0,0,0,0.04);
+    color: #9CA3AF;
+  }
+  .light .rating-btn:hover {
+    background: rgba(74,140,18,0.12);
+    color: #4A8C12;
+  }
+
+  .rating-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+  .dark .rating-scale { color: #555; }
+  .light .rating-scale { color: #bbb; }
+
+  /* ── 7. Bottom Navigation ───────────────────────── */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 8px 0 12px;
+    margin: 16px -16px -16px;
+  }
+  .dark .bottom-nav {
+    background: #0A0A0A;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .light .bottom-nav {
+    background: #FFFFFF;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 -1px 4px rgba(0,0,0,0.04);
+  }
+
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .nav-icon { font-size: 20px; }
+  .dark .nav-item { color: #555; }
+  .dark .nav-item.active { color: #7ED321; }
+  .light .nav-item { color: #9CA3AF; }
+  .light .nav-item.active { color: #4A8C12; }
+
+  .nav-item.active .nav-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    margin-top: 1px;
+  }
+  .dark .nav-item.active .nav-dot { background: #7ED321; }
+  .light .nav-item.active .nav-dot { background: #4A8C12; }
+
+  /* ── 8. Stats Bar ───────────────────────────────── */
+  .stats-card {
+    margin: 12px 0;
+    clip-path: var(--clip-card);
+    overflow: hidden;
+    padding: 14px 16px;
+  }
+  .dark .stats-card { background: #141414; }
+  .light .stats-card {
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .stats-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .dark .stats-title { color: #6B7280; }
+  .light .stats-title { color: #9CA3AF; }
+
+  .stat-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .stat-bar-label {
+    font-size: 11px;
+    font-weight: 600;
+    width: 90px;
+    flex-shrink: 0;
+  }
+  .dark .stat-bar-label { color: #ccc; }
+  .light .stat-bar-label { color: #333; }
+
+  .stat-bar-track {
+    flex: 1;
+    height: 20px;
+    clip-path: var(--clip-badge);
+    position: relative;
+  }
+  .dark .stat-bar-track { background: rgba(255,255,255,0.04); }
+  .light .stat-bar-track { background: rgba(0,0,0,0.04); }
+
+  .stat-bar-fill {
+    height: 100%;
+    clip-path: var(--clip-badge);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: #fff;
+    transition: width 0.8s cubic-bezier(0.25,0.1,0.25,1);
+  }
+  .dark .stat-bar-fill.green { background: rgba(126,211,33,0.7); }
+  .light .stat-bar-fill.green { background: rgba(74,140,18,0.65); }
+  .dark .stat-bar-fill.orange { background: rgba(245,166,35,0.6); }
+  .light .stat-bar-fill.orange { background: rgba(212,135,15,0.55); }
+
+  .stat-bar-value {
+    font-size: 12px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .dark .stat-bar-value { color: #aaa; }
+  .light .stat-bar-value { color: #555; }
+
+  /* Circuit logos area */
+  .circuit-logos {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+  .dark .circuit-logos { border-top: 1px solid rgba(255,255,255,0.06); }
+  .light .circuit-logos { border-top: 1px solid rgba(0,0,0,0.06); }
+
+  .circuit-badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    clip-path: var(--clip-badge);
+  }
+  .dark .circuit-badge {
+    background: rgba(255,255,255,0.05);
+    color: #888;
+  }
+  .light .circuit-badge {
+    background: rgba(0,0,0,0.04);
+    color: #888;
+  }
+
+  /* ── Toggle All logic ───────────────────────────── */
+  .phone-screen.hidden-mode { display: none; }
+
+  /* ── Divider ────────────────────────────────────── */
+  .section-divider {
+    width: 60px;
+    height: 2px;
+    margin: 0 auto 48px;
+    clip-path: var(--clip-badge);
+    background: rgba(126,211,33,0.2);
+  }
+
+  /* ── Responsive ─────────────────────────────────── */
+  @media (max-width: 820px) {
+    .comparison-pair {
+      flex-direction: column;
+      align-items: center;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     PAGE HEADER
+     ═══════════════════════════════════════════════ -->
+<div class="page-header">
+  <h1>PadelNachos <span>Light Mode</span></h1>
+  <p>Design review: side-by-side comparison of every UI component in dark and light mode. Approve exact colors before any code changes.</p>
+</div>
+
+<!-- Toggle bar -->
+<div class="toggle-bar">
+  <button class="toggle-btn active" onclick="showMode('both')">Both</button>
+  <button class="toggle-btn" onclick="showMode('dark')">Dark Only</button>
+  <button class="toggle-btn" onclick="showMode('light')">Light Only</button>
+  <button class="toggle-btn" onclick="toggleAll()">Toggle All</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     COLOR PALETTE SWATCHES
+     ═══════════════════════════════════════════════ -->
+<div class="palette-section">
+  <div class="section-label">Color Palette &mdash; Dark vs Light</div>
+  <div class="palette-grid" id="palette"></div>
+</div>
+
+<div class="section-divider"></div>
+
+<!-- ═══════════════════════════════════════════════
+     1. APP HEADER
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <div class="comparison-label">1 / App Header</div>
+  <div class="comparison-desc">Logo, search bar, profile icon. Light mode uses white with subtle bottom shadow.</div>
+  <div class="comparison-pair">
+    <div class="phone dark-phone">
+      <div class="phone-label">Dark</div>
+      <div class="phone-screen dark" style="padding-bottom:20px">
+        <div class="app-header">
+          <div class="logo-area">
+            <div class="logo-icon">&#127834;</div>
+            <div class="logo-text"><span class="logo-padel">Padel</span><span class="logo-nachos">Nachos</span></div>
+          </div>
+          <div class="search-bar">
+            <span style="font-size:12px">&#128269;</span> Search
+          </div>
+          <div class="header-icon">&#128100;</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light-phone">
+      <div class="phone-label">Light</div>
+      <div class="phone-screen light" style="padding-bottom:20px">
+        <div class="app-header">
+          <div class="logo-area">
+            <div class="logo-icon">&#127834;</div>
+            <div class="logo-text"><span class="logo-padel">Padel</span><span class="logo-nachos">Nachos</span></div>
+          </div>
+          <div class="search-bar">
+            <span style="font-size:12px">&#128269;</span> Search
+          </div>
+          <div class="header-icon">&#128100;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     2. LIVE MATCH CARD
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <div class="comparison-label">2 / Live Match Card</div>
+  <div class="comparison-desc">Live indicator with pulsing dot, team names, set scores, game score in pair colors.</div>
+  <div class="comparison-pair">
+    <div class="phone dark-phone">
+      <div class="phone-label">Dark</div>
+      <div class="phone-screen dark">
+        <div class="match-card">
+          <div class="match-header">
+            <div class="live-dot"><span class="pulse-dot"></span> LIVE</div>
+            <span>R32 &middot; Court 3</span>
+          </div>
+          <div class="match-body">
+            <div class="team-row">
+              <span class="team-flag">&#127462;&#127479;</span>
+              <span class="team-names serving">Galan / Tapia</span>
+              <div class="set-scores">
+                <span class="set-score-box won">6</span>
+                <span class="set-score-box current">3</span>
+              </div>
+              <div class="game-score-area">
+                <span class="game-score p1">30</span>
+              </div>
+            </div>
+            <div class="team-row">
+              <span class="team-flag">&#127466;&#127480;</span>
+              <span class="team-names">Stupaczuk / Di Nenno</span>
+              <div class="set-scores">
+                <span class="set-score-box">4</span>
+                <span class="set-score-box current">5</span>
+              </div>
+              <div class="game-score-area">
+                <span class="game-score p2">15</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light-phone">
+      <div class="phone-label">Light</div>
+      <div class="phone-screen light">
+        <div class="match-card">
+          <div class="match-header">
+            <div class="live-dot"><span class="pulse-dot"></span> LIVE</div>
+            <span>R32 &middot; Court 3</span>
+          </div>
+          <div class="match-body">
+            <div class="team-row">
+              <span class="team-flag">&#127462;&#127479;</span>
+              <span class="team-names serving">Galan / Tapia</span>
+              <div class="set-scores">
+                <span class="set-score-box won">6</span>
+                <span class="set-score-box current">3</span>
+              </div>
+              <div class="game-score-area">
+                <span class="game-score p1">30</span>
+              </div>
+            </div>
+            <div class="team-row">
+              <span class="team-flag">&#127466;&#127480;</span>
+              <span class="team-names">Stupaczuk / Di Nenno</span>
+              <div class="set-scores">
+                <span class="set-score-box">4</span>
+                <span class="set-score-box current">5</span>
+              </div>
+              <div class="game-score-area">
+                <span class="game-score p2">15</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     3. RESULT CARD (FINISHED MATCH)
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <div class="comparison-label">3 / Result Card (Finished)</div>
+  <div class="comparison-desc">Winner with W badge, loser dimmed. Won sets brighter, lost sets muted.</div>
+  <div class="comparison-pair">
+    <div class="phone dark-phone">
+      <div class="phone-label">Dark</div>
+      <div class="phone-screen dark">
+        <div class="result-card">
+          <div class="match-header">
+            <span>Quarterfinals</span>
+            <span>1h 42m</span>
+          </div>
+          <div class="result-body">
+            <div class="result-team winner">
+              <span class="w-badge">W</span>
+              <span class="team-flag">&#127463;&#127479;</span>
+              <span class="team-names">Lebron / Coello</span>
+              <div class="set-scores">
+                <span class="set-score-box won">6</span>
+                <span class="set-score-box">3</span>
+                <span class="set-score-box won">7</span>
+              </div>
+            </div>
+            <div class="result-team loser">
+              <span style="width:24px"></span>
+              <span class="team-flag">&#127462;&#127479;</span>
+              <span class="team-names">Chingotto / Gallagos</span>
+              <div class="set-scores">
+                <span class="set-score-box">3</span>
+                <span class="set-score-box won">6</span>
+                <span class="set-score-box">5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light-phone">
+      <div class="phone-label">Light</div>
+      <div class="phone-screen light">
+        <div class="result-card">
+          <div class="match-header">
+            <span>Quarterfinals</span>
+            <span>1h 42m</span>
+          </div>
+          <div class="result-body">
+            <div class="result-team winner">
+              <span class="w-badge">W</span>
+              <span class="team-flag">&#127463;&#127479;</span>
+              <span class="team-names">Lebron / Coello</span>
+              <div class="set-scores">
+                <span class="set-score-box won">6</span>
+                <span class="set-score-box">3</span>
+                <span class="set-score-box won">7</span>
+              </div>
+            </div>
+            <div class="result-team loser">
+              <span style="width:24px"></span>
+              <span class="team-flag">&#127462;&#127479;</span>
+              <span class="team-names">Chingotto / Gallagos</span>
+              <div class="set-scores">
+                <span class="set-score-box">3</span>
+                <span class="set-score-box won">6</span>
+                <span class="set-score-box">5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     4. TOURNAMENT GROUP (COLLAPSIBLE)
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <div class="comparison-label">4 / Tournament Group (FotMob style)</div>
+  <div class="comparison-desc">Green accent bar, logo, tournament name, match count badge, nested result cards.</div>
+  <div class="comparison-pair">
+    <div class="phone dark-phone">
+      <div class="phone-label">Dark</div>
+      <div class="phone-screen dark">
+        <div class="tournament-group">
+          <div class="group-header">
+            <div class="group-accent"></div>
+            <div class="group-logo">&#127941;</div>
+            <div class="group-info">
+              <div class="group-name">FIP Gold Ponta Delgada</div>
+              <div class="group-meta">Portugal &middot; Apr 14-20</div>
+            </div>
+            <span class="match-count-badge">3</span>
+            <span class="group-chevron">&#9660;</span>
+          </div>
+          <div class="group-cards">
+            <div class="result-card" style="margin:2px 0">
+              <div class="result-body" style="padding:8px 14px">
+                <div class="result-team winner">
+                  <span class="w-badge">W</span>
+                  <span class="team-flag">&#127466;&#127480;</span>
+                  <span class="team-names" style="font-size:12px">Navarro / Tello</span>
+                  <div class="set-scores"><span class="set-score-box won" style="width:22px;height:22px;font-size:11px">6</span><span class="set-score-box won" style="width:22px;height:22px;font-size:11px">6</span></div>
+                </div>
+                <div class="result-team loser">
+                  <span style="width:24px"></span>
+                  <span class="team-flag">&#127462;&#127479;</span>
+                  <span class="team-names" style="font-size:12px">Sanchez / Campagnolo</span>
+                  <div class="set-scores"><span class="set-score-box" style="width:22px;height:22px;font-size:11px">2</span><span class="set-score-box" style="width:22px;height:22px;font-size:11px">4</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="result-card" style="margin:2px 0">
+              <div class="result-body" style="padding:8px 14px">
+                <div class="result-team winner">
+                  <span class="w-badge">W</span>
+                  <span class="team-flag">&#127463;&#127479;</span>
+                  <span class="team-names" style="font-size:12px">Lebron / Coello</span>
+                  <div class="set-scores"><span class="set-score-box won" style="width:22px;height:22px;font-size:11px">7</span><span class="set-score-box won" style="width:22px;height:22px;font-size:11px">6</span></div>
+                </div>
+                <div class="result-team loser">
+                  <span style="width:24px"></span>
+                  <span class="team-flag">&#127462;&#127479;</span>
+                  <span class="team-names" style="font-size:12px">Galan / Tapia</span>
+                  <div class="set-scores"><span class="set-score-box" style="width:22px;height:22px;font-size:11px">5</span><span class="set-score-box" style="width:22px;height:22px;font-size:11px">4</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light-phone">
+      <div class="phone-label">Light</div>
+      <div class="phone-screen light">
+        <div class="tournament-group">
+          <div class="group-header">
+            <div class="group-accent"></div>
+            <div class="group-logo">&#127941;</div>
+            <div class="group-info">
+              <div class="group-name">FIP Gold Ponta Delgada</div>
+              <div class="group-meta">Portugal &middot; Apr 14-20</div>
+            </div>
+            <span class="match-count-badge">3</span>
+            <span class="group-chevron">&#9660;</span>
+          </div>
+          <div class="group-cards">
+            <div class="result-card" style="margin:2px 0">
+              <div class="result-body" style="padding:8px 14px">
+                <div class="result-team winner">
+                  <span class="w-badge">W</span>
+                  <span class="team-flag">&#127466;&#127480;</span>
+                  <span class="team-names" style="font-size:12px">Navarro / Tello</span>
+                  <div class="set-scores"><span class="set-score-box won" style="width:22px;height:22px;font-size:11px">6</span><span class="set-score-box won" style="width:22px;height:22px;font-size:11px">6</span></div>
+                </div>
+                <div class="result-team loser">
+                  <span style="width:24px"></span>
+                  <span class="team-flag">&#127462;&#127479;</span>
+                  <span class="team-names" style="font-size:12px">Sanchez / Campagnolo</span>
+                  <div class="set-scores"><span class="set-score-box" style="width:22px;height:22px;font-size:11px">2</span><span class="set-score-box" style="width:22px;height:22px;font-size:11px">4</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="result-card" style="margin:2px 0">
+              <div class="result-body" style="padding:8px 14px">
+                <div class="result-team winner">
+                  <span class="w-badge">W</span>
+                  <span class="team-flag">&#127463;&#127479;</span>
+                  <span class="team-names" style="font-size:12px">Lebron / Coello</span>
+                  <div class="set-scores"><span class="set-score-box won" style="width:22px;height:22px;font-size:11px">7</span><span class="set-score-box won" style="width:22px;height:22px;font-size:11px">6</span></div>
+                </div>
+                <div class="result-team loser">
+                  <span style="width:24px"></span>
+                  <span class="team-flag">&#127462;&#127479;</span>
+                  <span class="team-names" style="font-size:12px">Galan / Tapia</span>
+                  <div class="set-scores"><span class="set-score-box" style="width:22px;height:22px;font-size:11px">5</span><span class="set-score-box" style="width:22px;height:22px;font-size:11px">4</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     5. TOURNAMENT SPOTLIGHT HERO
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <div class="comparison-label">5 / Tournament Spotlight Hero</div>
+  <div class="comparison-desc">Full hero card with countdown, defending champions, top seeds, and CTA.</div>
+  <div class="comparison-pair">
+    <div class="phone dark-phone">
+      <div class="phone-label">Dark</div>
+      <div class="phone-screen dark">
+        <div class="spotlight-card">
+          <div class="spotlight-accent"></div>
+          <div class="spotlight-body">
+            <div class="spotlight-toprow">
+              <span class="next-badge">Next Up</span>
+              <span class="level-badge">P1</span>
+            </div>
+            <div class="spotlight-name">Dubai Premier Padel Major</div>
+            <div class="spotlight-location">&#127462;&#127466; Dubai, UAE &middot; Apr 21-27</div>
+
+            <div class="countdown-row">
+              <div class="cd-box"><div class="cd-value">10</div><div class="cd-label">Days</div></div>
+              <div class="cd-box"><div class="cd-value">04</div><div class="cd-label">Hrs</div></div>
+              <div class="cd-box"><div class="cd-value">32</div><div class="cd-label">Min</div></div>
+              <div class="cd-box"><div class="cd-value">17</div><div class="cd-label">Sec</div></div>
+            </div>
+
+            <div class="spot-section-title">Defending Champions</div>
+            <div style="margin-bottom:14px">
+              <div class="champ-row">
+                <span class="champ-cat men">M</span>
+                <span class="champ-avatar">AG</span>
+                <span class="champ-names">Galan / Lebron</span>
+                <span class="champ-year">2025</span>
+              </div>
+              <div class="champ-row">
+                <span class="champ-cat women">W</span>
+                <span class="champ-avatar">JO</span>
+                <span class="champ-names">Josemaria / Sanchez</span>
+                <span class="champ-year">2025</span>
+              </div>
+            </div>
+
+            <div class="spot-section-title">Top Seeds</div>
+            <div class="seeds-row">
+              <div class="seed-item"><span class="seed-circle">AG</span><span class="seed-num">#1</span><span class="seed-name">Galan</span></div>
+              <div class="seed-item"><span class="seed-circle">FL</span><span class="seed-num">#2</span><span class="seed-name">Lebron</span></div>
+              <div class="seed-item"><span class="seed-circle">AT</span><span class="seed-num">#3</span><span class="seed-name">Tapia</span></div>
+              <div class="seed-item"><span class="seed-circle">MC</span><span class="seed-num">#4</span><span class="seed-name">Coello</span></div>
+            </div>
+
+            <button class="spotlight-cta">View Draw</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light-phone">
+      <div class="phone-label">Light</div>
+      <div class="phone-screen light">
+        <div class="spotlight-card">
+          <div class="spotlight-accent"></div>
+          <div class="spotlight-body">
+            <div class="spotlight-toprow">
+              <span class="next-badge">Next Up</span>
+              <span class="level-badge">P1</span>
+            </div>
+            <div class="spotlight-name">Dubai Premier Padel Major</div>
+            <div class="spotlight-location">&#127462;&#127466; Dubai, UAE &middot; Apr 21-27</div>
+
+            <div class="countdown-row">
+              <div class="cd-box"><div class="cd-value">10</div><div class="cd-label">Days</div></div>
+              <div class="cd-box"><div class="cd-value">04</div><div class="cd-label">Hrs</div></div>
+              <div class="cd-box"><div class="cd-value">32</div><div class="cd-label">Min</div></div>
+              <div class="cd-box"><div class="cd-value">17</div><div class="cd-label">Sec</div></div>
+            </div>
+
+            <div class="spot-section-title">Defending Champions</div>
+            <div style="margin-bottom:14px">
+              <div class="champ-row">
+                <span class="champ-cat men">M</span>
+                <span class="champ-avatar">AG</span>
+                <span class="champ-names">Galan / Lebron</span>
+                <span class="champ-year">2025</span>
+              </div>
+              <div class="champ-row">
+                <span class="champ-cat women">W</span>
+                <span class="champ-avatar">JO</span>
+                <span class="champ-names">Josemaria / Sanchez</span>
+                <span class="champ-year">2025</span>
+              </div>
+            </div>
+
+            <div class="spot-section-title">Top Seeds</div>
+            <div class="seeds-row">
+              <div class="seed-item"><span class="seed-circle">AG</span><span class="seed-num">#1</span><span class="seed-name">Galan</span></div>
+              <div class="seed-item"><span class="seed-circle">FL</span><span class="seed-num">#2</span><span class="seed-name">Lebron</span></div>
+              <div class="seed-item"><span class="seed-circle">AT</span><span class="seed-num">#3</span><span class="seed-name">Tapia</span></div>
+              <div class="seed-item"><span class="seed-circle">MC</span><span class="seed-num">#4</span><span class="seed-name">Coello</span></div>
+            </div>
+
+            <button class="spotlight-cta">View Draw</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     6. MATCH RATING CARD
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <div class="comparison-label">6 / Match Rating Card</div>
+  <div class="comparison-desc">Unrated state with 1-5 buttons and "Boring / Epic" scale.</div>
+  <div class="comparison-pair">
+    <div class="phone dark-phone">
+      <div class="phone-label">Dark</div>
+      <div class="phone-screen dark">
+        <div class="rating-card">
+          <div class="rating-label">Rate this match</div>
+          <div class="rating-buttons">
+            <button class="rating-btn">1</button>
+            <button class="rating-btn">2</button>
+            <button class="rating-btn">3</button>
+            <button class="rating-btn">4</button>
+            <button class="rating-btn">5</button>
+          </div>
+          <div class="rating-scale">
+            <span>Boring</span>
+            <span>Epic</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light-phone">
+      <div class="phone-label">Light</div>
+      <div class="phone-screen light">
+        <div class="rating-card">
+          <div class="rating-label">Rate this match</div>
+          <div class="rating-buttons">
+            <button class="rating-btn">1</button>
+            <button class="rating-btn">2</button>
+            <button class="rating-btn">3</button>
+            <button class="rating-btn">4</button>
+            <button class="rating-btn">5</button>
+          </div>
+          <div class="rating-scale">
+            <span>Boring</span>
+            <span>Epic</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     7. BOTTOM NAVIGATION
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <div class="comparison-label">7 / Bottom Navigation</div>
+  <div class="comparison-desc">5 tabs with icons. Active tab uses brand green in both modes.</div>
+  <div class="comparison-pair">
+    <div class="phone dark-phone">
+      <div class="phone-label">Dark</div>
+      <div class="phone-screen dark" style="padding-top:40px">
+        <div class="bottom-nav">
+          <div class="nav-item active">
+            <span class="nav-icon">&#127968;</span>
+            <span>Home</span>
+            <span class="nav-dot"></span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">&#9917;</span>
+            <span>Matches</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">&#127942;</span>
+            <span>Ranking</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">&#127941;</span>
+            <span>Events</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">&#128240;</span>
+            <span>Feed</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light-phone">
+      <div class="phone-label">Light</div>
+      <div class="phone-screen light" style="padding-top:40px">
+        <div class="bottom-nav">
+          <div class="nav-item active">
+            <span class="nav-icon">&#127968;</span>
+            <span>Home</span>
+            <span class="nav-dot"></span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">&#9917;</span>
+            <span>Matches</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">&#127942;</span>
+            <span>Ranking</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">&#127941;</span>
+            <span>Events</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">&#128240;</span>
+            <span>Feed</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     8. STATS BAR
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section">
+  <div class="comparison-label">8 / Stats Bar (Player Profile)</div>
+  <div class="comparison-desc">Chunky fill bars with win rate. Circuit logos area below.</div>
+  <div class="comparison-pair">
+    <div class="phone dark-phone">
+      <div class="phone-label">Dark</div>
+      <div class="phone-screen dark">
+        <div class="stats-card">
+          <div class="stats-title">2026 Season</div>
+          <div class="stat-bar-row">
+            <span class="stat-bar-label">Win Rate</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill green" style="width:72%">72%</div></div>
+            <span class="stat-bar-value">36-14</span>
+          </div>
+          <div class="stat-bar-row">
+            <span class="stat-bar-label">Titles</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill orange" style="width:40%">3</div></div>
+            <span class="stat-bar-value">3 / 8</span>
+          </div>
+          <div class="stat-bar-row">
+            <span class="stat-bar-label">Finals</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill green" style="width:62%">5</div></div>
+            <span class="stat-bar-value">5 / 8</span>
+          </div>
+          <div class="circuit-logos">
+            <span class="circuit-badge">Premier Padel</span>
+            <span class="circuit-badge">FIP Tour</span>
+            <span class="circuit-badge">A1 Padel</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone light-phone">
+      <div class="phone-label">Light</div>
+      <div class="phone-screen light">
+        <div class="stats-card">
+          <div class="stats-title">2026 Season</div>
+          <div class="stat-bar-row">
+            <span class="stat-bar-label">Win Rate</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill green" style="width:72%">72%</div></div>
+            <span class="stat-bar-value">36-14</span>
+          </div>
+          <div class="stat-bar-row">
+            <span class="stat-bar-label">Titles</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill orange" style="width:40%">3</div></div>
+            <span class="stat-bar-value">3 / 8</span>
+          </div>
+          <div class="stat-bar-row">
+            <span class="stat-bar-label">Finals</span>
+            <div class="stat-bar-track"><div class="stat-bar-fill green" style="width:62%">5</div></div>
+            <span class="stat-bar-value">5 / 8</span>
+          </div>
+          <div class="circuit-logos">
+            <span class="circuit-badge">Premier Padel</span>
+            <span class="circuit-badge">FIP Tour</span>
+            <span class="circuit-badge">A1 Padel</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     DESIGN NOTES FOOTER
+     ═══════════════════════════════════════════════ -->
+<div class="comparison-section" style="margin-top:48px; margin-bottom:48px;">
+  <div class="comparison-label" style="color:#F5A623;">Design Notes</div>
+  <div style="font-size:12px; color:#888; line-height:1.8; max-width:680px; padding-left:4px;">
+    <strong style="color:#ccc">Key decisions in the light palette:</strong><br>
+    &bull; Base is warm off-white (#F7F6F3), not pure white &mdash; easier on the eyes, feels premium<br>
+    &bull; Cards are true white (#FFFFFF) with subtle shadow (0 1px 3px rgba(0,0,0,0.06)) for separation<br>
+    &bull; Brand green darkened from #7ED321 to #4A8C12 &mdash; passes WCAG AA on white<br>
+    &bull; Orange darkened from #F5A623 to #D4870F &mdash; same reason<br>
+    &bull; Live red shifted from #FF4655 to #DC2626 &mdash; more serious, better contrast<br>
+    &bull; Men's blue: #4A9EFF to #2563EB / Women's purple: #D966FF to #7C3AED<br>
+    &bull; Pair colors: Orange #D4580A / Yellow #B8860B (darker for legibility)<br>
+    &bull; Clip-paths preserved identically &mdash; the chunky brand identity works in both modes<br>
+    &bull; W badge, LIVE pill, CTA buttons keep white text on colored bg in both modes<br>
+    &bull; Loser names use lighter gray (#9CA3AF) in light mode for natural dimming
+  </div>
+</div>
+
+<script>
+  // ── Color Palette Data ──────────────────────────
+  const palette = [
+    { name: 'BG Base',       dark: '#0A0A0A', light: '#F7F6F3' },
+    { name: 'BG Card',       dark: '#141414', light: '#FFFFFF' },
+    { name: 'BG Header',     dark: '#0A0A0A', light: '#FFFFFF' },
+    { name: 'BG Subtle',     dark: '#1A1A1A', light: '#F0EFEC' },
+    { name: 'Text Primary',  dark: '#FFFFFF', light: '#1A1A1A' },
+    { name: 'Text Muted',    dark: '#6B7280', light: '#6B7280' },
+    { name: 'Text Loser',    dark: '#555555', light: '#9CA3AF' },
+    { name: 'Border',        dark: 'rgba(255,255,255,0.06)', light: 'rgba(0,0,0,0.06)' },
+    { name: 'Green',         dark: '#7ED321', light: '#4A8C12' },
+    { name: 'Green Dim',     dark: 'rgba(126,211,33,0.15)', light: 'rgba(74,140,18,0.10)' },
+    { name: 'Orange',        dark: '#F5A623', light: '#D4870F' },
+    { name: 'Live Red',      dark: '#FF4655', light: '#DC2626' },
+    { name: 'Men Blue',      dark: '#4A9EFF', light: '#2563EB' },
+    { name: 'Women Purple',  dark: '#D966FF', light: '#7C3AED' },
+    { name: 'Pair 1 (Org)',  dark: '#FF6B2B', light: '#D4580A' },
+    { name: 'Pair 2 (Yel)',  dark: '#FFD166', light: '#B8860B' },
+    { name: 'Card Shadow',   dark: 'none',    light: '0 1px 3px rgba(0,0,0,0.06)' },
+  ];
+
+  const paletteEl = document.getElementById('palette');
+  palette.forEach(s => {
+    const isDarkBg = s.dark.startsWith('#0') || s.dark.startsWith('#1') || s.dark === '#FFFFFF';
+    const darkBg = (s.dark === 'none' || s.dark.startsWith('0 ')) ? '#141414' : '#0A0A0A';
+    const lightBg = '#F7F6F3';
+    const darkDot = (s.dark === 'none' || s.dark.startsWith('0 ')) ? '#141414' : s.dark;
+    const lightDot = (s.light.startsWith('0 ')) ? '#F7F6F3' : s.light;
+
+    paletteEl.innerHTML += `
+      <div class="swatch">
+        <div class="swatch-colors">
+          <div class="swatch-dark" style="background:${darkBg}">
+            <div class="swatch-dot" style="background:${darkDot};${s.dark === '#FFFFFF' || s.dark === '#0A0A0A' ? 'border:1px solid rgba(255,255,255,0.15)' : ''}"></div>
+          </div>
+          <div class="swatch-light" style="background:${lightBg}">
+            <div class="swatch-dot" style="background:${lightDot};${s.light === '#FFFFFF' || s.light === '#F7F6F3' ? 'border:1px solid rgba(0,0,0,0.1)' : ''}"></div>
+          </div>
+        </div>
+        <div class="swatch-info">
+          <div class="swatch-name">${s.name}</div>
+          <div class="swatch-values">
+            <span>${s.dark.length > 20 ? s.dark.slice(0,18)+'...' : s.dark}</span>
+            <span style="color:#444">|</span>
+            <span>${s.light.length > 20 ? s.light.slice(0,18)+'...' : s.light}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  // ── Toggle Logic ────────────────────────────────
+  let allToggled = false;
+
+  function showMode(mode) {
+    const darkPhones = document.querySelectorAll('.dark-phone');
+    const lightPhones = document.querySelectorAll('.light-phone');
+
+    // Update toggle buttons
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    darkPhones.forEach(p => p.style.display = (mode === 'light') ? 'none' : '');
+    lightPhones.forEach(p => p.style.display = (mode === 'dark') ? 'none' : '');
+  }
+
+  function toggleAll() {
+    allToggled = !allToggled;
+    const allScreens = document.querySelectorAll('.phone-screen');
+    allScreens.forEach(screen => {
+      if (allToggled) {
+        if (screen.classList.contains('dark')) {
+          screen.classList.remove('dark');
+          screen.classList.add('light');
+        } else {
+          screen.classList.remove('light');
+          screen.classList.add('dark');
+        }
+      } else {
+        // Restore original: dark-phone children get dark, light-phone children get light
+        const parent = screen.closest('.dark-phone, .light-phone');
+        if (parent) {
+          if (parent.classList.contains('dark-phone')) {
+            screen.classList.remove('light');
+            screen.classList.add('dark');
+          } else {
+            screen.classList.remove('dark');
+            screen.classList.add('light');
+          }
+        }
+      }
+    });
+
+    // Update toggle buttons
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    if (allToggled) {
+      document.querySelectorAll('.toggle-btn')[3].classList.add('active');
+    } else {
+      document.querySelectorAll('.toggle-btn')[0].classList.add('active');
+    }
+  }
+</script>
+
+</body>
+</html>

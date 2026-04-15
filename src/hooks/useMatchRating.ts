@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { checkBadgeInline } from '@/lib/badge-check-inline'
 
 const RATINGS_KEY = 'pn_match_ratings'
 const DEVICE_ID_KEY = 'pn_device_id'
@@ -83,7 +82,7 @@ export function useMatchRating(matchId: string, matchAvg?: number | null, matchC
         const data = await res.json()
         setAvgRating(data.avg_rating ?? null)
         setRatingCount(data.rating_count ?? 0)
-        if (session?.user?.id) void checkBadgeInline(session.user.id, 'rate_matches')
+        // Badge inline check removed (Auth.js migration)
       }
     } catch (e) {
       console.error('[useMatchRating] API write failed:', e)

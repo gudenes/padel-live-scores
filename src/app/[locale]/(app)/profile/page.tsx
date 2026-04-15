@@ -17,7 +17,6 @@ import { BadgeIcon } from '@/components/BadgeIcon'
 import { BADGE_CATALOG, TIER_META, overallTierFromBadgeCount } from '@/lib/badges'
 import { AmbassadorBadge } from '@/components/AmbassadorBadge'
 import { withTimeout } from '@/lib/with-timeout'
-import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 
 const V3 = {
@@ -59,7 +58,7 @@ interface BookmarkedPlayer {
 
 export default function ProfilePage() {
   const t = useTranslations('profile')
-  const { user, profile, loading: authLoading, retryKey, signOut } = useAuth()
+  const { user, profile, loading: authLoading, signOut } = useAuth()
   const router = useRouter()
   const { enabled, supported, permission, toggle: togglePush } = usePushNotifications()
   const { inviteCount, tier, loading: inviteLoading, shareNow } = useInvite()
@@ -187,10 +186,7 @@ export default function ProfilePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
-  useEffect(() => { void fetchBookmarks() }, [fetchBookmarks, retryKey])
-
-  // Recover from tab-idle Supabase auth lock deadlock
-  useWakeRefresh(fetchBookmarks)
+  useEffect(() => { void fetchBookmarks() }, [fetchBookmarks])
 
   if (authLoading || !user) return <BrandedLoader hints={[t('loading'), 'Almost ready...']} />
 
