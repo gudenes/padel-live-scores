@@ -234,7 +234,7 @@ export default function V3RankingPage() {
   const { goTo: swipeGoTo, handlers: swipeHandlers } = useSwipeTabs({
     count: 2,
     initial: rankIndex,
-    onTabChange: (idx) => { setRankType(RANK_KEYS[idx]); setQuery(''); setVisibleCount(50) },
+    onTabChange: (idx) => { setRankType(RANK_KEYS[idx]); setVisibleCount(50) },
   })
   useEffect(() => { swipeGoTo(RANK_KEYS.indexOf(rankType)) }, [rankType, swipeGoTo, RANK_KEYS])
   const [players, setPlayers] = useState<Player[]>([])
@@ -376,18 +376,16 @@ export default function V3RankingPage() {
         </button>
       </div>
 
-      {/* ── Floating search overlay ───────────────────────── */}
+      {/* ── Search bar (inline below header) ────────────── */}
       {searchOpen && (
         <div
           ref={searchBoxRef}
           style={{
-            position: 'fixed', top: 56, left: '50%', transform: 'translateX(-50%)',
-            width: 'calc(100% - 32px)', maxWidth: 468, zIndex: 50,
+            margin: '0 16px',
+            padding: '10px 14px',
             background: BG_CARD,
             borderRadius: 4,
-            border: `1px solid rgba(126,211,33,0.3)`,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-            padding: '12px 16px',
+            border: `1px solid rgba(126,211,33,0.2)`,
             display: 'flex', alignItems: 'center', gap: 10,
           }}
         >
@@ -397,6 +395,7 @@ export default function V3RankingPage() {
           <input
             ref={inputRef}
             type="text"
+            autoComplete="off"
             placeholder="Search by player or country..."
             value={query}
             onChange={e => setQuery(e.target.value)}
