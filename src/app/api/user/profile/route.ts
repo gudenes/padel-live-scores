@@ -4,10 +4,10 @@ export async function GET() {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
 
-  const { data } = await supabase!
+  const { data } = await supabase
     .from('profiles')
     .select('id, display_name, avatar_url, preferred_country')
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .single()
 
   return Response.json(data)
@@ -24,10 +24,10 @@ export async function PATCH(req: Request) {
     if (key in body) updates[key] = body[key]
   }
 
-  const { data, error: dbErr } = await supabase!
+  const { data, error: dbErr } = await supabase
     .from('profiles')
     .update(updates)
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .select('id, display_name, avatar_url, preferred_country')
     .single()
 

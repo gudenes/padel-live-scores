@@ -7,10 +7,10 @@ export async function POST(req: Request) {
   const { endpoint, keys, expirationTime } = await req.json()
   if (!endpoint || !keys) return Response.json({ error: 'Missing endpoint or keys' }, { status: 400 })
 
-  const { error: dbErr } = await supabase!
+  const { error: dbErr } = await supabase
     .from('push_subscriptions')
     .upsert(
-      { user_id: user!.id, endpoint, keys, expiration_time: expirationTime ?? null },
+      { user_id: user.id, endpoint, keys, expiration_time: expirationTime ?? null },
       { onConflict: 'user_id,endpoint' }
     )
 
@@ -25,10 +25,10 @@ export async function DELETE(req: Request) {
   const { endpoint } = await req.json()
   if (!endpoint) return Response.json({ error: 'Missing endpoint' }, { status: 400 })
 
-  await supabase!
+  await supabase
     .from('push_subscriptions')
     .delete()
-    .eq('user_id', user!.id)
+    .eq('user_id', user.id)
     .eq('endpoint', endpoint)
 
   return Response.json({ ok: true })

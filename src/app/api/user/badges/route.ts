@@ -64,15 +64,17 @@ async function getBadgeCount(
 
 export async function GET(req: Request) {
   const { user, supabase, error } = await getUserOrFail()
-  if (error) return error
+  if (error || !user?.id || !supabase) return error ?? Response.json({ error: 'unauthorized' }, { status: 401 })
+
+  const userId = user.id
 
   const url = new URL(req.url)
   const checkUnlocks = url.searchParams.get('check_unlocks') === 'true'
 
-  const { data: badges } = await supabase!
+  const { data: badges } = await supabase
     .from('user_badges')
     .select('badge_id, tier, unlocked_at')
-    .eq('user_id', user!.id)
+    .eq('user_id', userId)
 
   if (!checkUnlocks) {
     return Response.json(badges ?? [])
@@ -87,28 +89,28 @@ export async function GET(req: Request) {
   const newBadges: { badge_id: string; tier: number }[] = []
 
   for (const badge of BADGE_CATALOG) {
-    const count = await getBadgeCount(supabase!, user!.id, badge)
+    const count = await getBadgeCount(supabase, userId, badge)
     const alreadyEarned = earned.get(badge.id) ?? new Set()
 
     if (badge.isSingleTier) {
       if (count >= 1 && !alreadyEarned.has(1)) {
-        await supabase!.from('user_badges').insert({ user_id: user!.id, badge_id: badge.id, tier: 1 })
+        await supabase.from('user_badges').insert({ user_id: userId, badge_id: badge.id, tier: 1 })
         newBadges.push({ badge_id: badge.id, tier: 1 })
       }
     } else {
       for (const t of badge.tiers) {
         if (count >= t.threshold && !alreadyEarned.has(t.tier)) {
-          await supabase!.from('user_badges').insert({ user_id: user!.id, badge_id: badge.id, tier: t.tier })
+          await supabase.from('user_badges').insert({ user_id: userId, badge_id: badge.id, tier: t.tier })
           newBadges.push({ badge_id: badge.id, tier: t.tier })
         }
       }
     }
   }
 
-  const { data: allBadges } = await supabase!
+  const { data: allBadges } = await supabase
     .from('user_badges')
     .select('badge_id, tier, unlocked_at')
-    .eq('user_id', user!.id)
+    .eq('user_id', userId)
 
   return Response.json({ badges: allBadges ?? [], newBadges })
 }

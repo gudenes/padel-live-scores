@@ -168,7 +168,7 @@ function QualityBar({ value, max = 1 }: { value: number; max?: number }) {
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function FeedQualityPage() {
-  const { user, session, loading } = useAuth()
+  const { user, loading } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [fetching, setFetching] = useState(false)
@@ -180,13 +180,10 @@ export default function FeedQualityPage() {
   const isAdmin = isAdminEmail(user?.email)
 
   const fetchData = useCallback(async () => {
-    if (!session?.access_token) return
     setFetching(true)
     setFetchError(null)
     try {
-      const res = await fetch('/api/admin/feed-quality', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
+      const res = await fetch('/api/admin/feed-quality')
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         throw new Error(err.error ?? `HTTP ${res.status}`)
@@ -199,13 +196,13 @@ export default function FeedQualityPage() {
     } finally {
       setFetching(false)
     }
-  }, [session?.access_token])
+  }, [])
 
   useEffect(() => {
-    if (isAdmin && session) {
+    if (isAdmin) {
       fetchData()
     }
-  }, [isAdmin, session, fetchData])
+  }, [isAdmin, fetchData])
 
   async function hideItem(item: LowQualityItem) {
     setHidingId(item.id)

@@ -4,10 +4,10 @@ export async function GET() {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
 
-  const { data } = await supabase!
+  const { data } = await supabase
     .from('user_bookmarks')
     .select('bookmark_type, target_id')
-    .eq('user_id', user!.id)
+    .eq('user_id', user.id)
 
   return Response.json(data ?? [])
 }
@@ -21,10 +21,10 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Missing bookmark_type or target_id' }, { status: 400 })
   }
 
-  const { error: dbErr } = await supabase!
+  const { error: dbErr } = await supabase
     .from('user_bookmarks')
     .upsert(
-      { user_id: user!.id, bookmark_type, target_id },
+      { user_id: user.id, bookmark_type, target_id },
       { onConflict: 'user_id,bookmark_type,target_id' }
     )
 
@@ -41,10 +41,10 @@ export async function DELETE(req: Request) {
     return Response.json({ error: 'Missing bookmark_type or target_id' }, { status: 400 })
   }
 
-  await supabase!
+  await supabase
     .from('user_bookmarks')
     .delete()
-    .eq('user_id', user!.id)
+    .eq('user_id', user.id)
     .eq('bookmark_type', bookmark_type)
     .eq('target_id', target_id)
 

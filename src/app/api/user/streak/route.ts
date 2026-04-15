@@ -4,10 +4,10 @@ export async function POST() {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
 
-  const { data: profile } = await supabase!
+  const { data: profile } = await supabase
     .from('profiles')
     .select('last_active_at, login_streak, longest_streak')
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .single()
 
   if (!profile) return Response.json({ error: 'profile not found' }, { status: 404 })
@@ -31,10 +31,10 @@ export async function POST() {
     : 1
   const newLongest = Math.max(newStreak, profile.longest_streak ?? 0)
 
-  await supabase!
+  await supabase
     .from('profiles')
     .update({ last_active_at: now.toISOString(), login_streak: newStreak, longest_streak: newLongest })
-    .eq('id', user!.id)
+    .eq('id', user.id)
 
   return Response.json({ streak: newStreak, longest: newLongest })
 }
