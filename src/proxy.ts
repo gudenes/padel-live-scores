@@ -86,7 +86,8 @@ export default function proxy(request: NextRequest) {
       return NextResponse.next({ request: { headers } })
     }
 
-    // /ops pages: fall through to i18n routing below
+    // /ops pages: skip i18n routing (ops is outside [locale])
+    return NextResponse.next()
   }
 
   // 4. Auth routes — outside [locale], skip i18n routing
