@@ -5,6 +5,7 @@
 // recent searches in localStorage, popular section.
 
 import { useEffect, useState, useRef } from 'react'
+import Avatar from '@/components/Avatar'
 import { useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Link } from '@/i18n/navigation'
@@ -507,13 +508,11 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
                   >
                     {/* Thumbnail / icon */}
                     {item.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Avatar
                         src={item.imageUrl}
                         alt={item.title}
+                        size={34}
                         style={{
-                          width: 34, height: 34, borderRadius: '50%',
-                          objectFit: 'cover', flexShrink: 0,
                           background: BG_CARD,
                           border: `1px solid ${BORDER}`,
                         }}

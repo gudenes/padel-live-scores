@@ -384,7 +384,7 @@ export default function V3RankingPage() {
             position: 'fixed', top: 56, left: '50%', transform: 'translateX(-50%)',
             width: 'calc(100% - 32px)', maxWidth: 468, zIndex: 50,
             background: BG_CARD,
-            clipPath: CHUNKY.card,
+            borderRadius: 4,
             border: `1px solid rgba(126,211,33,0.3)`,
             boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
             padding: '12px 16px',

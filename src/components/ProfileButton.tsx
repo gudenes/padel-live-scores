@@ -6,6 +6,7 @@
 // visit to /achievements.
 
 import { useState, useEffect } from 'react'
+import Avatar from '@/components/Avatar'
 import dynamic from 'next/dynamic'
 import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
@@ -149,11 +150,11 @@ export default function ProfileButton() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
         {isLoggedIn && profile?.avatar_url ? (
-          <img
+          <Avatar
             src={profile.avatar_url}
             alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            referrerPolicy="no-referrer"
+            size={34}
+            style={{ width: '100%', height: '100%' }}
           />
         ) : isLoggedIn && profile?.display_name ? (
           <span style={{
