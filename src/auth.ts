@@ -48,6 +48,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/home',
     error: '/home',
   },
+  events: {
+    // Auto-create a profiles row when a new user signs in for the first time.
+    // Many tables (user_badges, user_bookmarks, etc.) have FK constraints on
+    // profiles(id), so this row must exist before any user data can be written.
+    async createUser({ user }) {
+      if (!user.id) return
+      const client = await pool.connect()
+      try {
+        await client.query(
+          `INSERT INTO profiles (id, display_name, avatar_url, created_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (id) DO NOTHING`,
+          [user.id, user.name ?? null, user.image ?? null]
+        )
+      } finally {
+        client.release()
+      }
+    },
+  },
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
