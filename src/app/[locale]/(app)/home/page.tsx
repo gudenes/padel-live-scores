@@ -182,6 +182,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
     <img
       src={`https://flagcdn.com/w40/${code}.png`}
       alt={country}
+      loading="lazy"
       width={size}
       height={size * 0.75}
       style={{
@@ -740,6 +741,7 @@ function PlayerBustCard({ player, rank }: { player: RankedPlayer; rank: number }
             <img
               src={player.avatar_url}
               alt={player.name}
+              loading="lazy"
               style={{
                 width: 64,
                 height: 64,
@@ -1065,6 +1067,7 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
                   <img
                     src={v.thumbnail_url}
                     alt={v.title}
+                    loading="lazy"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   {/* Play button */}
@@ -1130,6 +1133,7 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
                   <img
                     src={n.image_url}
                     alt=""
+                    loading="lazy"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   {/* Source favicon */}
@@ -1145,6 +1149,7 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
                     <img
                       src={n.source_icon || `https://www.google.com/s2/favicons?domain=${new URL(n.url).hostname}&sz=64`}
                       alt={n.source_name}
+                      loading="lazy"
                       style={{ width: 20, height: 20, borderRadius: 3 }}
                     />
                   </div>
@@ -1638,13 +1643,13 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                                   <div style={{ width: 3, height: 22, background: MEN_BLUE, flexShrink: 0, clipPath: CHUNKY.bar }} />
                                   <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
                                     {menW.player1_avatar && (
-                                      <img src={menW.player1_avatar} alt="" style={{
+                                      <img src={menW.player1_avatar} alt="" loading="lazy" style={{
                                         width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                       }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                                     )}
                                     {menW.player2_avatar && (
-                                      <img src={menW.player2_avatar} alt="" style={{
+                                      <img src={menW.player2_avatar} alt="" loading="lazy" style={{
                                         width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                         marginLeft: -6,
@@ -1661,13 +1666,13 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                                   <div style={{ width: 3, height: 22, background: WOMEN_PURPLE, flexShrink: 0, clipPath: CHUNKY.bar }} />
                                   <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
                                     {womenW.player1_avatar && (
-                                      <img src={womenW.player1_avatar} alt="" style={{
+                                      <img src={womenW.player1_avatar} alt="" loading="lazy" style={{
                                         width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                       }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                                     )}
                                     {womenW.player2_avatar && (
-                                      <img src={womenW.player2_avatar} alt="" style={{
+                                      <img src={womenW.player2_avatar} alt="" loading="lazy" style={{
                                         width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                         marginLeft: -6,
@@ -1948,15 +1953,23 @@ function V3HomePageInner() {
         }
       }
 
-      // ── 2. Top 4 seeds from tournament_draws ──────────────
-      const { data: drawEntries } = await supabase
-        .from('tournament_draws')
-        .select('seed, player1_name, player1_country, player1_id, player2_name, player2_country')
-        .eq('tournament_id', t.id)
-        .not('seed', 'is', null)
-        .order('seed', { ascending: true })
-        .limit(8)
+      // ── 2 + 3. Seeds + stats (parallel, both from tournament_draws) ─
+      const [seedsRes, statsRes] = await Promise.all([
+        supabase
+          .from('tournament_draws')
+          .select('seed, player1_name, player1_country, player1_id, player2_name, player2_country')
+          .eq('tournament_id', t.id)
+          .not('seed', 'is', null)
+          .order('seed', { ascending: true })
+          .limit(8),
+        supabase
+          .from('tournament_draws')
+          .select('category, player1_country, player2_country')
+          .eq('tournament_id', t.id),
+      ])
 
+      // Process seeds
+      const drawEntries = seedsRes.data
       if (drawEntries && drawEntries.length > 0) {
         // Collect unique seeds (top 4)
         const seenSeeds = new Set<number>()
@@ -1991,12 +2004,8 @@ function V3HomePageInner() {
         }))
       }
 
-      // ── 3. Stats from tournament_draws (both genders) ─────
-      const { data: allEntries } = await supabase
-        .from('tournament_draws')
-        .select('category, player1_country, player2_country')
-        .eq('tournament_id', t.id)
-
+      // Process stats
+      const allEntries = statsRes.data
       if (allEntries && allEntries.length > 0) {
         const countries = new Set<string>()
         let menPairs = 0

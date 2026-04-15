@@ -7,10 +7,12 @@
 // Logged in, already opted-in → "✓ You'll be notified" disabled
 
 import { useEffect, useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
-import LoginSheet from '@/components/LoginSheet'
 import { useTranslations } from 'next-intl'
+
+const LoginSheet = dynamic(() => import('@/components/LoginSheet'), { ssr: false })
 
 const FEATURE_KEY = 'padel_genius'
 

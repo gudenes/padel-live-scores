@@ -6,10 +6,12 @@
 // visit to /achievements.
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
-import LoginSheet from '@/components/LoginSheet'
 import { supabase } from '@/lib/supabase'
+
+const LoginSheet = dynamic(() => import('@/components/LoginSheet'), { ssr: false })
 
 const SEEN_BADGE_COUNT_KEY = 'pn_seen_badge_count'
 const SEEN_REFERRAL_COUNT_KEY = 'pn_seen_referral_count'
