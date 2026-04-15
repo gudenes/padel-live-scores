@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PadelNachos — Referral Banner v2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card {
+    width: 320px;
+    background: #141414;
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Accent bar */
+  .accent-bar {
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #F5A623, #7ED321);
+    flex-shrink: 0;
+  }
+
+  /* Header row */
+  .header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 18px 0;
+    position: relative;
+  }
+  .header img {
+    height: 42px;
+    display: block;
+  }
+  .close-btn {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .close-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Welcome label */
+  .welcome-label {
+    margin-top: 20px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #8a8f98;
+    font-weight: 500;
+  }
+
+  /* Avatar */
+  .avatar-wrap {
+    margin-top: 16px;
+    position: relative;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .avatar-glow {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(126,211,33,0.25) 0%, transparent 70%);
+    animation: glow-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+  .avatar-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(126,211,33,0.5);
+  }
+  .avatar-circle {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #F5A623, #e8941a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #141414;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Inviter name */
+  .inviter-name {
+    margin-top: 14px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .inviter-sub {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #8a8f98;
+  }
+  .inviter-sub strong {
+    color: #ccc;
+    font-weight: 600;
+  }
+
+  /* Divider */
+  .divider {
+    width: calc(100% - 48px);
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0.08) 80%, transparent);
+    margin: 18px 0 16px;
+  }
+
+  /* Value props list */
+  .props-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 22px;
+    width: 100%;
+  }
+  .prop-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .prop-icon {
+    width: 28px;
+    height: 28px;
+    clip-path: polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%);
+    background: rgba(126,211,33,0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .prop-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+  .prop-icon.orange {
+    background: rgba(245,166,35,0.10);
+  }
+  .prop-text {
+    font-size: 12px;
+    font-weight: 500;
+    color: #aaa;
+    line-height: 1.3;
+  }
+
+  /* CTA */
+  .cta-area {
+    width: 100%;
+    padding: 20px 18px 6px;
+  }
+  .cta-btn {
+    width: 100%;
+    clip-path: polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);
+    background: #F5A623;
+    color: #141414;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding: 14px 0;
+    text-align: center;
+    transition: background 0.2s;
+  }
+  .cta-btn:hover {
+    background: #fdb73a;
+  }
+
+  /* Dismiss */
+  .dismiss {
+    padding: 12px 0 18px;
+  }
+  .dismiss button {
+    background: none;
+    border: none;
+    color: #8a8f98;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    transition: color 0.2s;
+  }
+  .dismiss button:hover {
+    color: #bbb;
+  }
+
+  /* Animations */
+  .anim-target {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  .anim-target.visible {
+    animation: fadeUp 0.4s ease-out forwards;
+  }
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Reset button */
+  .reset-wrap {
+    position: fixed;
+    bottom: 24px;
+    z-index: 200;
+  }
+  .reset-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #8a8f98;
+    font-size: 12px;
+    padding: 8px 20px;
+    cursor: pointer;
+    clip-path: polygon(2% 6%, 98% 0%, 100% 94%, 0% 100%);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 600;
+    transition: background 0.2s, color 0.2s;
+  }
+  .reset-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: #ccc;
+  }
+</style>
+</head>
+<body>
+
+<div class="backdrop" id="backdrop">
+  <div class="card">
+    <div class="accent-bar"></div>
+
+    <!-- Header -->
+    <div class="header anim-target" data-delay="0">
+      <img src="/padelnachos-logo-v2.png" alt="PadelNachos" onerror="this.style.display='none'">
+      <button class="close-btn" aria-label="Cerrar">
+        <svg viewBox="0 0 20 20" fill="none" stroke="#8a8f98" stroke-width="1.8" stroke-linecap="round">
+          <line x1="5" y1="5" x2="15" y2="15"/><line x1="15" y1="5" x2="5" y2="15"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Welcome -->
+    <div class="welcome-label anim-target" data-delay="1">Welcome to the world of padel</div>
+
+    <!-- Avatar -->
+    <div class="avatar-wrap anim-target" data-delay="2">
+      <div class="avatar-glow"></div>
+      <div class="avatar-ring"></div>
+      <div class="avatar-circle">CR</div>
+    </div>
+
+    <!-- Name -->
+    <div class="inviter-sub anim-target" data-delay="3"><strong>Carlos</strong> invited you to PadelNachos</div>
+
+    <!-- Divider -->
+    <div class="divider anim-target" data-delay="4"></div>
+
+    <!-- Value props -->
+    <div class="props-list anim-target" data-delay="5">
+      <div class="prop-row">
+        <div class="prop-icon">
+          <svg viewBox="0 0 22 22" fill="none">
+            <rect x="2" y="4" width="18" height="14" stroke="#7ED321" stroke-width="1.5"/>
+            <line x1="2" y1="10" x2="20" y2="10" stroke="#7ED321" stroke-width="1" opacity="0.5"/>
+            <line x1="11" y1="4" x2="11" y2="18" stroke="#7ED321" stroke-width="1" opacity="0.5"/>
+            <circle cx="11" cy="10" r="1.5" fill="#7ED321"/>
+          </svg>
+        </div>
+        <span class="prop-text">Live scores, point by point</span>
+      </div>
+      <div class="prop-row">
+        <div class="prop-icon orange">
+          <svg viewBox="0 0 22 22" fill="none">
+            <rect x="3" y="10" width="4" height="8" fill="#F5A623" opacity="0.7"/>
+            <rect x="9" y="5" width="4" height="13" fill="#F5A623"/>
+            <rect x="15" y="8" width="4" height="10" fill="#F5A623" opacity="0.5"/>
+            <polygon points="11,2 12.2,4.5 15,4.8 13,6.8 13.5,9.5 11,8.2 8.5,9.5 9,6.8 7,4.8 9.8,4.5" fill="#F5A623" opacity="0.9"/>
+          </svg>
+        </div>
+        <span class="prop-text">Rankings and up to date stats</span>
+      </div>
+      <div class="prop-row">
+        <div class="prop-icon">
+          <svg viewBox="0 0 22 22" fill="none">
+            <path d="M11 3 C11 3 6 6 6 11 L6 14 L4 16 L18 16 L16 14 L16 11 C16 6 11 3 11 3Z" stroke="#7ED321" stroke-width="1.5" fill="none"/>
+            <circle cx="11" cy="19" r="1.5" fill="#7ED321"/>
+            <circle cx="16" cy="5" r="2.5" fill="#F5A623"/>
+          </svg>
+        </div>
+        <span class="prop-text">Your centre court, in your pocket</span>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-area anim-target" data-delay="6">
+      <button class="cta-btn">LET'S GO</button>
+    </div>
+
+    <!-- Dismiss -->
+    <div class="dismiss anim-target" data-delay="7">
+      <button>Maybe later</button>
+    </div>
+  </div>
+</div>
+
+<div class="reset-wrap">
+  <button class="reset-btn" id="resetBtn">Reset</button>
+</div>
+
+<script>
+  function runAnimation() {
+    const targets = document.querySelectorAll('.anim-target');
+    targets.forEach(el => el.classList.remove('visible'));
+    // Force reflow
+    void document.body.offsetHeight;
+    targets.forEach(el => {
+      const delay = parseInt(el.getAttribute('data-delay'), 10);
+      setTimeout(() => el.classList.add('visible'), delay * 150);
+    });
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', runAnimation);
+
+  // Initial run
+  runAnimation();
+</script>
+</body>
+</html>

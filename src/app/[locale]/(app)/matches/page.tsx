@@ -18,8 +18,6 @@ import { ResultCard } from '@/components/ResultCard'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { isTournamentGated } from '@/lib/tournament-utils'
-import { useWakeRefresh } from '@/hooks/useWakeRefresh'
-import { reportBatchFailures } from '@/lib/supabase-health'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -746,10 +744,6 @@ function V3ScoresPage() {
         return []
       }
 
-      // Wedge detection — auto-recover if Supabase client is stuck
-      const failureCount = results.filter(r => r.status === 'rejected').length
-      void reportBatchFailures(failureCount, results.length, 'V3 Scores')
-
       // Note: the legacy "filter out sim_ external_id" guard was removed
       // after scripts/purge-simulated.ts cleaned the orphan simulator
       // matches from the DB. Future simulator runs use source='simulated'
@@ -782,9 +776,6 @@ function V3ScoresPage() {
     if (searchParams.get('tournament')) return
     fetchData()
   }, [fetchData, searchParams])
-
-  // Recover from tab-idle Supabase auth lock deadlock — see useWakeRefresh
-  useWakeRefresh(() => fetchData(true))
 
   // Realtime subscription — silent refresh (no spinner)
   const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)

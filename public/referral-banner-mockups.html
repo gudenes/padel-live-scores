@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PadelNachos — Referral Banner Mockups</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #fff;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  .page-title {
+    text-align: center;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 12px;
+  }
+  .page-subtitle {
+    text-align: center;
+    font-size: 11px;
+    color: #444;
+    margin-bottom: 40px;
+  }
+
+  .mockups-row {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .mockup-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .mockup-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #555;
+    font-weight: 600;
+  }
+  .mockup-label span {
+    color: #F5A623;
+  }
+
+  /* Shared banner styles */
+  .banner-backdrop {
+    width: 360px;
+    height: 640px;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .banner-backdrop::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(245,166,35,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 70% 80%, rgba(126,211,33,0.04) 0%, transparent 60%);
+  }
+
+  .banner {
+    width: 320px;
+    background: #141414;
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+  }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .anim {
+    opacity: 0;
+    animation: fadeUp 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+  .d1 { animation-delay: 0.1s; }
+  .d2 { animation-delay: 0.2s; }
+  .d3 { animation-delay: 0.35s; }
+  .d4 { animation-delay: 0.5s; }
+  .d5 { animation-delay: 0.65s; }
+  .d6 { animation-delay: 0.8s; }
+  .d7 { animation-delay: 0.95s; }
+  .d8 { animation-delay: 1.1s; }
+
+  /* ============ OPTION A: Dark & Warm ============ */
+  .banner-a .header {
+    background: linear-gradient(135deg, #F5A623 0%, #E8941A 60%, #D47B0F 100%);
+    padding: 20px 24px 24px;
+    text-align: center;
+  }
+  .banner-a .header .logo {
+    height: 28px;
+    margin-bottom: 12px;
+    filter: brightness(0);
+  }
+  .banner-a .ball-icon {
+    margin: 0 auto 8px;
+  }
+  .banner-a .invite-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.5);
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .banner-a .invite-heading {
+    font-size: 16px;
+    font-weight: 700;
+    color: #000;
+    line-height: 1.3;
+  }
+  .banner-a .invite-heading strong {
+    font-weight: 800;
+  }
+
+  .banner-a .inviter-section {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .banner-a .avatar-ring {
+    width: 52px;
+    height: 52px;
+    clip-path: polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%);
+    background: #F5A623;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .banner-a .avatar-inner {
+    width: 46px;
+    height: 46px;
+    clip-path: polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%);
+    background: #1e1e1e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: #F5A623;
+    letter-spacing: 1px;
+  }
+  .banner-a .inviter-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .banner-a .inviter-sub {
+    font-size: 11px;
+    color: #666;
+    margin-top: 2px;
+  }
+
+  .banner-a .props {
+    padding: 18px 24px 20px;
+  }
+  .banner-a .prop {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .banner-a .prop:last-child { margin-bottom: 0; }
+  .banner-a .prop-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: #F5A623;
+    margin-top: 1px;
+  }
+  .banner-a .prop-text {
+    font-size: 13px;
+    color: #b0b0b0;
+    line-height: 1.4;
+  }
+
+  .banner-a .actions {
+    padding: 0 24px 24px;
+  }
+  .banner-a .cta-btn {
+    width: 100%;
+    padding: 14px;
+    background: #F5A623;
+    color: #000;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);
+    text-align: center;
+  }
+  .banner-a .dismiss {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 12px;
+    color: #555;
+    cursor: pointer;
+  }
+
+  /* ============ OPTION B: Split Accent ============ */
+  .banner-b .header {
+    background: linear-gradient(130deg, #7ED321 0%, #7ED321 45%, #F5A623 55%, #F5A623 100%);
+    padding: 28px 24px 32px;
+    text-align: center;
+    position: relative;
+  }
+  .banner-b .header .logo {
+    height: 24px;
+    filter: brightness(0);
+    margin-bottom: 16px;
+  }
+  .banner-b .avatar-badge {
+    width: 64px;
+    height: 64px;
+    clip-path: polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%);
+    background: #141414;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #7ED321;
+    letter-spacing: 2px;
+  }
+  .banner-b .hero-text {
+    font-size: 17px;
+    font-weight: 800;
+    color: #000;
+    line-height: 1.25;
+    margin-bottom: 6px;
+  }
+  .banner-b .hero-sub {
+    font-size: 12px;
+    color: rgba(0,0,0,0.55);
+    font-weight: 600;
+  }
+  .banner-b .hero-sub strong {
+    color: #000;
+    font-weight: 800;
+  }
+
+  .banner-b .props {
+    padding: 22px 24px 20px;
+  }
+  .banner-b .prop {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .banner-b .prop:last-child { margin-bottom: 0; }
+  .banner-b .prop-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: #7ED321;
+    margin-top: 1px;
+  }
+  .banner-b .prop-text {
+    font-size: 13px;
+    color: #b0b0b0;
+    line-height: 1.4;
+  }
+
+  .banner-b .actions {
+    padding: 0 24px 24px;
+  }
+  .banner-b .cta-btn {
+    width: 100%;
+    padding: 14px;
+    background: #7ED321;
+    color: #000;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);
+    text-align: center;
+  }
+  .banner-b .dismiss {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 12px;
+    color: #555;
+    cursor: pointer;
+  }
+
+  /* ============ OPTION C: Minimal Dark ============ */
+  .banner-c {
+    position: relative;
+  }
+  .banner-c .accent-bar {
+    height: 3px;
+    background: linear-gradient(90deg, #F5A623, #7ED321);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+  .banner-c .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px 0;
+  }
+  .banner-c .top-row .logo {
+    height: 22px;
+  }
+  .banner-c .close-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+    cursor: pointer;
+  }
+
+  .banner-c .inviter-center {
+    text-align: center;
+    padding: 24px 24px 20px;
+  }
+  .banner-c .avatar-glow {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .banner-c .avatar-glow::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    background: radial-gradient(circle, rgba(126,211,33,0.25), transparent 70%);
+    clip-path: polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%);
+  }
+  .banner-c .avatar-glow-inner {
+    width: 64px;
+    height: 64px;
+    clip-path: polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%);
+    background: #1a2a12;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    color: #7ED321;
+    letter-spacing: 2px;
+    position: relative;
+    z-index: 1;
+  }
+  .banner-c .inviter-name {
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .banner-c .inviter-sub {
+    font-size: 13px;
+    color: #666;
+  }
+
+  .banner-c .divider {
+    height: 1px;
+    margin: 0 24px;
+    background: rgba(255,255,255,0.06);
+    clip-path: polygon(1% 0%, 99% 0%, 100% 100%, 0% 100%);
+  }
+
+  .banner-c .chips {
+    display: flex;
+    gap: 8px;
+    padding: 20px 20px;
+    justify-content: center;
+  }
+  .banner-c .chip {
+    flex: 1;
+    max-width: 90px;
+    background: rgba(255,255,255,0.04);
+    clip-path: polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%);
+    padding: 16px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .banner-c .chip-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .banner-c .chip:nth-child(1) .chip-icon { color: #F5A623; }
+  .banner-c .chip:nth-child(2) .chip-icon { color: #7ED321; }
+  .banner-c .chip:nth-child(3) .chip-icon { color: #F5A623; }
+  .banner-c .chip-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #888;
+  }
+
+  .banner-c .actions {
+    padding: 4px 20px 24px;
+  }
+  .banner-c .cta-btn {
+    width: 100%;
+    padding: 14px;
+    background: #F5A623;
+    color: #000;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);
+    text-align: center;
+  }
+  .banner-c .dismiss {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 12px;
+    color: #555;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<p class="page-title">Referral Welcome Banner</p>
+<p class="page-subtitle">3 directions -- 320px mobile modal -- dark theme with logo accent colors</p>
+
+<div class="mockups-row">
+
+<!-- ============ OPTION A ============ -->
+<div class="mockup-wrapper">
+  <div class="mockup-label">A -- <span>Dark & Warm</span></div>
+  <div class="banner-backdrop">
+    <div class="banner banner-a">
+      <!-- Header -->
+      <div class="header">
+        <div class="anim d1">
+          <img src="/padelnachos-logo-v2.png" alt="PadelNachos" class="logo">
+        </div>
+        <div class="anim d2">
+          <!-- Padel ball SVG -->
+          <svg class="ball-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" fill="rgba(0,0,0,0.15)"/>
+            <path d="M5 8 Q12 6 19 8" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" fill="none"/>
+            <path d="M5 16 Q12 14 19 16" stroke="rgba(0,0,0,0.25)" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <div class="anim d3">
+          <div class="invite-label">Te han invitado</div>
+          <div class="invite-heading"><strong>Carlos</strong> te invita a PadelNachos</div>
+        </div>
+      </div>
+
+      <!-- Inviter -->
+      <div class="inviter-section anim d4">
+        <div class="avatar-ring">
+          <div class="avatar-inner">CR</div>
+        </div>
+        <div>
+          <div class="inviter-name">Carlos Rodriguez</div>
+          <div class="inviter-sub">Ya esta siguiendo 4 torneos</div>
+        </div>
+      </div>
+
+      <!-- Value Props -->
+      <div class="props">
+        <div class="prop anim d5">
+          <svg class="prop-icon" viewBox="0 0 20 20" fill="none">
+            <rect x="1" y="3" width="18" height="14" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <path d="M10 3 L10 17" stroke="currentColor" stroke-width="1"/>
+            <path d="M1 10 L19 10" stroke="currentColor" stroke-width="1"/>
+            <circle cx="5.5" cy="6.5" r="1.5" fill="currentColor" opacity="0.5"/>
+            <circle cx="14.5" cy="6.5" r="1.5" fill="currentColor" opacity="0.5"/>
+          </svg>
+          <div class="prop-text">Resultados en vivo de todos los partidos</div>
+        </div>
+        <div class="prop anim d6">
+          <svg class="prop-icon" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2 L12.5 7.5 L18 8 L14 12 L15 18 L10 15 L5 18 L6 12 L2 8 L7.5 7.5 Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+          <div class="prop-text">Sigue a tus jugadores y torneos favoritos</div>
+        </div>
+        <div class="prop anim d7">
+          <svg class="prop-icon" viewBox="0 0 20 20" fill="none">
+            <path d="M10 1 L10 4" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M10 4 Q14 4 14 8 L14 10 Q14 12 16 12 L17 12 L17 13 L3 13 L3 12 L4 12 Q6 12 6 10 L6 8 Q6 4 10 4 Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <path d="M8 14 Q8 16 10 16 Q12 16 12 14" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+          <div class="prop-text">Alertas cuando tus partidos comienzan</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions anim d8">
+        <div class="cta-btn">VAMOS!</div>
+        <div class="dismiss">Quizas luego</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OPTION B ============ -->
+<div class="mockup-wrapper">
+  <div class="mockup-label">B -- <span>Split Accent</span></div>
+  <div class="banner-backdrop">
+    <div class="banner banner-b">
+      <!-- Header -->
+      <div class="header">
+        <div class="anim d1">
+          <img src="/padelnachos-logo-v2.png" alt="PadelNachos" class="logo">
+        </div>
+        <div class="anim d2">
+          <div class="avatar-badge">CR</div>
+        </div>
+        <div class="anim d3">
+          <div class="hero-text">Bienvenido al mundo<br>del padel</div>
+          <div class="hero-sub"><strong>Carlos</strong> te espera en PadelNachos</div>
+        </div>
+      </div>
+
+      <!-- Value Props -->
+      <div class="props">
+        <div class="prop anim d4">
+          <!-- Racket / Paddle icon -->
+          <svg class="prop-icon" viewBox="0 0 20 20" fill="none">
+            <ellipse cx="11" cy="7" rx="6" ry="7" stroke="currentColor" stroke-width="1.5" fill="none" transform="rotate(-15 11 7)"/>
+            <line x1="7" y1="12" x2="3" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="10" cy="5" r="0.7" fill="currentColor" opacity="0.4"/>
+            <circle cx="12" cy="5" r="0.7" fill="currentColor" opacity="0.4"/>
+            <circle cx="10" cy="7.5" r="0.7" fill="currentColor" opacity="0.4"/>
+            <circle cx="12" cy="7.5" r="0.7" fill="currentColor" opacity="0.4"/>
+            <circle cx="11" cy="3" r="0.7" fill="currentColor" opacity="0.4"/>
+            <circle cx="11" cy="10" r="0.7" fill="currentColor" opacity="0.4"/>
+          </svg>
+          <div class="prop-text">Marcadores en vivo, punto a punto</div>
+        </div>
+        <div class="prop anim d5">
+          <!-- Scoreboard icon -->
+          <svg class="prop-icon" viewBox="0 0 20 20" fill="none">
+            <rect x="2" y="2" width="16" height="12" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <line x1="10" y1="2" x2="10" y2="14" stroke="currentColor" stroke-width="1"/>
+            <text x="5.5" y="10.5" font-size="6" font-weight="bold" fill="currentColor" text-anchor="middle">6</text>
+            <text x="14.5" y="10.5" font-size="6" font-weight="bold" fill="currentColor" text-anchor="middle">4</text>
+            <line x1="6" y1="14" x2="6" y2="17" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="14" y1="14" x2="14" y2="17" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="4" y1="17" x2="16" y2="17" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          <div class="prop-text">Rankings y estadisticas actualizadas</div>
+        </div>
+        <div class="prop anim d6">
+          <!-- Trophy icon -->
+          <svg class="prop-icon" viewBox="0 0 20 20" fill="none">
+            <path d="M6 3 L14 3 L14 9 Q14 13 10 14 Q6 13 6 9 Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            <path d="M6 5 L4 5 Q2 5 2 7 Q2 9 4 9 L6 9" stroke="currentColor" stroke-width="1.2" fill="none"/>
+            <path d="M14 5 L16 5 Q18 5 18 7 Q18 9 16 9 L14 9" stroke="currentColor" stroke-width="1.2" fill="none"/>
+            <line x1="10" y1="14" x2="10" y2="16" stroke="currentColor" stroke-width="1.5"/>
+            <line x1="7" y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          <div class="prop-text">Tu pista central, en el bolsillo</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions anim d7">
+        <div class="cta-btn">ENTRAR</div>
+        <div class="dismiss">Ahora no</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OPTION C ============ -->
+<div class="mockup-wrapper">
+  <div class="mockup-label">C -- <span>Minimal Dark</span></div>
+  <div class="banner-backdrop">
+    <div class="banner banner-c">
+      <!-- Accent bar -->
+      <div class="accent-bar anim d1"></div>
+
+      <!-- Top row -->
+      <div class="top-row anim d2">
+        <img src="/padelnachos-logo-v2.png" alt="PadelNachos" class="logo">
+        <div class="close-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 4 L12 12 M12 4 L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Inviter centered -->
+      <div class="inviter-center">
+        <div class="anim d3">
+          <div class="avatar-glow">
+            <div class="avatar-glow-inner">CR</div>
+          </div>
+        </div>
+        <div class="anim d4">
+          <div class="inviter-name">Carlos Rodriguez</div>
+          <div class="inviter-sub">te ha traido a PadelNachos</div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="divider anim d5"></div>
+
+      <!-- Chips -->
+      <div class="chips anim d5">
+        <div class="chip">
+          <svg class="chip-icon" viewBox="0 0 22 22" fill="none">
+            <!-- Live / pulse icon -->
+            <circle cx="11" cy="11" r="4" fill="currentColor" opacity="0.3"/>
+            <circle cx="11" cy="11" r="2" fill="currentColor"/>
+            <path d="M5 6 Q2 11 5 16" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+            <path d="M17 6 Q20 11 17 16" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+          </svg>
+          <span class="chip-label">En vivo</span>
+        </div>
+        <div class="chip">
+          <svg class="chip-icon" viewBox="0 0 22 22" fill="none">
+            <!-- Star / favorites -->
+            <path d="M11 3 L13.2 8 L19 8.5 L14.8 12.2 L16 18 L11 15 L6 18 L7.2 12.2 L3 8.5 L8.8 8 Z" stroke="currentColor" stroke-width="1.3" fill="none"/>
+          </svg>
+          <span class="chip-label">Favoritos</span>
+        </div>
+        <div class="chip">
+          <svg class="chip-icon" viewBox="0 0 22 22" fill="none">
+            <!-- Bell / alerts -->
+            <path d="M11 2 L11 4.5" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M11 4.5 Q15.5 4.5 15.5 9 L15.5 11 Q15.5 13 17.5 13 L18.5 13 L18.5 14 L3.5 14 L3.5 13 L4.5 13 Q6.5 13 6.5 11 L6.5 9 Q6.5 4.5 11 4.5 Z" stroke="currentColor" stroke-width="1.3" fill="none"/>
+            <path d="M9 15 Q9 17.5 11 17.5 Q13 17.5 13 15" stroke="currentColor" stroke-width="1.3" fill="none"/>
+          </svg>
+          <span class="chip-label">Alertas</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions anim d7">
+        <div class="cta-btn">EXPLORAR</div>
+        <div class="dismiss">Mas tarde</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+</body>
+</html>

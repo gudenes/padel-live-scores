@@ -1,9 +1,6 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { checkBadgeInline } from '@/lib/badge-check-inline'
-
 const RATINGS_KEY = 'pn_match_ratings'
 const DEVICE_ID_KEY = 'pn_device_id'
 
@@ -58,24 +55,14 @@ export function useMatchRating(matchId: string, matchAvg?: number | null, matchC
   }, [matchAvg, matchCount])
 
   const setRating = useCallback(async (n: number) => {
-    // Optimistic local update
     setRatingState(n)
     writeLocal(matchId, n)
 
-    // Background DB write
     try {
       const deviceId = getDeviceId()
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-
-      // Attach auth token if logged in
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`
-      }
-
       const res = await fetch('/api/match-rating', {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matchId, rating: n, deviceId }),
       })
 
@@ -83,7 +70,6 @@ export function useMatchRating(matchId: string, matchAvg?: number | null, matchC
         const data = await res.json()
         setAvgRating(data.avg_rating ?? null)
         setRatingCount(data.rating_count ?? 0)
-        if (session?.user?.id) void checkBadgeInline(session.user.id, 'rate_matches')
       }
     } catch (e) {
       console.error('[useMatchRating] API write failed:', e)

@@ -9,7 +9,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef, Re
 import { BadgeIcon } from '@/components/BadgeIcon'
 import { BADGE_MAP, TIER_META, type TierNumber } from '@/lib/badges'
 import { spawnConfetti } from '@/lib/confetti'
-import { BADGE_UNLOCK_EVENT } from '@/lib/badge-check-inline'
+const BADGE_UNLOCK_EVENT = 'pn-badge-unlock'
 
 interface ToastData {
   badgeId: string

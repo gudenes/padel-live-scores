@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PadelNachos — Home Redesign Mockup</title>
+<style>
+  /* ── Reset ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── Brand Colors (from logo) ──────────────────── */
+  :root {
+    --bg-base: #0A0A0A;
+    --bg-card: #141414;
+    --bg-card-alt: #1A1A1A;
+    --border-card: rgba(255,255,255,0.06);
+    --border-subtle: rgba(255,255,255,0.04);
+
+    /* Brand greens (from logo outline) */
+    --green: #7ED321;
+    --green-dim: rgba(126,211,33,0.15);
+    --green-glow: rgba(126,211,33,0.25);
+
+    /* Brand orange (from NACHOS text) */
+    --orange: #F5A623;
+    --orange-dim: rgba(245,166,35,0.12);
+    --orange-glow: rgba(245,166,35,0.2);
+
+    /* Live red (from salsa on racket) */
+    --live-red: #FF4655;
+    --live-red-dim: rgba(255,70,85,0.08);
+    --live-red-glow: rgba(255,70,85,0.15);
+
+    /* Text hierarchy */
+    --text-primary: #FFFFFF;
+    --text-secondary: #B0B0B0;
+    --text-muted: #6B7280;
+    --text-dim: #4B5563;
+
+    /* Functional */
+    --color-winner: #7ED321;
+    --color-men: #5BA8FF;
+    --color-women: #F472B6;
+
+    /* Medal colors */
+    --gold: #F59E0B;
+    --silver: #94A3B8;
+    --bronze: #CD7F32;
+
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'SF Mono', ui-monospace, 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-base);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  /* ── Phone Frame ───────────────────────────────── */
+  .phone-frame {
+    max-width: 393px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ── Status Bar ────────────────────────────────── */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 24px 4px;
+    font-size: 14px;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-base);
+  }
+  .status-bar .time { font-weight: 600; }
+  .status-bar .icons { display: flex; gap: 4px; align-items: center; }
+  .status-bar .icons span { font-size: 12px; }
+
+  /* ── Header ────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px 12px;
+    position: sticky;
+    top: 30px;
+    z-index: 99;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .header-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .header-btn:hover { background: var(--bg-card-alt); }
+  .header-btn svg { width: 18px; height: 18px; }
+
+  .logo-text {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .logo-text .padel { color: #FFFFFF; }
+  .logo-text .nachos { color: var(--orange); }
+
+  .avatar-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #374151, #4B5563);
+    border: 2px solid var(--border-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  /* ── Content ───────────────────────────────────── */
+  .content {
+    padding: 0 16px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  /* ── Chunky Shape System (brand motif) ──────────── */
+  /* Reusable clip-paths that give elements a rough/broken/playful edge */
+  .chunky-green  { clip-path: polygon(1% 4%, 97% 0%, 100% 92%, 2% 100%); }
+  .chunky-red    { clip-path: polygon(0% 6%, 98% 0%, 100% 94%, 3% 100%); }
+  .chunky-orange { clip-path: polygon(2% 0%, 100% 5%, 98% 100%, 0% 95%); }
+  .chunky-mild   { clip-path: polygon(0% 2%, 99% 0%, 100% 97%, 1% 100%); }
+
+  /* ── Section Headers ───────────────────────────── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    position: relative;
+    display: inline-block;
+  }
+  /* Chunky green underline on section titles */
+  .section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 0;
+    width: 40px;
+    height: 4px;
+    background: var(--green);
+    clip-path: polygon(2% 0%, 98% 8%, 100% 100%, 0% 88%);
+    border-radius: 1px;
+  }
+  .section-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    position: relative;
+  }
+  /* Chunky underline on hover for links */
+  .section-link::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--green);
+    clip-path: polygon(0% 0%, 100% 15%, 98% 100%, 2% 85%);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .section-link:hover::after { opacity: 1; }
+  .section-link:hover { opacity: 1; }
+  .section-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  /* ── LIVE NOW Section ──────────────────────────── */
+  .live-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .live-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--live-red);
+    position: relative;
+  }
+  .live-dot::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid var(--live-red);
+    animation: pulse-ring 2s ease-out infinite;
+  }
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); opacity: 0.8; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+  .live-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--live-red);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Live Match Card */
+  .live-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-left: none;
+    border-radius: 12px;
+    padding: 0;
+    overflow: visible;
+    position: relative;
+    box-shadow: 0 0 30px var(--live-red-dim), inset 0 0 30px var(--live-red-dim);
+  }
+  /* Chunky red left accent on live card */
+  .live-card::after {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 12px;
+    bottom: 12px;
+    width: 5px;
+    background: var(--live-red);
+    clip-path: polygon(0% 0%, 100% 3%, 100% 97%, 0% 100%);
+    border-radius: 2px;
+    box-shadow: 0 0 10px var(--live-red-glow);
+  }
+  .live-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--live-red);
+    color: white;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 4px 10px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    clip-path: polygon(0% 6%, 98% 0%, 100% 94%, 3% 100%);
+  }
+  .live-badge-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: white;
+    animation: blink 1.5s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .live-card-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .live-card-body {
+    padding: 12px 14px 14px;
+  }
+  .match-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+  .match-row + .match-row {
+    border-top: 1px solid var(--border-subtle);
+  }
+  .pair-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+  .flag-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 13px;
+    line-height: 1;
+  }
+  .pair-name {
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .pair-name.loser {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .scores {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .set-score {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    width: 36px;
+    text-align: center;
+    color: var(--text-primary);
+  }
+  .set-score.loser {
+    color: var(--text-muted);
+  }
+  .set-score.current {
+    font-size: 20px;
+    color: var(--live-red);
+    font-weight: 800;
+  }
+  .set-score.current::before { content: '['; color: var(--text-dim); font-weight: 400; }
+  .set-score.current::after { content: ']'; color: var(--text-dim); font-weight: 400; }
+  .serving-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+  .set-labels {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0;
+    padding: 4px 0 0;
+  }
+  .set-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--text-dim);
+    width: 36px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Coming Up Section ─────────────────────────── */
+  .coming-up-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .coming-up-scroll::-webkit-scrollbar { display: none; }
+
+  .upcoming-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 10px;
+    padding: 12px 14px;
+    min-width: 200px;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .upcoming-card:hover {
+    border-color: rgba(255,255,255,0.1);
+    transform: translateY(-1px);
+  }
+  .upcoming-card.soon {
+    border-left: none;
+    position: relative;
+    padding-left: 17px;
+  }
+  /* Chunky green left accent for "starting soon" cards */
+  .upcoming-card.soon::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 5px;
+    background: var(--green);
+    clip-path: polygon(0% 0%, 100% 4%, 100% 96%, 0% 100%);
+    box-shadow: 0 0 8px var(--green-glow);
+  }
+  .upcoming-time {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .upcoming-eta {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--orange);
+    margin-left: 8px;
+  }
+  .upcoming-pairs {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .upcoming-vs {
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .upcoming-tournament {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    font-weight: 500;
+  }
+
+  /* ── Tournament Spotlight ──────────────────────── */
+  .spotlight-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .spotlight-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--green), var(--orange));
+    border-radius: 12px 12px 0 0;
+  }
+  .spotlight-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .spotlight-info { flex: 1; }
+  .spotlight-name {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .spotlight-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    line-height: 1.6;
+  }
+  .spotlight-link {
+    font-size: 11px;
+    font-weight: 800;
+    color: #000;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    background: var(--green);
+    padding: 5px 12px;
+    clip-path: polygon(2% 0%, 100% 6%, 97% 100%, 0% 94%);
+    transition: transform 0.15s;
+  }
+  .spotlight-link:hover { transform: scale(1.03); }
+  .spotlight-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: var(--orange-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  /* Progress bar */
+  .progress-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-top: 14px;
+    position: relative;
+  }
+  .progress-segment {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .progress-bar-track {
+    width: 100%;
+    height: 4px;
+    background: var(--bg-card-alt);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+  .progress-bar-fill.active {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green-glow);
+    clip-path: polygon(0% 0%, 100% 10%, 98% 100%, 0% 90%);
+  }
+  .progress-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .progress-label.done { color: var(--green); }
+  .progress-label.active { color: var(--green); font-weight: 800; }
+
+  /* ── Rankings Section ──────────────────────────── */
+  .rankings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .gender-toggle {
+    display: flex;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .gender-btn {
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-sans);
+  }
+  .gender-btn.active {
+    background: var(--green);
+    color: #000;
+    border-radius: 2px;
+    clip-path: polygon(2% 0%, 100% 5%, 98% 100%, 0% 95%);
+  }
+
+  .rankings-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-top: 40px; /* space for bust overflow */
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .rankings-scroll::-webkit-scrollbar { display: none; }
+
+  .rank-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    min-width: 130px;
+    max-width: 130px;
+    flex-shrink: 0;
+    position: relative;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+  }
+  .rank-card:hover {
+    border-color: rgba(255,255,255,0.12);
+    transform: translateY(-2px);
+  }
+
+  /* ── Player bust area (head + torso sticking out) ── */
+  .rank-bust {
+    position: relative;
+    height: 90px;
+    margin-top: -36px; /* bust breaks above card */
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .rank-bust svg {
+    width: 100px;
+    height: 120px;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+  }
+
+  /* Fade the torso bottom into card background */
+  .rank-bust::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 28px;
+    background: linear-gradient(to bottom, transparent, var(--bg-card));
+    z-index: 3;
+  }
+
+  /* ── Rank badge — chunky ── */
+  .rank-badge {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    width: 28px;
+    height: 22px;
+    border-radius: 2px;
+    font-size: 11px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    z-index: 5;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .rank-badge.gold { background: var(--gold); }
+  .rank-badge.silver { background: var(--silver); }
+  .rank-badge.bronze { background: var(--bronze); }
+  .rank-badge.default { background: #374151; color: var(--text-primary); }
+
+  /* Medal glow on top 3 cards */
+  .rank-card.gold-glow { border-color: rgba(245,158,11,0.2); }
+  .rank-card.silver-glow { border-color: rgba(148,163,184,0.15); }
+  .rank-card.bronze-glow { border-color: rgba(205,127,50,0.15); }
+
+  /* ── Info area — sits on top of lower torso ── */
+  .rank-info {
+    position: relative;
+    z-index: 4;
+    text-align: center;
+    padding: 0 10px 14px;
+    margin-top: -6px;
+  }
+  .rank-name {
+    font-size: 14px;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+  }
+  .rank-fullname {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+  }
+  .rank-country {
+    font-size: 13px;
+    margin: 2px 0;
+  }
+  .rank-points {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--green);
+    margin-top: 3px;
+  }
+  .rank-delta {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .rank-delta.up { color: var(--green); }
+  .rank-delta.down { color: var(--live-red); }
+
+  /* ── Latest Results Section ────────────────────── */
+  .results-group {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .results-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .results-tournament-logo {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background: var(--orange-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+  .results-tournament-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .result-match {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .result-match:last-child { border-bottom: none; }
+
+  .result-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 0;
+  }
+  .result-pair {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+  }
+  .result-pair-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .result-pair-name.winner {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .result-pair-name.loser {
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .winner-check {
+    color: #000;
+    font-size: 9px;
+    font-weight: 800;
+    background: var(--green);
+    width: 18px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    clip-path: polygon(4% 0%, 100% 6%, 96% 100%, 0% 94%);
+    flex-shrink: 0;
+  }
+  .result-scores {
+    display: flex;
+    gap: 0;
+  }
+  .result-set {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 700;
+    width: 28px;
+    text-align: center;
+  }
+  .result-set.winner { color: var(--text-primary); }
+  .result-set.loser { color: var(--text-dim); font-weight: 500; }
+  .result-left-border {
+    padding-left: 12px;
+    position: relative;
+  }
+  /* Chunky green left bar on winner results */
+  .result-left-border::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 2px;
+    bottom: 2px;
+    width: 4px;
+    background: var(--green);
+    clip-path: polygon(0% 0%, 100% 3%, 100% 97%, 0% 100%);
+    border-radius: 1px;
+  }
+
+  /* ── Highlights & News Section ─────────────────── */
+  .highlight-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .highlight-card:hover { transform: translateY(-1px); }
+
+  .highlight-thumb {
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: linear-gradient(135deg, #1a1a2e 0%, #0d0d1a 100%);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .play-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255,255,255,0.3);
+  }
+  .play-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: white;
+    margin-left: 2px;
+  }
+  .duration-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.85);
+    color: white;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 2px;
+    clip-path: polygon(2% 0%, 100% 5%, 98% 100%, 0% 92%);
+  }
+  .highlight-info {
+    padding: 12px 14px;
+  }
+  .highlight-title {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+  .highlight-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .news-card {
+    display: flex;
+    gap: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    margin-top: 10px;
+  }
+  .news-card:hover { border-color: rgba(255,255,255,0.1); }
+  .news-thumb {
+    width: 80px;
+    height: 60px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #1a1a2e, #2a2a4e);
+    flex-shrink: 0;
+  }
+  .news-content { flex: 1; min-width: 0; }
+  .news-title {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .news-source {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* ── Fantasy Teaser ────────────────────────────── */
+  .fantasy-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 14px;
+    padding: 28px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .fantasy-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--orange), transparent);
+  }
+  .fantasy-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+    filter: grayscale(0.3);
+  }
+  .fantasy-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--orange);
+    margin-bottom: 8px;
+  }
+  .fantasy-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 16px;
+    max-width: 260px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .fantasy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--orange);
+    color: #000;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 12px 28px;
+    border-radius: 2px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    font-family: var(--font-sans);
+    letter-spacing: 0.3px;
+    clip-path: polygon(1% 5%, 99% 0%, 100% 92%, 2% 100%);
+  }
+  .fantasy-btn:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 16px var(--orange-glow);
+  }
+
+  /* ── Bottom Navigation ─────────────────────────── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 393px;
+    background: rgba(10,10,10,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    padding: 8px 0 22px;
+    z-index: 200;
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px 22px;
+    position: relative;
+    transition: transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .nav-item:active { transform: scale(0.9); }
+  .nav-icon-wrap {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav-item svg.nav-icon {
+    width: 22px;
+    height: 22px;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+    position: relative;
+    z-index: 2;
+  }
+  .nav-item .nav-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .nav-item.active .nav-label { color: var(--green); }
+  .nav-item.active svg.nav-icon { stroke: var(--green); }
+  .nav-item:not(.active) svg.nav-icon { stroke: var(--text-dim); }
+
+  /* Brand icon (center nav) — filled, no stroke */
+  .nav-item .brand-icon {
+    width: 26px;
+    height: 26px;
+    position: relative;
+    z-index: 2;
+  }
+  .nav-item.active .brand-icon { filter: brightness(1); }
+  .nav-item:not(.active) .brand-icon { filter: brightness(0.4); }
+
+  /* ── "Broken" green highlight — Lovable style ─── */
+  /* Chunky, slightly irregular green block behind the active icon */
+  .nav-highlight {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+  }
+  /* Top bar — thick, slightly wider than icon, with rough edges */
+  .nav-item.active .nav-highlight-bar {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 5px;
+    background: var(--green);
+    border-radius: 1px 2px 2px 1px;
+    /* Slight skew for "broken"/playful feel */
+    clip-path: polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%);
+    box-shadow: 0 2px 12px var(--green-glow), 0 0 20px rgba(126,211,33,0.12);
+  }
+  /* Glow block behind icon */
+  .nav-item.active .nav-highlight-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 38px;
+    background: radial-gradient(ellipse, rgba(126,211,33,0.12) 0%, transparent 70%);
+    border-radius: 8px;
+    z-index: 0;
+  }
+
+  /* Nav badge — chunky red */
+  .nav-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 16px;
+    background: var(--live-red);
+    color: white;
+    font-size: 9px;
+    font-weight: 800;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    z-index: 3;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+
+  /* ── Utility ───────────────────────────────────── */
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: var(--border-subtle);
+  }
+  .spacer { height: 4px; }
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <div class="icons">
+      <span>📶</span>
+      <span>🔋</span>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <span class="padel">PADEL</span><span class="nachos">NACHOS</span>
+    </div>
+    <div class="avatar-btn">GD</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ═══════════ LIVE NOW ═══════════ -->
+    <section>
+      <div class="live-header">
+        <div class="live-dot"></div>
+        <span class="live-title">Live Now</span>
+      </div>
+
+      <div class="live-card">
+        <div class="live-card-header">
+          <div class="live-badge">
+            <div class="live-badge-dot"></div>
+            LIVE
+          </div>
+          <span class="live-card-meta">FIP Gold Almaty &middot; QF &middot; Court 1</span>
+        </div>
+        <div class="live-card-body">
+          <div class="match-row">
+            <div class="pair-info">
+              <div class="flag-stack">🇪🇸<br>🇪🇸</div>
+              <span class="pair-name">Lebron / Galan</span>
+            </div>
+            <div class="scores">
+              <span class="set-score">6</span>
+              <span class="set-score">4</span>
+              <span class="set-score current">3</span>
+            </div>
+          </div>
+          <div class="match-row">
+            <div class="pair-info">
+              <div class="flag-stack">🇦🇷<br>🇪🇸</div>
+              <span class="pair-name">Coello / Tapia</span>
+            </div>
+            <div class="scores">
+              <span class="set-score loser">3</span>
+              <span class="set-score">6</span>
+              <span class="set-score current">5</span>
+              <div class="serving-dot"></div>
+            </div>
+          </div>
+          <div class="set-labels">
+            <span class="set-label">Set 1</span>
+            <span class="set-label">Set 2</span>
+            <span class="set-label">Set 3</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ COMING UP ═══════════ -->
+    <section>
+      <div class="section-header">
+        <span class="section-title">Coming Up</span>
+        <span class="section-count">6 matches</span>
+      </div>
+      <div class="coming-up-scroll">
+        <div class="upcoming-card soon">
+          <div>
+            <span class="upcoming-time">14:30</span>
+            <span class="upcoming-eta">in 45min</span>
+          </div>
+          <div class="upcoming-pairs">
+            <div>Di Nenno / Navarro</div>
+            <div class="upcoming-vs">vs</div>
+            <div>Belasteguin / Bela</div>
+          </div>
+          <div class="upcoming-tournament">FIP Gold Almaty</div>
+        </div>
+
+        <div class="upcoming-card">
+          <div>
+            <span class="upcoming-time" style="color:var(--text-secondary)">16:00</span>
+          </div>
+          <div class="upcoming-pairs">
+            <div>Stupa / Lima</div>
+            <div class="upcoming-vs">vs</div>
+            <div>Chingotto / Gallan</div>
+          </div>
+          <div class="upcoming-tournament">FIP Gold Almaty</div>
+        </div>
+
+        <div class="upcoming-card">
+          <div>
+            <span class="upcoming-time" style="color:var(--text-secondary)">18:30</span>
+          </div>
+          <div class="upcoming-pairs">
+            <div>Triay / Fernandez</div>
+            <div class="upcoming-vs">vs</div>
+            <div>Salazar / Sanchez</div>
+          </div>
+          <div class="upcoming-tournament">FIP Silver Cairo</div>
+        </div>
+
+        <div class="upcoming-card">
+          <div>
+            <span class="upcoming-time" style="color:var(--text-secondary)">20:00</span>
+          </div>
+          <div class="upcoming-pairs">
+            <div>Arce / Dal Bianco</div>
+            <div class="upcoming-vs">vs</div>
+            <div>Yanguas / Ruiz</div>
+          </div>
+          <div class="upcoming-tournament">FIP Gold Almaty</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ TOURNAMENT SPOTLIGHT ═══════════ -->
+    <section>
+      <div class="section-header">
+        <span class="section-title">Tournament Spotlight</span>
+      </div>
+      <div class="spotlight-card">
+        <div class="spotlight-top">
+          <div style="display:flex;gap:12px;align-items:flex-start;flex:1">
+            <div class="spotlight-logo">🏆</div>
+            <div class="spotlight-info">
+              <div class="spotlight-name">FIP Gold Almaty</div>
+              <div class="spotlight-meta">
+                🇰🇿 Almaty &middot; Apr 1-6, 2026<br>
+                FIP Gold &middot; Quarterfinals
+              </div>
+            </div>
+          </div>
+          <a class="spotlight-link">View Draw →</a>
+        </div>
+        <div class="progress-track">
+          <div class="progress-segment">
+            <div class="progress-bar-track"><div class="progress-bar-fill" style="width:100%"></div></div>
+            <span class="progress-label done">R32</span>
+          </div>
+          <div class="progress-segment">
+            <div class="progress-bar-track"><div class="progress-bar-fill" style="width:100%"></div></div>
+            <span class="progress-label done">R16</span>
+          </div>
+          <div class="progress-segment">
+            <div class="progress-bar-track"><div class="progress-bar-fill active" style="width:50%"></div></div>
+            <span class="progress-label active">QF</span>
+          </div>
+          <div class="progress-segment">
+            <div class="progress-bar-track"><div class="progress-bar-fill" style="width:0%"></div></div>
+            <span class="progress-label">SF</span>
+          </div>
+          <div class="progress-segment">
+            <div class="progress-bar-track"><div class="progress-bar-fill" style="width:0%"></div></div>
+            <span class="progress-label">F</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ RANKINGS ═══════════ -->
+    <section>
+      <div class="rankings-header">
+        <span class="section-title">Rankings</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <div class="gender-toggle">
+            <button class="gender-btn active">M</button>
+            <button class="gender-btn">W</button>
+          </div>
+          <a class="section-link">Full Rankings →</a>
+        </div>
+      </div>
+      <div class="rankings-scroll">
+        <!-- #1 Tapia -->
+        <div class="rank-card gold-glow">
+          <div class="rank-badge gold">#1</div>
+          <div class="rank-bust">
+            <svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Head -->
+              <circle cx="50" cy="24" r="18" fill="#c8956c"/>
+              <!-- Hair -->
+              <ellipse cx="50" cy="18" rx="16" ry="12" fill="#1a1a2e"/>
+              <!-- Ears -->
+              <ellipse cx="33" cy="26" rx="3" ry="4" fill="#b8855c"/>
+              <ellipse cx="67" cy="26" rx="3" ry="4" fill="#b8855c"/>
+              <!-- Eyes -->
+              <circle cx="43" cy="26" r="2" fill="#1a1a1a"/>
+              <circle cx="57" cy="26" r="2" fill="#1a1a1a"/>
+              <!-- Mouth -->
+              <path d="M45 33 Q50 36 55 33" stroke="#a07050" stroke-width="1.2" fill="none"/>
+              <!-- Neck -->
+              <rect x="44" y="40" width="12" height="8" rx="3" fill="#c8956c"/>
+              <!-- Jersey (same as avatar — blue polo) -->
+              <path d="M26 48 L74 48 L78 120 L22 120 Z" fill="#5BA8FF"/>
+              <!-- Collar -->
+              <path d="M38 48 L50 54 L62 48" stroke="#4090e0" stroke-width="2" fill="none"/>
+              <!-- Shoulder seams -->
+              <path d="M26 48 L14 62" stroke="#4090e0" stroke-width="1.5"/>
+              <path d="M74 48 L86 62" stroke="#4090e0" stroke-width="1.5"/>
+              <!-- Sleeves -->
+              <path d="M26 48 L12 64 L20 68 L30 56" fill="#5BA8FF"/>
+              <path d="M74 48 L88 64 L80 68 L70 56" fill="#5BA8FF"/>
+              <!-- Jersey stripe -->
+              <rect x="22" y="72" width="56" height="3" rx="1" fill="rgba(255,255,255,0.12)"/>
+            </svg>
+          </div>
+          <div class="rank-info">
+            <div class="rank-name">A. Tapia</div>
+            <div class="rank-fullname">Arturo Coello Tapia</div>
+            <div class="rank-country">🇦🇷 Argentina</div>
+            <div class="rank-points">20,910</div>
+            <div class="rank-delta">— 0</div>
+          </div>
+        </div>
+
+        <!-- #2 Coello -->
+        <div class="rank-card silver-glow">
+          <div class="rank-badge silver">#2</div>
+          <div class="rank-bust">
+            <svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="24" r="18" fill="#d4a574"/>
+              <ellipse cx="50" cy="18" rx="15" ry="11" fill="#2a1a0e"/>
+              <ellipse cx="33" cy="26" rx="3" ry="4" fill="#c49564"/>
+              <ellipse cx="67" cy="26" rx="3" ry="4" fill="#c49564"/>
+              <circle cx="43" cy="26" r="2" fill="#1a1a1a"/>
+              <circle cx="57" cy="26" r="2" fill="#1a1a1a"/>
+              <path d="M45 33 Q50 36 55 33" stroke="#a07050" stroke-width="1.2" fill="none"/>
+              <rect x="44" y="40" width="12" height="8" rx="3" fill="#d4a574"/>
+              <!-- Jersey — red/dark polo -->
+              <path d="M26 48 L74 48 L78 120 L22 120 Z" fill="#CC2936"/>
+              <path d="M38 48 L50 54 L62 48" stroke="#a01e28" stroke-width="2" fill="none"/>
+              <path d="M26 48 L14 62" stroke="#a01e28" stroke-width="1.5"/>
+              <path d="M74 48 L86 62" stroke="#a01e28" stroke-width="1.5"/>
+              <path d="M26 48 L12 64 L20 68 L30 56" fill="#CC2936"/>
+              <path d="M74 48 L88 64 L80 68 L70 56" fill="#CC2936"/>
+              <rect x="22" y="72" width="56" height="3" rx="1" fill="rgba(255,255,255,0.1)"/>
+            </svg>
+          </div>
+          <div class="rank-info">
+            <div class="rank-name">A. Coello</div>
+            <div class="rank-fullname">Arturo Coello</div>
+            <div class="rank-country">🇪🇸 Spain</div>
+            <div class="rank-points">20,910</div>
+            <div class="rank-delta">— 0</div>
+          </div>
+        </div>
+
+        <!-- #3 Lebron -->
+        <div class="rank-card bronze-glow">
+          <div class="rank-badge bronze">#3</div>
+          <div class="rank-bust">
+            <svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="24" r="18" fill="#d4a574"/>
+              <!-- Longer curly hair -->
+              <ellipse cx="50" cy="17" rx="18" ry="14" fill="#1a1a1a"/>
+              <circle cx="34" cy="22" r="5" fill="#1a1a1a"/>
+              <circle cx="66" cy="22" r="5" fill="#1a1a1a"/>
+              <ellipse cx="33" cy="28" rx="3" ry="4" fill="#c49564"/>
+              <ellipse cx="67" cy="28" rx="3" ry="4" fill="#c49564"/>
+              <circle cx="43" cy="27" r="2" fill="#1a1a1a"/>
+              <circle cx="57" cy="27" r="2" fill="#1a1a1a"/>
+              <!-- Slight beard -->
+              <ellipse cx="50" cy="36" rx="8" ry="4" fill="rgba(26,26,26,0.3)"/>
+              <path d="M45 33 Q50 35 55 33" stroke="#a07050" stroke-width="1.2" fill="none"/>
+              <rect x="44" y="40" width="12" height="8" rx="3" fill="#d4a574"/>
+              <!-- Jersey — green -->
+              <path d="M26 48 L74 48 L78 120 L22 120 Z" fill="#2d8a30"/>
+              <path d="M38 48 L50 54 L62 48" stroke="#1e6b20" stroke-width="2" fill="none"/>
+              <path d="M26 48 L14 62" stroke="#1e6b20" stroke-width="1.5"/>
+              <path d="M74 48 L86 62" stroke="#1e6b20" stroke-width="1.5"/>
+              <path d="M26 48 L12 64 L20 68 L30 56" fill="#2d8a30"/>
+              <path d="M74 48 L88 64 L80 68 L70 56" fill="#2d8a30"/>
+              <rect x="22" y="72" width="56" height="3" rx="1" fill="rgba(255,255,255,0.1)"/>
+            </svg>
+          </div>
+          <div class="rank-info">
+            <div class="rank-name">F. Lebron</div>
+            <div class="rank-fullname">Francisco Lebron</div>
+            <div class="rank-country">🇪🇸 Spain</div>
+            <div class="rank-points">16,850</div>
+            <div class="rank-delta up">▲ 2</div>
+          </div>
+        </div>
+
+        <!-- #4 Di Nenno -->
+        <div class="rank-card">
+          <div class="rank-badge default">#4</div>
+          <div class="rank-bust">
+            <svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="24" r="18" fill="#c8956c"/>
+              <ellipse cx="50" cy="18" rx="15" ry="11" fill="#2a1a0e"/>
+              <ellipse cx="33" cy="26" rx="3" ry="4" fill="#b8855c"/>
+              <ellipse cx="67" cy="26" rx="3" ry="4" fill="#b8855c"/>
+              <circle cx="43" cy="26" r="2" fill="#1a1a1a"/>
+              <circle cx="57" cy="26" r="2" fill="#1a1a1a"/>
+              <path d="M45 33 Q50 36 55 33" stroke="#a07050" stroke-width="1.2" fill="none"/>
+              <rect x="44" y="40" width="12" height="8" rx="3" fill="#c8956c"/>
+              <!-- Jersey — orange -->
+              <path d="M26 48 L74 48 L78 120 L22 120 Z" fill="#E8880A"/>
+              <path d="M38 48 L50 54 L62 48" stroke="#c87008" stroke-width="2" fill="none"/>
+              <path d="M26 48 L14 62" stroke="#c87008" stroke-width="1.5"/>
+              <path d="M74 48 L86 62" stroke="#c87008" stroke-width="1.5"/>
+              <path d="M26 48 L12 64 L20 68 L30 56" fill="#E8880A"/>
+              <path d="M74 48 L88 64 L80 68 L70 56" fill="#E8880A"/>
+              <rect x="22" y="72" width="56" height="3" rx="1" fill="rgba(255,255,255,0.1)"/>
+            </svg>
+          </div>
+          <div class="rank-info">
+            <div class="rank-name">M. Di Nenno</div>
+            <div class="rank-fullname">Martin Di Nenno</div>
+            <div class="rank-country">🇦🇷 Argentina</div>
+            <div class="rank-points">14,200</div>
+            <div class="rank-delta up">▲ 2</div>
+          </div>
+        </div>
+
+        <!-- #5 Galan -->
+        <div class="rank-card">
+          <div class="rank-badge default">#5</div>
+          <div class="rank-bust">
+            <svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="24" r="18" fill="#d4a574"/>
+              <ellipse cx="50" cy="18" rx="14" ry="10" fill="#1a1a1a"/>
+              <ellipse cx="33" cy="26" rx="3" ry="4" fill="#c49564"/>
+              <ellipse cx="67" cy="26" rx="3" ry="4" fill="#c49564"/>
+              <circle cx="43" cy="26" r="2" fill="#1a1a1a"/>
+              <circle cx="57" cy="26" r="2" fill="#1a1a1a"/>
+              <path d="M45 33 Q50 36 55 33" stroke="#a07050" stroke-width="1.2" fill="none"/>
+              <rect x="44" y="40" width="12" height="8" rx="3" fill="#d4a574"/>
+              <!-- Jersey — navy/dark blue -->
+              <path d="M26 48 L74 48 L78 120 L22 120 Z" fill="#1e3a5f"/>
+              <path d="M38 48 L50 54 L62 48" stroke="#152d4a" stroke-width="2" fill="none"/>
+              <path d="M26 48 L14 62" stroke="#152d4a" stroke-width="1.5"/>
+              <path d="M74 48 L86 62" stroke="#152d4a" stroke-width="1.5"/>
+              <path d="M26 48 L12 64 L20 68 L30 56" fill="#1e3a5f"/>
+              <path d="M74 48 L88 64 L80 68 L70 56" fill="#1e3a5f"/>
+              <rect x="22" y="72" width="56" height="3" rx="1" fill="rgba(255,255,255,0.08)"/>
+            </svg>
+          </div>
+          <div class="rank-info">
+            <div class="rank-name">A. Galan</div>
+            <div class="rank-fullname">Alejandro Galan</div>
+            <div class="rank-country">🇪🇸 Spain</div>
+            <div class="rank-points">13,740</div>
+            <div class="rank-delta down">▼ 1</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ LATEST RESULTS ═══════════ -->
+    <section>
+      <div class="section-header">
+        <span class="section-title">Latest Results</span>
+      </div>
+      <div class="results-group">
+        <div class="results-group-header">
+          <div class="results-tournament-logo">🏆</div>
+          <span class="results-tournament-name">FIP Gold Almaty</span>
+        </div>
+
+        <div class="result-match">
+          <div class="result-left-border">
+            <div class="result-row">
+              <div class="result-pair">
+                <span class="result-pair-name winner">Lebron / Galan</span>
+                <span class="winner-check">✓</span>
+              </div>
+              <div class="result-scores">
+                <span class="result-set winner">6</span>
+                <span class="result-set winner">7</span>
+              </div>
+            </div>
+            <div class="result-row">
+              <div class="result-pair">
+                <span class="result-pair-name loser">Paquito / Di Nenno</span>
+              </div>
+              <div class="result-scores">
+                <span class="result-set loser">4</span>
+                <span class="result-set loser">5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-match">
+          <div class="result-left-border">
+            <div class="result-row">
+              <div class="result-pair">
+                <span class="result-pair-name winner">Coello / Tapia</span>
+                <span class="winner-check">✓</span>
+              </div>
+              <div class="result-scores">
+                <span class="result-set winner">7</span>
+                <span class="result-set winner">6</span>
+              </div>
+            </div>
+            <div class="result-row">
+              <div class="result-pair">
+                <span class="result-pair-name loser">Stupa / Lima</span>
+              </div>
+              <div class="result-scores">
+                <span class="result-set loser">5</span>
+                <span class="result-set loser">3</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-match">
+          <div class="result-left-border">
+            <div class="result-row">
+              <div class="result-pair">
+                <span class="result-pair-name winner">Triay / Fernandez</span>
+                <span class="winner-check">✓</span>
+              </div>
+              <div class="result-scores">
+                <span class="result-set winner">6</span>
+                <span class="result-set winner">6</span>
+              </div>
+            </div>
+            <div class="result-row">
+              <div class="result-pair">
+                <span class="result-pair-name loser">Sainz / Llaguno</span>
+              </div>
+              <div class="result-scores">
+                <span class="result-set loser">3</span>
+                <span class="result-set loser">4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ HIGHLIGHTS & NEWS ═══════════ -->
+    <section>
+      <div class="section-header">
+        <span class="section-title">Highlights & News</span>
+        <a class="section-link">See All →</a>
+      </div>
+
+      <div class="highlight-card">
+        <div class="highlight-thumb">
+          <div class="play-btn">
+            <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+          </div>
+          <div class="duration-badge">42:13</div>
+        </div>
+        <div class="highlight-info">
+          <div class="highlight-title">FIP Gold Almaty — Men's QF Highlights</div>
+          <div class="highlight-meta">beIN SPORTS &middot; 8K views &middot; 4h ago</div>
+        </div>
+      </div>
+
+      <div class="news-card">
+        <div class="news-thumb"></div>
+        <div class="news-content">
+          <div class="news-title">Lebron announces new partner for 2026 season</div>
+          <div class="news-source">PadelMagazine &middot; 3h ago</div>
+        </div>
+      </div>
+
+      <div class="news-card">
+        <div class="news-thumb"></div>
+        <div class="news-content">
+          <div class="news-title">FIP confirms new ranking system for 2027</div>
+          <div class="news-source">PadelInsider &middot; 6h ago</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ COMING SOON — FANTASY ═══════════ -->
+    <section>
+      <div class="section-header">
+        <span class="section-title">Coming Soon</span>
+      </div>
+      <div class="fantasy-card">
+        <div class="fantasy-icon">🎮</div>
+        <div class="fantasy-title">Fantasy Padel</div>
+        <div class="fantasy-desc">Build your dream team. Compete with friends. Earn points from real match performances.</div>
+        <button class="fantasy-btn">Notify Me 🔔</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ═══════════ BOTTOM NAV ═══════════ -->
+  <div class="bottom-nav">
+    <!-- Scores -->
+    <div class="nav-item">
+      <div class="nav-icon-wrap">
+        <svg class="nav-icon" viewBox="0 0 24 24" stroke="currentColor">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M4.5 7.5C7 7 9.5 9 10 12c0.3 2-0.5 4.5-1.5 6.5"/>
+          <path d="M19.5 16.5C17 17 14.5 15 14 12c-0.3-2 0.5-4.5 1.5-6.5"/>
+        </svg>
+        <div class="nav-badge">2</div>
+      </div>
+      <span class="nav-label">Scores</span>
+    </div>
+    <!-- Home (brand racket icon) -->
+    <div class="nav-item active">
+      <div class="nav-highlight-bar"></div>
+      <div class="nav-icon-wrap">
+        <div class="nav-highlight-glow"></div>
+        <!-- Padel racket / nacho brand icon -->
+        <svg class="brand-icon" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <!-- Handle -->
+          <rect x="10" y="42" width="12" height="20" rx="3" fill="#374151" transform="rotate(-25 16 52)"/>
+          <rect x="11" y="43" width="10" height="18" rx="2" fill="#1f2937" transform="rotate(-25 16 52)"/>
+          <!-- Handle grip lines -->
+          <line x1="12" y1="46" x2="20" y2="44" stroke="#4B5563" stroke-width="1.5" transform="rotate(-25 16 52)"/>
+          <line x1="12" y1="50" x2="20" y2="48" stroke="#4B5563" stroke-width="1.5" transform="rotate(-25 16 52)"/>
+          <line x1="12" y1="54" x2="20" y2="52" stroke="#4B5563" stroke-width="1.5" transform="rotate(-25 16 52)"/>
+          <!-- Racket head (nacho/teardrop shape) -->
+          <ellipse cx="36" cy="24" rx="18" ry="22" fill="#F5A623" stroke="#1a1a1a" stroke-width="2" transform="rotate(15 36 24)"/>
+          <!-- Green outline glow -->
+          <ellipse cx="36" cy="24" rx="19.5" ry="23.5" fill="none" stroke="var(--green)" stroke-width="1.5" opacity="0.7" transform="rotate(15 36 24)"/>
+          <!-- Salsa blob -->
+          <ellipse cx="42" cy="12" rx="8" ry="6" fill="#D63031" transform="rotate(20 42 12)"/>
+          <ellipse cx="43" cy="11" rx="3" ry="2" fill="#ff6b6b" opacity="0.6" transform="rotate(15 43 11)"/>
+          <!-- Holes (dots) -->
+          <circle cx="28" cy="18" r="1.8" fill="#0A0A0A"/>
+          <circle cx="34" cy="16" r="1.8" fill="#0A0A0A"/>
+          <circle cx="40" cy="17" r="1.8" fill="#0A0A0A"/>
+          <circle cx="25" cy="24" r="1.8" fill="#0A0A0A"/>
+          <circle cx="31" cy="22" r="1.8" fill="#0A0A0A"/>
+          <circle cx="37" cy="23" r="1.8" fill="#0A0A0A"/>
+          <circle cx="43" cy="24" r="1.8" fill="#0A0A0A"/>
+          <circle cx="28" cy="29" r="1.8" fill="#0A0A0A"/>
+          <circle cx="34" cy="28" r="1.8" fill="#0A0A0A"/>
+          <circle cx="40" cy="30" r="1.8" fill="#0A0A0A"/>
+          <circle cx="31" cy="34" r="1.8" fill="#0A0A0A"/>
+          <circle cx="37" cy="35" r="1.8" fill="#0A0A0A"/>
+          <circle cx="46" cy="20" r="1.5" fill="#0A0A0A"/>
+          <circle cx="25" cy="35" r="1.5" fill="#0A0A0A"/>
+        </svg>
+      </div>
+      <span class="nav-label">Home</span>
+    </div>
+    <!-- Feed -->
+    <div class="nav-item">
+      <div class="nav-icon-wrap">
+        <svg class="nav-icon" viewBox="0 0 24 24" stroke="currentColor">
+          <circle cx="12" cy="12" r="2" fill="currentColor"/>
+          <path d="M16.24 7.76a6 6 0 0 1 0 8.49"/>
+          <path d="M7.76 16.24a6 6 0 0 1 0-8.49"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          <path d="M4.93 19.07a10 10 0 0 1 0-14.14"/>
+        </svg>
+      </div>
+      <span class="nav-label">Feed</span>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

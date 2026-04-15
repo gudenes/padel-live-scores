@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
+import { auth } from '@/auth'
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
@@ -26,8 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Racket not found or has no product URL' }, { status: 404 })
   }
 
-  // Try to get the current user session for user_id tracking
-  const { data: { session } } = await supabase.auth.getSession()
+  const session = await auth()
   const userId = session?.user?.id ?? null
 
   // Fire-and-forget: insert click record

@@ -12,14 +12,12 @@ import { Match, pairName, isWarmingUp, parseSetScore } from '@/types/match'
 import Spinner from '@/app/components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
-import { reportBatchFailures } from '@/lib/supabase-health'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
 import FollowButton from '@/components/FollowButton'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import { useFormatter, useTranslations } from 'next-intl'
 import { TIME_24H, DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
-import { useWakeRefresh } from '@/hooks/useWakeRefresh'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { ResultCard } from '@/components/ResultCard'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
@@ -2053,11 +2051,6 @@ function V3HomePageInner() {
         return []
       }
 
-      // Count failures for wedge detection (auto-recovery if Supabase
-      // client is stuck — see src/lib/supabase-health.ts)
-      const failureCount = results.filter(r => r.status === 'rejected').length
-      void reportBatchFailures(failureCount, results.length, 'V3 Home')
-
       // Note: the legacy "filter out sim_ external_id" guard was removed
       // after scripts/purge-simulated.ts cleaned the orphan simulator
       // matches from the DB. Future simulator runs use source='simulated'
@@ -2087,9 +2080,6 @@ function V3HomePageInner() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
-
-  // Recover from tab-idle Supabase auth lock deadlock — see useWakeRefresh
-  useWakeRefresh(fetchData)
 
   // Realtime subscription for live matches
   useEffect(() => {

@@ -7,7 +7,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { supabase } from '@/lib/supabase'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -64,20 +63,13 @@ export function usePushNotifications() {
         applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
       })
 
-      const subJson = subscription.toJSON()
+      const sub = subscription
 
-      const { error } = await supabase
-        .from('push_subscriptions')
-        .upsert({
-          user_id: user.id,
-          endpoint: subJson.endpoint!,
-          keys: subJson.keys!,
-        }, { onConflict: 'user_id,endpoint' })
-
-      if (error) {
-        console.error('[Push] Failed to save subscription:', error)
-        return false
-      }
+      await fetch('/api/user/push-subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.toJSON().keys, expirationTime: sub.expirationTime }),
+      })
 
       setEnabled(true)
       return true
@@ -99,11 +91,11 @@ export function usePushNotifications() {
 
         await subscription.unsubscribe()
 
-        await supabase
-          .from('push_subscriptions')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('endpoint', endpoint)
+        await fetch('/api/user/push-subscriptions', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint }),
+        })
       }
 
       setEnabled(false)

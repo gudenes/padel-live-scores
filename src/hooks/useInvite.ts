@@ -12,7 +12,6 @@ import { useAuth } from '@/components/AuthProvider'
 import { ensureReferralCode, countReferralsByUser } from '@/lib/referral'
 import { tierForCount, AmbassadorTierSpec } from '@/lib/ambassador'
 import { logActivity } from '@/lib/activity-log'
-import { checkBadgeInline } from '@/lib/badge-check-inline'
 
 const SHARE_TITLE = 'PadelNachos'
 const SHARE_TEXT = 'Follow live padel scores on PadelNachos 🎾'
@@ -81,7 +80,7 @@ export function useInvite(): UseInviteResult {
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({ title: SHARE_TITLE, text: SHARE_TEXT, url: inviteUrl })
-        if (user) { void logActivity(user.id, 'share'); void checkBadgeInline(user.id, 'share_app') }
+        if (user) { void logActivity(user.id, 'share') }
         return { ok: true, fallback: 'native' }
       } catch (err) {
         // User cancelled or share failed — fall through to clipboard
@@ -92,7 +91,7 @@ export function useInvite(): UseInviteResult {
     // Clipboard fallback
     try {
       await navigator.clipboard.writeText(inviteUrl)
-      if (user) { void logActivity(user.id, 'share'); void checkBadgeInline(user.id, 'share_app') }
+      if (user) { void logActivity(user.id, 'share') }
       return { ok: true, fallback: 'clipboard' }
     } catch {
       return { ok: false, fallback: null }

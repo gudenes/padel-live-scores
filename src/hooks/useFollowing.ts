@@ -8,8 +8,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
-import { supabase } from '@/lib/supabase'
-import { checkBadgeInline } from '@/lib/badge-check-inline'
 import { BOOKMARK_EVENT, type BookmarkEventDetail } from '@/components/BookmarkToast'
 
 export type FollowType = 'match' | 'player' | 'tournament' | 'news_source'
@@ -95,18 +93,14 @@ export function useFollowing() {
       const local = readLocalStorage()
 
       if (user) {
-        // Fetch DB types from Supabase in one query
-        const { data } = await supabase
-          .from('user_bookmarks')
-          .select('bookmark_type, target_id')
-          .eq('user_id', user.id)
-          .in('bookmark_type', DB_TYPES)
+        const res = await fetch('/api/user/bookmarks')
+        const data: { bookmark_type: string; target_id: string }[] = res.ok ? await res.json() : []
 
         const dbMatches = new Set<string>()
         const dbPlayers = new Set<string>()
         const dbTournaments = new Set<string>()
 
-        for (const row of data ?? []) {
+        for (const row of data) {
           if (row.bookmark_type === 'match') dbMatches.add(row.target_id)
           else if (row.bookmark_type === 'player') dbPlayers.add(row.target_id)
           else if (row.bookmark_type === 'tournament') dbTournaments.add(row.target_id)
@@ -173,25 +167,17 @@ export function useFollowing() {
       if (user && type !== 'news_source') {
         const dbType = typeToDbType(type)
         if (isCurrently) {
-          await supabase
-            .from('user_bookmarks')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('bookmark_type', dbType)
-            .eq('target_id', targetId)
-        } else {
-          await supabase.from('user_bookmarks').insert({
-            user_id: user.id,
-            bookmark_type: dbType,
-            target_id: targetId,
+          await fetch('/api/user/bookmarks', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookmark_type: dbType, target_id: targetId }),
           })
-          const badgeForType: Record<string, string> = {
-            match: 'follow_matches',
-            player: 'follow_players',
-            tournament: 'follow_tournaments',
-          }
-          const badgeId = badgeForType[type]
-          if (badgeId && user) void checkBadgeInline(user.id, badgeId)
+        } else {
+          await fetch('/api/user/bookmarks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookmark_type: dbType, target_id: targetId }),
+          })
         }
       }
     },

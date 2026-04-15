@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tournament Collapse/Expand Mockups</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --green: #7ED321;
+    --orange: #F5A623;
+    --bg: #0A0A0A;
+    --card: #1A1A1A;
+    --card-header: #1e1e1e;
+    --muted: #6B7280;
+    --border: rgba(255,255,255,0.06);
+    --text: #ffffff;
+    --text-dim: #888;
+    --clip-card: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --clip-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    text-align: center;
+    padding: 32px 16px 8px;
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  .reset-bar {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .reset-btn {
+    background: transparent;
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 16px;
+    cursor: pointer;
+    clip-path: var(--clip-badge);
+    transition: all 0.2s;
+  }
+
+  .reset-btn:hover {
+    border-color: var(--orange);
+    color: var(--orange);
+  }
+
+  .mockups {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    padding: 0 16px 64px;
+    flex-wrap: wrap;
+  }
+
+  .mockup-col {
+    width: 375px;
+    flex-shrink: 0;
+  }
+
+  .mockup-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .mockup-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .phone-frame {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    clip-path: var(--clip-card);
+    padding: 12px 0;
+    min-height: 200px;
+  }
+
+  /* ── Match Row (shared) ── */
+  .match-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    transition: opacity 0.3s, transform 0.3s;
+  }
+
+  .match-row:last-child { border-bottom: none; }
+
+  .match-teams {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .match-team {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .match-team.winner { color: var(--green); font-weight: 700; }
+  .match-team.loser { opacity: 0.5; }
+
+  .flag { font-size: 13px; }
+
+  .team-name {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+  }
+
+  .match-scores {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .set-score { width: 14px; text-align: center; }
+  .set-score.win { color: var(--text); }
+  .set-score.loss { color: var(--muted); }
+
+  .match-status {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    clip-path: var(--clip-badge);
+    margin-left: 8px;
+    white-space: nowrap;
+  }
+
+  .status-finished { background: rgba(126,211,33,0.15); color: var(--green); }
+  .status-live { background: rgba(245,166,35,0.2); color: var(--orange); }
+  .status-upcoming { background: rgba(255,255,255,0.05); color: var(--muted); }
+
+  .state-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-align: right;
+    padding: 4px 14px 0;
+  }
+
+  /* ═══════════════════════════════════════════
+     OPTION A — FotMob Style
+     ═══════════════════════════════════════════ */
+
+  .optA-group {
+    margin-bottom: 2px;
+  }
+
+  .optA-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--card-header);
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background 0.2s;
+  }
+
+  .optA-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--green);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+    transform-origin: left;
+  }
+
+  .optA-group.expanded .optA-header::before {
+    transform: scaleX(1);
+  }
+
+  .optA-header:hover { background: #222; }
+
+  .optA-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .optA-name {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .optA-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .optA-count {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px;
+    clip-path: var(--clip-badge);
+  }
+
+  .optA-chevron {
+    font-size: 10px;
+    color: var(--muted);
+    transition: transform 0.3s ease;
+    display: inline-block;
+  }
+
+  .optA-group.expanded .optA-chevron {
+    transform: rotate(0deg);
+  }
+
+  .optA-group:not(.expanded) .optA-chevron {
+    transform: rotate(-90deg);
+  }
+
+  .optA-content {
+    background: var(--card);
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .optA-group.expanded .optA-content {
+    max-height: 400px;
+  }
+
+  /* ═══════════════════════════════════════════
+     OPTION B — Left Border Accent
+     ═══════════════════════════════════════════ */
+
+  .optB-group {
+    margin-bottom: 4px;
+    border-left: 3px solid var(--muted);
+    transition: border-color 0.3s ease;
+    background: var(--card);
+  }
+
+  .optB-group.expanded {
+    border-left-color: var(--green);
+  }
+
+  .optB-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .optB-header:hover { background: rgba(255,255,255,0.02); }
+
+  .optB-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .optB-name {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .optB-count {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .optB-toggle {
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--muted);
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+  }
+
+  .optB-group.expanded .optB-toggle { color: var(--green); }
+
+  .optB-content {
+    overflow: hidden;
+  }
+
+  .optB-content .match-row {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  .optB-group.expanded .optB-content .match-row {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .optB-content {
+    max-height: 0;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .optB-group.expanded .optB-content {
+    max-height: 400px;
+  }
+
+  /* ═══════════════════════════════════════════
+     OPTION C — Pill Toggle
+     ═══════════════════════════════════════════ */
+
+  .optC-group {
+    margin-bottom: 4px;
+    background: var(--card);
+    clip-path: var(--clip-card);
+  }
+
+  .optC-group:not(.expanded) {
+    opacity: 0.7;
+    transition: opacity 0.3s;
+  }
+
+  .optC-group.expanded {
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+
+  .optC-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    user-select: none;
+  }
+
+  .optC-name {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .optC-pill {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 12px;
+    cursor: pointer;
+    clip-path: var(--clip-badge);
+    transition: all 0.25s ease;
+    letter-spacing: 0.3px;
+  }
+
+  .optC-group.expanded .optC-pill {
+    background: var(--green);
+    color: #000;
+  }
+
+  .optC-group:not(.expanded) .optC-pill {
+    background: rgba(255,255,255,0.08);
+    color: var(--muted);
+  }
+
+  .optC-pill:hover {
+    filter: brightness(1.2);
+  }
+
+  .optC-content {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .optC-group.expanded .optC-content {
+    max-height: 400px;
+  }
+
+  /* ═══════════════════════════════════════════
+     OPTION D — Swipe Card / Premium
+     ═══════════════════════════════════════════ */
+
+  .optD-group {
+    margin-bottom: 4px;
+    background: var(--card);
+    clip-path: var(--clip-card);
+  }
+
+  .optD-header {
+    padding: 10px 14px 8px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+  }
+
+  .optD-header:hover { background: rgba(255,255,255,0.02); }
+
+  .optD-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .optD-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .optD-name {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .optD-level {
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--orange);
+    background: rgba(245,166,35,0.15);
+    padding: 2px 8px;
+    clip-path: var(--clip-badge);
+    letter-spacing: 0.5px;
+  }
+
+  .optD-flag-icon {
+    font-size: 14px;
+  }
+
+  .optD-summary {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    transition: opacity 0.2s;
+    font-weight: 500;
+  }
+
+  .optD-summary .w { color: var(--green); }
+  .optD-summary .l { color: #FF4655; }
+
+  .optD-group.expanded .optD-summary { display: none; }
+
+  .optD-progress {
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+    margin-top: 6px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .optD-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--green);
+    transition: width 0.4s ease;
+  }
+
+  .optD-content {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .optD-group.expanded .optD-content {
+    max-height: 400px;
+  }
+
+  .optD-content-inner {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  }
+</style>
+</head>
+<body>
+
+<h1>Tournament Collapse/Expand</h1>
+<p class="subtitle">4 design options -- click headers to toggle, compare behaviors</p>
+<div class="reset-bar">
+  <button class="reset-btn" onclick="resetAll()">Reset All</button>
+</div>
+
+<div class="mockups">
+
+  <!-- ══════════ OPTION A ══════════ -->
+  <div class="mockup-col">
+    <div class="mockup-label">A -- FotMob Style</div>
+    <div class="mockup-desc">Clean minimal header. Green top accent when expanded. Chevron rotates. Smooth max-height transition.</div>
+    <div class="phone-frame" id="frameA">
+
+      <!-- Group 1 -->
+      <div class="optA-group expanded" data-opt="A">
+        <div class="optA-header" onclick="toggleA(this)">
+          <div class="optA-left">
+            <span style="font-size:14px">&#127466;&#127468;</span>
+            <span class="optA-name">Egypt New Giza P2</span>
+          </div>
+          <div class="optA-right">
+            <span class="optA-count">4</span>
+            <span class="optA-chevron">&#9660;</span>
+          </div>
+        </div>
+        <div class="optA-content" id="a1-content"></div>
+        <div class="state-label">Expanded</div>
+      </div>
+
+      <!-- Group 2 -->
+      <div class="optA-group expanded" data-opt="A" style="margin-top:2px">
+        <div class="optA-header" onclick="toggleA(this)">
+          <div class="optA-left">
+            <span style="font-size:14px">&#127466;&#127480;</span>
+            <span class="optA-name">Spain Sevilla P1</span>
+          </div>
+          <div class="optA-right">
+            <span class="optA-count">3</span>
+            <span class="optA-chevron">&#9660;</span>
+          </div>
+        </div>
+        <div class="optA-content" id="a2-content"></div>
+        <div class="state-label">Expanded</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ OPTION B ══════════ -->
+  <div class="mockup-col">
+    <div class="mockup-label">B -- Left Border Accent</div>
+    <div class="mockup-desc">3px left border (green=expanded, muted=collapsed). Plus/minus toggle. Content slides in with opacity + translateY.</div>
+    <div class="phone-frame" id="frameB">
+
+      <div class="optB-group expanded" data-opt="B">
+        <div class="optB-header" onclick="toggleB(this)">
+          <div class="optB-left">
+            <span style="font-size:14px">&#127466;&#127468;</span>
+            <span class="optB-name">Egypt New Giza P2</span>
+            <span class="optB-count">4 matches</span>
+          </div>
+          <div class="optB-toggle">&minus;</div>
+        </div>
+        <div class="optB-content" id="b1-content"></div>
+        <div class="state-label">Expanded</div>
+      </div>
+
+      <div class="optB-group expanded" data-opt="B" style="margin-top:4px">
+        <div class="optB-header" onclick="toggleB(this)">
+          <div class="optB-left">
+            <span style="font-size:14px">&#127466;&#127480;</span>
+            <span class="optB-name">Spain Sevilla P1</span>
+            <span class="optB-count">3 matches</span>
+          </div>
+          <div class="optB-toggle">&minus;</div>
+        </div>
+        <div class="optB-content" id="b2-content"></div>
+        <div class="state-label">Expanded</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ OPTION C ══════════ -->
+  <div class="mockup-col">
+    <div class="mockup-label">C -- Pill Toggle</div>
+    <div class="mockup-desc">Pill chip is the tap target. Green=expanded, dark=collapsed. Header dims when collapsed. No chevron.</div>
+    <div class="phone-frame" id="frameC">
+
+      <div class="optC-group expanded" data-opt="C">
+        <div class="optC-header">
+          <div class="optC-left" style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:14px">&#127466;&#127468;</span>
+            <span class="optC-name">Egypt New Giza P2</span>
+          </div>
+          <span class="optC-pill" onclick="toggleC(this)">4 matches</span>
+        </div>
+        <div class="optC-content" id="c1-content"></div>
+        <div class="state-label">Expanded</div>
+      </div>
+
+      <div class="optC-group expanded" data-opt="C" style="margin-top:4px">
+        <div class="optC-header">
+          <div class="optC-left" style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:14px">&#127466;&#127480;</span>
+            <span class="optC-name">Spain Sevilla P1</span>
+          </div>
+          <span class="optC-pill" onclick="toggleC(this)">3 matches</span>
+        </div>
+        <div class="optC-content" id="c2-content"></div>
+        <div class="state-label">Expanded</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════ OPTION D ══════════ -->
+  <div class="mockup-col">
+    <div class="mockup-label">D -- Swipe Card / Premium</div>
+    <div class="mockup-desc">Level badge + flag. Progress bar showing finished matches. Collapsed shows inline summary. Chunky clip-path on header.</div>
+    <div class="phone-frame" id="frameD">
+
+      <div class="optD-group expanded" data-opt="D">
+        <div class="optD-header" onclick="toggleD(this)">
+          <div class="optD-top">
+            <div class="optD-left">
+              <span class="optD-flag-icon">&#127466;&#127468;</span>
+              <span class="optD-name">Egypt New Giza</span>
+              <span class="optD-level">P2</span>
+            </div>
+          </div>
+          <div class="optD-summary"><span class="w">2W</span> &middot; <span class="l">1L</span> &middot; 1 upcoming</div>
+          <div class="optD-progress"><div class="optD-progress-fill" style="width:75%"></div></div>
+        </div>
+        <div class="optD-content" id="d1-content"></div>
+        <div class="state-label">Expanded</div>
+      </div>
+
+      <div class="optD-group expanded" data-opt="D" style="margin-top:4px">
+        <div class="optD-header" onclick="toggleD(this)">
+          <div class="optD-top">
+            <div class="optD-left">
+              <span class="optD-flag-icon">&#127466;&#127480;</span>
+              <span class="optD-name">Spain Sevilla</span>
+              <span class="optD-level">P1</span>
+            </div>
+          </div>
+          <div class="optD-summary"><span class="w">1W</span> &middot; <span class="l">1L</span> &middot; 1 upcoming</div>
+          <div class="optD-progress"><div class="optD-progress-fill" style="width:67%"></div></div>
+        </div>
+        <div class="optD-content" id="d2-content"></div>
+        <div class="state-label">Expanded</div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Match data ──
+  const matchesGroup1 = [
+    { t1: '&#127462;&#127479; L. Capra / A. Torre', t2: '&#127466;&#127480; A. Galan / F. Chingotto', s: [[6,3],[4,6],[7,5]], status: 'finished', w: 1 },
+    { t1: '&#127463;&#127479; L. Augsburger / M. Ramos', t2: '&#127462;&#127479; F. Stupaczuk / M. Di Nenno', s: [[3,6],[6,4],[6,3]], status: 'finished', w: 2 },
+    { t1: '&#127466;&#127480; J. Lebron / A. Ruiz', t2: '&#127462;&#127479; M. Gonzalez / J. Cruz', s: [[5,3]], status: 'live', w: 0 },
+    { t1: '&#127466;&#127480; P. Cardona / A. Coello', t2: '&#127463;&#127479; P. Barrera / R. Groenendaal', s: [], status: 'upcoming', w: 0 },
+  ];
+
+  const matchesGroup2 = [
+    { t1: '&#127466;&#127480; M. Ortega / M. Josemaria', t2: '&#127462;&#127479; V. Iglesias / A. Salazar', s: [[6,2],[6,4]], status: 'finished', w: 1 },
+    { t1: '&#127463;&#127479; B. Bidahorria / T. Caldera', t2: '&#127466;&#127480; G. Triay / C. Fernandez', s: [[4,6],[7,5],[3,4]], status: 'live', w: 0 },
+    { t1: '&#127462;&#127479; D. Brea / B. Gonzalez', t2: '&#127466;&#127480; A. Llaguno / P. Araujo', s: [], status: 'upcoming', w: 0 },
+  ];
+
+  function renderMatchRow(m, idx) {
+    const statusClass = m.status === 'finished' ? 'status-finished' : m.status === 'live' ? 'status-live' : 'status-upcoming';
+    const statusText = m.status === 'finished' ? 'FT' : m.status === 'live' ? 'LIVE' : 'TBD';
+
+    let scoresHtml = '';
+    if (m.s.length) {
+      scoresHtml = m.s.map(([a,b]) => {
+        const aClass = a > b ? 'win' : 'loss';
+        const bClass = b > a ? 'win' : 'loss';
+        return `<span class="set-score ${aClass}">${a}</span><span class="set-score ${bClass}">${b}</span>`;
+      }).join('<span style="width:4px"></span>');
+    }
+
+    const t1Class = m.w === 1 ? 'winner' : (m.w === 2 ? 'loser' : '');
+    const t2Class = m.w === 2 ? 'winner' : (m.w === 1 ? 'loser' : '');
+
+    return `<div class="match-row" style="transition-delay:${idx * 50}ms">
+      <div class="match-teams">
+        <div class="match-team ${t1Class}"><span class="team-name">${m.t1}</span></div>
+        <div class="match-team ${t2Class}"><span class="team-name">${m.t2}</span></div>
+      </div>
+      <div class="match-scores">${scoresHtml}</div>
+      <span class="match-status ${statusClass}">${statusText}</span>
+    </div>`;
+  }
+
+  function fillContainer(id, matches) {
+    document.getElementById(id).innerHTML = matches.map((m, i) => renderMatchRow(m, i)).join('');
+  }
+
+  // Fill all containers
+  ['a','b','c','d'].forEach(opt => {
+    fillContainer(opt + '1-content', matchesGroup1);
+    fillContainer(opt + '2-content', matchesGroup2);
+  });
+
+  // ── Toggle functions ──
+
+  function updateStateLabel(group) {
+    const label = group.querySelector('.state-label');
+    if (label) label.textContent = group.classList.contains('expanded') ? 'Expanded' : 'Collapsed';
+  }
+
+  function toggleA(header) {
+    const group = header.closest('.optA-group');
+    group.classList.toggle('expanded');
+    updateStateLabel(group);
+  }
+
+  function toggleB(header) {
+    const group = header.closest('.optB-group');
+    group.classList.toggle('expanded');
+    const toggle = group.querySelector('.optB-toggle');
+    toggle.innerHTML = group.classList.contains('expanded') ? '&minus;' : '+';
+    updateStateLabel(group);
+  }
+
+  function toggleC(pill) {
+    const group = pill.closest('.optC-group');
+    group.classList.toggle('expanded');
+    updateStateLabel(group);
+  }
+
+  function toggleD(header) {
+    const group = header.closest('.optD-group');
+    group.classList.toggle('expanded');
+    updateStateLabel(group);
+  }
+
+  function resetAll() {
+    document.querySelectorAll('[data-opt]').forEach(g => {
+      g.classList.add('expanded');
+      updateStateLabel(g);
+      const toggle = g.querySelector('.optB-toggle');
+      if (toggle) toggle.innerHTML = '&minus;';
+    });
+  }
+</script>
+
+</body>
+</html>

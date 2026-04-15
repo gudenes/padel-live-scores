@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Racket Widget — 3 Options</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    color: #fff;
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    padding: 32px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+  }
+
+  h1 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.3);
+    font-weight: 700;
+  }
+
+  .option-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #F5A623;
+    font-weight: 800;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  .option-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+    text-align: center;
+    max-width: 340px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* Simulate the player profile grid context */
+  .grid-context {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 375px;
+  }
+
+  .last10-placeholder {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 12px;
+    min-height: 160px;
+  }
+  .last10-placeholder .label {
+    font-size: 9px; color: #F5A623; text-transform: uppercase;
+    letter-spacing: 1px; font-weight: 700; margin-bottom: 8px;
+  }
+  .last10-bars {
+    display: flex; align-items: flex-end; gap: 3px; height: 44px; margin-top: 8px;
+  }
+  .last10-bars .bar {
+    flex: 1; border-radius: 2px 2px 0 0; min-width: 0;
+  }
+  .last10-footer {
+    display: flex; justify-content: space-between;
+    font-size: 7px; color: rgba(255,255,255,0.25); margin-top: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+  }
+  .last10-record {
+    font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 6px;
+  }
+  .last10-record b { color: #7ed321; font-size: 14px; }
+
+  /* Shared widget base */
+  .widget {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 12px;
+    min-height: 160px;
+    position: relative;
+    overflow: hidden;
+  }
+  .widget-label {
+    font-size: 9px; color: #F5A623; text-transform: uppercase;
+    letter-spacing: 1px; font-weight: 700; margin-bottom: 8px;
+  }
+
+  .brand-name {
+    font-size: 10px; font-weight: 800; color: #F5A623;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .racket-img {
+    height: 64px; object-fit: contain; display: block;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+  }
+
+  .model-name {
+    font-size: 11px; font-weight: 700; color: #fff; line-height: 1.2;
+  }
+  .model-year {
+    font-size: 9px; color: rgba(255,255,255,0.3); margin-top: 1px;
+  }
+
+  .spec-pill {
+    font-size: 8px; font-weight: 600; color: rgba(255,255,255,0.6);
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 3px; padding: 2px 5px;
+    display: inline-flex; align-items: center; gap: 2px;
+  }
+
+  .learn-more {
+    font-size: 8px; color: #4A6F8E; font-weight: 600;
+    background: none; border: none; cursor: pointer; padding: 0;
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+
+  .divider {
+    width: 100%; height: 1px; background: rgba(255,255,255,0.06);
+    margin: 40px 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>Racket Widget — Pick Your Favorite</h1>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- OPTION A: Card with centered image + specs row below -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div>
+  <div class="option-label">Option A — Centered Stack</div>
+  <div class="option-desc">Classic centered layout. Image prominent, specs as a subtle row below the model name.</div>
+  <div class="grid-context">
+    <!-- Last 10 placeholder -->
+    <div class="last10-placeholder">
+      <div class="label">Últimos 10 partidos</div>
+      <div class="last10-bars">
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:100%; background:#7ed321; position:relative">
+          <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid #F5A623"></div>
+        </div>
+      </div>
+      <div class="last10-footer"><span>Oldest</span><span style="color:#F5A623">Latest</span></div>
+      <div class="last10-record"><b>7-3</b> últimos 10</div>
+    </div>
+
+    <!-- Option A widget -->
+    <div class="widget">
+      <div class="widget-label">Juega con</div>
+      <div class="brand-name" style="margin-bottom: 6px">HEAD</div>
+      <div style="text-align: center; margin-bottom: 8px">
+        <img src="https://padelusa.com/cdn/shop/files/Head-_Extreme_Motion_2025_Padel_Racket_PadelUSA_store_1.webp?v=1756326044" alt="Extreme Motion" class="racket-img" style="margin: 0 auto">
+      </div>
+      <div class="model-name">Extreme Motion</div>
+      <div class="model-year">2025</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px">
+        <span class="spec-pill">
+          <svg width="7" height="7" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="8,1 15,8 8,15 1,8"/></svg>
+          Diamond
+        </span>
+        <span class="spec-pill">365g</span>
+        <span class="spec-pill">Head Heavy</span>
+      </div>
+      <button class="learn-more" style="margin-top: 6px">
+        Learn more
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- OPTION B: Side-by-side with image left, info right -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div>
+  <div class="option-label">Option B — Compact Horizontal</div>
+  <div class="option-desc">Image tucked left, info stacked right. Feels denser and more editorial. Specs as inline text instead of pills.</div>
+  <div class="grid-context">
+    <!-- Last 10 placeholder -->
+    <div class="last10-placeholder">
+      <div class="label">Últimos 10 partidos</div>
+      <div class="last10-bars">
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:100%; background:#7ed321; position:relative">
+          <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid #F5A623"></div>
+        </div>
+      </div>
+      <div class="last10-footer"><span>Oldest</span><span style="color:#F5A623">Latest</span></div>
+      <div class="last10-record"><b>7-3</b> últimos 10</div>
+    </div>
+
+    <!-- Option B widget — text left, racket right -->
+    <div class="widget" style="padding: 12px 10px">
+      <div class="widget-label">Juega con</div>
+      <div style="display: flex; gap: 10px; align-items: center; margin-top: 2px">
+        <!-- Info column (left) -->
+        <div style="flex: 1; min-width: 0">
+          <div class="brand-name" style="font-size: 9px; margin-bottom: 2px">HEAD</div>
+          <div class="model-name" style="font-size: 12px">Extreme Motion</div>
+          <div class="model-year">2025</div>
+          <!-- Specs as text lines -->
+          <div style="margin-top: 6px; font-size: 9px; color: rgba(255,255,255,0.4); line-height: 1.6">
+            <div style="display: flex; justify-content: space-between">
+              <span>Shape</span>
+              <span style="color: rgba(255,255,255,0.65); font-weight: 600">Diamond</span>
+            </div>
+            <div style="display: flex; justify-content: space-between">
+              <span>Weight</span>
+              <span style="color: rgba(255,255,255,0.65); font-weight: 600">365g</span>
+            </div>
+            <div style="display: flex; justify-content: space-between">
+              <span>Balance</span>
+              <span style="color: rgba(255,255,255,0.65); font-weight: 600">Head Heavy</span>
+            </div>
+          </div>
+          <button class="learn-more" style="margin-top: 6px">
+            Learn more
+            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <!-- Image column (right) -->
+        <div style="flex-shrink: 0; width: 56px; text-align: center">
+          <img src="https://padelusa.com/cdn/shop/files/Head-_Extreme_Motion_2025_Padel_Racket_PadelUSA_store_1.webp?v=1756326044" alt="Extreme Motion" style="height: 72px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5))">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- OPTION C: Product card with gradient accent -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div>
+  <div class="option-label">Option C — Product Showcase</div>
+  <div class="option-desc">Bigger image with a subtle brand-color gradient glow. Specs as a compact footer strip. Feels premium and product-focused.</div>
+  <div class="grid-context">
+    <!-- Last 10 placeholder -->
+    <div class="last10-placeholder">
+      <div class="label">Últimos 10 partidos</div>
+      <div class="last10-bars">
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:75%; background:#7ed321"></div>
+        <div class="bar" style="height:30%; background:#d32f2f"></div>
+        <div class="bar" style="height:100%; background:#7ed321; position:relative">
+          <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:4px solid #F5A623"></div>
+        </div>
+      </div>
+      <div class="last10-footer"><span>Oldest</span><span style="color:#F5A623">Latest</span></div>
+      <div class="last10-record"><b>7-3</b> últimos 10</div>
+    </div>
+
+    <!-- Option C widget -->
+    <div class="widget" style="padding: 0; display: flex; flex-direction: column">
+      <!-- Top section with glow -->
+      <div style="position: relative; padding: 12px 12px 0; flex: 1">
+        <div class="widget-label">Juega con</div>
+        <!-- Subtle radial glow behind racket -->
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -40%); width: 100px; height: 100px; background: radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 70%); pointer-events: none"></div>
+        <div style="text-align: center; position: relative; margin-bottom: 6px">
+          <img src="https://padelusa.com/cdn/shop/files/Head-_Extreme_Motion_2025_Padel_Racket_PadelUSA_store_1.webp?v=1756326044" alt="Extreme Motion" style="height: 72px; object-fit: contain; filter: drop-shadow(0 3px 10px rgba(0,0,0,0.6))">
+        </div>
+        <div style="text-align: center">
+          <div class="brand-name" style="font-size: 9px; margin-bottom: 1px">HEAD</div>
+          <div class="model-name" style="font-size: 12px">Extreme Motion</div>
+          <div class="model-year">2025</div>
+        </div>
+      </div>
+      <!-- Specs footer strip -->
+      <div style="
+        margin-top: 8px;
+        background: rgba(255,255,255,0.03);
+        border-top: 1px solid rgba(255,255,255,0.06);
+        padding: 6px 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      ">
+        <div style="display: flex; gap: 6px">
+          <div style="text-align: center">
+            <div style="font-size: 7px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px">Shape</div>
+            <div style="font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.7); margin-top: 1px">Diamond</div>
+          </div>
+          <div style="width: 1px; background: rgba(255,255,255,0.06); align-self: stretch"></div>
+          <div style="text-align: center">
+            <div style="font-size: 7px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px">Weight</div>
+            <div style="font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.7); margin-top: 1px">365g</div>
+          </div>
+          <div style="width: 1px; background: rgba(255,255,255,0.06); align-self: stretch"></div>
+          <div style="text-align: center">
+            <div style="font-size: 7px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 0.5px">Balance</div>
+            <div style="font-size: 9px; font-weight: 700; color: rgba(255,255,255,0.7); margin-top: 1px">Head Heavy</div>
+          </div>
+        </div>
+      </div>
+      <!-- Learn more -->
+      <div style="padding: 4px 10px 8px; text-align: center">
+        <button class="learn-more">
+          Learn more
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height: 40px"></div>
+</body>
+</html>
