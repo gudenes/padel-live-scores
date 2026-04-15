@@ -4,13 +4,13 @@ export async function POST(req: Request) {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
 
-  const { endpoint, keys, expirationTime } = await req.json()
+  const { endpoint, keys } = await req.json()
   if (!endpoint || !keys) return Response.json({ error: 'Missing endpoint or keys' }, { status: 400 })
 
   const { error: dbErr } = await supabase
     .from('push_subscriptions')
     .upsert(
-      { user_id: user.id, endpoint, keys, expiration_time: expirationTime ?? null },
+      { user_id: user.id, endpoint, keys },
       { onConflict: 'user_id,endpoint' }
     )
 
