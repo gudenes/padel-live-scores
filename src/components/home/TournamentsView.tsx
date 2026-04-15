@@ -342,7 +342,7 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
                             animation: 'v3-pulse 2s infinite',
                           }} />
                         )}
-                        {heroIsLive ? 'LIVE NOW' : heroIsOngoing ? 'ONGOING' : 'NEXT UP'}
+                        {heroIsLive ? tHome('liveNow') : heroIsOngoing ? tHome('ongoing') : tHome('comingUp')}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                         <FlagImg country={hero.country} size={24} />
