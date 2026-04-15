@@ -48,9 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           html: `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
               <div style="text-align: center; margin-bottom: 32px;">
-                <div style="font-size: 28px; font-weight: 800; color: #000;">
-                  🎾 Padel<span style="color: #7ED321;">Nachos</span>
-                </div>
+                <img src="https://padelnachos.com/padelnachos-logo-v2.png" alt="PadelNachos" style="height: 48px; width: auto;" />
               </div>
               <div style="background: #f9fafb; border-radius: 12px; padding: 32px 24px; text-align: center;">
                 <h1 style="font-size: 20px; font-weight: 700; color: #111; margin: 0 0 8px;">
