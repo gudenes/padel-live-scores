@@ -3,7 +3,7 @@
 // Following page — Smart Sections layout showing bookmarked matches,
 // followed players, followed tournaments, and news sources.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { TIME_24H, DATE_SHORT } from '@/lib/format-patterns'
 import { Link } from '@/i18n/navigation'
@@ -581,7 +581,8 @@ export default function FollowingPage() {
   const tCommon = useTranslations('common')
   const [searchOpen, setSearchOpen] = useState(false)
 
-  const [matches, setMatches] = useState<MatchRow[]>([])
+  // All live/scheduled matches — prefetched immediately (no bookmark dependency)
+  const [allLiveScheduled, setAllLiveScheduled] = useState<MatchRow[]>([])
   const [players, setPlayers] = useState<PlayerData[]>([])
   const [tournaments, setTournaments] = useState<TournamentData[]>([])
 
@@ -593,83 +594,67 @@ export default function FollowingPage() {
   const totalFollows =
     counts.match + counts.player + counts.tournament + counts.news_source
 
-  // ── Fetch data when following state loads ──────────────────
+  // ── Step 1: Prefetch all live/scheduled matches immediately ──
+  // This fires on mount — doesn't wait for bookmarks to load.
+  useEffect(() => {
+    supabase
+      .from('matches')
+      .select(`
+        id, status, scheduled_at, round, category,
+        tournament:tournaments(id, name),
+        pair1_player1:players!pair1_player1_id(id, name, display_name, country),
+        pair1_player2:players!pair1_player2_id(id, name, display_name, country),
+        pair2_player1:players!pair2_player1_id(id, name, display_name, country),
+        pair2_player2:players!pair2_player2_id(id, name, display_name, country),
+        sets(set_number, pair1_games, pair2_games, is_current)
+      `)
+      .in('status', ['live', 'scheduled'])
+      .order('scheduled_at', { ascending: true })
+      .limit(40)
+      .then(({ data }) => {
+        if (data) setAllLiveScheduled(data as unknown as MatchRow[])
+      })
+  }, [])
+
+  // ── Step 2: Fetch players + tournaments after bookmarks load ──
   useEffect(() => {
     if (!loaded) return
 
-    async function fetchData() {
-      // Run all 3 queries in parallel — no reason to wait for each sequentially
-      const hasMatchFilters =
-        followedMatchIds.length > 0 ||
-        followedPlayerIds.length > 0 ||
-        followedTournamentIds.length > 0
+    Promise.all([
+      followedPlayerIds.length > 0
+        ? supabase
+            .from('players')
+            .select('id, name, display_name, country, avatar_url, ranking, category')
+            .in('id', followedPlayerIds)
+        : Promise.resolve({ data: null }),
 
-      const [matchResult, playerResult, tournamentResult] = await Promise.all([
-        // 1. Matches — live/scheduled that overlap with following
-        hasMatchFilters
-          ? supabase
-              .from('matches')
-              .select(`
-                id, status, scheduled_at, round, category,
-                tournament:tournaments(id, name),
-                pair1_player1:players!pair1_player1_id(id, name, display_name, country),
-                pair1_player2:players!pair1_player2_id(id, name, display_name, country),
-                pair2_player1:players!pair2_player1_id(id, name, display_name, country),
-                pair2_player2:players!pair2_player2_id(id, name, display_name, country),
-                sets(set_number, pair1_games, pair2_games, is_current)
-              `)
-              .in('status', ['live', 'scheduled'])
-              .order('scheduled_at', { ascending: true })
-              .limit(40)
-          : Promise.resolve({ data: null }),
-
-        // 2. Players
-        followedPlayerIds.length > 0
-          ? supabase
-              .from('players')
-              .select('id, name, display_name, country, avatar_url, ranking, category')
-              .in('id', followedPlayerIds)
-          : Promise.resolve({ data: null }),
-
-        // 3. Tournaments
-        followedTournamentIds.length > 0
-          ? supabase
-              .from('tournaments')
-              .select('id, name, starts_at, ends_at, logo_url')
-              .in('id', followedTournamentIds)
-          : Promise.resolve({ data: null }),
-      ])
-
-      // Process matches — filter to followed items
-      if (matchResult.data) {
-        const matchRows = matchResult.data as unknown as MatchRow[]
-        const filtered = matchRows.filter(m => {
-          if (followedMatchIds.includes(m.id)) return true
-          if (m.tournament && followedTournamentIds.includes(m.tournament.id)) return true
-          const playerIds = [
-            m.pair1_player1?.id,
-            m.pair1_player2?.id,
-            m.pair2_player1?.id,
-            m.pair2_player2?.id,
-          ].filter(Boolean) as string[]
-          return playerIds.some(pid => followedPlayerIds.includes(pid))
-        })
-        setMatches(filtered)
-      } else {
-        setMatches([])
-      }
-
+      followedTournamentIds.length > 0
+        ? supabase
+            .from('tournaments')
+            .select('id, name, starts_at, ends_at, logo_url')
+            .in('id', followedTournamentIds)
+        : Promise.resolve({ data: null }),
+    ]).then(([playerResult, tournamentResult]) => {
       setPlayers((playerResult.data ?? []) as PlayerData[])
       setTournaments((tournamentResult.data ?? []) as TournamentData[])
-    }
+    })
+  }, [loaded, followedPlayerIds.length, followedTournamentIds.length])
 
-    fetchData()
-  }, [
-    loaded,
-    followedMatchIds.length,
-    followedPlayerIds.length,
-    followedTournamentIds.length,
-  ])
+  // ── Step 3: Filter matches to followed items (runs when either source updates) ──
+  const matches = useMemo(() => {
+    if (!loaded || allLiveScheduled.length === 0) return []
+    return allLiveScheduled.filter(m => {
+      if (followedMatchIds.includes(m.id)) return true
+      if (m.tournament && followedTournamentIds.includes(m.tournament.id)) return true
+      const playerIds = [
+        m.pair1_player1?.id,
+        m.pair1_player2?.id,
+        m.pair2_player1?.id,
+        m.pair2_player2?.id,
+      ].filter(Boolean) as string[]
+      return playerIds.some(pid => followedPlayerIds.includes(pid))
+    })
+  }, [loaded, allLiveScheduled, followedMatchIds, followedPlayerIds, followedTournamentIds])
 
   return (
     <div style={{ background: BG_BASE, minHeight: '100dvh', maxWidth: 500, margin: '0 auto' }}>
