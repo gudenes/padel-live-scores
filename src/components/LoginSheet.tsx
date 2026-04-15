@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { signIn } from 'next-auth/react'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
+import { useTranslations } from 'next-intl'
 
 // ── V3 Brand constants ────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -33,6 +34,7 @@ interface PendingReferral {
 }
 
 export default function LoginSheet({ open, onClose }: LoginSheetProps) {
+  const t = useTranslations('login')
   const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
@@ -65,7 +67,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
       await signIn('resend', { email: email.trim(), redirect: false })
       setSent(true)
     } catch {
-      setError('Failed to send link, please try again')
+      setError(t('errorSendLink'))
     }
     setSending(false)
   }
@@ -129,10 +131,10 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#fff' }}>
-                {(pendingRef.inviterName?.split(' ')[0]) || 'Someone'} invited you
+                {(pendingRef.inviterName?.split(' ')[0]) || t('inviterFallback')} {t('invitedYou')}
               </div>
               <div style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>
-                Sign in to join PadelNachos
+                {t('joinSubtitle')}
               </div>
             </div>
             <div style={{
@@ -143,10 +145,10 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
         )}
 
         <div style={{ textAlign: 'center', color: '#fff', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
-          {pendingRef ? 'Sign in to get started' : 'Sign in to Padel Nachos'}
+          {pendingRef ? t('headingReferral') : t('heading')}
         </div>
         <div style={{ textAlign: 'center', color: MUTED, fontSize: 12, marginBottom: 28 }}>
-          {pendingRef ? 'Live scores, rankings & match alerts await' : 'Sync bookmarks & get match notifications'}
+          {pendingRef ? t('subtitleReferral') : t('subtitle')}
         </div>
 
         {sent ? (
@@ -164,10 +166,10 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
               </svg>
             </div>
             <div style={{ color: '#fff', fontSize: 15, fontWeight: 700, marginBottom: 6 }}>
-              Check your email
+              {t('checkEmail')}
             </div>
             <div style={{ color: MUTED, fontSize: 12 }}>
-              We sent a sign-in link to {email}
+              {t('sentLink', { email })}
             </div>
           </div>
         ) : (
@@ -189,13 +191,13 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
                 <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
               </svg>
-              Continue with Google
+              {t('continueGoogle')}
             </button>
 
             {/* Divider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
               <div style={{ flex: 1, height: 1, background: BORDER }} />
-              <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, letterSpacing: '0.5px' }}>or</div>
+              <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, letterSpacing: '0.5px' }}>{t('or')}</div>
               <div style={{ flex: 1, height: 1, background: BORDER }} />
             </div>
 
@@ -203,7 +205,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 type="email"
-                placeholder="Email address"
+                placeholder={t('emailPlaceholder')}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleMagicLink()}
@@ -227,12 +229,12 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
                   opacity: sending || !email.trim() ? 0.5 : 1,
                 }}
               >
-                {sending ? 'Sending...' : 'Send link'}
+                {sending ? t('sending') : t('sendLink')}
               </button>
             </div>
 
             <div style={{ textAlign: 'center', color: MUTED, fontSize: 10, marginTop: 14 }}>
-              We&apos;ll email you a sign-in link — no password needed
+              {t('helperText')}
             </div>
 
             {error && (

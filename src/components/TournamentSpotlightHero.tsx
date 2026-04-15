@@ -231,6 +231,8 @@ export interface TournamentSpotlightHeroProps {
     countriesCount: number
     matchesCount: number
   } | null
+  /** True when the tournament has at least one match with status='live'. */
+  hasLiveMatches?: boolean
 }
 
 // ── Component ──────────────────────────────────────────────────
@@ -241,6 +243,7 @@ export default function TournamentSpotlightHero({
   defendingChampionWomen,
   topSeeds,
   stats,
+  hasLiveMatches,
 }: TournamentSpotlightHeroProps) {
   const format = useFormatter()
   const t = useTranslations('tournament')
@@ -249,7 +252,7 @@ export default function TournamentSpotlightHero({
 
   // ── Live countdown ─────────────────────────────────────────
   const [countdown, setCountdown] = useState<{ days: number; hours: number; min: number; sec: number } | null>(null)
-  const [isLive, setIsLive] = useState(false)
+  const [isInDateRange, setIsInDateRange] = useState(false)
 
   useEffect(() => {
     function tick() {
@@ -258,13 +261,13 @@ export default function TournamentSpotlightHero({
       const end = new Date(tournament.ends_at).getTime()
 
       if (now >= start && now <= end) {
-        setIsLive(true)
+        setIsInDateRange(true)
         setCountdown(null)
         return
       }
 
       if (now > end) {
-        setIsLive(false)
+        setIsInDateRange(false)
         setCountdown(null)
         return
       }
@@ -274,7 +277,7 @@ export default function TournamentSpotlightHero({
       const hours = Math.floor((diff % 86400000) / 3600000)
       const min = Math.floor((diff % 3600000) / 60000)
       const sec = Math.floor((diff % 60000) / 1000)
-      setIsLive(false)
+      setIsInDateRange(false)
       setCountdown({ days, hours, min, sec })
     }
 
@@ -282,6 +285,10 @@ export default function TournamentSpotlightHero({
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [tournament.starts_at, tournament.ends_at])
+
+  // Derive tournament status: LIVE (has live matches) > ONGOING (in range, no live) > UPCOMING
+  const isLive = isInDateRange && hasLiveMatches
+  const isOngoing = isInDateRange && !hasLiveMatches
 
   const level = levelLabel(tournament.level)
 
@@ -324,13 +331,16 @@ export default function TournamentSpotlightHero({
         {/* ── Row 1: NEXT UP badge + level pill + follow star ── */}
         <AnimateOnView className="sp-piece sp-piece-1" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, position: 'relative' }}>
           <div style={{
-            background: 'rgba(126,211,33,0.2)',
+            background: isLive ? 'rgba(255,69,85,0.15)' : isOngoing ? 'rgba(245,166,35,0.15)' : 'rgba(126,211,33,0.2)',
             clipPath: CHUNKY.badge,
             padding: '4px 10px',
-            display: 'inline-flex', alignItems: 'center',
+            display: 'inline-flex', alignItems: 'center', gap: 5,
           }}>
-            <span style={{ fontSize: 9, fontWeight: 800, color: GREEN, letterSpacing: 1.2, textTransform: 'uppercase' }}>
-              {isLive ? t('liveNow').toUpperCase() : t('nextUp').toUpperCase()}
+            {isLive && (
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF4655', animation: 'v3-pulse 2s infinite' }} />
+            )}
+            <span style={{ fontSize: 9, fontWeight: 800, color: isLive ? '#FF4655' : isOngoing ? AMBER : GREEN, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+              {isLive ? t('liveNow').toUpperCase() : isOngoing ? t('ongoing').toUpperCase() : t('nextUp').toUpperCase()}
             </span>
           </div>
           {level && (

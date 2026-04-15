@@ -1,0 +1,35 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - main [ref=e5]:
+      - generic [ref=e6]:
+        - img "PadelNachos" [ref=e7]
+        - generic [ref=e8] [cursor=pointer]:
+          - img [ref=e9]
+          - generic [ref=e12]: Search players, events, matches...
+        - button "Share PadelNachos" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+        - button [ref=e17] [cursor=pointer]:
+          - img [ref=e19]
+      - generic [ref=e22]:
+        - img "PadelNachos" [ref=e23]
+        - generic [ref=e25]: Loading matches...
+    - navigation [ref=e30]:
+      - link "Home" [ref=e31] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e35]
+        - generic [ref=e38]: Home
+      - link "Matches" [ref=e39] [cursor=pointer]:
+        - /url: /matches
+        - img [ref=e43]
+        - generic [ref=e47]: Matches
+      - link "Following" [ref=e48] [cursor=pointer]:
+        - /url: /following
+        - img [ref=e52]
+        - generic [ref=e54]: Following
+      - link "Feed" [ref=e55] [cursor=pointer]:
+        - /url: /feed
+        - img [ref=e59]
+        - generic [ref=e65]: Feed
+  - button "Open Next.js Dev Tools" [ref=e71] [cursor=pointer]:
+    - img [ref=e72]
+  - alert [ref=e75]

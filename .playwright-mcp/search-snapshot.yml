@@ -1,0 +1,20 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]
+      - generic [ref=e77]
+      - generic [ref=e16]
+      - generic [ref=e20]
+      - generic [ref=e23]
+    - navigation [ref=e31]:
+      - link "Home" [ref=e32] [cursor=pointer]:
+        - /url: /home
+      - link "1 Matches" [ref=e936] [cursor=pointer]:
+        - /url: /matches
+      - link "Following" [ref=e49] [cursor=pointer]:
+        - /url: /following
+      - link "Feed" [ref=e56] [cursor=pointer]:
+        - /url: /feed
+  - button "Open Next.js Dev Tools" [ref=e72] [cursor=pointer]:
+    - img [ref=e73]
+  - alert [ref=e76]

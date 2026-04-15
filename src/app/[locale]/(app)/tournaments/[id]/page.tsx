@@ -932,6 +932,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             drawEntries={drawEntries}
             playerMap={playerMap}
             debutStatusMap={debutStatusMap}
+            liveCount={liveCount}
           />
         )}
 
@@ -1241,7 +1242,7 @@ function ChampionTile({
   )
 }
 
-function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries, playerMap, debutStatusMap }: {
+function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries, playerMap, debutStatusMap, liveCount }: {
   tournament: any
   allMatches: Match[]
   genderFilter: 'men' | 'women'
@@ -1251,6 +1252,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   drawEntries: any[]
   playerMap: Record<string, { avatar_url: string | null; ranking: number | null }>
   debutStatusMap: Record<string, 'fresh' | 'newThisSeason' | null>
+  liveCount: number
 }) {
   const format = useFormatter()
   const tTournament = useTranslations('tournament')
@@ -1485,7 +1487,9 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const now = new Date()
   const daysUntilStart = startsAt ? Math.ceil((startsAt.getTime() - now.getTime()) / 86400000) : null
   const isUpcoming = daysUntilStart != null && daysUntilStart > 0
-  const isLive = startsAt && endsAt && now >= startsAt && now <= endsAt
+  const isInDateRange = !!(startsAt && endsAt && now >= startsAt && now <= endsAt)
+  const isLive = isInDateRange && liveCount > 0
+  const isOngoing = isInDateRange && liveCount === 0
 
   const formatDate = (d: Date) => format.dateTime(d, DATE_WITH_WEEKDAY)
 
@@ -1494,14 +1498,14 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       {/* Tournament timing banner */}
       {startsAt && (
         <div style={{
-          background: isLive ? 'rgba(126,211,33,0.08)' : 'rgba(245,166,35,0.08)',
-          borderLeft: `3px solid ${isLive ? GREEN : '#F5A623'}`,
+          background: isLive ? 'rgba(255,69,85,0.08)' : isOngoing ? 'rgba(245,166,35,0.08)' : isUpcoming ? 'rgba(126,211,33,0.08)' : 'rgba(255,255,255,0.04)',
+          borderLeft: `3px solid ${isLive ? LIVE_RED : isOngoing ? ORANGE : isUpcoming ? GREEN : MUTED}`,
           borderRadius: 4, padding: '10px 14px', marginBottom: 14,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-              {isLive ? tTournament('tournamentInProgress') : isUpcoming ? tTournament('mainDrawStarts') : tTournament('tournamentEnded')}
+              {isLive ? tTournament('tournamentInProgress') : isOngoing ? tTournament('tournamentInProgress') : isUpcoming ? tTournament('mainDrawStarts') : tTournament('tournamentEnded')}
             </div>
             <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
               {formatDate(startsAt)}{endsAt ? ` — ${formatDate(endsAt)}` : ''}
@@ -1517,11 +1521,22 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           )}
           {isLive && (
             <div style={{
-              fontSize: 10, fontWeight: 800, color: GREEN,
-              background: 'rgba(126,211,33,0.15)', padding: '3px 8px', borderRadius: 4,
+              fontSize: 10, fontWeight: 800, color: LIVE_RED,
+              background: 'rgba(255,69,85,0.15)', padding: '3px 8px', borderRadius: 4,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_RED, animation: 'v3-pulse 2s infinite' }} />
+              Live
+            </div>
+          )}
+          {isOngoing && (
+            <div style={{
+              fontSize: 10, fontWeight: 800, color: ORANGE,
+              background: 'rgba(245,166,35,0.15)', padding: '3px 8px', borderRadius: 4,
               textTransform: 'uppercase', letterSpacing: 0.5,
             }}>
-              Live
+              {tTournament('ongoing')}
             </div>
           )}
         </div>

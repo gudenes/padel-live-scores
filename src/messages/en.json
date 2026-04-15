@@ -116,6 +116,7 @@
   },
   "home": {
     "liveNow": "Live Now",
+    "ongoing": "Ongoing",
     "comingUp": "Coming Up",
     "highlightsAndNews": "Highlights & News",
     "tournamentSpotlight": "Tournament Spotlight",
@@ -165,6 +166,7 @@
     "previousEdition": "Previous Edition",
     "seeds": "Seeds",
     "liveNow": "Live Now",
+    "ongoing": "Ongoing",
     "nextUp": "Next Up",
     "viewEventDetails": "View Event Details",
     "menChampion": "Men Champion {year}",
@@ -335,5 +337,35 @@
     "dataP1": "Our scores come from official tournament APIs and are verified against multiple sources. During live matches, data refreshes constantly to keep you as close to real-time as possible.",
     "dataP2": "We already track more than 3,000 players across men's and women's categories, and our database keeps growing every week.",
     "contact": "Questions? Reach us at"
+  },
+  "login": {
+    "heading": "Sign in to Padel Nachos",
+    "headingReferral": "Sign in to get started",
+    "subtitle": "Sync bookmarks & get match notifications",
+    "subtitleReferral": "Live scores, rankings & match alerts await",
+    "inviterFallback": "Someone",
+    "invitedYou": "invited you",
+    "joinSubtitle": "Sign in to join PadelNachos",
+    "checkEmail": "Check your email",
+    "sentLink": "We sent a sign-in link to {email}",
+    "continueGoogle": "Continue with Google",
+    "or": "or",
+    "emailPlaceholder": "Email address",
+    "sending": "Sending...",
+    "sendLink": "Send link",
+    "helperText": "We'll email you a sign-in link — no password needed",
+    "errorSignIn": "Sign in failed, please try again",
+    "errorSendLink": "Failed to send link, please try again"
+  },
+  "onboarding": {
+    "step1Title": "Find anything",
+    "step1Desc": "Find your favorite players, upcoming tournaments and matches.",
+    "step2Title": "Your following feed",
+    "step2Desc": "Follow the players and tournaments you love. Everything you care about, all in one place!",
+    "step3Title": "Earn badges",
+    "step3Desc": "Unlock badges as you explore! From Rookie to Padel Genius, collect them all and show off your padel passion.",
+    "skip": "Skip",
+    "next": "Next →",
+    "done": "Done"
   }
 }

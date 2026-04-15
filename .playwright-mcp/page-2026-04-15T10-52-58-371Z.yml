@@ -1,0 +1,25 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - img "PadelNachos" [ref=e6]
+      - generic [ref=e8]: Loading your profile...
+    - navigation [ref=e13]:
+      - link "Home" [ref=e14] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e18]
+        - generic [ref=e21]: Home
+      - link "Matches" [ref=e22] [cursor=pointer]:
+        - /url: /matches
+        - img [ref=e26]
+        - generic [ref=e30]: Matches
+      - link "Following" [ref=e31] [cursor=pointer]:
+        - /url: /following
+        - img [ref=e35]
+        - generic [ref=e37]: Following
+      - link "Feed" [ref=e38] [cursor=pointer]:
+        - /url: /feed
+        - img [ref=e42]
+        - generic [ref=e48]: Feed
+  - button "Open Next.js Dev Tools" [ref=e54] [cursor=pointer]:
+    - img [ref=e55]
+  - alert [ref=e58]

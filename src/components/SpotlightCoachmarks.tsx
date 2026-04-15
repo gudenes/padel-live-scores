@@ -10,6 +10,7 @@
 //   3. Profile button — "Unlock badges as you explore..."
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 
 const GREEN = '#7ED321'
 const CHUNKY_CARD = 'polygon(0% 2%, 100% 0%, 99.5% 98%, 0.5% 100%)'
@@ -66,29 +67,34 @@ function StepIcon({ type }: { type: 'search' | 'following' | 'badges' }) {
   )
 }
 
-const STEPS: Step[] = [
-  {
-    title: 'Find anything',
-    description: 'Find your favorite players, upcoming tournaments and matches.',
-    targetSelector: '[data-coachmark="search"]',
-    iconType: 'search',
-  },
-  {
-    title: 'Your following feed',
-    description: 'Follow the players and tournaments you love. Everything you care about, all in one place!',
-    targetSelector: '[data-coachmark="following"]',
-    iconType: 'following',
-  },
-  {
-    title: 'Earn badges',
-    description: 'Unlock badges as you explore! From Rookie to Padel Genius, collect them all and show off your padel passion.',
-    targetSelector: '[data-coachmark="profile"]',
-    ctaLabel: '¡Vamos!',
-    iconType: 'badges',
-  },
-]
+function useSteps() {
+  const t = useTranslations('onboarding')
+  return [
+    {
+      title: t('step1Title'),
+      description: t('step1Desc'),
+      targetSelector: '[data-coachmark="search"]',
+      iconType: 'search' as const,
+    },
+    {
+      title: t('step2Title'),
+      description: t('step2Desc'),
+      targetSelector: '[data-coachmark="following"]',
+      iconType: 'following' as const,
+    },
+    {
+      title: t('step3Title'),
+      description: t('step3Desc'),
+      targetSelector: '[data-coachmark="profile"]',
+      ctaLabel: t('done'),
+      iconType: 'badges' as const,
+    },
+  ] satisfies Step[]
+}
 
 export function SpotlightCoachmarks() {
+  const t = useTranslations('onboarding')
+  const STEPS = useSteps()
   const [currentStep, setCurrentStep] = useState<number | null>(null)
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -340,7 +346,7 @@ export function SpotlightCoachmarks() {
                 background: 'none', border: 'none', fontFamily: 'inherit',
               }}
             >
-              Skip
+              {t('skip')}
             </button>
           ) : (
             <span />
@@ -359,7 +365,7 @@ export function SpotlightCoachmarks() {
               fontFamily: 'inherit',
             }}
           >
-            {isLastStep ? (step.ctaLabel ?? 'Done') : 'Next →'}
+            {isLastStep ? (step.ctaLabel ?? t('done')) : t('next')}
           </button>
         </div>
       </div>

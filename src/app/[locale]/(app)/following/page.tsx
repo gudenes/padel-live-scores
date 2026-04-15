@@ -598,71 +598,69 @@ export default function FollowingPage() {
     if (!loaded) return
 
     async function fetchData() {
-      // Fetch relevant matches (live/scheduled) that overlap with following
+      // Run all 3 queries in parallel — no reason to wait for each sequentially
       const hasMatchFilters =
         followedMatchIds.length > 0 ||
         followedPlayerIds.length > 0 ||
         followedTournamentIds.length > 0
 
-      if (hasMatchFilters) {
-        const { data } = await supabase
-          .from('matches')
-          .select(`
-            id, status, scheduled_at, round, category,
-            tournament:tournaments(id, name),
-            pair1_player1:players!pair1_player1_id(id, name, display_name, country),
-            pair1_player2:players!pair1_player2_id(id, name, display_name, country),
-            pair2_player1:players!pair2_player1_id(id, name, display_name, country),
-            pair2_player2:players!pair2_player2_id(id, name, display_name, country),
-            sets(set_number, pair1_games, pair2_games, is_current)
-          `)
-          .in('status', ['live', 'scheduled'])
-          .order('scheduled_at', { ascending: true })
-          .limit(40)
+      const [matchResult, playerResult, tournamentResult] = await Promise.all([
+        // 1. Matches — live/scheduled that overlap with following
+        hasMatchFilters
+          ? supabase
+              .from('matches')
+              .select(`
+                id, status, scheduled_at, round, category,
+                tournament:tournaments(id, name),
+                pair1_player1:players!pair1_player1_id(id, name, display_name, country),
+                pair1_player2:players!pair1_player2_id(id, name, display_name, country),
+                pair2_player1:players!pair2_player1_id(id, name, display_name, country),
+                pair2_player2:players!pair2_player2_id(id, name, display_name, country),
+                sets(set_number, pair1_games, pair2_games, is_current)
+              `)
+              .in('status', ['live', 'scheduled'])
+              .order('scheduled_at', { ascending: true })
+              .limit(40)
+          : Promise.resolve({ data: null }),
 
-        if (data) {
-          const matchRows = data as unknown as MatchRow[]
-          // Filter to followed matches, followed players, or followed tournaments
-          const filtered = matchRows.filter(m => {
-            if (followedMatchIds.includes(m.id)) return true
-            if (m.tournament && followedTournamentIds.includes(m.tournament.id)) return true
-            const playerIds = [
-              m.pair1_player1?.id,
-              m.pair1_player2?.id,
-              m.pair2_player1?.id,
-              m.pair2_player2?.id,
-            ].filter(Boolean) as string[]
-            return playerIds.some(pid => followedPlayerIds.includes(pid))
-          })
-          setMatches(filtered)
-        }
+        // 2. Players
+        followedPlayerIds.length > 0
+          ? supabase
+              .from('players')
+              .select('id, name, display_name, country, avatar_url, ranking, category')
+              .in('id', followedPlayerIds)
+          : Promise.resolve({ data: null }),
+
+        // 3. Tournaments
+        followedTournamentIds.length > 0
+          ? supabase
+              .from('tournaments')
+              .select('id, name, starts_at, ends_at, logo_url')
+              .in('id', followedTournamentIds)
+          : Promise.resolve({ data: null }),
+      ])
+
+      // Process matches — filter to followed items
+      if (matchResult.data) {
+        const matchRows = matchResult.data as unknown as MatchRow[]
+        const filtered = matchRows.filter(m => {
+          if (followedMatchIds.includes(m.id)) return true
+          if (m.tournament && followedTournamentIds.includes(m.tournament.id)) return true
+          const playerIds = [
+            m.pair1_player1?.id,
+            m.pair1_player2?.id,
+            m.pair2_player1?.id,
+            m.pair2_player2?.id,
+          ].filter(Boolean) as string[]
+          return playerIds.some(pid => followedPlayerIds.includes(pid))
+        })
+        setMatches(filtered)
       } else {
         setMatches([])
       }
 
-      // Fetch followed players
-      if (followedPlayerIds.length > 0) {
-        const { data } = await supabase
-          .from('players')
-          .select('id, name, display_name, country, avatar_url, ranking, category')
-          .in('id', followedPlayerIds)
-
-        setPlayers((data ?? []) as PlayerData[])
-      } else {
-        setPlayers([])
-      }
-
-      // Fetch followed tournaments
-      if (followedTournamentIds.length > 0) {
-        const { data } = await supabase
-          .from('tournaments')
-          .select('id, name, starts_at, ends_at, logo_url')
-          .in('id', followedTournamentIds)
-
-        setTournaments((data ?? []) as TournamentData[])
-      } else {
-        setTournaments([])
-      }
+      setPlayers((playerResult.data ?? []) as PlayerData[])
+      setTournaments((tournamentResult.data ?? []) as TournamentData[])
     }
 
     fetchData()

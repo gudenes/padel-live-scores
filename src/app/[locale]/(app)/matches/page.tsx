@@ -951,7 +951,7 @@ function V3ScoresPage() {
 
           {/* Tab bar + gender toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px 10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
               {tabs.map(t => {
                 const active = tab === t.key
                 return (
@@ -959,17 +959,19 @@ function V3ScoresPage() {
                     key={t.key}
                     onClick={() => { setTab(t.key); swipeGoTo(TAB_KEYS.indexOf(t.key)) }}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 6,
-                      padding: '7px 16px',
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '7px 12px',
                       clipPath: CHUNKY.button,
                       border: 'none',
                       background: active
                         ? (t.isLive ? LIVE_RED : GREEN)
                         : 'rgba(255,255,255,0.05)',
                       color: active ? (t.isLive ? '#fff' : '#000') : MUTED,
-                      fontSize: 12, fontWeight: 800, fontFamily: 'inherit',
+                      fontSize: 11, fontWeight: 800, fontFamily: 'inherit',
                       cursor: 'pointer', transition: 'all 0.15s',
                       letterSpacing: 0.3,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
                     }}
                   >
                     {/* live dot removed */}

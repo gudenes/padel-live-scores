@@ -117,6 +117,7 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<TournamentTab>('premier')
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set())
+  const [ongoingIds, setOngoingIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -145,6 +146,7 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
       })
 
       const confirmedLiveIds = new Set<string>()
+      const confirmedOngoingIds = new Set<string>()
       if (candidateLive.length > 0) {
         const { data: matchData } = await supabase
           .from('matches')
@@ -162,12 +164,20 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
         for (const t of candidateLive) {
           const matches = byTournament[t.id] ?? []
           const hasLive = matches.some((m: any) => m.status === 'live')
-          const hasScheduled = matches.some((m: any) => m.status === 'scheduled')
-          if (hasLive || hasScheduled) confirmedLiveIds.add(t.id)
+          if (hasLive) {
+            confirmedLiveIds.add(t.id)
+          } else {
+            // No live matches but within date range — ongoing (between sessions)
+            const hasScheduledOrFinished = matches.some((m: any) =>
+              m.status === 'scheduled' || m.status === 'finished' || m.status === 'retired' || m.status === 'walkover'
+            )
+            if (hasScheduledOrFinished) confirmedOngoingIds.add(t.id)
+          }
         }
       }
 
       setLiveIds(confirmedLiveIds)
+      setOngoingIds(confirmedOngoingIds)
 
       // Step 2: Fetch winners for completed tournaments
       const completedIds = tournamentsData
@@ -216,15 +226,16 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
     })()
   }, [tab])
 
-  const { live, upcoming, currentSeasonCompleted, prevByYear, currentYear } = useMemo(() => {
+  const { live, ongoing, upcoming, currentSeasonCompleted, prevByYear, currentYear } = useMemo(() => {
     const now = new Date()
     const currentYear = now.getFullYear()
     const live = tournaments.filter(t => liveIds.has(t.id))
-    const upcoming = tournaments.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id))
+    const ongoing = tournaments.filter(t => ongoingIds.has(t.id))
+    const upcoming = tournaments.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id) && !ongoingIds.has(t.id))
       .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
     const completed = tournaments.filter(t => {
       const end = new Date(t.ends_at); end.setHours(23, 59, 59)
-      return end < now && !liveIds.has(t.id)
+      return end < now && !liveIds.has(t.id) && !ongoingIds.has(t.id)
     })
     const currentSeasonCompleted = completed.filter(t => new Date(t.starts_at).getFullYear() === currentYear)
     const prevByYear: Record<number, TournamentWithWinners[]> = {}
@@ -235,12 +246,14 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
         prevByYear[yr].push(t)
       }
     }
-    return { live, upcoming, currentSeasonCompleted, prevByYear, currentYear }
-  }, [tournaments, liveIds])
+    return { live, ongoing, upcoming, currentSeasonCompleted, prevByYear, currentYear }
+  }, [tournaments, liveIds, ongoingIds])
 
-  const hero = live[0] ?? upcoming[0] ?? null
+  const hero = live[0] ?? ongoing[0] ?? upcoming[0] ?? null
   const heroIsLive = live.length > 0
-  const restUpcoming = heroIsLive ? upcoming : upcoming.slice(1)
+  const heroIsOngoing = !heroIsLive && ongoing.length > 0
+  const restUpcoming = (heroIsLive || heroIsOngoing) ? upcoming : upcoming.slice(1)
+  const restOngoing = heroIsOngoing ? ongoing.slice(1) : ongoing
 
   const pillStyle: React.CSSProperties = {
     fontSize: 9, fontWeight: 700, padding: '3px 7px',
@@ -293,22 +306,24 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
           {/* ── Hero + Upcoming ── */}
           {hero && (
             <>
-              <SectionTitle>{heroIsLive ? tHome('liveNow') : tHome('comingUp')}</SectionTitle>
+              <SectionTitle>{heroIsLive ? tHome('liveNow') : heroIsOngoing ? tHome('ongoing') : tHome('comingUp')}</SectionTitle>
 
               {/* Hero card */}
               <Link href={`/tournaments/${hero.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div style={{
                   margin: '0 16px 12px', padding: 20, position: 'relative', overflow: 'hidden',
                   clipPath: CHUNKY.card,
-                  background: `linear-gradient(135deg, ${heroIsLive ? 'rgba(255,69,85,0.10)' : 'rgba(126,211,33,0.06)'} 0%, ${BG_CARD} 60%)`,
-                  border: `1.5px solid ${heroIsLive ? 'rgba(255,69,85,0.25)' : 'rgba(126,211,33,0.2)'}`,
+                  background: `linear-gradient(135deg, ${heroIsLive ? 'rgba(255,69,85,0.10)' : heroIsOngoing ? 'rgba(245,166,35,0.08)' : 'rgba(126,211,33,0.06)'} 0%, ${BG_CARD} 60%)`,
+                  border: `1.5px solid ${heroIsLive ? 'rgba(255,69,85,0.25)' : heroIsOngoing ? 'rgba(245,166,35,0.2)' : 'rgba(126,211,33,0.2)'}`,
                 }}>
                   {/* Glow */}
                   <div style={{
                     position: 'absolute', top: -30, right: -30, width: 100, height: 100,
                     background: heroIsLive
                       ? 'radial-gradient(circle, rgba(255,69,85,0.08) 0%, transparent 70%)'
-                      : 'radial-gradient(circle, rgba(126,211,33,0.06) 0%, transparent 70%)',
+                      : heroIsOngoing
+                        ? 'radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%)'
+                        : 'radial-gradient(circle, rgba(126,211,33,0.06) 0%, transparent 70%)',
                   }} />
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
@@ -318,8 +333,8 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
                         display: 'inline-flex', alignItems: 'center', gap: 5,
                         clipPath: CHUNKY.badge, padding: '4px 10px', fontSize: 9, fontWeight: 800,
                         letterSpacing: '0.08em', marginBottom: 10,
-                        background: heroIsLive ? 'rgba(255,69,85,0.15)' : GREEN_DIM,
-                        color: heroIsLive ? LIVE_RED : GREEN,
+                        background: heroIsLive ? 'rgba(255,69,85,0.15)' : heroIsOngoing ? 'rgba(245,166,35,0.15)' : GREEN_DIM,
+                        color: heroIsLive ? LIVE_RED : heroIsOngoing ? ORANGE : GREEN,
                       }}>
                         {heroIsLive && (
                           <span style={{
@@ -327,7 +342,7 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
                             animation: 'v3-pulse 2s infinite',
                           }} />
                         )}
-                        {heroIsLive ? 'LIVE NOW' : 'NEXT UP'}
+                        {heroIsLive ? tHome('liveNow') : heroIsOngoing ? tHome('ongoing') : tHome('comingUp')}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                         <FlagImg country={hero.country} size={24} />
@@ -345,7 +360,7 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
                       )}
                     </div>
                     {/* Countdown */}
-                    {!heroIsLive && (
+                    {!heroIsLive && !heroIsOngoing && (
                       <div style={{
                         textAlign: 'center', padding: '8px 12px',
                         clipPath: CHUNKY.badge, flexShrink: 0,
