@@ -68,7 +68,7 @@ export function usePushNotifications() {
       await fetch('/api/user/push-subscriptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.toJSON().keys, expirationTime: sub.expirationTime }),
+        body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.toJSON().keys }),
       })
 
       setEnabled(true)
