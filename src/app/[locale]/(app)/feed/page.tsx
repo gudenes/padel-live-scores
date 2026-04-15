@@ -178,6 +178,7 @@ function VideoCard({ item, onPlay, onBroken, onHide, hero }: {
         }}>
           <img
             src={item.thumbnail_url} alt=""
+            loading="lazy"
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             onError={() => onBroken?.(item.id)}
           />
@@ -340,7 +341,7 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
         {/* Image with favicon badge */}
         {item.image_url && (
           <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', background: '#0a1929' }}>
-            <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={item.image_url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             {/* White circle favicon badge — top right */}
             {faviconUrl && (
               <div style={{
@@ -350,7 +351,7 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
               }}>
-                <img src={faviconUrl} alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
+                <img src={faviconUrl} alt="" loading="lazy" style={{ width: 20, height: 20, objectFit: 'contain' }} />
               </div>
             )}
           </div>
@@ -365,7 +366,7 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <img src={faviconUrl} alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+              <img src={faviconUrl} alt="" loading="lazy" style={{ width: 14, height: 14, objectFit: 'contain' }} />
             </div>
           )}
           <span style={{ fontSize: 11, fontWeight: 700, color: ORANGE }}>{item.source_name}</span>

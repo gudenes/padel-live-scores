@@ -2,7 +2,7 @@
 // src/app/ops/EntryListTab.tsx
 // Entry list seeding UI — ops dashboard tab for uploading PDF/text entry lists and seeding players
 
-import React, { useEffect, useState, useRef, useCallback, DragEvent } from 'react'
+import React, { useEffect, useState, useRef, useCallback, useMemo, DragEvent } from 'react'
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -368,14 +368,14 @@ export default function EntryListTab({ preSelectedTournamentId, onClearPreSelect
     }
   }, [preSelectedTournamentId, tournaments, selectedTournament, onClearPreSelection])
 
-  const sortedTournaments = [...tournaments].sort((a, b) => {
+  const sortedTournaments = useMemo(() => [...tournaments].sort((a, b) => {
     const urgencyDiff = urgencyDot(a).sortKey - urgencyDot(b).sortKey
     if (urgencyDiff !== 0) return urgencyDiff
     // At same urgency, tournaments missing uploads sort higher
     const aReady = (a.hasEntryList ? 1 : 0) + (a.hasDraw ? 1 : 0)
     const bReady = (b.hasEntryList ? 1 : 0) + (b.hasDraw ? 1 : 0)
     return aReady - bReady
-  })
+  }), [tournaments])
 
   // ── Typeahead helpers ───────────────────────────────────────────
 

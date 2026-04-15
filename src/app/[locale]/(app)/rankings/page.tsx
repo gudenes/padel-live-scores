@@ -41,7 +41,7 @@ const COUNTRY_NAMES: Record<string, string> = {
   USA: 'United States', AUS: 'Australia',
 }
 
-// ISO-2 mapping for flagcdn (3-letter codes → 2-letter)
+// ISO-2 mapping for flags (3-letter codes → 2-letter)
 const ISO3_TO_2: Record<string, string> = {
   ESP: 'es', ARG: 'ar', BRA: 'br', POR: 'pt', FRA: 'fr', ITA: 'it',
   BEL: 'be', NLD: 'nl', GER: 'de', GBR: 'gb', DEN: 'dk', SWE: 'se',
@@ -58,7 +58,7 @@ function countryFlagUrl(code: string | null): string | null {
   const upper = code.toUpperCase()
   const iso2 = ISO3_TO_2[upper] ?? (upper.length === 2 ? upper.toLowerCase() : null)
   if (!iso2) return null
-  return `https://flagcdn.com/w40/${iso2}.png`
+  return `/flags/${iso2}.png`
 }
 
 // ── Types ─────────────────────────────────────────────────────

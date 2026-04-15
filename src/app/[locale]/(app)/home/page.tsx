@@ -4,7 +4,7 @@
 // Sections: Header → Live Now → Coming Up → Tournament Spotlight →
 //           Rankings → Latest Results → Highlights & News → Fantasy Teaser
 
-import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
@@ -180,8 +180,9 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://flagcdn.com/w40/${code}.png`}
+      src={`/flags/${code}.png`}
       alt={country}
+      loading="lazy"
       width={size}
       height={size * 0.75}
       style={{
@@ -740,6 +741,7 @@ function PlayerBustCard({ player, rank }: { player: RankedPlayer; rank: number }
             <img
               src={player.avatar_url}
               alt={player.name}
+              loading="lazy"
               style={{
                 width: 64,
                 height: 64,
@@ -838,14 +840,14 @@ function ResultsSection({ matches }: { matches: Match[] }) {
   // 3-state: undefined = default (show 3), 'collapsed' = hide all, 'expanded' = show all
   const [tournamentState, setTournamentState] = useState<Record<string, 'collapsed' | 'expanded'>>({})
 
-  const filtered = matches
+  const filtered = useMemo(() => matches
     .filter(m => hasPlayers(m))
     .sort((a, b) => {
       const aDate = a.finished_at ? new Date(a.finished_at).getTime() : 0
       const bDate = b.finished_at ? new Date(b.finished_at).getTime() : 0
       return bDate - aDate
     })
-    .slice(0, 20)
+    .slice(0, 20), [matches])
 
   // Group by tournament
   const grouped: { tournament: any; matches: Match[] }[] = []
@@ -1065,6 +1067,7 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
                   <img
                     src={v.thumbnail_url}
                     alt={v.title}
+                    loading="lazy"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   {/* Play button */}
@@ -1130,6 +1133,7 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
                   <img
                     src={n.image_url}
                     alt=""
+                    loading="lazy"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   {/* Source favicon */}
@@ -1145,6 +1149,7 @@ function HighlightsPreview({ highlights, news }: { highlights: Highlight[]; news
                     <img
                       src={n.source_icon || `https://www.google.com/s2/favicons?domain=${new URL(n.url).hostname}&sz=64`}
                       alt={n.source_name}
+                      loading="lazy"
                       style={{ width: 20, height: 20, borderRadius: 3 }}
                     />
                   </div>
@@ -1244,16 +1249,21 @@ const LIVE_SCORE_LEVELS = ['finals', 'major', 'p1', 'p2', 'fip_platinum']
 const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'AD': 4 }
 const _liveScoresPrev = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
 
-// ── Match select query (reused) ────────────────────────────────
-const MATCH_SELECT = `
-  *,
+// ── Match select queries ──────────────────────────────────────
+// LIVE matches need games(*) for current point score display (e.g. "30:40").
+// All other statuses (scheduled, finished, etc.) only need set scores.
+const MATCH_PLAYER_JOINS = `
   tournament:tournaments(id, name, starts_at, ends_at, country, timezone, level, logo_url, entry_list_status, source),
   pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
   pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
   pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-  pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-  sets(*, games(*))
-`
+  pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side)`
+
+// Full select with games — only for live matches
+const MATCH_SELECT_LIVE = `*, ${MATCH_PLAYER_JOINS}, sets(*, games(*))`
+
+// Lean select without games — for scheduled, finished, results
+const MATCH_SELECT_LEAN = `*, ${MATCH_PLAYER_JOINS}, sets(set_number, set_score, pair1_games, pair2_games, is_current, score_source)`
 
 // ── Tournaments View ──────────────────────────────────────────
 
@@ -1379,24 +1389,27 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
     })()
   }, [tab])
 
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const live = tournaments.filter(t => liveIds.has(t.id))
-  const upcoming = tournaments.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id))
-    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
-  const completed = tournaments.filter(t => {
-    const end = new Date(t.ends_at); end.setHours(23, 59, 59)
-    return end < now && !liveIds.has(t.id)
-  })
-  const currentSeasonCompleted = completed.filter(t => new Date(t.starts_at).getFullYear() === currentYear)
-  const prevByYear: Record<number, TournamentWithWinners[]> = {}
-  for (const t of completed) {
-    const yr = new Date(t.starts_at).getFullYear()
-    if (yr < currentYear) {
-      if (!prevByYear[yr]) prevByYear[yr] = []
-      prevByYear[yr].push(t)
+  const { live, upcoming, currentSeasonCompleted, prevByYear, currentYear } = useMemo(() => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const live = tournaments.filter(t => liveIds.has(t.id))
+    const upcoming = tournaments.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id))
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+    const completed = tournaments.filter(t => {
+      const end = new Date(t.ends_at); end.setHours(23, 59, 59)
+      return end < now && !liveIds.has(t.id)
+    })
+    const currentSeasonCompleted = completed.filter(t => new Date(t.starts_at).getFullYear() === currentYear)
+    const prevByYear: Record<number, TournamentWithWinners[]> = {}
+    for (const t of completed) {
+      const yr = new Date(t.starts_at).getFullYear()
+      if (yr < currentYear) {
+        if (!prevByYear[yr]) prevByYear[yr] = []
+        prevByYear[yr].push(t)
+      }
     }
-  }
+    return { live, upcoming, currentSeasonCompleted, prevByYear, currentYear }
+  }, [tournaments, liveIds])
 
   const hero = live[0] ?? upcoming[0] ?? null
   const heroIsLive = live.length > 0
@@ -1633,13 +1646,13 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                                   <div style={{ width: 3, height: 22, background: MEN_BLUE, flexShrink: 0, clipPath: CHUNKY.bar }} />
                                   <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
                                     {menW.player1_avatar && (
-                                      <img src={menW.player1_avatar} alt="" style={{
+                                      <img src={menW.player1_avatar} alt="" loading="lazy" style={{
                                         width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                       }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                                     )}
                                     {menW.player2_avatar && (
-                                      <img src={menW.player2_avatar} alt="" style={{
+                                      <img src={menW.player2_avatar} alt="" loading="lazy" style={{
                                         width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                         marginLeft: -6,
@@ -1656,13 +1669,13 @@ function TournamentsView({ onBack }: { onBack: () => void }) {
                                   <div style={{ width: 3, height: 22, background: WOMEN_PURPLE, flexShrink: 0, clipPath: CHUNKY.bar }} />
                                   <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
                                     {womenW.player1_avatar && (
-                                      <img src={womenW.player1_avatar} alt="" style={{
+                                      <img src={womenW.player1_avatar} alt="" loading="lazy" style={{
                                         width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                       }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                                     )}
                                     {womenW.player2_avatar && (
-                                      <img src={womenW.player2_avatar} alt="" style={{
+                                      <img src={womenW.player2_avatar} alt="" loading="lazy" style={{
                                         width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                         marginLeft: -6,
@@ -1943,15 +1956,23 @@ function V3HomePageInner() {
         }
       }
 
-      // ── 2. Top 4 seeds from tournament_draws ──────────────
-      const { data: drawEntries } = await supabase
-        .from('tournament_draws')
-        .select('seed, player1_name, player1_country, player1_id, player2_name, player2_country')
-        .eq('tournament_id', t.id)
-        .not('seed', 'is', null)
-        .order('seed', { ascending: true })
-        .limit(8)
+      // ── 2 + 3. Seeds + stats (parallel, both from tournament_draws) ─
+      const [seedsRes, statsRes] = await Promise.all([
+        supabase
+          .from('tournament_draws')
+          .select('seed, player1_name, player1_country, player1_id, player2_name, player2_country')
+          .eq('tournament_id', t.id)
+          .not('seed', 'is', null)
+          .order('seed', { ascending: true })
+          .limit(8),
+        supabase
+          .from('tournament_draws')
+          .select('category, player1_country, player2_country')
+          .eq('tournament_id', t.id),
+      ])
 
+      // Process seeds
+      const drawEntries = seedsRes.data
       if (drawEntries && drawEntries.length > 0) {
         // Collect unique seeds (top 4)
         const seenSeeds = new Set<number>()
@@ -1986,12 +2007,8 @@ function V3HomePageInner() {
         }))
       }
 
-      // ── 3. Stats from tournament_draws (both genders) ─────
-      const { data: allEntries } = await supabase
-        .from('tournament_draws')
-        .select('category, player1_country, player2_country')
-        .eq('tournament_id', t.id)
-
+      // Process stats
+      const allEntries = statsRes.data
       if (allEntries && allEntries.length > 0) {
         const countries = new Set<string>()
         let menPairs = 0
@@ -2028,8 +2045,8 @@ function V3HomePageInner() {
         withTimeout(p as Promise<T>, 10_000, label)
 
       const results = await Promise.allSettled([
-        wrap(supabase.from('matches').select(MATCH_SELECT).eq('status', 'live').order('court_order', { ascending: true }) as any, 'home:live'),
-        wrap(supabase.from('matches').select(MATCH_SELECT).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
+        wrap(supabase.from('matches').select(MATCH_SELECT_LIVE).eq('status', 'live').order('court_order', { ascending: true }) as any, 'home:live'),
+        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
         wrap(supabase.from('tournaments')
           .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url')
           .in('level', ['finals', 'major', 'p1', 'p2'])
@@ -2038,7 +2055,7 @@ function V3HomePageInner() {
           .limit(2) as any, 'home:tournaments'),
         wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'men').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topMen'),
         wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'women').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topWomen'),
-        wrap(supabase.from('matches').select(MATCH_SELECT).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
+        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
         wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
         wrap(supabase.from('articles').select('id, title, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(10) as any, 'home:articles'),
       ])

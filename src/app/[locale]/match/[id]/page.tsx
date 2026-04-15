@@ -58,7 +58,7 @@ function FlagImg({ country, size = 16 }: { country: string | null; size?: number
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://flagcdn.com/w40/${code}.png`}
+      src={`/flags/${code}.png`}
       alt={country}
       width={size}
       height={size * 0.75}
@@ -227,55 +227,68 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     if (p1Ids.length === 0 || p2Ids.length === 0) return
     setH2hLoading(true)
 
+    const matchSelect = `
+      id, external_id, status, round, started_at, finished_at, scheduled_at, winner_pair,
+      tournament:tournaments(name),
+      pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country),
+      pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country),
+      pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country),
+      pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country),
+      sets(set_score, set_number)
+    `
+
+    // Push H2H filter to Supabase: matches where both pairs overlap (in either direction)
+    const p1 = p1Ids.join(',')
+    const p2 = p2Ids.join(',')
+    const h2hFilter = [
+      `and(pair1_player1_id.in.(${p1}),pair1_player2_id.in.(${p1}),pair2_player1_id.in.(${p2}),pair2_player2_id.in.(${p2}))`,
+      `and(pair1_player1_id.in.(${p2}),pair1_player2_id.in.(${p2}),pair2_player1_id.in.(${p1}),pair2_player2_id.in.(${p1}))`,
+    ].join(',')
+
+    // Parallel: strict H2H query + looser per-pair recent queries
     const allIds = [...p1Ids, ...p2Ids]
-    const { data: rawData } = await supabase
-      .from('matches')
-      .select(`
-        id, external_id, status, round, started_at, finished_at, scheduled_at, winner_pair,
-        tournament:tournaments(name),
-        pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country),
-        pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country),
-        pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country),
-        pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country),
-        sets(set_score, set_number)
-      `)
-      .or(`pair1_player1_id.in.(${allIds.join(',')}),pair2_player1_id.in.(${allIds.join(',')})`)
-      .eq('status', 'finished')
-      .neq('id', m.id)
-      .order('finished_at', { ascending: false, nullsFirst: false })
-      .limit(300)
+    const [h2hRes, recentRes] = await Promise.all([
+      supabase
+        .from('matches')
+        .select(matchSelect)
+        .or(h2hFilter)
+        .eq('status', 'finished')
+        .neq('id', m.id)
+        .order('finished_at', { ascending: false, nullsFirst: false })
+        .limit(50),
+      supabase
+        .from('matches')
+        .select(matchSelect)
+        .or(`pair1_player1_id.in.(${allIds.join(',')}),pair2_player1_id.in.(${allIds.join(',')})`)
+        .eq('status', 'finished')
+        .neq('id', m.id)
+        .order('finished_at', { ascending: false, nullsFirst: false })
+        .limit(50),
+    ])
 
     // Sort by best available date: finished_at > started_at > scheduled_at
-    const data = rawData?.sort((a: any, b: any) => {
+    const sortByDate = (arr: any[]) => arr.sort((a: any, b: any) => {
       const dateA = a.finished_at ?? a.started_at ?? a.scheduled_at ?? ''
       const dateB = b.finished_at ?? b.started_at ?? b.scheduled_at ?? ''
       return dateB.localeCompare(dateA)
-    }) ?? null
+    })
 
-    if (data) {
-      const filtered = data.filter((hm: any) => {
-        const mp1p1 = hm.pair1_player1?.id ?? null
-        const mp1p2 = hm.pair1_player2?.id ?? null
-        const mp2p1 = hm.pair2_player1?.id ?? null
-        const mp2p2 = hm.pair2_player2?.id ?? null
-        const fwd = pairMatchesIds(mp1p1, mp1p2, p1Ids) && pairMatchesIds(mp2p1, mp2p2, p2Ids)
-        const rev = pairMatchesIds(mp1p1, mp1p2, p2Ids) && pairMatchesIds(mp2p1, mp2p2, p1Ids)
-        return fwd || rev
-      })
-      setH2hMatches(filtered)
+    const h2hData = h2hRes.data ? sortByDate(h2hRes.data) : []
+    setH2hMatches(h2hData)
 
-      // Extract last 5 matches per pair (any opponent, from the broader dataset)
-      const p1Recent = data.filter((hm: any) => {
-        const ids = [hm.pair1_player1?.id, hm.pair1_player2?.id, hm.pair2_player1?.id, hm.pair2_player2?.id]
-        return p1Ids.every(pid => ids.includes(pid))
-      }).slice(0, 5)
-      const p2Recent = data.filter((hm: any) => {
-        const ids = [hm.pair1_player1?.id, hm.pair1_player2?.id, hm.pair2_player1?.id, hm.pair2_player2?.id]
-        return p2Ids.every(pid => ids.includes(pid))
-      }).slice(0, 5)
-      setPair1Recent(p1Recent)
-      setPair2Recent(p2Recent)
-    }
+    // Extract last 5 matches per pair (any opponent)
+    const recentData = recentRes.data ? sortByDate(recentRes.data) : []
+    const p1Recent = recentData.filter((hm: any) => {
+      const ids = [hm.pair1_player1?.id, hm.pair1_player2?.id, hm.pair2_player1?.id, hm.pair2_player2?.id]
+      return p1Ids.every(pid => ids.includes(pid))
+    }).slice(0, 5)
+    const p2Recent = recentData.filter((hm: any) => {
+      const ids = [hm.pair1_player1?.id, hm.pair1_player2?.id, hm.pair2_player1?.id, hm.pair2_player2?.id]
+      return p2Ids.every(pid => ids.includes(pid))
+    }).slice(0, 5)
+    setPair1Recent(p1Recent)
+    setPair2Recent(p2Recent)
+
     setH2hLoading(false)
   }, [])
 

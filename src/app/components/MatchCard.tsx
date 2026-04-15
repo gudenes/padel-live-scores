@@ -15,7 +15,7 @@ function getTimezoneOffset(tz: string, date: Date): number {
 // src/app/components/MatchCard.tsx
 
 import { useRouter } from '@/i18n/navigation'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, memo } from 'react'
 import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarmingUp } from '@/types/match'
 import { useFormatter } from 'next-intl'
 import { TIME_24H } from '@/lib/format-patterns'
@@ -35,7 +35,7 @@ interface MatchCardProps {
   embedded?: boolean
 }
 
-export default function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embedded }: MatchCardProps) {
+function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embedded }: MatchCardProps) {
   const router = useRouter()
   const format = useFormatter()
 
@@ -454,3 +454,5 @@ export default function MatchCard({ match, bookmarked, onBookmark, estimatedSche
     </div>
   )
 }
+
+export default memo(MatchCard)

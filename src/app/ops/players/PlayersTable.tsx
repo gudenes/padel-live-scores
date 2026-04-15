@@ -78,7 +78,7 @@ function AvatarCell({ player }: { player: PlayerSummary }) {
       {player.country && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`https://flagcdn.com/w20/${player.country.toLowerCase()}.png`}
+          src={`/flags/${player.country.toLowerCase()}.png`}
           alt={player.country}
           width={14}
           height={10}

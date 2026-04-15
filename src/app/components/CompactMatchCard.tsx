@@ -6,7 +6,7 @@
 // Live variant: date column replaced by pulsing LIVE indicator.
 
 import { useRouter } from '@/i18n/navigation'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, memo } from 'react'
 import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarmingUp } from '@/types/match'
 
 interface CompactMatchCardProps {
@@ -30,7 +30,7 @@ function PlayerName({ player, isWinner, isLoser }: { player: any; isWinner: bool
   )
 }
 
-export default function CompactMatchCard({ match, embedded }: CompactMatchCardProps) {
+function CompactMatchCard({ match, embedded }: CompactMatchCardProps) {
   const router = useRouter()
 
   const { pair1Sets, pair2Sets, currentSet, currentGame } = getCurrentScore(match)
@@ -398,3 +398,5 @@ export default function CompactMatchCard({ match, embedded }: CompactMatchCardPr
     </div>
   )
 }
+
+export default memo(CompactMatchCard)
