@@ -117,8 +117,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `,
         }}
       />
-      <div style={{ background: 'var(--bg-base)', minHeight: '100vh' }}>
-        <div style={{ maxWidth: 500, margin: '0 auto', minHeight: '100vh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
+      <div style={{ background: 'var(--bg-base)', minHeight: '100dvh' }}>
+        <div style={{ maxWidth: 500, margin: '0 auto', minHeight: '100dvh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
           <AuthProvider>
             {children}
           </AuthProvider>

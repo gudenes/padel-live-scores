@@ -124,7 +124,8 @@ export default function BottomNavV3() {
         display: 'flex',
         justifyContent: 'space-around',
         alignItems: 'flex-end',
-        padding: '4px 0 env(safe-area-inset-bottom, 16px)',
+        paddingTop: 4,
+        paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)',
         zIndex: 200,
       }}>
         {TABS.map((tab) => {
