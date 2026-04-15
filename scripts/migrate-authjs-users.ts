@@ -7,11 +7,46 @@
 //   npx tsx scripts/migrate-authjs-users.ts
 
 import { createClient } from '@supabase/supabase-js'
+import { Pool } from 'pg'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Load .env.local manually (no dotenv dependency)
+const envPath = resolve(__dirname, '..', '.env.local')
+try {
+  const envContent = readFileSync(envPath, 'utf-8')
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx === -1) continue
+    const key = trimmed.slice(0, eqIdx)
+    const value = trimmed.slice(eqIdx + 1)
+    if (!process.env[key]) process.env[key] = value
+  }
+} catch { /* ignore if file doesn't exist */ }
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 )
+
+// Direct Postgres connection for PK updates (Supabase client can't update PKs)
+function parseDbUrl(url: string) {
+  const u = new URL(url)
+  return {
+    host: u.hostname,
+    port: parseInt(u.port || '5432', 10),
+    database: u.pathname.slice(1) || 'postgres',
+    user: decodeURIComponent(u.username),
+    password: decodeURIComponent(u.password),
+  }
+}
+const pool = new Pool({
+  ...parseDbUrl(process.env.DATABASE_URL ?? ''),
+  max: 1,
+  ssl: { rejectUnauthorized: false },
+})
 
 const DRY_RUN = process.argv.includes('--dry-run')
 
@@ -55,7 +90,11 @@ async function main() {
   // this map and run again without --dry-run.
   // ────────────────────────────────────────────────────
   const OLD_TO_NEW: Record<string, string> = {
-    // 'old-supabase-auth-user-id': 'new-authjs-user-id',
+    'c9d2b70b-da54-4f9a-af4b-13ad3c00ade4': '3ef54558-b02e-4ab1-9e27-c9a00abe8713', // Gustavo Denes
+    '589ae101-3adc-40fb-9013-0de10ccfc005': '55864441-93bc-4c02-8067-5f3d727af02b', // Lia Bressan
+    // Add Luciano and Ignacio after they sign in via Auth.js:
+    // '9b6061de-9754-4a8a-9ae0-21af9762556a': '<new-authjs-id>', // Luciano Tondo
+    // '62bc323a-c5fd-4926-b3a9-f05e096a4cfc': '<new-authjs-id>', // Ignacio Escriva
   }
 
   if (Object.keys(OLD_TO_NEW).length === 0) {
@@ -69,41 +108,40 @@ async function main() {
   for (const [oldId, newId] of Object.entries(OLD_TO_NEW)) {
     console.log(`\n--- Migrating ${oldId} -> ${newId} ---`)
 
-    // Update profiles.id
-    if (DRY_RUN) {
-      console.log(`  [DRY] Would update profiles SET id=${newId} WHERE id=${oldId}`)
-    } else {
-      // Must use raw SQL for PK update since Supabase client doesn't support updating PKs
-      const { error } = await supabase.rpc('exec_sql', {
-        sql: `UPDATE profiles SET id = '${newId}' WHERE id = '${oldId}'`
-      })
-      if (error) console.error(`  profiles error:`, error.message)
-      else console.log(`  profiles: ok`)
-    }
+    // Use direct Postgres for all updates (Supabase client can't update PKs,
+    // and FK constraints require profile to be renamed before child rows)
+    const client = await pool.connect()
+    try {
+      // Step 1: Delete the auto-created Auth.js profile (empty, created on first sign-in)
+      if (DRY_RUN) {
+        console.log(`  [DRY] Would delete new profile ${newId} (if exists) and rename old profile ${oldId} -> ${newId}`)
+      } else {
+        await client.query('DELETE FROM profiles WHERE id = $1', [newId])
+        // Step 2: Rename old profile PK to new Auth.js ID
+        const res = await client.query('UPDATE profiles SET id = $1 WHERE id = $2', [newId, oldId])
+        console.log(`  profiles: ${res.rowCount} row(s) updated`)
+      }
 
-    // Update user_id in all related tables
-    for (const table of USER_TABLES) {
-      const { count } = await supabase
-        .from(table)
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', oldId)
+      // Step 3: Update user_id in all related tables
+      for (const table of USER_TABLES) {
+        const countRes = await client.query(`SELECT COUNT(*) FROM ${table} WHERE user_id = $1`, [oldId])
+        const count = parseInt(countRes.rows[0].count, 10)
 
-      if ((count ?? 0) > 0) {
-        if (DRY_RUN) {
-          console.log(`  [DRY] Would update ${count} rows in ${table}`)
-        } else {
-          const { error } = await supabase
-            .from(table)
-            .update({ user_id: newId })
-            .eq('user_id', oldId)
-          if (error) console.error(`  ${table} error:`, error.message)
-          else console.log(`  ${table}: updated ${count} rows`)
+        if (count > 0) {
+          if (DRY_RUN) {
+            console.log(`  [DRY] Would update ${count} rows in ${table}`)
+          } else {
+            const res = await client.query(`UPDATE ${table} SET user_id = $1 WHERE user_id = $2`, [newId, oldId])
+            console.log(`  ${table}: updated ${res.rowCount} rows`)
+          }
         }
       }
+    } finally {
+      client.release()
     }
   }
 
   console.log('\nMigration complete.')
 }
 
-main().catch(console.error)
+main().catch(console.error).finally(() => pool.end())

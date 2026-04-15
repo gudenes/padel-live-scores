@@ -4,21 +4,19 @@
     "type": "split",
     "children": [
       {
-        "id": "d5be4e3d770b9dea",
+        "id": "8a090d622e08cf2c",
         "type": "tabs",
         "children": [
           {
-            "id": "e33fdf938c7ba673",
+            "id": "4b05239074a51029",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "image",
               "state": {
-                "file": "node_modules/tsconfig-paths/CHANGELOG.md",
-                "mode": "source",
-                "source": false
+                "file": "public/file.svg"
               },
-              "icon": "lucide-file",
-              "title": "CHANGELOG"
+              "icon": "lucide-image",
+              "title": "file"
             }
           }
         ]
@@ -183,8 +181,10 @@
       "bases:Create new base": false
     }
   },
-  "active": "e33fdf938c7ba673",
+  "active": "4b05239074a51029",
   "lastOpenFiles": [
+    "node_modules/next/dist/docs/01-app/01-getting-started/02-project-structure.md",
+    "node_modules/tsconfig-paths/CHANGELOG.md",
     "src/app/api/ops/rackets/route.ts",
     "src/app/api/racket-click/route.ts",
     "src/app/api/ops/player-equipment/route.ts",
@@ -197,7 +197,6 @@
     "docs/superpowers/plans/2026-04-13-equipment-database.md",
     "docs/superpowers/specs/2026-04-13-equipment-database-design.md",
     "scripts/seed-equipment-images.ts",
-    "scripts/seed-player-equipment.ts",
     "padelnachos-i18n-announcement.png",
     "node_modules/next-intl/node_modules/@swc/core/README.md",
     "node_modules/next-intl/README.md",
@@ -221,7 +220,6 @@
     "node_modules/negotiator/HISTORY.md",
     "node_modules/@swc/types/README.md",
     "node_modules/intl-messageformat/README.md",
-    "node_modules/intl-messageformat/LICENSE.md",
     "node_modules/pdfjs-dist/legacy/web/images/toolbarButton-menuArrow.svg",
     "node_modules/pdfjs-dist/legacy/web/images/toolbarButton-editorHighlight.svg",
     "node_modules/pdfjs-dist/legacy/web/images/messageBar_warning.svg",

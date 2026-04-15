@@ -1,0 +1,41 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - button "Back" [ref=e7] [cursor=pointer]:
+          - img [ref=e8]
+        - heading "Rankings" [level=1] [ref=e10]
+        - button "Search players" [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - generic [ref=e17]:
+        - button "Men" [ref=e18] [cursor=pointer]
+        - button "Women" [ref=e19] [cursor=pointer]
+      - generic [ref=e20]:
+        - button "Official" [ref=e21] [cursor=pointer]
+        - button "Race" [ref=e22] [cursor=pointer]
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Rank
+          - generic [ref=e26]: Player
+          - generic [ref=e27]: Points
+        - generic [ref=e30]: Loading rankings...
+    - navigation [ref=e31]:
+      - link "Home" [ref=e32] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e36]
+        - generic [ref=e39]: Home
+      - link "Matches" [ref=e40] [cursor=pointer]:
+        - /url: /matches
+        - img [ref=e44]
+        - generic [ref=e48]: Matches
+      - link "Following" [ref=e49] [cursor=pointer]:
+        - /url: /following
+        - img [ref=e53]
+        - generic [ref=e55]: Following
+      - link "Feed" [ref=e56] [cursor=pointer]:
+        - /url: /feed
+        - img [ref=e60]
+        - generic [ref=e66]: Feed
+  - button "Open Next.js Dev Tools" [ref=e72] [cursor=pointer]:
+    - img [ref=e73]
+  - alert [ref=e76]
