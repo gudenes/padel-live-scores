@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { supabase, siteUrl } from '@/lib/supabase'
+import { signIn } from 'next-auth/react'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 
 // ── V3 Brand constants ────────────────────────────────────────
@@ -54,33 +54,20 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
   if (!open || !mounted) return null
 
   const handleGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${siteUrl}/auth/callback`,
-      },
-    })
-    if (error) setError('Sign in failed, please try again')
+    await signIn('google', { callbackUrl: '/home' })
   }
 
   const handleMagicLink = async () => {
     if (!email.trim()) return
     setSending(true)
     setError(null)
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        emailRedirectTo: `${siteUrl}/auth/callback`,
-      },
-    })
-
-    setSending(false)
-    if (error) {
-      setError('Failed to send link, please try again')
-    } else {
+    try {
+      await signIn('resend', { email: email.trim(), redirect: false })
       setSent(true)
+    } catch {
+      setError('Failed to send link, please try again')
     }
+    setSending(false)
   }
 
   return createPortal(

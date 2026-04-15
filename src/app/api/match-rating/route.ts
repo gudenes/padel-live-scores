@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
+import { auth } from '@/auth'
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
@@ -20,17 +20,10 @@ export async function POST(req: NextRequest) {
   const deviceId: string | undefined = body.deviceId
   const supabase = createServerClient()
 
-  // Check for authenticated user via Authorization header
   let userId: string | null = null
-  const authHeader = req.headers.get('authorization')
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.slice(7)
-    const anonClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    const { data: { user } } = await anonClient.auth.getUser(token)
-    userId = user?.id ?? null
+  const session = await auth()
+  if (session?.user?.id) {
+    userId = session.user.id
   }
 
   if (!userId && !deviceId) {
