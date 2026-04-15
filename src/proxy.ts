@@ -4,15 +4,13 @@
 // then decorates the response with geo-country and invite ref cookies.
 
 import createMiddleware from 'next-intl/middleware'
-import { createServerClient } from '@supabase/ssr'
 import { routing } from './i18n/routing'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 const handleI18nRouting = createMiddleware(routing)
-const cookieAuthEnabled = process.env.NEXT_PUBLIC_USE_COOKIE_AUTH !== 'false'
 
-export default async function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
 
   // ── Pre-i18n: short-circuit routes ─────────────────────────────
@@ -101,49 +99,10 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ── Supabase cookie refresh ─────────────────────────────────────
-  let supabaseResponse = NextResponse.next({
-    request: { headers: request.headers },
-  })
-
-  if (cookieAuthEnabled) {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll: () => request.cookies.getAll(),
-          setAll: (cookiesToSet) => {
-            cookiesToSet.forEach(({ name, value }) =>
-              request.cookies.set(name, value)
-            )
-            supabaseResponse = NextResponse.next({ request })
-            cookiesToSet.forEach(({ name, value, options }) =>
-              supabaseResponse.cookies.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
-
-    // Triggers token refresh if access token expired
-    await supabase.auth.getUser()
-  }
-
   // ── Run next-intl locale routing ───────────────────────────────
   const response = handleI18nRouting(request)
 
   // ── Post-i18n: decorate response with cookies ──────────────────
-
-  // Merge Supabase auth cookies into the i18n response.
-  // Copy raw Set-Cookie headers to preserve options (httpOnly, sameSite, maxAge)
-  // that getAll() may not carry. This ensures the browser receives the full
-  // cookie attributes that @supabase/ssr set in the setAll callback.
-  if (cookieAuthEnabled) {
-    supabaseResponse.headers.getSetCookie().forEach((setCookieHeader) => {
-      response.headers.append('Set-Cookie', setCookieHeader)
-    })
-  }
 
   // Geo-country cookie
   const country = request.headers.get('x-vercel-ip-country') ?? ''
