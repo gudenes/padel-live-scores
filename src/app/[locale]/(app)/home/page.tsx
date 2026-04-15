@@ -537,6 +537,7 @@ function V3HomePageInner() {
             defendingChampionWomen={spotlightChampionWomen}
             topSeeds={spotlightSeeds}
             stats={spotlightStats}
+            hasLiveMatches={liveMatches.some(m => (m as any).tournament_id === spotlightTournament.id || (m as any).tournament?.id === spotlightTournament.id)}
           />
         </>
       )}
