@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, type ReactNode } from 'react'
+import Avatar from '@/components/Avatar'
 import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 import { Link } from '@/i18n/navigation'
@@ -406,17 +407,13 @@ export default function TournamentSpotlightHero({
                     <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                       {[champion.avatar1, champion.avatar2].map((avatar, i) => (
                         avatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
+                          <Avatar
                             key={i}
                             src={avatar}
                             alt=""
-                            width={22}
-                            height={22}
+                            size={22}
                             style={{
-                              borderRadius: '50%',
                               border: `2px solid ${color}`,
-                              objectFit: 'cover',
                               marginLeft: i > 0 ? -6 : 0,
                             }}
                           />
@@ -547,16 +544,12 @@ export default function TournamentSpotlightHero({
                 style={{ textAlign: 'center', width: 60 }}
               >
                 {seed.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Avatar
                     src={seed.avatarUrl}
                     alt={seed.name}
-                    width={42}
-                    height={42}
+                    size={42}
                     style={{
-                      borderRadius: '50%',
                       border: `2px solid ${seedBorder(seed.seed)}`,
-                      objectFit: 'cover',
                       display: 'block',
                       margin: '0 auto 4px',
                     }}

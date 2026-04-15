@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
+import Avatar from '@/components/Avatar'
 import { Link } from '@/i18n/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT } from '@/lib/format-patterns'
@@ -472,17 +473,15 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
                                   <div style={{ width: 3, height: 22, background: MEN_BLUE, flexShrink: 0, clipPath: CHUNKY.bar }} />
                                   <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
                                     {menW.player1_avatar && (
-                                      <img src={menW.player1_avatar} alt="" loading="lazy" style={{
-                                        width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
+                                      <Avatar src={menW.player1_avatar} alt="" size={22} style={{
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
-                                      }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                      }} />
                                     )}
                                     {menW.player2_avatar && (
-                                      <img src={menW.player2_avatar} alt="" loading="lazy" style={{
-                                        width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
+                                      <Avatar src={menW.player2_avatar} alt="" size={22} style={{
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                         marginLeft: -6,
-                                      }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                      }} />
                                     )}
                                   </div>
                                   <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
@@ -495,17 +494,15 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
                                   <div style={{ width: 3, height: 22, background: WOMEN_PURPLE, flexShrink: 0, clipPath: CHUNKY.bar }} />
                                   <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
                                     {womenW.player1_avatar && (
-                                      <img src={womenW.player1_avatar} alt="" loading="lazy" style={{
-                                        width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
+                                      <Avatar src={womenW.player1_avatar} alt="" size={22} style={{
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
-                                      }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                      }} />
                                     )}
                                     {womenW.player2_avatar && (
-                                      <img src={womenW.player2_avatar} alt="" loading="lazy" style={{
-                                        width: 22, height: 22, borderRadius: '50%', objectFit: 'cover',
+                                      <Avatar src={womenW.player2_avatar} alt="" size={22} style={{
                                         border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
                                         marginLeft: -6,
-                                      }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                      }} />
                                     )}
                                   </div>
                                   <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>

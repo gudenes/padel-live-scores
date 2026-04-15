@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Avatar from '@/components/Avatar'
 import { Link } from '@/i18n/navigation'
 import {
   MUTED, BORDER, CHUNKY,
@@ -26,32 +27,16 @@ function PlayerBustCard({ player, rank }: { player: RankedPlayer; rank: number }
       }}>
         {/* Avatar — round with rank badge */}
         <div style={{ position: 'relative' }}>
-          {player.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={player.avatar_url}
-              alt={player.name}
-              loading="lazy"
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: '50%',
-                objectFit: 'cover',
-                objectPosition: 'top center',
-                border: `2px solid ${medalColor ?? BORDER}`,
-              }}
-            />
-          ) : (
-            <div style={{
-              width: 64, height: 64, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.06)',
+          <Avatar
+            src={player.avatar_url}
+            alt={player.name}
+            size={64}
+            fallback={initials}
+            style={{
+              objectPosition: 'top center',
               border: `2px solid ${medalColor ?? BORDER}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, fontWeight: 700, color: MUTED,
-            }}>
-              {initials}
-            </div>
-          )}
+            }}
+          />
           {/* Rank badge */}
           <div style={{
             position: 'absolute',
