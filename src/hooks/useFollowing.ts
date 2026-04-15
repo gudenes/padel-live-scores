@@ -66,6 +66,26 @@ function writeLocalStorage(store: FollowingStore) {
   } catch {}
 }
 
+// ── Deduplicated bookmarks fetch ─────────────────────────────
+// Multiple components use useFollowing() — without dedup, each instance
+// fires its own fetch('/api/user/bookmarks'), causing N duplicate requests
+// that queue on the Supabase pooler and take seconds.
+let _bookmarksPromise: Promise<{ bookmark_type: string; target_id: string }[]> | null = null
+let _bookmarksUserId: string | null = null
+
+function fetchBookmarksDeduplicated(userId: string): Promise<{ bookmark_type: string; target_id: string }[]> {
+  // If we already have an in-flight promise for the same user, reuse it
+  if (_bookmarksPromise && _bookmarksUserId === userId) return _bookmarksPromise
+  _bookmarksUserId = userId
+  _bookmarksPromise = fetch('/api/user/bookmarks')
+    .then(res => res.ok ? res.json() : [])
+    .finally(() => {
+      // Clear after 2s so subsequent calls (e.g., after toggle) refetch
+      setTimeout(() => { _bookmarksPromise = null }, 2000)
+    })
+  return _bookmarksPromise
+}
+
 // DB types use singular names matching the existing bookmark_type column convention
 function typeToDbType(type: FollowType): string {
   return type // 'match' | 'player' | 'tournament' — news_source never goes to DB
@@ -93,8 +113,7 @@ export function useFollowing() {
       const local = readLocalStorage()
 
       if (user) {
-        const res = await fetch('/api/user/bookmarks')
-        const data: { bookmark_type: string; target_id: string }[] = res.ok ? await res.json() : []
+        const data = await fetchBookmarksDeduplicated(user.id)
 
         const dbMatches = new Set<string>()
         const dbPlayers = new Set<string>()
