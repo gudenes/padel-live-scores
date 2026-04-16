@@ -17,7 +17,6 @@ import FollowButton from '@/components/FollowButton'
 import { ResultCard } from '@/components/ResultCard'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
-import { isTournamentGated } from '@/lib/tournament-utils'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -95,9 +94,6 @@ function groupByTournament(matches: Match[]): { tournament: any; matches: Match[
     group.matches.push(m)
   }
   groups.sort((a, b) => {
-    const aGated = isTournamentGated(a.tournament ?? {})
-    const bGated = isTournamentGated(b.tournament ?? {})
-    if (aGated !== bGated) return aGated ? 1 : -1
     const aHasLive = a.matches.some(m => m.status === 'live')
     const bHasLive = b.matches.some(m => m.status === 'live')
     if (aHasLive !== bHasLive) return aHasLive ? -1 : 1
@@ -464,7 +460,6 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
   tab: 'live' | 'upcoming' | 'results'
 }) {
   const format = useFormatter()
-  const gated = isTournamentGated(tournament ?? {})
   const badge = tournament?.level ? levelLabel(tournament.level) : null
   const status = tournamentStatus(matches, tournament)
 
@@ -540,16 +535,6 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
                   {stageLabel}
                 </span>
               )}
-              {gated && (
-                <span style={{
-                  fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
-                  padding: '2px 6px', clipPath: CHUNKY.badge,
-                  color: '#000', background: ORANGE,
-                  flexShrink: 0, lineHeight: '12px', textTransform: 'uppercase',
-                }}>
-                  COMING SOON
-                </span>
-              )}
             </div>
             {(badge || dateRange) && (
               <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 2 }}>
@@ -582,7 +567,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
         maxHeight: isExpanded ? matchCount * 130 + 60 : 0,
         transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
-        <div style={gated ? { opacity: 0.4, filter: 'grayscale(60%)', pointerEvents: 'none' } : undefined}>
+        <div>
           {matches.map(m => (
             tab === 'results'
               ? <ResultCard key={m.id} match={m} />

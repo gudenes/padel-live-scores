@@ -91,8 +91,6 @@ function V3HomePageInner() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [spotlightChampionMen, setSpotlightChampionMen] = useState<TournamentSpotlightHeroProps['defendingChampionMen']>(null)
   const [spotlightChampionWomen, setSpotlightChampionWomen] = useState<TournamentSpotlightHeroProps['defendingChampionWomen']>(null)
-  const [spotlightSeeds, setSpotlightSeeds] = useState<TournamentSpotlightHeroProps['topSeeds']>([])
-  const [spotlightStats, setSpotlightStats] = useState<TournamentSpotlightHeroProps['stats']>(null)
 
   // Rotating search hints
   const SEARCH_HINTS = [
@@ -213,72 +211,10 @@ function V3HomePageInner() {
         }
       }
 
-      // ── 2 + 3. Seeds + stats (parallel) ─
-      const [seedsRes, statsRes] = await Promise.all([
-        supabase
-          .from('tournament_draws')
-          .select('seed, player1_name, player1_country, player1_id, player2_name, player2_country')
-          .eq('tournament_id', t.id)
-          .not('seed', 'is', null)
-          .order('seed', { ascending: true })
-          .limit(8),
-        supabase
-          .from('tournament_draws')
-          .select('category, player1_country, player2_country')
-          .eq('tournament_id', t.id),
-      ])
-
-      const drawEntries = seedsRes.data
-      if (drawEntries && drawEntries.length > 0) {
-        const seenSeeds = new Set<number>()
-        const topSeedEntries: typeof drawEntries = []
-        for (const entry of drawEntries) {
-          if (entry.seed != null && !seenSeeds.has(entry.seed) && seenSeeds.size < 4) {
-            seenSeeds.add(entry.seed)
-            topSeedEntries.push(entry)
-          }
-        }
-
-        const playerIds = topSeedEntries.map(e => e.player1_id).filter(Boolean)
-        let playerMap: Record<string, { avatar_url: string | null; display_name: string | null }> = {}
-        if (playerIds.length > 0) {
-          const { data: players } = await supabase
-            .from('players')
-            .select('id, avatar_url, display_name')
-            .in('id', playerIds)
-          if (players) {
-            playerMap = Object.fromEntries(players.map(p => [p.id, { avatar_url: p.avatar_url, display_name: p.display_name }]))
-          }
-        }
-
-        setSpotlightSeeds(topSeedEntries.map(e => {
-          const playerInfo = e.player1_id ? playerMap[e.player1_id] : null
-          return {
-            name: playerInfo?.display_name || e.player1_name || 'TBD',
-            avatarUrl: playerInfo?.avatar_url ?? null,
-            seed: e.seed!,
-          }
-        }))
-      }
-
-      const allEntries = statsRes.data
-      if (allEntries && allEntries.length > 0) {
-        const countries = new Set<string>()
-        let menPairs = 0
-        let womenPairs = 0
-        for (const e of allEntries) {
-          if (e.player1_country) countries.add(e.player1_country)
-          if (e.player2_country) countries.add(e.player2_country)
-          if ((e as any).category === 'men') menPairs++
-          else if ((e as any).category === 'women') womenPairs++
-        }
-        const matchesCount = Math.max(0, menPairs - 1) + Math.max(0, womenPairs - 1)
-        setSpotlightStats({
-          pairsCount: allEntries.length,
-          countriesCount: countries.size,
-          matchesCount,
-        })
-      }
+      // Top seeds + stats previously came from the tournament_draws (entry-list)
+      // pipeline. That pipeline has been dropped — padelapi is the source of truth
+      // for matches now. The spotlight hero gracefully handles empty seeds + null
+      // stats, so we just leave them as their initial-state values.
     } catch (e) {
       console.warn('[V3 Home] spotlight data fetch failed:', e)
     }
@@ -535,8 +471,8 @@ function V3HomePageInner() {
             tournament={spotlightTournament}
             defendingChampionMen={spotlightChampionMen}
             defendingChampionWomen={spotlightChampionWomen}
-            topSeeds={spotlightSeeds}
-            stats={spotlightStats}
+            topSeeds={[]}
+            stats={null}
             hasLiveMatches={liveMatches.some(m => (m as any).tournament_id === spotlightTournament.id || (m as any).tournament?.id === spotlightTournament.id)}
           />
         </>

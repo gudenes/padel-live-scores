@@ -14,7 +14,6 @@ import Spinner from '../../../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
-import { isTournamentGated } from '@/lib/tournament-utils'
 import BracketView from '@/components/BracketView'
 import { EntryList } from '@/components/EntryList'
 import { V3MatchCard } from '@/components/V3MatchCard'
@@ -136,9 +135,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [justUpdated, setJustUpdated] = useState(false)
 
-  const [drawEntries, setDrawEntries] = useState<any[]>([])
-  const [playerMap, setPlayerMap] = useState<Record<string, { avatar_url: string | null; ranking: number | null }>>({})
-  const [debutStatusMap, setDebutStatusMap] = useState<Record<string, 'fresh' | 'newThisSeason' | null>>({})
+  // drawEntries/playerMap/debutStatusMap were populated from the tournament_draws
+  // (entry-list) pipeline. That pipeline has been dropped — these stay empty and
+  // downstream components render their no-draws states.
+  const drawEntries: any[] = []
+  const playerMap: Record<string, { avatar_url: string | null; ranking: number | null }> = {}
+  const debutStatusMap: Record<string, 'fresh' | 'newThisSeason' | null> = {}
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
@@ -206,133 +208,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     if (data) setTournaments(data)
   }, [])
 
-  // Fetch entry list / draw data + player hydration (avatars, rankings)
-  const fetchDrawEntries = useCallback(async () => {
-    const { data: drawData } = await supabase
-      .from('tournament_draws')
-      .select('draw_position, seed, marker, category, round, player1_name, player1_country, player1_id, player2_name, player2_country, player2_id, team_points')
-      .eq('tournament_id', tournamentId)
-      .order('draw_position', { ascending: true })
 
-    if (!drawData) return
-    setDrawEntries(drawData)
-
-    // Collect unique resolved player IDs
-    const playerIds = new Set<string>()
-    for (const d of drawData as any[]) {
-      if (d.player1_id) playerIds.add(d.player1_id)
-      if (d.player2_id) playerIds.add(d.player2_id)
-    }
-    if (playerIds.size === 0) return
-
-    // Hydrate player avatars + rankings
-    const { data: playerData } = await supabase
-      .from('players')
-      .select('id, avatar_url, ranking')
-      .in('id', Array.from(playerIds))
-
-    if (playerData) {
-      const map: Record<string, { avatar_url: string | null; ranking: number | null }> = {}
-      for (const p of playerData as any[]) {
-        map[p.id] = { avatar_url: p.avatar_url ?? null, ranking: p.ranking ?? null }
-      }
-      setPlayerMap(map)
-    }
-
-    // ── Compute debut status (fresh partners / new this season) ──
-    // For each entry with both player IDs resolved, look at historical
-    // finished matches (excluding this tournament) and count whether
-    // they've played together, and whether any of those matches are
-    // in the current calendar year.
-    //
-    // IMPORTANT: With large tournaments (50+ pairs, 100+ player IDs),
-    // a single .or() clause can exceed Supabase's URL limit (~26KB).
-    // We chunk the player IDs into groups of 30 and run parallel queries.
-    const idList = Array.from(playerIds)
-    if (idList.length === 0) {
-      setDebutStatusMap({})
-      return
-    }
-
-    const CHUNK_SIZE = 30
-    const chunks: string[][] = []
-    for (let i = 0; i < idList.length; i += CHUNK_SIZE) {
-      chunks.push(idList.slice(i, i + CHUNK_SIZE))
-    }
-
-    // Run chunked queries in parallel
-    const chunkResults = await Promise.all(
-      chunks.map(chunk => {
-        const orClause =
-          `pair1_player1_id.in.(${chunk.join(',')}),` +
-          `pair1_player2_id.in.(${chunk.join(',')}),` +
-          `pair2_player1_id.in.(${chunk.join(',')}),` +
-          `pair2_player2_id.in.(${chunk.join(',')})`
-        return supabase
-          .from('matches')
-          .select('pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, finished_at')
-          .in('status', ['finished', 'retired', 'walkover'])
-          .neq('tournament_id', tournamentId)
-          .or(orClause)
-          .limit(5000)
-      })
-    )
-
-    // Merge all chunk results
-    const histMatches = chunkResults.flatMap(r => (r.data ?? []) as any[])
-
-    // Deduplicate by match fields (chunks may overlap if players appear in multiple chunks)
-    const seen = new Set<string>()
-    const dedupedMatches = histMatches.filter(m => {
-      const key = `${m.pair1_player1_id}|${m.pair1_player2_id}|${m.pair2_player1_id}|${m.pair2_player2_id}|${m.finished_at}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-
-    // Build a map: pairKey → { hasPast: boolean, hasThisYear: boolean }
-    const pairStats: Record<string, { hasPast: boolean; hasThisYear: boolean }> = {}
-    const currentYear = new Date().getFullYear()
-
-    const makeKey = (a: string, b: string) => a < b ? `${a}|${b}` : `${b}|${a}`
-
-    for (const m of dedupedMatches) {
-      // For each match, check both pair slots. If both IDs in a slot
-      // are members of our playerIds set, record them as a played-together pair.
-      const pairs: Array<[string | null, string | null]> = [
-        [m.pair1_player1_id, m.pair1_player2_id],
-        [m.pair2_player1_id, m.pair2_player2_id],
-      ]
-      for (const [a, b] of pairs) {
-        if (!a || !b) continue
-        if (!playerIds.has(a) || !playerIds.has(b)) continue
-        const key = makeKey(a, b)
-        const year = m.finished_at ? new Date(m.finished_at).getFullYear() : 0
-        const existing = pairStats[key] ?? { hasPast: false, hasThisYear: false }
-        existing.hasPast = true
-        if (year === currentYear) existing.hasThisYear = true
-        pairStats[key] = existing
-      }
-    }
-
-    // Map each current-tournament entry to a debut status.
-    const statusMap: Record<string, 'fresh' | 'newThisSeason' | null> = {}
-    for (const d of drawData as any[]) {
-      if (!d.player1_id || !d.player2_id) continue
-      const key = makeKey(d.player1_id, d.player2_id)
-      const stats = pairStats[key]
-      if (!stats || !stats.hasPast) {
-        statusMap[key] = 'fresh'
-      } else if (!stats.hasThisYear) {
-        statusMap[key] = 'newThisSeason'
-      } else {
-        statusMap[key] = null // established
-      }
-    }
-    setDebutStatusMap(statusMap)
-  }, [tournamentId])
-
-  useEffect(() => { fetchAll(); fetchTournaments(); fetchDrawEntries() }, [fetchAll, fetchTournaments, fetchDrawEntries])
+  useEffect(() => { fetchAll(); fetchTournaments() }, [fetchAll, fetchTournaments])
 
   // ── Realtime — debounced ──────────────────────────────────────
   const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -791,18 +668,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </div>
           )}
 
-          {/* Gated tournament banner */}
-          {activeTournamentObj && isTournamentGated(activeTournamentObj) && (
-            <div style={{
-              margin: '0 16px', padding: '12px 16px',
-              background: 'rgba(245, 166, 35, 0.1)',
-              borderLeft: '3px solid #F5A623',
-            }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Matches Coming Soon</div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Entry list data is being processed for accurate player information</div>
-            </div>
-          )}
-
           {/* ROW 4: Stage selector strip (matches tab only) */}
           {pageTab === 'matches' && availableRounds.length > 0 && (
             <div ref={stageStripRef} style={{
@@ -861,7 +726,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
         {/* ── Matches Feed ── */}
         {pageTab === 'matches' && (
-          <div style={{ padding: '8px 12px 16px', ...(activeTournamentObj && isTournamentGated(activeTournamentObj) ? { opacity: 0.4, pointerEvents: 'none' as const } : {}) }}>
+          <div style={{ padding: '8px 12px 16px' }}>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} style={{ background: BG_CARD, clipPath: CHUNKY.card, height: 88, marginBottom: 6, opacity: 0.3 }} />

@@ -3,12 +3,11 @@
 // Client component: renders the ops dashboard and polls every 30s.
 
 import { useEffect, useState, useCallback } from 'react'
-import EntryListTab from './EntryListTab'
+// Entry-list / draw-editor / schedule-review / readiness tabs removed — padelapi is the
+// source of truth for matches now. Component files remain on disk for documentation.
 import SimulatorTab from './SimulatorTab'
-import DrawEditorTab from './DrawEditorTab'
 import PlayersTab from './PlayersTab'
 import ArchitectureTab from './ArchitectureTab'
-import ScheduleTab from './ScheduleTab'
 import BrandsTab from './BrandsTab'
 
 // ── Types ───────────────────────────────────────────────────────
@@ -44,22 +43,6 @@ interface OngoingEvent {
   scheduled: number
   finished: number
   total: number
-}
-
-interface TournamentReadiness {
-  id: string
-  name: string
-  level: string | null
-  country: string | null
-  startsAt: string
-  daysUntilStart: number
-  entryListStatus: string | null
-  entryListMen: boolean
-  entryListWomen: boolean
-  drawMen: boolean
-  drawWomen: boolean
-  blockers: string[]
-  urgent: boolean
 }
 
 interface ReadinessFlag {
@@ -157,7 +140,6 @@ interface DashboardData {
     meta: Record<string, any> | null
     error_message: string | null
   }>
-  tournamentReadiness?: TournamentReadiness[]
   fetched_at: string
 }
 
@@ -324,9 +306,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'entry-lists' | 'readiness' | 'simulator' | 'draw-editor' | 'players' | 'brands' | 'architecture' | 'schedule'>('ongoing')
-  const [preSelectedTournamentId, setPreSelectedTournamentId] = useState<string | null>(null)
-  const [drawEditorTournament, setDrawEditorTournament] = useState<{ id: string; name: string } | null>(null)
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture'>('ongoing')
   const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
   const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([])
   const [forcingSyncId, setForcingSyncId] = useState<string | null>(null)
@@ -423,12 +403,6 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
     {
       label: 'Tournament Manager',
       items: [
-        { key: 'readiness' as const, label: 'Readiness', badge: (() => {
-          const urgent = (data.tournamentReadiness ?? []).filter(t => t.urgent).length
-          return urgent > 0 ? `${urgent} urgent` : null
-        })() },
-        { key: 'entry-lists' as const, label: 'Entry Lists', badge: null },
-        { key: 'draw-editor' as const, label: 'Draw Editor', badge: null },
         { key: 'simulator' as const, label: 'Simulator', badge: null },
       ],
     },
@@ -437,7 +411,6 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       items: [
         { key: 'players' as const, label: 'Players', badge: null },
         { key: 'brands' as const, label: 'Brands & Equipment', badge: null },
-        { key: 'schedule' as const, label: 'Schedule', badge: null },
         { key: 'architecture' as const, label: 'Architecture', badge: null },
       ],
     },
@@ -894,34 +867,9 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
       </>}
 
-      {tab === 'readiness' && <ReadinessTab tournaments={data.tournamentReadiness ?? []} onOpenTournament={(id) => {
-        setPreSelectedTournamentId(id)
-        setTab('entry-lists')
-      }} />}
-
-      {tab === 'entry-lists' && <>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Entry Lists</div>
-        <EntryListTab preSelectedTournamentId={preSelectedTournamentId} onClearPreSelection={() => setPreSelectedTournamentId(null)} />
-      </>}
-
       {tab === 'simulator' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Simulator</div>
         <SimulatorTab />
-      </>}
-
-      {tab === 'draw-editor' && <>
-        {drawEditorTournament ? (
-          <DrawEditorTab
-            tournamentId={drawEditorTournament.id}
-            tournamentName={drawEditorTournament.name}
-            onBack={() => { setDrawEditorTournament(null) }}
-          />
-        ) : (
-          <DrawEditorTournamentPicker
-            tournaments={data.tournamentReadiness ?? []}
-            onSelect={(id, name) => setDrawEditorTournament({ id, name })}
-          />
-        )}
       </>}
 
       {tab === 'players' && <>
@@ -934,11 +882,6 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         <BrandsTab />
       </>}
 
-      {tab === 'schedule' && <>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Schedule Review</div>
-        <ScheduleTab />
-      </>}
-
       {tab === 'architecture' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>System Architecture</div>
         <ArchitectureTab />
@@ -948,19 +891,6 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       </div>
     </div>
   )
-}
-
-// ── Readiness Tab ──────────────────────────────────────────────
-
-const R_GREEN = '#7ED321'
-const R_ORANGE = '#F5A623'
-const R_RED = '#FF4655'
-const R_MUTED = '#6B7280'
-
-function getReadinessStatus(t: TournamentReadiness): 'ready' | 'partial' | 'pending' {
-  if (t.blockers.length === 0) return 'ready'
-  if (t.entryListMen || t.entryListWomen || t.drawMen || t.drawWomen) return 'partial'
-  return 'pending'
 }
 
 // ── Launch Monitor Card ─────────────────────────────────────────
@@ -1178,251 +1108,3 @@ function Stat({ label, value, accent }: { label: string; value: number; accent: 
   )
 }
 
-function ReadinessTab({ tournaments, onOpenTournament }: { tournaments: TournamentReadiness[]; onOpenTournament: (tournamentId: string) => void }) {
-  const pending = tournaments.filter(t => getReadinessStatus(t) === 'pending').length
-  const partial = tournaments.filter(t => getReadinessStatus(t) === 'partial').length
-  const ready = tournaments.filter(t => getReadinessStatus(t) === 'ready').length
-  const urgent = tournaments.filter(t => t.urgent).length
-
-  const sorted = [...tournaments].sort((a, b) => {
-    // Urgent first
-    if (a.urgent && !b.urgent) return -1
-    if (!a.urgent && b.urgent) return 1
-    // Ready last
-    const aReady = getReadinessStatus(a) === 'ready'
-    const bReady = getReadinessStatus(b) === 'ready'
-    if (aReady && !bReady) return 1
-    if (!aReady && bReady) return -1
-    // By days until start ascending
-    return a.daysUntilStart - b.daysUntilStart
-  })
-
-  const statusBadgeColor = (status: 'ready' | 'partial' | 'pending') => {
-    switch (status) {
-      case 'ready': return R_GREEN
-      case 'partial': return R_ORANGE
-      case 'pending': return R_RED
-    }
-  }
-
-  const daysColor = (days: number) => {
-    if (days < 0) return R_MUTED
-    if (days <= 3) return R_RED
-    if (days <= 7) return R_ORANGE
-    return R_GREEN
-  }
-
-  const daysLabel = (days: number) => {
-    if (days < -1) return `${Math.abs(days)}d ago`
-    if (days === -1) return 'Yesterday'
-    if (days === 0) return 'Today'
-    if (days === 1) return 'Tomorrow'
-    return `${days}d`
-  }
-
-  return (
-    <>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Tournament Readiness</div>
-
-      {/* Summary bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 20 }}>
-        <div style={card}>
-          <div style={tileLabel}>Pending</div>
-          <div style={{ ...bigNumber, color: R_RED }}>{pending}</div>
-        </div>
-        <div style={card}>
-          <div style={tileLabel}>Partial</div>
-          <div style={{ ...bigNumber, color: R_ORANGE }}>{partial}</div>
-        </div>
-        <div style={card}>
-          <div style={tileLabel}>Ready</div>
-          <div style={{ ...bigNumber, color: R_GREEN }}>{ready}</div>
-        </div>
-        <div style={card}>
-          <div style={tileLabel}>Urgent</div>
-          <div style={{ ...bigNumber, color: R_RED }}>{urgent}</div>
-        </div>
-      </div>
-
-      {/* Table */}
-      {sorted.length > 0 ? (
-        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-          <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Tournament</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Starts In</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Status</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>EL Men</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>EL Women</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Draw M</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Draw W</th>
-                <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Blockers</th>
-                <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 600, color: '#666' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map(t => {
-                const status = getReadinessStatus(t)
-                const badgeColor = statusBadgeColor(status)
-                return (
-                  <tr key={t.id} style={{
-                    borderBottom: '1px solid #f3f4f6',
-                    borderTop: t.urgent ? '2px solid #FF4655' : undefined,
-                  }}>
-                    <td style={{ padding: '8px 12px' }}>
-                      <div style={{ fontWeight: 600, color: '#111', fontSize: 12 }}>{t.name}</div>
-                      <div style={{ fontSize: 10, color: '#999' }}>{[t.level, t.country].filter(Boolean).join(' · ')}</div>
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                      <span style={{ fontWeight: 700, color: daysColor(t.daysUntilStart), fontSize: 12 }}>
-                        {daysLabel(t.daysUntilStart)}
-                      </span>
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                      <span style={{
-                        display: 'inline-block', padding: '2px 10px', fontSize: 9, fontWeight: 700,
-                        color: '#fff', background: badgeColor, textTransform: 'uppercase',
-                        clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)',
-                      }}>
-                        {status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', color: t.entryListMen ? R_GREEN : R_RED, fontWeight: 600 }}>
-                      {t.entryListMen ? '\u2713' : '\u2717'}
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', color: t.entryListWomen ? R_GREEN : R_RED, fontWeight: 600 }}>
-                      {t.entryListWomen ? '\u2713' : '\u2717'}
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', color: t.drawMen ? R_GREEN : R_RED, fontWeight: 600 }}>
-                      {t.drawMen ? '\u2713' : '\u2717'}
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center', color: t.drawWomen ? R_GREEN : R_RED, fontWeight: 600 }}>
-                      {t.drawWomen ? '\u2713' : '\u2717'}
-                    </td>
-                    <td style={{ padding: '8px 12px' }}>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {t.blockers.map(b => (
-                          <span key={b} style={{
-                            fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3,
-                            background: 'rgba(255,70,85,0.1)', color: R_RED,
-                          }}>
-                            {b}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                        <button
-                          onClick={() => onOpenTournament(t.id)}
-                          style={{
-                            fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 4,
-                            border: '1px solid #e5e7eb', background: '#f9fafb', color: '#333',
-                            cursor: 'pointer', whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {status !== 'ready' ? 'Upload EL' : 'Open'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div style={{ ...card, textAlign: 'center', color: '#999', fontSize: 12 }}>
-          No FIP tournaments in the -7d / +30d window
-        </div>
-      )}
-    </>
-  )
-}
-
-// ── Draw Editor Tournament Picker ─────────────────────────────
-
-function DrawEditorTournamentPicker({
-  tournaments,
-  onSelect,
-}: {
-  tournaments: TournamentReadiness[]
-  onSelect: (id: string, name: string) => void
-}) {
-  const withDraws = tournaments.filter(t => t.drawMen || t.drawWomen)
-  const withoutDraws = tournaments.filter(t => !t.drawMen && !t.drawWomen)
-
-  return (
-    <>
-      <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 8 }}>Draw Editor</div>
-      <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>
-        Select a tournament to edit its draw entries.
-      </div>
-
-      {withDraws.length > 0 && (
-        <>
-          <div style={{ ...sectionLabel, marginBottom: 6 }}>Tournaments with draws</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-            {withDraws.map(t => (
-              <div
-                key={t.id}
-                onClick={() => onSelect(t.id, t.name)}
-                style={{
-                  ...card, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'white')}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 12, color: '#111' }}>{t.name}</div>
-                  <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
-                    {t.country ?? 'Unknown'} &middot; {t.level ?? 'Unknown'} &middot; Starts {t.startsAt?.slice(0, 10) ?? '—'}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {t.drawMen && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3, background: '#DBEAFE', color: '#1E40AF' }}>DR M</span>}
-                  {t.drawWomen && <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 3, background: '#FCE7F3', color: '#9D174D' }}>DR W</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {withoutDraws.length > 0 && (
-        <>
-          <div style={{ ...sectionLabel, marginBottom: 6 }}>Tournaments without draws</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {withoutDraws.map(t => (
-              <div
-                key={t.id}
-                onClick={() => onSelect(t.id, t.name)}
-                style={{
-                  ...card, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  opacity: 0.7,
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f9fafb'; e.currentTarget.style.opacity = '1' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.opacity = '0.7' }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 12, color: '#111' }}>{t.name}</div>
-                  <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
-                    {t.country ?? 'Unknown'} &middot; {t.level ?? 'Unknown'} &middot; Starts {t.startsAt?.slice(0, 10) ?? '—'}
-                  </div>
-                </div>
-                <span style={{ fontSize: 10, color: '#9ca3af' }}>No draws</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {tournaments.length === 0 && (
-        <div style={{ ...card, textAlign: 'center', color: '#999', fontSize: 12 }}>
-          No tournaments available
-        </div>
-      )}
-    </>
-  )
-}
