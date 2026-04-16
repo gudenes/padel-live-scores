@@ -258,6 +258,53 @@ function computePairGames(set: ApiSet): { pair1_games: number; pair2_games: numb
   return { pair1_games: 0, pair2_games: 0 }
 }
 
+// ── Score-based finish detection ──────────────────────────────
+// padelapi.org's /live feed sometimes lags behind reality — a match
+// that's clearly over (e.g. 6-0, 6-2) keeps showing up as `status: "live"`
+// with a phantom "current game" containing malformed points like "A:A".
+//
+// This helper answers: do the set scores we already have prove the match
+// is finished? We're intentionally strict — only count sets that are
+// *decisively* won (6 with 2-game margin, or 7 games). A set at 6-5 or
+// 6-6 is still in progress and does not count.
+//
+// Returns the winner pair (1 or 2) if either pair has 2 decisive sets
+// in best-of-3, null otherwise.
+function inferWinnerFromLiveSets(sets: ApiSet[]): 1 | 2 | null {
+  let p1SetsWon = 0
+  let p2SetsWon = 0
+
+  for (const set of sets) {
+    const { pair1_games: p1Raw, pair2_games: p2Raw } = computePairGames(set)
+    // Decode concatenated tiebreak values (e.g. 78 → games=7, or 66 → games=6)
+    const decode = (v: number): number => {
+      if (v <= 9) return v
+      const str = String(v)
+      const first = parseInt(str[0])
+      if (first === 6 || first === 7) return first
+      return v
+    }
+    const p1 = decode(p1Raw)
+    const p2 = decode(p2Raw)
+
+    const max = Math.max(p1, p2)
+    const margin = Math.abs(p1 - p2)
+
+    // Decisive win conditions:
+    //   - 6-0..4 (margin ≥ 2 at 6 games)
+    //   - 7-5   (standard), 7-6 (tiebreak)
+    const decisive = (max === 6 && margin >= 2) || max === 7
+    if (!decisive) continue
+
+    if (p1 > p2) p1SetsWon++
+    else if (p2 > p1) p2SetsWon++
+  }
+
+  if (p1SetsWon >= 2) return 1
+  if (p2SetsWon >= 2) return 2
+  return null
+}
+
 // ── Upsert helpers ─────────────────────────────────────────────
 let _scoreResolver: PlayerResolver | null = null
 async function getScoreResolver(): Promise<PlayerResolver> {
@@ -710,6 +757,38 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
     await backfillPointData(matchRow.id, externalId)
   } else {
     await upsertSetsAndGames(matchRow.id, liveState.sets, false)
+
+    // ── Score-based finish detection ──
+    // If the score clearly shows a completed match (e.g. 6-0, 6-2)
+    // but upstream still reports status=live, auto-transition.
+    // This catches the case where padelapi.org lags behind reality
+    // and we'd otherwise be stuck showing a finished match as live
+    // with a phantom "current game" (malformed A:A points).
+    const inferredWinner = inferWinnerFromLiveSets(liveState.sets)
+    if (inferredWinner !== null) {
+      console.log(`[Score Agent] Match ${externalId}: upstream still 'live' but score is decisive (winner=pair ${inferredWinner}) — auto-transitioning to finished`)
+      await supabase
+        .from('matches')
+        .update({
+          status: 'finished',
+          winner_pair: inferredWinner,
+          finished_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', matchRow.id)
+        .is('winner_pair', null)
+
+      // Pull the authoritative set scores from the detail endpoint —
+      // /live gives us "7-6" without the tiebreak bracket, but /matches/{id}
+      // returns "7-6(6)" with the loser's tb. Without this, the UI can't
+      // render the tb superscript. Best-effort — if detail isn't ready yet,
+      // the next reconciliation cycle will retry.
+      if (!isRateLimited()) {
+        await writeFinalState(matchRow.id, externalId, 'finished')
+      }
+
+      await cleanupMatchFinish(matchRow.id)
+    }
   }
 
   console.log(`[Score Agent] ✓ Synced match ${externalId} (${liveState.status})`)
@@ -755,11 +834,26 @@ async function reconcileIncompleteMatches(): Promise<{
     .order('finished_at', { ascending: false })
     .limit(5)
 
+  // Query 3: tiebreak sets missing the loser's tb bracket.
+  // /live returns "7-6" (no tb); /matches/{id} returns "7-6(6)".
+  // Match either with the match auto-finished before detail was queried,
+  // or from the legacy pipeline that didn't normalize tb data.
+  const { data: tiebreakSets } = await supabase
+    .from('matches')
+    .select('id, external_id, finished_at, sets!inner(set_score)')
+    .in('status', ['finished'])
+    .not('winner_pair', 'is', null)
+    .gte('finished_at', sevenDaysAgo)
+    .in('sets.set_score', ['7-6', '6-7'])
+    .order('finished_at', { ascending: false })
+    .limit(5)
+
   // Merge and deduplicate
   const seen = new Set<string>()
   const allMatches = [
     ...(missingWinner ?? []),
     ...(incompleteSets ?? []),
+    ...(tiebreakSets ?? []),
   ].filter(m => {
     if (seen.has(m.id)) return false
     seen.add(m.id)
