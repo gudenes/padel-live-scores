@@ -168,31 +168,45 @@ function normalizePlayerName(name: string): string {
 
 // ── Step 1: Sync seasons → get ALL active season IDs ──────────
 // API: { data: [{ id, name, status, start_date, end_date, ... }] }
+// Paginated so future circuits/tours (regional, youth, etc.) aren't silently dropped.
 async function getActiveSeasonIds(): Promise<string[]> {
-  const result = await fetchFromApi('/seasons?per_page=10')
-  if (!result) return []
+  const seasons: any[] = []
+  let page = 1
+  let hasMore = true
 
-  try {
-    const data = await result.res.json()
-    const seasons = Array.isArray(data) ? data : (data.data ?? [])
+  while (hasMore) {
+    if (isRateLimited()) break
+    const result = await fetchFromApi(`/seasons?per_page=50&page=${page}`)
+    if (!result) break
 
-    // Get all active seasons (can be multiple: Premier Padel + FIP Tour)
-    const active = seasons.filter((s: any) => s.status === 'active')
-
-    if (active.length === 0) {
-      const fallback = seasons[0]
-      if (!fallback?.id) return []
-      console.log(`[Sync] No active seasons, using: ${fallback.id} (${fallback.name})`)
-      return [String(fallback.id)]
+    try {
+      const data = await result.res.json()
+      const rows = Array.isArray(data) ? data : (data.data ?? [])
+      seasons.push(...rows)
+      const lastPage = data.meta?.last_page ?? 1
+      hasMore = page < lastPage
+      page++
+    } catch (e) {
+      console.error(`[Sync] Failed to parse seasons page ${page}:`, e)
+      break
     }
-
-    const ids = active.map((s: any) => String(s.id))
-    console.log(`[Sync] Active seasons: ${active.map((s: any) => s.id + ' (' + s.name + ')').join(', ')}`)
-    return ids
-  } catch (e) {
-    console.error('[Sync] Failed to parse seasons:', e)
-    return []
   }
+
+  if (seasons.length === 0) return []
+
+  // Get all active seasons (can be multiple: Premier Padel + FIP Tour)
+  const active = seasons.filter((s: any) => s.status === 'active')
+
+  if (active.length === 0) {
+    const fallback = seasons[0]
+    if (!fallback?.id) return []
+    console.log(`[Sync] No active seasons, using: ${fallback.id} (${fallback.name})`)
+    return [String(fallback.id)]
+  }
+
+  const ids = active.map((s: any) => String(s.id))
+  console.log(`[Sync] Active seasons: ${active.map((s: any) => s.id + ' (' + s.name + ')').join(', ')}`)
+  return ids
 }
 
 // ── FIP event info lookup ──────────────────────────────────────
@@ -344,13 +358,35 @@ async function fetchFipOverview(slug: string): Promise<FipOverviewData | null> {
 // ── Step 2: Sync tournaments for a season ─────────────────────
 // Uses list endpoint only — no per-tournament detail calls
 // Redirect checks are deferred to reconciliation to save rate limits
+// Paginated: follows data.meta.last_page so we don't silently drop tournaments
+// when a season has > 50 (full-year Premier + FIP seasons easily exceed this)
 async function syncTournaments(seasonId: string): Promise<string[]> {
-  const result = await fetchFromApi(`/seasons/${seasonId}/tournaments?per_page=50`)
-  if (!result) return []
+  const tournaments: any[] = []
+  let page = 1
+  let hasMore = true
+
+  while (hasMore) {
+    if (isRateLimited()) break
+    const result = await fetchFromApi(`/seasons/${seasonId}/tournaments?per_page=50&page=${page}`)
+    if (!result) break
+
+    try {
+      const data = await result.res.json()
+      const rows = Array.isArray(data) ? data : (data.data ?? [])
+      tournaments.push(...rows)
+      const lastPage = data.meta?.last_page ?? 1
+      hasMore = page < lastPage
+      page++
+    } catch (e) {
+      console.error(`[Sync] Failed to parse tournaments page ${page} for season ${seasonId}:`, e)
+      break
+    }
+  }
+
+  if (tournaments.length === 0) return []
+  console.log(`[Sync] Season ${seasonId}: fetched ${tournaments.length} tournaments across ${page - 1} page(s)`)
 
   try {
-    const data = await result.res.json()
-    const tournaments = Array.isArray(data) ? data : (data.data ?? [])
     const syncedIds: string[] = []
 
     // Fetch existing FIP-enriched fields so we avoid redundant scraping on re-runs
@@ -919,7 +955,12 @@ export async function GET(request: Request) {
       // Syncs ALL matches for:
       //   - Currently active tournaments (scheduled upcoming matches + live + results)
       //   - Tournaments that ended in the last 14 days (fix any remaining broken results)
-      // This is the single source of truth for scheduled matches AND reconciliation
+      //   - Upcoming tournaments starting within 7 days (early draws + schedules)
+      // Date bounds naturally limit the set size; the isRateLimited() guard inside
+      // the per-tournament loop is the real safety net. Deterministic ordering by
+      // starts_at so repeated runs process the same tournaments in the same order.
+      // .not('source', 'eq', 'fip') excludes rows from the paused FIP scraper pipeline
+      // whose external_ids don't resolve on padelapi.
       if (syncScopes.includes('all') || syncScopes.includes('matches')) {
         const today = new Date().toISOString().slice(0, 10)
         const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -931,7 +972,7 @@ export async function GET(request: Request) {
           .lte('starts_at', today)
           .gte('ends_at', today)
           .not('source', 'eq', 'fip')
-          .limit(5)
+          .order('starts_at', { ascending: false })
 
         // Recently completed tournaments
         const { data: recentTournaments } = await supabase
@@ -940,7 +981,7 @@ export async function GET(request: Request) {
           .gte('ends_at', twoWeeksAgo)
           .lt('ends_at', today)
           .not('source', 'eq', 'fip')
-          .limit(3)
+          .order('ends_at', { ascending: false })
 
         // Upcoming tournaments: starting within the next 7 days
         // Draws and schedules are often published days before the tournament starts
@@ -951,7 +992,7 @@ export async function GET(request: Request) {
           .gt('starts_at', today)
           .lte('starts_at', oneWeekFromNow)
           .not('source', 'eq', 'fip')
-          .limit(5)
+          .order('starts_at', { ascending: true })
 
         const allTournaments = [
           ...(activeTournaments ?? []),
