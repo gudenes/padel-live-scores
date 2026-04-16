@@ -115,7 +115,8 @@ export function getCurrentScore(match: Match): {
 // "7-61" (from /live endpoint) → {p1: 7, p2: 6, tb: 1}
 // "6(1)" style handled at match level via score array
 export function parseSetScore(score: string | null): { p1: number; p2: number; tb: number | null } | null {
-  if (!score) return null
+  // Handle literal string "null" from API as well as actual null/undefined/empty
+  if (!score || score === 'null' || score === 'undefined') return null
   const parts = score.split('-')
   if (parts.length !== 2) return null
   const p1str = parts[0]
@@ -153,6 +154,37 @@ export function parseSetScore(score: string | null): { p1: number; p2: number; t
   }
 
   return { p1, p2, tb: null }
+}
+
+/**
+ * Fallback parser when set_score string is unavailable but pair1_games/pair2_games
+ * may contain concatenated tiebreak values (e.g. 78 = 7 games, tb 8 vs 66 = 6 games, tb 6).
+ * Returns null if the games don't look like a tiebreak set.
+ */
+export function parseSetFromGames(
+  p1Games: number | null | undefined,
+  p2Games: number | null | undefined,
+): { p1: number; p2: number; tb: number | null } | null {
+  if (p1Games == null || p2Games == null) return null
+  // Standard sets: both values are 0-7
+  if (p1Games <= 7 && p2Games <= 7) return { p1: p1Games, p2: p2Games, tb: null }
+  // Concatenated tiebreak: one value is 2 digits starting with 6 or 7
+  // e.g. p1=78 → p1 won 7, tb=8; p2=66 → p2 lost 6, tb=6
+  const decode = (v: number): { games: number; tb: number } | null => {
+    if (v <= 9) return { games: v, tb: 0 }
+    const str = String(v)
+    const first = parseInt(str[0])
+    const rest = parseInt(str.slice(1))
+    if ((first === 6 || first === 7) && !isNaN(rest)) return { games: first, tb: rest }
+    return null
+  }
+  const d1 = decode(p1Games)
+  const d2 = decode(p2Games)
+  if (!d1 || !d2) return null
+  // The tb shown as superscript is the loser's tiebreak points (convention).
+  // Winner had the higher games (7 vs 6) — the other side's encoded tb is what we display.
+  const loserTb = d1.games > d2.games ? d2.tb : d1.tb
+  return { p1: d1.games, p2: d2.games, tb: loserTb }
 }
 
 export function toShortName(name: string): string {

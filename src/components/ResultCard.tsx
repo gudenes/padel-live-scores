@@ -13,7 +13,7 @@
 import { useFormatter } from 'next-intl'
 import { DATE_SHORT } from '@/lib/format-patterns'
 import { Link } from '@/i18n/navigation'
-import { Match, pairName, parseSetScore } from '@/types/match'
+import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -154,18 +154,20 @@ export function ResultCard({ match }: { match: Match }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {sets.map(s => {
-                const parsed = parseSetScore(s.set_score)
+                const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
                 const p1g = parsed?.p1 ?? s.pair1_games ?? 0
                 const p2g = parsed?.p2 ?? s.pair2_games ?? 0
                 const games = pairNum === 1 ? p1g : p2g
+                const tb = parsed?.tb ?? null
                 const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
                 return (
                   <span key={s.set_number} style={{
                     fontSize: 16, fontWeight: 700, fontFamily: 'monospace',
                     color: wonThisSet ? '#fff' : '#B0B5BE',
-                    minWidth: 16, textAlign: 'center',
+                    minWidth: 16, textAlign: 'center', position: 'relative',
                   }}>
                     {games}
+                    {tb != null && !wonThisSet && <sup style={{ fontSize: 8, color: '#B0B5BE', position: 'absolute', top: -3, right: -5 }}>{tb}</sup>}
                   </span>
                 )
               })}

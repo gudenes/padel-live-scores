@@ -10,7 +10,7 @@ import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, pairName, parseSetScore, isWarmingUp } from '@/types/match'
+import { Match, pairName, parseSetScore, parseSetFromGames, isWarmingUp } from '@/types/match'
 import BrandedLoader, { LOADER_HINTS } from '../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
@@ -392,7 +392,7 @@ function V3MatchRow({ match }: { match: Match }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, position: 'relative', zIndex: 2 }}>
                 {sets.map(s => {
-                  const parsed = parseSetScore(s.set_score)
+                  const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
                   const games = pairNum === 1 ? (parsed?.p1 ?? s.pair1_games) : (parsed?.p2 ?? s.pair2_games)
                   const oppGames = pairNum === 1 ? (parsed?.p2 ?? s.pair2_games) : (parsed?.p1 ?? s.pair1_games)
                   const isCurrent = s.is_current

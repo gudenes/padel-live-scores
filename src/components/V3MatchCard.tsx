@@ -9,7 +9,7 @@
 // so existing call sites render identically.
 
 import { Link } from '@/i18n/navigation'
-import { Match, pairName, parseSetScore } from '@/types/match'
+import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -60,12 +60,9 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
     if (match.winner_pair === 2) return 2
     let p1Sets = 0, p2Sets = 0
     for (const s of sets) {
-      let p1 = s.pair1_games ?? 0
-      let p2 = s.pair2_games ?? 0
-      if (p1 === 0 && p2 === 0 && s.set_score) {
-        const parsed = parseSetScore(s.set_score)
-        if (parsed) { p1 = parsed.p1; p2 = parsed.p2 }
-      }
+      const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
+      const p1 = parsed?.p1 ?? s.pair1_games ?? 0
+      const p2 = parsed?.p2 ?? s.pair2_games ?? 0
       if (p1 > p2) p1Sets++
       else if (p2 > p1) p2Sets++
     }
@@ -157,19 +154,21 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {sets.map(s => {
-                  const parsed = parseSetScore(s.set_score)
+                  const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
                   const p1g = parsed?.p1 ?? s.pair1_games ?? 0
                   const p2g = parsed?.p2 ?? s.pair2_games ?? 0
                   const games = pairNum === 1 ? p1g : p2g
+                  const tb = parsed?.tb ?? null
                   const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
                   const isCurrent = s.is_current && isLive
                   return (
                     <span key={s.id} style={{
                       fontSize: 15, fontWeight: 700, fontFamily: 'monospace',
                       color: isCurrent ? GREEN : wonThisSet ? '#fff' : '#B0B5BE',
-                      minWidth: 16, textAlign: 'center',
+                      minWidth: 16, textAlign: 'center', position: 'relative',
                     }}>
                       {games}
+                      {tb != null && !wonThisSet && <sup style={{ fontSize: 8, color: '#B0B5BE', position: 'absolute', top: -3, right: -5 }}>{tb}</sup>}
                     </span>
                   )
                 })}

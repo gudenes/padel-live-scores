@@ -7,7 +7,7 @@
 
 import { useRouter } from '@/i18n/navigation'
 import { useRef, useEffect, useState, memo } from 'react'
-import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarmingUp } from '@/types/match'
+import { Match, pairName, countryFlag, parseSetScore, parseSetFromGames, getCurrentScore, isWarmingUp } from '@/types/match'
 
 interface CompactMatchCardProps {
   match: Match
@@ -74,9 +74,11 @@ function CompactMatchCard({ match, embedded }: CompactMatchCardProps) {
   const p1Won = isFinished && winnerPair === 1
   const p2Won = isFinished && winnerPair === 2
 
-  // Only display sets with a real score OR the current in-progress set
+  // Only display sets with a real score OR the current in-progress set.
+  // Also keep sets where set_score came back as literal null but pair games are populated
+  // (common in tiebreak sets where set_score is "null" string from the API).
   const displaySets = (match.sets ?? []).filter(
-    (s: any) => s.set_score !== null || s.is_current
+    (s: any) => s.set_score !== null || s.is_current || (s.pair1_games != null && s.pair2_games != null)
   )
 
   const category = (match as any).category as string | null
@@ -295,7 +297,7 @@ function CompactMatchCard({ match, embedded }: CompactMatchCardProps) {
           {/* Set scores */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginRight: 2 }}>
             {displaySets.map((set) => {
-              const parsed = parseSetScore(set.set_score)
+              const parsed = parseSetScore(set.set_score) ?? parseSetFromGames((set as any).pair1_games, (set as any).pair2_games)
               const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
               return (
                 <span key={set.set_number} style={{
@@ -348,7 +350,7 @@ function CompactMatchCard({ match, embedded }: CompactMatchCardProps) {
           {/* Set scores */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginRight: 2 }}>
             {displaySets.map((set) => {
-              const parsed = parseSetScore(set.set_score)
+              const parsed = parseSetScore(set.set_score) ?? parseSetFromGames((set as any).pair1_games, (set as any).pair2_games)
               const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
               return (
                 <span key={set.set_number} style={{

@@ -16,7 +16,7 @@ function getTimezoneOffset(tz: string, date: Date): number {
 
 import { useRouter } from '@/i18n/navigation'
 import { useRef, useEffect, useState, memo } from 'react'
-import { Match, pairName, countryFlag, parseSetScore, getCurrentScore, isWarmingUp } from '@/types/match'
+import { Match, pairName, countryFlag, parseSetScore, parseSetFromGames, getCurrentScore, isWarmingUp } from '@/types/match'
 import { useFormatter } from 'next-intl'
 import { TIME_24H } from '@/lib/format-patterns'
 
@@ -88,19 +88,21 @@ function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embe
   const p2Won = isFinished && winnerPair === 2
 
   // Only count sets with a real score (filter orphan null sets)
-  const completedSets = (match.sets ?? []).filter((s: any) => s.set_score !== null)
+  const completedSets = (match.sets ?? []).filter((s: any) => s.set_score !== null || (s.pair1_games != null && s.pair2_games != null && !s.is_current))
   const p1SetsWon = completedSets.filter((s: any) => {
-    const parsed = parseSetScore(s.set_score)
+    const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
     return parsed ? parsed.p1 > parsed.p2 : false
   }).length
   const p2SetsWon = completedSets.filter((s: any) => {
-    const parsed = parseSetScore(s.set_score)
+    const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
     return parsed ? parsed.p2 > parsed.p1 : false
   }).length
 
-  // Only display sets with a real score OR the current in-progress set, sorted by set_number
+  // Only display sets with a real score OR the current in-progress set, sorted by set_number.
+  // Also include sets where set_score is missing but pair1_games/pair2_games are populated
+  // (e.g. tiebreak sets where set_score came back as literal string "null" from the API).
   const displaySets = (match.sets ?? [])
-    .filter((s: any) => s.set_score !== null || s.is_current)
+    .filter((s: any) => s.set_score !== null || s.is_current || (s.pair1_games != null && s.pair2_games != null))
     .sort((a: any, b: any) => (a.set_number ?? 0) - (b.set_number ?? 0))
 
   const category = (match as any).category as string | null
@@ -392,7 +394,7 @@ function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embe
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p2Won ? 0.5 : 0.9) : 1 }}>
                       {displaySets.map((set) => {
-                        const parsed = parseSetScore(set.set_score)
+                        const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
                         const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                         return (
                           <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-secondary)' : parsed ? (p1WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>
@@ -428,7 +430,7 @@ function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embe
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <div style={{ display: 'flex', gap: 2, alignItems: 'center', opacity: isFinished ? (p1Won ? 0.5 : 0.9) : 1 }}>
                       {displaySets.map((set) => {
-                        const parsed = parseSetScore(set.set_score)
+                        const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
                         const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                         return (
                           <span key={set.set_number} style={{ fontSize: isLive ? 20 : 13, fontWeight: 900, width: isLive ? 24 : 16, height: isLive ? 28 : 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)', lineHeight: 1, position: 'relative', color: set.is_current ? 'var(--text-secondary)' : parsed ? (p2WonSet ? 'var(--text-primary)' : 'var(--text-muted)') : 'var(--text-muted)' }}>

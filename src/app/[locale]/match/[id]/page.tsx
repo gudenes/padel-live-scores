@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, use, useRef, useMemo } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, toShortName } from '@/types/match'
+import { Match, Game, getCurrentScore, pairName, isStarPoint, parseSetScore, parseSetFromGames, toShortName } from '@/types/match'
 import MomentumChart from './MomentumChart'
 import BottomNav from '@/components/nav/BottomNavV3'
 import Spinner from '@/app/components/Spinner'
@@ -366,8 +366,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
   const flashKeyRef = useRef(0)
   const matchSets = match?.sets ?? []
-  const p1TotalGames = useMemo(() => matchSets.reduce((s, st) => s + (parseSetScore(st.set_score)?.p1 ?? 0), 0), [matchSets])
-  const p2TotalGames = useMemo(() => matchSets.reduce((s, st) => s + (parseSetScore(st.set_score)?.p2 ?? 0), 0), [matchSets])
+  const p1TotalGames = useMemo(() => matchSets.reduce((s, st) => s + ((parseSetScore(st.set_score) ?? parseSetFromGames(st.pair1_games, st.pair2_games))?.p1 ?? 0), 0), [matchSets])
+  const p2TotalGames = useMemo(() => matchSets.reduce((s, st) => s + ((parseSetScore(st.set_score) ?? parseSetFromGames(st.pair1_games, st.pair2_games))?.p2 ?? 0), 0), [matchSets])
   // Extract current point for flash detection (same logic used below for display)
   const _cg = match ? getCurrentScore(match).currentGame : null
   const _cp = _cg?.points?.filter(p => p !== '0:0').slice(-1)[0] ?? null
@@ -523,7 +523,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             const scores = (match.sets ?? [])
               .sort((a: any, b: any) => a.set_number - b.set_number)
               .map((s: any) => {
-                const parsed = parseSetScore(s.set_score)
+                const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
                 return parsed ? `${parsed.p1}-${parsed.p2}` : null
               })
               .filter(Boolean)
@@ -636,7 +636,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               {(match.sets ?? []).map(set => {
-                const parsed = parseSetScore(set.set_score)
+                const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
                 const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                 return (
                   <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p1WonSet ? '#fff' : '#B0B5BE' }}>
@@ -652,7 +652,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               {(match.sets ?? []).map(set => {
-                const parsed = parseSetScore(set.set_score)
+                const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
                 const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                 return (
                   <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p2WonSet ? '#fff' : '#B0B5BE' }}>
@@ -726,7 +726,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           {!isScheduled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
               {(match.sets ?? []).map(set => {
-                const parsed = parseSetScore(set.set_score)
+                const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
                 const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
                 return (
                   <span key={set.set_number} style={{ ...scoreNumStyle(p1WonSet && !set.is_current, set.is_current || (!!parsed && !p1WonSet)), position: 'relative' }}>
@@ -785,7 +785,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           {!isScheduled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
               {(match.sets ?? []).map(set => {
-                const parsed = parseSetScore(set.set_score)
+                const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
                 const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
                 return (
                   <span key={set.set_number} style={{ ...scoreNumStyle(p2WonSet && !set.is_current, set.is_current || (!!parsed && !p2WonSet)), position: 'relative' }}>
@@ -1653,7 +1653,7 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
           </button>
           {[...allSets].reverse().map(s => {
             const active = setFilter === s.set_number
-            const parsed = parseSetScore(s.set_score)
+            const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
             const scoreLabel = parsed ? ` (${parsed.p1}-${parsed.p2})` : s.is_current ? ' ·  Live' : ''
             return (
               <button
@@ -1853,7 +1853,7 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
         // Per-set games for each side, in top-row / bottom-row orientation.
         const sortedSets = [...(m.sets ?? [])].sort((a: any, b: any) => a.set_number - b.set_number)
         const setGames: { top: number | string; bot: number | string }[] = sortedSets.map((s: any) => {
-          const parsed = parseSetScore(s.set_score)
+          const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
           const p1g = parsed?.p1 ?? s.pair1_games ?? 0
           const p2g = parsed?.p2 ?? s.pair2_games ?? 0
           return ourPairIsMatch1
