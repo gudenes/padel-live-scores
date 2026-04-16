@@ -126,6 +126,7 @@ export async function GET(request: Request) {
     // Try to match against DB matches by player name similarity
     let bestMatch: any = null
     let bestScore = 0
+    let bestRoundPriority = 0
 
     for (const dbm of (dbMatches || []) as any[]) {
       // Compare OOP players against DB match players
@@ -179,8 +180,28 @@ export async function GET(request: Request) {
         }
       }
 
-      if (matchCount > bestScore) {
+      // Prefer matches whose round matches the OOP round — tie-breaker
+      // for when players appear in multiple rounds (e.g. same players
+      // across Q1→R32→R16→QF). Uses a separate priority score so we
+      // keep player matchCount clean for confidence calculation.
+      let roundPriority = 0
+      if (oop.round && dbm.round) {
+        const normOopRound = oop.round.toLowerCase().replace(/s$/, '')
+        const normDbRound = (dbm.round as string).toLowerCase().replace(/s$/, '')
+        // "quarter" matches "quarterfinal", "r32" matches "round of 32"
+        if (normDbRound.includes(normOopRound) || normOopRound.includes(normDbRound)) {
+          roundPriority = 1
+        }
+      }
+
+      // Pick best match: higher matchCount wins; ties broken by round match
+      const isBetter =
+        matchCount > bestScore ||
+        (matchCount === bestScore && roundPriority > bestRoundPriority)
+
+      if (isBetter) {
         bestScore = matchCount
+        bestRoundPriority = roundPriority
         bestMatch = dbm
       }
     }
