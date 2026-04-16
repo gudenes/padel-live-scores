@@ -140,6 +140,14 @@ function calculateSetScore(team1Games, team2Games, gameWinner) {
 /**
  * Try to infer the final set score for a finished match.
  * Only updates existing rows — never creates new ones.
+ *
+ * Returns:
+ *   'inferred'   — score was written
+ *   'complete'   — no null set (nothing to do, success state)
+ *   'api_owned'  — null set exists but source='api' (skip)
+ *   'no_points'  — last game has no points yet (caller should retry)
+ *   'no_data'    — no game or unparseable score (caller should retry)
+ *   'error'      — unexpected exception
  */
 async function tryInferFinalScore(matchDbId) {
   try {
@@ -151,9 +159,10 @@ async function tryInferFinalScore(matchDbId) {
       .is('set_score', null)
       .order('set_number', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
-    if (!incompleteSet || incompleteSet.score_source === 'api') return
+    if (!incompleteSet) return 'complete'
+    if (incompleteSet.score_source === 'api') return 'api_owned'
 
     // Get the last game in that set
     const { data: lastGame } = await supabase
@@ -162,19 +171,20 @@ async function tryInferFinalScore(matchDbId) {
       .eq('set_id', incompleteSet.id)
       .order('game_number', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
-    if (!lastGame || !lastGame.points || lastGame.points.length === 0) return
+    if (!lastGame) return 'no_data'
+    if (!lastGame.points || lastGame.points.length === 0) return 'no_points'
 
     const parsed = parseGameScoreStr(lastGame.game_score)
-    if (!parsed) return
+    if (!parsed) return 'no_data'
 
     const isTiebreak = parsed.team1 === 6 && parsed.team2 === 6
     const gameWinner = determineGameWinner(lastGame.points, isTiebreak)
-    if (!gameWinner) return
+    if (!gameWinner) return 'no_data'
 
     const newScore = calculateSetScore(parsed.team1, parsed.team2, gameWinner)
-    if (!newScore) return
+    if (!newScore) return 'no_data'
 
     // Write inferred score — UPDATE only, never INSERT
     await supabase
@@ -196,9 +206,38 @@ async function tryInferFinalScore(matchDbId) {
     console.log(
       `[Relay-Inference] Match ${matchDbId}: inferred set ${incompleteSet.set_number} = ${newScore}`
     )
+    return 'inferred'
   } catch (err) {
     console.error(`[Relay-Inference] Error for match ${matchDbId}:`, err.message)
+    return 'error'
   }
+}
+
+/**
+ * Run inference with a short retry — handles the race where the Pusher
+ * 'finished' event arrives before the last game's points have been flushed.
+ *
+ * 1.5s → try — if no_points/no_data, wait 2s → retry once.
+ * Success states (inferred / complete / api_owned) short-circuit.
+ * The 2-minute scores cron (inferBatch) is the longer-term safety net.
+ */
+async function tryInferFinalScoreWithRetry(matchDbId) {
+  await new Promise((resolve) => setTimeout(resolve, 1500))
+  const first = await tryInferFinalScore(matchDbId)
+  if (first === 'inferred' || first === 'complete' || first === 'api_owned') return first
+  if (first !== 'no_points' && first !== 'no_data') return first
+
+  console.log(
+    `[Relay-Inference] Match ${matchDbId}: first pass '${first}', retrying in 2s`
+  )
+  await new Promise((resolve) => setTimeout(resolve, 2000))
+  const second = await tryInferFinalScore(matchDbId)
+  if (second !== 'inferred' && second !== 'complete' && second !== 'api_owned') {
+    console.log(
+      `[Relay-Inference] Match ${matchDbId}: retry also '${second}' — scores cron will retry`
+    )
+  }
+  return second
 }
 
 // ── Match finish cleanup: clear is_current + compute coverage ─
@@ -394,9 +433,10 @@ async function handleLiveUpdate(data) {
       await fetchAndWriteFinalState(externalId, matchDbId)
 
       // ── Inference fallback ──
+      // 1.5s initial delay + single 2s retry handles the race where Pusher's
+      // 'finished' event arrives before the last game's points are flushed.
       if (data.status === 'finished') {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-        await tryInferFinalScore(matchDbId)
+        await tryInferFinalScoreWithRetry(matchDbId)
       }
 
       // ── Cleanup: clear is_current flags + compute coverage ──
@@ -488,12 +528,20 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
         )
     }
 
-    // Delete orphan null sets
-    await supabase
-      .from('sets')
-      .delete()
-      .eq('match_id', matchDbId)
-      .is('set_score', null)
+    // Delete orphan null sets ONLY if we actually wrote replacement sets from the detail endpoint.
+    // If detail.score was null/empty (match still in progress or race at finish), don't delete —
+    // the live-tracked sets with null set_score are the most recent data we have, and deleting
+    // them would also wipe the row tryInferFinalScore needs to update.
+    // Matches the hardening in src/app/api/cron/scores/route.ts:584-593.
+    if (sets.length > 0) {
+      const writtenSetNumbers = sets.map((s) => s.set_number)
+      await supabase
+        .from('sets')
+        .delete()
+        .eq('match_id', matchDbId)
+        .is('set_score', null)
+        .not('set_number', 'in', `(${writtenSetNumbers.join(',')})`)
+    }
 
     console.log(`[Relay] ✓ Final state written for match ${externalId} — winner: pair ${winnerPair}, sets: ${sets.length}`)
   } catch (err) {
