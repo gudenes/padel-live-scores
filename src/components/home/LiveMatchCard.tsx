@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from '@/i18n/navigation'
-import { Match, pairName, parseSetScore } from '@/types/match'
+import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
 import { isTournamentGated } from '@/lib/tournament-utils'
 import {
   GREEN, LIVE_RED, BG_CARD, MUTED, CHUNKY, FlagImg,
@@ -186,10 +186,11 @@ function LiveMatchCardInner({ match }: { match: Match }) {
               fontVariantNumeric: 'tabular-nums',
             }}>
               {sets.map(s => {
-                const parsed = parseSetScore(s.set_score)
+                const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
                 const p1g = parsed?.p1 ?? s.pair1_games ?? 0
                 const p2g = parsed?.p2 ?? s.pair2_games ?? 0
                 const games = pairNum === 1 ? p1g : p2g
+                const tb = parsed?.tb ?? null
                 const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
                 const isCurrent = s.is_current
                 return (
@@ -203,8 +204,10 @@ function LiveMatchCardInner({ match }: { match: Match }) {
                     width: 18,
                     textAlign: 'center',
                     lineHeight: 1,
+                    position: 'relative',
                   }}>
                     {games}
+                    {tb != null && !wonThisSet && <sup style={{ fontSize: 8, color: '#B0B5BE', position: 'absolute', top: -3, right: -5 }}>{tb}</sup>}
                   </span>
                 )
               })}

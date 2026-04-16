@@ -9,7 +9,7 @@ import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, countryFlag, pairName, parseSetScore, isWarmingUp, toShortName } from '@/types/match'
+import { Match, countryFlag, pairName, parseSetScore, parseSetFromGames, isWarmingUp, toShortName } from '@/types/match'
 import Spinner from '../../../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
@@ -1676,12 +1676,9 @@ function V3Recap({ tournament, allMatches, genderFilter, genderColor }: {
     const sets = (m as any).sets ?? []
     let p1Sets = 0, p2Sets = 0
     for (const s of sets) {
-      let p1 = s.pair1_games ?? 0
-      let p2 = s.pair2_games ?? 0
-      if (p1 === 0 && p2 === 0 && s.set_score) {
-        const parsed = parseSetScore(s.set_score)
-        if (parsed) { p1 = parsed.p1; p2 = parsed.p2 }
-      }
+      const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
+      const p1 = parsed?.p1 ?? s.pair1_games ?? 0
+      const p2 = parsed?.p2 ?? s.pair2_games ?? 0
       if (p1 > p2) p1Sets++
       else if (p2 > p1) p2Sets++
     }
