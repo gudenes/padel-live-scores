@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Link } from '@/i18n/navigation'
 import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
-import { isTournamentGated } from '@/lib/tournament-utils'
 import {
   GREEN, LIVE_RED, BG_CARD, MUTED, CHUNKY, FlagImg,
 } from './shared'
@@ -79,17 +78,8 @@ function LiveMatchCardInner({ match }: { match: Match }) {
     }
   }, [isLive, match.id, p1Games, p2Games, p1Pts, p2Pts])
 
-  const gated = isTournamentGated((match as any).tournament ?? {})
-  const Wrapper = gated ? 'div' : Link
-  const wrapperProps = gated
-    ? { style: { textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative' as const } }
-    : { href: `/match/${match.id}`, style: { textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative' as const } }
-
   return (
-    <Wrapper {...(wrapperProps as any)}>
-      {gated && (
-        <span style={{ position: 'absolute', top: 6, right: 6, background: '#F5A623', color: '#000', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 6px', clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)', zIndex: 2 }}>COMING SOON</span>
-      )}
+    <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative' }}>
       <div style={{
         background: BG_CARD,
         border: `1px solid rgba(255,70,85,0.2)`,
@@ -99,7 +89,6 @@ function LiveMatchCardInner({ match }: { match: Match }) {
         overflow: 'hidden',
         minWidth: 300,
         flexShrink: 0,
-        ...(gated ? { opacity: 0.4, pointerEvents: 'none' as const } : {}),
       }}>
         {/* Red glow */}
         <div style={{
@@ -235,7 +224,7 @@ function LiveMatchCardInner({ match }: { match: Match }) {
           {(match as any).tournament?.name ?? ''}
         </div>
       </div>
-    </Wrapper>
+    </Link>
   )
 }
 

@@ -5,7 +5,6 @@ import { Link } from '@/i18n/navigation'
 import { Match, pairName } from '@/types/match'
 import { useFormatter } from 'next-intl'
 import { TIME_24H, DATE_SHORT } from '@/lib/format-patterns'
-import { isTournamentGated } from '@/lib/tournament-utils'
 import FollowButton from '@/components/FollowButton'
 import {
   GREEN, MUTED, BG_CARD, BORDER, CHUNKY,
@@ -27,7 +26,6 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
   const isLive = match.status === 'live'
   const category = (match as any).category as string | null
   const genderColor = category === 'women' ? WOMEN_PURPLE : category === 'men' ? MEN_BLUE : null
-  const gated = isTournamentGated(tournament ?? {})
 
   const pillStyle: React.CSSProperties = {
     fontSize: 9, fontWeight: 700, padding: '3px 7px',
@@ -35,16 +33,8 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
     letterSpacing: 0.3,
   }
 
-  const Wrapper = gated ? 'div' : Link
-  const wrapperProps = gated
-    ? { style: { textDecoration: 'none', color: 'inherit', position: 'relative' as const } }
-    : { href: `/match/${match.id}`, style: { textDecoration: 'none', color: 'inherit', position: 'relative' as const } }
-
   return (
-    <Wrapper {...(wrapperProps as any)}>
-      {gated && (
-        <span style={{ position: 'absolute', top: 6, right: 6, background: '#F5A623', color: '#000', fontSize: 8, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', padding: '2px 6px', clipPath: 'polygon(3% 8%, 97% 0%, 98% 92%, 1% 100%)', zIndex: 2 }}>COMING SOON</span>
-      )}
+    <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', position: 'relative' }}>
       <div style={{
       background: BG_CARD,
       border: `1px solid ${BORDER}`,
@@ -54,8 +44,7 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
       flexShrink: 0,
       position: 'relative',
       overflow: 'hidden',
-      cursor: gated ? 'default' : 'pointer',
-      ...(gated ? { opacity: 0.4, pointerEvents: 'none' as const } : {}),
+      cursor: 'pointer',
     }}>
       {/* Left accent bar — gender color */}
       <div style={{
@@ -124,7 +113,7 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
         )
       })()}
       </div>
-    </Wrapper>
+    </Link>
   )
 }
 

@@ -14,7 +14,6 @@ import Spinner from '../../../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
-import { isTournamentGated } from '@/lib/tournament-utils'
 import BracketView from '@/components/BracketView'
 import { EntryList } from '@/components/EntryList'
 import { V3MatchCard } from '@/components/V3MatchCard'
@@ -669,18 +668,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </div>
           )}
 
-          {/* Gated tournament banner */}
-          {activeTournamentObj && isTournamentGated(activeTournamentObj) && (
-            <div style={{
-              margin: '0 16px', padding: '12px 16px',
-              background: 'rgba(245, 166, 35, 0.1)',
-              borderLeft: '3px solid #F5A623',
-            }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Matches Coming Soon</div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>Entry list data is being processed for accurate player information</div>
-            </div>
-          )}
-
           {/* ROW 4: Stage selector strip (matches tab only) */}
           {pageTab === 'matches' && availableRounds.length > 0 && (
             <div ref={stageStripRef} style={{
@@ -739,7 +726,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
         {/* ── Matches Feed ── */}
         {pageTab === 'matches' && (
-          <div style={{ padding: '8px 12px 16px', ...(activeTournamentObj && isTournamentGated(activeTournamentObj) ? { opacity: 0.4, pointerEvents: 'none' as const } : {}) }}>
+          <div style={{ padding: '8px 12px 16px' }}>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} style={{ background: BG_CARD, clipPath: CHUNKY.card, height: 88, marginBottom: 6, opacity: 0.3 }} />
