@@ -777,6 +777,16 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
         })
         .eq('id', matchRow.id)
         .is('winner_pair', null)
+
+      // Pull the authoritative set scores from the detail endpoint —
+      // /live gives us "7-6" without the tiebreak bracket, but /matches/{id}
+      // returns "7-6(6)" with the loser's tb. Without this, the UI can't
+      // render the tb superscript. Best-effort — if detail isn't ready yet,
+      // the next reconciliation cycle will retry.
+      if (!isRateLimited()) {
+        await writeFinalState(matchRow.id, externalId, 'finished')
+      }
+
       await cleanupMatchFinish(matchRow.id)
     }
   }
@@ -824,11 +834,26 @@ async function reconcileIncompleteMatches(): Promise<{
     .order('finished_at', { ascending: false })
     .limit(5)
 
+  // Query 3: tiebreak sets missing the loser's tb bracket.
+  // /live returns "7-6" (no tb); /matches/{id} returns "7-6(6)".
+  // Match either with the match auto-finished before detail was queried,
+  // or from the legacy pipeline that didn't normalize tb data.
+  const { data: tiebreakSets } = await supabase
+    .from('matches')
+    .select('id, external_id, finished_at, sets!inner(set_score)')
+    .in('status', ['finished'])
+    .not('winner_pair', 'is', null)
+    .gte('finished_at', sevenDaysAgo)
+    .in('sets.set_score', ['7-6', '6-7'])
+    .order('finished_at', { ascending: false })
+    .limit(5)
+
   // Merge and deduplicate
   const seen = new Set<string>()
   const allMatches = [
     ...(missingWinner ?? []),
     ...(incompleteSets ?? []),
+    ...(tiebreakSets ?? []),
   ].filter(m => {
     if (seen.has(m.id)) return false
     seen.add(m.id)
