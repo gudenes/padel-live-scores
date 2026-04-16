@@ -245,41 +245,27 @@ export default function ScheduleTab() {
       {/* Quick fill for NewGiza */}
       <div style={{ marginBottom: 12, fontSize: 11, color: '#888' }}>
         Quick fill:{' '}
-        <button
-          onClick={() => {
-            setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
-            setMatchscorerCode('FIP-2026-4401')
-            setDay('3')
-            setDateOverride('2026-04-13')
-          }}
-          style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
-        >
-          NewGiza Day 3 = Apr 13 (R32)
-        </button>
-        {' '}
-        <button
-          onClick={() => {
-            setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
-            setMatchscorerCode('FIP-2026-4401')
-            setDay('4')
-            setDateOverride('2026-04-14')
-          }}
-          style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
-        >
-          NewGiza Day 4 = Apr 14 (R16)
-        </button>
-        {' '}
-        <button
-          onClick={() => {
-            setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
-            setMatchscorerCode('FIP-2026-4401')
-            setDay('5')
-            setDateOverride('2026-04-15')
-          }}
-          style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600 }}
-        >
-          NewGiza Day 5 = Apr 15 (QF)
-        </button>
+        {[
+          { day: '3', date: '2026-04-13', label: 'Day 3 → Apr 13 (Q3/R32)' },
+          { day: '4', date: '2026-04-14', label: 'Day 4 → Apr 14 (R32)' },
+          { day: '5', date: '2026-04-15', label: 'Day 5 → Apr 15 (R16)' },
+          { day: '6', date: '2026-04-16', label: 'Day 6 → Apr 16 (QF)' },
+          { day: '7', date: '2026-04-17', label: 'Day 7 → Apr 17 (SF)' },
+          { day: '8', date: '2026-04-18', label: 'Day 8 → Apr 18 (F)' },
+        ].map(qf => (
+          <button
+            key={qf.day}
+            onClick={() => {
+              setTournamentId('7204f4ac-5ced-4b2f-b9c0-5fb81a497a90')
+              setMatchscorerCode('FIP-2026-4401')
+              setDay(qf.day)
+              setDateOverride(qf.date)
+            }}
+            style={{ background: 'none', border: '1px solid #d1d5db', borderRadius: 3, padding: '2px 8px', fontSize: 10, cursor: 'pointer', color: '#3b82f6', fontWeight: 600, marginRight: 4 }}
+          >
+            NewGiza {qf.label}
+          </button>
+        ))}
       </div>
 
       {error && (
