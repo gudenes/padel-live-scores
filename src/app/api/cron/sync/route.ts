@@ -626,8 +626,9 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
         }
 
         // Only include scheduled_at in the upsert if we have a real time
-        // (not just a date-only value). This prevents the hourly sync from
-        // overwriting OOP-derived times with PadelAPI's date-only played_at.
+        // (not just a date-only value). Protects any existing real time on the
+        // row from being clobbered when PadelAPI temporarily reports only a
+        // date (e.g. early draw publication before schedule is finalized).
         const scheduledAtHasTime = scheduledAt && /T\d{2}:\d{2}/.test(scheduledAt) &&
           !scheduledAt.endsWith('T00:00:00') && !scheduledAt.endsWith('T00:00:00.000Z')
 
@@ -669,7 +670,7 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
               // Existing match has date-only — safe to update with new date-only
               upsertData.scheduled_at = scheduledAt
             }
-            // else: existing has a real time (OOP-set) — don't overwrite with date-only
+            // else: existing has a real time — don't overwrite with date-only
           }
         }
 
