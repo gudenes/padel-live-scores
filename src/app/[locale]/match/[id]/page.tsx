@@ -537,9 +537,43 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               scores ? `${status}: ${scores}` : status,
               [tournamentName, round].filter(Boolean).join(' · '),
             ].filter(Boolean).join('\n')
+
+            const hasShareApi = typeof navigator !== 'undefined' && 'share' in navigator
+
+            // Try to include the dynamic OG image as a file attachment via
+            // Web Share API Level 2 (iOS 15+, Chrome Android). When the
+            // browser/OS doesn't support file sharing we fall back gracefully.
+            //
+            // Best-effort — we cap the image fetch at 3s so a slow render
+            // never blocks the share sheet from opening.
+            let imageFile: File | null = null
+            if (hasShareApi) {
+              try {
+                const controller = new AbortController()
+                const timeout = setTimeout(() => controller.abort(), 3000)
+                const res = await fetch(`/match/${match.id}/opengraph-image`, { signal: controller.signal })
+                clearTimeout(timeout)
+                if (res.ok) {
+                  const blob = await res.blob()
+                  imageFile = new File([blob], `padelnachos-match-${match.id}.png`, { type: blob.type || 'image/png' })
+                }
+              } catch {
+                // Image fetch failed or timed out — fall through to URL-only share
+              }
+            }
+
             try {
-              if (typeof navigator !== 'undefined' && navigator.share) {
-                await navigator.share({ title, text, url: shareUrl })
+              if (hasShareApi) {
+                const canShareFiles =
+                  imageFile !== null &&
+                  typeof navigator.canShare === 'function' &&
+                  navigator.canShare({ files: [imageFile] })
+
+                if (canShareFiles && imageFile) {
+                  await navigator.share({ title, text, url: shareUrl, files: [imageFile] })
+                } else {
+                  await navigator.share({ title, text, url: shareUrl })
+                }
               } else {
                 await navigator.clipboard.writeText(shareUrl)
                 setShareToast(true)

@@ -4,8 +4,14 @@
 import { ImageResponse } from 'next/og'
 import { createServerClient } from '@/lib/supabase'
 
+// Force Node.js runtime. OG images default to edge in Next.js 16, but our
+// Supabase service client uses Node crypto primitives that don't run on edge.
+export const runtime = 'nodejs'
+
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
+// Short revalidation during active matches so the OG card reflects the
+// current score when someone pastes the URL mid-match.
 export const revalidate = 60
 
 type Player = {
@@ -45,23 +51,60 @@ function flagUrl(country: string | null): string | null {
   return `/flags/${country.toLowerCase()}.png`
 }
 
-export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+function FallbackImage(opts: { width: number; height: number }, subtitle: string) {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 100%)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+          <span style={{ color: '#7ED321', fontSize: 48, fontWeight: 800, letterSpacing: 6 }}>
+            PADEL NACHOS
+          </span>
+          <span style={{ color: '#6B7280', fontSize: 22 }}>{subtitle}</span>
+        </div>
+      </div>
+    ),
+    opts,
+  )
+}
 
-  const supabase = createServerClient()
-  const { data: match } = await supabase
-    .from('matches')
-    .select(`
-      id, status, round, winner_pair, scheduled_at,
-      pair1_player1:players!matches_pair1_player1_id_fkey(name, country, avatar_url),
-      pair1_player2:players!matches_pair1_player2_id_fkey(name, country, avatar_url),
-      pair2_player1:players!matches_pair2_player1_id_fkey(name, country, avatar_url),
-      pair2_player2:players!matches_pair2_player2_id_fkey(name, country, avatar_url),
-      tournament:tournaments(name),
-      sets(set_number, pair1_games, pair2_games)
-    `)
-    .eq('id', id)
-    .single<MatchRow>()
+export default async function Image({ params }: { params: Promise<{ id: string }> }) {
+  let id: string
+  try {
+    ({ id } = await params)
+  } catch {
+    return FallbackImage(size, 'Live padel scores')
+  }
+
+  let match: MatchRow | null = null
+  try {
+    const supabase = createServerClient()
+    const result = await supabase
+      .from('matches')
+      .select(`
+        id, status, round, winner_pair, scheduled_at,
+        pair1_player1:players!matches_pair1_player1_id_fkey(name, country, avatar_url),
+        pair1_player2:players!matches_pair1_player2_id_fkey(name, country, avatar_url),
+        pair2_player1:players!matches_pair2_player1_id_fkey(name, country, avatar_url),
+        pair2_player2:players!matches_pair2_player2_id_fkey(name, country, avatar_url),
+        tournament:tournaments(name),
+        sets(set_number, pair1_games, pair2_games)
+      `)
+      .eq('id', id)
+      .single<MatchRow>()
+    match = result.data
+  } catch (err) {
+    console.error('[og-image] Supabase query failed:', err)
+    return FallbackImage(size, 'Live padel scores')
+  }
 
   if (!match) {
     return new ImageResponse(
@@ -255,6 +298,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     )
   }
 
+  // Wrap the full Satori render in try/catch so a bad avatar URL or a font
+  // hiccup can't 500 the route — fall back to the branded placeholder card.
+  try {
   return new ImageResponse(
     (
       <div
@@ -391,4 +437,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     ),
     { width: size.width, height: size.height }
   )
+  } catch (err) {
+    console.error('[og-image] Satori render failed:', err)
+    return FallbackImage(size, 'Live padel scores')
+  }
 }
