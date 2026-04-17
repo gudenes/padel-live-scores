@@ -7,7 +7,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import ProfileButton from '@/components/ProfileButton'
-import NotificationBell from '@/components/NotificationBell'
 
 import { useInvite } from '@/hooks/useInvite'
 import { useAuth } from '@/components/AuthProvider'
@@ -148,9 +147,6 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
           </svg>
         </button>
       )}
-
-      {/* Notifications bell — hidden when logged out */}
-      {mounted && <NotificationBell />}
 
       {/* Profile / Login */}
       <ProfileButton />
