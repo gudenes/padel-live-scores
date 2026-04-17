@@ -86,6 +86,14 @@ function fetchBookmarksDeduplicated(userId: string): Promise<{ bookmark_type: st
   return _bookmarksPromise
 }
 
+// Invalidate the cached bookmarks snapshot immediately. Called after a
+// toggle mutation so that any subsequent load() triggered by a parent
+// re-render gets fresh data (not a stale snapshot from before the mutation).
+function invalidateBookmarksCache() {
+  _bookmarksPromise = null
+  _bookmarksUserId = null
+}
+
 // DB types use singular names matching the existing bookmark_type column convention
 function typeToDbType(type: FollowType): string {
   return type // 'match' | 'player' | 'tournament' — news_source never goes to DB
@@ -106,14 +114,17 @@ export function useFollowing() {
   })
   const [loaded, setLoaded] = useState(false)
 
-  // Load state on mount or when auth changes
+  // Load state on mount or when the user's identity actually changes.
+  // Depending on the memoized `user.id` (not the object ref) prevents
+  // spurious reloads from re-renders that re-create the user literal.
+  const userId = user?.id ?? null
   useEffect(() => {
     async function load() {
       // Always load localStorage first (includes news_sources + offline fallback)
       const local = readLocalStorage()
 
-      if (user) {
-        const data = await fetchBookmarksDeduplicated(user.id)
+      if (userId) {
+        const data = await fetchBookmarksDeduplicated(userId)
 
         const dbMatches = new Set<string>()
         const dbPlayers = new Set<string>()
@@ -144,7 +155,7 @@ export function useFollowing() {
     }
 
     load()
-  }, [user])
+  }, [userId])
 
   const isFollowing = useCallback(
     (type: FollowType, targetId: string): boolean => store[type].has(targetId),
@@ -174,10 +185,27 @@ export function useFollowing() {
 
       // Fire bookmark feedback toast (skip news_source — not a user-facing bookmark)
       if (type !== 'news_source' && typeof window !== 'undefined') {
+        // Attach the enable-push CTA on player-follow-add when:
+        //   (a) the action is a net-new follow (not an unfollow), and
+        //   (b) the browser hasn't been asked about notifications yet
+        //       (Notification.permission === 'default'), and
+        //   (c) we haven't shown the prompt on this device before.
+        const isPlayerFollowAdd = type === 'player' && !isCurrently
+        let cta: 'enable-push' | undefined
+        if (isPlayerFollowAdd) {
+          try {
+            const alreadyPrompted = localStorage.getItem('pn_push_prompted') === '1'
+            const browserPermission = 'Notification' in window ? Notification.permission : 'denied'
+            if (!alreadyPrompted && browserPermission === 'default') {
+              cta = 'enable-push'
+            }
+          } catch { /* permission check failed — skip CTA */ }
+        }
         window.dispatchEvent(new CustomEvent(BOOKMARK_EVENT, {
           detail: {
             type,
             action: isCurrently ? 'remove' : 'add',
+            ...(cta ? { cta } : {}),
           } satisfies BookmarkEventDetail,
         }))
       }
@@ -185,6 +213,10 @@ export function useFollowing() {
       // Persist to Supabase for authenticated users (non-news_source types only)
       if (user && type !== 'news_source') {
         const dbType = typeToDbType(type)
+        // Invalidate dedup cache so a subsequent parent re-render that
+        // retriggers load() fetches fresh data instead of a pre-mutation
+        // snapshot — prevents the optimistic UI from flipping back.
+        invalidateBookmarksCache()
         if (isCurrently) {
           await fetch('/api/user/bookmarks', {
             method: 'DELETE',

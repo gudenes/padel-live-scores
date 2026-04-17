@@ -2,24 +2,37 @@
 // src/components/BookmarkToast.tsx
 //
 // Contextual feedback toast for bookmark/follow actions.
-// Slides up from bottom with icon pop animation, auto-dismisses after 3s.
-// Listens for pn-bookmark-action DOM events fired by useFollowing.
+// Slides up from bottom with icon pop animation, auto-dismisses after 3s
+// (5s when a CTA is attached). Listens for pn-bookmark-action DOM events
+// fired by useFollowing.
 
 import { useState, useCallback, useEffect, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
+import { useAuth } from '@/components/AuthProvider'
+import { useLoginSheet } from '@/components/LoginSheetProvider'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 const GREEN = '#7ED321'
 const GOLD = '#FFD166'
 const MUTED = '#6B7280'
 const CHUNKY_CARD = 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)'
 const CHUNKY_BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
+const CHUNKY_BUTTON = 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)'
 
 export const BOOKMARK_EVENT = 'pn-bookmark-action'
+
+// localStorage flag — set when an anon user taps "Enable alerts" on a toast,
+// so the next sign-in can auto-show the follow-up push-permission prompt.
+export const PUSH_SIGNIN_PENDING_KEY = 'pn_push_signin_pending'
+
+export type BookmarkCta = 'enable-push'
 
 export interface BookmarkEventDetail {
   type: 'match' | 'player' | 'tournament'
   action: 'add' | 'remove'
   name?: string // entity name for display (e.g. player name, tournament name)
+  cta?: BookmarkCta // optional action button shown on the toast
+  titleOverride?: string // optional preformatted title, skips translation lookup
 }
 
 interface ToastData {
@@ -27,6 +40,8 @@ interface ToastData {
   type: 'match' | 'player' | 'tournament'
   action: 'add' | 'remove'
   name?: string
+  cta?: BookmarkCta
+  titleOverride?: string
   dismissing: boolean
 }
 
@@ -56,20 +71,55 @@ function BookmarkIcon({ type }: { type: string }) {
 
 let toastCounter = 0
 
+// Watches for a signed-out → signed-in transition while the push intent
+// is pending (flag set when an anon user tapped "Enable alerts" on a
+// bookmark toast). On transition, fires a follow-up toast that lets the
+// newly-signed-in user grant browser notification permission in place.
+function usePostSigninPushPrompt() {
+  const { user } = useAuth()
+  const t = useTranslations('bookmark')
+  useEffect(() => {
+    if (!user?.id) return
+    let pending = false
+    try { pending = localStorage.getItem(PUSH_SIGNIN_PENDING_KEY) === '1' } catch { /* noop */ }
+    if (!pending) return
+    try { localStorage.removeItem(PUSH_SIGNIN_PENDING_KEY) } catch { /* noop */ }
+    // Fire on the next tick so the BookmarkToast listener is already bound.
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent(BOOKMARK_EVENT, {
+        detail: {
+          type: 'player',
+          action: 'add',
+          cta: 'enable-push',
+          titleOverride: t('signedInEnableAlerts'),
+        } satisfies BookmarkEventDetail,
+      }))
+    }, 300)
+  }, [user?.id, t])
+}
+
 export function BookmarkToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastData[]>([])
+  usePostSigninPushPrompt()
+
+  const dismiss = useCallback((id: number) => {
+    setToasts(prev => prev.map(t => t.id === id ? { ...t, dismissing: true } : t))
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id))
+    }, 300)
+  }, [])
 
   const show = useCallback((detail: BookmarkEventDetail) => {
     const id = ++toastCounter
     setToasts(prev => [...prev, { ...detail, id, dismissing: false }])
-    // Start dismiss animation
+    // CTA toasts stay on screen longer so the user has time to tap
+    const visibleMs = detail.cta ? 5000 : 3000
     setTimeout(() => {
       setToasts(prev => prev.map(t => t.id === id ? { ...t, dismissing: true } : t))
-    }, 2700)
-    // Remove from DOM
+    }, visibleMs - 300)
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
-    }, 3000)
+    }, visibleMs)
   }, [])
 
   useEffect(() => {
@@ -101,7 +151,7 @@ export function BookmarkToastProvider({ children }: { children: ReactNode }) {
           pointerEvents: 'none',
         }}>
           {toasts.map(toast => (
-            <BookmarkToastItem key={toast.id} toast={toast} />
+            <BookmarkToastItem key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
           ))}
         </div>
       )}
@@ -128,8 +178,11 @@ export function BookmarkToastProvider({ children }: { children: ReactNode }) {
   )
 }
 
-function BookmarkToastItem({ toast }: { toast: ToastData }) {
+function BookmarkToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: () => void }) {
   const t = useTranslations('bookmark')
+  const { user } = useAuth()
+  const { openLoginSheet } = useLoginSheet()
+  const { subscribe, supported: pushSupported } = usePushNotifications()
   const isAdd = toast.action === 'add'
   const isMatch = toast.type === 'match'
   const borderColor = isAdd
@@ -139,9 +192,11 @@ function BookmarkToastItem({ toast }: { toast: ToastData }) {
     ? (isMatch ? 'rgba(255,209,102,0.12)' : 'rgba(126,211,33,0.12)')
     : 'rgba(255,255,255,0.06)'
 
-  // Title text
+  // Title text — explicit override wins over the type/action-derived title.
   let title: string
-  if (isAdd) {
+  if (toast.titleOverride) {
+    title = toast.titleOverride
+  } else if (isAdd) {
     if (toast.type === 'match') title = t('matchBookmarked')
     else if (toast.type === 'player') title = toast.name ? t('followingPlayer', { name: toast.name }) : t('playerFollowed')
     else title = toast.name ? t('followingTournament', { name: toast.name }) : t('tournamentFollowed')
@@ -149,8 +204,30 @@ function BookmarkToastItem({ toast }: { toast: ToastData }) {
     title = t('bookmarkRemoved')
   }
 
-  // Hint text (only for add)
-  const hint = isAdd ? t('findInFollowing') : null
+  // Hint text — hidden when a CTA is present (the CTA button carries the next-step meaning).
+  const hint = isAdd && !toast.cta ? t('findInFollowing') : null
+
+  const handleCta = useCallback(async () => {
+    if (toast.cta !== 'enable-push') return
+    // Either path counts as "we asked the user" — don't re-surface the CTA
+    // on subsequent follows even if they dismiss the native prompt later.
+    try { localStorage.setItem('pn_push_prompted', '1') } catch {}
+    if (!user) {
+      // Anonymous — open sign-in sheet; remember the push intent so we can
+      // surface the permission prompt once the session lands.
+      try { localStorage.setItem(PUSH_SIGNIN_PENDING_KEY, '1') } catch {}
+      openLoginSheet()
+      onDismiss()
+      return
+    }
+    if (!pushSupported) {
+      onDismiss()
+      return
+    }
+    // Signed in — trigger the native permission prompt inline.
+    await subscribe()
+    onDismiss()
+  }, [toast.cta, user, pushSupported, subscribe, openLoginSheet, onDismiss])
 
   return (
     <div style={{
@@ -199,6 +276,36 @@ function BookmarkToastItem({ toast }: { toast: ToastData }) {
             </div>
           )}
         </div>
+        {/* CTA button (right-aligned, shown when toast has a CTA) */}
+        {toast.cta === 'enable-push' && (
+          <button
+            onClick={handleCta}
+            style={{
+              background: 'rgba(126,211,33,0.12)',
+              border: `1px solid rgba(126,211,33,0.3)`,
+              clipPath: CHUNKY_BUTTON,
+              color: GREEN,
+              padding: '6px 10px',
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontFamily: 'inherit',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            {t('enableAlerts')}
+          </button>
+        )}
       </div>
     </div>
   )

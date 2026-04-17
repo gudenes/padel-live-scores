@@ -3,6 +3,7 @@ import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
 import { BookmarkToastProvider } from '@/components/BookmarkToast'
+import { LoginSheetProvider } from '@/components/LoginSheetProvider'
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
@@ -24,9 +25,11 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <BookmarkToastProvider>
-        {children}
-      </BookmarkToastProvider>
+      <LoginSheetProvider>
+        <BookmarkToastProvider>
+          {children}
+        </BookmarkToastProvider>
+      </LoginSheetProvider>
     </NextIntlClientProvider>
   )
 }

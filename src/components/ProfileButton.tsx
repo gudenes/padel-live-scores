@@ -7,12 +7,10 @@
 
 import { useState, useEffect } from 'react'
 import Avatar from '@/components/Avatar'
-import dynamic from 'next/dynamic'
 import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
+import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { supabase } from '@/lib/supabase'
-
-const LoginSheet = dynamic(() => import('@/components/LoginSheet'), { ssr: false })
 
 const SEEN_BADGE_COUNT_KEY = 'pn_seen_badge_count'
 const SEEN_REFERRAL_COUNT_KEY = 'pn_seen_referral_count'
@@ -32,7 +30,7 @@ function highestMilestoneReached(streak: number): number {
 export default function ProfileButton() {
   const { user, profile, loading } = useAuth()
   const router = useRouter()
-  const [loginOpen, setLoginOpen] = useState(false)
+  const { openLoginSheet } = useLoginSheet()
   const [hasNotification, setHasNotification] = useState(false)
 
   // Check for unseen profile updates: new badges, referrals, streak milestones.
@@ -102,7 +100,7 @@ export default function ProfileButton() {
       }
       router.push('/profile')
     } else {
-      setLoginOpen(true)
+      openLoginSheet()
     }
   }
 
@@ -174,8 +172,6 @@ export default function ProfileButton() {
         )}
         </div>
       </button>
-
-      <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
     </>
   )
 }

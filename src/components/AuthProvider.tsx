@@ -4,7 +4,7 @@
 // Provides useAuth() hook for components that need user identity.
 
 import { SessionProvider, useSession } from 'next-auth/react'
-import { createContext, useContext, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useCallback, useMemo, type ReactNode } from 'react'
 
 interface Profile {
   id: string
@@ -34,34 +34,35 @@ export function useAuth() {
 function AuthInner({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession()
 
-  const user = session?.user
-    ? {
-        id: session.user.id!,
-        name: session.user.name,
-        email: session.user.email,
-        image: session.user.image,
-      }
-    : null
+  // Stable user/profile references: memoize on the id so consumer effects
+  // keyed on `user` don't refire on every SessionProvider re-render.
+  const userId = session?.user?.id ?? null
+  const userName = session?.user?.name ?? null
+  const userEmail = session?.user?.email ?? null
+  const userImage = session?.user?.image ?? null
+
+  const user = useMemo(
+    () => (userId ? { id: userId, name: userName, email: userEmail, image: userImage } : null),
+    [userId, userName, userEmail, userImage],
+  )
+
+  const profile = useMemo<Profile | null>(
+    () => (user ? { id: user.id, display_name: user.name ?? null, avatar_url: user.image ?? null, preferred_country: null } : null),
+    [user],
+  )
 
   const signOut = useCallback(async () => {
     const { signOut: doSignOut } = await import('next-auth/react')
     await doSignOut({ redirect: false })
   }, [])
 
-  // Derive a profile from session data so existing consumers (profile page,
-  // header, etc.) work without changes. The profile page can later fetch
-  // richer data from /api/user/profile if needed.
-  const profile: Profile | null = user
-    ? {
-        id: user.id,
-        display_name: user.name ?? null,
-        avatar_url: user.image ?? null,
-        preferred_country: null,
-      }
-    : null
+  const contextValue = useMemo(
+    () => ({ user, profile, loading: status === 'loading', signOut }),
+    [user, profile, status, signOut],
+  )
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading: status === 'loading', signOut }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )
