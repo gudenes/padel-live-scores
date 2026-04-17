@@ -425,5 +425,44 @@
     "skip": "Pular",
     "next": "Próximo →",
     "done": "Pronto"
+  },
+  "notifications": {
+    "title": "Notificações",
+    "markAllRead": "Marcar tudo como lido",
+    "filterAll": "Tudo",
+    "filterMatches": "Jogos",
+    "filterBadges": "Conquistas",
+    "empty": "Ainda não há notificações",
+    "emptySubtitle": "Avisamos quando os teus jogos começarem",
+    "daySeparator": {
+      "today": "Hoje",
+      "yesterday": "Ontem",
+      "thisWeek": "Esta semana"
+    },
+    "settings": {
+      "title": "Notificações",
+      "permissionDeniedTitle": "Notificações bloqueadas",
+      "permissionDeniedBody": "As notificações push só chegarão depois de as reativares nas configurações do navegador.",
+      "masterLabel": "Notificações push",
+      "columnPush": "PUSH",
+      "columnInApp": "NA APP",
+      "groupMatches": "Jogos",
+      "groupAchievements": "Conquistas",
+      "groupOther": "Outros",
+      "category": {
+        "match_live_follow":    { "label": "Jogador que segues em direto", "sub": "Quando um jogador que segues vai jogar" },
+        "match_live_bookmark":  { "label": "Jogo guardado em direto", "sub": "Quando começa um jogo que guardaste" },
+        "match_finished":       { "label": "Jogo terminado", "sub": "Resultados dos jogos que segues" },
+        "match_upcoming":       { "label": "Jogo prestes a começar", "sub": "30 min antes de um jogo seguido" },
+        "badge_earned":         { "label": "Emblema conquistado", "sub": "Quando desbloqueias um novo emblema" },
+        "streak_milestone":     { "label": "Sequência atingida", "sub": "Sequências de 3, 7, 30 e 100 dias" },
+        "marketing":            { "label": "Novidades do produto", "sub": "Novas funções, eventos e notícias ocasionais" }
+      },
+      "saveError": "Não foi possível guardar — tenta novamente"
+    },
+    "settingsLinkRow": {
+      "label": "Notificações",
+      "sub": "Escolhe sobre o que queres ser avisado"
+    }
   }
 }

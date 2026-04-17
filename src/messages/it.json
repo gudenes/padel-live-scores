@@ -425,5 +425,44 @@
     "skip": "Salta",
     "next": "Avanti →",
     "done": "Fatto"
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "markAllRead": "Segna tutto come letto",
+    "filterAll": "Tutto",
+    "filterMatches": "Partite",
+    "filterBadges": "Traguardi",
+    "empty": "Ancora nessuna notifica",
+    "emptySubtitle": "Ti avviseremo quando inizieranno le tue partite",
+    "daySeparator": {
+      "today": "Oggi",
+      "yesterday": "Ieri",
+      "thisWeek": "Questa settimana"
+    },
+    "settings": {
+      "title": "Notifiche",
+      "permissionDeniedTitle": "Notifiche bloccate",
+      "permissionDeniedBody": "Le notifiche push non arriveranno finché non le riattivi nelle impostazioni del browser.",
+      "masterLabel": "Notifiche push",
+      "columnPush": "PUSH",
+      "columnInApp": "IN-APP",
+      "groupMatches": "Partite",
+      "groupAchievements": "Traguardi",
+      "groupOther": "Altro",
+      "category": {
+        "match_live_follow":    { "label": "Giocatore seguito in diretta", "sub": "Quando un giocatore che segui sta per giocare" },
+        "match_live_bookmark":  { "label": "Partita salvata in diretta", "sub": "Quando inizia una partita che hai salvato" },
+        "match_finished":       { "label": "Partita terminata", "sub": "Risultati delle partite che segui" },
+        "match_upcoming":       { "label": "Partita sta per iniziare", "sub": "30 min prima di una partita seguita" },
+        "badge_earned":         { "label": "Distintivo ottenuto", "sub": "Quando sblocchi un nuovo distintivo" },
+        "streak_milestone":     { "label": "Striscia raggiunta", "sub": "Strisce da 3, 7, 30 e 100 giorni" },
+        "marketing":            { "label": "Novità del prodotto", "sub": "Nuove funzioni, eventi e notizie occasionali" }
+      },
+      "saveError": "Impossibile salvare — riprova"
+    },
+    "settingsLinkRow": {
+      "label": "Notifiche",
+      "sub": "Scegli per cosa ricevere notifiche"
+    }
   }
 }

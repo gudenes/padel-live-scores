@@ -425,5 +425,44 @@
     "skip": "Saltar",
     "next": "Siguiente →",
     "done": "Listo"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todo como leído",
+    "filterAll": "Todo",
+    "filterMatches": "Partidos",
+    "filterBadges": "Logros",
+    "empty": "Aún no hay notificaciones",
+    "emptySubtitle": "Te avisaremos cuando tus partidos empiecen",
+    "daySeparator": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "thisWeek": "Esta semana"
+    },
+    "settings": {
+      "title": "Notificaciones",
+      "permissionDeniedTitle": "Notificaciones bloqueadas",
+      "permissionDeniedBody": "Las notificaciones push no llegarán hasta que las vuelvas a activar en la configuración de tu navegador.",
+      "masterLabel": "Notificaciones push",
+      "columnPush": "PUSH",
+      "columnInApp": "EN APP",
+      "groupMatches": "Partidos",
+      "groupAchievements": "Logros",
+      "groupOther": "Otros",
+      "category": {
+        "match_live_follow":    { "label": "Jugador seguido en directo", "sub": "Cuando un jugador que sigues va a jugar" },
+        "match_live_bookmark":  { "label": "Partido guardado en directo", "sub": "Cuando comienza un partido que has guardado" },
+        "match_finished":       { "label": "Partido finalizado", "sub": "Resultados de los partidos que sigues" },
+        "match_upcoming":       { "label": "Partido a punto de empezar", "sub": "30 min antes de un partido seguido" },
+        "badge_earned":         { "label": "Insignia ganada", "sub": "Cuando desbloqueas una nueva insignia" },
+        "streak_milestone":     { "label": "Racha alcanzada", "sub": "Rachas de 3, 7, 30 y 100 días" },
+        "marketing":            { "label": "Novedades del producto", "sub": "Nuevas funciones, eventos y noticias ocasionales" }
+      },
+      "saveError": "No se pudo guardar — inténtalo de nuevo"
+    },
+    "settingsLinkRow": {
+      "label": "Notificaciones",
+      "sub": "Elige sobre qué te avisamos"
+    }
   }
 }

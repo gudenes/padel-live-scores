@@ -425,5 +425,44 @@
     "skip": "Passer",
     "next": "Suivant →",
     "done": "Terminé"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "filterAll": "Tout",
+    "filterMatches": "Matchs",
+    "filterBadges": "Badges",
+    "empty": "Aucune notification pour le moment",
+    "emptySubtitle": "Nous vous avertirons quand vos matchs commenceront",
+    "daySeparator": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "thisWeek": "Cette semaine"
+    },
+    "settings": {
+      "title": "Notifications",
+      "permissionDeniedTitle": "Notifications bloquées",
+      "permissionDeniedBody": "Les notifications push n'arriveront pas tant que vous ne les réactiverez pas dans les paramètres du navigateur.",
+      "masterLabel": "Notifications push",
+      "columnPush": "PUSH",
+      "columnInApp": "IN-APP",
+      "groupMatches": "Matchs",
+      "groupAchievements": "Badges",
+      "groupOther": "Autres",
+      "category": {
+        "match_live_follow":    { "label": "Joueur suivi en direct", "sub": "Quand un joueur que vous suivez va jouer" },
+        "match_live_bookmark":  { "label": "Match enregistré en direct", "sub": "Quand un match que vous avez enregistré commence" },
+        "match_finished":       { "label": "Match terminé", "sub": "Résultats des matchs que vous suivez" },
+        "match_upcoming":       { "label": "Match sur le point de commencer", "sub": "30 min avant un match suivi" },
+        "badge_earned":         { "label": "Badge obtenu", "sub": "Quand vous débloquez un nouveau badge" },
+        "streak_milestone":     { "label": "Série atteinte", "sub": "Séries de 3, 7, 30 et 100 jours" },
+        "marketing":            { "label": "Nouveautés produit", "sub": "Nouvelles fonctionnalités, événements, actualités" }
+      },
+      "saveError": "Enregistrement impossible — réessayez"
+    },
+    "settingsLinkRow": {
+      "label": "Notifications",
+      "sub": "Choisissez pour quoi être notifié"
+    }
   }
 }
