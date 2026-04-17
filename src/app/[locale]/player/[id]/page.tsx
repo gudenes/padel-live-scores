@@ -3,7 +3,7 @@
 // Player profile — v3 brand styling with tabbed dashboard + widget grid (A2 layout).
 
 import { useState, useEffect, useMemo, useRef, use } from 'react'
-import { useRouter } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { useTranslations, useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { parseSetScore, toShortName } from '@/types/match'
@@ -12,7 +12,8 @@ import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
-import { DATE_WITH_YEAR } from '@/lib/format-patterns'
+import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
+import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -1742,6 +1743,119 @@ function formatDateTime(
   } catch {
     return ''
   }
+}
+
+// Grey bar with country flag, titlecased tournament name, stage badge,
+// and level/date-range subline. Mirrors TournamentGroup header on /matches.
+function TournamentHeader({
+  tournament,
+  matches,
+  format,
+}: {
+  tournament: NonNullable<MatchRow['tournament']> & { id?: string; starts_at?: string | null; ends_at?: string | null }
+  matches: MatchRow[]
+  format: ReturnType<typeof useFormatter>
+}) {
+  const hasLive = matches.some(m => m.status === 'live')
+  const accent = hasLive ? LIVE_RED : GREEN
+  const stage = mostAdvancedRound(matches)
+  const level = tournament.level ? levelLabel(tournament.level) : ''
+
+  const dateRange = tournament.starts_at
+    ? format.dateTime(new Date(tournament.starts_at), DATE_SHORT)
+      + (tournament.ends_at ? ` \u2013 ${format.dateTime(new Date(tournament.ends_at), DATE_SHORT)}` : '')
+    : ''
+
+  const nameStr = tournament.name ? titleCase(tournament.name) : ''
+
+  const body = (
+    <>
+      {tournament.country && <FlagImg country={tournament.country} size={20} />}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            fontSize: 12, fontWeight: 700, color: '#fff',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>{nameStr}</span>
+          {stage && (
+            <span style={{
+              fontSize: 8, fontWeight: 800, letterSpacing: 0.5,
+              padding: '2px 6px', clipPath: CHUNKY.badge,
+              color: accent,
+              background: hasLive ? 'rgba(255,70,85,0.12)' : 'rgba(126,211,33,0.12)',
+              flexShrink: 0, lineHeight: '12px', textTransform: 'uppercase',
+            }}>{stage}</span>
+          )}
+        </div>
+        {(level || dateRange) && (
+          <div style={{
+            fontSize: 9, fontWeight: 700, color: MUTED,
+            letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 2,
+          }}>
+            {level}{level && dateRange ? ' \u00B7 ' : ''}{dateRange}
+          </div>
+        )}
+      </div>
+    </>
+  )
+
+  const containerStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 14px',
+    background: '#1e1e1e',
+    position: 'relative',
+    textDecoration: 'none', color: 'inherit',
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* Top accent bar */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: accent, zIndex: 1,
+      }} />
+      {tournament.id ? (
+        <Link href={`/tournaments/${tournament.id}`} style={containerStyle}>
+          {body}
+        </Link>
+      ) : (
+        <div style={containerStyle}>{body}</div>
+      )}
+    </div>
+  )
+}
+
+// Tournament header + its match rows, sorted reverse-chronologically.
+function TournamentGroup({
+  tournament,
+  matches,
+  playerId,
+  onMatchClick,
+  format,
+}: {
+  tournament: NonNullable<MatchRow['tournament']> & { id?: string; starts_at?: string | null; ends_at?: string | null }
+  matches: MatchRow[]
+  playerId: string
+  onMatchClick: (matchId: string) => void
+  format: ReturnType<typeof useFormatter>
+}) {
+  // Matches already sorted newest-first by the parent; we just render.
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <TournamentHeader tournament={tournament} matches={matches} format={format} />
+      <div style={{ background: '#0b0b0b', padding: '2px 0 10px' }}>
+        {matches.map(m => (
+          <MatchRow
+            key={m.id}
+            match={m}
+            playerId={playerId}
+            onClick={() => onMatchClick(m.id)}
+            format={format}
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function MatchesTab({
