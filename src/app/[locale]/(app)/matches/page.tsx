@@ -11,6 +11,7 @@ import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, pairName, parseSetScore, parseSetFromGames, isWarmingUp } from '@/types/match'
+import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import BrandedLoader, { LOADER_HINTS } from '../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
@@ -45,14 +46,6 @@ function titleCase(name: string): string {
     if (word.length <= 1) return word.toUpperCase()
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   }).join(' ')
-}
-
-function levelLabel(level: string | null): string {
-  const map: Record<string, string> = {
-    finals: 'Finals', major: 'Major', p1: 'P1', p2: 'P2',
-    fip_platinum: 'FIP Platinum', fip_gold: 'FIP Gold', fip_other: 'FIP Tour',
-  }
-  return level ? (map[level] ?? level) : ''
 }
 
 function hasPlayers(m: Match): boolean {
@@ -469,15 +462,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
     : ''
 
   // Derive the most advanced round
-  const ROUND_ORDER = ['F', 'Final', 'SF', 'Semi-final', 'QF', 'Quarter-final', 'R16', 'R32', 'R64', 'R128']
-  const ROUND_LABELS: Record<string, string> = { 'F': 'Final', 'Final': 'Final', 'SF': 'Semis', 'Semi-final': 'Semis', 'QF': 'Quarters', 'Quarter-final': 'Quarters', 'R16': 'R16', 'R32': 'R32', 'R64': 'R64', 'R128': 'R128' }
-  let bestRoundIdx = 999
-  for (const m of matches) {
-    const r = m.round ?? ''
-    const idx = ROUND_ORDER.findIndex(x => r.toLowerCase().startsWith(x.toLowerCase()))
-    if (idx >= 0 && idx < bestRoundIdx) bestRoundIdx = idx
-  }
-  const stageLabel = bestRoundIdx < 999 ? (ROUND_LABELS[ROUND_ORDER[bestRoundIdx]] ?? ROUND_ORDER[bestRoundIdx]) : null
+  const stageLabel = mostAdvancedRound(matches)
 
   // 2-state: expanded (show all) or collapsed (show none)
   const [viewState, setViewState] = useState<'collapsed' | 'expanded'>(defaultOpen ? 'expanded' : 'collapsed')
