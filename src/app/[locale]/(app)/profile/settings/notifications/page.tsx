@@ -96,7 +96,7 @@ export default function NotificationPrefsPage() {
     <main style={{ paddingBottom: 80, background: '#0A0A0A', minHeight: '100vh' }}>
       {/* Sub-header */}
       <div style={{
-        position: 'sticky', top: 62, zIndex: 10,
+        position: 'sticky', top: 0, zIndex: 10,
         background: '#0A0A0A',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         padding: '12px 16px',
