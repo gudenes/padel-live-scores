@@ -9,7 +9,6 @@ import { signOut as nextAuthSignOut } from 'next-auth/react'
 import { useRouter, Link } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
-import { usePushNotifications } from '@/hooks/usePushNotifications'
 import CountryPicker from '@/components/CountryPicker'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 import { EditNameSheet } from './EditNameSheet'
@@ -148,9 +147,9 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 
 export default function SettingsPage() {
   const t = useTranslations('settings')
+  const tNotifs = useTranslations('notifications')
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const { enabled: pushEnabled, toggle: togglePush } = usePushNotifications()
 
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [countryOptions, setCountryOptions] = useState<CountryOption[]>([])
@@ -368,10 +367,12 @@ export default function SettingsPage() {
           disabled={savingCountry}
         />
       </div>
+      {/* Notifications navigation row — replaces the Phase 1 push toggle */}
       <Row
-        label={t('preferences.push')}
-        hint={t('preferences.pushHint')}
-        control={<Toggle checked={pushEnabled} onChange={() => { void togglePush() }} />}
+        label={tNotifs('settingsLinkRow.label')}
+        hint={tNotifs('settingsLinkRow.sub')}
+        control={<Chevron />}
+        onClick={() => router.push('/profile/settings/notifications')}
       />
 
       {/* PRIVACY & DATA */}
