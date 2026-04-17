@@ -247,7 +247,31 @@
     "bookmarks": "Favoris",
     "following": "Suivis",
     "loading": "Chargement de ton profil...",
-    "language": "Langue"
+    "language": "Langue",
+    "settings": "Paramètres",
+    "streakDays": "Série de {count} jours",
+    "tierPrefix": "Niveau {n}",
+    "stats": {
+      "xp": "XP",
+      "badges": "Badges",
+      "follows": "Abonnements"
+    },
+    "latestAchievements": "Derniers succès",
+    "nextUp": "À suivre",
+    "progressOf": "{current} / {total}",
+    "seeAllAchievements": "Voir tous les succès",
+    "achievementsSummary": "{earned} obtenus · {togo} niveaux à faire",
+    "allTiersEarned": "Tous les niveaux obtenus",
+    "activity": {
+      "header": "Activité",
+      "matches": "Matchs enregistrés",
+      "matchesSub": "Matchs et résultats sauvegardés",
+      "players": "Joueurs suivis",
+      "playersSub": "Joueurs que tu suis",
+      "notifications": "Notifications",
+      "notificationsSub": "Tes alertes",
+      "newCount": "{count} nouvelles"
+    }
   },
   "settings": {
     "title": "Paramètres",
