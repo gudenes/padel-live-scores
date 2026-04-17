@@ -257,7 +257,7 @@ interface MatchRow {
   winner_pair: number | null
   category: string | null
   duration: number | null
-  tournament: { name: string | null; country: string | null; level: string | null } | null
+  tournament: { id: string; name: string | null; country: string | null; level: string | null; starts_at: string | null; ends_at: string | null } | null
   pair1_player1: PartnerInfo | null
   pair1_player2: PartnerInfo | null
   pair2_player1: PartnerInfo | null
@@ -386,6 +386,14 @@ function resolveMatchRoles(match: MatchRow, playerId: string) {
   return { isP1, partner, opp1, opp2, myPair, won, lost }
 }
 
+function scoreString(sets: Array<{ set_score: string | null; set_number: number }>): string {
+  return [...(sets ?? [])]
+    .sort((a, b) => a.set_number - b.set_number)
+    .map(s => s.set_score ?? '')
+    .filter(Boolean)
+    .join('  ')
+}
+
 function formatDate(iso: string | null, format: ReturnType<typeof useFormatter>): string {
   if (!iso) return ''
   return format.dateTime(new Date(iso), DATE_WITH_YEAR)
@@ -405,13 +413,6 @@ function computeAge(birthdate: string | null): number | null {
   return age >= 0 && age < 120 ? age : null
 }
 
-function scoreString(sets: Array<{ set_score: string | null; set_number: number }>): string {
-  return [...(sets ?? [])]
-    .sort((a, b) => a.set_number - b.set_number)
-    .map(s => s.set_score ?? '')
-    .filter(Boolean)
-    .join('  ')
-}
 
 // ═══════════════════════════════════════════════════════════════
 //  PAGE
@@ -491,7 +492,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             .from('matches')
             .select(`
               id, status, round, started_at, finished_at, scheduled_at, winner_pair, category, duration,
-              tournament:tournaments(name, country, level),
+              tournament:tournaments(id, name, country, level, starts_at, ends_at),
               pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, avatar_url),
               pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, avatar_url),
               pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, avatar_url),
@@ -1132,7 +1133,7 @@ function OverviewTab({
         </Widget>
       )}
 
-      {/* Recent Matches — wide, uses the same list-item UI as the Matches tab */}
+      {/* Recent Matches — wide, uses the same match-row UI as the Matches tab */}
       {recentForShow.length > 0 && (
         <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{
@@ -1412,67 +1413,8 @@ function PartnersTab({
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  MATCHES TAB — full list
+//  MATCHES TAB — full list with tournament grouping
 // ═══════════════════════════════════════════════════════════════
-// Shared list item used by both the Matches tab and the Overview "Recent Matches" widget.
-function MatchListItem({
-  match, playerId, onClick, format,
-}: {
-  match: MatchRow
-  playerId: string
-  onClick: () => void
-  format: ReturnType<typeof useFormatter>
-}) {
-  const roles = resolveMatchRoles(match, playerId)
-  const score = scoreString(match.sets)
-  const tournamentName = match.tournament?.name ? titleCase(match.tournament.name) : ''
-  const date = formatDate(matchDate(match), format)
-
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        padding: '10px 12px',
-        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-        background: BG_CARD,
-        clipPath: CHUNKY.card,
-      }}
-    >
-      {/* W/L/Live badge */}
-      <div style={{
-        width: 28, height: 28, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: roles.won ? GREEN_DIM : roles.lost ? 'rgba(255,70,85,0.08)' : match.status === 'live' ? 'rgba(255,70,85,0.1)' : 'rgba(255,255,255,0.05)',
-        clipPath: CHUNKY.badge,
-      }}>
-        {match.status === 'live'
-          ? <span style={{ fontSize: 7, fontWeight: 800, color: LIVE_RED }}>LIVE</span>
-          : match.status === 'finished'
-          ? <span style={{ fontSize: 11, fontWeight: 800, color: roles.won ? GREEN : LIVE_RED }}>{roles.won ? 'W' : 'L'}</span>
-          : <span style={{ fontSize: 9, color: MUTED }}>—</span>}
-      </div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {roles.partner ? `w/ ${toShortName(roles.partner.display_name?.trim() || roles.partner.name)}` : 'Solo'}
-          <span style={{ color: MUTED, fontWeight: 400 }}> vs </span>
-          {[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}
-        </div>
-        <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', gap: 5 }}>
-          <span>{tournamentName}</span>
-          {match.round && <><span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span><span>{match.round}</span></>}
-          {date && <><span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span><span>{date}</span></>}
-        </div>
-      </div>
-
-      {score && (
-        <div style={{ fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: MUTED, flexShrink: 0 }}>
-          {score}
-        </div>
-      )}
-    </div>
-  )
-}
 
 // Renders two overlapping country flags — first player top-left, second
 // offset down-and-right by 6px. Used in match-history team rows.
@@ -1745,6 +1687,65 @@ function formatDateTime(
   }
 }
 
+function MatchListItem({
+  match, playerId, onClick, format,
+}: {
+  match: MatchRow
+  playerId: string
+  onClick: () => void
+  format: ReturnType<typeof useFormatter>
+}) {
+  const roles = resolveMatchRoles(match, playerId)
+  const score = scoreString(match.sets)
+  const tournamentName = match.tournament?.name ? titleCase(match.tournament.name) : ''
+  const date = formatDate(matchDate(match), format)
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        padding: '10px 12px',
+        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+        background: BG_CARD,
+        clipPath: CHUNKY.card,
+      }}
+    >
+      {/* W/L/Live badge */}
+      <div style={{
+        width: 28, height: 28, flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: roles.won ? GREEN_DIM : roles.lost ? 'rgba(255,70,85,0.08)' : match.status === 'live' ? 'rgba(255,70,85,0.1)' : 'rgba(255,255,255,0.05)',
+        clipPath: CHUNKY.badge,
+      }}>
+        {match.status === 'live'
+          ? <span style={{ fontSize: 7, fontWeight: 800, color: LIVE_RED }}>LIVE</span>
+          : (roles.won || roles.lost)
+          ? <span style={{ fontSize: 11, fontWeight: 800, color: roles.won ? GREEN : LIVE_RED }}>{roles.won ? 'W' : 'L'}</span>
+          : <span style={{ fontSize: 9, color: MUTED }}>—</span>}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {roles.partner ? `w/ ${toShortName(roles.partner.display_name?.trim() || roles.partner.name)}` : 'Solo'}
+          <span style={{ color: MUTED, fontWeight: 400 }}> vs </span>
+          {[roles.opp1, roles.opp2].filter(Boolean).map(p => toShortName(p!.display_name?.trim() || p!.name)).join(' / ')}
+        </div>
+        <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', gap: 5 }}>
+          <span>{tournamentName}</span>
+          {match.round && <><span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span><span>{match.round}</span></>}
+          {date && <><span style={{ color: 'rgba(255,255,255,0.15)' }}>|</span><span>{date}</span></>}
+        </div>
+      </div>
+
+      {score && (
+        <div style={{ fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: MUTED, flexShrink: 0 }}>
+          {score}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Grey bar with country flag, titlecased tournament name, stage badge,
 // and level/date-range subline. Mirrors TournamentGroup header on /matches.
 function TournamentHeader({
@@ -1752,7 +1753,7 @@ function TournamentHeader({
   matches,
   format,
 }: {
-  tournament: NonNullable<MatchRow['tournament']> & { id?: string; starts_at?: string | null; ends_at?: string | null }
+  tournament: NonNullable<MatchRow['tournament']>
   matches: MatchRow[]
   format: ReturnType<typeof useFormatter>
 }) {
@@ -1814,7 +1815,7 @@ function TournamentHeader({
         position: 'absolute', top: 0, left: 0, right: 0, height: 2,
         background: accent, zIndex: 1,
       }} />
-      {tournament.id ? (
+      {tournament?.id ? (
         <Link href={`/tournaments/${tournament.id}`} style={containerStyle}>
           {body}
         </Link>
@@ -1833,7 +1834,7 @@ function TournamentGroup({
   onMatchClick,
   format,
 }: {
-  tournament: NonNullable<MatchRow['tournament']> & { id?: string; starts_at?: string | null; ends_at?: string | null }
+  tournament: NonNullable<MatchRow['tournament']>
   matches: MatchRow[]
   playerId: string
   onMatchClick: (matchId: string) => void
@@ -1866,6 +1867,8 @@ function MatchesTab({
   router: ReturnType<typeof useRouter>
   format: ReturnType<typeof useFormatter>
 }) {
+  const [visibleTournaments, setVisibleTournaments] = useState(5)
+
   if (matches.length === 0) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>
@@ -1874,17 +1877,77 @@ function MatchesTab({
     )
   }
 
+  // Group by tournament.id (matches with missing tournament get grouped under
+  // a synthetic key so we don't crash)
+  type Group = {
+    key: string
+    tournament: NonNullable<MatchRow['tournament']>
+    matches: MatchRow[]
+  }
+  const groups: Group[] = []
+  const seen = new Map<string, Group>()
+  for (const m of matches) {
+    const t = m.tournament
+    // Keying by the tournament id when present, otherwise by name
+    const key = t?.id ?? t?.name ?? '__orphan__'
+    let g = seen.get(key)
+    if (!g) {
+      g = { key, tournament: t ?? ({} as Group['tournament']), matches: [] }
+      seen.set(key, g)
+      groups.push(g)
+    }
+    g.matches.push(m)
+  }
+
+  // Sort tournaments: live-first, then newest starts_at first
+  groups.sort((a, b) => {
+    const aLive = a.matches.some(m => m.status === 'live')
+    const bLive = b.matches.some(m => m.status === 'live')
+    if (aLive !== bLive) return aLive ? -1 : 1
+    const aDate = a.tournament?.starts_at ?? ''
+    const bDate = b.tournament?.starts_at ?? ''
+    return bDate.localeCompare(aDate)
+  })
+
+  // Within each tournament: newest match first (final before QF before R16)
+  for (const g of groups) {
+    g.matches.sort((a, b) => matchTime(b) - matchTime(a))
+  }
+
+  const visible = groups.slice(0, visibleTournaments)
+  const hiddenCount = groups.length - visible.length
+
   return (
-    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {matches.map(m => (
-        <MatchListItem
-          key={m.id}
-          match={m}
+    <div style={{ paddingBottom: 16 }}>
+      {visible.map(g => (
+        <TournamentGroup
+          key={g.key}
+          tournament={g.tournament}
+          matches={g.matches}
           playerId={playerId}
-          onClick={() => router.push(`/match/${m.id}`)}
+          onMatchClick={(mid) => router.push(`/match/${mid}`)}
           format={format}
         />
       ))}
+      {hiddenCount > 0 && (
+        <div style={{ padding: '0 12px' }}>
+          <button
+            onClick={() => setVisibleTournaments(n => n + 5)}
+            style={{
+              width: '100%', padding: 12,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 6,
+              color: '#9ca3af',
+              fontSize: 11, fontWeight: 700,
+              letterSpacing: 0.5, textTransform: 'uppercase',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Load more tournaments
+          </button>
+        </div>
+      )}
     </div>
   )
 }
