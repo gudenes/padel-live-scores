@@ -1,12 +1,15 @@
 import { getUserOrFail } from '../_auth'
 
+const SELECT_COLUMNS = 'id, display_name, avatar_url, preferred_country, marketing_opt_in'
+const ALLOWED_KEYS = ['display_name', 'avatar_url', 'preferred_country', 'marketing_opt_in']
+
 export async function GET() {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
 
   const { data } = await supabase
     .from('profiles')
-    .select('id, display_name, avatar_url, preferred_country')
+    .select(SELECT_COLUMNS)
     .eq('id', user.id)
     .single()
 
@@ -18,9 +21,8 @@ export async function PATCH(req: Request) {
   if (error) return error
 
   const body = await req.json()
-  const allowed = ['display_name', 'avatar_url', 'preferred_country']
   const updates: Record<string, unknown> = {}
-  for (const key of allowed) {
+  for (const key of ALLOWED_KEYS) {
     if (key in body) updates[key] = body[key]
   }
 
@@ -28,7 +30,7 @@ export async function PATCH(req: Request) {
     .from('profiles')
     .update(updates)
     .eq('id', user.id)
-    .select('id, display_name, avatar_url, preferred_country')
+    .select(SELECT_COLUMNS)
     .single()
 
   if (dbErr) return Response.json({ error: dbErr.message }, { status: 500 })

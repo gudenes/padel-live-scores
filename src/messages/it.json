@@ -249,6 +249,62 @@
     "loading": "Caricamento profilo...",
     "language": "Lingua"
   },
+  "settings": {
+    "title": "Impostazioni",
+    "sections": {
+      "account": "Account",
+      "preferences": "Preferenze",
+      "privacy": "Privacy e dati",
+      "support": "Supporto"
+    },
+    "account": {
+      "displayName": "Nome visualizzato",
+      "email": "Email",
+      "activeSessions": "Sessioni attive",
+      "comingSoon": "In arrivo",
+      "editName": {
+        "title": "Modifica nome",
+        "placeholder": "Il tuo nome",
+        "save": "Salva",
+        "cancel": "Annulla",
+        "savedToast": "Nome aggiornato"
+      }
+    },
+    "preferences": {
+      "language": "Lingua",
+      "region": "Regione",
+      "regionHint": "Usata per mostrare emittenti e contenuti locali.",
+      "push": "Notifiche push",
+      "pushHint": "Ricevi un avviso quando iniziano le partite salvate"
+    },
+    "privacy": {
+      "policy": "Informativa sulla privacy",
+      "terms": "Termini di servizio",
+      "analytics": "Condividi dati di utilizzo anonimi",
+      "analyticsHint": "Aiutaci a migliorare PadelNachos. Disattiva per non condividere.",
+      "marketing": "Email di marketing",
+      "marketingHint": "Aggiornamenti occasionali su novità e tornei.",
+      "exportData": "Scarica i miei dati",
+      "exportDataHint": "Ottieni un file JSON con tutto ciò che abbiamo su di te.",
+      "deleteAccount": "Elimina il mio account",
+      "deleteAccountHint": "Rimuove definitivamente il tuo account e i tuoi dati."
+    },
+    "support": {
+      "contact": "Contatta il supporto",
+      "about": "Informazioni su PadelNachos"
+    },
+    "signOut": "Esci",
+    "deleteModal": {
+      "title": "Eliminare il tuo account?",
+      "body": "Verranno rimossi definitivamente profilo, preferiti, badge, valutazioni e metodi di accesso. L'operazione non è reversibile.",
+      "continue": "Continua",
+      "cancel": "Annulla",
+      "confirmPrompt": "Scrivi ELIMINA per confermare",
+      "confirmWord": "ELIMINA",
+      "confirmButton": "Elimina per sempre",
+      "errorGeneric": "Impossibile eliminare l'account. Riprova o contatta il supporto."
+    }
+  },
   "badges": {
     "badgeUnlocked": "Obiettivo sbloccato",
     "welcome": "Benvenuto",
@@ -369,5 +425,44 @@
     "skip": "Salta",
     "next": "Avanti →",
     "done": "Fatto"
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "markAllRead": "Segna tutto come letto",
+    "filterAll": "Tutto",
+    "filterMatches": "Partite",
+    "filterBadges": "Traguardi",
+    "empty": "Ancora nessuna notifica",
+    "emptySubtitle": "Ti avviseremo quando inizieranno le tue partite",
+    "daySeparator": {
+      "today": "Oggi",
+      "yesterday": "Ieri",
+      "thisWeek": "Questa settimana"
+    },
+    "settings": {
+      "title": "Notifiche",
+      "permissionDeniedTitle": "Notifiche bloccate",
+      "permissionDeniedBody": "Le notifiche push non arriveranno finché non le riattivi nelle impostazioni del browser.",
+      "masterLabel": "Notifiche push",
+      "columnPush": "PUSH",
+      "columnInApp": "IN-APP",
+      "groupMatches": "Partite",
+      "groupAchievements": "Traguardi",
+      "groupOther": "Altro",
+      "category": {
+        "match_live_follow":    { "label": "Giocatore seguito in diretta", "sub": "Quando un giocatore che segui sta per giocare" },
+        "match_live_bookmark":  { "label": "Partita salvata in diretta", "sub": "Quando inizia una partita che hai salvato" },
+        "match_finished":       { "label": "Partita terminata", "sub": "Risultati delle partite che segui" },
+        "match_upcoming":       { "label": "Partita sta per iniziare", "sub": "30 min prima di una partita seguita" },
+        "badge_earned":         { "label": "Distintivo ottenuto", "sub": "Quando sblocchi un nuovo distintivo" },
+        "streak_milestone":     { "label": "Striscia raggiunta", "sub": "Strisce da 3, 7, 30 e 100 giorni" },
+        "marketing":            { "label": "Novità del prodotto", "sub": "Nuove funzioni, eventi e notizie occasionali" }
+      },
+      "saveError": "Impossibile salvare — riprova"
+    },
+    "settingsLinkRow": {
+      "label": "Notifiche",
+      "sub": "Scegli per cosa ricevere notifiche"
+    }
   }
 }

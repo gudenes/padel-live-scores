@@ -249,6 +249,62 @@
     "loading": "Chargement de ton profil...",
     "language": "Langue"
   },
+  "settings": {
+    "title": "Paramètres",
+    "sections": {
+      "account": "Compte",
+      "preferences": "Préférences",
+      "privacy": "Confidentialité et données",
+      "support": "Assistance"
+    },
+    "account": {
+      "displayName": "Nom affiché",
+      "email": "E-mail",
+      "activeSessions": "Sessions actives",
+      "comingSoon": "Bientôt disponible",
+      "editName": {
+        "title": "Modifier le nom",
+        "placeholder": "Votre nom",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "savedToast": "Nom mis à jour"
+      }
+    },
+    "preferences": {
+      "language": "Langue",
+      "region": "Région",
+      "regionHint": "Sert à afficher les diffuseurs et contenus locaux.",
+      "push": "Notifications push",
+      "pushHint": "Soyez averti quand vos matchs favoris commencent"
+    },
+    "privacy": {
+      "policy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation",
+      "analytics": "Partager des données d'usage anonymes",
+      "analyticsHint": "Aidez à améliorer PadelNachos. Désactivez pour refuser.",
+      "marketing": "E-mails marketing",
+      "marketingHint": "Mises à jour occasionnelles sur les nouveautés et tournois.",
+      "exportData": "Télécharger mes données",
+      "exportDataHint": "Obtenez un fichier JSON de tout ce que nous avons sur vous.",
+      "deleteAccount": "Supprimer mon compte",
+      "deleteAccountHint": "Supprime définitivement votre compte et vos données."
+    },
+    "support": {
+      "contact": "Contacter l'assistance",
+      "about": "À propos de PadelNachos"
+    },
+    "signOut": "Se déconnecter",
+    "deleteModal": {
+      "title": "Supprimer votre compte ?",
+      "body": "Cela supprime définitivement votre profil, favoris, badges, notes et méthodes de connexion. Action irréversible.",
+      "continue": "Continuer",
+      "cancel": "Annuler",
+      "confirmPrompt": "Tapez SUPPRIMER pour confirmer",
+      "confirmWord": "SUPPRIMER",
+      "confirmButton": "Supprimer définitivement",
+      "errorGeneric": "Impossible de supprimer le compte. Réessayez ou contactez l'assistance."
+    }
+  },
   "badges": {
     "badgeUnlocked": "Badge débloqué",
     "welcome": "Bienvenue",
@@ -369,5 +425,44 @@
     "skip": "Passer",
     "next": "Suivant →",
     "done": "Terminé"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "filterAll": "Tout",
+    "filterMatches": "Matchs",
+    "filterBadges": "Badges",
+    "empty": "Aucune notification pour le moment",
+    "emptySubtitle": "Nous vous avertirons quand vos matchs commenceront",
+    "daySeparator": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "thisWeek": "Cette semaine"
+    },
+    "settings": {
+      "title": "Notifications",
+      "permissionDeniedTitle": "Notifications bloquées",
+      "permissionDeniedBody": "Les notifications push n'arriveront pas tant que vous ne les réactiverez pas dans les paramètres du navigateur.",
+      "masterLabel": "Notifications push",
+      "columnPush": "PUSH",
+      "columnInApp": "IN-APP",
+      "groupMatches": "Matchs",
+      "groupAchievements": "Badges",
+      "groupOther": "Autres",
+      "category": {
+        "match_live_follow":    { "label": "Joueur suivi en direct", "sub": "Quand un joueur que vous suivez va jouer" },
+        "match_live_bookmark":  { "label": "Match enregistré en direct", "sub": "Quand un match que vous avez enregistré commence" },
+        "match_finished":       { "label": "Match terminé", "sub": "Résultats des matchs que vous suivez" },
+        "match_upcoming":       { "label": "Match sur le point de commencer", "sub": "30 min avant un match suivi" },
+        "badge_earned":         { "label": "Badge obtenu", "sub": "Quand vous débloquez un nouveau badge" },
+        "streak_milestone":     { "label": "Série atteinte", "sub": "Séries de 3, 7, 30 et 100 jours" },
+        "marketing":            { "label": "Nouveautés produit", "sub": "Nouvelles fonctionnalités, événements, actualités" }
+      },
+      "saveError": "Enregistrement impossible — réessayez"
+    },
+    "settingsLinkRow": {
+      "label": "Notifications",
+      "sub": "Choisissez pour quoi être notifié"
+    }
   }
 }

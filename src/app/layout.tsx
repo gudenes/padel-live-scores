@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Analytics } from "@vercel/analytics/react";
+import { GatedAnalytics } from "@/components/GatedAnalytics";
 import { AuthProvider } from "@/components/AuthProvider";
 import { buildAlternates } from "@/lib/seo-helpers";
 import "./globals.css";
@@ -122,7 +122,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>
             {children}
           </AuthProvider>
-          <Analytics />
+          <GatedAnalytics />
         </div>
       </div>
     </body></html>

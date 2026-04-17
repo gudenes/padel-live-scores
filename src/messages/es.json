@@ -249,6 +249,62 @@
     "loading": "Cargando tu perfil...",
     "language": "Idioma"
   },
+  "settings": {
+    "title": "Ajustes",
+    "sections": {
+      "account": "Cuenta",
+      "preferences": "Preferencias",
+      "privacy": "Privacidad y datos",
+      "support": "Soporte"
+    },
+    "account": {
+      "displayName": "Nombre para mostrar",
+      "email": "Correo",
+      "activeSessions": "Sesiones activas",
+      "comingSoon": "Próximamente",
+      "editName": {
+        "title": "Editar nombre",
+        "placeholder": "Tu nombre",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "savedToast": "Nombre actualizado"
+      }
+    },
+    "preferences": {
+      "language": "Idioma",
+      "region": "Región",
+      "regionHint": "Se usa para mostrar emisoras y contenido locales.",
+      "push": "Notificaciones push",
+      "pushHint": "Recibe avisos cuando empiecen tus partidos guardados"
+    },
+    "privacy": {
+      "policy": "Política de privacidad",
+      "terms": "Términos del servicio",
+      "analytics": "Compartir datos de uso anónimos",
+      "analyticsHint": "Ayúdanos a mejorar PadelNachos. Desactiva para no compartir.",
+      "marketing": "Correos de marketing",
+      "marketingHint": "Actualizaciones ocasionales sobre novedades y torneos.",
+      "exportData": "Descargar mis datos",
+      "exportDataHint": "Obtén un archivo JSON con todo lo que guardamos sobre ti.",
+      "deleteAccount": "Eliminar mi cuenta",
+      "deleteAccountHint": "Elimina permanentemente tu cuenta y tus datos."
+    },
+    "support": {
+      "contact": "Contactar con soporte",
+      "about": "Sobre PadelNachos"
+    },
+    "signOut": "Cerrar sesión",
+    "deleteModal": {
+      "title": "¿Eliminar tu cuenta?",
+      "body": "Esto eliminará para siempre tu perfil, favoritos, insignias, valoraciones y métodos de inicio de sesión. No se puede deshacer.",
+      "continue": "Continuar",
+      "cancel": "Cancelar",
+      "confirmPrompt": "Escribe ELIMINAR para confirmar",
+      "confirmWord": "ELIMINAR",
+      "confirmButton": "Eliminar para siempre",
+      "errorGeneric": "No pudimos eliminar tu cuenta. Inténtalo de nuevo o contacta con soporte."
+    }
+  },
   "badges": {
     "badgeUnlocked": "Logro desbloqueado",
     "welcome": "Bienvenido",
@@ -369,5 +425,44 @@
     "skip": "Saltar",
     "next": "Siguiente →",
     "done": "Listo"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todo como leído",
+    "filterAll": "Todo",
+    "filterMatches": "Partidos",
+    "filterBadges": "Logros",
+    "empty": "Aún no hay notificaciones",
+    "emptySubtitle": "Te avisaremos cuando tus partidos empiecen",
+    "daySeparator": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "thisWeek": "Esta semana"
+    },
+    "settings": {
+      "title": "Notificaciones",
+      "permissionDeniedTitle": "Notificaciones bloqueadas",
+      "permissionDeniedBody": "Las notificaciones push no llegarán hasta que las vuelvas a activar en la configuración de tu navegador.",
+      "masterLabel": "Notificaciones push",
+      "columnPush": "PUSH",
+      "columnInApp": "EN APP",
+      "groupMatches": "Partidos",
+      "groupAchievements": "Logros",
+      "groupOther": "Otros",
+      "category": {
+        "match_live_follow":    { "label": "Jugador seguido en directo", "sub": "Cuando un jugador que sigues va a jugar" },
+        "match_live_bookmark":  { "label": "Partido guardado en directo", "sub": "Cuando comienza un partido que has guardado" },
+        "match_finished":       { "label": "Partido finalizado", "sub": "Resultados de los partidos que sigues" },
+        "match_upcoming":       { "label": "Partido a punto de empezar", "sub": "30 min antes de un partido seguido" },
+        "badge_earned":         { "label": "Insignia ganada", "sub": "Cuando desbloqueas una nueva insignia" },
+        "streak_milestone":     { "label": "Racha alcanzada", "sub": "Rachas de 3, 7, 30 y 100 días" },
+        "marketing":            { "label": "Novedades del producto", "sub": "Nuevas funciones, eventos y noticias ocasionales" }
+      },
+      "saveError": "No se pudo guardar — inténtalo de nuevo"
+    },
+    "settingsLinkRow": {
+      "label": "Notificaciones",
+      "sub": "Elige sobre qué te avisamos"
+    }
   }
 }
