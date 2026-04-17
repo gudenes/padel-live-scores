@@ -1,23 +1,29 @@
 'use client'
-// src/app/(app)/profile/page.tsx
-// User profile — v3 brand styling with chunky clip-path shapes.
+// src/app/[locale]/(app)/profile/page.tsx
+// Profile page — progress-centric hero (Phase 2).
+// Settings/compliance controls live at /profile/settings (Phase 1).
 
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
-import { useRouter, Link } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
-import { usePushNotifications } from '@/hooks/usePushNotifications'
-import Spinner from '../../../components/Spinner'
+import { useBadges, type EarnedBadge } from '@/hooks/useBadges'
 import BrandedLoader from '../../../components/BrandedLoader'
-import CountryPicker from '@/components/CountryPicker'
-import { useInvite } from '@/hooks/useInvite'
-import { useBadges } from '@/hooks/useBadges'
-import { BadgeIcon } from '@/components/BadgeIcon'
 import { BADGE_CATALOG, TIER_META, overallTierFromBadgeCount } from '@/lib/badges'
-import { AmbassadorBadge } from '@/components/AmbassadorBadge'
 import { withTimeout } from '@/lib/with-timeout'
-import LocaleSwitcher from '@/components/LocaleSwitcher'
+import { computeXp, formatXp, selectNextAchievement, type Counts } from '@/lib/gamification'
+import { getUnreadNotificationCount } from '@/lib/notifications'
+import {
+  ArrowLeftIcon,
+  GearIcon,
+  FlameIcon,
+  BellIcon,
+  BookmarkIcon,
+  SearchIcon,
+  ChevronRightIcon,
+} from '@/components/icons'
+import { BadgeIcon } from '@/components/BadgeIcon'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -27,230 +33,295 @@ const V3 = {
   BG_CARD: '#141414',
   MUTED: '#6B7280',
   BORDER: 'rgba(255,255,255,0.06)',
+  STREAK: '#FF6B2B',
   clip: {
     badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
     card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-    button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
+    chunky: 'polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%)',
   },
 } as const
 
-interface CountryOption {
-  iso2: string
-  name: string
-}
-
-interface BookmarkedMatch {
-  id: string
-  status: string
-  round: string | null
-  tournament_name: string | null
-  pair1_player1_name: string | null
-  pair1_player2_name: string | null
-  pair2_player1_name: string | null
-  pair2_player2_name: string | null
-}
-
-interface BookmarkedPlayer {
-  id: string
-  name: string
-  avatar_url: string | null
-}
-
 export default function ProfilePage() {
   const t = useTranslations('profile')
-  const { user, profile, loading: authLoading, signOut } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
-  const { enabled, supported, permission, toggle: togglePush } = usePushNotifications()
-  const { inviteCount, tier, loading: inviteLoading, shareNow } = useInvite()
   const { badges: earnedBadges, loading: badgesLoading } = useBadges()
-  const [matches, setMatches] = useState<BookmarkedMatch[]>([])
-  const [players, setPlayers] = useState<BookmarkedPlayer[]>([])
-  const [loadingData, setLoadingData] = useState(true)
 
-  // Country preference (broadcaster region override)
-  const [countryOptions, setCountryOptions] = useState<CountryOption[]>([])
-  const [savingCountry, setSavingCountry] = useState(false)
-  const [countryDraft, setCountryDraft] = useState<string>('')  // '' = auto
-
-  // Load distinct countries from broadcasters table for the picker
-  useEffect(() => {
-    let cancelled = false
-    async function loadCountries() {
-      const { data } = await supabase
-        .from('broadcasters')
-        .select('country_iso2, country_name')
-        .eq('active', true)
-      if (cancelled || !data) return
-      const seen = new Map<string, string>()
-      for (const row of data) {
-        if (row.country_iso2 && !seen.has(row.country_iso2)) {
-          seen.set(row.country_iso2, row.country_name ?? row.country_iso2.toUpperCase())
-        }
-      }
-      const sorted = [...seen.entries()]
-        .map(([iso2, name]) => ({ iso2, name }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-      setCountryOptions(sorted)
-    }
-    void loadCountries()
-    return () => { cancelled = true }
-  }, [])
-
-  // Sync local draft when profile loads
-  useEffect(() => {
-    if (profile?.preferred_country !== undefined) {
-      setCountryDraft(profile.preferred_country ?? '')
-    }
-  }, [profile?.preferred_country])
-
-  const saveCountry = async (newValue: string) => {
-    if (!user) return
-    setSavingCountry(true)
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ preferred_country: newValue || null })
-        .eq('id', user.id)
-      if (error) {
-        console.warn('[Profile] saveCountry error:', error.message)
-        return
-      }
-      setCountryDraft(newValue)
-    } finally {
-      setSavingCountry(false)
-    }
-  }
+  const [counts, setCounts] = useState<Counts | null>(null)
+  const [countsLoading, setCountsLoading] = useState(true)
 
   // Redirect if not logged in
   useEffect(() => {
     if (!authLoading && !user) router.replace('/home')
   }, [authLoading, user, router])
 
-  // Fetch bookmarked data — wraps queries in withTimeout so they fail fast
-  // instead of spinning forever when the Supabase client is wedged.
-  // Depends on retryKey so TOKEN_REFRESHED auto-triggers a refetch.
-  const fetchBookmarks = useCallback(async () => {
+  const fetchCounts = useCallback(async () => {
     if (!user) return
-    setLoadingData(true)
+    setCountsLoading(true)
+
+    const head = (query: PromiseLike<{ count: number | null }>, label: string) =>
+      withTimeout(Promise.resolve(query), 10_000, label)
 
     try {
-      const wrap = <T,>(p: PromiseLike<T>, label: string) => withTimeout(Promise.resolve(p), 10_000, label)
+      const [
+        playerFollow,
+        tournamentFollow,
+        matchBookmark,
+        ratings,
+        articleClicks,
+        videoPlays,
+        shares,
+        referrals,
+        profileRow,
+      ] = await Promise.all([
+        head(
+          supabase.from('user_bookmarks').select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id).eq('bookmark_type', 'player'),
+          'profile:count-player-bookmarks',
+        ),
+        head(
+          supabase.from('user_bookmarks').select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id).eq('bookmark_type', 'tournament'),
+          'profile:count-tournament-bookmarks',
+        ),
+        head(
+          supabase.from('user_bookmarks').select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id).eq('bookmark_type', 'match'),
+          'profile:count-match-bookmarks',
+        ),
+        head(
+          supabase.from('match_ratings').select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+          'profile:count-ratings',
+        ),
+        head(
+          supabase.from('user_activity_log').select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id).eq('action', 'article_click'),
+          'profile:count-article-clicks',
+        ),
+        head(
+          supabase.from('user_activity_log').select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id).eq('action', 'video_play'),
+          'profile:count-video-plays',
+        ),
+        head(
+          supabase.from('user_activity_log').select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id).eq('action', 'share'),
+          'profile:count-shares',
+        ),
+        head(
+          supabase.from('profiles').select('id', { count: 'exact', head: true })
+            .eq('referred_by', user.id),
+          'profile:count-referrals',
+        ),
+        withTimeout(
+          Promise.resolve(
+            supabase.from('profiles').select('login_streak, longest_streak')
+              .eq('id', user.id).single(),
+          ),
+          10_000,
+          'profile:fetch-streaks',
+        ),
+      ])
 
-      const { data: matchBookmarks, error: matchErr } = await wrap(
-        supabase.from('user_bookmarks').select('target_id').eq('user_id', user.id).eq('bookmark_type', 'match'),
-        'profile:match-bookmarks'
-      )
-      if (matchErr) { setLoadingData(false); return }
-
-      const { data: playerBookmarks } = await wrap(
-        supabase.from('user_bookmarks').select('target_id').eq('user_id', user.id).eq('bookmark_type', 'player'),
-        'profile:player-bookmarks'
-      )
-
-      const matchIds = (matchBookmarks ?? []).map((b: any) => b.target_id)
-      if (matchIds.length > 0) {
-        const { data: matchData } = await wrap(
-          supabase.from('matches').select(`
-            id, status, round,
-            tournament:tournaments(name),
-            pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name),
-            pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name),
-            pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name),
-            pair2_player2:players!matches_pair2_player2_id_fkey(name, display_name)
-          `).in('id', matchIds).order('updated_at', { ascending: false }).limit(20),
-          'profile:match-details'
-        )
-        setMatches((matchData ?? []).map((m: any) => ({
-          id: m.id, status: m.status, round: m.round,
-          tournament_name: m.tournament?.name ?? null,
-          pair1_player1_name: m.pair1_player1?.display_name ?? m.pair1_player1?.name ?? null,
-          pair1_player2_name: m.pair1_player2?.display_name ?? m.pair1_player2?.name ?? null,
-          pair2_player1_name: m.pair2_player1?.display_name ?? m.pair2_player1?.name ?? null,
-          pair2_player2_name: m.pair2_player2?.display_name ?? m.pair2_player2?.name ?? null,
-        })))
-      }
-
-      const playerIds = (playerBookmarks ?? []).map((b: any) => b.target_id)
-      if (playerIds.length > 0) {
-        const { data: playerData } = await wrap(
-          supabase.from('players').select('id, name, avatar_url').in('id', playerIds),
-          'profile:player-details'
-        )
-        setPlayers(playerData ?? [])
-      }
+      setCounts({
+        playerFollowCount: playerFollow.count ?? 0,
+        tournamentFollowCount: tournamentFollow.count ?? 0,
+        matchBookmarkCount: matchBookmark.count ?? 0,
+        ratingCount: ratings.count ?? 0,
+        articleClickCount: articleClicks.count ?? 0,
+        videoPlayCount: videoPlays.count ?? 0,
+        shareCount: shares.count ?? 0,
+        referralCount: referrals.count ?? 0,
+        loginStreak: profileRow.data?.login_streak ?? 0,
+        longestStreak: profileRow.data?.longest_streak ?? 0,
+      })
     } catch (e) {
-      console.warn('[Profile] fetchBookmarks failed:', (e as Error)?.message)
+      console.warn('[Profile] fetchCounts failed:', (e as Error)?.message)
     } finally {
-      setLoadingData(false)
+      setCountsLoading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id])
+  }, [user])
 
-  useEffect(() => { void fetchBookmarks() }, [fetchBookmarks])
+  useEffect(() => { void fetchCounts() }, [fetchCounts])
 
-  if (authLoading || !user) return <BrandedLoader hints={[t('loading'), 'Almost ready...']} />
-
-  const handleSignOut = async () => {
-    await signOut()
-    router.replace('/home')
+  if (authLoading || !user) {
+    return <BrandedLoader hints={[t('loading'), 'Almost ready...']} />
   }
 
-  const statusColor: Record<string, string> = {
-    live: V3.LIVE_RED,
-    scheduled: V3.MUTED,
-    finished: '#9ca3af',
-  }
+  const earnedBadgeIds = new Set(earnedBadges.map(b => b.badge_id))
+  const earnedBadgeCount = earnedBadgeIds.size
 
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 80, background: V3.BG_BASE, minHeight: '100dvh' }}>
-      {/* Header */}
+    <div style={{
+      maxWidth: 500, margin: '0 auto', paddingBottom: 80,
+      background: V3.BG_BASE, minHeight: '100dvh',
+    }}>
+      {/* Sticky header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '10px 14px',
-        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
+        boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
         position: 'sticky', top: 0, zIndex: 10,
-        background: '#0A0A0A',
-        height: 62,
+        background: '#0A0A0A', height: 62,
       }}>
         <button
+          type="button"
+          aria-label="Back"
           onClick={() => { if (window.history.length > 1) router.back(); else router.push('/home') }}
           style={{
             width: 36, height: 36, border: 'none', cursor: 'pointer',
-            background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
             color: V3.MUTED,
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
-          </svg>
+          <ArrowLeftIcon size={18} />
         </button>
         <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600 }}>
           {t('profile')}
         </div>
-        <Link
-          href="/profile/settings"
-          aria-label="Settings"
+        <button
+          type="button"
+          aria-label={t('settings')}
+          onClick={() => router.push('/profile/settings')}
           style={{
-            width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: V3.MUTED, textDecoration: 'none',
+            width: 36, height: 36, border: 'none', cursor: 'pointer',
+            background: 'transparent', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            color: V3.MUTED,
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </Link>
+          <GearIcon size={18} />
+        </button>
       </div>
 
-      {/* User info */}
-      <div style={{ padding: '24px 16px 16px', textAlign: 'center', borderBottom: `1px solid ${V3.BORDER}` }}>
+      <AvatarBlock
+        displayName={profile?.display_name ?? 'User'}
+        avatarUrl={profile?.avatar_url ?? null}
+        earnedBadgeCount={earnedBadgeCount}
+        loginStreak={counts?.loginStreak ?? 0}
+        streakLabel={t('streakDays', { count: counts?.loginStreak ?? 0 })}
+        tierPrefixTemplate={(n) => t('tierPrefix', { n })}
+      />
+
+      <StatsStrip
+        xp={countsLoading ? null : computeXp(earnedBadges, counts?.loginStreak ?? 0)}
+        badgeCount={badgesLoading ? null : earnedBadgeCount}
+        followCount={countsLoading ? null : (counts?.playerFollowCount ?? 0)}
+        onBadgesClick={() => router.push('/achievements')}
+        labels={{
+          xp: t('stats.xp'),
+          badges: t('stats.badges'),
+          follows: t('stats.follows'),
+        }}
+      />
+
+      <LatestAchievementsStrip
+        header={t('latestAchievements')}
+        earnedBadges={earnedBadges}
+        counts={counts}
+      />
+
+      {counts && (() => {
+        const next = selectNextAchievement(earnedBadges, counts)
+        if (!next) return null
+        return (
+          <ProgressCard
+            next={next}
+            nextUpLabel={t('nextUp')}
+            progressLabel={t('progressOf', { current: next.current, total: next.threshold })}
+          />
+        )
+      })()}
+
+      <AchievementsCTA
+        earnedCount={earnedBadgeCount}
+        totalTierSlots={totalTierSlots()}
+        earnedTierPairs={earnedBadges.length}
+        ctaTitle={t('seeAllAchievements')}
+        onClick={() => router.push('/achievements')}
+        summaryTemplate={(args) => t('achievementsSummary', args)}
+        allTiersEarnedLabel={t('allTiersEarned')}
+      />
+
+      <ActivitySection
+        header={t('activity.header')}
+        onRowClick={(href) => router.push(href)}
+        rows={[
+          {
+            key: 'matches',
+            href: '/following?tab=matches',
+            icon: 'bookmark',
+            label: t('activity.matches'),
+            sub: t('activity.matchesSub'),
+            count: counts?.matchBookmarkCount ?? null,
+          },
+          {
+            key: 'players',
+            href: '/following?tab=players',
+            icon: 'search',
+            label: t('activity.players'),
+            sub: t('activity.playersSub'),
+            count: counts?.playerFollowCount ?? null,
+          },
+          {
+            key: 'notifications',
+            href: '/notifications',
+            icon: 'bell',
+            label: t('activity.notifications'),
+            sub: t('activity.notificationsSub'),
+            count: getUnreadNotificationCount(),
+            isAlert: true,
+          },
+        ]}
+      />
+    </div>
+  )
+}
+
+// ── AvatarBlock ──────────────────────────────────────────────────
+
+interface AvatarBlockProps {
+  displayName: string
+  avatarUrl: string | null
+  earnedBadgeCount: number
+  loginStreak: number
+  streakLabel: string
+  tierPrefixTemplate: (n: number) => string
+}
+
+function AvatarBlock({
+  displayName,
+  avatarUrl,
+  earnedBadgeCount,
+  loginStreak,
+  streakLabel,
+  tierPrefixTemplate,
+}: AvatarBlockProps) {
+  const tier = overallTierFromBadgeCount(earnedBadgeCount)
+  const tierMeta = tier ? TIER_META[tier] : null
+
+  return (
+    <div style={{ padding: '24px 16px 16px', textAlign: 'center' }}>
+      <div style={{
+        width: 96, height: 96, margin: '0 auto 10px',
+        position: 'relative', display: 'inline-block',
+      }}>
         <div style={{
           width: 64, height: 64, borderRadius: '50%',
-          margin: '0 auto 12px', border: `3px solid ${V3.ORANGE}`,
-          overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          border: `3px solid ${V3.ORANGE}`, overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '16px auto 0',
         }}>
-          {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              referrerPolicy="no-referrer"
+            />
           ) : (
             <div style={{
               width: '100%', height: '100%',
@@ -258,329 +329,502 @@ export default function ProfilePage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#000', fontSize: 24, fontWeight: 700,
             }}>
-              {(profile?.display_name ?? 'U').charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
-        <div style={{ color: '#fff', fontSize: 16, fontWeight: 600 }}>
-          {profile?.display_name ?? 'User'}
-        </div>
-        <div style={{ color: V3.MUTED, fontSize: 12, marginTop: 2 }}>
-          {user.email}
-        </div>
-      </div>
-
-      {/* Invite friends — share CTA with ambassador badge */}
-      {user && (
-        <div style={{ padding: '12px 16px 0' }}>
-          <button
-            onClick={() => { void shareNow() }}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              background: 'rgba(255,255,255,0.03)',
-              clipPath: V3.clip.card,
-              padding: '12px 14px',
-              border: 'none',
-              marginBottom: 12,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ flexShrink: 0 }}>
-              {tier ? (
-                <AmbassadorBadge tier={tier} size="md" />
-              ) : (
-                <div style={{
-                  width: 44, height: 44,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  clipPath: 'polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%)',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: `1.5px solid rgba(255,255,255,0.1)`,
-                  fontSize: 20,
-                }}>🎾</div>
-              )}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                Invite friends
-              </div>
-              <div style={{ fontSize: 11, color: V3.MUTED, marginTop: 3 }}>
-                {inviteLoading ? 'Loading…' : tier ? (
-                  <>
-                    <span style={{
-                      display: 'inline-block',
-                      fontSize: 9, fontWeight: 800,
-                      color: tier.color,
-                      background: tier.bgGradient,
-                      padding: '1px 5px',
-                      clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-                      marginRight: 5,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.3,
-                    }}>
-                      {tier.name}
-                    </span>
-                    {inviteCount} {inviteCount === 1 ? 'friend' : 'friends'} on PadelNachos
-                  </>
-                ) : (
-                  'Share the app with your friends'
-                )}
-              </div>
-            </div>
-            <span style={{ color: V3.MUTED, fontSize: 18, flexShrink: 0 }}>›</span>
-          </button>
-        </div>
-      )}
-
-      {/* Achievements summary — links to /achievements */}
-      {user && (
-        <div style={{ padding: '0 16px' }}>
-          <Link
-            href="/achievements"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              background: 'rgba(255,255,255,0.03)',
-              clipPath: V3.clip.card,
-              padding: '12px 14px',
-              marginBottom: 12,
-              textDecoration: 'none',
-              color: 'inherit',
-            }}
-          >
-            {/* Top 3 earned badge icons */}
-            <div style={{ display: 'flex', flexShrink: 0 }}>
-              {(() => {
-                const uniqueIds = [...new Set(earnedBadges.map(b => b.badge_id))]
-                const topBadges = uniqueIds.slice(0, 3)
-                const earnedMap = new Map<string, number>()
-                for (const b of earnedBadges) {
-                  const c = earnedMap.get(b.badge_id) ?? 0
-                  if (b.tier > c) earnedMap.set(b.badge_id, b.tier)
-                }
-                return topBadges.map(id => {
-                  const badge = BADGE_CATALOG.find(b => b.id === id)
-                  if (!badge) return null
-                  const badgeTier = (earnedMap.get(id) ?? 1) as 1 | 2 | 3 | 4
-                  return (
-                    <div key={id} style={{ marginRight: -4 }}>
-                      <BadgeIcon svgIcon={badge.svgIcon} tier={badgeTier} size={32} />
-                    </div>
-                  )
-                })
-              })()}
-              {earnedBadges.length === 0 && (
-                <BadgeIcon svgIcon="lock" tier={null} size={32} />
-              )}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                {t('achievements')}
-              </div>
-              <div style={{ fontSize: 11, color: V3.MUTED, marginTop: 2 }}>
-                {badgesLoading ? 'Loading\u2026' : (() => {
-                  const count = new Set(earnedBadges.map(b => b.badge_id)).size
-                  const total = BADGE_CATALOG.length
-                  const badgeTier = overallTierFromBadgeCount(count)
-                  const tierMeta = badgeTier ? TIER_META[badgeTier] : null
-                  return tierMeta
-                    ? <><span style={{
-                        fontSize: 9, fontWeight: 800, color: tierMeta.color,
-                        background: `${tierMeta.color}20`,
-                        padding: '1px 5px', marginRight: 5,
-                        clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-                        textTransform: 'uppercase', letterSpacing: 0.3,
-                      }}>{tierMeta.label}</span>{count} of {total} badges</>
-                    : `${count} of ${total} badges`
-                })()}
-              </div>
-            </div>
-            <span style={{ color: V3.MUTED, fontSize: 18, flexShrink: 0 }}>{'\u203A'}</span>
-          </Link>
-        </div>
-      )}
-
-      {/* Notification toggle */}
-      <div style={{
-        padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        borderBottom: `1px solid rgba(255,255,255,0.04)`,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={V3.ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-          <div>
-            <div style={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>Match Notifications</div>
-            <div style={{ color: V3.MUTED, fontSize: 11 }}>
-              {permission === 'denied'
-                ? 'Notifications blocked in browser settings'
-                : 'Get notified when bookmarked matches go live'}
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={togglePush}
-          disabled={!supported || permission === 'denied'}
-          style={{
-            width: 44, height: 24, border: 'none', cursor: 'pointer',
-            background: enabled ? V3.GREEN : 'rgba(255,255,255,0.15)',
-            position: 'relative', transition: 'background 0.2s',
-            opacity: !supported || permission === 'denied' ? 0.4 : 1,
-            clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-          }}
-        >
+        {tierMeta && tier !== null && (
           <div style={{
-            width: 18, height: 18, borderRadius: '50%', background: '#fff',
-            position: 'absolute', top: 3,
-            left: enabled ? 23 : 3,
-            transition: 'left 0.2s',
-          }} />
-        </button>
+            position: 'absolute', bottom: 4, right: 4,
+            transform: 'translate(25%, 25%)',
+            clipPath: V3.clip.badge,
+            padding: '3px 7px',
+            fontSize: 9, fontWeight: 800, letterSpacing: 0.3,
+            textTransform: 'uppercase',
+            color: tierMeta.color,
+            background: `${tierMeta.color}20`,
+            whiteSpace: 'nowrap',
+          }}>
+            {`${tierPrefixTemplate(tier)} · ${tierMeta.label}`}
+          </div>
+        )}
       </div>
 
-      {/* Region preference (overrides geo-IP for broadcaster lists) */}
+      <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginTop: 10 }}>
+        {displayName}
+      </div>
+
+      {loginStreak >= 1 && (
+        <div style={{
+          marginTop: 8,
+          display: 'inline-flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 28, height: 28,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            clipPath: V3.clip.chunky,
+            background: `linear-gradient(135deg, ${V3.STREAK}40, ${V3.STREAK}10)`,
+            border: `1.5px solid ${V3.STREAK}`,
+          }}>
+            <FlameIcon size={14} color={V3.STREAK} />
+          </div>
+          <div style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>
+            {streakLabel}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── StatsStrip ───────────────────────────────────────────────────
+
+interface StatsStripProps {
+  xp: number | null
+  badgeCount: number | null
+  followCount: number | null
+  onBadgesClick: () => void
+  labels: { xp: string; badges: string; follows: string }
+}
+
+function StatsStrip({ xp, badgeCount, followCount, onBadgesClick, labels }: StatsStripProps) {
+  const cell = (opts: {
+    number: string
+    numberColor: string
+    label: string
+    onClick?: () => void
+  }) => (
+    <div
+      role={opts.onClick ? 'button' : undefined}
+      tabIndex={opts.onClick ? 0 : undefined}
+      onClick={opts.onClick}
+      onKeyDown={opts.onClick ? (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); opts.onClick?.() }
+      } : undefined}
+      style={{
+        background: V3.BG_CARD,
+        clipPath: V3.clip.card,
+        padding: '14px 10px',
+        textAlign: 'center',
+        cursor: opts.onClick ? 'pointer' : 'default',
+      }}
+    >
       <div style={{
-        padding: '14px 16px',
-        borderBottom: `1px solid rgba(255,255,255,0.04)`,
+        fontSize: 26, fontWeight: 900, lineHeight: 1,
+        color: opts.numberColor,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={V3.ORANGE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="2" y1="12" x2="22" y2="12"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
-          <div style={{ flex: 1 }}>
-            <div style={{ color: '#fff', fontSize: 13, fontWeight: 500 }}>Region</div>
-            <div style={{ color: V3.MUTED, fontSize: 11 }}>
-              Used to show local broadcasters and content. Defaults to your IP location.
+        {opts.number}
+      </div>
+      <div style={{
+        fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+        textTransform: 'uppercase', color: V3.MUTED, marginTop: 6,
+      }}>
+        {opts.label}
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10,
+      padding: '0 16px', marginBottom: 18,
+    }}>
+      {cell({
+        number: xp === null ? '—' : formatXp(xp),
+        numberColor: V3.GREEN,
+        label: labels.xp,
+      })}
+      {cell({
+        number: badgeCount === null ? '—' : String(badgeCount),
+        numberColor: V3.ORANGE,
+        label: labels.badges,
+        onClick: onBadgesClick,
+      })}
+      {cell({
+        number: followCount === null ? '—' : String(followCount),
+        numberColor: V3.GREEN,
+        label: labels.follows,
+      })}
+    </div>
+  )
+}
+
+// ── LatestAchievementsStrip ──────────────────────────────────────
+
+interface LatestAchievementsStripProps {
+  header: string
+  earnedBadges: EarnedBadge[]
+  counts: Counts | null
+}
+
+function LatestAchievementsStrip({ header, earnedBadges, counts }: LatestAchievementsStripProps) {
+  const tiles = buildLatestAchievementsTiles(earnedBadges, counts)
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{
+        color: V3.ORANGE, fontSize: 11, fontWeight: 700,
+        letterSpacing: 1, textTransform: 'uppercase',
+        padding: '0 16px', marginBottom: 10,
+      }}>
+        {header}
+      </div>
+      <div style={{
+        display: 'flex', gap: 10, overflowX: 'auto',
+        padding: '0 16px 4px',
+        scrollbarWidth: 'none',
+      }}>
+        {tiles.map((tile, idx) => (
+          <div key={`${tile.badgeId}-${tile.tier ?? 'locked'}-${idx}`} style={{
+            width: 72, flexShrink: 0,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+          }}>
+            <BadgeIcon svgIcon={tile.svgIcon} tier={tile.tier} size={48} />
+            <div style={{
+              marginTop: 6, fontSize: 10, fontWeight: 700, color: '#fff',
+              textAlign: 'center',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}>
+              {tile.label}
             </div>
+            {tile.progress && (
+              <div style={{
+                marginTop: 2,
+                fontSize: 9, fontWeight: 700,
+                color: tile.progressColor,
+              }}>
+                {tile.progress}
+              </div>
+            )}
           </div>
-        </div>
-        <CountryPicker
-          options={countryOptions}
-          value={countryDraft}
-          onChange={saveCountry}
-          disabled={savingCountry || countryOptions.length === 0}
-        />
+        ))}
       </div>
+    </div>
+  )
+}
 
-      {/* Bookmarked Matches */}
-      <div style={{ padding: '14px 16px' }}>
+interface StripTile {
+  badgeId: string
+  label: string
+  svgIcon: string
+  tier: 1 | 2 | 3 | 4 | null
+  progress?: string
+  progressColor?: string
+}
+
+function buildLatestAchievementsTiles(earned: EarnedBadge[], counts: Counts | null): StripTile[] {
+  const TARGET = 5
+  const out: StripTile[] = []
+  const seen = new Set<string>()
+
+  const sortedEarned = [...earned].sort((a, b) => b.unlocked_at.localeCompare(a.unlocked_at))
+  for (const e of sortedEarned) {
+    if (out.length >= 3) break
+    const key = `${e.badge_id}:${e.tier}`
+    if (seen.has(key)) continue
+    const def = BADGE_CATALOG.find(b => b.id === e.badge_id)
+    if (!def) continue
+    out.push({
+      badgeId: e.badge_id,
+      label: def.name,
+      svgIcon: def.svgIcon,
+      tier: e.tier as 1 | 2 | 3 | 4,
+    })
+    seen.add(key)
+  }
+
+  if (counts) {
+    const earnedMax = new Map<string, number>()
+    for (const e of earned) {
+      const prev = earnedMax.get(e.badge_id) ?? 0
+      if (e.tier > prev) earnedMax.set(e.badge_id, e.tier)
+    }
+    const lockedCandidates: Array<{
+      def: (typeof BADGE_CATALOG)[number]
+      pct: number
+      current: number
+      threshold: number
+      tierNum: 1 | 2 | 3 | 4
+    }> = []
+    for (const def of BADGE_CATALOG) {
+      if (def.isSingleTier) continue
+      const earnedTier = earnedMax.get(def.id) ?? 0
+      const nextTier = def.tiers.find(t => t.tier === earnedTier + 1)
+      if (!nextTier) continue
+      const current = countForBadge(def, counts)
+      if (current <= 0) continue
+      const pct = current / nextTier.threshold
+      if (pct >= 1) continue
+      lockedCandidates.push({
+        def,
+        pct,
+        current,
+        threshold: nextTier.threshold,
+        tierNum: nextTier.tier as 1 | 2 | 3 | 4,
+      })
+    }
+    lockedCandidates.sort((a, b) => b.pct - a.pct)
+    for (const c of lockedCandidates.slice(0, 2)) {
+      const key = `${c.def.id}:locked`
+      if (seen.has(key)) continue
+      out.push({
+        badgeId: c.def.id,
+        label: c.def.name,
+        svgIcon: c.def.svgIcon,
+        tier: null,
+        progress: `${c.current} / ${c.threshold}`,
+        progressColor: TIER_META[c.tierNum].color,
+      })
+      seen.add(key)
+    }
+  }
+
+  for (const def of BADGE_CATALOG) {
+    if (out.length >= TARGET) break
+    if ([...seen].some(s => s.startsWith(`${def.id}:`))) continue
+    out.push({
+      badgeId: def.id,
+      label: def.name,
+      svgIcon: def.svgIcon,
+      tier: null,
+    })
+    seen.add(`${def.id}:locked`)
+  }
+
+  return out.slice(0, TARGET)
+}
+
+function countForBadge(def: (typeof BADGE_CATALOG)[number], counts: Counts): number {
+  const t = def.evalType
+  if (t === 'bookmark_count') {
+    if (def.evalParam === 'player') return counts.playerFollowCount
+    if (def.evalParam === 'tournament') return counts.tournamentFollowCount
+    if (def.evalParam === 'match') return counts.matchBookmarkCount
+    return 0
+  }
+  if (t === 'rating_count') return counts.ratingCount
+  if (t === 'activity_count') {
+    if (def.evalParam === 'article_click') return counts.articleClickCount
+    if (def.evalParam === 'video_play') return counts.videoPlayCount
+    if (def.evalParam === 'share') return counts.shareCount
+    return 0
+  }
+  if (t === 'login_streak') return counts.loginStreak
+  if (t === 'longest_streak') return counts.longestStreak
+  if (t === 'referral_count') return counts.referralCount
+  return 0
+}
+
+// ── ProgressCard ─────────────────────────────────────────────────
+
+interface ProgressCardProps {
+  next: NonNullable<ReturnType<typeof selectNextAchievement>>
+  nextUpLabel: string
+  progressLabel: string
+}
+
+function ProgressCard({ next, nextUpLabel, progressLabel }: ProgressCardProps) {
+  const tierMeta = TIER_META[next.tierNum]
+  const pctInt = Math.round(next.pct * 100)
+
+  return (
+    <div style={{
+      background: V3.BG_CARD,
+      clipPath: V3.clip.card,
+      borderLeft: `3px solid ${tierMeta.color}`,
+      padding: '12px 14px',
+      margin: '14px 16px',
+      display: 'flex', alignItems: 'center', gap: 12,
+    }}>
+      <BadgeIcon svgIcon={next.badge.svgIcon} tier={null} size={48} />
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          color: V3.ORANGE, fontSize: 11, fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
+          fontSize: 9, fontWeight: 800, letterSpacing: 1,
+          textTransform: 'uppercase', color: tierMeta.color,
         }}>
-          Bookmarked Matches ({matches.length})
+          {nextUpLabel}
         </div>
-        {loadingData ? (
-          <Spinner />
-        ) : matches.length === 0 ? (
-          <div style={{ color: V3.MUTED, fontSize: 12, padding: '10px 0' }}>
-            No bookmarked matches yet. Tap the bookmark icon on any match to save it here.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {matches.map(m => (
-              <Link
-                key={m.id}
-                href={`/match/${m.id}`}
-                style={{
-                  background: V3.BG_CARD, padding: '10px 12px',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  textDecoration: 'none',
-                  clipPath: V3.clip.card,
-                }}
-              >
-                <div>
-                  <div style={{ color: '#fff', fontSize: 12, fontWeight: 500 }}>
-                    {m.pair1_player1_name ?? '?'}/{m.pair1_player2_name ?? '?'} vs {m.pair2_player1_name ?? '?'}/{m.pair2_player2_name ?? '?'}
-                  </div>
-                  <div style={{ color: V3.MUTED, fontSize: 10 }}>
-                    {m.tournament_name}{m.round ? ` - ${m.round}` : ''}
-                  </div>
-                </div>
-                <div style={{
-                  color: statusColor[m.status] ?? V3.MUTED,
-                  fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-                  background: 'rgba(255,255,255,0.05)',
-                  padding: '2px 8px',
-                  clipPath: V3.clip.badge,
-                }}>
-                  {m.status}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Bookmarked Players */}
-      <div style={{ padding: '0 16px 14px' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginTop: 2 }}>
+          {next.badge.name} · {tierMeta.label}
+        </div>
         <div style={{
-          color: V3.ORANGE, fontSize: 11, fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10,
+          height: 5, width: '100%',
+          background: 'rgba(255,255,255,0.08)',
+          clipPath: V3.clip.badge,
+          marginTop: 8,
+          position: 'relative', overflow: 'hidden',
         }}>
-          Bookmarked Players ({players.length})
+          <div style={{
+            width: `${pctInt}%`, height: '100%',
+            background: tierMeta.color,
+          }} />
         </div>
-        {players.length === 0 ? (
-          <div style={{ color: V3.MUTED, fontSize: 12, padding: '10px 0' }}>
-            No bookmarked players yet.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {players.map(p => (
-              <Link
-                key={p.id}
-                href={`/player/${p.id}`}
-                style={{
-                  background: V3.BG_CARD, padding: '10px 14px',
-                  textAlign: 'center', textDecoration: 'none', minWidth: 80,
-                  clipPath: V3.clip.card,
-                }}
-              >
-                <div style={{
-                  width: 36, height: 36, borderRadius: '50%',
-                  background: '#374151', margin: '0 auto 6px', overflow: 'hidden',
-                }}>
-                  {p.avatar_url && (
-                    <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  )}
-                </div>
-                <div style={{ color: '#fff', fontSize: 11, fontWeight: 500 }}>
-                  {p.name.split(' ').pop()}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          marginTop: 4, fontSize: 10, fontWeight: 700, color: V3.MUTED,
+        }}>
+          <span>{progressLabel}</span>
+          <span>{pctInt}%</span>
+        </div>
       </div>
+    </div>
+  )
+}
 
-      {/* Language */}
-      <div style={{ padding: '14px 16px', borderTop: `1px solid ${V3.BORDER}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{t('language')}</span>
-        <LocaleSwitcher />
-      </div>
+// ── AchievementsCTA ──────────────────────────────────────────────
 
-      {/* Sign out */}
-      <div style={{ padding: '14px 16px', borderTop: `1px solid ${V3.BORDER}` }}>
-        <button
-          onClick={handleSignOut}
-          style={{
-            width: '100%', textAlign: 'center', color: V3.LIVE_RED, fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', background: 'rgba(255,70,85,0.08)', border: 'none', padding: 12,
-            fontFamily: 'inherit',
-            clipPath: V3.clip.button,
-          }}
-        >
-          {t('signOut')}
-        </button>
+function totalTierSlots(): number {
+  let sum = 0
+  for (const def of BADGE_CATALOG) {
+    sum += def.isSingleTier ? 1 : def.tiers.length
+  }
+  return sum
+}
+
+interface AchievementsCTAProps {
+  earnedCount: number
+  totalTierSlots: number
+  earnedTierPairs: number
+  ctaTitle: string
+  onClick: () => void
+  summaryTemplate: (args: { earned: number; togo: number }) => string
+  allTiersEarnedLabel: string
+}
+
+function AchievementsCTA({
+  earnedCount, totalTierSlots, earnedTierPairs,
+  ctaTitle, onClick, summaryTemplate, allTiersEarnedLabel,
+}: AchievementsCTAProps) {
+  const togo = Math.max(0, totalTierSlots - earnedTierPairs)
+  const allEarned = togo === 0
+  const borderColor = allEarned ? '#FFD166' : V3.GREEN
+  const overallTier = overallTierFromBadgeCount(earnedCount)
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        width: 'calc(100% - 32px)',
+        margin: '0 16px 18px',
+        background: V3.BG_CARD,
+        clipPath: V3.clip.card,
+        border: 'none',
+        borderLeft: `3px solid ${borderColor}`,
+        padding: '12px 14px',
+        display: 'flex', alignItems: 'center', gap: 12,
+        cursor: 'pointer', textAlign: 'left',
+        fontFamily: 'inherit', color: 'inherit',
+      }}
+    >
+      <BadgeIcon svgIcon="trophy" tier={overallTier} size={32} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+          {ctaTitle}
+        </div>
+        <div style={{ fontSize: 11, color: V3.MUTED, marginTop: 2 }}>
+          {allEarned
+            ? allTiersEarnedLabel
+            : summaryTemplate({ earned: earnedCount, togo })}
+        </div>
       </div>
+      <ChevronRightIcon size={18} color={V3.MUTED} />
+    </button>
+  )
+}
+
+// ── ActivitySection ──────────────────────────────────────────────
+
+type ActivityIconKey = 'bookmark' | 'search' | 'bell'
+
+interface ActivityRow {
+  key: string
+  href: string
+  icon: ActivityIconKey
+  label: string
+  sub: string
+  count: number | null
+  isAlert?: boolean
+}
+
+interface ActivitySectionProps {
+  header: string
+  rows: ActivityRow[]
+  onRowClick: (href: string) => void
+}
+
+function ActivitySection({ header, rows, onRowClick }: ActivitySectionProps) {
+  return (
+    <div>
+      <div style={{
+        color: V3.ORANGE, fontSize: 11, fontWeight: 700,
+        letterSpacing: 1, textTransform: 'uppercase',
+        padding: '0 16px', marginBottom: 10,
+      }}>
+        {header}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {rows.map(row => (
+          <button
+            key={row.key}
+            type="button"
+            onClick={() => onRowClick(row.href)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 16px',
+              background: 'transparent',
+              border: 'none',
+              borderTop: `1px solid ${V3.BORDER}`,
+              cursor: 'pointer', textAlign: 'left',
+              fontFamily: 'inherit', color: 'inherit',
+              width: '100%',
+            }}
+          >
+            <ActivityIcon icon={row.icon} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                {row.label}
+              </div>
+              <div style={{ color: V3.MUTED, fontSize: 11, marginTop: 2 }}>
+                {row.sub}
+              </div>
+            </div>
+            <div style={{
+              fontSize: 11, fontWeight: 700,
+              padding: '2px 8px',
+              clipPath: V3.clip.badge,
+              background: row.isAlert && (row.count ?? 0) > 0
+                ? 'rgba(255,70,85,0.12)'
+                : 'rgba(255,255,255,0.05)',
+              color: row.isAlert && (row.count ?? 0) > 0
+                ? V3.LIVE_RED
+                : '#fff',
+            }}>
+              {row.count === null ? '—' : row.count}
+            </div>
+            <ChevronRightIcon size={16} color={V3.MUTED} />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ActivityIcon({ icon }: { icon: ActivityIconKey }) {
+  const Inner = icon === 'bookmark' ? BookmarkIcon : icon === 'search' ? SearchIcon : BellIcon
+  return (
+    <div style={{
+      width: 32, height: 32,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      clipPath: V3.clip.chunky,
+      background: 'rgba(126,211,33,0.08)',
+      border: `1.5px solid rgba(126,211,33,0.4)`,
+      flexShrink: 0,
+    }}>
+      <Inner size={16} color={V3.GREEN} />
     </div>
   )
 }

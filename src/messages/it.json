@@ -247,7 +247,31 @@
     "bookmarks": "Preferiti",
     "following": "Seguiti",
     "loading": "Caricamento profilo...",
-    "language": "Lingua"
+    "language": "Lingua",
+    "settings": "Impostazioni",
+    "streakDays": "Serie di {count} giorni",
+    "tierPrefix": "Livello {n}",
+    "stats": {
+      "xp": "XP",
+      "badges": "Distintivi",
+      "follows": "Seguiti"
+    },
+    "latestAchievements": "Ultimi obiettivi",
+    "nextUp": "Prossimo",
+    "progressOf": "{current} / {total}",
+    "seeAllAchievements": "Vedi tutti gli obiettivi",
+    "achievementsSummary": "{earned} ottenuti · mancano {togo} livelli",
+    "allTiersEarned": "Tutti i livelli ottenuti",
+    "activity": {
+      "header": "Attività",
+      "matches": "Partite salvate",
+      "matchesSub": "Partite e risultati salvati",
+      "players": "Giocatori seguiti",
+      "playersSub": "Giocatori che segui",
+      "notifications": "Notifiche",
+      "notificationsSub": "I tuoi avvisi",
+      "newCount": "{count} nuove"
+    }
   },
   "settings": {
     "title": "Impostazioni",

@@ -247,7 +247,31 @@
     "bookmarks": "Bookmarks",
     "following": "Following",
     "loading": "Loading your profile...",
-    "language": "Language"
+    "language": "Language",
+    "settings": "Settings",
+    "streakDays": "{count}-day streak",
+    "tierPrefix": "Tier {n}",
+    "stats": {
+      "xp": "XP",
+      "badges": "Badges",
+      "follows": "Follows"
+    },
+    "latestAchievements": "Latest achievements",
+    "nextUp": "Next up",
+    "progressOf": "{current} / {total}",
+    "seeAllAchievements": "See all achievements",
+    "achievementsSummary": "{earned} earned · {togo} tiers to go",
+    "allTiersEarned": "All tiers earned",
+    "activity": {
+      "header": "Activity",
+      "matches": "Bookmarked matches",
+      "matchesSub": "Saved games and results",
+      "players": "Followed players",
+      "playersSub": "Players you track",
+      "notifications": "Notifications",
+      "notificationsSub": "Your alerts",
+      "newCount": "{count} new"
+    }
   },
   "settings": {
     "title": "Settings",
