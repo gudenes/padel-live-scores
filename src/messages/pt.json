@@ -291,7 +291,8 @@
     "followingPlayer": "Seguindo {name}",
     "followingTournament": "Seguindo {name}",
     "bookmarkRemoved": "Favorito removido",
-    "findInFollowing": "Encontre na sua aba Seguindo"
+    "findInFollowing": "Encontre na sua aba Seguindo",
+    "enableAlerts": "Ativar alertas"
   },
   "genius": {
     "comingSoon": "Em Breve",
