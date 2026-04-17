@@ -185,10 +185,27 @@ export function useFollowing() {
 
       // Fire bookmark feedback toast (skip news_source — not a user-facing bookmark)
       if (type !== 'news_source' && typeof window !== 'undefined') {
+        // Attach the enable-push CTA on player-follow-add when:
+        //   (a) the action is a net-new follow (not an unfollow), and
+        //   (b) the browser hasn't been asked about notifications yet
+        //       (Notification.permission === 'default'), and
+        //   (c) we haven't shown the prompt on this device before.
+        const isPlayerFollowAdd = type === 'player' && !isCurrently
+        let cta: 'enable-push' | undefined
+        if (isPlayerFollowAdd) {
+          try {
+            const alreadyPrompted = localStorage.getItem('pn_push_prompted') === '1'
+            const browserPermission = 'Notification' in window ? Notification.permission : 'denied'
+            if (!alreadyPrompted && browserPermission === 'default') {
+              cta = 'enable-push'
+            }
+          } catch { /* permission check failed — skip CTA */ }
+        }
         window.dispatchEvent(new CustomEvent(BOOKMARK_EVENT, {
           detail: {
             type,
             action: isCurrently ? 'remove' : 'add',
+            ...(cta ? { cta } : {}),
           } satisfies BookmarkEventDetail,
         }))
       }

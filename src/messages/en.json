@@ -292,7 +292,8 @@
     "followingTournament": "Following {name}",
     "bookmarkRemoved": "Bookmark removed",
     "findInFollowing": "Find it in your Following tab",
-    "enableAlerts": "Enable alerts"
+    "enableAlerts": "Enable alerts",
+    "signedInEnableAlerts": "Signed in! Enable live alerts?"
   },
   "genius": {
     "comingSoon": "Coming Soon",

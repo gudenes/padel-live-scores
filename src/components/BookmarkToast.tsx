@@ -32,6 +32,7 @@ export interface BookmarkEventDetail {
   action: 'add' | 'remove'
   name?: string // entity name for display (e.g. player name, tournament name)
   cta?: BookmarkCta // optional action button shown on the toast
+  titleOverride?: string // optional preformatted title, skips translation lookup
 }
 
 interface ToastData {
@@ -40,6 +41,7 @@ interface ToastData {
   action: 'add' | 'remove'
   name?: string
   cta?: BookmarkCta
+  titleOverride?: string
   dismissing: boolean
 }
 
@@ -69,8 +71,36 @@ function BookmarkIcon({ type }: { type: string }) {
 
 let toastCounter = 0
 
+// Watches for a signed-out → signed-in transition while the push intent
+// is pending (flag set when an anon user tapped "Enable alerts" on a
+// bookmark toast). On transition, fires a follow-up toast that lets the
+// newly-signed-in user grant browser notification permission in place.
+function usePostSigninPushPrompt() {
+  const { user } = useAuth()
+  const t = useTranslations('bookmark')
+  useEffect(() => {
+    if (!user?.id) return
+    let pending = false
+    try { pending = localStorage.getItem(PUSH_SIGNIN_PENDING_KEY) === '1' } catch { /* noop */ }
+    if (!pending) return
+    try { localStorage.removeItem(PUSH_SIGNIN_PENDING_KEY) } catch { /* noop */ }
+    // Fire on the next tick so the BookmarkToast listener is already bound.
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent(BOOKMARK_EVENT, {
+        detail: {
+          type: 'player',
+          action: 'add',
+          cta: 'enable-push',
+          titleOverride: t('signedInEnableAlerts'),
+        } satisfies BookmarkEventDetail,
+      }))
+    }, 300)
+  }, [user?.id, t])
+}
+
 export function BookmarkToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastData[]>([])
+  usePostSigninPushPrompt()
 
   const dismiss = useCallback((id: number) => {
     setToasts(prev => prev.map(t => t.id === id ? { ...t, dismissing: true } : t))
@@ -162,9 +192,11 @@ function BookmarkToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: 
     ? (isMatch ? 'rgba(255,209,102,0.12)' : 'rgba(126,211,33,0.12)')
     : 'rgba(255,255,255,0.06)'
 
-  // Title text
+  // Title text — explicit override wins over the type/action-derived title.
   let title: string
-  if (isAdd) {
+  if (toast.titleOverride) {
+    title = toast.titleOverride
+  } else if (isAdd) {
     if (toast.type === 'match') title = t('matchBookmarked')
     else if (toast.type === 'player') title = toast.name ? t('followingPlayer', { name: toast.name }) : t('playerFollowed')
     else title = toast.name ? t('followingTournament', { name: toast.name }) : t('tournamentFollowed')
@@ -177,6 +209,9 @@ function BookmarkToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: 
 
   const handleCta = useCallback(async () => {
     if (toast.cta !== 'enable-push') return
+    // Either path counts as "we asked the user" — don't re-surface the CTA
+    // on subsequent follows even if they dismiss the native prompt later.
+    try { localStorage.setItem('pn_push_prompted', '1') } catch {}
     if (!user) {
       // Anonymous — open sign-in sheet; remember the push intent so we can
       // surface the permission prompt once the session lands.

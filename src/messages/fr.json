@@ -292,7 +292,8 @@
     "followingTournament": "Tu suis {name}",
     "bookmarkRemoved": "Favori supprimé",
     "findInFollowing": "Retrouve-le dans ton onglet Suivis",
-    "enableAlerts": "Activer les alertes"
+    "enableAlerts": "Activer les alertes",
+    "signedInEnableAlerts": "Connecté ! Activer les alertes en direct ?"
   },
   "genius": {
     "comingSoon": "Bientôt disponible",
