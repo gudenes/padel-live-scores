@@ -98,19 +98,41 @@ function extractGamePoints(game: Game): { scorer: 1 | 2; score: string; isSP: bo
   return result
 }
 
+// ── Infer game winner from points array (fallback) ─────────────────────────
+function inferWinnerFromPoints(game: any): 1 | 2 | null {
+  const pts = (game?.points ?? []).filter((p: string) => p !== '0:0')
+  if (pts.length === 0) return null
+  const last = pts[pts.length - 1]
+  const parts = last.split(':')
+  if (parts.length !== 2) return null
+  const [raw1, raw2] = parts
+  const STD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4 }
+  const v1 = STD[raw1], v2 = STD[raw2]
+  if (v1 !== undefined && v2 !== undefined) {
+    return v1 !== v2 ? (v1 > v2 ? 1 : 2) : null
+  }
+  const n1 = parseInt(raw1, 10), n2 = parseInt(raw2, 10)
+  if (!isNaN(n1) && !isNaN(n2) && n1 !== n2) return n1 > n2 ? 1 : 2
+  return null
+}
+
 // ── Compute game winner from its score vs the previous game's score ─────────
+// Falls back to points[] inference when game_score differential is unavailable
 function computeGameWinner(games: any[], idx: number): 1 | 2 | null {
   const game = games[idx]
   const score = game?.game_score
-  if (!score || score === '0-0') return null
-  const [p1, p2] = score.split('-').map(Number)
-  if (idx === 0) return p1 > p2 ? 1 : 2
-  const prev = games[idx - 1]?.game_score
-  if (!prev || prev === '0-0') return p1 > p2 ? 1 : 2
-  const [pp1, pp2] = prev.split('-').map(Number)
-  if (p1 > pp1) return 1
-  if (p2 > pp2) return 2
-  return null
+
+  if (score && score !== '0-0') {
+    const [p1, p2] = score.split('-').map(Number)
+    if (idx === 0) return p1 > p2 ? 1 : 2
+    const prev = games[idx - 1]?.game_score
+    if (!prev || prev === '0-0') return p1 > p2 ? 1 : 2
+    const [pp1, pp2] = prev.split('-').map(Number)
+    if (p1 > pp1) return 1
+    if (p2 > pp2) return 2
+  }
+
+  return inferWinnerFromPoints(game)
 }
 
 // ── Pair match checker for H2H filtering ────────────────────────────────────
@@ -1720,7 +1742,11 @@ function LiveFeedTab({ match, pair1Label, pair2Label, isLive }: {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px 4px' }}>
               <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
               <span style={{ fontSize: 9, fontWeight: 700, color: GREEN, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                {t('set', { number: set.set_number })}{set.set_score ? ` · ${set.set_score}` : ` · ${t('inProgress')}`}
+                {t('set', { number: set.set_number })}{set.set_score
+                  ? ` · ${set.set_score}`
+                  : (set.pair1_games != null && set.pair2_games != null && (set.pair1_games > 0 || set.pair2_games > 0))
+                    ? ` · ${set.pair1_games}-${set.pair2_games}`
+                    : ` · ${t('inProgress')}`}
               </span>
               <div style={{ flex: 1, height: '0.5px', background: BORDER }} />
             </div>
