@@ -1,0 +1,42 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1350px; font-family: 'Inter', sans-serif; background: #0A0A0A; overflow: hidden; position: relative; }
+  .bg-wrap { position: absolute; inset: 0; z-index: 1; }
+  .bg-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; filter: contrast(1.05) brightness(0.95); }
+  .overlay { position: absolute; inset: 0; z-index: 2; background: linear-gradient(180deg, rgba(10,10,10,0.15) 0%, rgba(10,10,10,0.3) 35%, rgba(10,10,10,0.85) 65%, rgba(10,10,10,1) 88%); }
+  .content { position: relative; height: 100%; padding: 60px; display: flex; flex-direction: column; justify-content: space-between; z-index: 10; }
+  .top-badge { display: inline-flex; align-items: center; gap: 12px; background: #FF4655; padding: 12px 26px; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); font-size: 22px; font-weight: 900; letter-spacing: 2px; color: #fff; align-self: flex-start; box-shadow: 0 4px 20px rgba(255,70,85,0.5); }
+  .top-badge .dot { width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+  .bottom { margin-top: auto; }
+  .title { font-size: 135px; font-weight: 900; color: #fff; line-height: 0.92; letter-spacing: -5px; margin-bottom: 24px; text-transform: uppercase; text-shadow: 0 6px 30px rgba(0,0,0,0.8); }
+  .title .accent { color: #7ED321; text-shadow: 0 6px 30px rgba(126,211,33,0.4); }
+  .subtitle { font-size: 34px; font-weight: 700; color: rgba(255,255,255,0.95); line-height: 1.2; margin-bottom: 44px; }
+  .pair-row { display: flex; gap: 20px; align-items: center; margin-bottom: 44px; flex-wrap: wrap; }
+  .pair-item { background: rgba(255,255,255,0.12); backdrop-filter: blur(16px); padding: 20px 30px; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); border: 1px solid rgba(255,255,255,0.15); }
+  .pair-name { font-size: 28px; font-weight: 800; color: #fff; }
+  .pair-rank { font-size: 18px; font-weight: 800; color: #F5A623; letter-spacing: 2px; margin-top: 4px; }
+  .footer { display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 24px; }
+  .tournament { font-size: 22px; font-weight: 800; color: rgba(255,255,255,0.85); letter-spacing: 1px; text-transform: uppercase; }
+  .tournament .green { color: #7ED321; }
+  .logo { font-size: 28px; font-weight: 900; color: #7ED321; letter-spacing: -1px; }
+  .logo span { color: #fff; }
+</style></head><body>
+  <div class="bg-wrap"><img src="/pair-temp.jpg" alt=""/></div>
+  <div class="overlay"></div>
+  <div class="content">
+    <div class="top-badge"><span class="dot"></span><span>QUARTERFINALS · EGYPT 🇪🇬</span></div>
+    <div class="bottom">
+      <div class="title">CAN THEY<br/><span class="accent">DO IT AGAIN?</span></div>
+      <div class="subtitle">Two wildcards. One giant already slayed.</div>
+      <div class="pair-row">
+        <div class="pair-item"><div class="pair-name">L. Hernández 🇪🇸</div><div class="pair-rank">FIP #56</div></div>
+        <div class="pair-item"><div class="pair-name">E. Jensen 🇮🇹</div><div class="pair-rank">FIP #82</div></div>
+      </div>
+      <div class="footer">
+        <div class="tournament">NEWGIZA <span class="green">P2</span> · 2026</div>
+        <div class="logo">Padel<span>Nachos</span></div>
+      </div>
+    </div>
+  </div>
+</body></html>

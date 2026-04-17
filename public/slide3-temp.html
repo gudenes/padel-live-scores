@@ -1,0 +1,68 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1350px; font-family: 'Inter', sans-serif; background: #0A0A0A; position: relative; overflow: hidden; }
+  body::before { content: ''; position: absolute; top: -100px; right: -100px; width: 600px; height: 600px; background: radial-gradient(circle, rgba(245,166,35,0.15), transparent 70%); pointer-events: none; }
+  .main { position: absolute; top: 50px; left: 50px; right: 50px; bottom: 130px; z-index: 10; }
+  .eyebrow { font-size: 22px; font-weight: 800; color: #FF4655; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 14px; }
+  .title { font-size: 88px; font-weight: 900; color: #fff; line-height: 0.9; letter-spacing: -3px; text-transform: uppercase; margin-bottom: 36px; }
+  .title .accent { color: #F5A623; }
+  .vs-wrap { display: flex; flex-direction: column; gap: 20px; margin-bottom: 28px; }
+  .team { padding: 28px 32px; }
+  .team.underdog { background: linear-gradient(135deg, rgba(126,211,33,0.08), rgba(255,255,255,0.04)); border-left: 6px solid #7ED321; border-radius: 4px; }
+  .team.favorite { background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border-left: 6px solid rgba(255,255,255,0.3); border-radius: 4px; }
+  .team-label { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+  .underdog .team-label { color: #7ED321; }
+  .favorite .team-label { color: rgba(255,255,255,0.5); }
+  .players { font-size: 36px; font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: 8px; }
+  .rank-row { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.7); }
+  .rank-badge { background: rgba(255,255,255,0.08); padding: 3px 10px; border-radius: 3px; font-size: 15px; color: #F5A623; font-weight: 800; }
+  .vs-divider { display: flex; align-items: center; gap: 14px; }
+  .vs-line { flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+  .vs-text { font-size: 32px; font-weight: 900; color: rgba(255,255,255,0.4); letter-spacing: 2px; }
+  .match-info { padding: 22px; background: rgba(255,70,85,0.08); border: 1px solid rgba(255,70,85,0.2); border-radius: 4px; text-align: center; }
+  .mi-label { font-size: 14px; font-weight: 800; color: #FF4655; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
+  .mi-value { font-size: 34px; font-weight: 900; color: #fff; letter-spacing: -1px; }
+  .footer { position: absolute; bottom: 50px; left: 50px; right: 50px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+  .cta { font-size: 22px; font-weight: 800; color: #7ED321; letter-spacing: 1px; }
+  .cta .muted { color: rgba(255,255,255,0.6); font-weight: 700; }
+  .logo-wrap { height: 52px; display: flex; align-items: center; }
+  .logo-wrap img { height: 100%; object-fit: contain; }
+</style></head><body>
+  <div class="main">
+    <div class="eyebrow">· TODAY'S QF ·</div>
+    <div class="title">THE<br/><span class="accent">NEXT TEST</span></div>
+    <div class="vs-wrap">
+      <div class="team underdog">
+        <div class="team-label">◆ THE WILDCARDS</div>
+        <div class="players">L. Hernández 🇪🇸 / E. Jensen 🇮🇹</div>
+        <div class="rank-row">
+          <span class="rank-badge">#56</span>
+          <span class="rank-badge">#82</span>
+          <span>· From qualifying to QF</span>
+        </div>
+      </div>
+      <div class="vs-divider">
+        <div class="vs-line"></div>
+        <div class="vs-text">VS</div>
+        <div class="vs-line"></div>
+      </div>
+      <div class="team favorite">
+        <div class="team-label">◆ THE FAVORITES</div>
+        <div class="players">J. Tello 🇦🇷 / E. Alonso 🇪🇸</div>
+        <div class="rank-row">
+          <span class="rank-badge">#17</span>
+          <span>· Seeded pair</span>
+        </div>
+      </div>
+    </div>
+    <div class="match-info">
+      <div class="mi-label">Newgiza P2 · Quarterfinal</div>
+      <div class="mi-value">KHUFU — CC</div>
+    </div>
+  </div>
+  <div class="footer">
+    <div class="cta">Live scores <span class="muted">→ padelnachos.com</span></div>
+    <div class="logo-wrap"><img src="/logo-temp.png" alt="PadelNachos"/></div>
+  </div>
+</body></html>

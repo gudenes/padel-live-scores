@@ -1,0 +1,22 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]: ANÁLISIS TEMPRANO
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - text: ESTO ES
+      - text: SOLO EL
+    - text: INICIO.
+  - generic [ref=e5]:
+    - text: Estos datos vienen de los
+    - strong [ref=e6]: primeros torneos
+    - text: de la temporada 2026. La muestra es pequeña — las tendencias pueden cambiar a medida que avance el año.
+  - generic [ref=e7]:
+    - generic [ref=e8]: PRÓXIMOS PASOS
+    - generic [ref=e9]:
+      - text: Actualizaremos este análisis con
+      - strong [ref=e10]: cada torneo
+      - text: . Síguenos para ver cómo evoluciona el impacto del star point.
+  - generic [ref=e11]:
+    - generic [ref=e12]:
+      - text: "Datos:"
+      - strong [ref=e13]: padelnachos.com
+    - img "Padel Nachos" [ref=e14]

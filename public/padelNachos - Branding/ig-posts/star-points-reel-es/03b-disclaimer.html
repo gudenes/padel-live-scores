@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1080px;
+    height: 1920px;
+    background: linear-gradient(180deg, #0a0a0a 0%, #111 40%, #0d1a0a 100%);
+    font-family: 'Inter', sans-serif;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    padding: 120px 60px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle warm glow top-left */
+  body::before {
+    content: '';
+    position: absolute;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(245,166,35,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.08);
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #F5A623;
+    margin-bottom: 50px;
+    align-self: flex-start;
+  }
+
+  .headline {
+    font-size: 110px;
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -3px;
+    margin-bottom: 50px;
+  }
+
+  .headline .white { color: #fff; }
+  .headline .orange { color: #F5A623; }
+
+  .body-text {
+    font-size: 42px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 60px;
+    max-width: 900px;
+  }
+
+  .body-text strong {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .callout {
+    background: rgba(245,166,35,0.08);
+    border-left: 5px solid #F5A623;
+    padding: 40px 44px;
+    border-radius: 0 12px 12px 0;
+    margin-top: 20px;
+  }
+
+  .callout-label {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #F5A623;
+    margin-bottom: 16px;
+  }
+
+  .callout-text {
+    font-size: 38px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.85);
+  }
+
+  .callout-text strong {
+    color: #7ED321;
+    font-weight: 700;
+  }
+
+  /* Footer — matches other slides in the reel */
+  .footer {
+    position: absolute;
+    bottom: 80px;
+    left: 60px;
+    right: 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 24px;
+  }
+
+  .footer-left {
+    font-size: 26px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  .footer-left strong {
+    color: #7ED321;
+    font-weight: 700;
+  }
+
+  .footer-logo {
+    height: 52px;
+  }
+</style>
+</head>
+<body>
+
+  <div class="tag">ANÁLISIS TEMPRANO</div>
+
+  <div class="headline">
+    <span class="white">ESTO ES<br>SOLO EL</span><br>
+    <span class="orange">INICIO.</span>
+  </div>
+
+  <div class="body-text">
+    Estos datos vienen de los <strong>primeros torneos</strong> de la temporada 2026.
+    La muestra es pequeña — las tendencias pueden cambiar a medida que avance el año.
+  </div>
+
+  <div class="callout">
+    <div class="callout-label">PRÓXIMOS PASOS</div>
+    <div class="callout-text">
+      Actualizaremos este análisis con <strong>cada torneo</strong>. Síguenos para ver cómo evoluciona el impacto del star point.
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">Datos: <strong>padelnachos.com</strong></div>
+    <img class="footer-logo" src="/padelnachos-logo-v2.png" alt="Padel Nachos" />
+  </div>
+
+</body>
+</html>

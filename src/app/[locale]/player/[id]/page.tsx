@@ -3,16 +3,17 @@
 // Player profile — v3 brand styling with tabbed dashboard + widget grid (A2 layout).
 
 import { useState, useEffect, useMemo, useRef, use } from 'react'
-import { useRouter } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { useTranslations, useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { toShortName } from '@/types/match'
+import { parseSetScore, toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
-import { DATE_WITH_YEAR } from '@/lib/format-patterns'
+import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
+import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -256,7 +257,7 @@ interface MatchRow {
   winner_pair: number | null
   category: string | null
   duration: number | null
-  tournament: { name: string | null; country: string | null; level: string | null } | null
+  tournament: { id: string; name: string | null; country: string | null; level: string | null; starts_at: string | null; ends_at: string | null } | null
   pair1_player1: PartnerInfo | null
   pair1_player2: PartnerInfo | null
   pair2_player1: PartnerInfo | null
@@ -379,9 +380,18 @@ function resolveMatchRoles(match: MatchRow, playerId: string) {
   const opp1 = isP1 ? match.pair2_player1 : match.pair1_player1
   const opp2 = isP1 ? match.pair2_player2 : match.pair1_player2
   const myPair = isP1 ? 1 : 2
-  const won = match.status === 'finished' && match.winner_pair === myPair
-  const lost = match.status === 'finished' && match.winner_pair != null && match.winner_pair !== myPair
+  const isTerminal = match.status === 'finished' || match.status === 'retired' || match.status === 'walkover'
+  const won = isTerminal && match.winner_pair === myPair
+  const lost = isTerminal && match.winner_pair != null && match.winner_pair !== myPair
   return { isP1, partner, opp1, opp2, myPair, won, lost }
+}
+
+function scoreString(sets: Array<{ set_score: string | null; set_number: number }>): string {
+  return [...(sets ?? [])]
+    .sort((a, b) => a.set_number - b.set_number)
+    .map(s => s.set_score ?? '')
+    .filter(Boolean)
+    .join('  ')
 }
 
 function formatDate(iso: string | null, format: ReturnType<typeof useFormatter>): string {
@@ -403,13 +413,6 @@ function computeAge(birthdate: string | null): number | null {
   return age >= 0 && age < 120 ? age : null
 }
 
-function scoreString(sets: Array<{ set_score: string | null; set_number: number }>): string {
-  return [...(sets ?? [])]
-    .sort((a, b) => a.set_number - b.set_number)
-    .map(s => s.set_score ?? '')
-    .filter(Boolean)
-    .join('  ')
-}
 
 // ═══════════════════════════════════════════════════════════════
 //  PAGE
@@ -489,7 +492,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             .from('matches')
             .select(`
               id, status, round, started_at, finished_at, scheduled_at, winner_pair, category, duration,
-              tournament:tournaments(name, country, level),
+              tournament:tournaments(id, name, country, level, starts_at, ends_at),
               pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, avatar_url),
               pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, avatar_url),
               pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, avatar_url),
@@ -1130,7 +1133,7 @@ function OverviewTab({
         </Widget>
       )}
 
-      {/* Recent Matches — wide, uses the same list-item UI as the Matches tab */}
+      {/* Recent Matches — wide, uses the same match-row UI as the Matches tab */}
       {recentForShow.length > 0 && (
         <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{
@@ -1410,9 +1413,280 @@ function PartnersTab({
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  MATCHES TAB — full list
+//  MATCHES TAB — full list with tournament grouping
 // ═══════════════════════════════════════════════════════════════
-// Shared list item used by both the Matches tab and the Overview "Recent Matches" widget.
+
+// Renders two overlapping country flags — first player top-left, second
+// offset down-and-right by 6px. Used in match-history team rows.
+function FlagPair({
+  p1,
+  p2,
+  dimmed = false,
+  serving = false,
+}: {
+  p1: PartnerInfo | null
+  p2: PartnerInfo | null
+  dimmed?: boolean
+  serving?: boolean
+}) {
+  return (
+    <div style={{
+      flexShrink: 0, width: 22, height: 18, position: 'relative',
+    }}>
+      {serving && (
+        <span style={{
+          position: 'absolute', top: -2, left: -2, width: 5, height: 5,
+          borderRadius: '50%', background: ORANGE, zIndex: 3,
+          boxShadow: `0 0 0 1px ${BG_CARD}`,
+        }} />
+      )}
+      {/* Flag 1 — top-left, on top */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, zIndex: 2,
+        boxShadow: `0 0 0 1px ${BG_CARD}`,
+        opacity: dimmed ? 0.45 : 1,
+        filter: dimmed ? 'saturate(0.6)' : 'none',
+      }}>
+        <FlagImg country={p1?.country ?? null} size={14} />
+      </div>
+      {/* Flag 2 — offset down-and-right, behind */}
+      <div style={{
+        position: 'absolute', top: 6, left: 6, zIndex: 1,
+        boxShadow: `0 0 0 1px ${BG_CARD}`,
+        opacity: dimmed ? 0.45 : 1,
+        filter: dimmed ? 'saturate(0.6)' : 'none',
+      }}>
+        <FlagImg country={p2?.country ?? null} size={14} />
+      </div>
+    </div>
+  )
+}
+
+// One team (pair) row inside a match card — flag pair + names + set cells.
+// Per-set winner coloring is computed from the parsed set score; names
+// coloring comes from the match-level `isWinner` flag.
+function TeamRow({
+  p1, p2,
+  sets,
+  isP1Side,
+  isWinner,
+  status,
+}: {
+  p1: PartnerInfo | null
+  p2: PartnerInfo | null
+  sets: Array<{ set_score: string | null; set_number: number }>
+  isP1Side: boolean                // is this team pair 1 (true) or pair 2 (false)?
+  isWinner: boolean                // did this pair win the match?
+  status: string                   // 'live' | 'scheduled' | 'finished' | 'retired' | 'walkover' | ...
+}) {
+  const isScheduled = status === 'scheduled'
+  const nameColor = isScheduled ? '#fff' : (isWinner ? '#fff' : MUTED)
+  const nameWeight: React.CSSProperties['fontWeight'] = isScheduled ? 600 : (isWinner ? 700 : 400)
+
+  // Parse each set in order
+  const ordered = [...sets].sort((a, b) => a.set_number - b.set_number)
+  // The "current set" (highest set_number) gets the red-pill treatment when the
+  // match is live.
+  const currentSetNumber = status === 'live' && ordered.length > 0
+    ? ordered[ordered.length - 1].set_number
+    : null
+
+  const firstName = p1 ? toShortName(p1.display_name?.trim() || p1.name) : ''
+  const secondName = p2 ? toShortName(p2.display_name?.trim() || p2.name) : ''
+  const displayNames = [firstName, secondName].filter(Boolean).join(' / ') || '\u2014'
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '3px 0', minHeight: 22,
+    }}>
+      <FlagPair p1={p1} p2={p2} dimmed={!isScheduled && !isWinner} />
+      <div style={{
+        flex: 1, minWidth: 0,
+        fontSize: 11.5, fontWeight: nameWeight, color: nameColor,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>
+        {displayNames}
+      </div>
+      {!isScheduled && ordered.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 8,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {ordered.map(set => {
+            const parsed = parseSetScore(set.set_score)
+            if (!parsed) return null
+            const mine = isP1Side ? parsed.p1 : parsed.p2
+            const theirs = isP1Side ? parsed.p2 : parsed.p1
+            const setWinner = mine > theirs
+            const isCurrent = currentSetNumber === set.set_number
+
+            return (
+              <span key={set.set_number} style={{
+                minWidth: 14, textAlign: 'center',
+                fontWeight: 700, fontSize: 12,
+                color: setWinner ? '#fff' : MUTED,
+                // Live current-set gets a red-pill treatment; overrides color + adds bg
+                ...(isCurrent && status === 'live' ? {
+                  background: 'rgba(255,70,85,0.08)',
+                  color: LIVE_RED,
+                  padding: '1px 6px',
+                  borderRadius: 3,
+                  fontWeight: 800,
+                } : {}),
+              }}>
+                {mine}
+                {/* Tie-break superscript — shown on the set winner's cell,
+                    displaying the loser's tie-break points count (tennis convention) */}
+                {setWinner && parsed.tb != null && (
+                  <span style={{
+                    fontSize: 8, verticalAlign: 'super',
+                    color: MUTED, marginLeft: 1,
+                  }}>
+                    {parsed.tb}
+                  </span>
+                )}
+              </span>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// One match card inside a TournamentGroup. Meta strip + two stacked TeamRows.
+function MatchRow({
+  match,
+  playerId,
+  onClick,
+  format,
+}: {
+  match: MatchRow
+  playerId: string
+  onClick: () => void
+  format: ReturnType<typeof useFormatter>
+}) {
+  const roles = resolveMatchRoles(match, playerId)
+  const playerWon = roles.won
+  const playerLost = roles.lost
+  const isLive = match.status === 'live'
+  const isScheduled = match.status === 'scheduled'
+  const isRetired = match.status === 'retired'
+  const isWalkover = match.status === 'walkover'
+
+  // Meta strip leading letter/chip
+  let leadNode: React.ReactNode
+  if (isLive) {
+    leadNode = (
+      <span style={{
+        color: LIVE_RED, fontWeight: 800, letterSpacing: 0.3,
+      }}>● LIVE</span>
+    )
+  } else if (isScheduled) {
+    leadNode = (
+      <span style={{ color: '#9ca3af', fontWeight: 800 }}>VS</span>
+    )
+  } else if (playerWon) {
+    leadNode = <span style={{ color: GREEN, fontWeight: 800 }}>W</span>
+  } else if (playerLost) {
+    leadNode = <span style={{ color: LIVE_RED, fontWeight: 800 }}>L</span>
+  } else {
+    leadNode = <span style={{ color: MUTED, fontWeight: 800 }}>—</span>
+  }
+
+  const dateString = isScheduled
+    ? formatDateTime(match.scheduled_at, format)
+    : formatDate(matchDate(match), format)
+
+  // Retired / walkover trailing tag
+  const retTag = isRetired ? 'RET' : isWalkover ? 'W/O' : null
+
+  // Player's pair rendered first (top row), opponent pair below
+  const playerIsP1 = roles.isP1
+  const topPair = playerIsP1
+    ? { p1: match.pair1_player1, p2: match.pair1_player2, isP1Side: true }
+    : { p1: match.pair2_player1, p2: match.pair2_player2, isP1Side: false }
+  const bottomPair = playerIsP1
+    ? { p1: match.pair2_player1, p2: match.pair2_player2, isP1Side: false }
+    : { p1: match.pair1_player1, p2: match.pair1_player2, isP1Side: true }
+
+  // Per-pair win flags — only valid for finished-ish matches
+  const topWon = playerWon
+  const bottomWon = playerLost
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: BG_CARD,
+        clipPath: CHUNKY.card,
+        padding: '8px 12px 10px',
+        margin: '6px 8px 0',
+        cursor: 'pointer',
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
+      {/* Meta strip */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        color: MUTED, fontSize: 10, padding: '2px 0 6px',
+      }}>
+        {leadNode}
+        {match.round && <>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
+          <span>{match.round}</span>
+        </>}
+        {dateString && <>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
+          <span>{dateString}</span>
+        </>}
+        {retTag && (
+          <span style={{
+            marginLeft: 'auto',
+            color: ORANGE, background: 'rgba(245,166,35,0.12)',
+            padding: '2px 6px', borderRadius: 3,
+            fontSize: 9, fontWeight: 800, letterSpacing: 0.4,
+            textTransform: 'uppercase',
+          }}>{retTag}</span>
+        )}
+      </div>
+
+      {/* Team rows — player's pair first */}
+      <TeamRow
+        p1={topPair.p1} p2={topPair.p2}
+        sets={match.sets}
+        isP1Side={topPair.isP1Side}
+        isWinner={topWon}
+        status={match.status}
+      />
+      <TeamRow
+        p1={bottomPair.p1} p2={bottomPair.p2}
+        sets={match.sets}
+        isP1Side={bottomPair.isP1Side}
+        isWinner={bottomWon}
+        status={match.status}
+      />
+    </div>
+  )
+}
+
+// Like formatDate but appends time-of-day for scheduled matches.
+function formatDateTime(
+  iso: string | null,
+  format: ReturnType<typeof useFormatter>,
+): string {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    const datePart = format.dateTime(d, DATE_WITH_YEAR)
+    const timePart = format.dateTime(d, { hour: '2-digit', minute: '2-digit' })
+    return `${datePart} · ${timePart}`
+  } catch {
+    return ''
+  }
+}
+
 function MatchListItem({
   match, playerId, onClick, format,
 }: {
@@ -1445,7 +1719,7 @@ function MatchListItem({
       }}>
         {match.status === 'live'
           ? <span style={{ fontSize: 7, fontWeight: 800, color: LIVE_RED }}>LIVE</span>
-          : match.status === 'finished'
+          : (roles.won || roles.lost)
           ? <span style={{ fontSize: 11, fontWeight: 800, color: roles.won ? GREEN : LIVE_RED }}>{roles.won ? 'W' : 'L'}</span>
           : <span style={{ fontSize: 9, color: MUTED }}>—</span>}
       </div>
@@ -1472,6 +1746,119 @@ function MatchListItem({
   )
 }
 
+// Grey bar with country flag, titlecased tournament name, stage badge,
+// and level/date-range subline. Mirrors TournamentGroup header on /matches.
+function TournamentHeader({
+  tournament,
+  matches,
+  format,
+}: {
+  tournament: NonNullable<MatchRow['tournament']>
+  matches: MatchRow[]
+  format: ReturnType<typeof useFormatter>
+}) {
+  const hasLive = matches.some(m => m.status === 'live')
+  const accent = hasLive ? LIVE_RED : GREEN
+  const stage = mostAdvancedRound(matches)
+  const level = tournament.level ? levelLabel(tournament.level) : ''
+
+  const dateRange = tournament.starts_at
+    ? format.dateTime(new Date(tournament.starts_at), DATE_SHORT)
+      + (tournament.ends_at ? ` \u2013 ${format.dateTime(new Date(tournament.ends_at), DATE_SHORT)}` : '')
+    : ''
+
+  const nameStr = tournament.name ? titleCase(tournament.name) : ''
+
+  const body = (
+    <>
+      {tournament.country && <FlagImg country={tournament.country} size={20} />}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            fontSize: 12, fontWeight: 700, color: '#fff',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>{nameStr}</span>
+          {stage && (
+            <span style={{
+              fontSize: 8, fontWeight: 800, letterSpacing: 0.5,
+              padding: '2px 6px', clipPath: CHUNKY.badge,
+              color: accent,
+              background: hasLive ? 'rgba(255,70,85,0.12)' : 'rgba(126,211,33,0.12)',
+              flexShrink: 0, lineHeight: '12px', textTransform: 'uppercase',
+            }}>{stage}</span>
+          )}
+        </div>
+        {(level || dateRange) && (
+          <div style={{
+            fontSize: 9, fontWeight: 700, color: MUTED,
+            letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 2,
+          }}>
+            {level}{level && dateRange ? ' \u00B7 ' : ''}{dateRange}
+          </div>
+        )}
+      </div>
+    </>
+  )
+
+  const containerStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 14px',
+    background: '#1e1e1e',
+    position: 'relative',
+    textDecoration: 'none', color: 'inherit',
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {/* Top accent bar */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: accent, zIndex: 1,
+      }} />
+      {tournament?.id ? (
+        <Link href={`/tournaments/${tournament.id}`} style={containerStyle}>
+          {body}
+        </Link>
+      ) : (
+        <div style={containerStyle}>{body}</div>
+      )}
+    </div>
+  )
+}
+
+// Tournament header + its match rows, sorted reverse-chronologically.
+function TournamentGroup({
+  tournament,
+  matches,
+  playerId,
+  onMatchClick,
+  format,
+}: {
+  tournament: NonNullable<MatchRow['tournament']>
+  matches: MatchRow[]
+  playerId: string
+  onMatchClick: (matchId: string) => void
+  format: ReturnType<typeof useFormatter>
+}) {
+  // Matches already sorted newest-first by the parent; we just render.
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <TournamentHeader tournament={tournament} matches={matches} format={format} />
+      <div style={{ background: '#0b0b0b', padding: '2px 0 10px' }}>
+        {matches.map(m => (
+          <MatchRow
+            key={m.id}
+            match={m}
+            playerId={playerId}
+            onClick={() => onMatchClick(m.id)}
+            format={format}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function MatchesTab({
   matches, playerId, router, format,
 }: {
@@ -1480,6 +1867,8 @@ function MatchesTab({
   router: ReturnType<typeof useRouter>
   format: ReturnType<typeof useFormatter>
 }) {
+  const [visibleTournaments, setVisibleTournaments] = useState(5)
+
   if (matches.length === 0) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>
@@ -1488,17 +1877,77 @@ function MatchesTab({
     )
   }
 
+  // Group by tournament.id (matches with missing tournament get grouped under
+  // a synthetic key so we don't crash)
+  type Group = {
+    key: string
+    tournament: NonNullable<MatchRow['tournament']>
+    matches: MatchRow[]
+  }
+  const groups: Group[] = []
+  const seen = new Map<string, Group>()
+  for (const m of matches) {
+    const t = m.tournament
+    // Keying by the tournament id when present, otherwise by name
+    const key = t?.id ?? t?.name ?? '__orphan__'
+    let g = seen.get(key)
+    if (!g) {
+      g = { key, tournament: t ?? ({} as Group['tournament']), matches: [] }
+      seen.set(key, g)
+      groups.push(g)
+    }
+    g.matches.push(m)
+  }
+
+  // Sort tournaments: live-first, then newest starts_at first
+  groups.sort((a, b) => {
+    const aLive = a.matches.some(m => m.status === 'live')
+    const bLive = b.matches.some(m => m.status === 'live')
+    if (aLive !== bLive) return aLive ? -1 : 1
+    const aDate = a.tournament?.starts_at ?? ''
+    const bDate = b.tournament?.starts_at ?? ''
+    return bDate.localeCompare(aDate)
+  })
+
+  // Within each tournament: newest match first (final before QF before R16)
+  for (const g of groups) {
+    g.matches.sort((a, b) => matchTime(b) - matchTime(a))
+  }
+
+  const visible = groups.slice(0, visibleTournaments)
+  const hiddenCount = groups.length - visible.length
+
   return (
-    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {matches.map(m => (
-        <MatchListItem
-          key={m.id}
-          match={m}
+    <div style={{ paddingBottom: 16 }}>
+      {visible.map(g => (
+        <TournamentGroup
+          key={g.key}
+          tournament={g.tournament}
+          matches={g.matches}
           playerId={playerId}
-          onClick={() => router.push(`/match/${m.id}`)}
+          onMatchClick={(mid) => router.push(`/match/${mid}`)}
           format={format}
         />
       ))}
+      {hiddenCount > 0 && (
+        <div style={{ padding: '0 12px' }}>
+          <button
+            onClick={() => setVisibleTournaments(n => n + 5)}
+            style={{
+              width: '100%', padding: 12,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 6,
+              color: '#9ca3af',
+              fontSize: 11, fontWeight: 700,
+              letterSpacing: 0.5, textTransform: 'uppercase',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            Load more tournaments
+          </button>
+        </div>
+      )}
     </div>
   )
 }

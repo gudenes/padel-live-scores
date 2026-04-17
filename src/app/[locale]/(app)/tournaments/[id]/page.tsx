@@ -14,8 +14,6 @@ import Spinner from '../../../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
-import BracketView from '@/components/BracketView'
-import { EntryList } from '@/components/EntryList'
 import { V3MatchCard } from '@/components/V3MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
 
@@ -135,17 +133,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [justUpdated, setJustUpdated] = useState(false)
 
-  // drawEntries/playerMap/debutStatusMap were populated from the tournament_draws
-  // (entry-list) pipeline. That pipeline has been dropped — these stay empty and
-  // downstream components render their no-draws states.
-  const drawEntries: any[] = []
-  const playerMap: Record<string, { avatar_url: string | null; ranking: number | null }> = {}
-  const debutStatusMap: Record<string, 'fresh' | 'newThisSeason' | null> = {}
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'draw' | 'recap'>(
-    paramTab === 'recap' ? 'recap' : paramTab === 'draw' ? 'draw' : paramTab === 'matches' ? 'matches' : 'overview'
+  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>(
+    paramTab === 'recap' ? 'recap' : paramTab === 'matches' ? 'matches' : 'overview'
   )
   const stageStripRef = useRef<HTMLDivElement>(null)
 
@@ -624,12 +616,10 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
           {/* ROW 3: Page tabs — recap leads when the tournament is finished */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-            {(['recap', 'overview', 'matches', 'draw'] as const).map(tab => {
+            {(['recap', 'overview', 'matches'] as const).map(tab => {
               const active = pageTab === tab
               const isFinished = activeTournamentObj?.status === 'completed' || activeTournamentObj?.status === 'finished'
               if (tab === 'recap' && !isFinished) return null
-              const hasDraws = drawEntries.filter((d: any) => d.category === genderFilter).length > 0
-              if (tab === 'draw' && !hasDraws) return null
               return (
                 <button
                   key={tab}
@@ -794,19 +784,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             genderColor={genderColor}
             availableRounds={availableRounds}
             roundDates={roundDates}
-            drawEntries={drawEntries}
-            playerMap={playerMap}
-            debutStatusMap={debutStatusMap}
             liveCount={liveCount}
-          />
-        )}
-
-        {/* ── Draw Tab ── */}
-        {pageTab === 'draw' && (
-          <BracketView
-            drawEntries={drawEntries}
-            matches={allMatches}
-            genderFilter={genderFilter}
           />
         )}
 
@@ -1107,16 +1085,13 @@ function ChampionTile({
   )
 }
 
-function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, drawEntries, playerMap, debutStatusMap, liveCount }: {
+function V3Overview({ tournament, allMatches, genderFilter, genderColor, availableRounds, roundDates, liveCount }: {
   tournament: any
   allMatches: Match[]
   genderFilter: 'men' | 'women'
   genderColor: string
   availableRounds: string[]
   roundDates: Record<string, string>
-  drawEntries: any[]
-  playerMap: Record<string, { avatar_url: string | null; ranking: number | null }>
-  debutStatusMap: Record<string, 'fresh' | 'newThisSeason' | null>
   liveCount: number
 }) {
   const format = useFormatter()
@@ -1283,13 +1258,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     return () => { cancelled = true }
   }, [tournament?.id, tournament?.name, tournament?.level, tournament?.starts_at, genderFilter])
 
-  // Entries for the current gender — used as a fallback data source for
-  // upcoming tournaments that have no matches in the DB yet.
-  const genderEntries = drawEntries.filter((d: any) => d.category === genderFilter)
-
-  // Count unique teams. Prefer match-derived data (covers all categories
-  // of a played tournament); fall back to the entry list size for upcoming
-  // tournaments that haven't started.
+  // Count unique teams from match data.
   const teamSet = new Set<string>()
   for (const m of genderMatches) {
     const p1 = [(m as any).pair1_player1?.name, (m as any).pair1_player2?.name].filter(Boolean).sort().join('/')
@@ -1297,21 +1266,14 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     if (p1) teamSet.add(p1)
     if (p2) teamSet.add(p2)
   }
-  const totalTeams = teamSet.size || genderEntries.length
+  const totalTeams = teamSet.size
 
-  // Count unique countries. Same fallback strategy — entries carry the
-  // player country codes, so upcoming tournaments still show real values.
+  // Count unique countries from match data.
   const countrySet = new Set<string>()
   for (const m of genderMatches) {
     for (const key of ['pair1_player1', 'pair1_player2', 'pair2_player1', 'pair2_player2'] as const) {
       const country = (m as any)[key]?.country as string | undefined
       if (country) countrySet.add(country)
-    }
-  }
-  if (countrySet.size === 0) {
-    for (const e of genderEntries) {
-      if (e.player1_country) countrySet.add(e.player1_country)
-      if (e.player2_country) countrySet.add(e.player2_country)
     }
   }
   const totalCountries = countrySet.size
@@ -1322,8 +1284,6 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const expectedMatches = (() => {
     const drawSize = (tournament as any)?.draw_size_md as number | undefined
     if (drawSize && drawSize > 0) return drawSize - 1
-    // Fall back to entry count when draw size isn't set — also N-1
-    if (genderEntries.length > 0) return Math.max(0, genderEntries.length - 1)
     return 0
   })()
   const displayMatches = totalMatches || expectedMatches
@@ -1475,14 +1435,6 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       {tournament?.level && ['p1', 'p2', 'major', 'finals'].includes(tournament.level) && (
         <WhereToWatch />
       )}
-
-      {/* Player List — hero rows for top seeds + compact for rest */}
-      <EntryList
-        entries={drawEntries as any}
-        playerMap={playerMap}
-        debutStatusMap={debutStatusMap}
-        genderFilter={genderFilter}
-      />
 
       {/* Schedule */}
       {schedule.length > 0 && (
