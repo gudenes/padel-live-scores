@@ -27,8 +27,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Tournament | Padel Nachos' }
   }
 
-  const title = `${tournament.name} — Draws, Results & Live Scores`
-  const description = `Follow ${tournament.name} live. Scores, draws, rankings and highlights.`
+  const title = `${tournament.name} — Results & Live Scores`
+  const description = `Follow ${tournament.name} live. Scores, rankings and highlights.`
 
   return {
     title,
