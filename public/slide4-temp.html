@@ -1,0 +1,59 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1350px; font-family: 'Inter', sans-serif; background: #0A0A0A; padding: 100px 80px; position: relative; overflow: hidden; }
+  /* Subtle ambient glow */
+  body::before { content: ''; position: absolute; top: 15%; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, rgba(126,211,33,0.06), transparent 60%); pointer-events: none; }
+  body::after { content: ''; position: absolute; bottom: -200px; right: -100px; width: 500px; height: 500px; background: radial-gradient(circle, rgba(245,166,35,0.08), transparent 60%); pointer-events: none; }
+  .content { position: relative; z-index: 10; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+
+  /* Logo centered at top */
+  .logo-top { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); height: 90px; }
+  .logo-top img { height: 100%; object-fit: contain; opacity: 0.95; }
+
+  .eyebrow { font-size: 22px; font-weight: 800; color: #7ED321; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 40px; }
+  .eyebrow::before, .eyebrow::after { content: '—'; margin: 0 12px; color: rgba(126,211,33,0.5); }
+
+  .headline { font-size: 108px; font-weight: 900; color: #fff; line-height: 0.92; letter-spacing: -4px; margin-bottom: 30px; text-transform: uppercase; }
+  .headline .accent { color: #7ED321; }
+  .headline .slash { color: rgba(255,255,255,0.25); font-weight: 300; }
+
+  .sub { font-size: 28px; font-weight: 600; color: rgba(255,255,255,0.75); line-height: 1.4; max-width: 720px; margin: 0 auto 70px; }
+
+  /* Feature chips */
+  .features { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-bottom: 80px; }
+  .chip { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); padding: 14px 24px; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.9); display: inline-flex; align-items: center; gap: 10px; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: #7ED321; }
+  .chip.red .dot { background: #FF4655; }
+  .chip.amber .dot { background: #F5A623; }
+
+  /* CTA */
+  .cta-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .url { font-size: 54px; font-weight: 900; color: #fff; letter-spacing: -1px; padding: 22px 52px; background: linear-gradient(135deg, rgba(126,211,33,0.15), rgba(126,211,33,0.05)); border: 2px solid rgba(126,211,33,0.35); clip-path: polygon(2% 3%, 98% 0%, 100% 97%, 0% 100%); }
+  .url .green { color: #7ED321; }
+  .url-note { font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.45); letter-spacing: 2px; text-transform: uppercase; }
+
+  /* Footer tag */
+  .footer { position: absolute; bottom: 50px; left: 0; right: 0; text-align: center; font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.35); letter-spacing: 3px; text-transform: uppercase; }
+  .footer .green { color: #7ED321; }
+</style></head><body>
+  <div class="logo-top"><img src="/logo-temp.png" alt="PadelNachos"/></div>
+  <div class="content">
+    <div class="eyebrow">FOLLOW EVERY POINT</div>
+    <div class="headline">Live <span class="slash">·</span> Fast <span class="slash">·</span><br/><span class="accent">Free</span></div>
+    <div class="sub">Real-time scores, rankings, tournament brackets and breaking news — every padel match in one place.</div>
+
+    <div class="features">
+      <div class="chip red"><span class="dot"></span> Live point-by-point</div>
+      <div class="chip"><span class="dot"></span> Rankings & stats</div>
+      <div class="chip amber"><span class="dot"></span> Brackets & draws</div>
+      <div class="chip"><span class="dot"></span> News & highlights</div>
+    </div>
+
+    <div class="cta-wrap">
+      <div class="url-note">OPEN IN YOUR BROWSER</div>
+      <div class="url">padelnachos<span class="green">.com</span></div>
+    </div>
+  </div>
+  <div class="footer">EVERY MATCH · <span class="green">EVERY POINT</span> · EVERY DAY</div>
+</body></html>
