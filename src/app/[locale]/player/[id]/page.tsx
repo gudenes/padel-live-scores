@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useRef, use } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations, useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { toShortName } from '@/types/match'
+import { parseSetScore, toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
@@ -1514,6 +1514,99 @@ function FlagPair({
       }}>
         <FlagImg country={p2?.country ?? null} size={14} />
       </div>
+    </div>
+  )
+}
+
+// One team (pair) row inside a match card — flag pair + names + set cells.
+// Per-set winner coloring is computed from the parsed set score; names
+// coloring comes from the match-level `isWinner` flag.
+function TeamRow({
+  p1, p2,
+  sets,
+  isP1Side,
+  isWinner,
+  status,
+}: {
+  p1: PartnerInfo | null
+  p2: PartnerInfo | null
+  sets: Array<{ set_score: string | null; set_number: number }>
+  isP1Side: boolean                // is this team pair 1 (true) or pair 2 (false)?
+  isWinner: boolean                // did this pair win the match?
+  status: string                   // 'live' | 'scheduled' | 'finished' | 'retired' | 'walkover' | ...
+}) {
+  const isScheduled = status === 'scheduled'
+  const nameColor = isScheduled ? '#fff' : (isWinner ? '#fff' : MUTED)
+  const nameWeight: React.CSSProperties['fontWeight'] = isScheduled ? 600 : (isWinner ? 700 : 400)
+
+  // Parse each set in order
+  const ordered = [...sets].sort((a, b) => a.set_number - b.set_number)
+  // The "current set" (highest set_number) gets the red-pill treatment when the
+  // match is live.
+  const currentSetNumber = status === 'live' && ordered.length > 0
+    ? ordered[ordered.length - 1].set_number
+    : null
+
+  const firstName = p1 ? toShortName(p1.display_name?.trim() || p1.name) : ''
+  const secondName = p2 ? toShortName(p2.display_name?.trim() || p2.name) : ''
+  const displayNames = [firstName, secondName].filter(Boolean).join(' / ') || '\u2014'
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '3px 0', minHeight: 22,
+    }}>
+      <FlagPair p1={p1} p2={p2} dimmed={!isScheduled && !isWinner} />
+      <div style={{
+        flex: 1, minWidth: 0,
+        fontSize: 11.5, fontWeight: nameWeight, color: nameColor,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>
+        {displayNames}
+      </div>
+      {!isScheduled && ordered.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 8,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {ordered.map(set => {
+            const parsed = parseSetScore(set.set_score)
+            if (!parsed) return null
+            const mine = isP1Side ? parsed.p1 : parsed.p2
+            const theirs = isP1Side ? parsed.p2 : parsed.p1
+            const setWinner = mine > theirs
+            const isCurrent = currentSetNumber === set.set_number
+
+            return (
+              <span key={set.set_number} style={{
+                minWidth: 14, textAlign: 'center',
+                fontWeight: 700, fontSize: 12,
+                color: setWinner ? '#fff' : MUTED,
+                // Live current-set gets a red-pill treatment; overrides color + adds bg
+                ...(isCurrent && status === 'live' ? {
+                  background: 'rgba(255,70,85,0.08)',
+                  color: LIVE_RED,
+                  padding: '1px 6px',
+                  borderRadius: 3,
+                  fontWeight: 800,
+                } : {}),
+              }}>
+                {mine}
+                {/* Tie-break superscript — shown on the set winner's cell,
+                    displaying the loser's tie-break points count (tennis convention) */}
+                {setWinner && parsed.tb != null && (
+                  <span style={{
+                    fontSize: 8, verticalAlign: 'super',
+                    color: MUTED, marginLeft: 1,
+                  }}>
+                    {parsed.tb}
+                  </span>
+                )}
+              </span>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
