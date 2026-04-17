@@ -386,7 +386,9 @@
   "footer": {
     "about": "About",
     "privacyPolicy": "Privacy Policy",
-    "termsOfService": "Terms of Service"
+    "termsOfService": "Terms of Service",
+    "todaySchedule": "Today's schedule",
+    "yesterdayResults": "Yesterday's results"
   },
   "common": {
     "back": "Back",
@@ -488,5 +490,51 @@
       "label": "Notifications",
       "sub": "Choose what you're notified about"
     }
+  },
+  "seo": {
+    "root": {
+      "description": "Follow every point live. Real-time scores, player rankings, tournament draws, highlights, and breaking news from Premier Padel and FIP."
+    },
+    "home": {
+      "title": "Live Padel Scores & Results",
+      "description": "Follow every point live. Real-time scores, player rankings, tournament draws, highlights, and breaking news from Premier Padel and FIP — all in one app."
+    },
+    "matches": {
+      "title": "Live Scores & Results",
+      "description": "Live padel match scores updated in real time. Follow Premier Padel and FIP tournaments point by point with instant results."
+    },
+    "rankings": {
+      "title": "Player Rankings",
+      "description": "Official FIP padel rankings and race standings. Track the top men's and women's padel players worldwide with live ranking updates."
+    },
+    "feed": {
+      "title": "News & Highlights",
+      "description": "Padel news, match highlights, and video recaps from Premier Padel, FIP, and top padel channels. Stay up to date with the latest in professional padel."
+    },
+    "about": {
+      "title": "About Padel Nachos — Live Padel Scores Platform",
+      "description": "Learn about Padel Nachos — the free platform for real-time padel scores, rankings, tournament draws, and highlights from Premier Padel and FIP."
+    },
+    "following": {
+      "title": "Following",
+      "description": "Track your followed players, tournaments, and bookmarked matches all in one place."
+    },
+    "daily": {
+      "title": "Padel matches {date} — Live scores, results & schedule",
+      "description": "Every padel match on {date}. Live scores, start times, results and tournament info from Premier Padel and FIP — updated in real time."
+    }
+  },
+  "daily": {
+    "backToMatches": "All matches",
+    "yesterday": "Yesterday",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "liveSection": "Live now",
+    "upcomingSection": "Upcoming today",
+    "finishedSection": "Finished today",
+    "noMatchesTitle": "No matches on this day",
+    "noMatchesSub": "Try yesterday's results or tomorrow's schedule using the picker above.",
+    "faqHeading": "Frequently asked questions",
+    "approxTime": "time is approximate"
   }
 }

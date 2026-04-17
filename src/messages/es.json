@@ -386,7 +386,9 @@
   "footer": {
     "about": "Sobre nosotros",
     "privacyPolicy": "Política de Privacidad",
-    "termsOfService": "Términos del Servicio"
+    "termsOfService": "Términos del Servicio",
+    "todaySchedule": "Partidos de hoy",
+    "yesterdayResults": "Resultados de ayer"
   },
   "common": {
     "back": "Atrás",
@@ -488,5 +490,51 @@
       "label": "Notificaciones",
       "sub": "Elige sobre qué te avisamos"
     }
+  },
+  "seo": {
+    "root": {
+      "description": "Sigue cada punto en directo. Resultados en tiempo real, clasificación de jugadores, cuadros de torneos, highlights y noticias de Premier Padel y FIP."
+    },
+    "home": {
+      "title": "Resultados de pádel en directo — Marcadores y clasificación",
+      "description": "Sigue cada punto en directo. Resultados, clasificación, cuadros, highlights y noticias de Premier Padel y FIP, todo en una app."
+    },
+    "matches": {
+      "title": "Resultados y marcadores de pádel en directo",
+      "description": "Resultados de partidos de pádel en directo actualizados en tiempo real. Sigue los torneos Premier Padel y FIP punto a punto."
+    },
+    "rankings": {
+      "title": "Clasificación de pádel — FIP y Premier Padel",
+      "description": "Clasificación oficial FIP y ranking race de pádel. Sigue a los mejores jugadores y jugadoras del mundo con actualizaciones en directo."
+    },
+    "feed": {
+      "title": "Noticias y highlights de pádel",
+      "description": "Noticias de pádel, highlights de partidos y vídeos resumen de Premier Padel, FIP y los mejores canales. Mantente al día del pádel profesional."
+    },
+    "about": {
+      "title": "Sobre Padel Nachos — Resultados de pádel en directo",
+      "description": "Conoce Padel Nachos, la plataforma gratuita de resultados de pádel en directo, clasificación, cuadros y highlights de Premier Padel y FIP."
+    },
+    "following": {
+      "title": "Siguiendo",
+      "description": "Sigue a tus jugadores, torneos y partidos favoritos en un solo lugar."
+    },
+    "daily": {
+      "title": "Partidos de pádel {date} — Resultados, horarios y marcadores",
+      "description": "Todos los partidos de pádel del {date}. Resultados en directo, horarios y marcadores de Premier Padel y FIP, actualizados en tiempo real."
+    }
+  },
+  "daily": {
+    "backToMatches": "Todos los partidos",
+    "yesterday": "Ayer",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "liveSection": "En directo",
+    "upcomingSection": "Próximos de hoy",
+    "finishedSection": "Resultados de hoy",
+    "noMatchesTitle": "No hay partidos este día",
+    "noMatchesSub": "Prueba con los resultados de ayer o los partidos de mañana usando el selector superior.",
+    "faqHeading": "Preguntas frecuentes",
+    "approxTime": "hora aproximada"
   }
 }

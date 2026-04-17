@@ -386,7 +386,9 @@
   "footer": {
     "about": "Sobre nós",
     "privacyPolicy": "Política de Privacidade",
-    "termsOfService": "Termos de Serviço"
+    "termsOfService": "Termos de Serviço",
+    "todaySchedule": "Jogos de hoje",
+    "yesterdayResults": "Resultados de ontem"
   },
   "common": {
     "back": "Voltar",
@@ -488,5 +490,51 @@
       "label": "Notificações",
       "sub": "Escolhe sobre o que queres ser avisado"
     }
+  },
+  "seo": {
+    "root": {
+      "description": "Siga cada ponto ao vivo. Resultados em tempo real, ranking de jogadores, chaves de torneios, highlights e notícias da Premier Padel e FIP."
+    },
+    "home": {
+      "title": "Resultados de padel ao vivo — Placar, ranking e torneios",
+      "description": "Siga cada ponto ao vivo. Placar, ranking, chaves, highlights e notícias da Premier Padel e FIP, tudo em um só app."
+    },
+    "matches": {
+      "title": "Resultados e placar de padel ao vivo",
+      "description": "Resultados de partidas de padel ao vivo em tempo real. Acompanhe Premier Padel e FIP ponto a ponto com placar instantâneo."
+    },
+    "rankings": {
+      "title": "Ranking de padel — FIP e Premier Padel",
+      "description": "Ranking oficial FIP e ranking race de padel. Acompanhe os melhores jogadores e jogadoras do mundo com atualizações ao vivo."
+    },
+    "feed": {
+      "title": "Notícias e highlights de padel",
+      "description": "Notícias de padel, highlights de partidas e vídeos resumo da Premier Padel, FIP e dos melhores canais. Fique por dentro do padel profissional."
+    },
+    "about": {
+      "title": "Sobre Padel Nachos — Resultados de padel ao vivo",
+      "description": "Conheça o Padel Nachos, a plataforma gratuita de resultados de padel ao vivo, ranking, chaves e highlights da Premier Padel e FIP."
+    },
+    "following": {
+      "title": "A seguir",
+      "description": "Acompanhe seus jogadores, torneios e partidas favoritas em um só lugar."
+    },
+    "daily": {
+      "title": "Jogos de padel {date} — Resultados, horários e placar",
+      "description": "Todos os jogos de padel de {date}. Placar ao vivo, horários e resultados da Premier Padel e FIP, atualizados em tempo real."
+    }
+  },
+  "daily": {
+    "backToMatches": "Todos os jogos",
+    "yesterday": "Ontem",
+    "today": "Hoje",
+    "tomorrow": "Amanhã",
+    "liveSection": "Ao vivo",
+    "upcomingSection": "Próximos de hoje",
+    "finishedSection": "Resultados de hoje",
+    "noMatchesTitle": "Sem jogos neste dia",
+    "noMatchesSub": "Experimente os resultados de ontem ou os jogos de amanhã usando o seletor acima.",
+    "faqHeading": "Perguntas frequentes",
+    "approxTime": "horário aproximado"
   }
 }

@@ -1,16 +1,21 @@
 // src/app/[locale]/(app)/home/layout.tsx
-// Static metadata for the home page — no DB query needed.
+// Localised metadata for the home page. Reads title + description from
+// the active locale's "seo.home" namespace so /es, /pt, /it, /fr serve
+// keyword-loaded copy instead of English.
 
-import { Metadata } from 'next'
-import { buildAlternates } from '@/lib/seo-helpers'
+import type { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo-metadata'
 
-export const metadata: Metadata = {
-  title: 'Live Padel Scores & Results',
-  description:
-    'Follow every point live. Real-time scores, player rankings, tournament draws, highlights, and breaking news from Premier Padel and FIP — all in one app.',
-  ...buildAlternates('/home'),
+type Props = {
+  params: Promise<{ locale: string }>
+  children: React.ReactNode
 }
 
-export default function HomeLayout({ children }: { children: React.ReactNode }) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params
+  return buildPageMetadata({ locale, pageKey: 'home', path: '/home' })
+}
+
+export default function HomeLayout({ children }: Props) {
   return <>{children}</>
 }

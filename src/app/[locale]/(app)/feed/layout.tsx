@@ -1,16 +1,19 @@
-import type { Metadata } from 'next'
-import { buildAlternates } from '@/lib/seo-helpers'
+// src/app/[locale]/(app)/feed/layout.tsx
+// Localised metadata — reads "seo.feed" from the active locale.
 
-export const metadata: Metadata = {
-  title: 'News & Highlights',
-  description: 'Padel news, match highlights, and video recaps from Premier Padel, FIP, and top padel channels. Stay up to date with the latest in professional padel.',
-  openGraph: {
-    title: 'News & Highlights | Padel Nachos',
-    description: 'Padel news, match highlights, and video recaps. Stay up to date with the latest in professional padel.',
-  },
-  ...buildAlternates('/feed'),
+import type { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo-metadata'
+
+type Props = {
+  params: Promise<{ locale: string }>
+  children: React.ReactNode
 }
 
-export default function FeedLayout({ children }: { children: React.ReactNode }) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params
+  return buildPageMetadata({ locale, pageKey: 'feed', path: '/feed' })
+}
+
+export default function FeedLayout({ children }: Props) {
   return <>{children}</>
 }
