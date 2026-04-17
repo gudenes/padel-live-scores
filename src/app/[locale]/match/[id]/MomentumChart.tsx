@@ -188,24 +188,25 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
   })
 
   // ── SVG layout ──
-  const svgW = 600
-  const svgH = 234  // 180 × 1.3 = 234 (30% taller)
+  // Dynamic width: size the viewBox to fit the actual number of games
+  // so bars fill the available space instead of clustering on the left.
+  const svgH = 234
   const centerY = svgH / 2
-  const pad = { left: 4, right: 4, top: 24, bottom: 8 }
-  const chartW = svgW - pad.left - pad.right
-  const chartH = svgH - pad.top - pad.bottom
-  // Fixed width: assume max 3 sets × 13 games = 39 games
-  const maxGames = 39
-  const barGap = 3
-  const barWidth = Math.max(6, (chartW - barGap * (maxGames - 1)) / maxGames) * 1.15  // 15% wider
+  const pad = { left: 4, right: 50, top: 24, bottom: 8 }  // right pad for trailing set label
   const totalGames = allGames.length
+  const barGap = 3
+  const targetBarWidth = 14
+  const barWidth = Math.max(8, targetBarWidth)
   const totalBarsW = totalGames * barWidth + (totalGames - 1) * barGap
+  const svgW = Math.max(300, totalBarsW + pad.left + pad.right)
+  const chartH = svgH - pad.top - pad.bottom
   const barsStartX = pad.left
 
   const maxPts = Math.max(5, ...allGames.map(g => Math.max(g.p1Points, g.p2Points)))
   const barScale = (chartH / 2 - 6) / maxPts
 
-  // Set boundary positions with winner info
+  // Set boundary positions with winner info — between consecutive sets
+  // PLUS a trailing label after the final set so its score is always visible
   const setBoundaries: { x: number; score: string; winner: 1 | 2 | null }[] = []
   for (let i = 1; i < allGames.length; i++) {
     if (allGames[i].setNumber !== allGames[i - 1].setNumber) {
@@ -215,6 +216,17 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
       const sc = setScores[setIdx]
       const winner = sc ? (sc.p1 > sc.p2 ? 1 : sc.p2 > sc.p1 ? 2 : null) : null
       setBoundaries.push({ x: (x1 + x2) / 2, score: sc?.label ?? '', winner })
+    }
+  }
+  // Trailing label for the final set (no next set to create a boundary)
+  if (allGames.length > 0 && !isLive) {
+    const lastGame = allGames[allGames.length - 1]
+    const lastSetIdx = lastGame.setNumber - 1
+    const sc = setScores[lastSetIdx]
+    if (sc) {
+      const lastBarX = barsStartX + (allGames.length - 1) * (barWidth + barGap) + barWidth
+      const winner = sc.p1 > sc.p2 ? 1 : sc.p2 > sc.p1 ? 2 : null
+      setBoundaries.push({ x: lastBarX + barGap * 3, score: sc.label, winner })
     }
   }
 
