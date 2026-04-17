@@ -379,8 +379,9 @@ function resolveMatchRoles(match: MatchRow, playerId: string) {
   const opp1 = isP1 ? match.pair2_player1 : match.pair1_player1
   const opp2 = isP1 ? match.pair2_player2 : match.pair1_player2
   const myPair = isP1 ? 1 : 2
-  const won = match.status === 'finished' && match.winner_pair === myPair
-  const lost = match.status === 'finished' && match.winner_pair != null && match.winner_pair !== myPair
+  const isTerminal = match.status === 'finished' || match.status === 'retired' || match.status === 'walkover'
+  const won = isTerminal && match.winner_pair === myPair
+  const lost = isTerminal && match.winner_pair != null && match.winner_pair !== myPair
   return { isP1, partner, opp1, opp2, myPair, won, lost }
 }
 
@@ -1609,6 +1610,138 @@ function TeamRow({
       )}
     </div>
   )
+}
+
+// One match card inside a TournamentGroup. Meta strip + two stacked TeamRows.
+function MatchRow({
+  match,
+  playerId,
+  onClick,
+  format,
+}: {
+  match: MatchRow
+  playerId: string
+  onClick: () => void
+  format: ReturnType<typeof useFormatter>
+}) {
+  const roles = resolveMatchRoles(match, playerId)
+  const playerWon = roles.won
+  const playerLost = roles.lost
+  const isLive = match.status === 'live'
+  const isScheduled = match.status === 'scheduled'
+  const isRetired = match.status === 'retired'
+  const isWalkover = match.status === 'walkover'
+
+  // Meta strip leading letter/chip
+  let leadNode: React.ReactNode
+  if (isLive) {
+    leadNode = (
+      <span style={{
+        color: LIVE_RED, fontWeight: 800, letterSpacing: 0.3,
+      }}>● LIVE</span>
+    )
+  } else if (isScheduled) {
+    leadNode = (
+      <span style={{ color: '#9ca3af', fontWeight: 800 }}>VS</span>
+    )
+  } else if (playerWon) {
+    leadNode = <span style={{ color: GREEN, fontWeight: 800 }}>W</span>
+  } else if (playerLost) {
+    leadNode = <span style={{ color: LIVE_RED, fontWeight: 800 }}>L</span>
+  } else {
+    leadNode = <span style={{ color: MUTED, fontWeight: 800 }}>—</span>
+  }
+
+  const dateString = isScheduled
+    ? formatDateTime(match.scheduled_at, format)
+    : formatDate(matchDate(match), format)
+
+  // Retired / walkover trailing tag
+  const retTag = isRetired ? 'RET' : isWalkover ? 'W/O' : null
+
+  // Player's pair rendered first (top row), opponent pair below
+  const playerIsP1 = roles.isP1
+  const topPair = playerIsP1
+    ? { p1: match.pair1_player1, p2: match.pair1_player2, isP1Side: true }
+    : { p1: match.pair2_player1, p2: match.pair2_player2, isP1Side: false }
+  const bottomPair = playerIsP1
+    ? { p1: match.pair2_player1, p2: match.pair2_player2, isP1Side: false }
+    : { p1: match.pair1_player1, p2: match.pair1_player2, isP1Side: true }
+
+  // Per-pair win flags — only valid for finished-ish matches
+  const topWon = playerWon
+  const bottomWon = playerLost
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: BG_CARD,
+        clipPath: CHUNKY.card,
+        padding: '8px 12px 10px',
+        margin: '6px 8px 0',
+        cursor: 'pointer',
+        display: 'flex', flexDirection: 'column',
+      }}
+    >
+      {/* Meta strip */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        color: MUTED, fontSize: 10, padding: '2px 0 6px',
+      }}>
+        {leadNode}
+        {match.round && <>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
+          <span>{match.round}</span>
+        </>}
+        {dateString && <>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>
+          <span>{dateString}</span>
+        </>}
+        {retTag && (
+          <span style={{
+            marginLeft: 'auto',
+            color: ORANGE, background: 'rgba(245,166,35,0.12)',
+            padding: '2px 6px', borderRadius: 3,
+            fontSize: 9, fontWeight: 800, letterSpacing: 0.4,
+            textTransform: 'uppercase',
+          }}>{retTag}</span>
+        )}
+      </div>
+
+      {/* Team rows — player's pair first */}
+      <TeamRow
+        p1={topPair.p1} p2={topPair.p2}
+        sets={match.sets}
+        isP1Side={topPair.isP1Side}
+        isWinner={topWon}
+        status={match.status}
+      />
+      <TeamRow
+        p1={bottomPair.p1} p2={bottomPair.p2}
+        sets={match.sets}
+        isP1Side={bottomPair.isP1Side}
+        isWinner={bottomWon}
+        status={match.status}
+      />
+    </div>
+  )
+}
+
+// Like formatDate but appends time-of-day for scheduled matches.
+function formatDateTime(
+  iso: string | null,
+  format: ReturnType<typeof useFormatter>,
+): string {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    const datePart = format.dateTime(d, DATE_WITH_YEAR)
+    const timePart = format.dateTime(d, { hour: '2-digit', minute: '2-digit' })
+    return `${datePart} · ${timePart}`
+  } catch {
+    return ''
+  }
 }
 
 function MatchesTab({
