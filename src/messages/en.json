@@ -249,6 +249,62 @@
     "loading": "Loading your profile...",
     "language": "Language"
   },
+  "settings": {
+    "title": "Settings",
+    "sections": {
+      "account": "Account",
+      "preferences": "Preferences",
+      "privacy": "Privacy & data",
+      "support": "Support"
+    },
+    "account": {
+      "displayName": "Display name",
+      "email": "Email",
+      "activeSessions": "Active sessions",
+      "comingSoon": "Coming soon",
+      "editName": {
+        "title": "Edit display name",
+        "placeholder": "Your name",
+        "save": "Save",
+        "cancel": "Cancel",
+        "savedToast": "Name updated"
+      }
+    },
+    "preferences": {
+      "language": "Language",
+      "region": "Region",
+      "regionHint": "Used to show local broadcasters and content.",
+      "push": "Push notifications",
+      "pushHint": "Get notified when bookmarked matches go live"
+    },
+    "privacy": {
+      "policy": "Privacy policy",
+      "terms": "Terms of service",
+      "analytics": "Share anonymous usage data",
+      "analyticsHint": "Help improve PadelNachos. Toggle off to opt out.",
+      "marketing": "Marketing emails",
+      "marketingHint": "Occasional updates about new features and tournaments.",
+      "exportData": "Download my data",
+      "exportDataHint": "Get a JSON file of everything we have about you.",
+      "deleteAccount": "Delete my account",
+      "deleteAccountHint": "Permanently remove your account and data."
+    },
+    "support": {
+      "contact": "Contact support",
+      "about": "About PadelNachos"
+    },
+    "signOut": "Sign out",
+    "deleteModal": {
+      "title": "Delete your account?",
+      "body": "This permanently removes your profile, bookmarks, badges, ratings, and sign-in methods. This cannot be undone.",
+      "continue": "Continue",
+      "cancel": "Cancel",
+      "confirmPrompt": "Type DELETE to confirm",
+      "confirmWord": "DELETE",
+      "confirmButton": "Delete forever",
+      "errorGeneric": "Could not delete account. Please try again or contact support."
+    }
+  },
   "badges": {
     "badgeUnlocked": "Badge Unlocked",
     "welcome": "Welcome",
