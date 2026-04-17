@@ -249,6 +249,62 @@
     "loading": "Chargement de ton profil...",
     "language": "Langue"
   },
+  "settings": {
+    "title": "Paramètres",
+    "sections": {
+      "account": "Compte",
+      "preferences": "Préférences",
+      "privacy": "Confidentialité et données",
+      "support": "Assistance"
+    },
+    "account": {
+      "displayName": "Nom affiché",
+      "email": "E-mail",
+      "activeSessions": "Sessions actives",
+      "comingSoon": "Bientôt disponible",
+      "editName": {
+        "title": "Modifier le nom",
+        "placeholder": "Votre nom",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "savedToast": "Nom mis à jour"
+      }
+    },
+    "preferences": {
+      "language": "Langue",
+      "region": "Région",
+      "regionHint": "Sert à afficher les diffuseurs et contenus locaux.",
+      "push": "Notifications push",
+      "pushHint": "Soyez averti quand vos matchs favoris commencent"
+    },
+    "privacy": {
+      "policy": "Politique de confidentialité",
+      "terms": "Conditions d'utilisation",
+      "analytics": "Partager des données d'usage anonymes",
+      "analyticsHint": "Aidez à améliorer PadelNachos. Désactivez pour refuser.",
+      "marketing": "E-mails marketing",
+      "marketingHint": "Mises à jour occasionnelles sur les nouveautés et tournois.",
+      "exportData": "Télécharger mes données",
+      "exportDataHint": "Obtenez un fichier JSON de tout ce que nous avons sur vous.",
+      "deleteAccount": "Supprimer mon compte",
+      "deleteAccountHint": "Supprime définitivement votre compte et vos données."
+    },
+    "support": {
+      "contact": "Contacter l'assistance",
+      "about": "À propos de PadelNachos"
+    },
+    "signOut": "Se déconnecter",
+    "deleteModal": {
+      "title": "Supprimer votre compte ?",
+      "body": "Cela supprime définitivement votre profil, favoris, badges, notes et méthodes de connexion. Action irréversible.",
+      "continue": "Continuer",
+      "cancel": "Annuler",
+      "confirmPrompt": "Tapez SUPPRIMER pour confirmer",
+      "confirmWord": "SUPPRIMER",
+      "confirmButton": "Supprimer définitivement",
+      "errorGeneric": "Impossible de supprimer le compte. Réessayez ou contactez l'assistance."
+    }
+  },
   "badges": {
     "badgeUnlocked": "Badge débloqué",
     "welcome": "Bienvenue",

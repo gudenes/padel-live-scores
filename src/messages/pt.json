@@ -249,6 +249,62 @@
     "loading": "Carregando seu perfil...",
     "language": "Idioma"
   },
+  "settings": {
+    "title": "Definições",
+    "sections": {
+      "account": "Conta",
+      "preferences": "Preferências",
+      "privacy": "Privacidade e dados",
+      "support": "Suporte"
+    },
+    "account": {
+      "displayName": "Nome a apresentar",
+      "email": "E-mail",
+      "activeSessions": "Sessões ativas",
+      "comingSoon": "Em breve",
+      "editName": {
+        "title": "Editar nome",
+        "placeholder": "O teu nome",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "savedToast": "Nome atualizado"
+      }
+    },
+    "preferences": {
+      "language": "Idioma",
+      "region": "Região",
+      "regionHint": "Usado para mostrar emissores e conteúdo locais.",
+      "push": "Notificações push",
+      "pushHint": "Recebe aviso quando os teus jogos guardados começarem"
+    },
+    "privacy": {
+      "policy": "Política de privacidade",
+      "terms": "Termos de serviço",
+      "analytics": "Partilhar dados de utilização anónimos",
+      "analyticsHint": "Ajuda a melhorar o PadelNachos. Desliga para não partilhar.",
+      "marketing": "E-mails de marketing",
+      "marketingHint": "Atualizações ocasionais sobre novidades e torneios.",
+      "exportData": "Transferir os meus dados",
+      "exportDataHint": "Obtém um ficheiro JSON com tudo o que temos sobre ti.",
+      "deleteAccount": "Eliminar a minha conta",
+      "deleteAccountHint": "Remove permanentemente a tua conta e os teus dados."
+    },
+    "support": {
+      "contact": "Contactar o suporte",
+      "about": "Sobre o PadelNachos"
+    },
+    "signOut": "Terminar sessão",
+    "deleteModal": {
+      "title": "Eliminar a tua conta?",
+      "body": "Isto remove permanentemente o teu perfil, favoritos, emblemas, avaliações e métodos de início de sessão. Não é reversível.",
+      "continue": "Continuar",
+      "cancel": "Cancelar",
+      "confirmPrompt": "Escreve ELIMINAR para confirmar",
+      "confirmWord": "ELIMINAR",
+      "confirmButton": "Eliminar para sempre",
+      "errorGeneric": "Não foi possível eliminar a conta. Tenta novamente ou contacta o suporte."
+    }
+  },
   "badges": {
     "badgeUnlocked": "Conquista desbloqueada",
     "welcome": "Bem-vindo",
