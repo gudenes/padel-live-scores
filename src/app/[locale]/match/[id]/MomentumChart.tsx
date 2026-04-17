@@ -83,9 +83,19 @@ function inferWinnerFromPoints(game: Game): 1 | 2 | null {
 
 function computeGameWinner(games: Game[], idx: number): 1 | 2 | null {
   const game = games[idx]
-  const score = game?.game_score
 
-  // Primary: derive from game_score differential (cumulative games count)
+  // Primary: infer from the points array — this is ground truth.
+  // game_score is a cumulative "before-this-game" counter and comparing
+  // game[idx] vs game[idx-1] actually yields game idx-1's winner (off-by-one).
+  // Points always reflect what happened IN this specific game.
+  const pointsWinner = inferWinnerFromPoints(game)
+  if (pointsWinner) return pointsWinner
+
+  // Fallback: game_score differential — for games that lack points data.
+  // Note: this compares the cumulative tally at the start of this game vs
+  // the previous game, which tells us who won the PREVIOUS game.  Imperfect,
+  // but better than nothing when points are missing.
+  const score = game?.game_score
   if (score && score !== '0-0') {
     const [p1, p2] = score.split('-').map(Number)
     if (idx === 0) return p1 > p2 ? 1 : 2
@@ -96,9 +106,7 @@ function computeGameWinner(games: Game[], idx: number): 1 | 2 | null {
     if (p2 > pp2) return 2
   }
 
-  // Fallback: infer from the points array (handles race condition where
-  // game_score wasn't updated but point data exists)
-  return inferWinnerFromPoints(game)
+  return null
 }
 
 function buildGameSummaries(sets: MatchSet[]): GameSummary[] {

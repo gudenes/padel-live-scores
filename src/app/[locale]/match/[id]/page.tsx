@@ -116,12 +116,20 @@ function inferWinnerFromPoints(game: any): 1 | 2 | null {
   return null
 }
 
-// ── Compute game winner from its score vs the previous game's score ─────────
-// Falls back to points[] inference when game_score differential is unavailable
+// ── Compute game winner ─────────────────────────────────────────────────────
+// Points-first: the points array is ground truth for what happened in THIS game.
+// game_score is a cumulative "before-this-game" counter whose differential
+// actually yields the PREVIOUS game's winner (off-by-one). Points are always
+// preferred; game_score is a fallback for games without point data.
 function computeGameWinner(games: any[], idx: number): 1 | 2 | null {
   const game = games[idx]
-  const score = game?.game_score
 
+  // Primary: infer from the points array
+  const pointsWinner = inferWinnerFromPoints(game)
+  if (pointsWinner) return pointsWinner
+
+  // Fallback: game_score differential (imperfect — see note above)
+  const score = game?.game_score
   if (score && score !== '0-0') {
     const [p1, p2] = score.split('-').map(Number)
     if (idx === 0) return p1 > p2 ? 1 : 2
@@ -132,7 +140,7 @@ function computeGameWinner(games: any[], idx: number): 1 | 2 | null {
     if (p2 > pp2) return 2
   }
 
-  return inferWinnerFromPoints(game)
+  return null
 }
 
 // ── Pair match checker for H2H filtering ────────────────────────────────────
