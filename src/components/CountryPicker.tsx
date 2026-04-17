@@ -1,20 +1,26 @@
 'use client'
 // src/components/CountryPicker.tsx
 //
-// Branded custom dropdown for picking the user's region. Native <select>
-// can't render images or colored SVGs in <option> elements (browser
-// limitation), so this is a custom replacement that supports:
+// Branded searchable region picker. Native <select> can't render flag
+// images and doesn't support inline search, so this is a custom combobox.
 //
-// - Real flag images (self-hosted in /flags/, same source the rest of the
-//   app uses for FlagImg)
-// - A green stroke "map pin" SVG for the auto/use-my-location option
-// - Click-outside-to-close
-// - Keyboard escape to close
-// - Scrollable list capped at ~280px so it doesn't dominate the screen
-// - Mobile-friendly (positioned below the trigger, doesn't try to
-//   anchor to viewport edges)
+// Features:
+// - Flag images with the V3 chunky badge clip-path (same silhouette as
+//   every other flag chip across the app)
+// - Typeahead filter — user types, list narrows (case- + diacritic-
+//   insensitive match on country name OR ISO code)
+// - "Use my location (auto)" option pinned at the top
+// - Click-outside / Escape to close
+// - Keyboard navigation: ↑ ↓ to move highlight, Enter to commit
+// - Empty-state message when the filter matches nothing
+//
+// Mobile-friendly: input auto-focuses on open, popover anchored below
+// the trigger, max-height 280px.
+//
+// The trigger and popover share the V3 CHUNKY_BUTTON clip-path so the
+// whole thing reads as one unit.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 
 export interface CountryOption {
   iso2: string
@@ -35,36 +41,99 @@ const BG_CARD2 = '#0F0F0F'
 const BORDER = 'rgba(255,255,255,0.10)'
 
 const CHUNKY_BUTTON = 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)'
+// Same angular shape BadgeIcon uses — matches the rest of the app's chunky flags.
+const CHUNKY_FLAG = 'polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%)'
+
+// Normalize a string for fuzzy search: lowercase + strip diacritics.
+function norm(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+}
 
 export default function CountryPicker({ options, value, onChange, disabled }: CountryPickerProps) {
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [highlight, setHighlight] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
-  // Close on click outside
+  // Close on click outside / Escape
   useEffect(() => {
     if (!open) return
     function onPointerDown(e: PointerEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
     }
     document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey as unknown as EventListener)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('keydown', onKey as unknown as EventListener)
     }
   }, [open])
 
-  // Look up the currently selected option (or null = auto)
+  // Focus the search input when opening + reset query
+  useEffect(() => {
+    if (open) {
+      setQuery('')
+      setHighlight(0)
+      // rAF ensures the input exists before focusing
+      requestAnimationFrame(() => inputRef.current?.focus())
+    }
+  }, [open])
+
   const selected = value ? options.find(c => c.iso2 === value) ?? null : null
+
+  // Filtered option list. Empty query = all options; the auto-option is
+  // rendered separately so it stays above the divider.
+  const filtered = useMemo(() => {
+    const q = norm(query.trim())
+    if (!q) return options
+    return options.filter(c =>
+      norm(c.name).includes(q) || c.iso2.toLowerCase().includes(q),
+    )
+  }, [options, query])
+
+  // Keep highlight in range when the filter changes
+  useEffect(() => {
+    if (highlight >= filtered.length) setHighlight(Math.max(0, filtered.length - 1))
+  }, [filtered.length, highlight])
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    const list = listRef.current
+    if (!list) return
+    const el = list.querySelector<HTMLElement>(`[data-idx="${highlight}"]`)
+    if (el) el.scrollIntoView({ block: 'nearest' })
+  }, [highlight, filtered.length])
+
+  function commit(iso2: string) {
+    void onChange(iso2)
+    setOpen(false)
+  }
+
+  function onInputKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlight(h => Math.min(h + 1, filtered.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlight(h => Math.max(h - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const item = filtered[highlight]
+      if (item) commit(item.iso2)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setOpen(false)
+    }
+  }
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* ── Trigger button (closed state shows current selection) ── */}
+      {/* ── Trigger (closed) ── */}
       <button
         type="button"
         onClick={() => !disabled && setOpen(o => !o)}
@@ -88,15 +157,23 @@ export default function CountryPicker({ options, value, onChange, disabled }: Co
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <CurrentDisplay selected={selected} />
-        <span style={{ flex: 1 }} />
+        {selected ? (
+          <>
+            <ChunkyFlag country={selected.iso2} size={22} />
+            <span style={{ color: '#fff', fontSize: 13, flex: 1 }}>{selected.name}</span>
+          </>
+        ) : (
+          <>
+            <LocationIcon />
+            <span style={{ color: '#fff', fontSize: 13, flex: 1 }}>Use my location (auto)</span>
+          </>
+        )}
         <Chevron open={open} />
       </button>
 
-      {/* ── Popover dropdown list ── */}
+      {/* ── Popover ── */}
       {open && (
         <div
-          role="listbox"
           style={{
             position: 'absolute',
             top: 'calc(100% + 4px)',
@@ -105,37 +182,105 @@ export default function CountryPicker({ options, value, onChange, disabled }: Co
             background: BG_CARD,
             border: `1px solid ${BORDER}`,
             clipPath: CHUNKY_BUTTON,
-            maxHeight: 280,
-            overflowY: 'auto',
             zIndex: 50,
             boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          {/* Auto option (always at the top) */}
-          <Option
-            isAuto
-            isSelected={value === ''}
-            onClick={() => {
-              void onChange('')
-              setOpen(false)
-            }}
-          />
+          {/* Search input */}
+          <div style={{ padding: 10, borderBottom: `1px solid ${BORDER}` }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: BG_CARD2,
+              border: `1px solid ${BORDER}`,
+              padding: '6px 10px',
+              clipPath: CHUNKY_BUTTON,
+            }}>
+              <SearchIcon />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={e => { setQuery(e.target.value); setHighlight(0) }}
+                onKeyDown={onInputKey}
+                placeholder="Search country…"
+                aria-label="Search country"
+                style={{
+                  flex: 1,
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: '#fff',
+                  fontSize: 13,
+                  fontFamily: 'inherit',
+                  padding: 0,
+                }}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => { setQuery(''); inputRef.current?.focus() }}
+                  aria-label="Clear search"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: MUTED,
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <ClearIcon />
+                </button>
+              )}
+            </div>
+          </div>
 
-          {/* Divider */}
-          <div style={{ height: 1, background: BORDER, margin: '2px 0' }} />
+          {/* List */}
+          <div
+            ref={listRef}
+            role="listbox"
+            style={{ maxHeight: 240, overflowY: 'auto', padding: '4px 0' }}
+          >
+            {/* Auto option — always first, only shown when query is empty */}
+            {query.trim() === '' && (
+              <>
+                <Option
+                  isAuto
+                  isSelected={value === ''}
+                  onClick={() => commit('')}
+                />
+                <div style={{ height: 1, background: BORDER, margin: '2px 8px' }} />
+              </>
+            )}
 
-          {/* Country options */}
-          {options.map(c => (
-            <Option
-              key={c.iso2}
-              country={c}
-              isSelected={value === c.iso2}
-              onClick={() => {
-                void onChange(c.iso2)
-                setOpen(false)
-              }}
-            />
-          ))}
+            {filtered.length === 0 ? (
+              <div style={{
+                padding: '16px 14px',
+                fontSize: 12,
+                color: MUTED,
+                textAlign: 'center',
+              }}>
+                No country matches "{query}"
+              </div>
+            ) : (
+              filtered.map((c, idx) => (
+                <Option
+                  key={c.iso2}
+                  country={c}
+                  isSelected={value === c.iso2}
+                  isHighlighted={idx === highlight}
+                  dataIdx={idx}
+                  onClick={() => commit(c.iso2)}
+                  onMouseEnter={() => setHighlight(idx)}
+                />
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -144,43 +289,39 @@ export default function CountryPicker({ options, value, onChange, disabled }: Co
 
 // ── Sub-components ─────────────────────────────────────────────
 
-function CurrentDisplay({ selected }: { selected: CountryOption | null }) {
-  if (selected) {
-    return (
-      <>
-        <FlagImg country={selected.iso2} size={20} />
-        <span style={{ color: '#fff', fontSize: 13 }}>{selected.name}</span>
-      </>
-    )
-  }
-  return (
-    <>
-      <LocationIcon />
-      <span style={{ color: '#fff', fontSize: 13 }}>Use my location (auto)</span>
-    </>
-  )
-}
-
 function Option({
   country,
   isAuto = false,
   isSelected,
+  isHighlighted,
+  dataIdx,
   onClick,
+  onMouseEnter,
 }: {
   country?: CountryOption
   isAuto?: boolean
   isSelected: boolean
+  isHighlighted?: boolean
+  dataIdx?: number
   onClick: () => void
+  onMouseEnter?: () => void
 }) {
+  const bg = isSelected
+    ? BG_CARD2
+    : isHighlighted
+      ? 'rgba(255,255,255,0.05)'
+      : 'transparent'
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
       role="option"
       aria-selected={isSelected}
+      data-idx={dataIdx}
       style={{
         width: '100%',
-        background: isSelected ? BG_CARD2 : 'transparent',
+        background: bg,
         color: '#fff',
         border: 'none',
         padding: '10px 14px',
@@ -192,51 +333,49 @@ function Option({
         gap: 10,
         textAlign: 'left',
       }}
-      onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) e.currentTarget.style.background = 'transparent'
-      }}
     >
-      {isAuto ? <LocationIcon /> : country && <FlagImg country={country.iso2} size={20} />}
+      {isAuto ? <LocationIcon /> : country && <ChunkyFlag country={country.iso2} size={22} />}
       <span style={{ flex: 1 }}>{isAuto ? 'Use my location (auto)' : country?.name}</span>
       {isSelected && <Check />}
     </button>
   )
 }
 
-function FlagImg({ country, size }: { country: string; size: number }) {
+function ChunkyFlag({ country, size }: { country: string; size: number }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${country.toLowerCase()}.png`}
-      alt=""
-      width={size}
-      height={Math.round(size * 0.75)}
+    <div
       style={{
         width: size,
         height: Math.round(size * 0.75),
-        objectFit: 'cover',
+        clipPath: CHUNKY_FLAG,
+        overflow: 'hidden',
         flexShrink: 0,
-        borderRadius: 1,
       }}
-    />
+      aria-hidden="true"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/flags/${country.toLowerCase()}.png`}
+        alt=""
+        width={size}
+        height={Math.round(size * 0.75)}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+        }}
+      />
+    </div>
   )
 }
 
 function LocationIcon() {
-  // Lucide-style stroke "map-pin", colored with the brand green.
   return (
     <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={GREEN}
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      width="18" height="18" viewBox="0 0 24 24"
+      fill="none" stroke={GREEN} strokeWidth="2.2"
+      strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true"
       style={{ flexShrink: 0 }}
     >
@@ -246,17 +385,41 @@ function LocationIcon() {
   )
 }
 
+function SearchIcon() {
+  return (
+    <svg
+      width="14" height="14" viewBox="0 0 24 24"
+      fill="none" stroke={MUTED} strokeWidth="2.5"
+      strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="M21 21l-4.35-4.35" />
+    </svg>
+  )
+}
+
+function ClearIcon() {
+  return (
+    <svg
+      width="12" height="12" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" strokeWidth="2.5"
+      strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+
 function Chevron({ open }: { open: boolean }) {
   return (
     <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={MUTED}
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      width="14" height="14" viewBox="0 0 24 24"
+      fill="none" stroke={MUTED} strokeWidth="2.5"
+      strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true"
       style={{
         flexShrink: 0,
@@ -272,14 +435,9 @@ function Chevron({ open }: { open: boolean }) {
 function Check() {
   return (
     <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={GREEN}
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      width="14" height="14" viewBox="0 0 24 24"
+      fill="none" stroke={GREEN} strokeWidth="3"
+      strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true"
       style={{ flexShrink: 0 }}
     >
