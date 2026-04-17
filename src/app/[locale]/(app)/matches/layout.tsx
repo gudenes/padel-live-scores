@@ -1,16 +1,19 @@
-import type { Metadata } from 'next'
-import { buildAlternates } from '@/lib/seo-helpers'
+// src/app/[locale]/(app)/matches/layout.tsx
+// Localised metadata — reads "seo.matches" from the active locale.
 
-export const metadata: Metadata = {
-  title: 'Live Scores & Results',
-  description: 'Live padel match scores updated in real time. Follow Premier Padel and FIP tournaments point by point with instant results.',
-  openGraph: {
-    title: 'Live Scores & Results | Padel Nachos',
-    description: 'Live padel match scores updated in real time. Follow Premier Padel and FIP tournaments point by point.',
-  },
-  ...buildAlternates('/matches'),
+import type { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo-metadata'
+
+type Props = {
+  params: Promise<{ locale: string }>
+  children: React.ReactNode
 }
 
-export default function ScoresLayout({ children }: { children: React.ReactNode }) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params
+  return buildPageMetadata({ locale, pageKey: 'matches', path: '/matches' })
+}
+
+export default function ScoresLayout({ children }: Props) {
   return <>{children}</>
 }

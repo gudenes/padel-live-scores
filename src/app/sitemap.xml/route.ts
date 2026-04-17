@@ -25,6 +25,7 @@ export async function GET() {
     { loc: `${BASE_URL}/sitemap-tournaments.xml`, lastmod: now },
     { loc: `${BASE_URL}/sitemap-matches.xml`, lastmod: now },
     { loc: `${BASE_URL}/sitemap-players.xml`, lastmod: now },
+    { loc: `${BASE_URL}/sitemap-daily.xml`, lastmod: now },
   ])
 
   return xmlResponse(body, revalidate)

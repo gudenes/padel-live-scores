@@ -1,12 +1,27 @@
 import { NextIntlClientProvider, hasLocale } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import { routing } from '@/i18n/routing'
 import { BookmarkToastProvider } from '@/components/BookmarkToast'
 import { LoginSheetProvider } from '@/components/LoginSheetProvider'
+import { buildLocaleRootMetadata } from '@/lib/seo-metadata'
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
+}
+
+// Localised fallback metadata — covers any descendant page that doesn't
+// set its own title/description. Child layouts (home, matches, rankings,
+// etc.) override these via their own generateMetadata. Without this, the
+// root layout's English metadata would leak into every locale, blocking
+// organic ranking on non-English queries.
+export async function generateMetadata(
+  { params }: { params: Promise<{ locale: string }> },
+): Promise<Metadata> {
+  const { locale } = await params
+  if (!hasLocale(routing.locales, locale)) return {}
+  return buildLocaleRootMetadata(locale)
 }
 
 export default async function LocaleLayout({

@@ -386,7 +386,9 @@
   "footer": {
     "about": "À propos",
     "privacyPolicy": "Politique de confidentialité",
-    "termsOfService": "Conditions d'utilisation"
+    "termsOfService": "Conditions d'utilisation",
+    "todaySchedule": "Matchs du jour",
+    "yesterdayResults": "Résultats d'hier"
   },
   "common": {
     "back": "Retour",
@@ -488,5 +490,51 @@
       "label": "Notifications",
       "sub": "Choisissez pour quoi être notifié"
     }
+  },
+  "seo": {
+    "root": {
+      "description": "Suivez chaque point en direct. Résultats en temps réel, classement des joueurs, tableaux des tournois, highlights et actualités Premier Padel et FIP."
+    },
+    "home": {
+      "title": "Résultats padel en direct — Scores et classements",
+      "description": "Suivez chaque point en direct. Scores, classement, tableaux, highlights et actualités Premier Padel et FIP, le tout dans une seule app."
+    },
+    "matches": {
+      "title": "Résultats et scores padel en direct",
+      "description": "Résultats de matchs de padel en direct mis à jour en temps réel. Suivez Premier Padel et FIP point par point avec scores instantanés."
+    },
+    "rankings": {
+      "title": "Classement padel — FIP et Premier Padel",
+      "description": "Classement officiel FIP et race ranking du padel. Suivez les meilleurs joueurs et joueuses du monde avec mises à jour en direct."
+    },
+    "feed": {
+      "title": "Actualités et highlights padel",
+      "description": "Actualités padel, highlights de matchs et vidéos récap Premier Padel, FIP et les meilleures chaînes. Restez à jour sur le padel professionnel."
+    },
+    "about": {
+      "title": "À propos de Padel Nachos — Résultats padel en direct",
+      "description": "Découvrez Padel Nachos, la plateforme gratuite de résultats padel en direct, classement, tableaux et highlights Premier Padel et FIP."
+    },
+    "following": {
+      "title": "Suivis",
+      "description": "Suivez vos joueurs, tournois et matchs favoris au même endroit."
+    },
+    "daily": {
+      "title": "Matchs de padel {date} — Résultats, horaires et scores",
+      "description": "Tous les matchs de padel du {date}. Scores en direct, horaires et résultats Premier Padel et FIP, mis à jour en temps réel."
+    }
+  },
+  "daily": {
+    "backToMatches": "Tous les matchs",
+    "yesterday": "Hier",
+    "today": "Aujourd'hui",
+    "tomorrow": "Demain",
+    "liveSection": "En direct",
+    "upcomingSection": "À venir aujourd'hui",
+    "finishedSection": "Résultats du jour",
+    "noMatchesTitle": "Aucun match ce jour-là",
+    "noMatchesSub": "Essayez les résultats d'hier ou les matchs de demain avec le sélecteur ci-dessus.",
+    "faqHeading": "Questions fréquentes",
+    "approxTime": "horaire approximatif"
   }
 }

@@ -1,16 +1,19 @@
-import type { Metadata } from 'next'
-import { buildAlternates } from '@/lib/seo-helpers'
+// src/app/[locale]/(app)/following/layout.tsx
+// Localised metadata — reads "seo.following" from the active locale.
 
-export const metadata: Metadata = {
-  title: 'Following',
-  description: 'Track your followed players, tournaments, and bookmarked matches all in one place.',
-  openGraph: {
-    title: 'Following | Padel Nachos',
-    description: 'Track your followed players, tournaments, and bookmarked matches.',
-  },
-  ...buildAlternates('/following'),
+import type { Metadata } from 'next'
+import { buildPageMetadata } from '@/lib/seo-metadata'
+
+type Props = {
+  params: Promise<{ locale: string }>
+  children: React.ReactNode
 }
 
-export default function FollowingLayout({ children }: { children: React.ReactNode }) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { locale } = await params
+  return buildPageMetadata({ locale, pageKey: 'following', path: '/following' })
+}
+
+export default function FollowingLayout({ children }: Props) {
   return <>{children}</>
 }

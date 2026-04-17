@@ -386,7 +386,9 @@
   "footer": {
     "about": "Chi siamo",
     "privacyPolicy": "Privacy Policy",
-    "termsOfService": "Termini di Servizio"
+    "termsOfService": "Termini di Servizio",
+    "todaySchedule": "Partite di oggi",
+    "yesterdayResults": "Risultati di ieri"
   },
   "common": {
     "back": "Indietro",
@@ -488,5 +490,51 @@
       "label": "Notifiche",
       "sub": "Scegli per cosa ricevere notifiche"
     }
+  },
+  "seo": {
+    "root": {
+      "description": "Segui ogni punto in diretta. Risultati in tempo reale, classifica giocatori, tabelloni dei tornei, highlights e news da Premier Padel e FIP."
+    },
+    "home": {
+      "title": "Risultati padel in diretta — Punteggi e classifica",
+      "description": "Segui ogni punto in diretta. Punteggi, classifica, tabelloni, highlights e news da Premier Padel e FIP, tutto in un'unica app."
+    },
+    "matches": {
+      "title": "Risultati e punteggi padel in diretta",
+      "description": "Risultati delle partite di padel in diretta aggiornati in tempo reale. Segui Premier Padel e FIP punto per punto con risultati istantanei."
+    },
+    "rankings": {
+      "title": "Classifica padel — FIP e Premier Padel",
+      "description": "Classifica FIP ufficiale e race ranking del padel. Segui i migliori giocatori e giocatrici al mondo con aggiornamenti in diretta."
+    },
+    "feed": {
+      "title": "News e highlights padel",
+      "description": "News padel, highlights delle partite e video da Premier Padel, FIP e i migliori canali. Resta aggiornato sul padel professionistico."
+    },
+    "about": {
+      "title": "Su Padel Nachos — Risultati padel in diretta",
+      "description": "Scopri Padel Nachos, la piattaforma gratuita di risultati padel in diretta, classifica, tabelloni e highlights di Premier Padel e FIP."
+    },
+    "following": {
+      "title": "Seguiti",
+      "description": "Segui i tuoi giocatori, tornei e partite preferite in un solo posto."
+    },
+    "daily": {
+      "title": "Partite di padel {date} — Risultati, orari e punteggi",
+      "description": "Tutte le partite di padel del {date}. Punteggi in diretta, orari e risultati di Premier Padel e FIP, aggiornati in tempo reale."
+    }
+  },
+  "daily": {
+    "backToMatches": "Tutte le partite",
+    "yesterday": "Ieri",
+    "today": "Oggi",
+    "tomorrow": "Domani",
+    "liveSection": "In diretta",
+    "upcomingSection": "Prossime di oggi",
+    "finishedSection": "Risultati di oggi",
+    "noMatchesTitle": "Nessuna partita in questo giorno",
+    "noMatchesSub": "Prova i risultati di ieri o le partite di domani con il selettore in alto.",
+    "faqHeading": "Domande frequenti",
+    "approxTime": "orario approssimativo"
   }
 }
