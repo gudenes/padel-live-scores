@@ -4,8 +4,8 @@
 // here so it can be unit-tested in isolation and reused beyond the
 // profile page if needed.
 
-import { BADGE_CATALOG, type BadgeDefinition, type EvalType } from '@/lib/badges'
-import type { EarnedBadge } from '@/hooks/useBadges'
+import { BADGE_CATALOG, type BadgeDefinition, type EvalType } from './badges'
+import type { EarnedBadge } from '../hooks/useBadges'
 
 // ── XP ───────────────────────────────────────────────────────────
 
