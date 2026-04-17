@@ -83,9 +83,19 @@ function inferWinnerFromPoints(game: Game): 1 | 2 | null {
 
 function computeGameWinner(games: Game[], idx: number): 1 | 2 | null {
   const game = games[idx]
-  const score = game?.game_score
 
-  // Primary: derive from game_score differential (cumulative games count)
+  // Primary: infer from the points array — this is ground truth.
+  // game_score is a cumulative "before-this-game" counter and comparing
+  // game[idx] vs game[idx-1] actually yields game idx-1's winner (off-by-one).
+  // Points always reflect what happened IN this specific game.
+  const pointsWinner = inferWinnerFromPoints(game)
+  if (pointsWinner) return pointsWinner
+
+  // Fallback: game_score differential — for games that lack points data.
+  // Note: this compares the cumulative tally at the start of this game vs
+  // the previous game, which tells us who won the PREVIOUS game.  Imperfect,
+  // but better than nothing when points are missing.
+  const score = game?.game_score
   if (score && score !== '0-0') {
     const [p1, p2] = score.split('-').map(Number)
     if (idx === 0) return p1 > p2 ? 1 : 2
@@ -96,9 +106,7 @@ function computeGameWinner(games: Game[], idx: number): 1 | 2 | null {
     if (p2 > pp2) return 2
   }
 
-  // Fallback: infer from the points array (handles race condition where
-  // game_score wasn't updated but point data exists)
-  return inferWinnerFromPoints(game)
+  return null
 }
 
 function buildGameSummaries(sets: MatchSet[]): GameSummary[] {
@@ -180,24 +188,25 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
   })
 
   // ── SVG layout ──
-  const svgW = 600
-  const svgH = 234  // 180 × 1.3 = 234 (30% taller)
+  // Dynamic width: size the viewBox to fit the actual number of games
+  // so bars fill the available space instead of clustering on the left.
+  const svgH = 234
   const centerY = svgH / 2
-  const pad = { left: 4, right: 4, top: 24, bottom: 8 }
-  const chartW = svgW - pad.left - pad.right
-  const chartH = svgH - pad.top - pad.bottom
-  // Fixed width: assume max 3 sets × 13 games = 39 games
-  const maxGames = 39
-  const barGap = 3
-  const barWidth = Math.max(6, (chartW - barGap * (maxGames - 1)) / maxGames) * 1.15  // 15% wider
+  const pad = { left: 4, right: 50, top: 14, bottom: 4 }  // tight vertical padding so bars fill height
   const totalGames = allGames.length
+  const barGap = 3
+  const targetBarWidth = 14
+  const barWidth = Math.max(8, targetBarWidth)
   const totalBarsW = totalGames * barWidth + (totalGames - 1) * barGap
+  const svgW = Math.max(300, totalBarsW + pad.left + pad.right)
+  const chartH = svgH - pad.top - pad.bottom
   const barsStartX = pad.left
 
-  const maxPts = Math.max(5, ...allGames.map(g => Math.max(g.p1Points, g.p2Points)))
-  const barScale = (chartH / 2 - 6) / maxPts
+  const maxPts = Math.max(4, ...allGames.map(g => Math.max(g.p1Points, g.p2Points)))
+  const barScale = (chartH / 2) / maxPts  // no safety margin — bars stretch to full half-height
 
-  // Set boundary positions with winner info
+  // Set boundary positions with winner info — between consecutive sets
+  // PLUS a trailing label after the final set so its score is always visible
   const setBoundaries: { x: number; score: string; winner: 1 | 2 | null }[] = []
   for (let i = 1; i < allGames.length; i++) {
     if (allGames[i].setNumber !== allGames[i - 1].setNumber) {
@@ -207,6 +216,17 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
       const sc = setScores[setIdx]
       const winner = sc ? (sc.p1 > sc.p2 ? 1 : sc.p2 > sc.p1 ? 2 : null) : null
       setBoundaries.push({ x: (x1 + x2) / 2, score: sc?.label ?? '', winner })
+    }
+  }
+  // Trailing label for the final set (no next set to create a boundary)
+  if (allGames.length > 0 && !isLive) {
+    const lastGame = allGames[allGames.length - 1]
+    const lastSetIdx = lastGame.setNumber - 1
+    const sc = setScores[lastSetIdx]
+    if (sc) {
+      const lastBarX = barsStartX + (allGames.length - 1) * (barWidth + barGap) + barWidth
+      const winner = sc.p1 > sc.p2 ? 1 : sc.p2 > sc.p1 ? 2 : null
+      setBoundaries.push({ x: lastBarX + barGap * 3, score: sc.label, winner })
     }
   }
 
@@ -275,22 +295,24 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
             {/* Center line */}
             <line x1={pad.left} y1={centerY} x2={svgW - pad.right} y2={centerY} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
 
-            {/* Set boundary lines with large score at top (pair1 won) or bottom (pair2 won) */}
+            {/* Set boundary lines with score label centered on the divider */}
             {setBoundaries.map((b, i) => {
               const color = b.winner === 1 ? P1_COLOR : b.winner === 2 ? P2_COLOR : '#64748B'
-              // Position score at top of chart if pair1 won, bottom if pair2 won
-              const scoreY = b.winner === 1 ? pad.top + 6 : b.winner === 2 ? svgH - pad.bottom - 6 : centerY
-              const anchor = b.winner === 1 ? 'hanging' : b.winner === 2 ? 'auto' : 'middle'
               return (
                 <g key={`setb-${i}`}>
                   <line x1={b.x} y1={pad.top} x2={b.x} y2={svgH - pad.bottom} stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
-                  {/* Large set score — 2x size (was 9, now 20) */}
+                  {/* Dark pill behind the score so it's visible over bars */}
+                  <rect
+                    x={b.x - 22} y={centerY - 12}
+                    width={44} height={24} rx={4}
+                    fill="rgba(0,0,0,0.7)"
+                  />
                   <text
-                    x={b.x} y={scoreY}
-                    textAnchor="middle" dominantBaseline={anchor}
-                    fontSize={20} fontWeight={900}
+                    x={b.x} y={centerY}
+                    textAnchor="middle" dominantBaseline="central"
+                    fontSize={16} fontWeight={900}
                     fontFamily="var(--font-mono), monospace"
-                    fill={color} opacity={0.85}
+                    fill={color}
                   >
                     {b.score}
                   </text>
