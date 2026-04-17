@@ -192,7 +192,7 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
   // so bars fill the available space instead of clustering on the left.
   const svgH = 234
   const centerY = svgH / 2
-  const pad = { left: 4, right: 50, top: 24, bottom: 8 }  // right pad for trailing set label
+  const pad = { left: 4, right: 50, top: 14, bottom: 4 }  // tight vertical padding so bars fill height
   const totalGames = allGames.length
   const barGap = 3
   const targetBarWidth = 14
@@ -202,8 +202,8 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
   const chartH = svgH - pad.top - pad.bottom
   const barsStartX = pad.left
 
-  const maxPts = Math.max(5, ...allGames.map(g => Math.max(g.p1Points, g.p2Points)))
-  const barScale = (chartH / 2 - 6) / maxPts
+  const maxPts = Math.max(4, ...allGames.map(g => Math.max(g.p1Points, g.p2Points)))
+  const barScale = (chartH / 2) / maxPts  // no safety margin — bars stretch to full half-height
 
   // Set boundary positions with winner info — between consecutive sets
   // PLUS a trailing label after the final set so its score is always visible
@@ -295,22 +295,24 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
             {/* Center line */}
             <line x1={pad.left} y1={centerY} x2={svgW - pad.right} y2={centerY} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
 
-            {/* Set boundary lines with large score at top (pair1 won) or bottom (pair2 won) */}
+            {/* Set boundary lines with score label centered on the divider */}
             {setBoundaries.map((b, i) => {
               const color = b.winner === 1 ? P1_COLOR : b.winner === 2 ? P2_COLOR : '#64748B'
-              // Position score at top of chart if pair1 won, bottom if pair2 won
-              const scoreY = b.winner === 1 ? pad.top + 6 : b.winner === 2 ? svgH - pad.bottom - 6 : centerY
-              const anchor = b.winner === 1 ? 'hanging' : b.winner === 2 ? 'auto' : 'middle'
               return (
                 <g key={`setb-${i}`}>
                   <line x1={b.x} y1={pad.top} x2={b.x} y2={svgH - pad.bottom} stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
-                  {/* Large set score — 2x size (was 9, now 20) */}
+                  {/* Dark pill behind the score so it's visible over bars */}
+                  <rect
+                    x={b.x - 22} y={centerY - 12}
+                    width={44} height={24} rx={4}
+                    fill="rgba(0,0,0,0.7)"
+                  />
                   <text
-                    x={b.x} y={scoreY}
-                    textAnchor="middle" dominantBaseline={anchor}
-                    fontSize={20} fontWeight={900}
+                    x={b.x} y={centerY}
+                    textAnchor="middle" dominantBaseline="central"
+                    fontSize={16} fontWeight={900}
                     fontFamily="var(--font-mono), monospace"
-                    fill={color} opacity={0.85}
+                    fill={color}
                   >
                     {b.score}
                   </text>
