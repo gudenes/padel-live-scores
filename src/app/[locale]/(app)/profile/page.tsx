@@ -24,6 +24,7 @@ import {
   ChevronRightIcon,
 } from '@/components/icons'
 import { BadgeIcon } from '@/components/BadgeIcon'
+import { BadgeTooltip } from '@/components/BadgeTooltip'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -335,10 +336,11 @@ function AvatarBlock({
         </div>
         {tierMeta && tier !== null && (
           <div style={{
-            position: 'absolute', bottom: 4, right: 4,
-            transform: 'translate(25%, 25%)',
+            position: 'absolute',
+            bottom: 0, left: '50%',
+            transform: 'translate(-50%, 50%)',
             clipPath: V3.clip.badge,
-            padding: '3px 7px',
+            padding: '3px 9px',
             fontSize: 9, fontWeight: 800, letterSpacing: 0.3,
             textTransform: 'uppercase',
             color: tierMeta.color,
@@ -458,7 +460,18 @@ interface LatestAchievementsStripProps {
 }
 
 function LatestAchievementsStrip({ header, earnedBadges, counts }: LatestAchievementsStripProps) {
+  const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(null)
   const tiles = buildLatestAchievementsTiles(earnedBadges, counts)
+
+  // Earned-tier lookup for the tooltip
+  const earnedMax = new Map<string, number>()
+  for (const e of earnedBadges) {
+    const prev = earnedMax.get(e.badge_id) ?? 0
+    if (e.tier > prev) earnedMax.set(e.badge_id, e.tier)
+  }
+  const selectedBadge = selectedBadgeId
+    ? BADGE_CATALOG.find(b => b.id === selectedBadgeId) ?? null
+    : null
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -475,10 +488,23 @@ function LatestAchievementsStrip({ header, earnedBadges, counts }: LatestAchieve
         scrollbarWidth: 'none',
       }}>
         {tiles.map((tile, idx) => (
-          <div key={`${tile.badgeId}-${tile.tier ?? 'locked'}-${idx}`} style={{
-            width: 72, flexShrink: 0,
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-          }}>
+          <button
+            key={`${tile.badgeId}-${tile.tier ?? 'locked'}-${idx}`}
+            type="button"
+            onClick={() => setSelectedBadgeId(tile.badgeId)}
+            aria-label={`View ${tile.label}`}
+            style={{
+              width: 72, flexShrink: 0,
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              color: 'inherit',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
             <BadgeIcon svgIcon={tile.svgIcon} tier={tile.tier} size={48} />
             <div style={{
               marginTop: 6, fontSize: 10, fontWeight: 700, color: '#fff',
@@ -499,9 +525,17 @@ function LatestAchievementsStrip({ header, earnedBadges, counts }: LatestAchieve
                 {tile.progress}
               </div>
             )}
-          </div>
+          </button>
         ))}
       </div>
+
+      {selectedBadge && (
+        <BadgeTooltip
+          badge={selectedBadge}
+          earnedTier={earnedMax.get(selectedBadge.id) ?? null}
+          onClose={() => setSelectedBadgeId(null)}
+        />
+      )}
     </div>
   )
 }
