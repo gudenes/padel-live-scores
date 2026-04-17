@@ -1472,6 +1472,52 @@ function MatchListItem({
   )
 }
 
+// Renders two overlapping country flags — first player top-left, second
+// offset down-and-right by 6px. Used in match-history team rows.
+function FlagPair({
+  p1,
+  p2,
+  dimmed = false,
+  serving = false,
+}: {
+  p1: PartnerInfo | null
+  p2: PartnerInfo | null
+  dimmed?: boolean
+  serving?: boolean
+}) {
+  return (
+    <div style={{
+      flexShrink: 0, width: 22, height: 18, position: 'relative',
+    }}>
+      {serving && (
+        <span style={{
+          position: 'absolute', top: -2, left: -2, width: 5, height: 5,
+          borderRadius: '50%', background: ORANGE, zIndex: 3,
+          boxShadow: `0 0 0 1px ${BG_CARD}`,
+        }} />
+      )}
+      {/* Flag 1 — top-left, on top */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, zIndex: 2,
+        boxShadow: `0 0 0 1px ${BG_CARD}`,
+        opacity: dimmed ? 0.45 : 1,
+        filter: dimmed ? 'saturate(0.6)' : 'none',
+      }}>
+        <FlagImg country={p1?.country ?? null} size={14} />
+      </div>
+      {/* Flag 2 — offset down-and-right, behind */}
+      <div style={{
+        position: 'absolute', top: 6, left: 6, zIndex: 1,
+        boxShadow: `0 0 0 1px ${BG_CARD}`,
+        opacity: dimmed ? 0.45 : 1,
+        filter: dimmed ? 'saturate(0.6)' : 'none',
+      }}>
+        <FlagImg country={p2?.country ?? null} size={14} />
+      </div>
+    </div>
+  )
+}
+
 function MatchesTab({
   matches, playerId, router, format,
 }: {
