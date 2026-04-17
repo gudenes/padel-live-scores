@@ -7,12 +7,10 @@
 // Logged in, already opted-in → "✓ You'll be notified" disabled
 
 import { useEffect, useState, useCallback } from 'react'
-import dynamic from 'next/dynamic'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/components/AuthProvider'
+import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { useTranslations } from 'next-intl'
-
-const LoginSheet = dynamic(() => import('@/components/LoginSheet'), { ssr: false })
 
 const FEATURE_KEY = 'padel_genius'
 
@@ -32,7 +30,7 @@ export default function PadelGeniusTeaser() {
 
   const [optedIn, setOptedIn] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [loginOpen, setLoginOpen] = useState(false)
+  const { openLoginSheet } = useLoginSheet()
 
   // Check if the current user has already opted in
   useEffect(() => {
@@ -65,7 +63,7 @@ export default function PadelGeniusTeaser() {
     if (submitting) return
 
     if (!user) {
-      setLoginOpen(true)
+      openLoginSheet()
       return
     }
 
@@ -181,8 +179,6 @@ export default function PadelGeniusTeaser() {
       >
         {buttonLabel}
       </button>
-
-      <LoginSheet open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   )
 }
