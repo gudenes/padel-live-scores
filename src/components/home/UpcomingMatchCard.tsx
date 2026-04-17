@@ -16,11 +16,16 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
   const format = useFormatter()
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
-  const time = match.scheduled_at
-    ? format.dateTime(new Date(match.scheduled_at), TIME_24H)
+  // Detect date-only scheduled_at (midnight UTC = no real time from padelapi)
+  const scheduledDate = match.scheduled_at ? new Date(match.scheduled_at) : null
+  const hasTime = scheduledDate
+    ? scheduledDate.getUTCHours() !== 0 || scheduledDate.getUTCMinutes() !== 0
+    : false
+  const time = hasTime
+    ? format.dateTime(scheduledDate!, TIME_24H)
     : ''
   const date = match.scheduled_at
-    ? format.dateTime(new Date(match.scheduled_at), DATE_SHORT)
+    ? format.dateTime(scheduledDate!, DATE_SHORT)
     : ''
   const tournament = (match as any).tournament
   const isLive = match.status === 'live'

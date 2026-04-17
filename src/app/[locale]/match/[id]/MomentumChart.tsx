@@ -57,18 +57,48 @@ function extractPointScorers(game: Game): { scorer: 1 | 2 }[] {
   return result
 }
 
+/**
+ * Infer game winner from the points[] array when game_score-based
+ * differential isn't available. Mirrors the server-side determineGameWinner
+ * in score-inference.ts — last recorded point tells us who was ahead.
+ */
+function inferWinnerFromPoints(game: Game): 1 | 2 | null {
+  const pts = (game.points ?? []).filter(p => p !== '0:0')
+  if (pts.length === 0) return null
+  const last = pts[pts.length - 1]
+  const parts = last.split(':')
+  if (parts.length !== 2) return null
+  const [raw1, raw2] = parts
+  // Standard scoring hierarchy: 0 < 15 < 30 < 40 < A
+  const STD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4 }
+  const v1 = STD[raw1], v2 = STD[raw2]
+  if (v1 !== undefined && v2 !== undefined) {
+    return v1 !== v2 ? (v1 > v2 ? 1 : 2) : null
+  }
+  // Tiebreak / numeric fallback
+  const n1 = parseInt(raw1, 10), n2 = parseInt(raw2, 10)
+  if (!isNaN(n1) && !isNaN(n2) && n1 !== n2) return n1 > n2 ? 1 : 2
+  return null
+}
+
 function computeGameWinner(games: Game[], idx: number): 1 | 2 | null {
   const game = games[idx]
   const score = game?.game_score
-  if (!score || score === '0-0') return null
-  const [p1, p2] = score.split('-').map(Number)
-  if (idx === 0) return p1 > p2 ? 1 : 2
-  const prev = games[idx - 1]?.game_score
-  if (!prev || prev === '0-0') return p1 > p2 ? 1 : 2
-  const [pp1, pp2] = prev.split('-').map(Number)
-  if (p1 > pp1) return 1
-  if (p2 > pp2) return 2
-  return null
+
+  // Primary: derive from game_score differential (cumulative games count)
+  if (score && score !== '0-0') {
+    const [p1, p2] = score.split('-').map(Number)
+    if (idx === 0) return p1 > p2 ? 1 : 2
+    const prev = games[idx - 1]?.game_score
+    if (!prev || prev === '0-0') return p1 > p2 ? 1 : 2
+    const [pp1, pp2] = prev.split('-').map(Number)
+    if (p1 > pp1) return 1
+    if (p2 > pp2) return 2
+  }
+
+  // Fallback: infer from the points array (handles race condition where
+  // game_score wasn't updated but point data exists)
+  return inferWinnerFromPoints(game)
 }
 
 function buildGameSummaries(sets: MatchSet[]): GameSummary[] {

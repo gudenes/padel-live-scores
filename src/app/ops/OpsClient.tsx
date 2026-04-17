@@ -3,12 +3,13 @@
 // Client component: renders the ops dashboard and polls every 30s.
 
 import { useEffect, useState, useCallback } from 'react'
-// Entry-list / draw-editor / schedule-review / readiness tabs removed — padelapi is the
-// source of truth for matches now. Component files remain on disk for documentation.
+// Entry-list / draw-editor / readiness tabs removed — padelapi is the source of truth
+// for matches now. Schedule tab kept — padelapi doesn't publish match times yet.
 import SimulatorTab from './SimulatorTab'
 import PlayersTab from './PlayersTab'
 import ArchitectureTab from './ArchitectureTab'
 import BrandsTab from './BrandsTab'
+import ScheduleTab from './ScheduleTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -306,7 +307,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'schedule'>('ongoing')
   const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
   const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([])
   const [forcingSyncId, setForcingSyncId] = useState<string | null>(null)
@@ -411,6 +412,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       items: [
         { key: 'players' as const, label: 'Players', badge: null },
         { key: 'brands' as const, label: 'Brands & Equipment', badge: null },
+        { key: 'schedule' as const, label: 'Schedule', badge: null },
         { key: 'architecture' as const, label: 'Architecture', badge: null },
       ],
     },
@@ -880,6 +882,11 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       {tab === 'brands' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Brands &amp; Equipment</div>
         <BrandsTab />
+      </>}
+
+      {tab === 'schedule' && <>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Schedule Review</div>
+        <ScheduleTab />
       </>}
 
       {tab === 'architecture' && <>
