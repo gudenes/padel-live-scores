@@ -22,7 +22,7 @@ import { useTranslations } from 'next-intl'
 
 // ── Extracted section components ──────────────────────────────
 import {
-  BG_BASE, CHUNKY, LIVE_SCORE_LEVELS, PAGE_STYLES, SectionTitle,
+  BG_BASE, CHUNKY, LIVE_SCORE_LEVELS, PREMIER_LEVELS, PAGE_STYLES, SectionTitle,
   Tournament, Highlight, RankedPlayer, NewsItem,
 } from '@/components/home/shared'
 import LiveMatchCard from '@/components/home/LiveMatchCard'
@@ -303,7 +303,11 @@ function V3HomePageInner() {
     const level = (m as any).tournament?.level
     return level && LIVE_SCORE_LEVELS.includes(level)
   }).filter(genderFilter)
-  const upcoming = scheduledMatches.filter(m => !!(m.pair1_player1 && m.pair1_player2 && m.pair2_player1 && m.pair2_player2)).filter(genderFilter).slice(0, 10)
+  const upcoming = scheduledMatches
+    .filter(m => !!(m.pair1_player1 && m.pair1_player2 && m.pair2_player1 && m.pair2_player2))
+    .filter(m => PREMIER_LEVELS.includes((m as any).tournament?.level))
+    .filter(genderFilter)
+    .slice(0, 10)
   const filteredRecent = recentMatches.filter(genderFilter)
   const spotlightTournament = upcomingTournaments[0] ?? null
 

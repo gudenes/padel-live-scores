@@ -231,5 +231,6 @@ export const PAGE_STYLES = `
   }
 `
 
+export const PREMIER_LEVELS = ['finals', 'major', 'p1', 'p2']
 // Premier Padel + Platinum have live scoring
-export const LIVE_SCORE_LEVELS = ['finals', 'major', 'p1', 'p2', 'fip_platinum']
+export const LIVE_SCORE_LEVELS = [...PREMIER_LEVELS, 'fip_platinum']
