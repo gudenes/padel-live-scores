@@ -1,19 +1,16 @@
 'use client'
 // src/components/EditorialBlock.tsx
-// Client-side editorial renderer. Rendered inside the tournament detail page's
-// Overview tab (kind='preview') and Recap tab (kind='recap'), so the block
-// lives inside its matching tab — exactly as the Option-A mockup specified.
+// Renders the auto-generated editorial post (preview or recap) inside the
+// tournament page's Story tab. Reads the post from EditorialContext, which
+// is populated server-side by the tournament layout — so the content is in
+// the initial HTML response and Googlebot indexes it on first crawl, with
+// no waiting for JS.
 //
-// Why client-side: the tournament page is 'use client' and manages tab state
-// via useState/URL params. Server-rendering the editorial outside that state
-// would either land it in the wrong place (above all tabs) or require a big
-// refactor. Client fetch keeps the tab integration simple; Google's renderer
-// still picks up the text on JS-enabled crawls, and the text is also surfaced
-// via /matches/[date] + sitemap-daily.xml, so SEO reach is preserved.
+// Also renders nothing when no post exists, so tournaments without editorial
+// coverage look identical to before.
 
-import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { supabase } from '@/lib/supabase'
+import { useEditorial } from './EditorialProvider'
 
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
@@ -22,56 +19,16 @@ const BG_CARD = '#141414'
 const CHUNKY_BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 const CHUNKY_CALLOUT = 'polygon(0% 2%, 100% 0%, 100% 98%, 0% 100%)'
 
-interface Props {
-  tournamentId: string
-  kind: 'preview' | 'recap'
-}
-
-interface Row {
-  headline: string
-  lead: string
-  body_md: string
-  callout_key: string | null
-  callout_value: string | null
-  word_count: number
-  generated_at: string
-}
-
-export function EditorialBlock({ tournamentId, kind }: Props) {
+export function EditorialBlock() {
   const locale = useLocale()
   const t = useTranslations('editorial')
-  const [post, setPost] = useState<Row | null>(null)
-  const [loaded, setLoaded] = useState(false)
+  const post = useEditorial()
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const { data } = await supabase
-          .from('editorial_posts')
-          .select('headline, lead, body_md, callout_key, callout_value, word_count, generated_at')
-          .eq('entity_type', 'tournament')
-          .eq('entity_id', tournamentId)
-          .eq('kind', kind)
-          .eq('locale', locale)
-          .maybeSingle()
-        if (!cancelled) {
-          setPost((data as Row | null) ?? null)
-          setLoaded(true)
-        }
-      } catch {
-        if (!cancelled) setLoaded(true)
-      }
-    }
-    void load()
-    return () => { cancelled = true }
-  }, [tournamentId, kind, locale])
-
-  // Render nothing until we know whether a post exists — avoids layout flash
-  if (!loaded) return null
   if (!post) return null
 
-  const isRecap = kind === 'recap'
+  // Badge reflects the actual post's kind (set by the server-side fetch in
+  // layout.tsx — most recent wins, so recap supersedes preview post-event).
+  const isRecap = post.kind === 'recap'
   const badgeText = isRecap ? t('badgeRecap') : t('badgePreview')
   const badgeColor = isRecap ? GREEN : ORANGE
 
