@@ -16,6 +16,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { V3MatchCard } from '@/components/V3MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
+import { EditorialBlock } from '@/components/EditorialBlock'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -136,8 +137,14 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'recap'>(
-    paramTab === 'recap' ? 'recap' : paramTab === 'matches' ? 'matches' : 'overview'
+  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'story'>(
+    // Map the legacy `?tab=recap` URL param to the new 'story' tab so old
+    // share links and bookmarks keep working.
+    paramTab === 'story' || paramTab === 'recap'
+      ? 'story'
+      : paramTab === 'matches'
+      ? 'matches'
+      : 'overview'
   )
   const stageStripRef = useRef<HTMLDivElement>(null)
 
@@ -238,7 +245,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   const activeTournamentObj = tournaments.find(t => t.id === activeTournament) ?? null
 
-  // Default tab to 'recap' when the tournament is finished and no explicit
+  // Default tab to 'story' when the tournament is finished and no explicit
   // tab was requested via URL. Runs once per tournament load.
   const autoTabSetRef = useRef<string | null>(null)
   useEffect(() => {
@@ -246,7 +253,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     if (autoTabSetRef.current === activeTournamentObj.id) return
     const isFinished = activeTournamentObj.status === 'completed' || activeTournamentObj.status === 'finished'
     if (isFinished) {
-      setPageTab('recap')
+      setPageTab('story')
       autoTabSetRef.current = activeTournamentObj.id
     }
   }, [activeTournamentObj, paramTab])
@@ -614,12 +621,14 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </div>
           )}
 
-          {/* ROW 3: Page tabs — recap leads when the tournament is finished */}
+          {/* ROW 3: Page tabs — Overview (data), Story (editorial + recap),
+              Matches (fixture list). Story is always visible; it shows the
+              auto-generated preview pre-event, auto-switches to recap
+              post-event, and renders the winner card below the editorial
+              once the tournament is finished. */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-            {(['recap', 'overview', 'matches'] as const).map(tab => {
+            {(['overview', 'story', 'matches'] as const).map(tab => {
               const active = pageTab === tab
-              const isFinished = activeTournamentObj?.status === 'completed' || activeTournamentObj?.status === 'finished'
-              if (tab === 'recap' && !isFinished) return null
               return (
                 <button
                   key={tab}
@@ -788,15 +797,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           />
         )}
 
-        {/* ── Recap Tab ── */}
-        {pageTab === 'recap' && (
-          <V3Recap
+        {/* ── Story Tab (editorial preview/recap + winner card) ──
+            Always mounted (not tab-conditional) so the editorial text is
+            in the DOM for Googlebot regardless of which tab is active.
+            CSS display toggle handles visual tab switching. */}
+        <div style={{ display: pageTab === 'story' ? 'block' : 'none' }}>
+          <V3Story
             tournament={activeTournamentObj}
             allMatches={allMatches}
             genderFilter={genderFilter}
             genderColor={genderColor}
           />
-        )}
+        </div>
       </main>
 
       {/* Keyframes */}
@@ -1467,10 +1479,19 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
 }
 
 // ══════════════════════════════════════════════════════════════
-// ── Recap Tab ───────────────────────────────────────────────
+// ── Story Tab ──────────────────────────────────────────────
+//
+// The "Story" tab is the narrative home of the tournament page:
+//   - Pre-event: shows only the auto-generated preview editorial
+//   - Post-event: switches to recap editorial + winner card + round summary
+//
+// The EditorialBlock auto-selects preview/recap based on what exists in
+// editorial_posts, so this component never needs to know which state is
+// active — it just renders the block and the winner card falls through
+// gracefully when no final has been played yet.
 // ══════════════════════════════════════════════════════════════
 
-function V3Recap({ tournament, allMatches, genderFilter, genderColor }: {
+function V3Story({ tournament, allMatches, genderFilter, genderColor }: {
   tournament: any
   allMatches: Match[]
   genderFilter: 'men' | 'women'
@@ -1578,6 +1599,11 @@ function V3Recap({ tournament, allMatches, genderFilter, genderColor }: {
 
   return (
     <div style={{ padding: '14px 14px 20px' }}>
+      {/* Auto-generated editorial — preview pre-event, recap post-event.
+          Reads from EditorialContext (populated server-side in layout.tsx),
+          so the content is in the initial HTML response for Googlebot. */}
+      <EditorialBlock />
+
       {/* Winner card */}
       {finalMatch && getWinner(finalMatch) !== 0 ? (() => {
         const winnerPair = getWinner(finalMatch)
