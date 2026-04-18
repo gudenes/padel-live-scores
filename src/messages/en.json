@@ -491,6 +491,13 @@
       "sub": "Choose what you're notified about"
     }
   },
+  "editorial": {
+    "badgePreview": "Preview",
+    "badgeRecap": "Recap",
+    "byline": "By PadelNachos · {date}",
+    "footNote": "Updated with the latest tournament data",
+    "wordCount": "~{count} words"
+  },
   "seo": {
     "root": {
       "description": "Follow every point live. Real-time scores, player rankings, tournament draws, highlights, and breaking news from Premier Padel and FIP."

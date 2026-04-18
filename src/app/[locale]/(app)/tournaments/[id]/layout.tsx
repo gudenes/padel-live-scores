@@ -1,13 +1,17 @@
 // src/app/[locale]/(app)/tournaments/[id]/layout.tsx
 // Server-side layout wrapper to provide OG metadata + JSON-LD for tournament pages.
 // The page itself is 'use client', so generateMetadata must live here.
+//
+// Also hosts the SSR EditorialHero (Wave 2) — renders auto-generated tournament
+// previews / recaps as the first content block of the page when one exists.
 
 import { Metadata } from 'next'
 import { createServerClient } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
+import { EditorialHero } from '@/components/EditorialHero'
 
 type Props = {
-  params: Promise<{ id: string }>
+  params: Promise<{ locale: string; id: string }>
   children: React.ReactNode
 }
 
@@ -47,10 +51,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function TournamentLayout({ params, children }: Props) {
+  const { id, locale } = await params
   let jsonLd: object | null = null
 
   try {
-    const { id } = await params
     const supabase = createServerClient()
 
     const { data: tournament } = await supabase
@@ -82,6 +86,9 @@ export default async function TournamentLayout({ params, children }: Props) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
+      <div style={{ maxWidth: 500, margin: '0 auto' }}>
+        <EditorialHero tournamentId={id} locale={locale} />
+      </div>
       {children}
     </>
   )
