@@ -17,6 +17,14 @@ const LOCALE_FLAGS: Record<string, { code: string; label: string }> = {
   fr: { code: 'fr', label: 'Français' },
 }
 
+// Writes next-intl's locale-detection cookie so the user's pick sticks
+// across no-prefix navigations. Lives at module scope so the React
+// Compiler's purity check (react-hooks/immutability) doesn't flag it.
+function persistLocaleCookie(loc: string) {
+  if (typeof document === 'undefined') return
+  document.cookie = `NEXT_LOCALE=${loc}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
+}
+
 interface LocaleSwitcherProps {
   /** Size in px (default 28) */
   size?: number
@@ -53,7 +61,15 @@ export default function LocaleSwitcher({ size = 28, direction = 'up' }: LocaleSw
       return
     }
     setOpen(false)
-    router.replace(pathname, { locale: loc })
+
+    // Persist the preference in next-intl's locale-detection cookie.
+    // Without this, router.replace navigates to the new URL, but subsequent
+    // clicks on no-prefix paths (e.g. /home after switching to English)
+    // cause the middleware to fall back to cookie-based detection, read the
+    // stale previous locale, and redirect the user back to the old language.
+    persistLocaleCookie(loc)
+
+    router.replace(pathname, { locale: loc as 'en' | 'es' | 'pt' | 'it' | 'fr' })
   }
 
   const current = LOCALE_FLAGS[locale] ?? LOCALE_FLAGS.en
