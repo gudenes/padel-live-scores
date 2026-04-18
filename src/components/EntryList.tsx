@@ -8,6 +8,7 @@
 
 import * as React from 'react'
 import { Link } from '@/i18n/navigation'
+import { FlagImage } from '@/components/FlagImage'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -64,22 +65,6 @@ export function debutKey(id1: string | null, id2: string | null): string | null 
   return id1 < id2 ? `${id1}|${id2}` : `${id2}|${id1}`
 }
 
-// Flag image — same implementation used elsewhere in the app.
-function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      width={size}
-      height={size * 0.75}
-      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
-    />
-  )
-}
-
 // Avatar with flag overlay in bottom-right corner.
 function AvatarWithFlag({ avatarUrl, country, size = 42 }: {
   avatarUrl: string | null
@@ -122,7 +107,7 @@ function AvatarWithFlag({ avatarUrl, country, size = 42 }: {
         overflow: 'hidden',
         zIndex: 3,
       }}>
-        <FlagImg country={country} size={Math.round(size * 0.4)} />
+        <FlagImage country={country} size={Math.round(size * 0.4)} />
       </div>
     </div>
   )

@@ -4,6 +4,7 @@ import React from 'react'
 import { Link } from '@/i18n/navigation'
 import { Match } from '@/types/match'
 import { useFormatter } from 'next-intl'
+import { FlagImage } from '@/components/FlagImage'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -155,27 +156,13 @@ export function hasPlayers(m: Match): boolean {
   return !!(a.pair1_player1 || a.pair1_player2 || a.pair2_player1 || a.pair2_player2)
 }
 
-// ── Flag image (consistent style, replaces emoji) ──────────────
+// ── Flag image — re-export wrapper around the shared `FlagImage` ──
+// The home subcomponents all render with a subtle 2px radius, so this
+// wrapper defaults `rounded` to true. Callers can still pass through
+// `country` and `size` exactly as before.
 
 export function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      loading="lazy"
-      width={size}
-      height={size * 0.75}
-      style={{
-        borderRadius: 2,
-        objectFit: 'cover',
-        display: 'block',
-        flexShrink: 0,
-      }}
-    />
-  )
+  return <FlagImage country={country} size={size} rounded />
 }
 
 // ── Gender badge (icon badge in corner) ────────────────────────

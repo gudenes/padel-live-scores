@@ -11,6 +11,7 @@ import BottomNav from '@/components/nav/BottomNavV3'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
+import { FlagImage } from '@/components/FlagImage'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
@@ -273,22 +274,6 @@ interface PartnerInfo {
   avatar_url: string | null
 }
 
-// ── Flag image (consistent, no emoji) ─────────────────────────
-function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      width={size}
-      height={size * 0.75}
-      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
-    />
-  )
-}
-
 // Round avatar for a partner/player — uses avatar_url when available,
 // falls back to a gradient circle with the first initial.
 function PartnerAvatar({
@@ -339,7 +324,7 @@ function PartnerAvatar({
         overflow: 'hidden',
         boxShadow: '0 0 0 2px #141414',
       }}>
-        <FlagImg country={partner.country} size={flagW} />
+        <FlagImage country={partner.country} size={flagW} />
       </div>
     </div>
   )
@@ -724,7 +709,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 {titleCase(player.display_name?.trim() || player.name)}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: MUTED, fontSize: 12 }}>
-                {player.country && <FlagImg country={player.country} size={16} />}
+                {player.country && <FlagImage country={player.country} size={16} />}
                 <span>
                   {[
                     player.category ? (player.category === 'men' ? 'Men' : 'Women') : null,
@@ -1388,7 +1373,7 @@ function PartnersTab({
             <PartnerAvatar partner={partner} size={40} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: 5 }}>
-                {partner.country && <FlagImg country={partner.country} size={13} />}
+                {partner.country && <FlagImage country={partner.country} size={13} />}
                 <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {titleCase(partner.display_name?.trim() || partner.name)}
                 </span>
@@ -1447,7 +1432,7 @@ function FlagPair({
         opacity: dimmed ? 0.45 : 1,
         filter: dimmed ? 'saturate(0.6)' : 'none',
       }}>
-        <FlagImg country={p1?.country ?? null} size={14} />
+        <FlagImage country={p1?.country ?? null} size={14} />
       </div>
       {/* Flag 2 — offset down-and-right, behind */}
       <div style={{
@@ -1456,7 +1441,7 @@ function FlagPair({
         opacity: dimmed ? 0.45 : 1,
         filter: dimmed ? 'saturate(0.6)' : 'none',
       }}>
-        <FlagImg country={p2?.country ?? null} size={14} />
+        <FlagImage country={p2?.country ?? null} size={14} />
       </div>
     </div>
   )
@@ -1771,7 +1756,7 @@ function TournamentHeader({
 
   const body = (
     <>
-      {tournament.country && <FlagImg country={tournament.country} size={20} />}
+      {tournament.country && <FlagImage country={tournament.country} size={20} />}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{

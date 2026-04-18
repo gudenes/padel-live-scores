@@ -16,6 +16,7 @@ import { DATE_WITH_WEEKDAY, MONTH_YEAR } from '@/lib/format-patterns'
 import { useMatchPrediction, Prediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
+import { FlagImage } from '@/components/FlagImage'
 import { MatchStatsView } from '@/components/MatchStatsView'
 import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
@@ -49,22 +50,6 @@ const CHUNKY = {
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-}
-
-// ── FlagImg (replaces emoji flags) ──────────────────────────────────────────
-function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      width={size}
-      height={size * 0.75}
-      style={{ objectFit: 'cover', display: 'inline-block', flexShrink: 0, verticalAlign: 'middle' }}
-    />
-  )
 }
 
 // ── Score-flash tracking (module-level, survives remounts) ──────────────────
@@ -1032,7 +1017,7 @@ function PlayerNameLink({ player, dim, muted, bold, router, style }: {
       onClick={player?.id ? () => router.push(`/player/${player.id}`) : undefined}
       style={{ fontSize: 13, fontWeight: bold ? 700 : 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: player?.id ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 4, ...style }}
     >
-      {player?.country && <FlagImg country={player.country} size={14} />}
+      {player?.country && <FlagImage country={player.country} size={14} />}
       {toShortName(player?.display_name ?? player?.name ?? 'TBD')}
     </div>
   )
@@ -2002,10 +1987,10 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
                 {/* Flag stack */}
                 <div style={{ position: 'relative', width: 22, height: 16, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                    <FlagImg country={topP1?.country ?? null} size={14} />
+                    <FlagImage country={topP1?.country ?? null} size={14} />
                   </div>
                   <div style={{ position: 'absolute', top: 4, left: 6, zIndex: 1 }}>
-                    <FlagImg country={topP2?.country ?? null} size={14} />
+                    <FlagImage country={topP2?.country ?? null} size={14} />
                   </div>
                 </div>
                 <span style={{
@@ -2048,10 +2033,10 @@ function H2HTab({ match, h2hMatches, h2hLoading, pair1Label, pair2Label, pair1Re
               }}>
                 <div style={{ position: 'relative', width: 22, height: 16, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                    <FlagImg country={botP1?.country ?? null} size={14} />
+                    <FlagImage country={botP1?.country ?? null} size={14} />
                   </div>
                   <div style={{ position: 'absolute', top: 4, left: 6, zIndex: 1 }}>
-                    <FlagImg country={botP2?.country ?? null} size={14} />
+                    <FlagImage country={botP2?.country ?? null} size={14} />
                   </div>
                 </div>
                 <span style={{
@@ -2218,7 +2203,7 @@ function PlayerCard({ player, winner, accent }: { player: any; winner?: boolean;
         <PlayerAvatar player={player} size={36} winner={winner} accent={accent} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: winner ? '#fff' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
-            {player.country && <FlagImg country={player.country} size={14} />}
+            {player.country && <FlagImage country={player.country} size={14} />}
             {toShortName(player.display_name ?? player.name)}
           </div>
           {player.side && <div style={{ fontSize: 10, color: accent ?? MUTED, marginTop: 1 }}>{player.side === 'drive' ? 'Drive' : 'Backhand'}</div>}

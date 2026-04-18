@@ -18,6 +18,7 @@ import FollowButton from '@/components/FollowButton'
 import { ResultCard } from '@/components/ResultCard'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
+import { FlagImage } from '@/components/FlagImage'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -51,21 +52,6 @@ function titleCase(name: string): string {
 function hasPlayers(m: Match): boolean {
   const a = m as any
   return !!(a.pair1_player1 || a.pair1_player2 || a.pair2_player1 || a.pair2_player2)
-}
-
-function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      width={size}
-      height={size * 0.75}
-      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
-    />
-  )
 }
 
 function shortName(fullName: string | null): string {
@@ -366,10 +352,10 @@ function V3MatchRow({ match }: { match: Match }) {
                 {/* Stacked overlapping dual flags — same pattern as latest results */}
                 <div style={{ position: 'relative', width: 24, height: 18, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                    <FlagImg country={p1?.country ?? null} size={14} />
+                    <FlagImage country={p1?.country ?? null} size={14} />
                   </div>
                   <div style={{ position: 'absolute', top: 5, left: 7, zIndex: 1 }}>
-                    <FlagImg country={p2?.country ?? null} size={14} />
+                    <FlagImage country={p2?.country ?? null} size={14} />
                   </div>
                 </div>
                 <span style={{
@@ -499,7 +485,7 @@ function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
             transition: 'transform 0.3s ease',
           }} />
           {tournament.country ? (
-            <FlagImg country={tournament.country} size={20} />
+            <FlagImage country={tournament.country} size={20} />
           ) : null}
           <Link
             href={`/tournaments/${tournament.id}`}

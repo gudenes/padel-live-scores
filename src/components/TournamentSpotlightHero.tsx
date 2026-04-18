@@ -7,6 +7,7 @@ import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 import { Link } from '@/i18n/navigation'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import FollowButton from '@/components/FollowButton'
+import { FlagImage } from '@/components/FlagImage'
 
 // ── Per-section scroll trigger ────────────────────────────────────
 // Each section gets its own IntersectionObserver so animations fire
@@ -127,23 +128,6 @@ function ChevronRightIcon({ size = 14, color = AMBER }: { size?: number; color?:
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 18l6-6-6-6" />
     </svg>
-  )
-}
-
-// ── Flag image ─────────────────────────────────────────────────
-
-function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      width={size}
-      height={size * 0.75}
-      style={{ borderRadius: 2, objectFit: 'cover', display: 'block', flexShrink: 0 }}
-    />
   )
 }
 
@@ -363,7 +347,7 @@ export default function TournamentSpotlightHero({
         {/* ── Row 2: Flag + tournament name ── */}
         <AnimateOnView className="sp-piece sp-piece-2" style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <FlagImg country={tournament.country} size={28} />
+            <FlagImage country={tournament.country} size={28} rounded />
             <h3 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: 0, lineHeight: 1.2 }}>
               {titleCase(tournament.name)}
             </h3>

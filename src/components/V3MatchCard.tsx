@@ -9,6 +9,7 @@
 // so existing call sites render identically.
 
 import { Link } from '@/i18n/navigation'
+import { FlagImage } from '@/components/FlagImage'
 import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -22,22 +23,6 @@ const BORDER = 'rgba(255,255,255,0.06)'
 const CHUNKY = {
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-}
-
-// ── FlagImg (local copy — same implementation as the page files) ──
-function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      width={size}
-      height={size * 0.75}
-      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
-    />
-  )
 }
 
 // ── V3MatchCard ────────────────────────────────────────────────
@@ -139,10 +124,10 @@ export function V3MatchCard({ match, genderColor }: { match: Match; genderColor:
                 {/* Stacked overlapping flags — second slightly lower */}
                 <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                    <FlagImg country={p1?.country ?? null} size={16} />
+                    <FlagImage country={p1?.country ?? null} size={16} />
                   </div>
                   <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
-                    <FlagImg country={p2?.country ?? null} size={16} />
+                    <FlagImage country={p2?.country ?? null} size={16} />
                   </div>
                 </div>
                 <span style={{

@@ -12,6 +12,7 @@ import AppHeader from '@/components/AppHeader'
 import { useFollowing } from '@/hooks/useFollowing'
 import FollowButton from '@/components/FollowButton'
 import SearchOverlay from '@/components/nav/SearchOverlay'
+import { FlagImage } from '@/components/FlagImage'
 import { pairName, parseSetScore } from '@/types/match'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -30,22 +31,6 @@ const CHUNKY = {
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-}
-
-// ── Flag helper ───────────────────────────────────────────────
-function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return null
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      width={size}
-      height={size * 0.75}
-      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
-    />
-  )
 }
 
 // ── Types ──────────────────────────────────────────────────────
@@ -251,14 +236,14 @@ function MatchCard({ match }: { match: MatchRow }) {
         {/* Players with flags */}
         {[match.pair1_player1, match.pair1_player2].map((p, i) => (
           <div key={`p1-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
-            <FlagImg country={p?.country ?? null} size={13} />
+            <FlagImage country={p?.country ?? null} size={13} />
             <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
           </div>
         ))}
         <div style={{ fontSize: 9, color: MUTED, margin: '2px 0', paddingLeft: 2 }}>vs</div>
         {[match.pair2_player1, match.pair2_player2].map((p, i) => (
           <div key={`p2-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
-            <FlagImg country={p?.country ?? null} size={13} />
+            <FlagImage country={p?.country ?? null} size={13} />
             <span style={{ fontSize: 11, fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.display_name?.trim() || (p?.name ?? 'TBD')}</span>
           </div>
         ))}
