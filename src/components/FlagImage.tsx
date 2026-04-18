@@ -26,13 +26,26 @@ interface Props {
   style?: CSSProperties
 }
 
+// flagcdn.com serves raster PNGs only at these widths (2025 catalog).
+// See https://flagcdn.com. Requesting any other value 404s.
+const FLAGCDN_WIDTHS = [20, 40, 80, 160, 320, 640, 1280, 2560]
+
+function flagcdnWidth(size: number): number {
+  const target = size * 2 // 2x for retina
+  for (const w of FLAGCDN_WIDTHS) if (w >= target) return w
+  return FLAGCDN_WIDTHS[FLAGCDN_WIDTHS.length - 1]
+}
+
 export function FlagImage({ country, size = 16, rounded = false, style }: Props) {
   if (!country) {
     return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
   }
 
   const code = country.toLowerCase()
-  const cdnWidth = Math.max(20, Math.round(size * 2))
+  // flagcdn.com serves only a fixed set of widths — arbitrary values 404.
+  // Pick the smallest supported size that gives ≥ 2x the rendered width
+  // (retina-quality without over-fetching).
+  const cdnWidth = flagcdnWidth(size)
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
