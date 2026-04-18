@@ -30,8 +30,9 @@ interface Props {
 // See https://flagcdn.com. Requesting any other value 404s.
 const FLAGCDN_WIDTHS = [20, 40, 80, 160, 320, 640, 1280, 2560]
 
-function flagcdnWidth(size: number): number {
-  const target = size * 2 // 2x for retina
+/** Smallest flagcdn-supported width ≥ 2× the rendered size (retina-quality). */
+export function flagcdnWidth(size: number): number {
+  const target = size * 2
   for (const w of FLAGCDN_WIDTHS) if (w >= target) return w
   return FLAGCDN_WIDTHS[FLAGCDN_WIDTHS.length - 1]
 }

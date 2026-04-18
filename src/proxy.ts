@@ -100,6 +100,42 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ── Cookie-wins locale redirect ────────────────────────────────
+  //
+  // When the user manually picks a language via LocaleSwitcher, we write
+  // NEXT_LOCALE and navigate to the new-locale URL. But the browser's
+  // history still holds URLs with the OLD locale prefix — so pressing
+  // Back reverts the visible language even though the user's preference
+  // is now different.
+  //
+  // Fix: if the request URL has a locale prefix that conflicts with the
+  // user's NEXT_LOCALE cookie, 307-redirect to the cookie's locale
+  // version of the same path. This makes the user's explicit pick
+  // "sticky" across back/forward navigation while still honouring
+  // shared links for first-time visitors (who have no cookie yet — URL
+  // prefix still wins for them) and for search engines (Googlebot
+  // never sends cookies, so URL prefix is authoritative for indexing).
+  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value
+  const urlPrefixMatch = pathname.match(/^\/(es|pt|it|fr)(\/|$)/)
+  const urlLocale = urlPrefixMatch ? urlPrefixMatch[1] : 'en'
+  if (
+    cookieLocale &&
+    (['en', 'es', 'pt', 'it', 'fr'] as const).includes(cookieLocale as 'en' | 'es' | 'pt' | 'it' | 'fr') &&
+    cookieLocale !== urlLocale
+  ) {
+    // Strip any existing locale prefix and re-prefix with cookieLocale
+    // (no prefix for English since localePrefix is 'as-needed').
+    const pathWithoutLocale = urlPrefixMatch
+      ? pathname.slice(urlPrefixMatch[0].length - 1) || '/'
+      : pathname
+    const newPath = cookieLocale === 'en'
+      ? pathWithoutLocale
+      : `/${cookieLocale}${pathWithoutLocale === '/' ? '' : pathWithoutLocale}`
+    const target = new URL(newPath, request.url)
+    target.search = request.nextUrl.search
+    return NextResponse.redirect(target, 307)
+  }
+
   // ── Run next-intl locale routing ───────────────────────────────
   const response = handleI18nRouting(request)
 
