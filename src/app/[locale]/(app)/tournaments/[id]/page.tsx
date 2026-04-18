@@ -17,6 +17,7 @@ import FollowButton from '@/components/FollowButton'
 import { V3MatchCard } from '@/components/V3MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
 import { EditorialBlock } from '@/components/EditorialBlock'
+import { FlagImage } from '@/components/FlagImage'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -82,22 +83,6 @@ function levelLabel(level: string | null): string {
     fip_silver: 'FIP Silver', fip_bronze: 'FIP Bronze', fip_other: 'FIP Tour',
   }
   return level ? (map[level] ?? level) : ''
-}
-
-// ── Flag image (consistent, no emoji) ─────────────────────────
-function FlagImg({ country, size = 16 }: { country: string | null; size?: number }) {
-  if (!country) return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
-  const code = country.toLowerCase()
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${code}.png`}
-      alt={country}
-      width={size}
-      height={size * 0.75}
-      style={{ objectFit: 'cover', display: 'block', flexShrink: 0 }}
-    />
-  )
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -552,7 +537,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
               {activeTournamentObj.country ? (
                 <div style={{ width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <FlagImg country={activeTournamentObj.country} size={36} />
+                  <FlagImage country={activeTournamentObj.country} size={36} />
                 </div>
               ) : null}
 
@@ -942,10 +927,10 @@ function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match;
                   {/* Stacked dual flags */}
                   <div style={{ position: 'relative', width: 24, height: 18, flexShrink: 0 }}>
                     <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                      <FlagImg country={p1?.country ?? null} size={14} />
+                      <FlagImage country={p1?.country ?? null} size={14} />
                     </div>
                     <div style={{ position: 'absolute', top: 5, left: 7, zIndex: 1 }}>
-                      <FlagImg country={p2?.country ?? null} size={14} />
+                      <FlagImage country={p2?.country ?? null} size={14} />
                     </div>
                   </div>
                   <span style={{
@@ -1070,10 +1055,10 @@ function ChampionTile({
           {/* Stacked overlapping flags — same pattern as latest results cards */}
           <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
             <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-              <FlagImg country={country1} size={16} />
+              <FlagImage country={country1} size={16} />
             </div>
             <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
-              <FlagImg country={country2} size={16} />
+              <FlagImage country={country2} size={16} />
             </div>
           </div>
           <span style={{

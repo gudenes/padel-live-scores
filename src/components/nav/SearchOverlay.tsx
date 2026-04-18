@@ -10,6 +10,7 @@ import { useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Link } from '@/i18n/navigation'
 import { DATE_SHORT } from '@/lib/format-patterns'
+import { FlagImage } from '@/components/FlagImage'
 
 // ── Brand constants ───────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -38,18 +39,6 @@ function levelLabel(level: string | null): string {
   if (!level) return ''
   const map: Record<string, string> = { premier: 'Premier Padel', p1: 'P1', p2: 'P2', major: 'Major', fip_rise: 'FIP Rise', fip_star: 'FIP Star' }
   return map[level] ?? level
-}
-
-/** Flag image from self-hosted /flags/ (replaces emoji flags) */
-function FlagImg({ country, size = 18 }: { country: string; size?: number }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={`/flags/${country.toLowerCase()}.png`}
-      alt={country}
-      style={{ width: size, height: Math.round(size * 0.75), objectFit: 'cover', borderRadius: 2, flexShrink: 0 }}
-    />
-  )
 }
 
 // ── Types ─────────────────────────────────────────────────────
@@ -522,7 +511,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
                         width: 34, height: 34, display: 'flex',
                         alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                       }}>
-                        <FlagImg country={item.country} size={22} />
+                        <FlagImage country={item.country} size={22} rounded />
                       </span>
                     ) : (
                       (() => {
