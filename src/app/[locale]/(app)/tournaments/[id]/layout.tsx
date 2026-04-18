@@ -2,13 +2,13 @@
 // Server-side layout wrapper to provide OG metadata + JSON-LD for tournament pages.
 // The page itself is 'use client', so generateMetadata must live here.
 //
-// Also hosts the SSR EditorialHero (Wave 2) — renders auto-generated tournament
-// previews / recaps as the first content block of the page when one exists.
+// Editorial block (preview/recap) is rendered INSIDE the client page on the
+// Overview tab (preview) and Recap tab (recap) — see V3Overview / V3Recap
+// for the insertion points.
 
 import { Metadata } from 'next'
 import { createServerClient } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
-import { EditorialHero } from '@/components/EditorialHero'
 
 type Props = {
   params: Promise<{ locale: string; id: string }>
@@ -51,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function TournamentLayout({ params, children }: Props) {
-  const { id, locale } = await params
+  const { id } = await params
   let jsonLd: object | null = null
 
   try {
@@ -86,9 +86,6 @@ export default async function TournamentLayout({ params, children }: Props) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      <div style={{ maxWidth: 500, margin: '0 auto' }}>
-        <EditorialHero tournamentId={id} locale={locale} />
-      </div>
       {children}
     </>
   )

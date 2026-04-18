@@ -16,6 +16,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { V3MatchCard } from '@/components/V3MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
+import { EditorialBlock } from '@/components/EditorialBlock'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -1320,6 +1321,10 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
 
   return (
     <div style={{ padding: '14px 14px 20px' }}>
+      {/* Auto-generated tournament preview (Wave 2 — renders only when a
+          preview post exists for this tournament + current locale) */}
+      <EditorialBlock tournamentId={tournament.id} kind="preview" />
+
       {/* Tournament timing banner */}
       {startsAt && (
         <div style={{
@@ -1578,6 +1583,10 @@ function V3Recap({ tournament, allMatches, genderFilter, genderColor }: {
 
   return (
     <div style={{ padding: '14px 14px 20px' }}>
+      {/* Auto-generated tournament recap (Wave 2 — renders only when a
+          recap post exists for this tournament + current locale) */}
+      <EditorialBlock tournamentId={tournament.id} kind="recap" />
+
       {/* Winner card */}
       {finalMatch && getWinner(finalMatch) !== 0 ? (() => {
         const winnerPair = getWinner(finalMatch)
