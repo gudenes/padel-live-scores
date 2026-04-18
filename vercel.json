@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/oop-monitor",
       "schedule": "30 */2 * * *"
+    },
+    {
+      "path": "/api/cron/editorial-gen",
+      "schedule": "0 6 * * *"
     }
   ]
 }

@@ -491,6 +491,13 @@
       "sub": "Elige sobre qué te avisamos"
     }
   },
+  "editorial": {
+    "badgePreview": "Preview",
+    "badgeRecap": "Recap",
+    "byline": "Por PadelNachos · {date}",
+    "footNote": "Actualizado con los datos más recientes del torneo",
+    "wordCount": "~{count} palabras"
+  },
   "seo": {
     "root": {
       "description": "Sigue cada punto en directo. Resultados en tiempo real, clasificación de jugadores, cuadros de torneos, highlights y noticias de Premier Padel y FIP."
