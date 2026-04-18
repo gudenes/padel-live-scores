@@ -342,6 +342,16 @@ function Option({
 }
 
 function ChunkyFlag({ country, size }: { country: string; size: number }) {
+  // flagcdn.com covers every ISO 3166-1 alpha-2 country — used here because
+  // CountryPicker lists all 250+ world regions, whereas the local
+  // public/flags/ folder only ships ~58 PNGs for padel-active countries
+  // (match cards, player cards) to keep the bundle light.
+  //
+  // Use flagcdn's PNG raster served at a size matching the rendered chip,
+  // doubled for retina. Fallback to local PNG on CDN failure keeps things
+  // working offline / if flagcdn is ever unavailable.
+  const code = country.toLowerCase()
+  const cdnWidth = Math.round(size * 2) // 2x for retina
   return (
     <div
       style={{
@@ -355,10 +365,17 @@ function ChunkyFlag({ country, size }: { country: string; size: number }) {
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={`/flags/${country.toLowerCase()}.png`}
+        src={`https://flagcdn.com/w${cdnWidth}/${code}.png`}
         alt=""
         width={size}
         height={Math.round(size * 0.75)}
+        loading="lazy"
+        onError={(e) => {
+          const img = e.currentTarget
+          if (img.dataset.fallbackTried) return
+          img.dataset.fallbackTried = '1'
+          img.src = `/flags/${code}.png`
+        }}
         style={{
           width: '100%',
           height: '100%',
