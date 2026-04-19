@@ -91,7 +91,7 @@ function MatchRow({ match }: { match: Match }) {
     }
   }, [isLive, match.id, p1TotalGames, p2TotalGames, p1GamePts, p2GamePts])
 
-  const winnerPair = (match as any).winner_pair as 1 | 2 | null | undefined
+  const winnerPair = match.winner_pair as 1 | 2 | null | undefined
   const isPair1Winner = isFinished && winnerPair === 1
   const isPair2Winner = isFinished && winnerPair === 2
 
@@ -145,7 +145,6 @@ function MatchRow({ match }: { match: Match }) {
         {isFinished && (
           <FinishedRight
             sets={sets}
-            winnerPair={winnerPair ?? null}
             label={match.status === 'retired' ? 'RET' : match.status === 'walkover' ? 'W/O' : t('final')}
           />
         )}
@@ -256,9 +255,8 @@ function LiveRight({ sets, currentSetNumber, p1Pts, p2Pts, setUnit, setOrdinal }
   )
 }
 
-function FinishedRight({ sets, winnerPair: _winnerPair, label }: {
+function FinishedRight({ sets, label }: {
   sets: any[]
-  winnerPair: 1 | 2 | null
   label: string
 }) {
   return (
@@ -328,7 +326,7 @@ function UpcomingRight({ match, format, t }: {
         />
         <button
           type="button"
-          onClick={(e) => { e.preventDefault(); toggleNotify() }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleNotify() }}
           aria-label={t('notifyOnMatchStart')}
           aria-pressed={isNotifying}
           style={{
