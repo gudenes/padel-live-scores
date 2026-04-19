@@ -167,11 +167,10 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
           if (hasLive) {
             confirmedLiveIds.add(t.id)
           } else {
-            // No live matches but within date range — ongoing (between sessions)
-            const hasScheduledOrFinished = matches.some((m: any) =>
-              m.status === 'scheduled' || m.status === 'finished' || m.status === 'retired' || m.status === 'walkover'
-            )
-            if (hasScheduledOrFinished) confirmedOngoingIds.add(t.id)
+            // Still between sessions only when unplayed matches remain.
+            // Once every match is finished/retired/walkover/bye, the tournament is done.
+            const hasScheduled = matches.some((m: any) => m.status === 'scheduled')
+            if (hasScheduled) confirmedOngoingIds.add(t.id)
           }
         }
       }
