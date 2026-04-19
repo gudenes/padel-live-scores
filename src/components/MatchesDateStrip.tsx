@@ -59,8 +59,11 @@ export default function MatchesDateStrip({
     days.push({
       offset,
       date,
-      weekday: format.dateTime(date, { weekday: 'short' }),
-      dayNum: format.dateTime(date, { day: '2-digit' }),
+      // Use native Date methods to format in the browser's local timezone —
+      // next-intl's formatter uses a globally-configured tz (from the
+      // geo-timezone cookie) that may differ in dev, causing off-by-one.
+      weekday: date.toLocaleDateString(undefined, { weekday: 'short' }),
+      dayNum: String(date.getDate()).padStart(2, '0'),
     })
   }
 
