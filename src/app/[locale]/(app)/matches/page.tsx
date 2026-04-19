@@ -19,6 +19,9 @@ import { ResultCard } from '@/components/ResultCard'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { FlagImage } from '@/components/FlagImage'
+import MatchesTabs from '@/components/MatchesTabs'
+import MatchesFilterSheet, { countAppliedFilters, type FilterSheetValue } from '@/components/MatchesFilterSheet'
+import { tabForLegacyParam, type Tab as MatchesTab, type Circuit, type Gender } from '@/lib/matches-filters'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -642,8 +645,8 @@ function V3ScoresPage() {
   const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'live' | 'upcoming' | 'results'>('live')
-  const TAB_KEYS = useMemo(() => ['live', 'upcoming', 'results'] as const, [])
+  const [tab, setTab] = useState<MatchesTab>('today')
+  const TAB_KEYS = useMemo(() => ['yesterday', 'today', 'upcoming'] as const, [])
 
   const { goTo: swipeGoTo, trackStyle, handlers: swipeHandlers, isDragging } = useSwipeTabs({
     count: 3,
@@ -651,9 +654,24 @@ function V3ScoresPage() {
     onTabChange: (idx) => setTab(TAB_KEYS[idx]),
   })
 
-  const [genderFilter, setGenderFilter] = useState<'all' | 'men' | 'women'>('all')
-  const [leagueFilter, setLeagueFilter] = useState<'premier' | 'fip' | 'all'>('premier')
+  const [circuits, setCircuits] = useState<Set<Circuit>>(new Set(['premier', 'fip']))
+  const [genders, setGenders]   = useState<Set<Gender>>(new Set(['men', 'women']))
+  const [levels, setLevels]     = useState<Set<string>>(new Set())
+  const [favouritesOnly, setFavouritesOnly] = useState(false)
+  const [hideQualifiers, setHideQualifiers] = useState(false)
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+
+  // Legacy /matches?tab=live|upcoming|results → new tabs
+  useEffect(() => {
+    const raw = searchParams.get('tab')
+    const mapped = tabForLegacyParam(raw)
+    if (mapped && mapped !== tab) {
+      setTab(mapped)
+      swipeGoTo(TAB_KEYS.indexOf(mapped))
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // Player joins shared by all match queries
   const matchPlayerJoins = `
@@ -670,8 +688,6 @@ function V3ScoresPage() {
 
   const sortSets = (data: any[]) =>
     data.map(m => ({ ...m, sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number) }))
-
-  const initialLoadDone = useRef(false)
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -711,17 +727,6 @@ function V3ScoresPage() {
       setLiveMatches(sortSets(liveData))
       setScheduledMatches(sortSets(dataOf(1)))
       setRecentMatches(sortSets(dataOf(2)))
-
-      // Auto-select tab only on first load: live → upcoming → results
-      if (!initialLoadDone.current) {
-        const hasLive = liveData.length > 0
-        const hasUpcoming = (dataOf(1) as Match[]).length > 0
-        if (hasLive) setTab('live')
-        else if (hasUpcoming) setTab('upcoming')
-        else setTab('results')
-        initialLoadDone.current = true
-        swipeGoTo(TAB_KEYS.indexOf(hasLive ? 'live' : hasUpcoming ? 'upcoming' : 'results'))
-      }
     } catch (e) {
       console.error('[V3 Scores] fetchData error:', e)
     } finally {
@@ -754,8 +759,9 @@ function V3ScoresPage() {
   }, [fetchData])
 
   // Auto-refresh for live tab — silent
+  // TODO(Task 6): revisit which tab should trigger the 30s auto-refresh
   useEffect(() => {
-    if (tab !== 'live') return
+    if (tab !== 'today') return
     const interval = setInterval(() => fetchData(true), 30000)
     return () => clearInterval(interval)
   }, [tab, fetchData])
@@ -799,44 +805,11 @@ function V3ScoresPage() {
     return () => clearInterval(interval)
   }, [liveMatches, recentMatches])
 
-  // Gender filter
-  const gf = (matches: Match[]) =>
-    genderFilter === 'all' ? matches : matches.filter(m => (m as any).category === genderFilter)
-
-  // League classifier — premier padel uses level codes without a prefix,
-  // FIP Tour uses fip_* levels, legacy WPT uses wpt_* levels.
-  const PREMIER_LEVELS = new Set(['p1', 'p2', 'major', 'finals'])
-  const isFipLevel = (level: string | null | undefined) => !!level && level.startsWith('fip_')
-  const matchLeague = (m: Match): 'premier' | 'fip' | 'other' => {
-    const level = (m as any).tournament?.level as string | null | undefined
-    if (level && PREMIER_LEVELS.has(level)) return 'premier'
-    if (isFipLevel(level)) return 'fip'
-    return 'other'
-  }
-
-  // League filter — 'all' keeps everything, otherwise filter by classification.
-  const lf = (matches: Match[]) =>
-    leagueFilter === 'all' ? matches : matches.filter(m => matchLeague(m) === leagueFilter)
-
-  // Recently finished matches still lingering in the live tab
-  const lingeringMatches = recentMatches.filter(m => lingeringIds.has(m.id))
-
-  // Per-tab filtered + grouped data for swipe viewport
-  const liveFiltered = gf(lf([...liveMatches, ...lingeringMatches]))
-  const upcomingFiltered = gf(lf(scheduledMatches.filter(hasPlayers)))
-  const resultsFiltered = gf(lf(recentMatches))
-
-  const liveGrouped = groupByTournament(liveFiltered)
-  const upcomingGrouped = groupByTournament(upcomingFiltered)
-  const resultsGrouped = groupByTournament(resultsFiltered)
-
-  const liveCount = gf(lf(liveMatches)).filter(m => !isWarmingUp(m)).length
-
-  const tabs: { key: typeof tab; label: string; isLive?: boolean }[] = [
-    { key: 'live', label: t('live'), isLive: true },
-    { key: 'upcoming', label: t('upcoming') },
-    { key: 'results', label: t('results') },
-  ]
+  // Stable value for the filter sheet — memoized so the child's draft-re-sync
+  // effect doesn't fire on every parent re-render and wipe in-progress edits.
+  const sheetValue: FilterSheetValue = useMemo(() => ({
+    circuits, genders, levels, favouritesOnly, hideQualifiers,
+  }), [circuits, genders, levels, favouritesOnly, hideQualifiers])
 
   return (
     <main style={{
@@ -856,180 +829,34 @@ function V3ScoresPage() {
         <BrandedLoader hints={[...LOADER_HINTS.matches]} />
       ) : (
         <>
-          {/* League filter chips */}
-          <div style={{
-            display: 'flex', gap: 6, padding: '14px 16px 0',
-            overflowX: 'auto', scrollbarWidth: 'none',
-          } as React.CSSProperties}>
-            {([
-              { key: 'premier', label: 'Premier Padel', logo: '/padel-logo-black-768x174.webp', logoH: 16, logoFilter: 'invert(1) hue-rotate(180deg)', logoFilterActive: 'brightness(0)' },
-              { key: 'fip',     label: 'FIP Tour',      logo: '/fiptour2026-removebg-preview.png', logoH: 22, logoFilter: 'brightness(0) invert(1)', logoFilterActive: 'brightness(0)' },
-              { key: 'all',     label: 'All',            logo: null, logoH: 0, logoFilter: '', logoFilterActive: '' },
-            ] as const).map(chip => {
-              const active = leagueFilter === chip.key
-              return (
-                <button
-                  key={chip.key}
-                  onClick={() => setLeagueFilter(chip.key)}
-                  style={{
-                    padding: active ? '8px 18px' : '6px 14px',
-                    fontSize: 11, fontWeight: 700,
-                    border: 'none', cursor: 'pointer',
-                    background: active ? ORANGE : 'rgba(255,255,255,0.05)',
-                    color: active ? '#000' : MUTED,
-                    clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-                    fontFamily: 'inherit',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: 0.3,
-                    textTransform: 'uppercase',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    minHeight: active ? 34 : 28,
-                    transition: 'all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)',
-                  }}
-                >
-                  {chip.logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={chip.logo}
-                      alt={chip.label}
-                      style={{
-                        height: active ? chip.logoH * 1.25 : chip.logoH,
-                        objectFit: 'contain',
-                        filter: active ? chip.logoFilterActive : chip.logoFilter,
-                        transition: 'all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1)',
-                      }}
-                    />
-                  ) : chip.label}
-                </button>
-              )
-            })}
-          </div>
+          <MatchesTabs
+            tab={tab}
+            onTabChange={(next) => { setTab(next); swipeGoTo(TAB_KEYS.indexOf(next)) }}
+            dates={{ yesterday: new Date(), today: new Date(), upcoming: null }}
+            filterCount={countAppliedFilters(sheetValue)}
+            onFilterClick={() => setFilterSheetOpen(true)}
+          />
 
-          {/* Tab bar + gender toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px 10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-              {tabs.map(t => {
-                const active = tab === t.key
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => { setTab(t.key); swipeGoTo(TAB_KEYS.indexOf(t.key)) }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 4,
-                      padding: '7px 12px',
-                      clipPath: CHUNKY.button,
-                      border: 'none',
-                      background: active
-                        ? (t.isLive ? LIVE_RED : GREEN)
-                        : 'rgba(255,255,255,0.05)',
-                      color: active ? (t.isLive ? '#fff' : '#000') : MUTED,
-                      fontSize: 11, fontWeight: 800, fontFamily: 'inherit',
-                      cursor: 'pointer', transition: 'all 0.15s',
-                      letterSpacing: 0.3,
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {/* live dot removed */}
-                    {t.label}
-                    {t.isLive && liveCount > 0 && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 800,
-                        color: active ? 'rgba(255,255,255,0.7)' : LIVE_RED,
-                        marginLeft: -2,
-                      }}>
-                        {liveCount}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+          <MatchesFilterSheet
+            open={filterSheetOpen}
+            initial={sheetValue}
+            onApply={(next) => {
+              setCircuits(next.circuits)
+              setGenders(next.genders)
+              setLevels(next.levels)
+              setFavouritesOnly(next.favouritesOnly)
+              setHideQualifiers(next.hideQualifiers)
+              setFilterSheetOpen(false)
+            }}
+            onClose={() => setFilterSheetOpen(false)}
+          />
 
-            {/* Gender toggle */}
-            <div
-              onClick={() => setGenderFilter(g => g === 'men' ? 'all' : g === 'all' ? 'women' : 'men')}
-              style={{
-                display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
-                background: 'rgba(255,255,255,0.04)',
-                clipPath: CHUNKY.badge,
-                padding: 3, position: 'relative', flexShrink: 0,
-              }}
-            >
-              <div style={{
-                position: 'absolute', top: 3,
-                left: genderFilter === 'men' ? 3 : genderFilter === 'all' ? 27 : 51,
-                width: 22, height: 22,
-                background: genderFilter === 'women' ? WOMEN_PURPLE : genderFilter === 'men' ? MEN_BLUE : GREEN,
-                clipPath: CHUNKY.badge,
-                transition: 'left 0.2s ease, background 0.2s ease',
-              }} />
-              {(['men', 'all', 'women'] as const).map(g => (
-                <span
-                  key={g}
-                  style={{
-                    width: 24, textAlign: 'center', fontSize: 10, fontWeight: 700,
-                    position: 'relative', zIndex: 1,
-                    color: genderFilter === g ? (g === 'all' ? '#000' : '#fff') : 'rgba(255,255,255,0.25)',
-                    transition: 'color 0.2s',
-                    lineHeight: '22px',
-                  }}
-                >{g === 'all' ? 'All' : g === 'men' ? 'M' : 'W'}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* Swipe viewport */}
+          {/* Swipe viewport — Task 6 will re-wire data slicing */}
           <div style={{ overflow: 'clip', overflowY: 'visible', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
             <div style={{ display: 'flex', width: '300%', alignItems: 'stretch', ...trackStyle }}>
-              {/* Live panel */}
-              <div style={{ width: '33.333%', flexShrink: 0 }}>
-                <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
-                  {liveGrouped.length > 0 ? liveGrouped.map((group, idx) => (
-                    <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={true} tab="live" />
-                  )) : (
-                    <EmptyState tab="live" leagueFilter={leagueFilter} />
-                  )}
-                </div>
-              </div>
-              {/* Upcoming panel */}
-              <div style={{ width: '33.333%', flexShrink: 0 }}>
-                <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
-                  {upcomingGrouped.length > 0 ? upcomingGrouped.map((group, idx) => (
-                    <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={true} tab="upcoming" />
-                  )) : (
-                    <EmptyState tab="upcoming" leagueFilter={leagueFilter} />
-                  )}
-                </div>
-              </div>
-              {/* Results panel */}
-              <div style={{ width: '33.333%', flexShrink: 0 }}>
-                <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 24 }}>
-                  {resultsGrouped.length > 0 ? resultsGrouped.map((group, idx) => (
-                    <TournamentGroup key={group.tournament?.id ?? idx} tournament={group.tournament} matches={group.matches} defaultOpen={idx === 0} tab="results" />
-                  )) : (
-                    <EmptyState tab="results" leagueFilter={leagueFilter} />
-                  )}
-                </div>
-                <div style={{ padding: '0 16px 32px', textAlign: 'center' }}>
-                  <Link
-                    href="/home?view=tournaments"
-                    style={{
-                      display: 'inline-block',
-                      background: 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${BORDER}`,
-                      clipPath: CHUNKY.button,
-                      padding: '10px 28px',
-                      fontSize: 12, fontWeight: 700,
-                      color: GREEN,
-                      textDecoration: 'none',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    {t('viewPreviousSeasons')}
-                  </Link>
-                </div>
-              </div>
+              <div style={{ width: '33.333%', flexShrink: 0 }} />
+              <div style={{ width: '33.333%', flexShrink: 0 }} />
+              <div style={{ width: '33.333%', flexShrink: 0 }} />
             </div>
           </div>
         </>
