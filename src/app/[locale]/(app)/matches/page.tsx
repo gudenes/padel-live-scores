@@ -11,7 +11,7 @@ import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, pairName, parseSetScore, parseSetFromGames, isWarmingUp } from '@/types/match'
-import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
+import { mostAdvancedRound } from '@/lib/tournament-labels'
 import BrandedLoader, { LOADER_HINTS } from '../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
@@ -418,22 +418,14 @@ function V3MatchRow({ match }: { match: Match }) {
 function TournamentGroup({ tournament, matches, tab }: {
   tournament: any
   matches: Match[]
-  defaultOpen?: boolean   // kept for API compat; ignored
   tab: 'yesterday' | 'today' | 'upcoming'
 }) {
-  const format = useFormatter()
-  const badge = tournament?.level ? levelLabel(tournament.level) : null
-
-  const dateRange = tournament?.starts_at
-    ? format.dateTime(new Date(tournament.starts_at), DATE_SHORT)
-      + (tournament.ends_at ? ` \u2013 ${format.dateTime(new Date(tournament.ends_at), DATE_SHORT)}` : '')
-    : ''
+  const t = useTranslations('matches')
+  if (!tournament) return null
 
   const stageLabel = mostAdvancedRound(matches)
   const anyLive = matches.some(m => m.status === 'live')
   const matchCount = matches.length
-
-  if (!tournament) return null
 
   return (
     <div>
@@ -470,7 +462,7 @@ function TournamentGroup({ tournament, matches, tab }: {
             </>
           )}
           {anyLive && (
-            <span aria-label="live" style={{
+            <span role="status" aria-label={t('liveNow')} style={{
               width: 5, height: 5, borderRadius: '50%',
               background: LIVE_RED,
               marginLeft: 4,
