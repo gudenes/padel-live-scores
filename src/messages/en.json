@@ -40,7 +40,8 @@
       "reset": "Reset",
       "apply": "Apply",
       "applyCount": "{count, plural, one {# filter} other {# filters}}",
-      "clear": "Clear"
+      "clear": "Clear",
+      "removeFilter": "Remove {label}"
     }
   },
   "matchDetail": {
@@ -504,13 +505,34 @@
       "groupAchievements": "Achievements",
       "groupOther": "Other",
       "category": {
-        "match_live_follow":    { "label": "Followed player goes live",  "sub": "When a player you follow is about to play" },
-        "match_live_bookmark":  { "label": "Bookmarked match goes live", "sub": "When a match you saved starts" },
-        "match_finished":       { "label": "Match finished",             "sub": "Results for matches you follow" },
-        "match_upcoming":       { "label": "Match starting soon",        "sub": "30 min before a followed match" },
-        "badge_earned":         { "label": "Badge earned",               "sub": "When you unlock a new badge" },
-        "streak_milestone":     { "label": "Streak milestone",           "sub": "3, 7, 30, 100-day streaks" },
-        "marketing":            { "label": "Product updates",            "sub": "New features, events, occasional news" }
+        "match_live_follow": {
+          "label": "Followed player goes live",
+          "sub": "When a player you follow is about to play"
+        },
+        "match_live_bookmark": {
+          "label": "Bookmarked match goes live",
+          "sub": "When a match you saved starts"
+        },
+        "match_finished": {
+          "label": "Match finished",
+          "sub": "Results for matches you follow"
+        },
+        "match_upcoming": {
+          "label": "Match starting soon",
+          "sub": "30 min before a followed match"
+        },
+        "badge_earned": {
+          "label": "Badge earned",
+          "sub": "When you unlock a new badge"
+        },
+        "streak_milestone": {
+          "label": "Streak milestone",
+          "sub": "3, 7, 30, 100-day streaks"
+        },
+        "marketing": {
+          "label": "Product updates",
+          "sub": "New features, events, occasional news"
+        }
       },
       "saveError": "Couldn't save — please try again"
     },

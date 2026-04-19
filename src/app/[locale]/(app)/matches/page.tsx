@@ -631,7 +631,7 @@ function AppliedFiltersStrip({
           whiteSpace: 'nowrap',
         }}>
           {c.label}
-          <button onClick={c.onX} aria-label="Remove filter" style={{
+          <button onClick={c.onX} aria-label={t('removeFilter', { label: c.label })} style={{
             background: 'none', border: 'none', padding: 0, marginLeft: 2,
             color: 'inherit', cursor: 'pointer', fontSize: 12, lineHeight: 1, opacity: 0.7,
           }}>×</button>

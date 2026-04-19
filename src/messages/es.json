@@ -40,7 +40,8 @@
       "reset": "Restablecer",
       "apply": "Aplicar",
       "applyCount": "{count, plural, one {# filtro} other {# filtros}}",
-      "clear": "Limpiar"
+      "clear": "Limpiar",
+      "removeFilter": "Eliminar {label}"
     }
   },
   "matchDetail": {
@@ -504,13 +505,34 @@
       "groupAchievements": "Logros",
       "groupOther": "Otros",
       "category": {
-        "match_live_follow":    { "label": "Jugador seguido en directo", "sub": "Cuando un jugador que sigues va a jugar" },
-        "match_live_bookmark":  { "label": "Partido guardado en directo", "sub": "Cuando comienza un partido que has guardado" },
-        "match_finished":       { "label": "Partido finalizado", "sub": "Resultados de los partidos que sigues" },
-        "match_upcoming":       { "label": "Partido a punto de empezar", "sub": "30 min antes de un partido seguido" },
-        "badge_earned":         { "label": "Insignia ganada", "sub": "Cuando desbloqueas una nueva insignia" },
-        "streak_milestone":     { "label": "Racha alcanzada", "sub": "Rachas de 3, 7, 30 y 100 días" },
-        "marketing":            { "label": "Novedades del producto", "sub": "Nuevas funciones, eventos y noticias ocasionales" }
+        "match_live_follow": {
+          "label": "Jugador seguido en directo",
+          "sub": "Cuando un jugador que sigues va a jugar"
+        },
+        "match_live_bookmark": {
+          "label": "Partido guardado en directo",
+          "sub": "Cuando comienza un partido que has guardado"
+        },
+        "match_finished": {
+          "label": "Partido finalizado",
+          "sub": "Resultados de los partidos que sigues"
+        },
+        "match_upcoming": {
+          "label": "Partido a punto de empezar",
+          "sub": "30 min antes de un partido seguido"
+        },
+        "badge_earned": {
+          "label": "Insignia ganada",
+          "sub": "Cuando desbloqueas una nueva insignia"
+        },
+        "streak_milestone": {
+          "label": "Racha alcanzada",
+          "sub": "Rachas de 3, 7, 30 y 100 días"
+        },
+        "marketing": {
+          "label": "Novedades del producto",
+          "sub": "Nuevas funciones, eventos y noticias ocasionales"
+        }
       },
       "saveError": "No se pudo guardar — inténtalo de nuevo"
     },
