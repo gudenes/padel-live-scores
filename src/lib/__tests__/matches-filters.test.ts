@@ -152,3 +152,74 @@ describe('applyFilters', () => {
     expect(out).toEqual(['a'])
   })
 })
+
+import {
+  computeDayWindow,
+  parseDateParam,
+  remapLegacyTab,
+} from '../matches-filters'
+
+describe('computeDayWindow', () => {
+  it('returns [dayStart, dayEnd) in UTC for offset=0', () => {
+    const now = new Date('2026-04-19T10:30:00Z')
+    const w = computeDayWindow(now, 'UTC', 0)
+    expect(w.dayStart).toBe('2026-04-19T00:00:00.000Z')
+    expect(w.dayEnd).toBe('2026-04-20T00:00:00.000Z')
+  })
+
+  it('offset=+3 jumps three days forward', () => {
+    const now = new Date('2026-04-19T10:30:00Z')
+    const w = computeDayWindow(now, 'UTC', 3)
+    expect(w.dayStart).toBe('2026-04-22T00:00:00.000Z')
+    expect(w.dayEnd).toBe('2026-04-23T00:00:00.000Z')
+  })
+
+  it('offset=-7 jumps a week back', () => {
+    const now = new Date('2026-04-19T10:30:00Z')
+    const w = computeDayWindow(now, 'UTC', -7)
+    expect(w.dayStart).toBe('2026-04-12T00:00:00.000Z')
+    expect(w.dayEnd).toBe('2026-04-13T00:00:00.000Z')
+  })
+
+  it('respects America/New_York (UTC-4 in April)', () => {
+    // Apr 19 02:30 UTC = Apr 18 22:30 ET → "today" in ET = Apr 18
+    const now = new Date('2026-04-19T02:30:00Z')
+    const w = computeDayWindow(now, 'America/New_York', 0)
+    expect(w.dayStart).toBe('2026-04-18T04:00:00.000Z')
+    expect(w.dayEnd).toBe('2026-04-19T04:00:00.000Z')
+  })
+})
+
+describe('parseDateParam', () => {
+  const today = new Date('2026-04-19T10:00:00Z')
+
+  it('parses valid ISO date to offset', () => {
+    expect(parseDateParam('2026-04-22', today, 'UTC')).toBe(3)
+    expect(parseDateParam('2026-04-19', today, 'UTC')).toBe(0)
+    expect(parseDateParam('2026-04-18', today, 'UTC')).toBe(-1)
+  })
+
+  it('clamps out-of-range dates to null', () => {
+    expect(parseDateParam('2026-05-15', today, 'UTC')).toBe(null) // > +14
+    expect(parseDateParam('2026-04-01', today, 'UTC')).toBe(null) // < -14
+  })
+
+  it('returns null for invalid strings', () => {
+    expect(parseDateParam('not-a-date', today, 'UTC')).toBe(null)
+    expect(parseDateParam('', today, 'UTC')).toBe(null)
+    expect(parseDateParam(null, today, 'UTC')).toBe(null)
+  })
+})
+
+describe('remapLegacyTab', () => {
+  it('maps the three legacy tab values', () => {
+    expect(remapLegacyTab('live')).toEqual({ dateOffset: 0, liveOnly: true })
+    expect(remapLegacyTab('upcoming')).toEqual({ dateOffset: 1, liveOnly: false })
+    expect(remapLegacyTab('results')).toEqual({ dateOffset: -1, liveOnly: false })
+  })
+  it('returns null for unknown / missing values', () => {
+    expect(remapLegacyTab(null)).toBe(null)
+    expect(remapLegacyTab('foo')).toBe(null)
+    expect(remapLegacyTab('today')).toBe(null) // not a legacy value
+  })
+})

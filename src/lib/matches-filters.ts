@@ -153,3 +153,48 @@ export function applyFilters<M extends {
     return true
   })
 }
+
+// ── Day-window for date-offset navigation ────────────────────
+export interface DayWindow {
+  dayStart: string
+  dayEnd: string
+}
+
+export function computeDayWindow(now: Date, tz: string, dateOffset: number): DayWindow {
+  const base = computeDateWindow(now, tz)
+  const todayStart = new Date(base.todayStart)
+  const dayStart = new Date(todayStart.getTime() + dateOffset * 24 * 60 * 60 * 1000)
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+  return { dayStart: dayStart.toISOString(), dayEnd: dayEnd.toISOString() }
+}
+
+// ── ?date=YYYY-MM-DD parser ──────────────────────────────────
+const MAX_OFFSET = 14
+
+export function parseDateParam(raw: string | null, now: Date, tz: string): number | null {
+  if (!raw) return null
+  // Accept YYYY-MM-DD only
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null
+  const parsed = new Date(`${raw}T00:00:00Z`)
+  if (isNaN(parsed.getTime())) return null
+
+  const base = computeDateWindow(now, tz)
+  const todayStart = new Date(base.todayStart)
+  const diffDays = Math.round((parsed.getTime() - todayStart.getTime()) / (24 * 60 * 60 * 1000))
+
+  if (diffDays < -MAX_OFFSET || diffDays > MAX_OFFSET) return null
+  return diffDays
+}
+
+// ── Legacy ?tab=live|upcoming|results remap ──────────────────
+export interface LegacyTabRemap {
+  dateOffset: number
+  liveOnly: boolean
+}
+
+export function remapLegacyTab(value: string | null): LegacyTabRemap | null {
+  if (value === 'live')     return { dateOffset: 0,  liveOnly: true  }
+  if (value === 'upcoming') return { dateOffset: 1,  liveOnly: false }
+  if (value === 'results')  return { dateOffset: -1, liveOnly: false }
+  return null
+}
