@@ -34,6 +34,7 @@ const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
 const MEN_BLUE = '#4A9EFF'
 const WOMEN_PURPLE = '#D966FF'
+const GREEN_DIM = 'rgba(126,211,33,0.14)'
 
 // ── Chunky clip-path presets ───────────────────────────────────
 const CHUNKY = {
@@ -573,6 +574,80 @@ function LiveNowStrip({ count }: { count: number }) {
   )
 }
 
+function AppliedFiltersStrip({
+  circuits, genders, levels, favouritesOnly, hideQualifiers,
+  onRemove, onClear,
+}: {
+  circuits: Set<Circuit>
+  genders: Set<Gender>
+  levels: Set<string>
+  favouritesOnly: boolean
+  hideQualifiers: boolean
+  onRemove: (kind: 'circuit' | 'gender' | 'level' | 'favouritesOnly' | 'hideQualifiers', value?: string) => void
+  onClear: () => void
+}) {
+  const t = useTranslations('matches.filters')
+  const chips: { key: string; label: string; tint?: string; color?: string; onX: () => void }[] = []
+
+  if (circuits.size === 1) {
+    const v = [...circuits][0]
+    chips.push({ key: `c-${v}`, label: v === 'premier' ? t('premierPadel') : t('fipTour'), onX: () => onRemove('circuit', v) })
+  }
+  if (genders.size === 1) {
+    const v = [...genders][0]
+    chips.push({
+      key: `g-${v}`, label: v === 'men' ? t('men') : t('women'),
+      tint: v === 'men' ? 'rgba(74,158,255,0.14)' : 'rgba(217,102,255,0.14)',
+      color: v === 'men' ? MEN_BLUE : WOMEN_PURPLE,
+      onX: () => onRemove('gender', v),
+    })
+  }
+  for (const lvl of levels) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const label = lvl === 'fip_gold' ? t('fipGold') : lvl === 'fip_silver' ? t('fipSilver') : t(lvl as any)
+    chips.push({ key: `l-${lvl}`, label, onX: () => onRemove('level', lvl) })
+  }
+  if (favouritesOnly) chips.push({ key: 'fav', label: t('favouritesOnly'), onX: () => onRemove('favouritesOnly') })
+  if (hideQualifiers) chips.push({ key: 'hq', label: t('hideQualifiers'), onX: () => onRemove('hideQualifiers') })
+
+  if (chips.length === 0) return null
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      padding: '10px 16px',
+      borderBottom: `1px solid ${BORDER}`,
+      overflowX: 'auto',
+    }}>
+      {chips.map(c => (
+        <span key={c.key} style={{
+          flex: '0 0 auto',
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          padding: '4px 8px 4px 10px',
+          background: c.tint ?? GREEN_DIM,
+          color: c.color ?? GREEN,
+          fontSize: 10, fontWeight: 700,
+          clipPath: CHUNKY.badge,
+          whiteSpace: 'nowrap',
+        }}>
+          {c.label}
+          <button onClick={c.onX} aria-label="Remove filter" style={{
+            background: 'none', border: 'none', padding: 0, marginLeft: 2,
+            color: 'inherit', cursor: 'pointer', fontSize: 12, lineHeight: 1, opacity: 0.7,
+          }}>×</button>
+        </span>
+      ))}
+      <button onClick={onClear} style={{
+        marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
+        fontSize: 10, fontWeight: 700, color: '#9CA3AF',
+        textTransform: 'uppercase', letterSpacing: 0.4,
+      }}>
+        {t('clear')}
+      </button>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────
 
 export default function V3ScoresPageWrapper() {
@@ -875,6 +950,28 @@ function V3ScoresPage() {
             dates={{ yesterday: yesterdayDate, today: todayDate, upcoming: upcomingDate }}
             filterCount={countAppliedFilters(sheetValue)}
             onFilterClick={() => setFilterSheetOpen(true)}
+          />
+
+          <AppliedFiltersStrip
+            circuits={circuits}
+            genders={genders}
+            levels={levels}
+            favouritesOnly={favouritesOnly}
+            hideQualifiers={hideQualifiers}
+            onRemove={(kind, value) => {
+              if (kind === 'circuit' && value) setCircuits(new Set(['premier', 'fip']))
+              else if (kind === 'gender' && value) setGenders(new Set(['men', 'women']))
+              else if (kind === 'level' && value) setLevels(prev => { const n = new Set(prev); n.delete(value); return n })
+              else if (kind === 'favouritesOnly') setFavouritesOnly(false)
+              else if (kind === 'hideQualifiers') setHideQualifiers(false)
+            }}
+            onClear={() => {
+              setCircuits(new Set(['premier', 'fip']))
+              setGenders(new Set(['men', 'women']))
+              setLevels(new Set())
+              setFavouritesOnly(false)
+              setHideQualifiers(false)
+            }}
           />
 
           <MatchesFilterSheet
