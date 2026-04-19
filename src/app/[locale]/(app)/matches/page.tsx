@@ -21,7 +21,8 @@ import SearchOverlay from '@/components/nav/SearchOverlay'
 import { FlagImage } from '@/components/FlagImage'
 import MatchesTabs from '@/components/MatchesTabs'
 import MatchesFilterSheet, { countAppliedFilters, type FilterSheetValue } from '@/components/MatchesFilterSheet'
-import { tabForLegacyParam, type Tab as MatchesTab, type Circuit, type Gender } from '@/lib/matches-filters'
+import { applyFilters, computeDateWindow, tabForLegacyParam, type Tab as MatchesTab, type Circuit, type Gender } from '@/lib/matches-filters'
+import { useFollowing } from '@/hooks/useFollowing'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -617,6 +618,36 @@ function EmptyState({ tab, leagueFilter }: { tab: 'live' | 'upcoming' | 'results
   )
 }
 
+// ── Tab panel + Live Now strip (used by the swipe viewport) ───
+
+function TabPanel({ children }: { children: React.ReactNode }) {
+  return <div style={{ width: '33.3333%', flexShrink: 0, paddingBottom: 24 }}>{children}</div>
+}
+
+function LiveNowStrip({ count }: { count: number }) {
+  const t = useTranslations('matches')
+  return (
+    <div style={{
+      padding: '12px 14px',
+      background: 'linear-gradient(180deg, rgba(255,70,85,0.06) 0%, transparent 100%)',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
+    }}>
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        fontSize: 9, fontWeight: 900, letterSpacing: 1.2,
+        textTransform: 'uppercase', color: '#FF4655',
+      }}>
+        <span style={{
+          width: 7, height: 7, borderRadius: '50%',
+          background: '#FF4655',
+          animation: 'v3-scores-pulse 2s infinite',
+        }} />
+        {t('liveNow')} · {count}
+      </span>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────
 
 export default function V3ScoresPageWrapper() {
@@ -661,6 +692,7 @@ function V3ScoresPage() {
   const [hideQualifiers, setHideQualifiers] = useState(false)
   const [filterSheetOpen, setFilterSheetOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const { getFollowed } = useFollowing()
 
   // Legacy /matches?tab=live|upcoming|results → new tabs
   useEffect(() => {
@@ -708,7 +740,7 @@ function V3ScoresPage() {
         wrap(supabase.from('matches').select(matchSelectLean)
           .in('status', ['finished', 'retired', 'walkover'])
           .not('finished_at', 'is', null)
-          .gte('finished_at', `${new Date().getFullYear()}-01-01`)
+          .gte('finished_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
           .order('finished_at', { ascending: false }) as any, 'matches:recent'),
       ])
 
@@ -758,13 +790,96 @@ function V3ScoresPage() {
     }
   }, [fetchData])
 
-  // Auto-refresh for live tab — silent
-  // TODO(Task 6): revisit which tab should trigger the 30s auto-refresh
+  // Auto-refresh for today tab — silent (live matches may be updating)
   useEffect(() => {
     if (tab !== 'today') return
     const interval = setInterval(() => fetchData(true), 30000)
     return () => clearInterval(interval)
   }, [tab, fetchData])
+
+  // ── Date window + compound filtered slices ────────────────────
+  // Read the user's timezone from the geo-timezone cookie (set by proxy).
+  const timezone = useMemo(() => {
+    if (typeof document === 'undefined') return 'UTC'
+    const m = document.cookie.match(/(?:^|; )geo-timezone=([^;]+)/)
+    try {
+      return m ? decodeURIComponent(m[1]) : Intl.DateTimeFormat().resolvedOptions().timeZone
+    } catch {
+      return 'UTC'
+    }
+  }, [])
+
+  const dateWindow = useMemo(() => computeDateWindow(new Date(), timezone), [timezone])
+  const yesterdayDate = useMemo(() => new Date(dateWindow.yesterdayStart), [dateWindow])
+  const todayDate     = useMemo(() => new Date(dateWindow.todayStart), [dateWindow])
+
+  const favourites = useMemo(() => ({
+    matches: new Set(getFollowed('match')),
+    players: new Set(getFollowed('player')),
+    tournaments: new Set(getFollowed('tournament')),
+  }), [getFollowed])
+
+  const filters = useMemo(() => ({
+    circuits, genders, levels, favouritesOnly, hideQualifiers, favourites,
+  }), [circuits, genders, levels, favouritesOnly, hideQualifiers, favourites])
+
+  // Yesterday = finished in [yesterdayStart, todayStart)
+  const yesterdayMatches = useMemo(() => {
+    const start = dateWindow.yesterdayStart, end = dateWindow.todayStart
+    return applyFilters(
+      recentMatches.filter(m => {
+        const fin = (m as any).finished_at
+        return fin && fin >= start && fin < end
+      }),
+      filters,
+    )
+  }, [recentMatches, dateWindow, filters])
+
+  // Today = all live UNION scheduled with scheduled_at in [todayStart, tomorrowStart)
+  const todayMatches = useMemo(() => {
+    const start = dateWindow.todayStart, end = dateWindow.tomorrowStart
+    const todaysScheduled = scheduledMatches.filter(m => {
+      const s = m.scheduled_at
+      return s && s >= start && s < end
+    })
+    const combined = [...liveMatches, ...todaysScheduled.filter(hasPlayers)]
+    // De-duplicate in case a match appears in both arrays (unlikely but safe)
+    const seen = new Set<string>()
+    const unique = combined.filter(m => {
+      if (seen.has(m.id)) return false
+      seen.add(m.id)
+      return true
+    })
+    return applyFilters(unique, filters)
+  }, [liveMatches, scheduledMatches, dateWindow, filters])
+
+  // Upcoming = scheduled with scheduled_at >= tomorrowStart
+  const upcomingMatches = useMemo(() => {
+    const start = dateWindow.tomorrowStart
+    return applyFilters(
+      scheduledMatches.filter(m => m.scheduled_at && m.scheduled_at >= start && hasPlayers(m)),
+      filters,
+    )
+  }, [scheduledMatches, dateWindow, filters])
+
+  // Upcoming date = earliest scheduled_at beyond today (or null if none)
+  const upcomingDate = useMemo(() => {
+    if (upcomingMatches.length === 0) return null
+    const earliest = upcomingMatches.reduce<string | null>((acc, m) => {
+      const s = m.scheduled_at
+      if (!s) return acc
+      return !acc || s < acc ? s : acc
+    }, null)
+    return earliest ? new Date(earliest) : null
+  }, [upcomingMatches])
+
+  // Group each slice by tournament (reuses existing sort: live-first, then date desc)
+  const yesterdayGrouped = useMemo(() => groupByTournament(yesterdayMatches), [yesterdayMatches])
+  const todayGrouped     = useMemo(() => groupByTournament(todayMatches), [todayMatches])
+  const upcomingGrouped  = useMemo(() => groupByTournament(upcomingMatches), [upcomingMatches])
+
+  // Live count for the "Live Now · N" strip (Today only)
+  const liveNowCount = useMemo(() => todayMatches.filter(m => m.status === 'live').length, [todayMatches])
 
   // Detect live→finished transitions and track linger timestamps
   useEffect(() => {
@@ -832,7 +947,7 @@ function V3ScoresPage() {
           <MatchesTabs
             tab={tab}
             onTabChange={(next) => { setTab(next); swipeGoTo(TAB_KEYS.indexOf(next)) }}
-            dates={{ yesterday: new Date(), today: new Date(), upcoming: null }}
+            dates={{ yesterday: yesterdayDate, today: todayDate, upcoming: upcomingDate }}
             filterCount={countAppliedFilters(sheetValue)}
             onFilterClick={() => setFilterSheetOpen(true)}
           />
@@ -851,12 +966,27 @@ function V3ScoresPage() {
             onClose={() => setFilterSheetOpen(false)}
           />
 
-          {/* Swipe viewport — Task 6 will re-wire data slicing */}
+          {/* Swipe viewport — Yesterday / Today / Upcoming */}
           <div style={{ overflow: 'clip', overflowY: 'visible', touchAction: isDragging ? 'none' : 'pan-y' }} {...swipeHandlers}>
             <div style={{ display: 'flex', width: '300%', alignItems: 'stretch', ...trackStyle }}>
-              <div style={{ width: '33.333%', flexShrink: 0 }} />
-              <div style={{ width: '33.333%', flexShrink: 0 }} />
-              <div style={{ width: '33.333%', flexShrink: 0 }} />
+              <TabPanel>
+                {yesterdayGrouped.length === 0
+                  ? <EmptyState tab="results" leagueFilter={circuits.size === 2 ? 'all' : [...circuits][0] ?? 'all'} />
+                  : yesterdayGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} defaultOpen tab="results" />)}
+              </TabPanel>
+
+              <TabPanel>
+                {liveNowCount > 0 && <LiveNowStrip count={liveNowCount} />}
+                {todayGrouped.length === 0
+                  ? <EmptyState tab="live" leagueFilter="all" />
+                  : todayGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} defaultOpen tab="live" />)}
+              </TabPanel>
+
+              <TabPanel>
+                {upcomingGrouped.length === 0
+                  ? <EmptyState tab="upcoming" leagueFilter="all" />
+                  : upcomingGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} defaultOpen tab="upcoming" />)}
+              </TabPanel>
             </div>
           </div>
         </>
