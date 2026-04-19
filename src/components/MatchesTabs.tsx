@@ -50,14 +50,17 @@ export default function MatchesTabs({
       borderBottom: `1px solid ${BORDER}`,
       gap: 4,
     }}>
-      <div style={{ display: 'flex', flex: '1 1 auto', justifyContent: 'space-around' }}>
+      <div role="tablist" style={{ display: 'flex', flex: '1 1 auto', justifyContent: 'space-around' }}>
         {tabs.map(tb => {
           const active = tab === tb.key
           return (
             <button
               key={tb.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              tabIndex={active ? 0 : -1}
               onClick={() => onTabChange(tb.key)}
-              aria-pressed={active}
               style={{
                 flex: 1,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
@@ -93,8 +96,9 @@ export default function MatchesTabs({
       </div>
 
       <button
+        type="button"
         onClick={onFilterClick}
-        aria-label="Filters"
+        aria-label={t('filters.title')}
         style={{
           position: 'relative',
           width: 38, height: 40,
