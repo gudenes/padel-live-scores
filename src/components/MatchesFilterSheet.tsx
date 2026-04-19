@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { Circuit, Gender } from '@/lib/matches-filters'
 
@@ -41,15 +41,16 @@ export default function MatchesFilterSheet({
 }) {
   const t = useTranslations('matches.filters')
   // Local draft so the sheet can be cancelled without mutating parent state.
-  const [draft, setDraft] = useState<FilterSheetValue>(initial)
-  // Resync draft whenever the sheet re-opens with new initial state
-  useEffect(() => { if (open) setDraft({
+  // Lazy init clones incoming Sets so toggles don't mutate the parent's
+  // state. The parent mounts this with `key={open ? 'open' : 'closed'}`, so a
+  // fresh draft is built every time the sheet reopens.
+  const [draft, setDraft] = useState<FilterSheetValue>(() => ({
     circuits: new Set(initial.circuits),
     genders: new Set(initial.genders),
     levels: new Set(initial.levels),
     favouritesOnly: initial.favouritesOnly,
     hideQualifiers: initial.hideQualifiers,
-  }) }, [open, initial])
+  }))
 
   if (!open) return null
 

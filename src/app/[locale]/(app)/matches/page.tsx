@@ -10,7 +10,7 @@ import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, pairName, parseSetScore, parseSetFromGames, isWarmingUp } from '@/types/match'
+import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
 import { mostAdvancedRound } from '@/lib/tournament-labels'
 import BrandedLoader, { LOADER_HINTS } from '../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
@@ -659,7 +659,6 @@ export default function V3ScoresPageWrapper() {
 }
 
 function V3ScoresPage() {
-  const t = useTranslations('matches')
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -876,7 +875,9 @@ function V3ScoresPage() {
   // Group each slice by tournament (reuses existing sort: live-first, then date desc)
   const yesterdayGrouped = useMemo(() => groupByTournament(yesterdayMatches), [yesterdayMatches])
   const todayGrouped     = useMemo(() => groupByTournament(todayMatches), [todayMatches])
-  const upcomingGrouped  = useMemo(() => groupByTournament(upcomingMatches), [upcomingMatches])
+  // Upcoming wants closest-start-date first (ascending); groupByTournament sorts
+  // descending by starts_at so we reverse for this panel only.
+  const upcomingGrouped  = useMemo(() => [...groupByTournament(upcomingMatches)].reverse(), [upcomingMatches])
 
   // Live count for the "Live Now · N" strip (Today only)
   const liveNowCount = useMemo(() => todayMatches.filter(m => m.status === 'live').length, [todayMatches])
@@ -898,27 +899,6 @@ function V3ScoresPage() {
       if (now - ts > LINGER_MS) _finishedAt.delete(id)
     }
   }, [liveMatches])
-
-  // Track lingering match IDs in state (client-only, avoids hydration mismatch)
-  const [lingeringIds, setLingeringIds] = useState<Set<string>>(new Set())
-
-  // Sync lingering IDs from module-level map whenever matches change
-  useEffect(() => {
-    const update = () => {
-      const now = Date.now()
-      const ids = new Set<string>()
-      for (const [mid, ts] of _finishedAt) {
-        if (now - ts < LINGER_MS) ids.add(mid)
-        else _finishedAt.delete(mid)
-      }
-      setLingeringIds(ids)
-    }
-    update()
-    // Keep checking while there are lingering matches
-    if (_finishedAt.size === 0) return
-    const interval = setInterval(update, 10000)
-    return () => clearInterval(interval)
-  }, [liveMatches, recentMatches])
 
   // Stable value for the filter sheet — memoized so the child's draft-re-sync
   // effect doesn't fire on every parent re-render and wipe in-progress edits.
@@ -975,6 +955,7 @@ function V3ScoresPage() {
           />
 
           <MatchesFilterSheet
+            key={filterSheetOpen ? 'open' : 'closed'}
             open={filterSheetOpen}
             initial={sheetValue}
             onApply={(next) => {
