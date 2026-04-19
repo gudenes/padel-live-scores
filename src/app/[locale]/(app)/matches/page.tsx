@@ -87,27 +87,6 @@ function groupByTournament(matches: Match[]): { tournament: any; matches: Match[
   return groups
 }
 
-function tournamentStatus(matches: Match[], tournament?: any): 'live' | 'finished' | 'upcoming' | 'qualifying' | null {
-  if (matches.length === 0) return null
-  const hasLive = matches.some(m => m.status === 'live')
-  if (hasLive) return 'live'
-  const allDone = matches.every(m => ['finished', 'retired', 'walkover'].includes(m.status))
-  if (allDone) return 'finished'
-  const hasScheduled = matches.some(m => m.status === 'scheduled')
-  if (hasScheduled && tournament?.starts_at) {
-    const now = new Date()
-    const start = new Date(tournament.starts_at)
-    if (start <= now) {
-      if (tournament.source === 'fip' && matches.every((m: any) => m.status === 'scheduled')) {
-        return 'qualifying'
-      }
-      return 'live'
-    }
-  }
-  if (hasScheduled && matches.every(m => m.status === 'scheduled')) return 'upcoming'
-  return null
-}
-
 // ── Point ordinal for score-change detection ─────────────────
 const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'AD': 4 }
 // Module-level map so score tracking survives component remounts
@@ -436,132 +415,86 @@ function V3MatchRow({ match }: { match: Match }) {
 
 // ── Tournament group ──────────────────────────────────────────
 
-function TournamentGroup({ tournament, matches, defaultOpen, tab }: {
+function TournamentGroup({ tournament, matches, tab }: {
   tournament: any
   matches: Match[]
-  defaultOpen: boolean
-  tab: 'live' | 'upcoming' | 'results'
+  defaultOpen?: boolean   // kept for API compat; ignored
+  tab: 'yesterday' | 'today' | 'upcoming'
 }) {
   const format = useFormatter()
   const badge = tournament?.level ? levelLabel(tournament.level) : null
-  const status = tournamentStatus(matches, tournament)
 
   const dateRange = tournament?.starts_at
     ? format.dateTime(new Date(tournament.starts_at), DATE_SHORT)
       + (tournament.ends_at ? ` \u2013 ${format.dateTime(new Date(tournament.ends_at), DATE_SHORT)}` : '')
     : ''
 
-  // Derive the most advanced round
   const stageLabel = mostAdvancedRound(matches)
-
-  // 2-state: expanded (show all) or collapsed (show none)
-  const [viewState, setViewState] = useState<'collapsed' | 'expanded'>(defaultOpen ? 'expanded' : 'collapsed')
+  const anyLive = matches.some(m => m.status === 'live')
   const matchCount = matches.length
-  const isExpanded = viewState !== 'collapsed'
 
-  const toggleState = () => {
-    setViewState(prev => prev === 'collapsed' ? 'expanded' : 'collapsed')
-  }
+  if (!tournament) return null
 
-  // Live / upcoming — collapsible with match rows
   return (
-    <div style={{
-      overflow: 'hidden',
-    }}>
-      {/* ── Header with green top accent ────────── */}
-      {tournament && (
-        <div
-          onClick={toggleState}
+    <div>
+      {/* Light text header — no dark block, no 2px accent bar, no chevron */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '16px 14px 8px',
+        background: BG_BASE,
+      }}>
+        {tournament.country && <FlagImage country={tournament.country} size={16} />}
+        <Link
+          href={`/tournaments/${tournament.id}`}
           style={{
-            display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-            padding: '10px 14px',
-            background: '#1e1e1e',
-            cursor: 'pointer', position: 'relative',
-            WebkitTapHighlightColor: 'transparent',
+            flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit',
+            display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
           }}
         >
-          {/* Green accent bar */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-            background: status === 'live' ? LIVE_RED : GREEN,
-            transform: isExpanded ? 'scaleX(1)' : 'scaleX(0)',
-            transformOrigin: 'left',
-            transition: 'transform 0.3s ease',
-          }} />
-          {tournament.country ? (
-            <FlagImage country={tournament.country} size={20} />
-          ) : null}
-          <Link
-            href={`/tournaments/${tournament.id}`}
-            onClick={(e) => e.stopPropagation()}
-            style={{ flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {titleCase(tournament.name)}
+          <span style={{
+            fontSize: 11, fontWeight: 800, color: '#fff',
+            letterSpacing: 0.5, textTransform: 'uppercase',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {titleCase(tournament.name)}
+          </span>
+          {stageLabel && (
+            <>
+              <span style={{ margin: '0 4px', color: MUTED, fontSize: 10 }}>·</span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: MUTED,
+                letterSpacing: 0.3, textTransform: 'uppercase',
+              }}>
+                {stageLabel}
               </span>
-              {stageLabel && (
-                <span style={{
-                  fontSize: 8, fontWeight: 800, letterSpacing: '0.5px',
-                  padding: '2px 6px', clipPath: CHUNKY.badge,
-                  color: GREEN, background: 'rgba(126,211,33,0.12)',
-                  flexShrink: 0, lineHeight: '12px', textTransform: 'uppercase',
-                }}>
-                  {stageLabel}
-                </span>
-              )}
-            </div>
-            {(badge || dateRange) && (
-              <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 2 }}>
-                {badge}{badge && dateRange ? ' \u00B7 ' : ''}{dateRange}
-              </div>
-            )}
-          </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <span style={{
-              fontSize: 10, fontWeight: 600, color: MUTED,
-              background: 'rgba(255,255,255,0.05)',
-              padding: '2px 8px', clipPath: CHUNKY.badge,
-            }}>
-              {matchCount}
-            </span>
-            <span style={{
-              fontSize: 10, color: MUTED, display: 'inline-block',
-              transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-              transition: 'transform 0.3s ease',
-            }}>
-              ▼
-            </span>
-          </div>
-        </div>
-      )}
-      {/* ── Collapsible content ─────────────────── */}
-      <div style={{
-        background: BG_CARD,
-        overflow: 'hidden',
-        maxHeight: isExpanded ? matchCount * 130 + 60 : 0,
-        transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-      }}>
-        <div>
-          {matches.map(m => (
-            tab === 'results'
-              ? <ResultCard key={m.id} match={m} />
-              : <V3MatchRow key={m.id} match={m} />
-          ))}
-        </div>
-        {tab === 'results' && tournament?.id && matchCount > 10 && (
-          <Link
-            href={`/tournaments/${tournament.id}`}
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              display: 'block', width: '100%',
-              padding: '8px 0 6px', fontSize: 11, fontWeight: 700,
-              color: GREEN, textAlign: 'center', textDecoration: 'none',
-            }}
-          >
-            See all {matchCount} matches →
-          </Link>
-        )}
+            </>
+          )}
+          {anyLive && (
+            <span aria-label="live" style={{
+              width: 5, height: 5, borderRadius: '50%',
+              background: LIVE_RED,
+              marginLeft: 4,
+              animation: 'v3-scores-pulse 2s infinite',
+            }} />
+          )}
+        </Link>
+        <span style={{
+          fontSize: 9, fontWeight: 700, color: '#9CA3AF',
+          padding: '2px 7px',
+          background: 'rgba(255,255,255,0.04)',
+          clipPath: CHUNKY.badge,
+        }}>
+          {matchCount}
+        </span>
+      </div>
+
+      {/* Match rows — always visible, no collapse */}
+      <div style={{ background: BG_CARD }}>
+        {matches.map(m => (
+          tab === 'yesterday'
+            ? <ResultCard key={m.id} match={m} />
+            : <V3MatchRow key={m.id} match={m} />
+        ))}
       </div>
     </div>
   )
@@ -972,20 +905,20 @@ function V3ScoresPage() {
               <TabPanel>
                 {yesterdayGrouped.length === 0
                   ? <EmptyState tab="results" leagueFilter={circuits.size === 2 ? 'all' : [...circuits][0] ?? 'all'} />
-                  : yesterdayGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} defaultOpen tab="results" />)}
+                  : yesterdayGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} tab="yesterday" />)}
               </TabPanel>
 
               <TabPanel>
                 {liveNowCount > 0 && <LiveNowStrip count={liveNowCount} />}
                 {todayGrouped.length === 0
                   ? <EmptyState tab="live" leagueFilter="all" />
-                  : todayGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} defaultOpen tab="live" />)}
+                  : todayGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} tab="today" />)}
               </TabPanel>
 
               <TabPanel>
                 {upcomingGrouped.length === 0
                   ? <EmptyState tab="upcoming" leagueFilter="all" />
-                  : upcomingGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} defaultOpen tab="upcoming" />)}
+                  : upcomingGrouped.map(g => <TournamentGroup key={g.tournament?.id ?? 'u'} tournament={g.tournament} matches={g.matches} tab="upcoming" />)}
               </TabPanel>
             </div>
           </div>
