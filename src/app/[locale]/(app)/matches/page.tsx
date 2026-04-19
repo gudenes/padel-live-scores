@@ -6,16 +6,13 @@
 import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
-import { useRouter, Link } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match } from '@/types/match'
-import { mostAdvancedRound } from '@/lib/tournament-labels'
 import BrandedLoader, { LOADER_HINTS } from '../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
-import { ResultCard } from '@/components/ResultCard'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
-import { FlagImage } from '@/components/FlagImage'
 import MatchesDateStrip from '@/components/MatchesDateStrip'
 import TournamentCard from '@/components/TournamentCard'
 import MatchesFilterSheet, { countAppliedFilters, type FilterSheetValue } from '@/components/MatchesFilterSheet'
@@ -28,12 +25,9 @@ import {
   type Gender,
 } from '@/lib/matches-filters'
 import { useFollowing } from '@/hooks/useFollowing'
-import V3MatchRow, { _prevLiveIds, _finishedAt, LINGER_MS } from '@/components/MatchRow'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
-const ORANGE = '#F5A623'
-const LIVE_RED = '#FF4655'
 const BG_BASE = '#1A1A1A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
@@ -46,7 +40,6 @@ const GREEN_DIM = 'rgba(126,211,33,0.14)'
 const CHUNKY = {
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-  button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -54,12 +47,6 @@ const CHUNKY = {
 function hasPlayers(m: Match): boolean {
   const a = m as any
   return !!(a.pair1_player1 || a.pair1_player2 || a.pair2_player1 || a.pair2_player2)
-}
-
-function shortName(fullName: string | null): string {
-  if (!fullName) return '\u2014'
-  const parts = fullName.trim().split(' ')
-  return parts[parts.length - 1]
 }
 
 function isoDateForOffset(now: Date, tz: string, offset: number): string {
@@ -441,24 +428,6 @@ function V3ScoresPage() {
   const dayGrouped = useMemo(() => groupByTournament(visibleMatches), [visibleMatches])
 
   const liveInDay = useMemo(() => dayMatches.filter(m => m.status === 'live').length, [dayMatches])
-
-  // Detect live→finished transitions and track linger timestamps
-  useEffect(() => {
-    const currentLiveIds = new Set(liveMatches.map(m => m.id))
-    // Matches that were live but no longer → just finished
-    for (const id of _prevLiveIds) {
-      if (!currentLiveIds.has(id) && !_finishedAt.has(id)) {
-        _finishedAt.set(id, Date.now())
-      }
-    }
-    _prevLiveIds.clear()
-    for (const id of currentLiveIds) _prevLiveIds.add(id)
-    // Prune expired entries
-    const now = Date.now()
-    for (const [id, ts] of _finishedAt) {
-      if (now - ts > LINGER_MS) _finishedAt.delete(id)
-    }
-  }, [liveMatches])
 
   // Stable value for the filter sheet — memoized so the child's draft-re-sync
   // effect doesn't fire on every parent re-render and wipe in-progress edits.

@@ -24,11 +24,7 @@ const CHUNKY = {
 // ── Point ordinal for score-change detection ─────────────────
 const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'AD': 4 }
 // Module-level map so score tracking survives component remounts
-export const _prevScores = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
-// Track when matches finish so they linger in the Live tab
-export const _finishedAt = new Map<string, number>()
-export const _prevLiveIds = new Set<string>()
-export const LINGER_MS = 2 * 60 * 1000 // 2 minutes
+const _prevScores = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
 
 // ── Inline match row (replaces MatchCard for v3) ──────────────
 
