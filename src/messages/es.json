@@ -53,7 +53,8 @@
       "3": "3º",
       "4": "4º",
       "5": "5º"
-    }
+    },
+    "final": "Final"
   },
   "matchDetail": {
     "matchDetail": "Detalle del partido",
