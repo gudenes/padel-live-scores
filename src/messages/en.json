@@ -42,6 +42,17 @@
       "applyCount": "{count, plural, one {# filter} other {# filters}}",
       "clear": "Clear",
       "removeFilter": "Remove {label}"
+    },
+    "liveOnly": "Live only",
+    "bookmarkMatch": "Bookmark match",
+    "notifyOnMatchStart": "Notify me",
+    "setUnit": "set",
+    "setOrdinal": {
+      "1": "1st",
+      "2": "2nd",
+      "3": "3rd",
+      "4": "4th",
+      "5": "5th"
     }
   },
   "matchDetail": {

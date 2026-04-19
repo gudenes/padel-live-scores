@@ -42,6 +42,17 @@
       "applyCount": "{count, plural, one {# filtro} other {# filtros}}",
       "clear": "Limpiar",
       "removeFilter": "Eliminar {label}"
+    },
+    "liveOnly": "Solo en directo",
+    "bookmarkMatch": "Guardar partido",
+    "notifyOnMatchStart": "Avisarme",
+    "setUnit": "set",
+    "setOrdinal": {
+      "1": "1º",
+      "2": "2º",
+      "3": "3º",
+      "4": "4º",
+      "5": "5º"
     }
   },
   "matchDetail": {

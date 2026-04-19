@@ -42,6 +42,17 @@
       "applyCount": "{count, plural, one {# filtre} other {# filtres}}",
       "clear": "Effacer",
       "removeFilter": "Supprimer {label}"
+    },
+    "liveOnly": "En direct seulement",
+    "bookmarkMatch": "Épingler le match",
+    "notifyOnMatchStart": "M'avertir",
+    "setUnit": "set",
+    "setOrdinal": {
+      "1": "1er",
+      "2": "2e",
+      "3": "3e",
+      "4": "4e",
+      "5": "5e"
     }
   },
   "matchDetail": {

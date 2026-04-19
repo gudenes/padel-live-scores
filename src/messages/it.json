@@ -42,6 +42,17 @@
       "applyCount": "{count, plural, one {# filtro} other {# filtri}}",
       "clear": "Pulisci",
       "removeFilter": "Rimuovi {label}"
+    },
+    "liveOnly": "Solo dal vivo",
+    "bookmarkMatch": "Salva partita",
+    "notifyOnMatchStart": "Avvisami",
+    "setUnit": "set",
+    "setOrdinal": {
+      "1": "1°",
+      "2": "2°",
+      "3": "3°",
+      "4": "4°",
+      "5": "5°"
     }
   },
   "matchDetail": {

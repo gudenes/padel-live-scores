@@ -42,6 +42,17 @@
       "applyCount": "{count, plural, one {# filtro} other {# filtros}}",
       "clear": "Limpar",
       "removeFilter": "Remover {label}"
+    },
+    "liveOnly": "Só ao vivo",
+    "bookmarkMatch": "Guardar partida",
+    "notifyOnMatchStart": "Avisar",
+    "setUnit": "set",
+    "setOrdinal": {
+      "1": "1º",
+      "2": "2º",
+      "3": "3º",
+      "4": "4º",
+      "5": "5º"
     }
   },
   "matchDetail": {
