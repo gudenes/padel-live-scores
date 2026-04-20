@@ -31,20 +31,26 @@ Build **Padelgod**, a separate long-running service that owns *all* web scraping
 
 Padelgod V1 covers the **complete FIP-sourced pipeline**, with FIP treated as canonical source of truth:
 
+> Endpoints below are **validated against a live tournament** (Brussels P2 / `FIP-2026-1701`). See companion doc [`2026-04-20-padelgod-live-data-validation.md`](./2026-04-20-padelgod-live-data-validation.md) for the full ground-truth report.
+
 | Worker | Source | Cadence | Output |
 |---|---|---|---|
-| **Tournament discovery** | `padelfip.com/calendar` + `/live` + WP API | Daily 04:00 UTC | tournaments + dates + level + slug |
-| **Widget ID extractor** | event page (Playwright) | On new tournament | `FIP-2026-XXXX` per event, persisted in `padelgod.widget_id_cache` |
-| **Player rankings + profiles** | FIP rankings page + player profile pages | Daily 05:00 UTC (rankings); on-demand (profiles) | players (fip_id, name, country, photo, birthdate, ranking, points) |
-| **Draws** | `widget.matchscorerlive.com/screen/results.../{id}` | On entry-list publish + hourly during tournament | bracket + seeds + Q/WC/LL markers |
-| **OOP / schedule** | `widget.matchscorerlive.com/screen/oopbyday/{id}/{day}` | Hourly + 2h pre-tournament | court + scheduled time + match assignments |
-| **Live matches** | widget polling per active match | Every 6–8s while live | scores + point-by-point + server + court + status |
-| **Articles** | RSS feeds + FIP WordPress API | Hourly :40 | news articles |
+| **Tournament discovery** | WP API `/wp-json/wp/v2/events?modified_after=<last_sync>` | Hourly (incremental) + daily 04:00 UTC full | tournaments + dates + level + slug |
+| **Widget code lookup** | `POST /ft (connector=tol, year, query)` on `widget.matchscorerlive.com`, Playwright fallback on event page | On new tournament + daily revalidation | tournament code (e.g. `FIP-2026-1701`), persisted in `padelgod.widget_id_cache` |
+| **Player rankings** | FIP rankings page | Daily 05:00 UTC | players (canonical id, name, country, ranking, points) |
+| **Player profiles** | `/player/<slug>/` HTML + JSON-LD | On first sighting + weekly refresh | birthdate, height, racket+ball equipment, sponsors |
+| **Entry list** | `widget /screen/entrylist/{CODE}/{ms\|ws}?t=tol` | On entry-list publish + 2h before tournament | per-tournament roster + seeds (used to build the player dictionary) |
+| **Draws** | `widget /screen/draw/{CODE}/{drawType}/{round}?t=tol` (drawType ∈ MD/MQ/WD/WQ) | Hourly during tournament | bracket + seeds + Q/WC/LL markers |
+| **OOP / schedule** | `widget /screen/oopbyday/{CODE}/{day}?t=tol` | Hourly + 2h pre-tournament | court + scheduled time + match assignments |
+| **Results** | `widget /screen/resultsbyday/{CODE}/{day}?t=tol` | Hourly | completed match results per day |
+| **Live matches** | `widget /screen/tournamentlive/{CODE}?t=tol` (one call returns ALL live matches per tournament) | Every 6–8s (3–4s adaptive) while ≥1 match live | per-team current point, set scores, **server indicator** (`ballg.png` presence), court, duration, status |
+| **Match stats** | `POST /screen/getmatchstats?t=tol` body `(matchId, year, tournamentId, organization=FIP)` | After each match finishes + hourly during live tournaments | 14 stat dimensions per set + per match (populates existing `match_stats` table) |
+| **Articles** | RSS feeds + WP API | Hourly :40 | news articles |
 | **YouTube highlights** | YouTube Data API | Hourly :20 | highlight videos |
 
 **FIP-as-canonical implications:**
-- Padelgod assumes every player in a FIP-sanctioned event has a `fip_id` — no thin amateur records expected in V1
-- Source priority list flips: FIP wins for `name`, `ranking`, `avatar_url`, `birthdate`, `tournament.name`, `tournament.logo_url`, draws — basically everything except Premier-only fields (prize money, broadcasters)
+- Padelgod assumes every player in a FIP-sanctioned event has a canonical FIP player ID — no thin amateur records expected in V1
+- Source priority list flips: FIP wins for `name`, `ranking`, `avatar_url`, `birthdate`, `tournament.name`, `tournament.logo_url`, draws — basically everything except Premier-only fields (prize money, broadcasters) which still come from Premier's `beforeauth` API
 - `padelapi.org` integration stays as runtime fallback during the entire migration period, then is decommissioned
 
 ---
@@ -85,12 +91,16 @@ Separate Supabase **projects** were considered and rejected: cross-project setup
 ```
 padelgod/
 ├── workers/
-│   ├── tournament-discovery.ts     # cron: daily 04:00 UTC
-│   ├── widget-id-extractor.ts      # event-driven: on new tournament
+│   ├── tournament-discovery.ts     # cron: hourly incremental + daily 04:00 UTC full
+│   ├── widget-code-lookup.ts       # event-driven: on new tournament + daily revalidation
 │   ├── player-rankings.ts          # cron: daily 05:00 UTC
-│   ├── draw-fetcher.ts             # cron: hourly + on entry-list publish
+│   ├── player-profile.ts           # event-driven + weekly refresh (equipment + JSON-LD)
+│   ├── entry-list-fetcher.ts       # cron: hourly + 2h pre-tournament
+│   ├── draw-fetcher.ts             # cron: hourly during tournament
 │   ├── oop-fetcher.ts              # cron: hourly + 2h pre-tournament
-│   ├── live-poller.ts              # continuous: 6-8s per active tournament
+│   ├── results-fetcher.ts          # cron: hourly
+│   ├── live-poller.ts              # continuous: 6-8s adaptive per active tournament
+│   ├── match-stats-fetcher.ts      # event-driven on match finish + hourly during live tournaments
 │   ├── article-scraper.ts          # cron: hourly :40
 │   └── youtube-scraper.ts          # cron: hourly :20
 ├── lib/
@@ -120,7 +130,11 @@ padelgod/
 
 - One Node process runs the scheduler (cron jobs) AND the live-poller's promise pool
 - Live-poller maintains `Map<tournamentId, IntervalHandle>` — adds when tournament moves to `live`, removes when `finished`
-- Each live tournament = one polling loop (6–8s), parallel via `Promise.all`
+- One poll per tournament returns ALL its currently-live matches (`/screen/tournamentlive/{CODE}` is per-tournament, not per-match), so concurrency is bounded by tournament count not match count
+- **Adaptive polling cadence** (validated by live-data report §4):
+  - Default: 6–8s per tournament
+  - Drop to 3–4s when ANY match in the tournament has a game score in the deuce/advantage range, has a set point, or has a match point
+  - Drop further to 2s in the final game of the deciding set
 - Throttle: max 50 concurrent HTTP requests to `widget.matchscorerlive.com`
 - Polite User-Agent: `Padelgod-Scraper/1.0 (contact: <ops-email>)`
 
@@ -132,12 +146,77 @@ We don't have the volume yet. Adding Redis is real ops overhead (managed Redis i
 
 ## 4. Schema changes
 
+### 4.0 Cross-cutting conventions (NEW)
+
+Apply to **every** entity table touched in V1 (`tournaments`, `players`, `matches`, `sets`, `games`, `match_points`, plus `padelgod.*`):
+
+```sql
+-- A) User-friendly public IDs (Stripe-style prefixed nanoid)
+-- Postgres function generates {prefix}_{12-char base62 nanoid}
+CREATE OR REPLACE FUNCTION public.public_id(prefix TEXT)
+RETURNS TEXT AS $$
+DECLARE
+  alphabet TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  result TEXT := '';
+  i INT;
+BEGIN
+  FOR i IN 1..12 LOOP
+    result := result || substr(alphabet, 1 + floor(random() * 62)::int, 1);
+  END LOOP;
+  RETURN prefix || '_' || result;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
+
+ALTER TABLE public.tournaments  ADD COLUMN public_id TEXT UNIQUE NOT NULL DEFAULT public_id('tour');
+ALTER TABLE public.players      ADD COLUMN public_id TEXT UNIQUE NOT NULL DEFAULT public_id('plr');
+ALTER TABLE public.matches      ADD COLUMN public_id TEXT UNIQUE NOT NULL DEFAULT public_id('mat');
+ALTER TABLE public.sets         ADD COLUMN public_id TEXT UNIQUE NOT NULL DEFAULT public_id('set');
+ALTER TABLE public.games        ADD COLUMN public_id TEXT UNIQUE NOT NULL DEFAULT public_id('gam');
+-- match_points.public_id added in CREATE TABLE below
+
+-- B) Slugs for URL-friendly identifiers (in addition to public_id)
+-- tournaments.fip_slug already exists; promote to canonical slug
+ALTER TABLE public.tournaments RENAME COLUMN fip_slug TO slug;
+-- players: derive slug from name
+ALTER TABLE public.players ADD COLUMN slug TEXT UNIQUE;
+-- (backfill via migration: slugify(name) + numeric suffix on collision)
+
+-- C) Standardized timestamps
+-- (some tables already have created_at; this normalizes the rest)
+ALTER TABLE public.tournaments  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.tournaments  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.players      ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.players      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.matches      ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.matches      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.sets         ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.sets         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.games        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.games        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+-- Generic trigger keeps updated_at honest on every UPDATE
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+-- Apply to every entity table (repeat for sets, games, players, tournaments, match_points)
+CREATE TRIGGER trg_matches_updated_at BEFORE UPDATE ON public.matches
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+```
+
+**Why public_id + slug + timestamps land in V1, not later:**
+- public_id backfill is a one-time overnight job; adding it later means re-doing the migration with live data flowing
+- Slugs need to be stable from day-1 of public API exposure
+- `updated_at` enables incremental sync via `?updated_after=` for external consumers — adding later forces a full backfill of timestamps
+
 ### 4.1 Additions to `public` schema
 
 ```sql
 -- Per-point structured data (the table we never had)
 CREATE TABLE public.match_points (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  public_id TEXT UNIQUE NOT NULL DEFAULT public_id('pnt'),
   match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
   set_id   UUID NOT NULL REFERENCES sets(id)    ON DELETE CASCADE,
   game_id  UUID NOT NULL REFERENCES games(id)   ON DELETE CASCADE,
@@ -149,7 +228,8 @@ CREATE TABLE public.match_points (
   is_set_point   BOOLEAN DEFAULT false,
   is_match_point BOOLEAN DEFAULT false,
   source TEXT DEFAULT 'padelgod',                     -- 'padelgod' | 'padelapi' | 'inferred'
-  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (game_id, point_number)
 );
 CREATE INDEX idx_match_points_match  ON public.match_points(match_id);
@@ -158,8 +238,22 @@ CREATE INDEX idx_match_points_server ON public.match_points(server_player_id);
 -- Per-game server (server rotates each game in padel)
 ALTER TABLE public.games ADD COLUMN server_player_id UUID REFERENCES players(id);
 
+-- Padel-specific game flags (validated worth adding from day 1)
+ALTER TABLE public.games ADD COLUMN is_tiebreak BOOLEAN NOT NULL DEFAULT false;
+
+-- Tournament-level golden-point rule (set per tournament when discovered)
+ALTER TABLE public.tournaments ADD COLUMN uses_golden_point BOOLEAN;  -- nullable: unknown vs explicit true/false
+
+-- Per-point golden-point flag (only meaningful if tournament uses golden point)
+ALTER TABLE public.match_points ADD COLUMN is_golden_point BOOLEAN NOT NULL DEFAULT false;
+
 -- Source tracking on matches for divergence audit during migration
 ALTER TABLE public.matches ADD COLUMN last_updated_by TEXT;  -- 'padelapi' | 'padelgod' | 'manual'
+
+-- Internal level taxonomy (cleans up source-leaking values like 'fip_gold' → 'gold')
+-- New canonical values: 'gold','silver','bronze','beyond_b1','beyond_b2','beyond_b3',
+--                      'promises','premier_p1','premier_p2','premier_master','premier_finals','championships'
+-- Migration: data fix on existing rows, no new column. Source mapping lives in code.
 
 -- Migration feature flag — per-tournament source switching
 ALTER TABLE public.tournaments ADD COLUMN live_source TEXT DEFAULT 'padelapi';  -- 'padelapi' | 'padelgod'
@@ -199,13 +293,16 @@ CREATE TABLE padelgod.scrape_jobs (
 CREATE INDEX idx_scrape_jobs_recent     ON padelgod.scrape_jobs(started_at DESC);
 CREATE INDEX idx_scrape_jobs_tournament ON padelgod.scrape_jobs(tournament_id, job_type);
 
--- 2. Widget ID cache (durable so we don't re-Playwright on restart)
+-- 2. Widget code cache (durable so we don't rediscover on restart)
 CREATE TABLE padelgod.widget_id_cache (
   tournament_id UUID PRIMARY KEY REFERENCES public.tournaments(id) ON DELETE CASCADE,
-  widget_id TEXT NOT NULL UNIQUE,                      -- 'FIP-2026-1234'
+  widget_id TEXT NOT NULL UNIQUE,                      -- 'FIP-2026-1701'
   extracted_at TIMESTAMPTZ DEFAULT NOW(),
-  extraction_method TEXT NOT NULL                      -- 'iframe'|'page_regex'|'manual'
+  last_validated_at TIMESTAMPTZ DEFAULT NOW(),         -- updated when widget is re-checked
+  is_active BOOLEAN NOT NULL DEFAULT true,             -- false when widget returns "No results / No schedule"
+  extraction_method TEXT NOT NULL                      -- 'search'|'iframe'|'page_regex'|'manual'
 );
+CREATE INDEX idx_widget_id_cache_active ON padelgod.widget_id_cache(is_active, last_validated_at);
 
 -- 3. Raw HTML payloads (replay + debugging)
 CREATE TABLE padelgod.raw_payloads (
@@ -234,13 +331,73 @@ CREATE TABLE padelgod.unresolved_players (
   UNIQUE (tournament_id, widget_short_name, partner_short_name)
 );
 
--- 5. Phase-1 shadow tables (mirror schema of public counterparts; see §6.2)
+-- 5. Aggregate-divergence flags (when reconstructed point counts disagree with /screen/getmatchstats totals)
+CREATE TABLE padelgod.unresolved_matches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id UUID NOT NULL REFERENCES public.matches(id),
+  tournament_id UUID NOT NULL REFERENCES public.tournaments(id),
+  reason TEXT NOT NULL,                                -- 'point_count_divergence'|'set_score_mismatch'|'parser_error'
+  details JSONB NOT NULL,                              -- { reconstructed: ..., authoritative: ..., delta_pct: ... }
+  status TEXT DEFAULT 'pending',                       -- 'pending'|'resolved'|'ignored'
+  first_seen_at TIMESTAMPTZ DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ,
+  resolved_by TEXT
+);
+
+-- 6. Phase-1 shadow tables (mirror schema of public counterparts; see §6.2)
 --    Created during Phase 1 of migration, dropped after Phase 3.
 --    Identical column shape to public.matches/sets/games — extends with shadow-only columns
 --    (compared_at, divergence_reason). Concrete schema deferred to migration PR.
 ```
 
 **Tournament dictionaries (per-tournament player lookup) stay in-memory only** — cheap to rebuild from entry list on worker restart, no need to persist.
+
+---
+
+## 4.3 Point-by-point reconstruction (live polling) — NEW
+
+The widget exposes only **current state**, not point history. Padelgod reconstructs point-by-point by diffing successive polls. Full algorithm + failure modes documented in [`2026-04-20-padelgod-live-data-validation.md`](./2026-04-20-padelgod-live-data-validation.md) §4.
+
+**Pseudocode (per active match within a tournament poll):**
+
+```typescript
+const stateNow = parseTournamentLive(html).matches.get(matchId)
+const statePrev = lastSeen.get(matchId)
+
+if (statePrev && !equals(stateNow, statePrev)) {
+  const diff = computeDiff(statePrev, stateNow)
+
+  // Point change detected — record new points
+  for (const point of diff.pointsWon) {
+    await insertMatchPoint({
+      matchId, setNumber, gameNumber, pointNumber,
+      serverPlayerId: stateNow.servingPlayerId,   // who's serving NOW
+      winnerPair: point.winnerPair,
+      scoreAfter: point.scoreLabel,
+      isBreakPoint:  isBreakPoint(point, stateNow),
+      isSetPoint:    isSetPoint(point, stateNow),
+      isMatchPoint:  isMatchPoint(point, stateNow),
+      isGoldenPoint: tournamentUsesGoldenPoint && point.scoreLabel === 'GP',
+      source: 'padelgod',
+    })
+  }
+
+  if (diff.gameChanged) {
+    await updateGame({ serverPlayerId: stateNow.servingPlayerId, isTiebreak: stateNow.isTiebreak })
+  }
+  if (diff.setChanged) {
+    await updateSet({ setScore: stateNow.setScore, isCurrent: stateNow.isCurrent })
+  }
+  if (diff.serverChanged) {
+    await updateMatch({ servingPlayerId: stateNow.servingPlayerId })
+  }
+}
+
+lastSeen.set(matchId, stateNow)
+```
+
+**Aggregate validation on match completion:**
+After a match transitions to `finished`, fetch `/screen/getmatchstats` and compare the reconstructed `Total points` count against the authoritative figure. If divergence > 5%, write to `padelgod.unresolved_matches` and surface in ops dashboard.
 
 ---
 
@@ -425,6 +582,8 @@ PADELGOD_ADMIN_TOKEN=<secret>   # ops dashboard server-side calls only
 - **Lower-tier player records without FIP IDs** — assumed to be a non-issue per scope clarification, but if encountered in the wild we add a thin-record creation path in V1.5
 - **BullMQ + Redis** — adopt when single-process can no longer handle concurrent live tournaments at peak (current estimate: ~10–15 concurrent tournaments)
 - **Multi-region deployment** — single Railway region for V1; add regional polling workers if widget latency from a single region becomes a bottleneck
+- **`federation` and `sponsor` WP post types** — exposed by padelfip.com but not modeled in V1. Federations would enable national-team views; sponsors would enable tournament/player sponsor analytics. Defer to post-V1 scope discussion.
+- **PIN-protected `/screen/livestatus/{CODE}/{matchId}/{n}` endpoint** — operator/scorer view with finer state than public `tournamentlive`. Out of scope (we don't have a PIN), and not needed since `tournamentlive` + `getmatchstats` cover all required fields.
 
 ---
 

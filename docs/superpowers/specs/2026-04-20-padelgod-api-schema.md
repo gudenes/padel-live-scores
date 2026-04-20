@@ -37,7 +37,7 @@ For single-resource endpoints, `data` is the resource object directly. For list 
   "error": {
     "code": "WIDGET_ID_NOT_FOUND",
     "message": "No widget ID extracted yet for tournament 7c3a...",
-    "details": { "tournament_id": "7c3a..." }
+    "details": { "tournament_id": "tour_8Kx3mPq2RvN5" }
   }
 }
 ```
@@ -69,7 +69,27 @@ Cursor-based on all list endpoints:
 
 All timestamps are ISO 8601 UTC: `"2026-04-20T14:32:18.123Z"`.
 
-### 1.7 Idempotency
+**Every resource includes `created_at` and `updated_at`.** Public API list endpoints support `?updated_after=<iso8601>` for incremental sync — return only resources where `updated_at > updated_after`.
+
+### 1.6.1 Identifiers
+
+Every resource has two stable identifiers:
+- **`id`**: prefixed nanoid (e.g., `mat_aB3cD4eF5gH6`) — canonical, immutable, primary handle in clients
+- **`slug`** (where applicable): human-readable URL fragment (e.g., `juan-lebron`, `newgiza-p2-2026`) — mutable, for URL paths only, never for long-term storage
+
+Endpoints that take an identifier accept either: `GET /v1/players/plr_jL9bRwQ7m2Ks` and `GET /v1/players/juan-lebron` are equivalent.
+
+**No source-leaking IDs at top level.** Cross-reference IDs from upstream sources live in an optional `sources` object, e.g., `"sources": { "fip": "P200038" }`. Consumers don't need this; integrators who want to cross-reference do.
+
+### 1.7 Source-agnostic taxonomies
+
+Padelgod uses its own values for enums to avoid leaking source vendor names:
+- `tournament.level`: `gold`, `silver`, `bronze`, `beyond_b1/b2/b3`, `promises`, `premier_p1/p2/master/finals`, `championships`
+- `match.status`: `scheduled`, `live`, `finished`, `retired`, `walkover`, `suspended`, `cancelled`
+- `match.coverage`: `full`, `partial`, `tracking`, `none`
+- `player.category`: `men`, `women`, `mixed`
+
+### 1.8 Idempotency
 
 All `POST` write endpoints accept optional `Idempotency-Key` header. Repeated requests with the same key within 24h return the original response (no double-execution).
 
@@ -139,9 +159,9 @@ List recent scrape job records. Defaults to last 24h.
 {
   "data": [
     {
-      "id": "9f3b...",
+      "id": "job_jbZ4cD5eF6gH7",
       "job_type": "live",
-      "tournament_id": "7c3a...",
+      "tournament_id": "tour_8Kx3mPq2RvN5",
       "target_url": "https://widget.matchscorerlive.com/screen/resultsbyday/FIP-2026-1234",
       "status": "success",
       "started_at": "2026-04-20T14:32:18Z",
@@ -149,7 +169,7 @@ List recent scrape job records. Defaults to last 24h.
       "duration_ms": 847,
       "error_message": null,
       "parser_version": "fip-widget-1.4.0",
-      "raw_payload_id": "f1e2..."
+      "raw_payload_id": "pay_xY9aB2cD3eF4"
     }
   ],
   "next_cursor": "eyJpZCI6IjlmM2I..."
@@ -183,7 +203,7 @@ What Padelgod knows about + current polling state.
 {
   "data": [
     {
-      "tournament_id": "7c3a...",
+      "tournament_id": "tour_8Kx3mPq2RvN5",
       "name": "NewGiza P2 2026",
       "level": "premier_p2",
       "starts_at": "2026-04-13T08:00:00Z",
@@ -231,7 +251,7 @@ Manually trigger Playwright re-extraction of the FIP widget ID.
 ```json
 {
   "data": {
-    "tournament_id": "7c3a...",
+    "tournament_id": "tour_8Kx3mPq2RvN5",
     "old_widget_id": "FIP-2026-1234",
     "new_widget_id": "FIP-2026-1234",
     "extraction_method": "iframe",
@@ -274,7 +294,7 @@ Manual widget ID override (when Playwright extraction fails or for manual seedin
 ```json
 {
   "data": {
-    "tournament_id": "7c3a...",
+    "tournament_id": "tour_8Kx3mPq2RvN5",
     "widget_id": "FIP-2026-9999",
     "extraction_method": "manual",
     "extracted_at": "2026-04-20T14:35:00Z"
@@ -289,7 +309,7 @@ Manually start the live poller for a tournament (normally auto-started when tour
 ```json
 {
   "data": {
-    "tournament_id": "7c3a...",
+    "tournament_id": "tour_8Kx3mPq2RvN5",
     "polling": true,
     "started_at": "2026-04-20T14:35:00Z",
     "poll_interval_ms": 7000
@@ -321,13 +341,13 @@ List of widget short-names Padelgod could not auto-resolve.
 {
   "data": [
     {
-      "id": "a1b2...",
-      "tournament_id": "7c3a...",
+      "id": "unr_q7r8s9t0u1v2",
+      "tournament_id": "tour_8Kx3mPq2RvN5",
       "tournament_name": "NewGiza P2 2026",
       "widget_short_name": "J. Lebrón",
       "partner_short_name": "Chingotto",
-      "match_id": "d4e5...",
-      "candidate_player_ids": ["fip-001", "fip-877"],
+      "match_id": "mat_aB3cD4eF5gH6",
+      "candidate_player_ids": ["plr_jL9bRwQ7m2Ks", "fip-877"],
       "candidates": [
         { "player_id": "...", "name": "Juan Lebrón Perea", "country": "ES", "ranking": 3 },
         { "player_id": "...", "name": "Mario Lebrón",      "country": "ES", "ranking": 412 }
@@ -345,16 +365,16 @@ Link the widget short-name to an existing player. Stores the alias in `entity_ex
 
 **Body:**
 ```json
-{ "player_id": "fip-001" }
+{ "player_id": "plr_jL9bRwQ7m2Ks" }
 ```
 
 **Response 200:**
 ```json
 {
   "data": {
-    "id": "a1b2...",
+    "id": "unr_q7r8s9t0u1v2",
     "status": "resolved",
-    "resolved_player_id": "fip-001",
+    "resolved_player_id": "plr_jL9bRwQ7m2Ks",
     "resolved_at": "2026-04-20T14:36:00Z",
     "resolved_by": "ops@padelnachos.com",
     "alias_stored": true
@@ -382,7 +402,7 @@ Create a new player record from the widget data + operator input.
 ```json
 {
   "data": {
-    "id": "a1b2...",
+    "id": "unr_q7r8s9t0u1v2",
     "status": "created_new",
     "created_player_id": "new-uuid...",
     "alias_stored": true
@@ -408,8 +428,8 @@ Fetch the captured HTML body for replay/debug. 48h retention.
 ```json
 {
   "data": {
-    "id": "f1e2...",
-    "scrape_job_id": "9f3b...",
+    "id": "pay_xY9aB2cD3eF4",
+    "scrape_job_id": "job_jbZ4cD5eF6gH7",
     "content_hash": "sha256:abc123...",
     "captured_at": "2026-04-20T14:32:19Z",
     "body": "<html>...</html>",
@@ -440,8 +460,8 @@ Side-by-side padelapi vs padelgod for currently-live tournaments.
 {
   "data": [
     {
-      "match_id": "d4e5...",
-      "tournament_id": "7c3a...",
+      "match_id": "mat_aB3cD4eF5gH6",
+      "tournament_id": "tour_8Kx3mPq2RvN5",
       "padelapi": {
         "score": "6-4 3-2",
         "set_score": "3-2",
@@ -451,7 +471,7 @@ Side-by-side padelapi vs padelgod for currently-live tournaments.
       "padelgod": {
         "score": "6-4 3-2",
         "set_score": "3-2",
-        "current_server": "fip-001",
+        "current_server": "plr_jL9bRwQ7m2Ks",
         "last_updated_at": "2026-04-20T14:32:18Z"
       },
       "lag_ms": 3000,
@@ -502,19 +522,26 @@ Versioned at `/v1/...`. Designed-in but not built in V1. All routes accept `Auth
 {
   "data": [
     {
-      "id": "7c3a...",
+      "id": "tour_8Kx3mPq2RvN5",
       "name": "NewGiza P2 2026",
+      "slug": "newgiza-p2-2026",
       "level": "premier_p2",
       "country": "EG",
       "starts_at": "2026-04-13T08:00:00Z",
       "ends_at": "2026-04-20T22:00:00Z",
       "logo_url": "https://...",
-      "status": "live"
+      "status": "live",
+      "uses_golden_point": true,
+      "sources": { "fip": "newgiza-p2-2026" },
+      "created_at": "2026-01-15T09:00:00Z",
+      "updated_at": "2026-04-20T07:14:00Z"
     }
   ],
   "next_cursor": null
 }
 ```
+
+**Tournament `level` taxonomy (source-agnostic):** `gold`, `silver`, `bronze`, `beyond_b1`, `beyond_b2`, `beyond_b3`, `promises`, `premier_p1`, `premier_p2`, `premier_master`, `premier_finals`, `championships`. Internal mapping from FIP source labels lives in code, never appears in API responses.
 
 #### `GET /v1/tournaments/:id`
 **Response 200:** full tournament resource including draw categories, court list, current standings.
@@ -535,8 +562,8 @@ Versioned at `/v1/...`. Designed-in but not built in V1. All routes accept `Auth
           "seed": 1,
           "marker": null,
           "team": [
-            { "player_id": "fip-001", "name": "Juan Lebrón", "country": "ES", "ranking": 3 },
-            { "player_id": "fip-002", "name": "Federico Chingotto", "country": "AR", "ranking": 6 }
+            { "player_id": "plr_jL9bRwQ7m2Ks", "name": "Juan Lebrón", "country": "ES", "ranking": 3 },
+            { "player_id": "plr_fC4hN6mP9qR2", "name": "Federico Chingotto", "country": "AR", "ranking": 6 }
           ]
         }
       ]
@@ -558,7 +585,7 @@ Versioned at `/v1/...`. Designed-in but not built in V1. All routes accept `Auth
         "court_name": "Centre Court",
         "matches": [
           {
-            "match_id": "d4e5...",
+            "match_id": "mat_aB3cD4eF5gH6",
             "scheduled_at": "2026-04-15T11:00:00Z",
             "scheduled_label": "Not before 11:00",
             "round": "QF",
@@ -587,8 +614,8 @@ Full match detail including current score state, set summaries, current server, 
 ```json
 {
   "data": {
-    "id": "d4e5...",
-    "tournament_id": "7c3a...",
+    "id": "mat_aB3cD4eF5gH6",
+    "tournament_id": "tour_8Kx3mPq2RvN5",
     "category": "men",
     "round": "QF",
     "court": "Centre Court",
@@ -598,14 +625,18 @@ Full match detail including current score state, set summaries, current server, 
     "finished_at": null,
     "winner_pair": null,
     "coverage": "full",
-    "current_server_player_id": "fip-001",
+    "current_server_player_id": "plr_jL9bRwQ7m2Ks",
+    "duration_seconds": 1620,
+    "sources": { "fip": "MQ012" },
+    "created_at": "2026-04-13T09:00:00Z",
+    "updated_at": "2026-04-15T11:35:00Z",
     "pair1": [
-      { "player_id": "fip-001", "name": "Juan Lebrón", "country": "ES" },
-      { "player_id": "fip-002", "name": "Federico Chingotto", "country": "AR" }
+      { "player_id": "plr_jL9bRwQ7m2Ks", "name": "Juan Lebrón", "country": "ES" },
+      { "player_id": "plr_fC4hN6mP9qR2", "name": "Federico Chingotto", "country": "AR" }
     ],
     "pair2": [
-      { "player_id": "fip-003", "name": "Arturo Coello", "country": "ES" },
-      { "player_id": "fip-004", "name": "Agustín Tapia", "country": "AR" }
+      { "player_id": "plr_aC3hN5pQ7rS9", "name": "Arturo Coello", "country": "ES" },
+      { "player_id": "plr_aT8uV1wX3yZ5", "name": "Agustín Tapia", "country": "AR" }
     ],
     "sets": [
       {
@@ -622,7 +653,7 @@ Full match detail including current score state, set summaries, current server, 
         "current_game": {
           "game_number": 6,
           "game_score": "30-15",
-          "server_player_id": "fip-001"
+          "server_player_id": "plr_jL9bRwQ7m2Ks"
         }
       }
     ]
@@ -640,16 +671,17 @@ Point-by-point timeline.
 {
   "data": [
     {
-      "id": "p1q2...",
+      "id": "pnt_p1Q2r3S4t5U6",
       "set_number": 1,
       "game_number": 1,
       "point_number": 1,
-      "server_player_id": "fip-001",
+      "server_player_id": "plr_jL9bRwQ7m2Ks",
       "winner_pair": 1,
       "score_after": "15-0",
       "is_break_point": false,
       "is_set_point": false,
       "is_match_point": false,
+      "is_golden_point": false,
       "captured_at": "2026-04-15T11:08:42Z"
     }
   ],
@@ -668,7 +700,7 @@ Server-Sent Events stream for live updates. One event per detected change.
 ```
 event: point
 id: p1q2...
-data: {"set_number":2,"game_number":6,"point_number":4,"score_after":"40-15","winner_pair":1,"server_player_id":"fip-001"}
+data: {"set_number":2,"game_number":6,"point_number":4,"score_after":"40-15","winner_pair":1,"server_player_id":"plr_jL9bRwQ7m2Ks"}
 
 event: game
 id: g3h4...
@@ -695,8 +727,8 @@ WebSocket variant (`/v1/matches/:id/ws`) emits the same payloads as JSON frames.
 ```json
 {
   "data": {
-    "id": "fip-001",
-    "fip_id": "fip-P200038",
+    "id": "plr_jL9bRwQ7m2Ks",
+    "slug": "juan-lebron",
     "name": "Juan Lebrón Perea",
     "display_name": "Juan Lebrón",
     "country": "ES",
@@ -707,7 +739,10 @@ WebSocket variant (`/v1/matches/:id/ws`) emits the same payloads as JSON frames.
     "race_ranking": 5,
     "points": 12450,
     "win_rate": 0.78,
-    "total_matches": 287
+    "total_matches": 287,
+    "sources": { "fip": "P200038" },
+    "created_at": "2024-08-13T12:00:00Z",
+    "updated_at": "2026-04-20T07:14:00Z"
   }
 }
 ```
@@ -730,7 +765,7 @@ WebSocket variant (`/v1/matches/:id/ws`) emits the same payloads as JSON frames.
   "data": [
     {
       "rank": 1,
-      "player_id": "fip-005",
+      "player_id": "plr_kL2mN4pQ6rS8",
       "name": "Arturo Coello",
       "country": "ES",
       "points": 14820,
