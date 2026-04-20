@@ -6,7 +6,7 @@ let app: FastifyInstance;
 
 beforeAll(async () => {
   app = Fastify({ logger: false });
-  registerHealthRoute(app, { startedAt: new Date('2026-04-20T09:00:00Z'), version: '0.1.0' });
+  registerHealthRoute(app, { startedAt: new Date(Date.now() - 60_000), version: '0.1.0' });
   await app.ready();
 });
 
@@ -23,5 +23,7 @@ describe('GET /health', () => {
     expect(body.data.version).toBe('0.1.0');
     expect(typeof body.data.uptime_seconds).toBe('number');
     expect(body.data.uptime_seconds).toBeGreaterThanOrEqual(0);
+    expect(body.data.uptime_seconds).toBeGreaterThanOrEqual(60);
+    expect(body.data.uptime_seconds).toBeLessThan(120);
   });
 });
