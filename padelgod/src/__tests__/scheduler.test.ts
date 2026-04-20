@@ -12,10 +12,11 @@ const ALL_ENABLED = {
   enableResultsFetcher: true,
   enableStaticReconciler: true,
   enableMatchStatsFetcher: true,
+  enableLivePollerManager: true,
 };
 
 describe('buildSchedule', () => {
-  it('includes all 10 workers when fully enabled', () => {
+  it('includes all 11 workers when fully enabled', () => {
     const sched = buildSchedule(ALL_ENABLED);
     const names = sched.map((s) => s.name);
     expect(names).toContain('tournament-discovery');
@@ -28,6 +29,7 @@ describe('buildSchedule', () => {
     expect(names).toContain('results-fetcher');
     expect(names).toContain('static-reconciler');
     expect(names).toContain('match-stats-fetcher');
+    expect(names).toContain('live-poller-manager');
   });
 
   it('schedules match-stats-fetcher at :25', () => {
@@ -35,6 +37,18 @@ describe('buildSchedule', () => {
     const entry = sched.find((s) => s.name === 'match-stats-fetcher');
     expect(entry).toBeDefined();
     expect(entry!.cron).toBe('25 * * * *');
+  });
+
+  it('schedules live-poller-manager every minute', () => {
+    const sched = buildSchedule(ALL_ENABLED);
+    const entry = sched.find((s) => s.name === 'live-poller-manager');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('*/1 * * * *');
+  });
+
+  it('respects enableLivePollerManager=false', () => {
+    const sched = buildSchedule({ ...ALL_ENABLED, enableLivePollerManager: false });
+    expect(sched.map((s) => s.name)).not.toContain('live-poller-manager');
   });
 
   it('respects enable flags for static workers', () => {

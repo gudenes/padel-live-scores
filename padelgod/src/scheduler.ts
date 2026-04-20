@@ -11,6 +11,7 @@ import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
 import { runStaticReconciler } from './workers/static-reconciler.js';
 import { runMatchStatsFetcher } from './workers/match-stats-fetcher.js';
+import { runLivePollerManager } from './workers/live-poller-manager.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -29,6 +30,7 @@ export interface SchedulerFlags {
   enableResultsFetcher: boolean;
   enableStaticReconciler: boolean;
   enableMatchStatsFetcher: boolean;
+  enableLivePollerManager: boolean;
 }
 
 export interface SchedulerDeps {
@@ -47,7 +49,8 @@ export type WorkerName =
   | 'oop-fetcher'
   | 'results-fetcher'
   | 'static-reconciler'
-  | 'match-stats-fetcher';
+  | 'match-stats-fetcher'
+  | 'live-poller-manager';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -62,6 +65,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'results-fetcher',
   'static-reconciler',
   'match-stats-fetcher',
+  'live-poller-manager',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -79,6 +83,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
     case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
     case 'match-stats-fetcher':  return (deps) => runMatchStatsFetcher(deps);
+    case 'live-poller-manager':  return (deps) => runLivePollerManager(deps);
     default: return null;
   }
 }
@@ -153,6 +158,17 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'match-stats-fetcher',
       cron: '25 * * * *', // hourly at :25
       run: getWorkerRunner('match-stats-fetcher')!,
+    });
+  }
+  if (flags.enableLivePollerManager) {
+    entries.push({
+      name: 'live-poller-manager',
+      // Every minute. The manager is fast (one RPC + diff against in-memory
+      // map) — the actual long-running work is inside LivePollerLoop instances,
+      // which are long-lived setInterval chains in-process, not controlled by
+      // node-cron. This cron entry is just the manager's lifecycle check.
+      cron: '*/1 * * * *',
+      run: getWorkerRunner('live-poller-manager')!,
     });
   }
   return entries;

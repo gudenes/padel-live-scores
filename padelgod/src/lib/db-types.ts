@@ -107,6 +107,7 @@ export type ScrapeJobType =
   | 'draw'
   | 'oop'
   | 'live'
+  | 'tournamentlive'
   | 'rankings'
   | 'profile'
   | 'article'
