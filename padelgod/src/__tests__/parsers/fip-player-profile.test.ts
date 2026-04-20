@@ -39,5 +39,45 @@ describe('parseFipPlayerProfile', () => {
     expect(result.birthDate).toBeNull();
     expect(result.heightCm).toBeNull();
     expect(result.racketBrand).toBeNull();
+    expect(result.coaches).toEqual([]);
+  });
+
+  it('extracts coaches from .overview__coaches', () => {
+    // Real FIP HTML shape (verified against padelfip.com/player/arturo-coello/)
+    const html = `
+      <html><body>
+        <div class="overview__mirror">
+          <span class="overview__title">Coaches</span>
+          <div class="overview__coaches">
+            <p class="overview__text">Gustavo Pratto</p>
+            <p class="overview__text">Martin Canali</p>
+          </div>
+        </div>
+      </body></html>
+    `;
+    const result = parseFipPlayerProfile(html);
+    expect(result.coaches).toEqual(['Gustavo Pratto', 'Martin Canali']);
+  });
+
+  it('handles a single coach', () => {
+    const html = `
+      <div class="overview__coaches">
+        <p class="overview__text">Juan Martin Diaz</p>
+      </div>
+    `;
+    const result = parseFipPlayerProfile(html);
+    expect(result.coaches).toEqual(['Juan Martin Diaz']);
+  });
+
+  it('skips empty coach entries', () => {
+    const html = `
+      <div class="overview__coaches">
+        <p class="overview__text">Gustavo Pratto</p>
+        <p class="overview__text">   </p>
+        <p class="overview__text"></p>
+      </div>
+    `;
+    const result = parseFipPlayerProfile(html);
+    expect(result.coaches).toEqual(['Gustavo Pratto']);
   });
 });

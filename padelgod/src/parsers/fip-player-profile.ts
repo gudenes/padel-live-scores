@@ -8,6 +8,12 @@ export interface ParsedPlayerProfile {
   affiliation: string | null;
   racketBrand: string | null;
   racketModel: string | null;
+  /**
+   * Ordered list of coach names from the `<div class="overview__coaches">`
+   * block on the FIP player page. A player can have multiple coaches.
+   * Empty array when the page has no coaches section or lists no names.
+   */
+  coaches: string[];
 }
 
 const FIP_ID_REGEX = /\bP\d{4,7}\b/;
@@ -58,5 +64,14 @@ export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
   const racketBrand = $('.racket-brand').first().text().trim() || null;
   const racketModel = $('.racket-model').first().text().trim() || null;
 
-  return { fipId, birthDate, birthPlace, heightCm, affiliation, racketBrand, racketModel };
+  // Coaches — one or more <p class="overview__text"> inside .overview__coaches.
+  // Names are surfaced verbatim (no normalization) so the ops dashboard can
+  // audit before any future dedup pass.
+  const coaches: string[] = [];
+  $('.overview__coaches .overview__text').each((_, el) => {
+    const name = $(el).text().trim();
+    if (name) coaches.push(name);
+  });
+
+  return { fipId, birthDate, birthPlace, heightCm, affiliation, racketBrand, racketModel, coaches };
 }

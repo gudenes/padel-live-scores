@@ -53,6 +53,11 @@ export async function runPlayerProfile(
   const updates: Record<string, unknown> = { last_updated_by: 'padelgod' };
   if (parsed.fipId) updates.fip_id = parsed.fipId;
   if (parsed.birthDate) updates.birthdate = parsed.birthDate;
+  // Coaches: ALWAYS overwrite (even with empty array) so stale names from a
+  // previous sync don't linger when a player switches coaches. The FIP page
+  // is the source of truth — if the parser returns [] today, the player
+  // really doesn't have coaches listed today.
+  updates.coaches = parsed.coaches;
   // birth_place, height, affiliation, equipment: stored in db only if columns exist.
   // For V1 the existing players table lacks birth_place/height/affiliation columns,
   // so we skip them and revisit in a follow-up migration.
