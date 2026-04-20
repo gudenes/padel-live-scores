@@ -22,7 +22,7 @@ BEGIN
   normalized := regexp_replace(normalized, '^-+|-+$', '', 'g');
   RETURN normalized;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$ LANGUAGE plpgsql STABLE;
 
 -- Backfill players.slug with disambiguation suffix on collisions
 DO $$
@@ -85,6 +85,12 @@ BEGIN
 
   SELECT COUNT(*) INTO null_count FROM public.matches WHERE public_id IS NULL;
   ASSERT null_count = 0, format('%s matches have NULL public_id after backfill', null_count);
+
+  SELECT COUNT(*) INTO null_count FROM public.sets WHERE public_id IS NULL;
+  ASSERT null_count = 0, format('%s sets have NULL public_id after backfill', null_count);
+
+  SELECT COUNT(*) INTO null_count FROM public.games WHERE public_id IS NULL;
+  ASSERT null_count = 0, format('%s games have NULL public_id after backfill', null_count);
 
   ASSERT EXISTS (
     SELECT 1 FROM pg_constraint
