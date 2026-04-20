@@ -39,6 +39,26 @@ interface MatchPointRow {
   source: string;
 }
 
+interface ShadowSetRow {
+  match_id: string;
+  set_number: number;
+  set_score: string | null;
+  pair1_games: number | null;
+  pair2_games: number | null;
+  updated_at: string;
+}
+
+interface ShadowMatchPointRow {
+  match_id: string;
+  set_number: number;
+  game_number: number;
+  point_number: number;
+  winner_pair: 1 | 2;
+  score_after: string;
+  server_team: 1 | 2 | null;
+  is_golden_point: boolean;
+}
+
 interface FakeSupabase {
   setsUpsertCalls: any[];
   setsUpdateCalls: Array<{ patch: Record<string, unknown>; filters: Record<string, unknown> }>;
@@ -47,6 +67,9 @@ interface FakeSupabase {
   matchPointsInserted: MatchPointRow[];
   sets: SetRow[];
   games: GameRow[];
+  shadowSetsUpsertCalls: any[];
+  shadowMatchPointsInserted: ShadowMatchPointRow[];
+  padelgodFromCalls: string[];
 }
 
 function makeFakeSupabase(opts: {
@@ -64,6 +87,9 @@ function makeFakeSupabase(opts: {
     matchPointsInserted: opts.preMatchPoints ? [...opts.preMatchPoints] : [],
     sets: opts.preSets ? [...opts.preSets] : [],
     games: opts.preGames ? [...opts.preGames] : [],
+    shadowSetsUpsertCalls: [],
+    shadowMatchPointsInserted: [],
+    padelgodFromCalls: [],
   };
 
   let setIdCounter = state.sets.length;
@@ -197,12 +223,79 @@ function makeFakeSupabase(opts: {
     };
   }
 
+  function shadowSetsTable() {
+    return {
+      upsert: (row: any, _opts: any) => {
+        state.shadowSetsUpsertCalls.push(row);
+        return Promise.resolve({ data: null, error: null });
+      },
+    };
+  }
+
+  function shadowMatchPointsTable() {
+    return {
+      select: (_cols: string, selOpts: any) => {
+        // Chain: .select().eq().eq().eq() — resolves as a Promise-like thenable
+        // that reports the count.
+        const filters: Array<{ col: string; val: unknown }> = [];
+        const api: any = {
+          eq: (col: string, val: unknown) => {
+            filters.push({ col, val });
+            return api;
+          },
+          then: (resolve: (v: { count: number; data: null; error: null }) => void) => {
+            if (selOpts?.count === 'exact' && selOpts?.head === true) {
+              const count = state.shadowMatchPointsInserted.filter((p) =>
+                filters.every((f) => (p as any)[f.col] === f.val),
+              ).length;
+              resolve({ count, data: null, error: null });
+            } else {
+              resolve({ count: 0, data: null, error: null });
+            }
+          },
+        };
+        return api;
+      },
+      insert: (row: ShadowMatchPointRow) => {
+        // UNIQUE(match_id, set_number, game_number, point_number)
+        const dup = state.shadowMatchPointsInserted.find(
+          (p) =>
+            p.match_id === row.match_id &&
+            p.set_number === row.set_number &&
+            p.game_number === row.game_number &&
+            p.point_number === row.point_number,
+        );
+        if (dup) {
+          return Promise.resolve({
+            data: null,
+            error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+          });
+        }
+        state.shadowMatchPointsInserted.push(row);
+        return Promise.resolve({ data: null, error: null });
+      },
+    };
+  }
+
   const client = {
     from: (t: string) => {
       if (t === 'sets') return setsTable();
       if (t === 'games') return gamesTable();
       if (t === 'match_points') return matchPointsTable();
       throw new Error(`unexpected table: ${t}`);
+    },
+    schema: (schemaName: string) => {
+      if (schemaName !== 'padelgod') {
+        throw new Error(`unexpected schema: ${schemaName}`);
+      }
+      return {
+        from: (t: string) => {
+          state.padelgodFromCalls.push(t);
+          if (t === 'shadow_sets') return shadowSetsTable();
+          if (t === 'shadow_match_points') return shadowMatchPointsTable();
+          throw new Error(`unexpected padelgod table: ${t}`);
+        },
+      };
     },
   };
 
@@ -594,5 +687,165 @@ describe('applyDiff — set handling', () => {
     // the pre-seeded set 1 should have been patched to false
     const prior = s.sets.find((x) => x.set_number === 1)!;
     expect(prior.is_current).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyDiff (shadow mode) — routing to padelgod.shadow_* tables
+// ---------------------------------------------------------------------------
+
+describe('applyDiff (shadow mode)', () => {
+  it('routes set upsert to padelgod.shadow_sets (no public.sets write)', async () => {
+    const { client, state: s } = makeFakeSupabase();
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, {
+      team1Sets: [{ games: 3, tiebreak: null }],
+      team2Sets: [{ games: 2, tiebreak: null }],
+    });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 }, {
+      team1Sets: [{ games: 3, tiebreak: null }],
+      team2Sets: [{ games: 2, tiebreak: null }],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+    };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, { mode: 'shadow' });
+
+    // No canonical writes at all.
+    expect(s.setsUpsertCalls).toHaveLength(0);
+    expect(s.setsUpdateCalls).toHaveLength(0);
+    expect(s.gamesUpsertCalls).toHaveLength(0);
+    expect(s.gamesUpdateCalls).toHaveLength(0);
+    expect(s.matchPointsInserted).toHaveLength(0);
+
+    // Exactly one shadow_sets upsert, matching the current set aggregates.
+    expect(s.shadowSetsUpsertCalls).toHaveLength(1);
+    const row = s.shadowSetsUpsertCalls[0];
+    expect(row.match_id).toBe(MATCH_ID);
+    expect(row.set_number).toBe(1);
+    expect(row.pair1_games).toBe(3);
+    expect(row.pair2_games).toBe(2);
+    expect(row.set_score).toBe('3-2');
+    // Schema-less columns are NOT written — no is_current, no score_source.
+    expect(row.is_current).toBeUndefined();
+    expect(row.score_source).toBeUndefined();
+  });
+
+  it('routes match_point insert to padelgod.shadow_match_points', async () => {
+    const { client, state: s } = makeFakeSupabase();
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+    };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, { mode: 'shadow' });
+
+    expect(s.matchPointsInserted).toHaveLength(0);
+    expect(s.shadowMatchPointsInserted).toHaveLength(1);
+    const pt = s.shadowMatchPointsInserted[0]!;
+    expect(pt.match_id).toBe(MATCH_ID);
+    expect(pt.set_number).toBe(1);
+    // game_number = pair1Games + pair2Games + 1 = 0 + 0 + 1 = 1
+    expect(pt.game_number).toBe(1);
+    expect(pt.point_number).toBe(1);
+    expect(pt.winner_pair).toBe(1);
+    expect(pt.score_after).toBe('30-0');
+  });
+
+  it('skips games writes entirely in shadow mode', async () => {
+    const { client, state: s } = makeFakeSupabase();
+    const prev = state({ kind: 'regular', team1: 40, team2: 15 }, {
+      team1Sets: [{ games: 5, tiebreak: null }],
+      team2Sets: [{ games: 3, tiebreak: null }],
+    });
+    const curr = state({ kind: 'regular', team1: 0, team2: 0 }, {
+      team1Sets: [{ games: 6, tiebreak: null }],
+      team2Sets: [{ games: 3, tiebreak: null }],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+      gameChanged: true,
+    };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, { mode: 'shadow' });
+
+    expect(s.gamesUpsertCalls).toHaveLength(0);
+    expect(s.gamesUpdateCalls).toHaveLength(0);
+    // Confirm the padelgod schema was only used for shadow_sets + (optionally)
+    // shadow_match_points — never shadow_games.
+    expect(s.padelgodFromCalls).not.toContain('shadow_games');
+  });
+
+  it('defaults mode to canonical when omitted (existing behavior preserved)', async () => {
+    const { client, state: s } = makeFakeSupabase();
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+    };
+
+    // No `mode` passed — should behave exactly like canonical.
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    // Canonical paths written.
+    expect(s.setsUpsertCalls).toHaveLength(1);
+    expect(s.gamesUpsertCalls).toHaveLength(1);
+    expect(s.matchPointsInserted).toHaveLength(1);
+    // Shadow paths untouched.
+    expect(s.shadowSetsUpsertCalls).toHaveLength(0);
+    expect(s.shadowMatchPointsInserted).toHaveLength(0);
+    expect(s.padelgodFromCalls).toHaveLength(0);
+  });
+
+  it('passes server_team + is_golden_point correctly into shadow_match_points', async () => {
+    const { client, state: s } = makeFakeSupabase();
+    const prev = state({ kind: 'deuce' }, { servingTeam: 2 });
+    const curr = state({ kind: 'golden_point' }, { servingTeam: 2 });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 2 }],
+    };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, { mode: 'shadow' });
+
+    expect(s.shadowMatchPointsInserted).toHaveLength(1);
+    const pt = s.shadowMatchPointsInserted[0]!;
+    expect(pt.server_team).toBe(2);
+    expect(pt.is_golden_point).toBe(true);
+    expect(pt.score_after).toBe('GP');
+    // Confirm the server UUID shape from canonical mode is NOT present.
+    expect((pt as any).server_player_id).toBeUndefined();
+  });
+
+  it('computes point_number from existing count in shadow_match_points (next is #2)', async () => {
+    const { client, state: s } = makeFakeSupabase();
+    // Pre-seed a shadow point row for (set 1, game 1, point 1)
+    s.shadowMatchPointsInserted.push({
+      match_id: MATCH_ID,
+      set_number: 1,
+      game_number: 1,
+      point_number: 1,
+      winner_pair: 1,
+      score_after: '15-0',
+      server_team: 1,
+      is_golden_point: false,
+    });
+
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+    };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, { mode: 'shadow' });
+
+    expect(s.shadowMatchPointsInserted).toHaveLength(2);
+    expect(s.shadowMatchPointsInserted[1]!.point_number).toBe(2);
   });
 });
