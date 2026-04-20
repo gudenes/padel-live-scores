@@ -26,6 +26,9 @@ The live poller is NOT a cron — it's a long-running set of `setInterval`s regi
 - Schema additions: `match_points`, `games.server_player_id`, `games.is_tiebreak`, `tournaments.live_source`, `tournaments.uses_golden_point`, `match_points.is_golden_point`
 - All 5 Plan 1 follow-up fixes applied (migration 015)
 
+**Prerequisites (NOT yet shipped — must land before Task 16 cutover):**
+- **Relay `live_source` gate** (see Task 0 below): `relay/index.js` currently subscribes to all padelapi tournaments unconditionally. Without the gate, flipping any tournament to `live_source='padelgod'` causes BOTH the relay AND the Padelgod poller to write to the same rows, corrupting data. Task 0 adds a filter so the relay only subscribes where `live_source='padelapi'` AND unsubscribes when a tournament flips to `'padelgod'`.
+
 ---
 
 ## File Structure
@@ -87,6 +90,31 @@ Default 6s per poll. Drops to:
 - **1s** when match is on match-point or set-point
 
 Implementation: each per-tournament loop tracks the highest-criticality state across all its currently-live matches and adjusts its `setInterval` accordingly.
+
+---
+
+### Task 0: Relay `live_source` gate (cutover prerequisite)
+
+**Files:**
+- Modify: `relay/index.js`
+
+Without this change, the cutover mechanism is unsafe — both the relay and the Padelgod poller would write to the same match row the moment a tournament's `live_source` flips. This must land and be deployed to Railway BEFORE flipping any tournament in Task 16.
+
+Changes:
+1. **Filter subscription candidates by `live_source`** — wherever the relay builds its list of tournaments/matches to watch, JOIN to `tournaments` and filter `WHERE tournaments.live_source = 'padelapi'` (default). Any tournament flagged `'padelgod'` becomes invisible to the relay.
+2. **Add a periodic reconciliation loop** (every 60s): re-query the live list. For any currently-subscribed channel whose tournament is no longer in the list (because someone flipped `live_source`), call `unsubscribeChannel(channelName)` and remove it from `activeChannels` + `channelMatchIds`.
+3. **Log the transition**: `console.log('[Relay] Unsubscribing — tournament flipped to padelgod:', tournamentName)` so cutover is auditable in Railway logs.
+
+Safety note: the gate MUST be on `tournaments.live_source`, NOT on `matches.live_source` (that column doesn't exist). Individual matches inherit the flag from their tournament.
+
+Verification (manual, before Task 16):
+1. Deploy relay with the gate.
+2. Pick any padelapi tournament (NOT yet flipped), confirm relay still subscribes + writes scores for it.
+3. Flip one test tournament `UPDATE tournaments SET live_source='padelgod' WHERE id=...`.
+4. Within 60s, Railway relay logs should show the unsubscribe log line. `activeChannels` should no longer include that tournament's matches.
+5. Flip back to `'padelapi'`. Within 60s, relay should re-subscribe.
+
+Commit: `feat(relay): gate subscriptions by tournaments.live_source (Padelgod cutover prep)`
 
 ---
 
@@ -311,14 +339,19 @@ export async function findOrCreateMatch(
 
 Logic:
 1. Compute composite external_id: `${tournamentWidgetId}:${matchWidgetId}` e.g. `"FIP-2026-1701:MQ012"`
-2. Query `entity_external_ids` for `(entity_type='match', source='crionet_widget', external_id=composite)` → if found, return that match_id
-3. If not found, INSERT into `matches` with available fields, then INSERT into `entity_external_ids` linking the new match to the widget id
-4. Return `{ matchId, created: true|false }`
+2. **Widget-id lookup**: query `entity_external_ids` for `(entity_type='match', source='crionet_widget', external_id=composite)` → if found, return that match_id
+3. **Pair-based fallback** (critical — prevents duplicate matches when draw-reconciler created the row before widget id was known): if widget-id lookup misses AND `pair1PlayerIds` + `pair2PlayerIds` are both provided with all 4 UUIDs non-null, query `matches` for a row matching `(tournament_id, category, round, {pair1,pair2} player id set)`. Pair match must be unordered — team1 in widget may be pair2 in DB. If exactly one candidate found: link it by INSERTing into `entity_external_ids` and return its id. If multiple candidates found: log warning, prefer the one without an existing crionet_widget mapping, else fall through to create.
+4. If still not found, INSERT into `matches` with available fields, then INSERT into `entity_external_ids` linking the new match to the widget id
+5. **Concurrency guard**: wrap the INSERT in `ON CONFLICT (source, entity_type, external_id) DO NOTHING` on `entity_external_ids`; if the insert returns no row, re-run step 2 to fetch the winner of the race
+6. Return `{ matchId, created: true|false, linkedExisting: true|false }` — `linkedExisting` is true when pair-based fallback matched a row created by draw-reconciler
 
 Tests:
 1. Returns existing match id when entity_external_ids has it
 2. Creates new match + entity_external_ids row when not found
-3. Handles concurrent create gracefully (second caller gets existing id, not error)
+3. **Pair-based fallback links existing draw-only match** — seed a matches row + tournament_draws row with no widget id; call `findOrCreateMatch` with widget id + same pair UUIDs → returns existing match id with `linkedExisting: true` (NOT a new row)
+4. **Pair-based fallback handles reversed team order** — DB has pair1={A,B}, pair2={C,D}; widget provides team1={C,D}, team2={A,B} → matches the same row
+5. **Pair-based fallback skipped when any player UUID is null** — falls through to INSERT (can't safely match on partial pairs)
+6. Handles concurrent create gracefully (second caller gets existing id, not error)
 
 Commit: `feat(padelgod): add match-identifier lib (find or create canonical match)`
 
@@ -361,7 +394,7 @@ For each tournament's latest draw snapshots:
    - UPSERT into existing `tournament_draws` table (already has unique constraint on `tournament_id, category, draw_position`)
 3. Unresolved players → write to `padelgod.unresolved_players`
 
-Note: draw doesn't have a widget match id (only OOP/results do). For matches that exist only in draws, we use the canonical `matches.id` UUID without a crionet_widget external_id mapping. The OOP/results reconciler will later link them.
+Note: draw doesn't have a widget match id (only OOP/results do). For matches that exist only in draws, we use the canonical `matches.id` UUID without a crionet_widget external_id mapping. When the OOP/results reconciler later sees the same match with a widget id, Task 4's **pair-based fallback** in `findOrCreateMatch` matches the existing row on `(tournament_id, category, round, pair player UUIDs)` and links it by inserting the widget id mapping — rather than creating a duplicate match.
 
 Tests cover: full resolution → draws written, partial resolution → unresolved queue + draws skipped, dedup against existing tournament_draws rows.
 
@@ -472,36 +505,99 @@ Commit: `feat(padelgod): add match-stats-fetcher worker`
 
 In-memory representation of one match's state at one poll, plus a diff function.
 
+**Point state must NOT be a raw string.** Naive string diff (e.g. `AD → 40` → "team1's string shrunk, so team2 won") gets break-back-to-deuce wrong. Use an explicit lattice so the comparator can reason about whether a transition is valid without a point, or requires exactly one point, or implies a game ended.
+
 ```typescript
+// Canonical point labels. In a standard game: 0 < 15 < 30 < 40 < AD.
+// DEUCE is a distinct state (both at 40, rally ongoing before AD is assigned).
+// GP = golden point (deuce-decider when tournaments.uses_golden_point=true; replaces AD entirely).
+// TIEBREAK_N = numeric tiebreak score (inside a tiebreak game, points are integers).
+export type PointState =
+  | { kind: 'regular'; team1: 0 | 15 | 30 | 40; team2: 0 | 15 | 30 | 40 }
+  | { kind: 'deuce' }                                       // both at 40, no AD yet
+  | { kind: 'advantage'; side: 1 | 2 }                      // AD to side
+  | { kind: 'golden_point' }                                // GP label (tournament uses golden point)
+  | { kind: 'tiebreak'; team1: number; team2: number };     // inside a tiebreak game
+
 export interface LiveMatchState {
   matchWidgetId: string;
   matchId: string;                    // canonical UUID (resolved via match-identifier)
-  team1Points: string;                // "15", "30", "AD", "GP"
-  team2Points: string;
+  pointState: PointState;
   team1Sets: Array<{ games: number; tiebreak: number | null } | null>;
   team2Sets: Array<{ games: number; tiebreak: number | null } | null>;
   servingTeam: 1 | 2 | null;
   status: 'scheduled' | 'live' | 'finished';
 }
 
+// Pure parse from the two raw strings the widget gives us per team ("15" / "30" / "40" / "AD" / "GP"
+// on regular games, numeric strings like "5" / "6" inside tiebreaks). Called by the tournamentlive
+// parser before constructing LiveMatchState.
+//
+// Parser contract (important — the comparator depends on this):
+//   - Both raw values "40"                    → { kind: 'deuce' }                     (NEVER regular {40,40})
+//   - One raw "AD", other "40"                → { kind: 'advantage', side }
+//   - Either raw "GP"                         → { kind: 'golden_point' }
+//   - insideTiebreak=true                     → { kind: 'tiebreak', ... }
+//   - Otherwise                               → { kind: 'regular', team1, team2 }
+export function parsePointState(
+  team1Raw: string,
+  team2Raw: string,
+  insideTiebreak: boolean,
+): PointState;
+
 export interface LiveStateDiff {
-  pointsAdded: Array<{ winnerTeam: 1 | 2; scoreAfter: string }>;
-  gameChanged: boolean;               // a game just ended
-  setChanged: boolean;                // a set just ended
+  pointsAdded: Array<{ winnerTeam: 1 | 2 }>;
+  gameChanged: boolean;               // a game just ended (team's game count in current set went up)
+  setChanged: boolean;
   serverChanged: boolean;
   statusChanged: boolean;
+  suspectedMissedPoints: boolean;     // true when we can't explain the transition with a single point
 }
 
 export function diffLiveState(prev: LiveMatchState | null, curr: LiveMatchState): LiveStateDiff;
 ```
 
-Logic:
-- Compare `currentPoints` strings; the team whose points went up won the most recent point. (If both unchanged → no diff.)
-- Set boundary: when team1Sets[N].games or team2Sets[N].games changes → game ended in that set
-- Server change: simple equality check
-- Status change: simple equality
+Comparator logic (per-state, authoritative table):
 
-Tests cover: 15 → 30 (1 point added), 30 → 0 + games went 0 → 1 (game just ended), set change, server flip.
+| prev → curr                          | Result                                   |
+|---|---|
+| `regular a → regular b` with exactly one team's numeric score incremented one step (0→15, 15→30, 30→40) | 1 point to that team |
+| `regular {30,40}` or `regular {40,30}` → `deuce` | 1 point to the side that went 30→40 |
+| `deuce → advantage{side}`            | 1 point to `side` |
+| `advantage{side} → deuce`            | 1 point to the OTHER side (break back) |
+| `advantage{side} → regular {0,0}` with current-set games++ for `side` | 1 point to `side`, game ended |
+| `advantage{other} → regular {0,0}` with current-set games++ for `side` | suspectedMissedPoints=true (AD flipped + game won in ≤1 poll). Emit 1 game-ending point to `side`, logger.warn |
+| `deuce → regular {0,0}` with games++ for one side | 1 point to game winner (the final deuce point was immediately game-winning — no AD recorded between polls); suspectedMissedPoints=true |
+| `deuce → golden_point` **or** `golden_point → deuce` | no new point (label-only transition — widget is reshuffling between the two deuce-equivalent labels) |
+| `golden_point → regular {0,0}` with games++ for one side | 1 point to game winner |
+| `tiebreak {a,b} → tiebreak {a',b'}` with `a'+b' === a+b+1` | 1 point to whichever side went up |
+| `tiebreak {a,b} → tiebreak {a',b'}` with `a'+b' > a+b+1` | suspectedMissedPoints=true, emit 1 point to the net-gainer |
+| `tiebreak → regular {0,0}` with set change + set tiebreak digit recorded | 1 point (tiebreak winner), setChanged=true |
+| Status transition `live → finished` alone | statusChanged=true, no pointsAdded (final game-ending point should already have been captured by a prior diff — if not, suspectedMissedPoints=true) |
+| Anything else                        | `suspectedMissedPoints=true`, emit 0 match_points, log `{matchId, prev, curr}` |
+
+Key invariants:
+- Never emit more than 1 `pointsAdded` entry per diff (one poll = at most one point credited). When multiple points happened between polls, we record `suspectedMissedPoints` and let match-stats reconciliation at match-end cover aggregate.
+- `gameChanged` is derived from set-games counters, NOT from point state going to `{0,0}`. Start-of-set also reads `{0,0}` but isn't a game change.
+- When `suspectedMissedPoints` fires, emit a structured log (`logger.warn({ matchId, prev, curr }, 'missed points suspected')`) so Plan 5 can build an operator review queue.
+
+Tests cover (at minimum — parser and comparator are the highest-risk pure code in the plan):
+1. `regular {15,0} → regular {30,0}` → 1 point to team1
+2. `regular {40,40} → deuce` → 0 points (label-only transition)
+3. `deuce → advantage{1}` → 1 point to team1
+4. `advantage{1} → deuce` → 1 point to team2 (break back)
+5. `advantage{1} → regular {0,0}` with set games going `3 → 4` for team1 → 1 point to team1 + gameChanged=true
+6. `advantage{1} → regular {0,0}` with games going `3 → 4` for team2 → suspectedMissedPoints=true, 1 game-ending point to team2
+7. `deuce → golden_point` → 0 points
+8. `golden_point → regular {0,0}` with games bump → 1 point to the game winner
+9. Tiebreak: `(5,4) → (5,5)` → 1 point to team2
+10. Tiebreak-to-set-end: `(6,4) → regular {0,0}` with set 3 games going `6 → 7` for team1, set 3 tiebreak=4 recorded → setChanged=true
+11. `regular {30,15} → regular {15,30}` → suspectedMissedPoints (impossible single-point transition)
+12. Server flip between polls → serverChanged=true
+13. `parsePointState("40","40", false)` → `{kind:'deuce'}` (parser collapses both-40 to deuce — this is the contract the comparator table depends on)
+14. `parsePointState("AD","40", false)` → `{kind:'advantage', side:1}`
+15. `parsePointState("GP","40", false)` → `{kind:'golden_point'}`
+16. `parsePointState("5","3", true)` → `{kind:'tiebreak', team1:5, team2:3}`
 
 Commit: `feat(padelgod): add live-state diff lib`
 
@@ -627,22 +723,38 @@ Commit: `feat(padelgod): wire live-poller-manager into scheduler`
 ### Task 16: Apply migrations + smoke test on a real tournament
 
 **Steps (user actions):**
-1. Apply migrations 016 + 017 in Supabase SQL editor
-2. Pick one currently-active tournament (e.g. Brussels P2 if still live, or whatever is live next):
+1. **Verify Task 0 relay gate is deployed** (check Railway relay logs for the new log line on startup, and confirm at least one tournament in `live_source='padelapi'` is still being served). If not, STOP — do not proceed.
+2. Apply migrations 016 + 017 in Supabase SQL editor.
+3. Pick the smoke-test target. Per the 2026-04-20 precondition check, **Brussels P2** (padelapi-sourced row `b91c4c7d-dfdf-47bd-af99-e6d97515634e`, not the FIP-discovered stub with null dates) is the only tournament currently live where we can plausibly get a widget_id. Its Crionet widget code is `FIP-2026-1701`.
+
+   **Watch out — duplicate tournament rows:** there are TWO Brussels P2 2026 entries in DB. Flip the padelapi-sourced one (proper dates). Don't touch the FIP-sourced stub (`8ef5752c`, dates=NULL) — it won't be picked up by the RPC date filter anyway.
+
+4. Seed the widget_id cache and flip `live_source` in one transaction:
    ```sql
+   -- Brussels P2 2026, padelapi-sourced row
+   INSERT INTO padelgod.widget_id_cache (tournament_id, widget_id, is_active, extraction_method)
+   VALUES ('b91c4c7d-dfdf-47bd-af99-e6d97515634e', 'FIP-2026-1701', true, 'manual');
+
    UPDATE public.tournaments
    SET live_source = 'padelgod'
-   WHERE name ILIKE '%brussels%';
+   WHERE id = 'b91c4c7d-dfdf-47bd-af99-e6d97515634e';
    ```
-3. Watch Railway logs for `live-poller-manager` to detect + start the loop
-4. Verify rows appear in `match_points`:
+5. Within 60s of the flip:
+   - Railway **relay** logs should show "Unsubscribing — tournament flipped to padelgod" for all Brussels P2 channels.
+   - Railway **padelgod** logs should show live-poller-manager started a loop for Brussels P2.
+6. Verify rows appear in `match_points`:
    ```sql
    SELECT match_id, point_number, score_after, winner_pair, created_at
    FROM public.match_points
    ORDER BY created_at DESC LIMIT 20;
    ```
+7. **Abort criteria** — if ANY of the following happens in the first 15 min, flip back to `live_source='padelapi'` immediately:
+   - Padelgod poller not producing match_points rows
+   - match_points rows with `suspectedMissedPoints=true` exceeding 20% of rows (indicates comparator bug, not just poll latency)
+   - Any error from the relay about writing to a Brussels P2 match
+   - Main app UI shows score regression on a Brussels P2 match
 
-If point counts are reasonable (~1-2 per minute per active match), live polling works.
+If point counts are reasonable (~1-2 per minute per active match) and no abort criteria fire, live polling works.
 
 Commit: (no code, this is a verification step)
 
