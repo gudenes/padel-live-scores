@@ -42,7 +42,7 @@ export async function GET(request: Request) {
           const { data: existing } = await supabase
             .from('tournaments')
             .select('id, starts_at, matchscorer_url, logo_url, draw_size_md')
-            .eq('fip_slug', event.slug)
+            .eq('slug', event.slug)
             .single()
 
           // Resolve country from WP taxonomy
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
             level: event.level,
             country: country ?? null,
             source: 'fip',
-            fip_slug: event.slug,
+            slug: event.slug,
             url: event.link,
             updated_at: new Date().toISOString(),
           }
@@ -103,7 +103,7 @@ export async function GET(request: Request) {
             const filtered = filterUpdateByPriority(tournamentData, 'tournament', 'fip')
             // Always include tracking fields that aren't subject to priority rules
             filtered.source = tournamentData.source
-            filtered.fip_slug = tournamentData.fip_slug
+            filtered.slug = tournamentData.slug
             filtered.updated_at = tournamentData.updated_at
 
             const { error } = await supabase
