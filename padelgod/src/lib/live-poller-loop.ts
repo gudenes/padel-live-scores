@@ -309,7 +309,7 @@ export class LivePollerLoop {
    * not abort the loop.
    */
   private async pollOnce(): Promise<LiveMatchState[]> {
-    const targetUrl = `/screen/tournamentlive/${this.opts.widgetId}?t=tol`;
+    const targetUrl = `https://widget.matchscorerlive.com/screen/tournamentlive/${this.opts.widgetId}?t=tol`;
     let body: string | null = null;
 
     try {
