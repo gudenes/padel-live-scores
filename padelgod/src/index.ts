@@ -67,6 +67,7 @@ async function main() {
       enableResultsFetcher: env.ENABLE_RESULTS_FETCHER,
       enableStaticReconciler: env.ENABLE_STATIC_RECONCILER,
       enableMatchStatsFetcher: env.ENABLE_MATCH_STATS_FETCHER,
+      enableLivePollerManager: env.ENABLE_LIVE_POLLER_MANAGER,
     });
     const schedulerDeps: SchedulerDeps = { supabase, httpClient, logger };
     scheduledTasks = startScheduler(schedule, schedulerDeps);
