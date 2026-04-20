@@ -15,6 +15,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
+# Install chromium browser + system deps for Playwright fallback
+RUN npx playwright install --with-deps chromium
 COPY --from=builder /app/dist ./dist
 EXPOSE 3002
 CMD ["node", "dist/index.js"]
