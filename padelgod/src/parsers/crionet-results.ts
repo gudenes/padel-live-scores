@@ -6,11 +6,8 @@ const COURT_LABEL_SELECTOR = '.court-name, .tournament-name';
 const ROUND_BLOCK_SELECTOR = '.round-name';
 const TEAM_ROW_SELECTOR = 'tr.draw-item-container';
 const TEAM_SELECTOR = 'td.team';
-const PLAYER_LINE_SELECTOR = 'div';
-const PLAYER_NAME_SELECTOR = 'span';
 const SET_SELECTOR = 'td.set';
 const STATS_BUTTON_SELECTOR = 'a.open';
-const WINNER_CLASS = 'winner';
 
 export type Category = 'men' | 'women';
 export type ResultsStatus = 'finished' | 'walkover' | 'retired';
@@ -42,25 +39,69 @@ function parseRoundLabel($block: cheerio.Cheerio<any>): string | null {
   return inner || null;
 }
 
+/**
+ * Extract player names and winner status from a team <td>.
+ *
+ * Real HTML structure (from Crionet/matchscorerlive.com):
+ *   Each player line is a div.d-flex.align-items-center containing:
+ *     - a flag <img class="flags">
+ *     - a name div with class "ml-2" (optionally + "winner", "line-thin")
+ *       containing TWO spans: initial (e.g. "F.") + surname (e.g. "Chingotto")
+ *
+ * Winner indicated by "winner" class on the name div OR fa-check icon in the td.
+ */
 function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
   player1: string | null;
   player2: string | null;
   hasWinner: boolean;
 } {
-  const lines = td.find(PLAYER_LINE_SELECTOR);
-  let p1: string | null = null;
-  let p2: string | null = null;
-  let hasWinner = false;
-  lines.each((idx, line) => {
-    const $line = $(line);
-    const span = $line.find(PLAYER_NAME_SELECTOR).first();
-    const text = span.text().trim();
-    if (!text) return;
-    if (span.hasClass(WINNER_CLASS)) hasWinner = true;
-    if (idx === 0) p1 = text;
-    else if (idx === 1) p2 = text;
+  // Winner check: fa-check icon or "winner" class anywhere in the td
+  const hasWinner = td.html()?.includes('fa-check') === true ||
+    td.find('[class*="winner"]').length > 0;
+
+  const playerNames: string[] = [];
+
+  td.find('div').each((_, el) => {
+    const $el = $(el);
+    const cls = $el.attr('class') ?? '';
+    // Match the name container: must have ml-2 or ms-2
+    if (!/(?:^|\s)(?:ml-2|ms-2)(?:\s|$)/.test(cls)) return;
+
+    // Must contain at least one span (not just small/separator)
+    const spans = $el.find('> span');
+    if (spans.length === 0) return;
+
+    const parts: string[] = [];
+    spans.each((_, span) => {
+      const text = $(span).text().trim();
+      if (text) parts.push(text);
+    });
+    if (parts.length === 0) return;
+
+    playerNames.push(parts.join(' ').trim());
   });
-  return { player1: p1, player2: p2, hasWinner };
+
+  return {
+    player1: playerNames[0] ?? null,
+    player2: playerNames[1] ?? null,
+    hasWinner,
+  };
+}
+
+/**
+ * Parse a single set <td> cell.
+ *
+ * Normal set: <td class="set ...">6</td>          → { games: '6', tb: null }
+ * Tiebreak:   <td class="set ...">6<sup>3</sup></td> → { games: '6', tb: 3 }
+ *
+ * The <sup> is always in the LOSER's cell and holds the loser's tiebreak points.
+ */
+function parseSetCell($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): { games: string; tb: number | null } {
+  const sup = td.find('sup').first();
+  const tb = sup.length > 0 ? parseInt(sup.text().trim(), 10) : null;
+  sup.remove();
+  const games = td.text().trim();
+  return { games, tb: isNaN(tb as number) ? null : tb };
 }
 
 export function parseCrionetResults(html: string, dayNumber: number): ParsedResultsMatch[] {
@@ -86,14 +127,17 @@ export function parseCrionetResults(html: string, dayNumber: number): ParsedResu
     const team1 = parseTeam($, team1Row.find(TEAM_SELECTOR).first());
     const team2 = parseTeam($, team2Row.find(TEAM_SELECTOR).first());
 
-    const team1Sets = team1Row.find(SET_SELECTOR).map((_, el) => $(el).text().trim()).get();
-    const team2Sets = team2Row.find(SET_SELECTOR).map((_, el) => $(el).text().trim()).get();
+    // Parse set cells: extract game count text + optional tiebreak from <sup>
+    const team1SetCells = team1Row.find(SET_SELECTOR).map((_, el) => parseSetCell($, $(el))).get();
+    const team2SetCells = team2Row.find(SET_SELECTOR).map((_, el) => parseSetCell($, $(el))).get();
     const sets: string[] = [];
-    for (let i = 0; i < Math.max(team1Sets.length, team2Sets.length); i++) {
-      const a = team1Sets[i] ?? '-';
-      const b = team2Sets[i] ?? '-';
-      if (a === '-' && b === '-') continue;
-      sets.push(`${a}-${b}`);
+    for (let i = 0; i < Math.max(team1SetCells.length, team2SetCells.length); i++) {
+      const a = team1SetCells[i] ?? { games: '-', tb: null };
+      const b = team2SetCells[i] ?? { games: '-', tb: null };
+      if (a.games === '-' && b.games === '-') continue;
+      // Tiebreak: <sup>N</sup> appears in the LOSER's cell; append (N) to the set string
+      const tbSuffix = a.tb !== null ? `(${a.tb})` : b.tb !== null ? `(${b.tb})` : '';
+      sets.push(`${a.games}-${b.games}${tbSuffix}`);
     }
     if (sets.length === 0) return;
     const setScores = sets.join(' ');
