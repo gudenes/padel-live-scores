@@ -33,64 +33,102 @@ export interface SchedulerDeps {
   logger: Logger;
 }
 
+export type WorkerName =
+  | 'tournament-discovery'
+  | 'widget-code-lookup'
+  | 'player-rankings'
+  | 'player-profile'
+  | 'entry-list-fetcher'
+  | 'draw-fetcher'
+  | 'oop-fetcher'
+  | 'results-fetcher';
+
+export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
+
+export const ALL_WORKERS: WorkerName[] = [
+  'tournament-discovery',
+  'widget-code-lookup',
+  'player-rankings',
+  'player-profile',
+  'entry-list-fetcher',
+  'draw-fetcher',
+  'oop-fetcher',
+  'results-fetcher',
+];
+
+export function getWorkerRunner(name: string): WorkerRunner | null {
+  switch (name) {
+    case 'tournament-discovery': return (deps) => runTournamentDiscovery(deps);
+    case 'widget-code-lookup':   return (deps) => runWidgetCodeLookup(deps);
+    case 'player-rankings':      return (deps) => runPlayerRankings(deps);
+    case 'player-profile':       return async (deps) => {
+      deps.logger.info('player-profile worker has no batch driver yet (V1.5)');
+      return { stub: true };
+    };
+    case 'entry-list-fetcher':   return (deps) => runEntryListFetcher(deps);
+    case 'draw-fetcher':         return (deps) => runDrawFetcher(deps);
+    case 'oop-fetcher':          return (deps) => runOopFetcher(deps);
+    case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
+    default: return null;
+  }
+}
+
 export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   const entries: ScheduleEntry[] = [];
   if (flags.enableTournamentDiscovery) {
     entries.push({
       name: 'tournament-discovery',
       cron: '0 * * * *', // hourly at :00
-      run: (deps) => runTournamentDiscovery(deps),
+      run: getWorkerRunner('tournament-discovery')!,
     });
   }
   if (flags.enableWidgetCodeLookup) {
     entries.push({
       name: 'widget-code-lookup',
       cron: '15 * * * *', // hourly at :15
-      run: (deps) => runWidgetCodeLookup(deps),
+      run: getWorkerRunner('widget-code-lookup')!,
     });
   }
   if (flags.enablePlayerRankings) {
     entries.push({
       name: 'player-rankings',
       cron: '0 5 * * *', // daily 05:00 UTC
-      run: (deps) => runPlayerRankings(deps),
+      run: getWorkerRunner('player-rankings')!,
     });
   }
   if (flags.enablePlayerProfile) {
     entries.push({
       name: 'player-profile',
       cron: '30 * * * *', // hourly at :30 — caller decides which players to refresh
-      run: async (deps) => {
-        deps.logger.info('player-profile worker scheduled but no batch driver yet (V1.5)');
-      },
+      run: getWorkerRunner('player-profile')!,
     });
   }
   if (flags.enableEntryListFetcher) {
     entries.push({
       name: 'entry-list-fetcher',
       cron: '45 * * * *', // hourly at :45
-      run: (deps) => runEntryListFetcher(deps),
+      run: getWorkerRunner('entry-list-fetcher')!,
     });
   }
   if (flags.enableDrawFetcher) {
     entries.push({
       name: 'draw-fetcher',
       cron: '20 */2 * * *', // every 2 hours at :20
-      run: (deps) => runDrawFetcher(deps),
+      run: getWorkerRunner('draw-fetcher')!,
     });
   }
   if (flags.enableOopFetcher) {
     entries.push({
       name: 'oop-fetcher',
       cron: '50 * * * *', // hourly at :50
-      run: (deps) => runOopFetcher(deps),
+      run: getWorkerRunner('oop-fetcher')!,
     });
   }
   if (flags.enableResultsFetcher) {
     entries.push({
       name: 'results-fetcher',
       cron: '55 * * * *', // hourly at :55
-      run: (deps) => runResultsFetcher(deps),
+      run: getWorkerRunner('results-fetcher')!,
     });
   }
   return entries;

@@ -3,6 +3,7 @@ import { loadEnv } from './lib/env.js';
 import { createLogger } from './lib/logger.js';
 import { createSupabaseClient } from './lib/supabase.js';
 import { registerHealthRoute } from './api/health.js';
+import { registerAdminRoutes } from './api/admin.js';
 import { createHttpClient, PADELGOD_USER_AGENT } from './lib/http-client.js';
 import { buildSchedule, startScheduler, stopScheduler, type SchedulerDeps } from './scheduler.js';
 import { shutdownBrowser } from './lib/playwright-pool.js';
@@ -27,7 +28,15 @@ async function main() {
     trustProxy: true,
   });
 
+  const httpClient = createHttpClient({ userAgent: PADELGOD_USER_AGENT });
+
   registerHealthRoute(app, { startedAt, version: VERSION });
+  registerAdminRoutes(app, {
+    adminToken: env.PADELGOD_ADMIN_TOKEN,
+    supabase,
+    httpClient,
+    logger,
+  });
 
   app.setErrorHandler((err, _req, reply) => {
     logger.error({ err }, 'Unhandled error');
@@ -47,7 +56,6 @@ async function main() {
   // Scheduler — runs workers on cron schedules
   let scheduledTasks: ReturnType<typeof startScheduler> = [];
   if (env.ENABLE_SCHEDULER) {
-    const httpClient = createHttpClient({ userAgent: PADELGOD_USER_AGENT });
     const schedule = buildSchedule({
       enableTournamentDiscovery: env.ENABLE_TOURNAMENT_DISCOVERY,
       enableWidgetCodeLookup: env.ENABLE_WIDGET_CODE_LOOKUP,
