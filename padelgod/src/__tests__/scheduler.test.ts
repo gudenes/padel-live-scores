@@ -11,10 +11,11 @@ const ALL_ENABLED = {
   enableOopFetcher: true,
   enableResultsFetcher: true,
   enableStaticReconciler: true,
+  enableMatchStatsFetcher: true,
 };
 
 describe('buildSchedule', () => {
-  it('includes all 9 workers when fully enabled', () => {
+  it('includes all 10 workers when fully enabled', () => {
     const sched = buildSchedule(ALL_ENABLED);
     const names = sched.map((s) => s.name);
     expect(names).toContain('tournament-discovery');
@@ -26,6 +27,14 @@ describe('buildSchedule', () => {
     expect(names).toContain('oop-fetcher');
     expect(names).toContain('results-fetcher');
     expect(names).toContain('static-reconciler');
+    expect(names).toContain('match-stats-fetcher');
+  });
+
+  it('schedules match-stats-fetcher at :25', () => {
+    const sched = buildSchedule(ALL_ENABLED);
+    const entry = sched.find((s) => s.name === 'match-stats-fetcher');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('25 * * * *');
   });
 
   it('respects enable flags for static workers', () => {

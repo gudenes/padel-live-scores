@@ -10,6 +10,7 @@ import { runDrawFetcher } from './workers/draw-fetcher.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
 import { runStaticReconciler } from './workers/static-reconciler.js';
+import { runMatchStatsFetcher } from './workers/match-stats-fetcher.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -27,6 +28,7 @@ export interface SchedulerFlags {
   enableOopFetcher: boolean;
   enableResultsFetcher: boolean;
   enableStaticReconciler: boolean;
+  enableMatchStatsFetcher: boolean;
 }
 
 export interface SchedulerDeps {
@@ -44,7 +46,8 @@ export type WorkerName =
   | 'draw-fetcher'
   | 'oop-fetcher'
   | 'results-fetcher'
-  | 'static-reconciler';
+  | 'static-reconciler'
+  | 'match-stats-fetcher';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -58,6 +61,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'oop-fetcher',
   'results-fetcher',
   'static-reconciler',
+  'match-stats-fetcher',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -74,6 +78,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'oop-fetcher':          return (deps) => runOopFetcher(deps);
     case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
     case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
+    case 'match-stats-fetcher':  return (deps) => runMatchStatsFetcher(deps);
     default: return null;
   }
 }
@@ -141,6 +146,13 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'static-reconciler',
       cron: '5,35 * * * *', // twice hourly at :05 and :35 — consumes snapshots from fetchers
       run: getWorkerRunner('static-reconciler')!,
+    });
+  }
+  if (flags.enableMatchStatsFetcher) {
+    entries.push({
+      name: 'match-stats-fetcher',
+      cron: '25 * * * *', // hourly at :25
+      run: getWorkerRunner('match-stats-fetcher')!,
     });
   }
   return entries;
