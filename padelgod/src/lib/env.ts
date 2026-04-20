@@ -16,6 +16,7 @@ const EnvSchema = z.object({
   ENABLE_DRAW_FETCHER: z.coerce.boolean().default(true),
   ENABLE_OOP_FETCHER: z.coerce.boolean().default(true),
   ENABLE_RESULTS_FETCHER: z.coerce.boolean().default(true),
+  ENABLE_STATIC_RECONCILER: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

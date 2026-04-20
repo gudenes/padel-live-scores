@@ -65,6 +65,7 @@ async function main() {
       enableDrawFetcher: env.ENABLE_DRAW_FETCHER,
       enableOopFetcher: env.ENABLE_OOP_FETCHER,
       enableResultsFetcher: env.ENABLE_RESULTS_FETCHER,
+      enableStaticReconciler: env.ENABLE_STATIC_RECONCILER,
     });
     const schedulerDeps: SchedulerDeps = { supabase, httpClient, logger };
     scheduledTasks = startScheduler(schedule, schedulerDeps);

@@ -9,6 +9,7 @@ import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
 import { runDrawFetcher } from './workers/draw-fetcher.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
+import { runStaticReconciler } from './workers/static-reconciler.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -25,6 +26,7 @@ export interface SchedulerFlags {
   enableDrawFetcher: boolean;
   enableOopFetcher: boolean;
   enableResultsFetcher: boolean;
+  enableStaticReconciler: boolean;
 }
 
 export interface SchedulerDeps {
@@ -41,7 +43,8 @@ export type WorkerName =
   | 'entry-list-fetcher'
   | 'draw-fetcher'
   | 'oop-fetcher'
-  | 'results-fetcher';
+  | 'results-fetcher'
+  | 'static-reconciler';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -54,6 +57,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'draw-fetcher',
   'oop-fetcher',
   'results-fetcher',
+  'static-reconciler',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -69,6 +73,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'draw-fetcher':         return (deps) => runDrawFetcher(deps);
     case 'oop-fetcher':          return (deps) => runOopFetcher(deps);
     case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
+    case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
     default: return null;
   }
 }
@@ -129,6 +134,13 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'results-fetcher',
       cron: '55 * * * *', // hourly at :55
       run: getWorkerRunner('results-fetcher')!,
+    });
+  }
+  if (flags.enableStaticReconciler) {
+    entries.push({
+      name: 'static-reconciler',
+      cron: '5,35 * * * *', // twice hourly at :05 and :35 — consumes snapshots from fetchers
+      run: getWorkerRunner('static-reconciler')!,
     });
   }
   return entries;
