@@ -25,7 +25,7 @@ export async function runPlayerProfile(
   task: PlayerProfileTask
 ): Promise<PlayerProfileResult> {
   const targetUrl = `https://www.padelfip.com/player/${task.slug}/`;
-  let parsed: ReturnType<typeof parseFipPlayerProfile> | null = null;
+  let parsedRef: ReturnType<typeof parseFipPlayerProfile> | null = null;
 
   await runScrapeJob(
     deps.supabase,
@@ -40,12 +40,14 @@ export async function runPlayerProfile(
       const response = await deps.httpClient.get(targetUrl);
       const body = String(response.data);
       const contentHash = `sha256:${createHash('sha256').update(body).digest('hex')}`;
-      parsed = parseFipPlayerProfile(body);
+      parsedRef = parseFipPlayerProfile(body);
       return { body, contentHash };
     }
   );
 
-  if (!parsed) return { updated: false, fipId: null };
+  if (!parsedRef) return { updated: false, fipId: null };
+
+  const parsed = parsedRef as ReturnType<typeof parseFipPlayerProfile>;
 
   // Update only fields the profile owns. Don't clobber name/country (rankings worker owns those).
   const updates: Record<string, unknown> = { last_updated_by: 'padelgod' };
