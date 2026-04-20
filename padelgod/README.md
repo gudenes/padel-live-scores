@@ -12,7 +12,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Visit `http://localhost:3002/health` to confirm it's up.
+Visit `http://localhost:3003/health` to confirm it's up. (Port 3003 avoids colliding with the main Next.js dev server on 3002.)
 
 ## Scripts
 
