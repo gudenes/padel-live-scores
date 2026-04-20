@@ -1020,8 +1020,17 @@ app.listen(PORT, () => {
 
   // Periodic reconciliation — picks up live_source flips and finished matches
   // without waiting for a manual /sync call or a Pusher reconnect.
-  reconcileInterval = setInterval(() => {
-    syncChannels().catch((err) => console.error('[Relay] Periodic sync error:', err))
+  let syncInFlight = false
+  reconcileInterval = setInterval(async () => {
+    if (syncInFlight) return
+    syncInFlight = true
+    try {
+      await syncChannels()
+    } catch (err) {
+      console.error('[Relay] Periodic sync error:', err)
+    } finally {
+      syncInFlight = false
+    }
   }, 60_000)
 })
 
