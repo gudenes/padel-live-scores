@@ -35,6 +35,7 @@ const supabase = createClient(
 let pusherClient = null
 const activeChannels = new Map() // channelName → Pusher channel object
 const channelMatchIds = new Map() // channelName → externalId
+let reconcileInterval = null // handle for the periodic syncChannels() timer
 
 function getPusherClient() {
   if (pusherClient && pusherClient.connection.state === 'connected') {
@@ -679,13 +680,18 @@ async function reseedAllChannels() {
 }
 
 // ── Sync channels from DB ─────────────────────────────────────
+// Only subscribes to matches whose tournament has live_source='padelapi'.
+// Tournaments flipped to live_source='padelgod' are invisible to this relay
+// so the Padelgod poller can own them without double-writes. See Padelgod
+// Plan 4 Task 0.
 async function syncChannels() {
   try {
     const { data: liveMatches, error } = await supabase
       .from('matches')
-      .select('external_id, pusher_channel')
+      .select('external_id, pusher_channel, tournament:tournaments!inner(live_source)')
       .in('status', ['live', 'ended'])
       .not('pusher_channel', 'is', null)
+      .eq('tournament.live_source', 'padelapi')
 
     if (error) {
       console.error('[Relay] Failed to fetch live matches:', error)
@@ -705,6 +711,12 @@ async function syncChannels() {
     let removed = 0
     for (const channelName of activeChannels.keys()) {
       if (!liveChannels.has(channelName)) {
+        // Could be either "match finished" or "tournament flipped to padelgod".
+        // We can't cleanly distinguish without another query, so log a
+        // combined message that's searchable for cutover auditing.
+        console.log(
+          `[Relay] Unsubscribing — no longer eligible (match finished or tournament flipped to padelgod): ${channelName}`,
+        )
         unsubscribeChannel(channelName)
         removed++
       }
@@ -1005,10 +1017,29 @@ app.listen(PORT, () => {
     console.log('[Relay] Running initial channel sync...')
     syncChannels().catch(console.error)
   }, 3000)
+
+  // Periodic reconciliation — picks up live_source flips and finished matches
+  // without waiting for a manual /sync call or a Pusher reconnect.
+  let syncInFlight = false
+  reconcileInterval = setInterval(async () => {
+    if (syncInFlight) return
+    syncInFlight = true
+    try {
+      await syncChannels()
+    } catch (err) {
+      console.error('[Relay] Periodic sync error:', err)
+    } finally {
+      syncInFlight = false
+    }
+  }, 60_000)
 })
 
 process.on('SIGTERM', () => {
   console.log('[Relay] SIGTERM received — shutting down gracefully')
+  if (reconcileInterval) {
+    clearInterval(reconcileInterval)
+    reconcileInterval = null
+  }
   if (pusherClient) pusherClient.disconnect()
   process.exit(0)
 })

@@ -110,7 +110,8 @@ export type ScrapeJobType =
   | 'rankings'
   | 'profile'
   | 'article'
-  | 'youtube';
+  | 'youtube'
+  | 'match_stats';
 
 export type ScrapeJobStatus = 'queued' | 'running' | 'success' | 'failed';
 
