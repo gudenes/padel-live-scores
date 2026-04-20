@@ -357,6 +357,8 @@ Any miss = no cutover.
 
 Fastify app inside Padelgod, port 3002. All routes behind `Authorization: Bearer ${PADELGOD_ADMIN_TOKEN}`.
 
+**Full normative shapes (request/response/errors) live in the companion doc: [2026-04-20-padelgod-api-schema.md](./2026-04-20-padelgod-api-schema.md).** Summary below.
+
 ### Read endpoints
 
 ```
