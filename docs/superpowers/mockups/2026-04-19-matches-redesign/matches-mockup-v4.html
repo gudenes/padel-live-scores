@@ -1,0 +1,665 @@
+<h2>Matches — v4 · emojis replaced, filter pills extended</h2>
+<p class="subtitle">Every icon is now an inline SVG. Filter pills stretch to fill the row so All / Live / Favourites each get equal width.</p>
+
+<style>
+  .theme-dark {
+    --bg:        #0B0D0C;
+    --surface:   #151816;
+    --surface-2: #1E211F;
+    --border:    rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --text:      #F4F5F3;
+    --text-sub:  #A8AEA6;
+    --text-mute: #6B7168;
+    --brand:     #C1FF2E;
+    --brand-soft:#2A3A12;
+    --brand-ink: #0B0D0C;
+    --accent:    #FFB627;
+    --accent-soft:#3A2A0A;
+    --live:      #FF4D5F;
+    --live-soft: rgba(255,77,95,0.14);
+    --men:       #5AA3FF;
+    --women:     #DD72FF;
+    --shadow:    0 4px 16px rgba(0,0,0,0.35);
+    --shadow-lg: 0 12px 40px rgba(0,0,0,0.55);
+  }
+  .theme-light {
+    --bg:        #F6F8F4;
+    --surface:   #FFFFFF;
+    --surface-2: #F1F3EE;
+    --border:    rgba(15,18,16,0.08);
+    --border-strong: rgba(15,18,16,0.14);
+    --text:      #0F1210;
+    --text-sub:  #3F4540;
+    --text-mute: #7B827C;
+    --brand:     #6FB816;
+    --brand-soft:#E8F6D4;
+    --brand-ink: #FFFFFF;
+    --accent:    #E09414;
+    --accent-soft:#FDF0D6;
+    --live:      #E63447;
+    --live-soft: rgba(230,52,71,0.10);
+    --men:       #2A77E5;
+    --women:     #B44BDD;
+    --shadow:    0 2px 10px rgba(15,18,16,0.05);
+    --shadow-lg: 0 10px 28px rgba(15,18,16,0.08);
+  }
+
+  .stage { display:grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items:flex-start; }
+  @media (max-width: 900px) { .stage { grid-template-columns: 1fr; } }
+  .caption {
+    text-align:center; font-size:11px; font-weight:700;
+    letter-spacing:1.4px; text-transform:uppercase;
+    color:#9CA3AF; margin-bottom: 14px;
+  }
+
+  .phone {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    box-shadow: var(--shadow-lg);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    color: var(--text);
+    overflow: hidden;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  /* ═══ Top bar ═══ */
+  .topbar {
+    padding: 16px 18px 4px;
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--bg);
+  }
+  .logo {
+    display:flex; align-items:center; gap: 8px;
+    font-size: 16px; font-weight: 800; letter-spacing: -0.3px;
+    color: var(--text);
+  }
+  .logo .puck {
+    width: 22px; height: 22px;
+    background: var(--brand);
+    border-radius: 6px;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 12px; font-weight: 900; color: var(--brand-ink);
+  }
+  .logo .nachos { color: var(--accent); }
+
+  .icons { display:flex; gap: 6px; }
+  .iconbtn {
+    width: 36px; height: 36px;
+    display:flex; align-items:center; justify-content:center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-sub);
+    position: relative;
+    cursor:pointer;
+    transition: background .15s ease;
+    padding: 0;
+  }
+  .iconbtn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .iconbtn:hover { background: var(--surface-2); }
+  .iconbtn .count {
+    position:absolute; top:-4px; right:-4px;
+    min-width: 16px; height: 16px; padding: 0 4px;
+    background: var(--accent); color: #0B0D0C;
+    border-radius: 999px;
+    font-size: 9px; font-weight: 800;
+    display:flex; align-items:center; justify-content:center;
+    line-height: 1;
+  }
+
+  /* ═══ Date strip — centered on Today ═══ */
+  .datestrip {
+    display:flex; justify-content:center; gap: 4px;
+    padding: 14px 16px 12px;
+    background: var(--bg);
+  }
+  .datebtn {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    text-align:center;
+    border-radius: 999px;
+    cursor:pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .datebtn .dow {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.4px; text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  .datebtn .label {
+    font-size: 13px; font-weight: 600;
+    color: var(--text-sub);
+    margin-top: 2px;
+  }
+  .datebtn.active { background: var(--brand); }
+  .datebtn.active .dow { color: var(--brand-ink); opacity: .7; }
+  .datebtn.active .label { color: var(--brand-ink); font-weight: 800; }
+
+  /* ═══ Filter pills — FULL WIDTH ═══ */
+  .filters {
+    display: flex;
+    gap: 8px;
+    padding: 4px 16px 14px;
+  }
+  .pill {
+    flex: 1 1 0;              /* equal width, fills the row */
+    padding: 10px 14px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    background: var(--surface);
+    cursor:pointer;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    text-align: center;
+  }
+  .pill .badge {
+    font-size: 11px; font-weight: 800; padding: 1px 6px;
+    border-radius: 999px; min-width: 18px; text-align:center;
+    background: rgba(255,255,255,0.06); color: var(--text-mute);
+  }
+  .pill:hover { background: var(--surface-2); }
+  .pill.on {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+  .pill.on .badge { background: var(--bg); color: var(--text); }
+  .pill.live {
+    background: var(--live-soft);
+    color: var(--live);
+    border-color: transparent;
+  }
+  .pill.live::before {
+    content:''; width:7px; height:7px; border-radius:50%;
+    background: var(--live); animation: pulse 2s infinite;
+  }
+  .pill.live .badge { background: rgba(255,77,95,0.18); color: var(--live); }
+  .pill.fav svg { width: 14px; height: 14px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* ═══ Circuit header ═══ */
+  .circuit {
+    display:flex; align-items:center; gap: 10px;
+    padding: 18px 22px 8px;
+  }
+  .circuit .circ-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 0.6px; text-transform: uppercase;
+  }
+  .circuit.ppl .circ-badge { background: var(--brand-soft); color: var(--brand); }
+  .circuit.fip .circ-badge { background: var(--accent-soft); color: var(--accent); }
+  .circuit.ppl .circ-badge::before { content:''; width:6px; height:6px; border-radius:50%; background: var(--brand); }
+  .circuit.fip .circ-badge::before { content:''; width:6px; height:6px; border-radius:50%; background: var(--accent); }
+  .circuit .count-text { margin-left:auto; font-size: 11px; color: var(--text-mute); font-weight: 600; }
+
+  /* ═══ Tournament card ═══ */
+  .tcard {
+    margin: 0 14px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .thead {
+    padding: 14px;
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer;
+  }
+  .thead .left { display:flex; align-items:center; gap: 12px; min-width:0; }
+
+  .tlogo {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink: 0;
+    font-size: 12px; font-weight: 900; color: #fff;
+    letter-spacing: 0.3px;
+    position: relative;
+  }
+  .tlogo.brussels { background: linear-gradient(135deg, #FCD72B 0%, #111 100%); color:#111; }
+  .tlogo.ba       { background: linear-gradient(135deg, #7FB5E7 0%, #0B2E5C 100%); }
+  .tlogo.malaga   { background: linear-gradient(135deg, #F1BF00 0%, #AA151B 100%); }
+  .tlogo.kyiv     { background: linear-gradient(180deg, #0057B7 50%, #FFD700 50%); color:#111; }
+  .tlogo .corner {
+    position:absolute; top:-3px; right:-3px;
+    width: 14px; height: 14px;
+    border-radius: 999px;
+    background: var(--corner, var(--brand));
+    border: 2px solid var(--surface);
+  }
+
+  .thead .meta { min-width:0; }
+  .thead .row1 { display:flex; align-items:center; gap: 8px; }
+  .thead .tname {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    letter-spacing: -0.1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 170px;
+  }
+  .thead .flag-sm {
+    width: 16px; height: 12px; flex-shrink: 0;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+  }
+  .thead .flag-sm.be { background: linear-gradient(90deg,#000 33%,#FDDA24 33% 66%,#EF3340 66%); }
+  .thead .flag-sm.ar { background: linear-gradient(180deg,#74ACDF 33%,#fff 33% 66%,#74ACDF 66%); }
+  .thead .flag-sm.es { background: linear-gradient(180deg,#AA151B 33%,#F1BF00 33% 66%,#AA151B 66%); }
+  .thead .flag-sm.ua { background: linear-gradient(180deg,#0057B7 50%,#FFD700 50%); }
+  .thead .flag-sm.it { background: linear-gradient(90deg,#008C45 33%,#fff 33% 66%,#CD212A 66%); }
+  .thead .round-label {
+    font-size: 12px; color: var(--text-mute); font-weight: 500;
+    margin-top: 2px;
+  }
+  .thead .right { display:flex; align-items:center; gap: 10px; }
+  .tbadge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 0.4px; text-transform: uppercase;
+  }
+  .tbadge.p1   { background: var(--brand-soft); color: var(--brand); }
+  .tbadge.p2   { background: rgba(90,163,255,0.14); color: var(--men); }
+  .tbadge.gold { background: var(--accent-soft); color: var(--accent); }
+  .tbadge.silver { background: rgba(192,192,192,0.12); color: #B8BCB4; }
+  .chev svg { width: 14px; height: 14px; stroke: var(--text-mute); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ═══ Match row ═══ */
+  .row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    align-items: center;
+    padding: 12px 16px 12px 20px;
+    border-top: 1px solid var(--border);
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .row:hover { background: var(--surface-2); }
+  .row .accent {
+    position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
+    border-radius: 0 3px 3px 0;
+  }
+  .row .accent.men { background: var(--men); }
+  .row .accent.women { background: var(--women); }
+
+  .row .status { display:flex; flex-direction:column; gap: 4px; align-items:flex-start; }
+  .row .status .time {
+    font-size: 13px; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .row .status .state {
+    font-size: 9px; font-weight: 800;
+    padding: 2px 7px; border-radius: 999px;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .row .status .state.ft { background: var(--surface-2); color: var(--text-mute); }
+  .row .status .state.live {
+    background: var(--live-soft); color: var(--live);
+    display:inline-flex; align-items:center; gap:4px;
+  }
+  .row .status .state.live::before {
+    content:''; width:5px; height:5px; border-radius:50%;
+    background: var(--live); animation: pulse 2s infinite;
+  }
+  .row .status .court {
+    font-size: 10px; color: var(--text-mute); font-weight: 500;
+  }
+
+  .pairs { display:flex; flex-direction:column; gap: 6px; min-width: 0; }
+  .pair {
+    display:flex; align-items:center; gap: 7px;
+    font-size: 14px; font-weight: 600; color: var(--text);
+    letter-spacing: -0.1px;
+  }
+  .pair.lose { color: var(--text-mute); font-weight: 500; }
+  .pair .cflag {
+    width: 15px; height: 11px; flex-shrink: 0;
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+  }
+  .pair .cflag.es { background: linear-gradient(180deg,#AA151B 33%,#F1BF00 33% 66%,#AA151B 66%); }
+  .pair .cflag.ar { background: linear-gradient(180deg,#74ACDF 33%,#fff 33% 66%,#74ACDF 66%); }
+  .pair .cflag.se { background: linear-gradient(180deg,#0057B7 50%,#FFD700 50%); }
+  .pair .cflag.ua { background: linear-gradient(180deg,#0057B7 50%,#FFD700 50%); }
+
+  .scores { display:flex; gap: 10px; font-variant-numeric: tabular-nums; align-items:center; }
+  .scores .col { display:flex; flex-direction:column; gap: 4px; align-items:center; min-width: 14px; }
+  .scores .s {
+    font-size: 14px; font-weight: 700; color: var(--text-sub);
+    line-height: 1;
+  }
+  .scores .s.win { color: var(--text); font-weight: 800; }
+  .scores .s.current {
+    color: var(--brand-ink);
+    background: var(--brand);
+    padding: 2px 4px; border-radius: 4px;
+    min-width: 18px; text-align:center;
+    font-weight: 800;
+  }
+</style>
+
+<!-- ═════════════════ Reusable inline SVG icons ═════════════════ -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="icon-search" viewBox="0 0 24 24">
+    <circle cx="11" cy="11" r="7"></circle>
+    <line x1="21" y1="21" x2="16.5" y2="16.5"></line>
+  </symbol>
+  <symbol id="icon-star" viewBox="0 0 24 24">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+  </symbol>
+  <symbol id="icon-calendar" viewBox="0 0 24 24">
+    <rect x="3" y="4" width="18" height="18" rx="3"></rect>
+    <line x1="16" y1="2" x2="16" y2="6"></line>
+    <line x1="8"  y1="2" x2="8"  y2="6"></line>
+    <line x1="3"  y1="10" x2="21" y2="10"></line>
+  </symbol>
+  <symbol id="icon-chev" viewBox="0 0 24 24">
+    <polyline points="6 9 12 15 18 9"></polyline>
+  </symbol>
+  <symbol id="icon-star-filled" viewBox="0 0 24 24">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor" stroke="currentColor"></polygon>
+  </symbol>
+</svg>
+
+<div class="theme-dark stage">
+  <!-- ═══ Dark — primary ═══ -->
+  <div>
+    <div class="caption">Dark · default</div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="logo">
+          <span class="puck">P</span>
+          <span>Padel<span class="nachos">Nachos</span></span>
+        </div>
+        <div class="icons">
+          <button class="iconbtn" aria-label="Search"><svg><use href="#icon-search"/></svg></button>
+          <button class="iconbtn" aria-label="Favourites"><svg><use href="#icon-star"/></svg><span class="count">4</span></button>
+          <button class="iconbtn" aria-label="Calendar"><svg><use href="#icon-calendar"/></svg></button>
+        </div>
+      </div>
+
+      <div class="datestrip">
+        <div class="datebtn"><div class="dow">THU</div><div class="label">17</div></div>
+        <div class="datebtn"><div class="dow">FRI</div><div class="label">Yest.</div></div>
+        <div class="datebtn active"><div class="dow">SAT</div><div class="label">Today</div></div>
+        <div class="datebtn"><div class="dow">SUN</div><div class="label">Tom.</div></div>
+        <div class="datebtn"><div class="dow">MON</div><div class="label">21</div></div>
+      </div>
+
+      <div class="filters">
+        <button class="pill on">All <span class="badge">23</span></button>
+        <button class="pill live">Live <span class="badge">3</span></button>
+        <button class="pill fav"><svg><use href="#icon-star"/></svg> Favs</button>
+      </div>
+
+      <div class="circuit ppl">
+        <span class="circ-badge">Premier Padel</span>
+        <span class="count-text">3 events</span>
+      </div>
+
+      <div class="tcard">
+        <div class="thead">
+          <div class="left">
+            <div class="tlogo brussels" style="--corner: var(--brand);">BP<span class="corner"></span></div>
+            <div class="meta">
+              <div class="row1"><span class="tname">Brussels P2 2026</span><span class="flag-sm be"></span></div>
+              <div class="round-label">Round of 16</div>
+            </div>
+          </div>
+          <div class="right">
+            <span class="tbadge p2">P2</span>
+            <span class="chev"><svg><use href="#icon-chev"/></svg></span>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="accent men"></span>
+          <div class="status">
+            <span class="state live">Live</span>
+            <span class="court">Set 2</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag es"></span>Galán / Chingotto</div>
+            <div class="pair lose"><span class="cflag ar"></span>Tapia / Coello</div>
+          </div>
+          <div class="scores">
+            <div class="col"><span class="s win">6</span><span class="s">4</span></div>
+            <div class="col"><span class="s current">3</span><span class="s current">2</span></div>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="accent men"></span>
+          <div class="status">
+            <span class="time">18:00</span>
+            <span class="court">Centre</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+            <div class="pair"><span class="cflag es"></span>Lebrón / Belasteguín</div>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="accent women"></span>
+          <div class="status">
+            <span class="time">19:30</span>
+            <span class="court">Court 2</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag es"></span>Triay / Brea</div>
+            <div class="pair"><span class="cflag es"></span>González / Josemaría</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tcard">
+        <div class="thead">
+          <div class="left">
+            <div class="tlogo ba" style="--corner: var(--brand);">BA<span class="corner"></span></div>
+            <div class="meta">
+              <div class="row1"><span class="tname">Buenos Aires P1 2026</span><span class="flag-sm ar"></span></div>
+              <div class="round-label">Quarterfinals</div>
+            </div>
+          </div>
+          <div class="right">
+            <span class="tbadge p1">P1</span>
+            <span class="chev"><svg><use href="#icon-chev"/></svg></span>
+          </div>
+        </div>
+        <div class="row">
+          <span class="accent men"></span>
+          <div class="status">
+            <span class="state ft">Final</span>
+            <span class="court">Centre</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+            <div class="pair lose"><span class="cflag es"></span>Gutiérrez / Sanyo</div>
+          </div>
+          <div class="scores">
+            <div class="col"><span class="s win">6</span><span class="s win">7</span></div>
+            <div class="col"><span class="s">3</span><span class="s">5</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="circuit fip">
+        <span class="circ-badge">FIP Tour</span>
+        <span class="count-text">2 events</span>
+      </div>
+
+      <div class="tcard">
+        <div class="thead">
+          <div class="left">
+            <div class="tlogo kyiv" style="--corner: var(--accent);">KY<span class="corner"></span></div>
+            <div class="meta">
+              <div class="row1"><span class="tname">Kyiv FIP Gold</span><span class="flag-sm ua"></span></div>
+              <div class="round-label">Quarterfinals</div>
+            </div>
+          </div>
+          <div class="right">
+            <span class="tbadge gold">Gold</span>
+            <span class="chev"><svg><use href="#icon-chev"/></svg></span>
+          </div>
+        </div>
+        <div class="row">
+          <span class="accent men"></span>
+          <div class="status">
+            <span class="state ft">Final</span>
+            <span class="court">Court 3</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Delfi / Popov</div>
+            <div class="pair lose"><span class="cflag se"></span>Andersson / Björk</div>
+          </div>
+          <div class="scores">
+            <div class="col"><span class="s win">7</span><span class="s win">6</span></div>
+            <div class="col"><span class="s">5</span><span class="s">4</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:18px;"></div>
+    </div>
+  </div>
+
+  <!-- ═══ Light preview ═══ -->
+  <div class="theme-light">
+    <div class="caption" style="color:#555;">Light · same markup</div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="logo">
+          <span class="puck">P</span>
+          <span>Padel<span class="nachos">Nachos</span></span>
+        </div>
+        <div class="icons">
+          <button class="iconbtn"><svg><use href="#icon-search"/></svg></button>
+          <button class="iconbtn"><svg><use href="#icon-star"/></svg><span class="count">4</span></button>
+          <button class="iconbtn"><svg><use href="#icon-calendar"/></svg></button>
+        </div>
+      </div>
+
+      <div class="datestrip">
+        <div class="datebtn"><div class="dow">THU</div><div class="label">17</div></div>
+        <div class="datebtn"><div class="dow">FRI</div><div class="label">Yest.</div></div>
+        <div class="datebtn active"><div class="dow">SAT</div><div class="label">Today</div></div>
+        <div class="datebtn"><div class="dow">SUN</div><div class="label">Tom.</div></div>
+        <div class="datebtn"><div class="dow">MON</div><div class="label">21</div></div>
+      </div>
+
+      <div class="filters">
+        <button class="pill on">All <span class="badge">23</span></button>
+        <button class="pill live">Live <span class="badge">3</span></button>
+        <button class="pill fav"><svg><use href="#icon-star"/></svg> Favs</button>
+      </div>
+
+      <div class="circuit ppl">
+        <span class="circ-badge">Premier Padel</span>
+        <span class="count-text">3 events</span>
+      </div>
+
+      <div class="tcard">
+        <div class="thead">
+          <div class="left">
+            <div class="tlogo brussels" style="--corner: var(--brand);">BP<span class="corner"></span></div>
+            <div class="meta">
+              <div class="row1"><span class="tname">Brussels P2 2026</span><span class="flag-sm be"></span></div>
+              <div class="round-label">Round of 16</div>
+            </div>
+          </div>
+          <div class="right">
+            <span class="tbadge p2">P2</span>
+            <span class="chev"><svg><use href="#icon-chev"/></svg></span>
+          </div>
+        </div>
+        <div class="row">
+          <span class="accent men"></span>
+          <div class="status">
+            <span class="state live">Live</span>
+            <span class="court">Set 2</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag es"></span>Galán / Chingotto</div>
+            <div class="pair lose"><span class="cflag ar"></span>Tapia / Coello</div>
+          </div>
+          <div class="scores">
+            <div class="col"><span class="s win">6</span><span class="s">4</span></div>
+            <div class="col"><span class="s current">3</span><span class="s current">2</span></div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="accent men"></span>
+          <div class="status">
+            <span class="time">18:00</span>
+            <span class="court">Centre</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+            <div class="pair"><span class="cflag es"></span>Lebrón / Belasteguín</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="circuit fip">
+        <span class="circ-badge">FIP Tour</span>
+        <span class="count-text">2 events</span>
+      </div>
+
+      <div class="tcard">
+        <div class="thead">
+          <div class="left">
+            <div class="tlogo kyiv" style="--corner: var(--accent);">KY<span class="corner"></span></div>
+            <div class="meta">
+              <div class="row1"><span class="tname">Kyiv FIP Gold</span><span class="flag-sm ua"></span></div>
+              <div class="round-label">Quarterfinals</div>
+            </div>
+          </div>
+          <div class="right">
+            <span class="tbadge gold">Gold</span>
+            <span class="chev"><svg><use href="#icon-chev"/></svg></span>
+          </div>
+        </div>
+        <div class="row">
+          <span class="accent men"></span>
+          <div class="status">
+            <span class="state ft">Final</span>
+            <span class="court">Court 3</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Delfi / Popov</div>
+            <div class="pair lose"><span class="cflag se"></span>Andersson / Björk</div>
+          </div>
+          <div class="scores">
+            <div class="col"><span class="s win">7</span><span class="s win">6</span></div>
+            <div class="col"><span class="s">5</span><span class="s">4</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:18px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:28px;">
+  <h3>What changed in v4</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li><b>All emojis removed.</b> Top-bar icons (Search / Star / Calendar) and the row chevron are inline SVGs — single-colour, stroked, currentColor-driven so they theme automatically.</li>
+    <li><b>Filter pills extended.</b> <code>All</code> / <code>Live</code> / <code>Favs</code> now use <code>flex: 1 1 0</code> and stretch to fill the row equally. Also got bigger (13px · 10px padding) so they read as real buttons, plus a small count badge inside (<code>All 23</code> · <code>Live 3</code>).</li>
+    <li>The <code>Favs</code> pill now has a leading star icon so it's recognisable without typing it out in full.</li>
+  </ul>
+</div>
+
+<p class="subtitle">Browser is refreshed. Tell me if the filter pill proportions feel right, or if we should push further (bigger, taller, different label wording, different active state).</p>

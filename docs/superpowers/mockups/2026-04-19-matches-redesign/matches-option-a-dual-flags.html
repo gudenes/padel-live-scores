@@ -1,0 +1,386 @@
+<h2>Matches — Option A locked · dual player flags restored</h2>
+<p class="subtitle">Light text header for tournament grouping (no dark block). Each pair now shows both players' country flags in the stacked-overlapping pattern the current V3MatchRow already uses.</p>
+
+<style>
+  :root {
+    --bg:      #0A0A0A;
+    --bg-2:    #141414;
+    --bg-3:    #1E1E1E;
+    --border:  rgba(255,255,255,0.06);
+    --text:    #FFFFFF;
+    --muted:   #6B7280;
+    --muted-2: #9CA3AF;
+    --green:   #7ED321;
+    --green-dim: rgba(126,211,33,0.12);
+    --live:    #FF4655;
+    --live-dim: rgba(255,70,85,0.12);
+    --men:     #4A9EFF;
+    --women:   #D966FF;
+  }
+
+  .wrap { display:flex; justify-content:center; }
+  .phone {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    overflow: hidden;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  /* Top bar */
+  .topbar {
+    padding: 14px 16px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { display:flex; align-items:center; gap: 8px; font-size: 15px; font-weight: 900; }
+  .logo .green { color: var(--green); }
+  .icons { display:flex; gap: 10px; color: var(--muted-2); }
+  .iconbtn {
+    width: 32px; height: 32px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; background: transparent; border: none; color: inherit; padding: 0;
+  }
+  .iconbtn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Tabs with dates */
+  .tabs-row { display: flex; padding: 14px 14px 0; border-bottom: 1px solid var(--border); gap: 4px; }
+  .tabs { display: flex; flex: 1; justify-content: space-around; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0 12px; background: transparent; border: none; cursor: pointer; position: relative; }
+  .tab .t-label { font-size: 15px; font-weight: 700; color: var(--muted); }
+  .tab .t-date { font-size: 10px; font-weight: 700; color: var(--muted); opacity: 0.65; letter-spacing: 0.3px; font-variant-numeric: tabular-nums; }
+  .tab.active .t-label { color: var(--text); font-weight: 800; }
+  .tab.active .t-date { color: var(--green); opacity: 1; }
+  .tab.active::after {
+    content:''; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 2.5px;
+    background: var(--green); clip-path: polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%);
+  }
+  .filter-trigger {
+    position: relative;
+    width: 38px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-3); border: 1px solid var(--border);
+    color: var(--muted-2); cursor: pointer;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    margin-bottom: 8px; margin-top: 4px;
+  }
+  .filter-trigger svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Live-now strip */
+  .livestrip { padding: 12px 14px; background: linear-gradient(180deg, rgba(255,70,85,0.06) 0%, transparent 100%); border-bottom: 1px solid var(--border); }
+  .livestrip .label { display:inline-flex; align-items:center; gap: 6px; font-size: 9px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase; color: var(--live); }
+  .livestrip .label .livedot { width: 7px; height: 7px; border-radius: 50%; background: var(--live); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* ══ OPTION A — light text header (no dark block, no chevron) ══ */
+  .group-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 14px 8px;
+    background: var(--bg);
+  }
+  .group-header .flag {
+    width: 16px; height: 12px; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+  }
+  .group-header .flag.be { background: linear-gradient(90deg, #000 33.3%, #FDDA24 33.3% 66.6%, #EF3340 66.6%); }
+  .group-header .flag.ar { background: linear-gradient(180deg, #74ACDF 33.3%, #fff 33.3% 66.6%, #74ACDF 66.6%); }
+  .group-header .flag.ua { background: linear-gradient(180deg, #0057B7 50%, #FFD700 50%); }
+  .group-header .name {
+    font-size: 11px; font-weight: 800; color: var(--text);
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .group-header .dot { margin: 0 4px; color: var(--muted); font-size: 10px; }
+  .group-header .round {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .group-header .live-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--live); animation: pulse 2s infinite;
+    margin-left: 4px;
+  }
+  .group-header .count {
+    margin-left: auto;
+    font-size: 9px; font-weight: 700; color: var(--muted-2);
+    padding: 2px 7px; background: rgba(255,255,255,0.04);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+
+  /* ══ Match row ══ */
+  .row {
+    position: relative;
+    padding: 12px 14px 12px 17px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-2);
+    display: grid; grid-template-columns: 1fr auto; gap: 10px;
+    align-items: center;
+  }
+  .row .accent { position: absolute; top: 4px; left: 0; bottom: 4px; width: 3px; }
+  .row .accent.men { background: var(--men); }
+  .row .accent.women { background: var(--women); }
+
+  .row .meta-row { display:flex; align-items:center; gap: 6px; margin-bottom: 6px; }
+  .row .meta-badge {
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    padding: 2px 7px; background: rgba(255,255,255,0.04);
+    letter-spacing: 0.3px; text-transform: uppercase;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .row .statusbadge {
+    font-size: 8px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 2px 7px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .row .statusbadge.live {
+    color: var(--live); background: var(--live-dim);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .row .statusbadge.live::before {
+    content:''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--live); animation: pulse 2s infinite;
+  }
+
+  .row .pairs { display:flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .row .pair {
+    display:flex; align-items:center; gap: 8px;
+    font-size: 13px; font-weight: 700;
+  }
+  .row .pair.win { color: var(--text); }
+  .row .pair.lose { color: var(--muted-2); opacity: 0.75; }
+
+  /* ══ DUAL OVERLAPPING FLAGS — restored from current V3MatchRow ══ */
+  .pair-flags {
+    position: relative;
+    width: 24px; height: 18px;
+    flex-shrink: 0;
+  }
+  .pair-flags .pf {
+    position: absolute;
+    width: 14px; height: 10px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.4);
+  }
+  .pair-flags .pf.p1 { top: 0; left: 0; z-index: 2; }
+  .pair-flags .pf.p2 { top: 5px; left: 7px; z-index: 1; }
+
+  /* Flag palette (simplified gradients for mockup) */
+  .pf.es { background: linear-gradient(180deg, #AA151B 33%, #F1BF00 33% 66%, #AA151B 66%); }
+  .pf.ar { background: linear-gradient(180deg, #74ACDF 33%, #fff 33% 66%, #74ACDF 66%); }
+  .pf.it { background: linear-gradient(90deg, #008C45 33%, #fff 33% 66%, #CD212A 66%); }
+  .pf.se { background: linear-gradient(180deg, #0057B7 50%, #FFD700 50%); }
+  .pf.ua { background: linear-gradient(180deg, #0057B7 50%, #FFD700 50%); }
+  .pf.br { background: linear-gradient(135deg, #009C3B 0%, #FFDF00 50%, #002776 100%); }
+  .pf.mx { background: linear-gradient(90deg, #006341 33%, #fff 33% 66%, #CE1126 66%); }
+  .pf.pt { background: linear-gradient(90deg, #006600 40%, #FF0000 40%); }
+
+  .row .scores { display:flex; flex-direction: column; gap: 6px; align-items: flex-end; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .row .sset { display:flex; gap: 4px; align-items: center; }
+  .row .s { font-size: 15px; font-weight: 800; color: var(--muted-2); font-family: monospace; min-width: 14px; text-align: center; }
+  .row .s.win { color: var(--text); }
+  .row .s.current { color: var(--green); }
+  .row .pts {
+    font-size: 15px; font-weight: 800; color: var(--live); font-family: monospace;
+    min-width: 18px; text-align: center; margin-left: 2px;
+  }
+  .row .timecell { display:flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .row .timecell .date { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .row .timecell .time { font-size: 14px; color: var(--green); font-weight: 800; }
+</style>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></symbol>
+  <symbol id="icon-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></symbol>
+  <symbol id="icon-filter" viewBox="0 0 24 24">
+    <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/>
+    <circle cx="17" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+    <circle cx="13" cy="18" r="2.2" fill="currentColor" stroke="none"/>
+  </symbol>
+</svg>
+
+<div class="wrap">
+  <div class="phone">
+    <div class="topbar">
+      <div class="logo">PADEL<span class="green">NACHOS</span></div>
+      <div class="icons">
+        <button class="iconbtn"><svg><use href="#icon-search"/></svg></button>
+        <button class="iconbtn"><svg><use href="#icon-star"/></svg></button>
+      </div>
+    </div>
+
+    <div class="tabs-row">
+      <div class="tabs">
+        <button class="tab"><span class="t-label">Yesterday</span><span class="t-date">Apr 18</span></button>
+        <button class="tab active"><span class="t-label">Today</span><span class="t-date">Apr 19</span></button>
+        <button class="tab"><span class="t-label">Upcoming</span><span class="t-date">Apr 20+</span></button>
+      </div>
+      <button class="filter-trigger"><svg><use href="#icon-filter"/></svg></button>
+    </div>
+
+    <div class="livestrip"><span class="label"><span class="livedot"></span> Live Now · 2</span></div>
+
+    <!-- Group 1 — Brussels P2, live -->
+    <div class="group-header">
+      <span class="flag be"></span>
+      <span class="name">Brussels P2</span>
+      <span class="dot">·</span>
+      <span class="round">Round 16</span>
+      <span class="live-dot"></span>
+      <span class="count">3</span>
+    </div>
+    <div class="row">
+      <span class="accent men"></span>
+      <div>
+        <div class="meta-row">
+          <span class="meta-badge">Centre · Men</span>
+          <span class="statusbadge live">Live · Set 2</span>
+        </div>
+        <div class="pairs">
+          <div class="pair win">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 ar"></span></span>
+            Galán / Chingotto
+          </div>
+          <div class="pair lose">
+            <span class="pair-flags"><span class="pf p1 ar"></span><span class="pf p2 ar"></span></span>
+            Tapia / Coello
+          </div>
+        </div>
+      </div>
+      <div class="scores">
+        <div class="sset"><span class="s win">6</span><span class="s current">3</span><span class="pts">30</span></div>
+        <div class="sset"><span class="s">4</span><span class="s current">2</span><span class="pts">15</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="accent men"></span>
+      <div>
+        <div class="meta-row"><span class="meta-badge">Centre · Men</span></div>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 ar"></span><span class="pf p2 ar"></span></span>
+            Stupaczuk / Di Nenno
+          </div>
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 es"></span></span>
+            Lebrón / Belasteguín
+          </div>
+        </div>
+      </div>
+      <div class="timecell"><span class="date">APR 19</span><span class="time">18:00</span></div>
+    </div>
+
+    <div class="row">
+      <span class="accent women"></span>
+      <div>
+        <div class="meta-row"><span class="meta-badge">Court 2 · Women</span></div>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 br"></span></span>
+            Triay / Brea
+          </div>
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 es"></span></span>
+            González / Josemaría
+          </div>
+        </div>
+      </div>
+      <div class="timecell"><span class="date">APR 19</span><span class="time">19:30</span></div>
+    </div>
+
+    <!-- Group 2 — Buenos Aires P1 -->
+    <div class="group-header">
+      <span class="flag ar"></span>
+      <span class="name">Buenos Aires P1</span>
+      <span class="dot">·</span>
+      <span class="round">Round 32</span>
+      <span class="count">4</span>
+    </div>
+    <div class="row">
+      <span class="accent men"></span>
+      <div>
+        <div class="meta-row"><span class="meta-badge">Centre · Men</span></div>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 ar"></span><span class="pf p2 ar"></span></span>
+            Gutiérrez / Sanyo
+          </div>
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 mx"></span></span>
+            Tello / Garrido
+          </div>
+        </div>
+      </div>
+      <div class="timecell"><span class="date">APR 19</span><span class="time">21:00</span></div>
+    </div>
+    <div class="row">
+      <span class="accent women"></span>
+      <div>
+        <div class="meta-row"><span class="meta-badge">Court 1 · Women</span></div>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 es"></span></span>
+            Sánchez / Josemaría
+          </div>
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 ar"></span></span>
+            Salazar / Triay
+          </div>
+        </div>
+      </div>
+      <div class="timecell"><span class="date">APR 19</span><span class="time">22:30</span></div>
+    </div>
+
+    <!-- Group 3 — FIP Gold -->
+    <div class="group-header">
+      <span class="flag ua"></span>
+      <span class="name">Kyiv FIP Gold</span>
+      <span class="dot">·</span>
+      <span class="round">Quarterfinals</span>
+      <span class="count">2</span>
+    </div>
+    <div class="row">
+      <span class="accent men"></span>
+      <div>
+        <div class="meta-row"><span class="meta-badge">Court 3 · Men</span></div>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 ua"></span><span class="pf p2 ua"></span></span>
+            Delfi / Popov
+          </div>
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 se"></span><span class="pf p2 se"></span></span>
+            Andersson / Björk
+          </div>
+        </div>
+      </div>
+      <div class="timecell"><span class="date">APR 19</span><span class="time">23:15</span></div>
+    </div>
+
+    <div style="height:18px;"></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 28px;">
+  <h3>Dual-flag rule — restored from the existing V3MatchRow</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li>Each pair shows <b>both players' flags</b> in a 24×18 container</li>
+    <li>Flag 1 (player-1): <code>top:0 left:0 z:2</code> — 14×10</li>
+    <li>Flag 2 (player-2): <code>top:5 left:7 z:1</code> — 14×10 (offset down-right so it peeks behind)</li>
+    <li>Matches the pattern already used by <code>&lt;FlagImage size={14} /&gt;</code> across latest results, <code>V3MatchRow</code>, and <code>ResultCard</code></li>
+    <li>Example pairs in the mockup: <b>ES/AR</b> (Galán / Chingotto), <b>ES/BR</b> (Triay / Brea), <b>ES/MX</b> (Tello / Garrido) — flags stacked, not merged</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Locked so far — ready for the spec</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li><b>Tabs:</b> Yesterday · Today · Upcoming with dates underneath, date goes green on active</li>
+    <li><b>Filter icon</b> at the end of the tabs row → opens a bottom sheet (Circuit · Gender · Level · Favourites · Hide qualifiers)</li>
+    <li><b>Today sort:</b> live tournaments on top, under a <code>Live Now · N</code> strip</li>
+    <li><b>No tournament top-bar:</b> removed the 2px green/red accent on the header</li>
+    <li><b>Grouping:</b> light-text group header (<code>flag · Tournament · Round</code>) with optional inline live pulse, count on the right</li>
+    <li><b>Flags:</b> dual-overlapping player flags per pair, size 14px, same geometry as current V3 rows</li>
+    <li><b>Everything else</b> (gender accent bar, chunky badges, green/live colours, score columns, Premier-first sort) stays as-is</li>
+  </ul>
+</div>
+
+<p class="subtitle">Next step: write the scoped spec + implementation plan. Good to go?</p>

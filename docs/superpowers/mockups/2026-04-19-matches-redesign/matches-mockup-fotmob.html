@@ -1,0 +1,452 @@
+<h2>Matches — FotMob structure in your brand</h2>
+<p class="subtitle">Same layout principles as FotMob (big date strip, league cards, status pill on the left), rendered in dark + chunky polygons + neon green. Adapted for padel pairs.</p>
+
+<style>
+  .wrap { display:flex; justify-content:center; }
+  .phone {
+    width: 380px;
+    background:#0a0a0a;
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow:0 20px 50px rgba(0,0,0,0.6);
+    font-family: system-ui, -apple-system, sans-serif;
+    color:#fff;
+    overflow:hidden;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    padding: 14px 16px 0;
+    display:flex; align-items:center; justify-content:space-between;
+    background:#0a0a0a;
+  }
+  .topbar .logo {
+    font-size: 15px; font-weight: 900; letter-spacing: 1px;
+    color:#fff;
+  }
+  .topbar .logo .plus { color:#7ED321; }
+  .topbar .icons { display:flex; gap:14px; color:#9CA3AF; align-items:center; }
+  .topbar .icons .icon { width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .topbar .icons .favs {
+    position:relative;
+    width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .topbar .icons .favs .badge {
+    position:absolute; top:-3px; right:-6px;
+    font-size:8px; font-weight:900;
+    background:#FF4655; color:#fff;
+    padding:1px 4px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    min-width: 14px; text-align:center;
+  }
+
+  /* ── Date strip ── */
+  .datestrip {
+    display:flex; padding:16px 0 0; gap:0;
+    overflow-x:auto;
+    background:#0a0a0a;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+  }
+  .datestrip .d {
+    flex: 0 0 auto;
+    padding: 10px 18px 12px;
+    text-align:center;
+    position:relative;
+  }
+  .datestrip .d .dow {
+    font-size:10px; font-weight:800; color:#4B5563;
+    letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .datestrip .d .label {
+    font-size:13px; font-weight:700; color:#9CA3AF;
+    letter-spacing:0.2px;
+    margin-top: 2px;
+  }
+  .datestrip .d.active .label { color:#fff; font-weight:900; }
+  .datestrip .d.active::after {
+    content:'';
+    position:absolute; left:18px; right:18px; bottom:-1px;
+    height:2.5px; background:#7ED321;
+    clip-path: polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%);
+  }
+
+  /* ── Tournament card ── */
+  .tcard {
+    margin: 12px 12px 0;
+    background:#141414;
+    border:1px solid rgba(255,255,255,0.06);
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    overflow:hidden;
+  }
+  .tcard .thead {
+    padding: 12px 14px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+  }
+  .tcard .thead .tleft { display:flex; align-items:center; gap:10px; }
+  .tcard .thead .flag {
+    width:24px; height:18px; display:inline-block;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.1);
+  }
+  .tcard .thead .flag.be { background:linear-gradient(90deg,#000 33%,#fdda24 33% 66%,#ef3340 66%); }
+  .tcard .thead .flag.ar { background:linear-gradient(180deg,#74acdf 33%,#fff 33% 66%,#74acdf 66%); }
+  .tcard .thead .flag.ua { background:linear-gradient(180deg,#0057b7 50%,#ffd700 50%); }
+  .tcard .thead .tname {
+    font-size:12px; font-weight:800; color:#fff;
+    letter-spacing:0.2px;
+  }
+  .tcard .thead .tround {
+    font-size:9px; font-weight:800; color:#6B7280;
+    letter-spacing:0.6px; text-transform:uppercase;
+    margin-top:1px;
+  }
+  .tcard .thead .tright { display:flex; align-items:center; gap:10px; color:#6B7280; }
+  .tcard .thead .tbadge {
+    font-size:9px; font-weight:900; padding:3px 8px;
+    background:rgba(126,211,33,0.12); color:#7ED321;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    letter-spacing:0.4px; text-transform:uppercase;
+  }
+  .tcard .thead .tbadge.p1 { background:rgba(126,211,33,0.12); color:#7ED321; }
+  .tcard .thead .tbadge.p2 { background:rgba(74,158,255,0.12); color:#4A9EFF; }
+  .tcard .thead .tbadge.major { background:rgba(245,166,35,0.12); color:#F5A623; }
+  .tcard .thead .chev { color:#4B5563; font-size:12px; }
+
+  /* ── Match row ── */
+  .row {
+    position:relative;
+    display:grid;
+    grid-template-columns: 58px 1fr auto;
+    align-items:center;
+    padding: 12px 14px 12px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor:pointer;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .accent {
+    position:absolute; left:0; top:6px; bottom:6px; width:3px;
+  }
+  .row .accent.men { background:#4A9EFF; }
+  .row .accent.women { background:#D966FF; }
+
+  /* status pill — left column */
+  .row .status {
+    display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+  }
+  .row .status .time {
+    font-size:12px; font-weight:800; color:#9CA3AF;
+    font-variant-numeric: tabular-nums;
+    letter-spacing:0.2px;
+  }
+  .row .status .pill {
+    font-size:8px; font-weight:900;
+    padding:2px 6px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .row .status .pill.ft { background:rgba(255,255,255,0.05); color:#6B7280; }
+  .row .status .pill.live { background:rgba(255,70,85,0.15); color:#FF4655; }
+  .row .status .pill.live::before { content:'● '; animation:pulse 2s infinite; }
+  .row .status .court {
+    font-size:8px; font-weight:800; color:#4B5563;
+    letter-spacing:0.4px; text-transform:uppercase;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* pairs column */
+  .row .pairs { display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .row .pairs .pair {
+    display:flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:700; color:#fff;
+  }
+  .row .pairs .pair.win { color:#fff; }
+  .row .pairs .pair.lose { color:#6B7280; font-weight:600; }
+  .row .pairs .pair .cflag {
+    width:14px; height:10px; flex-shrink:0;
+    background:linear-gradient(180deg,#74acdf 33%,#fff 33% 66%,#74acdf 66%);
+    box-shadow:0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .row .pairs .pair .cflag.es { background:linear-gradient(180deg,#AA151B 33%,#F1BF00 33% 66%,#AA151B 66%); }
+  .row .pairs .pair .cflag.ar { background:linear-gradient(180deg,#74acdf 33%,#fff 33% 66%,#74acdf 66%); }
+  .row .pairs .pair .cflag.se { background:linear-gradient(180deg,#0057b7 50%,#ffd700 50%); }
+
+  /* score column */
+  .row .scores {
+    display:flex; align-items:center; gap:8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .row .scores .col {
+    display:flex; flex-direction:column; gap:3px; align-items:center;
+    min-width: 16px;
+  }
+  .row .scores .s {
+    font-size:13px; font-weight:800; color:#9CA3AF;
+    line-height:1;
+  }
+  .row .scores .s.win { color:#fff; }
+  .row .scores .s.current { color:#7ED321; }
+
+  /* fav star */
+  .row .star {
+    position:absolute; top:8px; right:10px;
+    font-size:12px; color:#4B5563;
+  }
+
+  /* ── Filter strip between date strip and list ── */
+  .filters {
+    display:flex; gap:8px; padding: 12px 12px 4px;
+    background:#0a0a0a;
+  }
+  .chip {
+    font-size:10px; font-weight:900;
+    padding:5px 12px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    letter-spacing:0.6px; text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .chip.on { background:#7ED321; color:#000; }
+  .chip.off { background:rgba(255,255,255,0.04); color:#6B7280; }
+  .chip.live { background:rgba(255,70,85,0.12); color:#FF4655; }
+</style>
+
+<div class="wrap">
+  <div class="phone">
+    <!-- ── Top bar ── -->
+    <div class="topbar">
+      <div class="logo">PADEL<span class="plus">NACHOS</span></div>
+      <div class="icons">
+        <span class="icon">🔍</span>
+        <span class="favs">★<span class="badge">4</span></span>
+        <span class="icon">📅</span>
+      </div>
+    </div>
+
+    <!-- ── Date strip ── -->
+    <div class="datestrip">
+      <div class="d"><div class="dow">THU</div><div class="label">Apr 17</div></div>
+      <div class="d"><div class="dow">FRI</div><div class="label">Yesterday</div></div>
+      <div class="d active"><div class="dow">SAT</div><div class="label">Today</div></div>
+      <div class="d"><div class="dow">SUN</div><div class="label">Tomorrow</div></div>
+      <div class="d"><div class="dow">MON</div><div class="label">Apr 21</div></div>
+    </div>
+
+    <!-- ── Filters ── -->
+    <div class="filters">
+      <span class="chip on">All</span>
+      <span class="chip live">● Live · 3</span>
+      <span class="chip off">★ Favourites</span>
+    </div>
+
+    <!-- ── Tournament card 1 (live) ── -->
+    <div class="tcard">
+      <div class="thead">
+        <div class="tleft">
+          <div class="flag be"></div>
+          <div>
+            <div class="tname">Brussels P2 2026</div>
+            <div class="tround">Round of 16</div>
+          </div>
+        </div>
+        <div class="tright">
+          <span class="tbadge p2">P2</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+
+      <!-- Live row -->
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="status">
+          <span class="pill live">Live</span>
+          <span class="court">Set 2</span>
+        </div>
+        <div class="pairs">
+          <div class="pair win">
+            <span class="cflag es"></span>
+            Galán / Chingotto
+          </div>
+          <div class="pair lose">
+            <span class="cflag ar"></span>
+            Tapia / Coello
+          </div>
+        </div>
+        <div class="scores">
+          <div class="col"><span class="s win">6</span><span class="s">4</span></div>
+          <div class="col"><span class="s current">3</span><span class="s current">2</span></div>
+        </div>
+      </div>
+
+      <!-- Scheduled row -->
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="status">
+          <span class="time">18:00</span>
+          <span class="court">Centre</span>
+        </div>
+        <div class="pairs">
+          <div class="pair">
+            <span class="cflag ar"></span>
+            Stupaczuk / Di Nenno
+          </div>
+          <div class="pair">
+            <span class="cflag es"></span>
+            Lebrón / Belasteguín
+          </div>
+        </div>
+        <div class="scores"></div>
+      </div>
+
+      <!-- Scheduled row -->
+      <div class="row">
+        <div class="accent women"></div>
+        <div class="status">
+          <span class="time">19:30</span>
+          <span class="court">Court 2</span>
+        </div>
+        <div class="pairs">
+          <div class="pair">
+            <span class="cflag es"></span>
+            Triay / Brea
+          </div>
+          <div class="pair">
+            <span class="cflag es"></span>
+            González / Josemaría
+          </div>
+        </div>
+        <div class="scores"></div>
+      </div>
+    </div>
+
+    <!-- ── Tournament card 2 ── -->
+    <div class="tcard">
+      <div class="thead">
+        <div class="tleft">
+          <div class="flag ar"></div>
+          <div>
+            <div class="tname">Buenos Aires P1 2026</div>
+            <div class="tround">Quarterfinals</div>
+          </div>
+        </div>
+        <div class="tright">
+          <span class="tbadge p1">P1</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="status">
+          <span class="pill ft">FT</span>
+          <span class="court">Centre</span>
+        </div>
+        <div class="pairs">
+          <div class="pair win">
+            <span class="cflag ar"></span>
+            Stupaczuk / Di Nenno
+          </div>
+          <div class="pair lose">
+            <span class="cflag es"></span>
+            Gutiérrez / Sanyo
+          </div>
+        </div>
+        <div class="scores">
+          <div class="col"><span class="s win">6</span><span class="s win">7</span></div>
+          <div class="col"><span class="s">3</span><span class="s">5</span></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="accent women"></div>
+        <div class="status">
+          <span class="time">21:00</span>
+          <span class="court">Court 1</span>
+        </div>
+        <div class="pairs">
+          <div class="pair">
+            <span class="cflag es"></span>
+            Sánchez / Josemaría
+          </div>
+          <div class="pair">
+            <span class="cflag es"></span>
+            Salazar / Triay
+          </div>
+        </div>
+        <div class="scores"></div>
+      </div>
+    </div>
+
+    <!-- ── Tournament card 3 ── -->
+    <div class="tcard">
+      <div class="thead">
+        <div class="tleft">
+          <div class="flag ua"></div>
+          <div>
+            <div class="tname">Kyiv FIP Gold</div>
+            <div class="tround">Qualifying</div>
+          </div>
+        </div>
+        <div class="tright">
+          <span class="tbadge major">Gold</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="status">
+          <span class="pill ft">FT</span>
+          <span class="court">Court 3</span>
+        </div>
+        <div class="pairs">
+          <div class="pair win">
+            <span class="cflag ar"></span>
+            Delfi / Popov
+          </div>
+          <div class="pair lose">
+            <span class="cflag se"></span>
+            Andersson / Björk
+          </div>
+        </div>
+        <div class="scores">
+          <div class="col"><span class="s win">7</span><span class="s win">6</span></div>
+          <div class="col"><span class="s">5</span><span class="s">4</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:16px;"></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>What's carried over from FotMob</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li><b>Full-width date strip</b> with "Today" prominent and underlined in green (was a small micro-strip before)</li>
+    <li><b>Tournament as a distinct card</b>, not a flat section header — each card has its own chunky-polygon outline</li>
+    <li><b>Status pill on the LEFT</b> (FT / LIVE / 18:00) — left-aligned state, right-aligned scores, so your eye scans consistently</li>
+    <li><b>Inline collapse chevron</b> so you can hide tournaments you don't care about</li>
+    <li><b>Clock + Search + Calendar icons</b> top-right as in FotMob (favourites count badge reused)</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Padel-specific adaptations</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li>Score is <b>set-by-set columns</b> (like tennis scoreboards), not a single goal count — current set highlighted in green</li>
+    <li>Player country <b>flags inline</b> before each pair name, since padel is international</li>
+    <li><b>Gender accent bar</b> (blue men / purple women) kept on the left — preserves your existing visual language</li>
+    <li>Tournament-level badge on the right (<span style="color:#7ED321">P1</span>, <span style="color:#4A9EFF">P2</span>, <span style="color:#F5A623">Major</span>, <span style="color:#F5A623">Gold</span>) colored by tier</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Differences from the previous mockup</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li>Date strip is <b>bigger and horizontally scrollable</b> with named anchors ("Today", "Yesterday", "Tomorrow") mixed with dates</li>
+    <li>Each tournament is now a <b>rounded-container card</b>, not just a header row</li>
+    <li>Status moved from right → <b>left</b>; scores moved to far right</li>
+    <li>Added <b>country flags next to player pairs</b></li>
+    <li>Removed the stand-alone summary pills and hero card — going minimal like FotMob</li>
+  </ul>
+</div>
+
+<p class="subtitle">Take a look and let me know what to push further — list density, date strip, card containment, flag/colour tweaks, or if this direction feels right as-is.</p>

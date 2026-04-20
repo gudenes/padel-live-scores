@@ -1,0 +1,484 @@
+<h2>Matches — Today centered, tournament logos, circuit priority</h2>
+<p class="subtitle">Premier Padel grouped first, then FIP Tour. Tournament logos replace country flags on cards. Date strip centered on Today.</p>
+
+<style>
+  .wrap { display:flex; justify-content:center; }
+  .phone {
+    width: 380px;
+    background:#0a0a0a;
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow:0 20px 50px rgba(0,0,0,0.6);
+    font-family: system-ui, -apple-system, sans-serif;
+    color:#fff;
+    overflow:hidden;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    padding: 14px 16px 0;
+    display:flex; align-items:center; justify-content:space-between;
+    background:#0a0a0a;
+  }
+  .topbar .logo { font-size: 15px; font-weight: 900; letter-spacing: 1px; color:#fff; }
+  .topbar .logo .plus { color:#7ED321; }
+  .topbar .icons { display:flex; gap:14px; color:#9CA3AF; align-items:center; }
+  .topbar .icons .icon { width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .topbar .icons .favs { position:relative; width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
+  .topbar .icons .favs .badge {
+    position:absolute; top:-3px; right:-6px;
+    font-size:8px; font-weight:900;
+    background:#FF4655; color:#fff; padding:1px 4px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    min-width: 14px; text-align:center;
+  }
+
+  /* ── Date strip — centered on Today ── */
+  .datestrip-wrap {
+    position:relative; background:#0a0a0a;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+    padding-top: 16px;
+  }
+  .datestrip {
+    display:flex;
+    justify-content:center;
+    gap:0;
+  }
+  .datestrip .d {
+    flex: 0 0 auto;
+    padding: 10px 14px 12px;
+    text-align:center;
+    position:relative;
+    min-width: 60px;
+  }
+  .datestrip .d .dow {
+    font-size:10px; font-weight:800; color:#4B5563;
+    letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .datestrip .d .label {
+    font-size:13px; font-weight:700; color:#9CA3AF;
+    letter-spacing:0.2px; margin-top: 2px;
+  }
+  .datestrip .d.active .label { color:#fff; font-weight:900; }
+  .datestrip .d.active .dow { color:#7ED321; }
+  .datestrip .d.active::after {
+    content:''; position:absolute; left:14px; right:14px; bottom:-1px;
+    height:2.5px; background:#7ED321;
+    clip-path: polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%);
+  }
+
+  /* ── Filter chips ── */
+  .filters {
+    display:flex; gap:8px; padding: 14px 12px 2px;
+    background:#0a0a0a;
+  }
+  .chip {
+    font-size:10px; font-weight:900;
+    padding:5px 12px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    letter-spacing:0.6px; text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .chip.on { background:#7ED321; color:#000; }
+  .chip.off { background:rgba(255,255,255,0.04); color:#6B7280; }
+  .chip.live { background:rgba(255,70,85,0.12); color:#FF4655; }
+
+  /* ── Circuit section label ── */
+  .circuit {
+    display:flex; align-items:center; gap:10px;
+    padding: 20px 16px 6px;
+  }
+  .circuit .dot { width:8px; height:8px; }
+  .circuit.ppl .dot { background:#7ED321; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+  .circuit.fip .dot { background:#F5A623; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+  .circuit .name {
+    font-size:10px; font-weight:900;
+    letter-spacing:1.4px; text-transform:uppercase;
+  }
+  .circuit.ppl .name { color:#7ED321; }
+  .circuit.fip .name { color:#F5A623; }
+  .circuit .rule {
+    flex:1; height:1px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.08) 0%, transparent 100%);
+  }
+  .circuit .count {
+    font-size:9px; font-weight:800; color:#6B7280;
+    letter-spacing:0.5px;
+  }
+
+  /* ── Tournament card ── */
+  .tcard {
+    margin: 0 12px 10px;
+    background:#141414;
+    border:1px solid rgba(255,255,255,0.06);
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    overflow:hidden;
+  }
+  .tcard .thead {
+    padding: 12px 14px;
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+  }
+  .tcard .thead .tleft { display:flex; align-items:center; gap:12px; min-width:0; }
+
+  /* Tournament logo placeholder — colored disk with initials */
+  .tlogo {
+    width:32px; height:32px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    font-size:11px; font-weight:900; color:#fff;
+    letter-spacing:0.3px;
+    position:relative;
+    clip-path: polygon(10% 0%, 90% 0%, 100% 30%, 100% 70%, 90% 100%, 10% 100%, 0% 70%, 0% 30%);
+  }
+  .tlogo.brussels { background:linear-gradient(135deg, #FCE31B 0%, #000 100%); color:#000; }
+  .tlogo.ba { background:linear-gradient(135deg, #74acdf 0%, #162d5a 100%); }
+  .tlogo.newgiza { background:linear-gradient(135deg, #c8102e 0%, #7a0010 100%); }
+  .tlogo.kyiv { background:linear-gradient(180deg, #0057b7 50%, #ffd700 50%); color:#000; }
+  .tlogo.malaga { background:linear-gradient(135deg, #AA151B 0%, #F1BF00 100%); }
+  .tlogo .corner {
+    position:absolute; top:-2px; right:-2px;
+    width:12px; height:12px;
+    background: var(--circuit, #7ED321);
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  }
+
+  .tcard .thead .tmeta { min-width:0; }
+  .tcard .thead .tname-row { display:flex; align-items:center; gap:8px; }
+  .tcard .thead .tname {
+    font-size:13px; font-weight:800; color:#fff;
+    letter-spacing:0.1px;
+    white-space: nowrap; overflow:hidden; text-overflow: ellipsis;
+    max-width: 180px;
+  }
+  .tcard .thead .flag-sm {
+    width:16px; height:12px; display:inline-block; flex-shrink:0;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.1);
+  }
+  .tcard .thead .flag-sm.be { background:linear-gradient(90deg,#000 33%,#fdda24 33% 66%,#ef3340 66%); }
+  .tcard .thead .flag-sm.ar { background:linear-gradient(180deg,#74acdf 33%,#fff 33% 66%,#74acdf 66%); }
+  .tcard .thead .flag-sm.eg { background:linear-gradient(180deg,#c8102e 33%,#fff 33% 66%,#000 66%); }
+  .tcard .thead .flag-sm.ua { background:linear-gradient(180deg,#0057b7 50%,#ffd700 50%); }
+  .tcard .thead .flag-sm.es { background:linear-gradient(180deg,#AA151B 33%,#F1BF00 33% 66%,#AA151B 66%); }
+  .tcard .thead .tround {
+    font-size:10px; font-weight:700; color:#6B7280;
+    letter-spacing:0.3px; margin-top:2px;
+  }
+  .tcard .thead .tright { display:flex; align-items:center; gap:10px; color:#6B7280; }
+  .tcard .thead .tbadge {
+    font-size:9px; font-weight:900; padding:3px 8px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    letter-spacing:0.4px; text-transform:uppercase;
+  }
+  .tcard .thead .tbadge.p1 { background:rgba(126,211,33,0.12); color:#7ED321; }
+  .tcard .thead .tbadge.p2 { background:rgba(74,158,255,0.12); color:#4A9EFF; }
+  .tcard .thead .tbadge.major { background:rgba(245,166,35,0.12); color:#F5A623; }
+  .tcard .thead .tbadge.gold { background:rgba(245,166,35,0.12); color:#F5A623; }
+  .tcard .thead .tbadge.silver { background:rgba(192,192,192,0.15); color:#C0C0C0; }
+  .tcard .thead .chev { color:#4B5563; font-size:12px; }
+
+  /* ── Match row ── */
+  .row {
+    position:relative;
+    display:grid;
+    grid-template-columns: 58px 1fr auto;
+    align-items:center;
+    padding: 12px 14px 12px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor:pointer;
+  }
+  .row:last-child { border-bottom: none; }
+  .row .accent {
+    position:absolute; left:0; top:6px; bottom:6px; width:3px;
+  }
+  .row .accent.men { background:#4A9EFF; }
+  .row .accent.women { background:#D966FF; }
+
+  .row .status { display:flex; flex-direction:column; align-items:flex-start; gap:3px; }
+  .row .status .time {
+    font-size:12px; font-weight:800; color:#9CA3AF;
+    font-variant-numeric: tabular-nums; letter-spacing:0.2px;
+  }
+  .row .status .pill {
+    font-size:8px; font-weight:900;
+    padding:2px 6px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    letter-spacing:0.5px; text-transform:uppercase;
+  }
+  .row .status .pill.ft { background:rgba(255,255,255,0.05); color:#6B7280; }
+  .row .status .pill.live { background:rgba(255,70,85,0.15); color:#FF4655; }
+  .row .status .pill.live::before { content:'● '; animation:pulse 2s infinite; }
+  .row .status .court {
+    font-size:8px; font-weight:800; color:#4B5563;
+    letter-spacing:0.4px; text-transform:uppercase;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .row .pairs { display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .row .pairs .pair {
+    display:flex; align-items:center; gap:6px;
+    font-size:13px; font-weight:700; color:#fff;
+  }
+  .row .pairs .pair.win { color:#fff; }
+  .row .pairs .pair.lose { color:#6B7280; font-weight:600; }
+  .row .pairs .pair .cflag {
+    width:14px; height:10px; flex-shrink:0;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .row .pairs .pair .cflag.es { background:linear-gradient(180deg,#AA151B 33%,#F1BF00 33% 66%,#AA151B 66%); }
+  .row .pairs .pair .cflag.ar { background:linear-gradient(180deg,#74acdf 33%,#fff 33% 66%,#74acdf 66%); }
+  .row .pairs .pair .cflag.se { background:linear-gradient(180deg,#0057b7 50%,#ffd700 50%); }
+  .row .pairs .pair .cflag.ua { background:linear-gradient(180deg,#0057b7 50%,#ffd700 50%); }
+  .row .pairs .pair .cflag.it { background:linear-gradient(90deg,#008C45 33%,#fff 33% 66%,#CD212A 66%); }
+
+  .row .scores { display:flex; align-items:center; gap:8px; font-variant-numeric: tabular-nums; }
+  .row .scores .col {
+    display:flex; flex-direction:column; gap:3px; align-items:center;
+    min-width: 16px;
+  }
+  .row .scores .s { font-size:13px; font-weight:800; color:#9CA3AF; line-height:1; }
+  .row .scores .s.win { color:#fff; }
+  .row .scores .s.current { color:#7ED321; }
+</style>
+
+<div class="wrap">
+  <div class="phone">
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="logo">PADEL<span class="plus">NACHOS</span></div>
+      <div class="icons">
+        <span class="icon">🔍</span>
+        <span class="favs">★<span class="badge">4</span></span>
+        <span class="icon">📅</span>
+      </div>
+    </div>
+
+    <!-- Date strip — TODAY CENTERED -->
+    <div class="datestrip-wrap">
+      <div class="datestrip">
+        <div class="d"><div class="dow">THU</div><div class="label">Apr 17</div></div>
+        <div class="d"><div class="dow">FRI</div><div class="label">Yesterday</div></div>
+        <div class="d active"><div class="dow">SAT</div><div class="label">Today</div></div>
+        <div class="d"><div class="dow">SUN</div><div class="label">Tomorrow</div></div>
+        <div class="d"><div class="dow">MON</div><div class="label">Apr 21</div></div>
+      </div>
+    </div>
+
+    <!-- Filter chips -->
+    <div class="filters">
+      <span class="chip on">All</span>
+      <span class="chip live">● Live · 3</span>
+      <span class="chip off">★ Favourites</span>
+    </div>
+
+    <!-- ═══ PREMIER PADEL — always first ═══ -->
+    <div class="circuit ppl">
+      <span class="dot"></span>
+      <span class="name">Premier Padel</span>
+      <span class="rule"></span>
+      <span class="count">3 events</span>
+    </div>
+
+    <!-- Brussels P2 (live) -->
+    <div class="tcard">
+      <div class="thead">
+        <div class="tleft">
+          <div class="tlogo brussels" style="--circuit:#7ED321;">BP<span class="corner"></span></div>
+          <div class="tmeta">
+            <div class="tname-row">
+              <span class="flag-sm be"></span>
+              <span class="tname">Brussels P2 2026</span>
+            </div>
+            <div class="tround">Round of 16</div>
+          </div>
+        </div>
+        <div class="tright">
+          <span class="tbadge p2">P2</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="status">
+          <span class="pill live">Live</span>
+          <span class="court">Set 2</span>
+        </div>
+        <div class="pairs">
+          <div class="pair win"><span class="cflag es"></span>Galán / Chingotto</div>
+          <div class="pair lose"><span class="cflag ar"></span>Tapia / Coello</div>
+        </div>
+        <div class="scores">
+          <div class="col"><span class="s win">6</span><span class="s">4</span></div>
+          <div class="col"><span class="s current">3</span><span class="s current">2</span></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="status">
+          <span class="time">18:00</span>
+          <span class="court">Centre</span>
+        </div>
+        <div class="pairs">
+          <div class="pair"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+          <div class="pair"><span class="cflag es"></span>Lebrón / Belasteguín</div>
+        </div>
+        <div class="scores"></div>
+      </div>
+
+      <div class="row">
+        <div class="accent women"></div>
+        <div class="status">
+          <span class="time">19:30</span>
+          <span class="court">Court 2</span>
+        </div>
+        <div class="pairs">
+          <div class="pair"><span class="cflag es"></span>Triay / Brea</div>
+          <div class="pair"><span class="cflag es"></span>González / Josemaría</div>
+        </div>
+        <div class="scores"></div>
+      </div>
+    </div>
+
+    <!-- Buenos Aires P1 -->
+    <div class="tcard">
+      <div class="thead">
+        <div class="tleft">
+          <div class="tlogo ba" style="--circuit:#7ED321;">BA<span class="corner"></span></div>
+          <div class="tmeta">
+            <div class="tname-row">
+              <span class="flag-sm ar"></span>
+              <span class="tname">Buenos Aires P1 2026</span>
+            </div>
+            <div class="tround">Quarterfinals</div>
+          </div>
+        </div>
+        <div class="tright">
+          <span class="tbadge p1">P1</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="status">
+          <span class="pill ft">FT</span>
+          <span class="court">Centre</span>
+        </div>
+        <div class="pairs">
+          <div class="pair win"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+          <div class="pair lose"><span class="cflag es"></span>Gutiérrez / Sanyo</div>
+        </div>
+        <div class="scores">
+          <div class="col"><span class="s win">6</span><span class="s win">7</span></div>
+          <div class="col"><span class="s">3</span><span class="s">5</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Málaga P1 scheduled -->
+    <div class="tcard">
+      <div class="thead">
+        <div class="tleft">
+          <div class="tlogo malaga" style="--circuit:#7ED321;">MA<span class="corner"></span></div>
+          <div class="tmeta">
+            <div class="tname-row">
+              <span class="flag-sm es"></span>
+              <span class="tname">Málaga P1 2026</span>
+            </div>
+            <div class="tround">Main draw starts Mon</div>
+          </div>
+        </div>
+        <div class="tright">
+          <span class="tbadge p1">P1</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ FIP TOUR — below Premier Padel ═══ -->
+    <div class="circuit fip">
+      <span class="dot"></span>
+      <span class="name">FIP Tour</span>
+      <span class="rule"></span>
+      <span class="count">2 events</span>
+    </div>
+
+    <!-- Kyiv Gold -->
+    <div class="tcard">
+      <div class="thead">
+        <div class="tleft">
+          <div class="tlogo kyiv" style="--circuit:#F5A623;">KY<span class="corner"></span></div>
+          <div class="tmeta">
+            <div class="tname-row">
+              <span class="flag-sm ua"></span>
+              <span class="tname">Kyiv FIP Gold</span>
+            </div>
+            <div class="tround">Quarterfinals</div>
+          </div>
+        </div>
+        <div class="tright">
+          <span class="tbadge gold">Gold</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="status">
+          <span class="pill ft">FT</span>
+          <span class="court">Court 3</span>
+        </div>
+        <div class="pairs">
+          <div class="pair win"><span class="cflag ar"></span>Delfi / Popov</div>
+          <div class="pair lose"><span class="cflag se"></span>Andersson / Björk</div>
+        </div>
+        <div class="scores">
+          <div class="col"><span class="s win">7</span><span class="s win">6</span></div>
+          <div class="col"><span class="s">5</span><span class="s">4</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rome Silver -->
+    <div class="tcard">
+      <div class="thead">
+        <div class="tleft">
+          <div class="tlogo" style="background:linear-gradient(135deg,#008C45 0%,#CD212A 100%); --circuit:#F5A623;">RO<span class="corner"></span></div>
+          <div class="tmeta">
+            <div class="tname-row">
+              <span class="flag-sm it"></span>
+              <span class="tname">Rome FIP Silver</span>
+            </div>
+            <div class="tround">Round of 16</div>
+          </div>
+        </div>
+        <div class="tright">
+          <span class="tbadge silver">Silver</span>
+          <span class="chev">▾</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:16px;"></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h3>What's new in v2</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li><b>Today centered</b>: the date strip is centre-justified with two days before + two days after. Today sits in the middle with a green underline (the previous version left-aligned "Today" which pushed it toward the edge).</li>
+    <li><b>Tournament logos</b>: each card has a chunky-polygon logo tile on the left (colored disk with initials in the mockup — in production, pulls from <code>tournament.logo_url</code> with a text-fallback). A small country flag sits next to the tournament name as secondary info.</li>
+    <li><b>Circuit sections</b>: <span style="color:#7ED321">● PREMIER PADEL</span> is always the first section; <span style="color:#F5A623">● FIP TOUR</span> follows. Each has a count ("3 events") and a fade rule to the right for visual separation.</li>
+    <li><b>Circuit dot on logo</b>: each tournament logo has a small diamond marker in its top-right corner — green for Premier, orange for FIP — so circuit identity survives even if you ever scroll past the section header.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Sort order (locked)</h3>
+  <ol style="line-height:1.7; color:#ccc;">
+    <li><b>Premier Padel section</b> — always on top. Within it: live first, then upcoming by kickoff, then finished.</li>
+    <li><b>FIP Tour section</b> — same internal ordering.</li>
+    <li>Further circuits (future: APT, WPT) append after FIP.</li>
+  </ol>
+</div>
+
+<p class="subtitle">Browser has the updated mockup. Want me to push on anything — logo sizing, section label treatment, date strip behavior on scroll — or is the direction locked?</p>

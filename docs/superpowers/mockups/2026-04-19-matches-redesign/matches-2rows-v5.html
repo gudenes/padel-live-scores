@@ -1,0 +1,397 @@
+<h2>Matches — v5 · circuit-logo tournament header</h2>
+<p class="subtitle">Tournament card now leads with the circuit logo (Premier Padel / FIP Tour) instead of the country flag. Right side stacks "City, Country" + "Level · Round". Country flag demoted to a small badge next to the city.</p>
+
+<style>
+  :root {
+    --bg:      #0A0A0A;
+    --bg-2:    #141414;
+    --bg-3:    #1E1E1E;
+    --border:  rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --text:    #FFFFFF;
+    --muted:   #6B7280;
+    --muted-2: #9CA3AF;
+    --green:   #7ED321;
+    --green-dim: rgba(126,211,33,0.14);
+    --live:    #FF4655;
+    --live-dim: rgba(255,70,85,0.12);
+    --men:     #4A9EFF;
+    --women:   #D966FF;
+    --gold:    #F5A623;
+  }
+
+  .wrap { display:flex; justify-content:center; }
+  .phone {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    overflow: hidden;
+    width: 100%;
+    max-width: 400px;
+    padding-bottom: 20px;
+  }
+
+  .tabs-row { display: flex; padding: 14px 14px 0; border-bottom: 1px solid var(--border); gap: 4px; }
+  .tabs { display: flex; flex: 1; justify-content: space-around; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0 12px; background: transparent; border: none; cursor: pointer; position: relative; }
+  .tab .t-label { font-size: 15px; font-weight: 700; color: var(--muted); }
+  .tab .t-date { font-size: 10px; font-weight: 700; color: var(--muted); opacity: 0.65; }
+  .tab.active .t-label { color: var(--text); font-weight: 800; }
+  .tab.active .t-date { color: var(--green); opacity: 1; }
+  .tab.active::after {
+    content:''; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 2.5px;
+    background: var(--green); clip-path: polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%);
+  }
+  .filter-trigger { width: 38px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--bg-3); border: 1px solid var(--border); color: var(--muted-2); cursor: pointer; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); margin-bottom: 8px; margin-top: 4px; font-size: 14px; }
+
+  /* Tournament container */
+  .tournament {
+    margin: 14px 12px 0;
+    background: var(--bg-2);
+    border: 1px solid var(--border-strong);
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+
+  /* ══════════ Header: [logo] | city/country + level/round ══════════ */
+  .tgroup-head {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    column-gap: 14px;
+    align-items: center;
+    padding: 14px 14px 12px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tgroup-head .logo-cell {
+    width: 72px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-right: 1px solid var(--border);
+    padding-right: 12px;
+    box-sizing: border-box;
+  }
+  .tgroup-head .logo-cell img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain;
+  }
+
+  .tgroup-head .meta { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .tgroup-head .row1 { display: flex; align-items: center; gap: 6px; }
+  .tgroup-head .city {
+    font-size: 14px; font-weight: 800; color: var(--text);
+    letter-spacing: -0.1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tgroup-head .country-flag {
+    width: 16px; height: 12px; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+  }
+  .tgroup-head .country-flag.eg { background: linear-gradient(180deg,#C8102E 33.3%,#fff 33.3% 66.6%,#000 66.6%); }
+  .tgroup-head .country-flag.it { background: linear-gradient(90deg,#008C45 33.3%,#fff 33.3% 66.6%,#CD212A 66.6%); }
+  .tgroup-head .row2 {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0.2px;
+  }
+  .tgroup-head .level {
+    color: var(--text);
+    background: rgba(126,211,33,0.12);
+    padding: 2px 8px;
+    font-size: 10px; font-weight: 800;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    letter-spacing: 0.4px;
+    color: var(--green);
+  }
+  .tgroup-head .level.fip-gold { background: rgba(245,166,35,0.14); color: var(--gold); }
+  .tgroup-head .level.fip-silver { background: rgba(192,192,192,0.12); color: #C0C0C0; }
+  .tgroup-head .round {
+    font-size: 11px; font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .tgroup-head .right-col {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+  }
+  .tgroup-head .count {
+    font-size: 10px; font-weight: 700; color: var(--muted-2);
+    padding: 3px 9px;
+    background: rgba(255,255,255,0.05);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .tgroup-head .live-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9px; font-weight: 900; letter-spacing: 0.6px; text-transform: uppercase;
+    color: var(--live);
+    padding: 2px 7px;
+    background: var(--live-dim);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .tgroup-head .live-chip::before { content:''; width: 5px; height: 5px; border-radius: 50%; background: var(--live); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* Match row + right-side layouts (from v4, unchanged) */
+  .row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 12px 14px 12px 17px;
+    border-top: 1px solid var(--border);
+    cursor: pointer;
+  }
+  .row:first-of-type { border-top: none; }
+  .row:hover { background: rgba(255,255,255,0.02); }
+  .row .accent { position: absolute; top: 8px; left: 0; bottom: 8px; width: 3px; }
+  .row .accent.men { background: var(--men); }
+  .row .accent.women { background: var(--women); }
+  .row .pairs { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .row .pair { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text); }
+  .row .pair.lose { color: var(--muted-2); opacity: 0.75; }
+  .row .pair .pair-flags { position: relative; width: 24px; height: 18px; flex-shrink: 0; }
+  .row .pair .pair-flags .pf { position: absolute; width: 14px; height: 10px; box-shadow: 0 0 0 1px rgba(0,0,0,0.4); }
+  .row .pair .pair-flags .pf.p1 { top: 0; left: 0; z-index: 2; }
+  .row .pair .pair-flags .pf.p2 { top: 5px; left: 7px; z-index: 1; }
+  .pf.es { background: linear-gradient(180deg, #AA151B 33%, #F1BF00 33% 66%, #AA151B 66%); }
+  .pf.ar { background: linear-gradient(180deg, #74ACDF 33%, #fff 33% 66%, #74ACDF 66%); }
+  .pf.it { background: linear-gradient(90deg, #008C45 33%, #fff 33% 66%, #CD212A 66%); }
+
+  .right-live { display: grid; grid-template-columns: auto auto 1px auto; column-gap: 8px; align-items: center; }
+  .right-live .set-label { display: flex; flex-direction: column; align-items: center; line-height: 1; color: var(--live); }
+  .right-live .set-label .ord { font-size: 12px; font-weight: 900; }
+  .right-live .set-label .unit { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; opacity: 0.85; }
+  .right-live .col-sets, .right-live .col-pts { display: flex; flex-direction: column; gap: 8px; font-variant-numeric: tabular-nums; }
+  .right-live .col-sets .sets-line { display: flex; gap: 6px; }
+  .right-live .divider { width: 1px; align-self: stretch; background: rgba(255,255,255,0.18); }
+  .right-live .s { font-size: 15px; font-weight: 800; color: var(--muted-2); font-family: monospace; min-width: 14px; text-align: center; }
+  .right-live .s.win { color: var(--text); }
+  .right-live .s.current { color: var(--green); }
+  .right-live .pts { font-size: 16px; font-weight: 900; color: var(--live); font-family: monospace; min-width: 22px; text-align: center; }
+
+  .right-final { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .right-final .ft { font-size: 8px; font-weight: 900; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted); }
+  .right-final .score-rows { display: flex; flex-direction: column; gap: 8px; font-variant-numeric: tabular-nums; }
+  .right-final .line { display: flex; gap: 6px; }
+  .right-final .s { font-size: 15px; font-weight: 800; color: var(--muted-2); font-family: monospace; min-width: 14px; text-align: center; }
+  .right-final .s.win { color: var(--text); }
+
+  .right-upcoming { display: flex; align-items: center; gap: 10px; }
+  .right-upcoming .actions { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .right-upcoming .iconbtn {
+    width: 30px; height: 30px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--muted-2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .right-upcoming .iconbtn:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+  .right-upcoming .iconbtn.on-star { color: var(--gold); border-color: transparent; background: rgba(245,166,35,0.14); }
+  .right-upcoming .iconbtn.on-bell { color: var(--green); border-color: transparent; background: var(--green-dim); }
+  .right-upcoming .iconbtn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .right-upcoming .iconbtn.on-star svg polygon { fill: currentColor; stroke: currentColor; }
+  .right-upcoming .timecell { text-align: right; }
+  .right-upcoming .timecell .date { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.3px; }
+  .right-upcoming .timecell .time { font-size: 16px; color: var(--green); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  .note-box {
+    margin-top: 22px; padding: 14px;
+    background: rgba(126,211,33,0.05);
+    border: 1px solid rgba(126,211,33,0.15);
+    color: #D4D6D2;
+  }
+  .note-box h4 { margin: 0 0 8px; font-size: 12px; color: var(--green); letter-spacing: 0.5px; text-transform: uppercase; font-weight: 800; }
+  .note-box ul { margin: 0; padding-left: 18px; line-height: 1.7; font-size: 13px; }
+  .note-box code { font-size: 12px; color: var(--green); background: rgba(126,211,33,0.08); padding: 1px 4px; }
+</style>
+
+<div class="wrap">
+  <div class="phone">
+    <div class="tabs-row">
+      <div class="tabs">
+        <button class="tab"><span class="t-label">Yesterday</span><span class="t-date">Apr 17</span></button>
+        <button class="tab active"><span class="t-label">Today</span><span class="t-date">Apr 18</span></button>
+        <button class="tab"><span class="t-label">Upcoming</span><span class="t-date">—</span></button>
+      </div>
+      <button class="filter-trigger">☰</button>
+    </div>
+
+    <!-- ═══ Premier Padel tournament — live + finished ═══ -->
+    <div class="tournament">
+      <div class="tgroup-head">
+        <div class="logo-cell">
+          <img src="http://localhost:3002/premier-padel-logo.svg" alt="Premier Padel" />
+        </div>
+        <div class="meta">
+          <div class="row1">
+            <span class="country-flag eg"></span>
+            <span class="city">New Giza, Egypt</span>
+          </div>
+          <div class="row2">
+            <span class="level">P2</span>
+            <span class="round">· Final</span>
+          </div>
+        </div>
+        <div class="right-col">
+          <span class="live-chip">Live · 1</span>
+          <span class="count">2</span>
+        </div>
+      </div>
+
+      <!-- LIVE match -->
+      <div class="row">
+        <span class="accent men"></span>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 ar"></span></span>
+            <span>Galán / Chingotto</span>
+          </div>
+          <div class="pair lose">
+            <span class="pair-flags"><span class="pf p1 ar"></span><span class="pf p2 ar"></span></span>
+            <span>Stupaczuk / Yanguas</span>
+          </div>
+        </div>
+        <div class="right-live">
+          <div class="set-label">
+            <span class="ord">2nd</span>
+            <span class="unit">set</span>
+          </div>
+          <div class="col-sets">
+            <div class="sets-line"><span class="s win">6</span><span class="s current">3</span></div>
+            <div class="sets-line"><span class="s">4</span><span class="s current">2</span></div>
+          </div>
+          <div class="divider"></div>
+          <div class="col-pts">
+            <span class="pts">30</span>
+            <span class="pts">15</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINISHED match -->
+      <div class="row">
+        <span class="accent women"></span>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 it"></span></span>
+            <span>Triay / Brea</span>
+          </div>
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 es"></span></span>
+            <span>González / Josemaría</span>
+          </div>
+        </div>
+        <div class="right-final">
+          <span class="ft">Final</span>
+          <div class="score-rows">
+            <div class="line"><span class="s">4</span><span class="s win">7</span><span class="s">4</span></div>
+            <div class="line"><span class="s win">6</span><span class="s">5</span><span class="s win">6</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ FIP Tour tournament — scheduled ═══ -->
+    <div class="tournament">
+      <div class="tgroup-head">
+        <div class="logo-cell">
+          <img src="http://localhost:3002/fip-tour-logo.svg" alt="FIP Tour" />
+        </div>
+        <div class="meta">
+          <div class="row1">
+            <span class="country-flag it"></span>
+            <span class="city">Nola, Italy</span>
+          </div>
+          <div class="row2">
+            <span class="level fip-silver">FIP Silver</span>
+            <span class="round">· Semifinals</span>
+          </div>
+        </div>
+        <div class="right-col">
+          <span class="count">4</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="accent men"></span>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 ar"></span><span class="pf p2 es"></span></span>
+            <span>M. Fassio / R. Eugenio</span>
+          </div>
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 es"></span></span>
+            <span>A. Martínez / C. Fassio</span>
+          </div>
+        </div>
+        <div class="right-upcoming">
+          <div class="actions">
+            <button class="iconbtn on-star" aria-label="Unbookmark">
+              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </button>
+            <button class="iconbtn on-bell" aria-label="Notifications on">
+              <svg viewBox="0 0 24 24">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="timecell">
+            <div class="date">APR 19</div>
+            <div class="time">08:30</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="accent men"></span>
+        <div class="pairs">
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 es"></span><span class="pf p2 es"></span></span>
+            <span>A. Martínez / L. Sainz</span>
+          </div>
+          <div class="pair">
+            <span class="pair-flags"><span class="pf p1 it"></span><span class="pf p2 es"></span></span>
+            <span>C. Orsi / P. Llaguno</span>
+          </div>
+        </div>
+        <div class="right-upcoming">
+          <div class="actions">
+            <button class="iconbtn" aria-label="Bookmark">
+              <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="none"></polygon></svg>
+            </button>
+            <button class="iconbtn" aria-label="Enable notifications">
+              <svg viewBox="0 0 24 24">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="timecell">
+            <div class="date">APR 19</div>
+            <div class="time">08:30</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="note-box">
+  <h4>v5 — header redesign</h4>
+  <ul>
+    <li><b>Grid: <code>[logo 72px] · [meta 1fr] · [right auto]</code>.</b> The logo cell has a hairline right-border acting as a subtle separator between the circuit identity and the tournament details — picks up the sketch's "two-column" feel.</li>
+    <li><b>Circuit logo</b> pulled from <code>/premier-padel-logo.svg</code> or <code>/fip-tour-logo.svg</code> (both already in <code>public/</code>). Constrained to <code>72 × 36</code>, <code>object-fit: contain</code> so either logo fits without distortion.</li>
+    <li><b>City, Country</b> line: <code>14 px / 800</code> in white, with the small country flag as a quiet prefix — same shape as the earlier FlagImage, just demoted from the starring role.</li>
+    <li><b>Level + Round</b> line: the level (<code>P2</code>, <code>FIP Silver</code>, <code>Gold</code>, etc.) is a chunky-polygon pill tinted by tier (green for Premier, gold for FIP Gold, silver for Silver). Round label (<code>Final</code>, <code>Semifinals</code>) follows after a · separator.</li>
+    <li><b>Right column</b> stacks: when any match is live, a tinted <code>Live · N</code> chip (red, pulsing) sits above the neutral <code>count</code> badge. Quieter than the previous inline pulse dot + big live label.</li>
+    <li>Tournament name (<code>Newgiza P2 2026</code>) is now implied — the combination of circuit logo + city + level uniquely identifies the event. Removes one piece of redundant text.</li>
+  </ul>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Preview is at <b>http://localhost:49439</b>. The logos are loaded from <code>http://localhost:3002/</code> (Next.js static) so keep that server running. Tell me if the logo cell is the right size, or if the level pill colouring feels off.</p>

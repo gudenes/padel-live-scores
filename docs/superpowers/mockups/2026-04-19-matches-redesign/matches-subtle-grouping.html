@@ -1,0 +1,525 @@
+<h2>Matches — three subtle tournament-grouping options</h2>
+<p class="subtitle">The goal: you can tell where one tournament ends and the next begins, without a loud dark header block. Three increasingly-subtle takes, most→least chrome.</p>
+
+<style>
+  :root {
+    --bg:      #0A0A0A;
+    --bg-2:    #141414;
+    --bg-3:    #1E1E1E;
+    --border:  rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.12);
+    --text:    #FFFFFF;
+    --muted:   #6B7280;
+    --muted-2: #9CA3AF;
+    --green:   #7ED321;
+    --green-dim: rgba(126,211,33,0.10);
+    --live:    #FF4655;
+    --live-dim: rgba(255,70,85,0.10);
+    --men:     #4A9EFF;
+    --women:   #D966FF;
+  }
+
+  .stage { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items:flex-start; }
+  @media (max-width: 900px) { .stage { grid-template-columns: 1fr; } }
+
+  .phone-wrap { display:flex; flex-direction:column; }
+  .caption {
+    text-align:center; font-size:11px; font-weight:800;
+    letter-spacing:1.2px; text-transform:uppercase;
+    color: #9CA3AF; margin-bottom: 10px;
+  }
+
+  .phone {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    overflow: hidden;
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+    min-height: 760px;
+  }
+
+  /* Shared: tabs row */
+  .tabs-row {
+    display: flex; align-items: stretch;
+    padding: 14px 14px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 4px;
+  }
+  .tabs { display: flex; flex: 1; justify-content: space-around; }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 0 12px;
+    background: transparent; border: none; cursor: pointer;
+    position: relative;
+  }
+  .tab .t-label { font-size: 15px; font-weight: 700; color: var(--muted); }
+  .tab .t-date { font-size: 10px; font-weight: 700; color: var(--muted); opacity: 0.65; }
+  .tab.active .t-label { color: var(--text); font-weight: 800; }
+  .tab.active .t-date { color: var(--green); opacity: 1; }
+  .tab.active::after {
+    content:''; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 2.5px;
+    background: var(--green); clip-path: polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%);
+  }
+  .filter-trigger {
+    width: 36px; height: 38px; display: flex; align-items: center; justify-content: center;
+    background: var(--bg-3); border: 1px solid var(--border);
+    color: var(--muted-2); cursor: pointer;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    margin-bottom: 8px; margin-top: 4px;
+    font-size: 14px;
+  }
+
+  .livestrip {
+    padding: 10px 14px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .livestrip .label {
+    display:inline-flex; align-items:center; gap: 6px;
+    font-size: 9px; font-weight: 900; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--live);
+  }
+  .livestrip .label .livedot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--live); animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* ═══ Shared match row (kept identical across all three variants) ═══ */
+  .row {
+    position: relative;
+    padding: 12px 14px 12px 17px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-2);
+    display: grid; grid-template-columns: 1fr auto; gap: 10px;
+    align-items: center;
+  }
+  .row .accent { position: absolute; top: 4px; left: 0; bottom: 4px; width: 3px; }
+  .row .accent.men { background: var(--men); }
+  .row .accent.women { background: var(--women); }
+  .row .meta-row { display:flex; align-items:center; gap: 6px; margin-bottom: 6px; }
+  .row .meta-badge {
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    padding: 2px 7px; background: rgba(255,255,255,0.04);
+    letter-spacing: 0.3px; text-transform: uppercase;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .row .statusbadge {
+    font-size: 8px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 2px 7px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .row .statusbadge.live {
+    color: var(--live); background: var(--live-dim);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .row .statusbadge.live::before {
+    content:''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--live); animation: pulse 2s infinite;
+  }
+  .row .pairs { display:flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .row .pair { display:flex; align-items:center; gap: 7px; font-size: 13px; font-weight: 700; }
+  .row .pair.win { color: var(--text); }
+  .row .pair.lose { color: var(--muted-2); opacity: 0.7; }
+  .row .pair .cflag { width: 14px; height: 10px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+  .row .pair .cflag.es { background: linear-gradient(180deg, #AA151B 33%, #F1BF00 33% 66%, #AA151B 66%); }
+  .row .pair .cflag.ar { background: linear-gradient(180deg, #74ACDF 33%, #fff 33% 66%, #74ACDF 66%); }
+  .row .scores { display:flex; flex-direction: column; gap: 6px; align-items: flex-end; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .row .sset { display:flex; gap: 4px; align-items: center; }
+  .row .s { font-size: 15px; font-weight: 800; color: var(--muted-2); font-family: monospace; min-width: 14px; text-align: center; }
+  .row .s.win { color: var(--text); }
+  .row .s.current { color: var(--green); }
+  .row .pts {
+    font-size: 15px; font-weight: 800; color: var(--live); font-family: monospace;
+    min-width: 18px; text-align: center; margin-left: 2px;
+  }
+  .row .timecell { display:flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .row .timecell .date { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .row .timecell .time { font-size: 14px; color: var(--green); font-weight: 800; }
+
+  /* ═══ OPTION A — light textual header ═══ */
+  .opt-a .group-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 14px 8px;
+    background: var(--bg);
+  }
+  .opt-a .group-header .flag {
+    width: 16px; height: 12px; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+  }
+  .opt-a .group-header .flag.be { background: linear-gradient(90deg, #000 33.3%, #FDDA24 33.3% 66.6%, #EF3340 66.6%); }
+  .opt-a .group-header .flag.ar { background: linear-gradient(180deg, #74ACDF 33.3%, #fff 33.3% 66.6%, #74ACDF 66.6%); }
+  .opt-a .group-header .name {
+    font-size: 11px; font-weight: 800; color: var(--text);
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .opt-a .group-header .round {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .opt-a .group-header .dot {
+    margin: 0 4px; color: var(--muted); font-size: 10px;
+  }
+  .opt-a .group-header .count {
+    margin-left: auto;
+    font-size: 9px; font-weight: 700; color: var(--muted-2);
+    padding: 2px 7px; background: rgba(255,255,255,0.04);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .opt-a .group-header .live-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--live); animation: pulse 2s infinite;
+    margin-left: 4px;
+  }
+
+  /* ═══ OPTION B — left gutter only ═══ */
+  .opt-b .group {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    border-top: 1px solid var(--border);
+  }
+  .opt-b .group:first-of-type { border-top: none; }
+  .opt-b .group .gutter {
+    padding: 14px 6px 14px 10px;
+    background: var(--bg);
+    display: flex; flex-direction: column; gap: 6px;
+    align-items: flex-start;
+    position: relative;
+  }
+  .opt-b .group .gutter::after {
+    content:''; position: absolute;
+    top: 14px; bottom: 14px; right: 0; width: 1px;
+    background: var(--border);
+  }
+  .opt-b .group .gutter .flag {
+    width: 20px; height: 14px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+  }
+  .opt-b .group .gutter .flag.be { background: linear-gradient(90deg, #000 33.3%, #FDDA24 33.3% 66.6%, #EF3340 66.6%); }
+  .opt-b .group .gutter .flag.ar { background: linear-gradient(180deg, #74ACDF 33.3%, #fff 33.3% 66.6%, #74ACDF 66.6%); }
+  .opt-b .group .gutter .short {
+    font-size: 10px; font-weight: 900; letter-spacing: 0.3px;
+    color: var(--text);
+    text-transform: uppercase;
+    writing-mode: horizontal-tb;
+  }
+  .opt-b .group .gutter .round {
+    font-size: 8px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .opt-b .group .gutter .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--live); animation: pulse 2s infinite;
+    margin-top: 4px;
+  }
+  .opt-b .group .gutter .count {
+    font-size: 8px; font-weight: 700; color: var(--muted-2);
+    margin-top: auto;
+  }
+  .opt-b .group .matches {
+    display: flex; flex-direction: column;
+    border-left: 1px solid transparent; /* grid spacing taken by gutter */
+  }
+  .opt-b .group .row { border-top: 1px solid var(--border); }
+  .opt-b .group .row:first-child { border-top: none; }
+  .opt-b .group .row .accent { display: none; }
+  .opt-b .group .matches .row::before {
+    content:''; position: absolute; top: 4px; left: 0; bottom: 4px; width: 3px;
+    background: var(--men-a, var(--men));
+  }
+  .opt-b .group .matches .row.women-row::before { background: var(--women); }
+
+  /* ═══ OPTION C — tiny inline label per row (no group header) ═══ */
+  .opt-c .row { padding-top: 10px; }
+  .opt-c .row .tourn-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .opt-c .row .tourn-label .flag {
+    width: 12px; height: 9px; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.10);
+  }
+  .opt-c .row .tourn-label .flag.be { background: linear-gradient(90deg, #000 33.3%, #FDDA24 33.3% 66.6%, #EF3340 66.6%); }
+  .opt-c .row .tourn-label .flag.ar { background: linear-gradient(180deg, #74ACDF 33.3%, #fff 33.3% 66.6%, #74ACDF 66.6%); }
+  .opt-c .group-sep {
+    height: 6px;
+    background: var(--bg);
+  }
+
+  .describe { margin-top: 12px; font-size: 11px; color: #9CA3AF; line-height: 1.55; text-align: center; padding: 0 6px; }
+</style>
+
+<div class="stage">
+  <!-- ══════════════ OPTION A ══════════════ -->
+  <div class="phone-wrap">
+    <div class="caption">A · Light text header</div>
+    <div class="phone opt-a">
+      <div class="tabs-row">
+        <div class="tabs">
+          <button class="tab"><span class="t-label">Yesterday</span><span class="t-date">Apr 18</span></button>
+          <button class="tab active"><span class="t-label">Today</span><span class="t-date">Apr 19</span></button>
+          <button class="tab"><span class="t-label">Upcoming</span><span class="t-date">Apr 20+</span></button>
+        </div>
+        <button class="filter-trigger">&#9783;</button>
+      </div>
+      <div class="livestrip"><span class="label"><span class="livedot"></span> Live Now · 2</span></div>
+
+      <div class="group-header">
+        <div class="flag be"></div>
+        <span class="name">Brussels P2</span>
+        <span class="dot">·</span>
+        <span class="round">Round 16</span>
+        <span class="live-dot"></span>
+        <span class="count">3</span>
+      </div>
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="meta-row"><span class="meta-badge">Centre · Men</span><span class="statusbadge live">Live · Set 2</span></div>
+          <div class="pairs">
+            <div class="pair win"><span class="cflag es"></span>Galán / Chingotto</div>
+            <div class="pair lose"><span class="cflag ar"></span>Tapia / Coello</div>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="sset"><span class="s win">6</span><span class="s current">3</span><span class="pts">30</span></div>
+          <div class="sset"><span class="s">4</span><span class="s current">2</span><span class="pts">15</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="meta-row"><span class="meta-badge">Centre · Men</span></div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+            <div class="pair"><span class="cflag es"></span>Lebrón / Belasteguín</div>
+          </div>
+        </div>
+        <div class="timecell"><span class="date">APR 19</span><span class="time">18:00</span></div>
+      </div>
+
+      <div class="group-header">
+        <div class="flag ar"></div>
+        <span class="name">Buenos Aires P1</span>
+        <span class="dot">·</span>
+        <span class="round">Round 32</span>
+        <span class="count">4</span>
+      </div>
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="meta-row"><span class="meta-badge">Centre · Men</span></div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Gutiérrez / Sanyo</div>
+            <div class="pair"><span class="cflag es"></span>Tello / Garrido</div>
+          </div>
+        </div>
+        <div class="timecell"><span class="date">APR 19</span><span class="time">21:00</span></div>
+      </div>
+      <div class="row">
+        <span class="accent women"></span>
+        <div>
+          <div class="meta-row"><span class="meta-badge">Court 1 · Women</span></div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag es"></span>Sánchez / Josemaría</div>
+            <div class="pair"><span class="cflag es"></span>Salazar / Triay</div>
+          </div>
+        </div>
+        <div class="timecell"><span class="date">APR 19</span><span class="time">22:30</span></div>
+      </div>
+    </div>
+    <div class="describe">Tournament name as a text label, not a card. No background block, no chevron — just flag + name · round + a count and live-pulse dot if applicable. Closest to iOS list-section headers.</div>
+  </div>
+
+  <!-- ══════════════ OPTION B ══════════════ -->
+  <div class="phone-wrap">
+    <div class="caption">B · Left gutter</div>
+    <div class="phone opt-b">
+      <div class="tabs-row">
+        <div class="tabs">
+          <button class="tab"><span class="t-label">Yesterday</span><span class="t-date">Apr 18</span></button>
+          <button class="tab active"><span class="t-label">Today</span><span class="t-date">Apr 19</span></button>
+          <button class="tab"><span class="t-label">Upcoming</span><span class="t-date">Apr 20+</span></button>
+        </div>
+        <button class="filter-trigger">&#9783;</button>
+      </div>
+      <div class="livestrip"><span class="label"><span class="livedot"></span> Live Now · 2</span></div>
+
+      <div class="group">
+        <div class="gutter">
+          <div class="flag be"></div>
+          <div class="short">Brussels P2</div>
+          <div class="round">R16</div>
+          <span class="live-dot"></span>
+          <div class="count">3 matches</div>
+        </div>
+        <div class="matches">
+          <div class="row">
+            <div>
+              <div class="meta-row"><span class="meta-badge">Centre · Men</span><span class="statusbadge live">Live · Set 2</span></div>
+              <div class="pairs">
+                <div class="pair win"><span class="cflag es"></span>Galán / Chingotto</div>
+                <div class="pair lose"><span class="cflag ar"></span>Tapia / Coello</div>
+              </div>
+            </div>
+            <div class="scores">
+              <div class="sset"><span class="s win">6</span><span class="s current">3</span><span class="pts">30</span></div>
+              <div class="sset"><span class="s">4</span><span class="s current">2</span><span class="pts">15</span></div>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <div class="meta-row"><span class="meta-badge">Centre · Men</span></div>
+              <div class="pairs">
+                <div class="pair"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+                <div class="pair"><span class="cflag es"></span>Lebrón / Belasteguín</div>
+              </div>
+            </div>
+            <div class="timecell"><span class="date">APR 19</span><span class="time">18:00</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="gutter">
+          <div class="flag ar"></div>
+          <div class="short">Buenos A. P1</div>
+          <div class="round">R32</div>
+          <div class="count">4 matches</div>
+        </div>
+        <div class="matches">
+          <div class="row">
+            <div>
+              <div class="meta-row"><span class="meta-badge">Centre · Men</span></div>
+              <div class="pairs">
+                <div class="pair"><span class="cflag ar"></span>Gutiérrez / Sanyo</div>
+                <div class="pair"><span class="cflag es"></span>Tello / Garrido</div>
+              </div>
+            </div>
+            <div class="timecell"><span class="date">APR 19</span><span class="time">21:00</span></div>
+          </div>
+          <div class="row women-row">
+            <div>
+              <div class="meta-row"><span class="meta-badge">Court 1 · Women</span></div>
+              <div class="pairs">
+                <div class="pair"><span class="cflag es"></span>Sánchez / Josemaría</div>
+                <div class="pair"><span class="cflag es"></span>Salazar / Triay</div>
+              </div>
+            </div>
+            <div class="timecell"><span class="date">APR 19</span><span class="time">22:30</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="describe">Tournament info rides along the left edge the entire height of its matches — flag, short name, round, match count. Matches flow to the right of a hairline divider. Zero horizontal header rows.</div>
+  </div>
+
+  <!-- ══════════════ OPTION C ══════════════ -->
+  <div class="phone-wrap">
+    <div class="caption">C · Inline per-row label</div>
+    <div class="phone opt-c">
+      <div class="tabs-row">
+        <div class="tabs">
+          <button class="tab"><span class="t-label">Yesterday</span><span class="t-date">Apr 18</span></button>
+          <button class="tab active"><span class="t-label">Today</span><span class="t-date">Apr 19</span></button>
+          <button class="tab"><span class="t-label">Upcoming</span><span class="t-date">Apr 20+</span></button>
+        </div>
+        <button class="filter-trigger">&#9783;</button>
+      </div>
+      <div class="livestrip"><span class="label"><span class="livedot"></span> Live Now · 2</span></div>
+
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="tourn-label"><span class="flag be"></span> Brussels P2 · R16</div>
+          <div class="meta-row"><span class="meta-badge">Centre · Men</span><span class="statusbadge live">Live · Set 2</span></div>
+          <div class="pairs">
+            <div class="pair win"><span class="cflag es"></span>Galán / Chingotto</div>
+            <div class="pair lose"><span class="cflag ar"></span>Tapia / Coello</div>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="sset"><span class="s win">6</span><span class="s current">3</span><span class="pts">30</span></div>
+          <div class="sset"><span class="s">4</span><span class="s current">2</span><span class="pts">15</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="tourn-label"><span class="flag be"></span> Brussels P2 · R16</div>
+          <div class="meta-row"><span class="meta-badge">Centre · Men</span></div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+            <div class="pair"><span class="cflag es"></span>Lebrón / Belasteguín</div>
+          </div>
+        </div>
+        <div class="timecell"><span class="date">APR 19</span><span class="time">18:00</span></div>
+      </div>
+      <div class="group-sep"></div>
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="tourn-label"><span class="flag ar"></span> Buenos Aires P1 · R32</div>
+          <div class="meta-row"><span class="meta-badge">Centre · Men</span></div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Gutiérrez / Sanyo</div>
+            <div class="pair"><span class="cflag es"></span>Tello / Garrido</div>
+          </div>
+        </div>
+        <div class="timecell"><span class="date">APR 19</span><span class="time">21:00</span></div>
+      </div>
+      <div class="row">
+        <span class="accent women"></span>
+        <div>
+          <div class="tourn-label"><span class="flag ar"></span> Buenos Aires P1 · R32</div>
+          <div class="meta-row"><span class="meta-badge">Court 1 · Women</span></div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag es"></span>Sánchez / Josemaría</div>
+            <div class="pair"><span class="cflag es"></span>Salazar / Triay</div>
+          </div>
+        </div>
+        <div class="timecell"><span class="date">APR 19</span><span class="time">22:30</span></div>
+      </div>
+    </div>
+    <div class="describe">No group header at all. Each row self-identifies with a tiny flag + tournament · round label at the top. A 6px air-gap between groups implies the boundary. Most minimal, but loses scannability for 10+ tournaments.</div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 28px;">
+  <h3>How they compare</h3>
+  <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 12px;">
+    <div style="padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid #222; border-radius: 6px;">
+      <h5 style="margin: 0 0 6px; color: #C1FF2E; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">A · Light header</h5>
+      <p style="margin: 0; font-size: 12px; color: #ccc; line-height: 1.55;">Quickest to scan for "which tournament am I in." Still looks like a header — just no dark block behind it. Closest to iOS/SofaScore section labels. <b>Recommended default.</b></p>
+    </div>
+    <div style="padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid #222; border-radius: 6px;">
+      <h5 style="margin: 0 0 6px; color: #fff; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">B · Left gutter</h5>
+      <p style="margin: 0; font-size: 12px; color: #ccc; line-height: 1.55;">Most distinctive — matches ride beside a vertical gutter. Great when a tournament has many matches. Feels bespoke to padel. Risk: gutter content can cramp on small screens, and the short name has to wrap or truncate.</p>
+    </div>
+    <div style="padding: 14px; background: rgba(255,255,255,0.02); border: 1px solid #222; border-radius: 6px;">
+      <h5 style="margin: 0 0 6px; color: #fff; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;">C · Inline label</h5>
+      <p style="margin: 0; font-size: 12px; color: #ccc; line-height: 1.55;">Subtlest possible. Great if the Yesterday/Today/Upcoming filter already narrows the list short. Breaks down when a single tournament dominates (label repeats 20×).</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top: 20px;">Click A / B / C in the prompt, or tell me which to push further on.</p>
+
+<div class="options" style="margin-top: 14px;">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>Light header</h3><p>Flag · tournament name · round, as a text header. No background. Recommended.</p></div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>Left gutter</h3><p>Tournament info rides the left edge of its matches. Distinctive.</p></div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content"><h3>Inline label</h3><p>Tiny per-row tournament tag. No group header. Most minimal.</p></div>
+  </div>
+</div>

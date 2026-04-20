@@ -1,0 +1,353 @@
+<h2>Button-palette review · three directions</h2>
+<p class="subtitle">Senior-UX take on what's off in the current pills, then three alternative palettes grounded in how Apple Sports, DAZN, FotMob, SofaScore, and ESPN handle the same problem.</p>
+
+<style>
+  .theme-dark {
+    --bg:        #0B0D0C;
+    --surface:   #151816;
+    --surface-2: #1E211F;
+    --border:    rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --text:      #F4F5F3;
+    --text-sub:  #A8AEA6;
+    --text-mute: #6B7168;
+    --brand:     #C1FF2E;
+    --brand-soft: rgba(193,255,46,0.14);
+    --brand-ink: #0B0D0C;
+    --accent:    #FFB627;
+    --accent-soft: rgba(255,182,39,0.14);
+    --live:      #FF4D5F;
+    --live-soft: rgba(255,77,95,0.14);
+    --shadow:    0 4px 16px rgba(0,0,0,0.35);
+    --fade:      linear-gradient(to right, transparent, var(--bg) 80%);
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif; }
+
+  /* ═══ Diagnostic panel ═══ */
+  .diagnostic {
+    background: rgba(255,77,95,0.05);
+    border: 1px solid rgba(255,77,95,0.15);
+    border-radius: 14px;
+    padding: 18px 20px;
+    color: #F4F5F3;
+    margin-bottom: 28px;
+  }
+  .diagnostic h3 { font-size: 14px; color: #FF8B95; margin: 0 0 10px; font-weight: 700; }
+  .diagnostic .issue { display:flex; gap: 10px; margin-bottom: 8px; }
+  .diagnostic .issue .num {
+    flex-shrink: 0;
+    width: 20px; height: 20px; border-radius: 999px;
+    background: rgba(255,77,95,0.18); color: #FF8B95;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 11px; font-weight: 800;
+  }
+  .diagnostic .issue .text { font-size: 13px; line-height: 1.5; color: #D4D6D2; }
+  .diagnostic .issue .text b { color: #F4F5F3; }
+
+  /* ═══ Phone preview ═══ */
+  .frame {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .frame-title {
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom: 14px;
+  }
+  .frame-title h3 { margin: 0; font-size: 15px; font-weight: 800; color: var(--text); letter-spacing: -0.2px; }
+  .frame-title .inspo { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text-mute); }
+
+  /* Scrollable strip */
+  .strip-wrap { position: relative; margin: 0 -16px; padding: 0 16px; }
+  .strip {
+    display:flex; gap: 8px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding-bottom: 4px;
+  }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip { scrollbar-width: none; }
+  .strip-wrap::after {
+    content:''; position:absolute; top:0; bottom:4px; right:0; width: 40px;
+    background: var(--fade); pointer-events: none;
+  }
+
+  /* Pill base */
+  .pill {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: background .15s ease, color .15s ease, border-color .15s ease, transform .12s ease;
+    border: 1px solid transparent;
+  }
+  .pill:active { transform: scale(0.97); }
+  .pill svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .pill .count {
+    font-size: 11px; font-weight: 800;
+    padding: 1px 7px; border-radius: 999px;
+    min-width: 18px; text-align:center;
+    background: rgba(255,255,255,0.08); color: currentColor;
+  }
+
+  /* ═══════════ Option A — Monochrome + Signal ═══════════ */
+  .pal-a .pill              { background: var(--surface); border-color: var(--border); color: var(--text-sub); }
+  .pal-a .pill:hover        { background: var(--surface-2); }
+  .pal-a .pill.on           { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  .pal-a .pill.on .count    { background: rgba(11,13,12,0.18); color: var(--brand-ink); }
+  .pal-a .pill.live         { background: var(--surface); border-color: var(--border); color: var(--live); }
+  .pal-a .pill.live::before { content:''; width:7px; height:7px; border-radius:50%; background: var(--live); animation: pulse 2s infinite; }
+  .pal-a .pill.live .count  { background: rgba(255,77,95,0.16); color: var(--live); }
+
+  /* ═══════════ Option B — Tonal tints ═══════════ */
+  .pal-b .pill              { background: rgba(255,255,255,0.04); border-color: transparent; color: var(--text-sub); }
+  .pal-b .pill:hover        { background: rgba(255,255,255,0.07); }
+  .pal-b .pill.on           { background: var(--brand); color: var(--brand-ink); }
+  .pal-b .pill.on .count    { background: rgba(11,13,12,0.18); color: var(--brand-ink); }
+  .pal-b .pill.live         { background: var(--live-soft); color: var(--live); }
+  .pal-b .pill.live::before { content:''; width:7px; height:7px; border-radius:50%; background: var(--live); animation: pulse 2s infinite; }
+  .pal-b .pill.live .count  { background: rgba(255,77,95,0.22); color: var(--live); }
+  .pal-b .pill.fav          { background: var(--accent-soft); color: var(--accent); }
+  .pal-b .pill.fav .count   { background: rgba(255,182,39,0.22); color: var(--accent); }
+  .pal-b .pill.men          { background: rgba(90,163,255,0.10); color: #7FB8FF; }
+  .pal-b .pill.women        { background: rgba(221,114,255,0.10); color: #E79AFF; }
+
+  /* ═══════════ Option C — Semantic roles ═══════════ */
+  .pal-c .pill              { background: var(--surface); border-color: var(--border); color: var(--text-sub); }
+  .pal-c .pill:hover        { background: var(--surface-2); }
+  .pal-c .pill.on           { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  .pal-c .pill.on .count    { background: rgba(11,13,12,0.18); color: var(--brand-ink); }
+  .pal-c .pill.live         { background: var(--live); color: #fff; border-color: var(--live); }
+  .pal-c .pill.live::before { content:''; width:7px; height:7px; border-radius:50%; background: #fff; animation: pulse 2s infinite; }
+  .pal-c .pill.live .count  { background: rgba(255,255,255,0.22); color: #fff; }
+  .pal-c .pill.fav          { background: var(--accent); color: #0B0D0C; border-color: var(--accent); }
+  .pal-c .pill.fav .count   { background: rgba(11,13,12,0.18); color: #0B0D0C; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Notes */
+  .rationale {
+    display:grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    margin-top: 10px; padding: 12px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .rationale .block h5 {
+    margin: 0 0 6px; font-size: 10px; font-weight: 800;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    color: var(--text-mute);
+  }
+  .rationale .block p {
+    margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-sub);
+  }
+  .rationale .good { color: #B6E77A; }
+  .rationale .tradeoff { color: #FFB685; }
+
+  .ref-chips { display:flex; gap: 6px; flex-wrap:wrap; margin-top: 10px; }
+  .ref-chip {
+    font-size: 10px; font-weight: 700;
+    padding: 3px 9px; border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-mute);
+    letter-spacing: 0.3px;
+  }
+  .ref-chip b { color: var(--text-sub); font-weight: 800; }
+
+  .summary-table {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-top: 28px;
+    color: var(--text);
+  }
+  .summary-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .summary-table th, .summary-table td { text-align:left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .summary-table th { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-mute); font-weight: 800; }
+  .summary-table td:first-child { font-weight: 700; color: var(--text); }
+</style>
+
+<div class="theme-dark">
+
+<!-- ═══════════ DIAGNOSTIC ═══════════ -->
+<div class="diagnostic">
+  <h3>What's off in the current palette</h3>
+  <div class="issue">
+    <span class="num">1</span>
+    <div class="text"><b>Three different "active" languages.</b> Date pill = solid lime. "All" pill = solid white. Live pill = red-tint background. The user can't predict what "selected" looks like because the answer changes per control.</div>
+  </div>
+  <div class="issue">
+    <span class="num">2</span>
+    <div class="text"><b>Brand colour under-used.</b> Lime only shows up on one control (active date). The product's identity doesn't carry through to the rest of the chrome — a brand should feel present, not hidden.</div>
+  </div>
+  <div class="issue">
+    <span class="num">3</span>
+    <div class="text"><b>Favourites has no colour identity.</b> It's a default-grey pill with a star icon. Favouriting is a signature interaction for a scores app — it deserves its own visual treatment, the way Apple uses yellow, FotMob uses amber, ESPN uses heart-red.</div>
+  </div>
+  <div class="issue">
+    <span class="num">4</span>
+    <div class="text"><b>White-on-black active state reads "system" not "brand."</b> It works, but it feels like an iOS default, not PadelNachos. Putting lime on the active state owns the moment.</div>
+  </div>
+</div>
+
+<!-- ═══════════ OPTION A ═══════════ -->
+<div class="frame pal-a">
+  <div class="frame-title">
+    <h3>A · Monochrome + signal</h3>
+    <span class="inspo">Inspired by DAZN · Apple Sports</span>
+  </div>
+  <div class="strip-wrap">
+    <div class="strip">
+      <button class="pill on">All <span class="count">23</span></button>
+      <button class="pill live">Live <span class="count">3</span></button>
+      <button class="pill"><svg><use href="#icon-star"/></svg> Favs</button>
+      <button class="pill"><svg><use href="#icon-male"/></svg> Men</button>
+      <button class="pill"><svg><use href="#icon-female"/></svg> Women</button>
+      <button class="pill">Finished</button>
+      <button class="pill">Upcoming</button>
+    </div>
+  </div>
+  <div class="rationale">
+    <div class="block">
+      <h5 class="good">Strengths</h5>
+      <p>Brand lime owns the single "active" state across every control on the page. Inactive pills are uniformly neutral so the active one pops. Live = quiet outlined red (not a fill) — present, not shouty.</p>
+    </div>
+    <div class="block">
+      <h5 class="tradeoff">Trade-offs</h5>
+      <p>Favourites, Men, Women, Finished, Upcoming all look identical when inactive — no colour hint at what they mean. Fine if you value restraint, thin if you want instant glance-recognition.</p>
+    </div>
+  </div>
+  <div class="ref-chips">
+    <span class="ref-chip"><b>DAZN</b> · electric yellow as the only accent</span>
+    <span class="ref-chip"><b>Apple Sports</b> · tonal neutrals + single sport-tint</span>
+    <span class="ref-chip"><b>Linear</b> · near-monochrome UI</span>
+  </div>
+</div>
+
+<!-- ═══════════ OPTION B ═══════════ -->
+<div class="frame pal-b">
+  <div class="frame-title">
+    <h3>B · Tonal tints</h3>
+    <span class="inspo">Inspired by Apple Sports · iOS 17 controls</span>
+  </div>
+  <div class="strip-wrap">
+    <div class="strip">
+      <button class="pill on">All <span class="count">23</span></button>
+      <button class="pill live">Live <span class="count">3</span></button>
+      <button class="pill fav"><svg><use href="#icon-star"/></svg> Favs <span class="count">4</span></button>
+      <button class="pill men"><svg><use href="#icon-male"/></svg> Men</button>
+      <button class="pill women"><svg><use href="#icon-female"/></svg> Women</button>
+      <button class="pill">Finished</button>
+      <button class="pill">Upcoming</button>
+    </div>
+  </div>
+  <div class="rationale">
+    <div class="block">
+      <h5 class="good">Strengths</h5>
+      <p>Every semantically-charged pill has its own quiet tint even when inactive — Live=red, Favs=gold, Men=blue, Women=purple. Recognition is instant. Re-uses your existing men-blue / women-purple gender system. Plays beautifully in light mode too.</p>
+    </div>
+    <div class="block">
+      <h5 class="tradeoff">Trade-offs</h5>
+      <p>More colours on screen at once. Needs disciplined saturation control so it reads "tonal" and not "candy." One rule: tinted fills never exceed ~14% opacity; solid fills are reserved only for the "active" pill.</p>
+    </div>
+  </div>
+  <div class="ref-chips">
+    <span class="ref-chip"><b>Apple Sports</b> · tonal tinted buttons per sport</span>
+    <span class="ref-chip"><b>iOS 17 tinted buttons</b> · native pattern</span>
+    <span class="ref-chip"><b>Linear</b> · tinted status chips</span>
+  </div>
+</div>
+
+<!-- ═══════════ OPTION C ═══════════ -->
+<div class="frame pal-c">
+  <div class="frame-title">
+    <h3>C · Semantic roles</h3>
+    <span class="inspo">Inspired by FotMob · SofaScore · ESPN</span>
+  </div>
+  <div class="strip-wrap">
+    <div class="strip">
+      <button class="pill on">All <span class="count">23</span></button>
+      <button class="pill live">Live <span class="count">3</span></button>
+      <button class="pill fav"><svg><use href="#icon-star-filled"/></svg> Favs <span class="count">4</span></button>
+      <button class="pill"><svg><use href="#icon-male"/></svg> Men</button>
+      <button class="pill"><svg><use href="#icon-female"/></svg> Women</button>
+      <button class="pill">Finished</button>
+      <button class="pill">Upcoming</button>
+    </div>
+  </div>
+  <div class="rationale">
+    <div class="block">
+      <h5 class="good">Strengths</h5>
+      <p>Three colours, three jobs: <b style="color:var(--brand)">lime = primary selection</b>, <b style="color:var(--accent)">gold = favourites/rewards</b>, <b style="color:var(--live)">red = live/urgent</b>. Bold, confident, reads from across the room. Favourites gets real identity.</p>
+    </div>
+    <div class="block">
+      <h5 class="tradeoff">Trade-offs</h5>
+      <p>Solid fills on Live and Favs are louder than the tonal approach — can feel busy if the row is wide. Best if we cap solid-filled pills to two, never more. Gender + status stay neutral.</p>
+    </div>
+  </div>
+  <div class="ref-chips">
+    <span class="ref-chip"><b>FotMob</b> · amber favourites, red live</span>
+    <span class="ref-chip"><b>SofaScore</b> · orange primary + red live</span>
+    <span class="ref-chip"><b>ESPN</b> · red fill on active items</span>
+  </div>
+</div>
+
+<!-- ═══════════ SUMMARY ═══════════ -->
+<div class="summary-table">
+  <h3 style="margin:0 0 12px; color: var(--text); font-size: 14px; font-weight: 800;">Quick-compare</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Axis</th>
+        <th>A · Mono+Signal</th>
+        <th>B · Tonal tints</th>
+        <th>C · Semantic roles</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Brand presence</td><td>Medium</td><td>Medium-high</td><td>High</td></tr>
+      <tr><td>Glance recognition</td><td>Low</td><td>High</td><td>High</td></tr>
+      <tr><td>Noise level</td><td>Quietest</td><td>Quiet</td><td>Loudest</td></tr>
+      <tr><td>Light-mode translation</td><td>Easy</td><td>Easy</td><td>Needs tuning</td></tr>
+      <tr><td>Feels like</td><td>DAZN · Apple Sports</td><td>Apple Sports · iOS 17</td><td>FotMob · SofaScore</td></tr>
+    </tbody>
+  </table>
+  <p style="margin: 14px 0 0; font-size: 12px; line-height: 1.6; color: var(--text-sub);">
+    <b style="color: var(--text);">My recommendation as the UX reviewer</b> → <b style="color: var(--brand);">Option B</b>. It solves every issue in the diagnostic (brand presence, consistent active, favourites identity) without tipping into "loud." Tonal tints are the current generation of mobile-sports design language (Apple Sports, iOS 17, Linear) and they let you reuse the men-blue / women-purple gender palette you already own. Option C is the runner-up if the product voice is "confident and bold" rather than "calm and premium."
+  </p>
+</div>
+
+</div>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="icon-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></symbol>
+  <symbol id="icon-star-filled" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="currentColor" stroke="currentColor"></polygon></symbol>
+  <symbol id="icon-male" viewBox="0 0 24 24"><circle cx="10" cy="14" r="5"></circle><line x1="19" y1="5" x2="13.6" y2="10.4"></line><polyline points="14 5 19 5 19 10"></polyline></symbol>
+  <symbol id="icon-female" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"></circle><line x1="12" y1="14" x2="12" y2="22"></line><line x1="9" y1="19" x2="15" y2="19"></line></symbol>
+</svg>
+
+<p class="subtitle" style="margin-top: 24px;">All three strips are live and swipeable. Which direction — or which parts of which — do you want to lock?</p>
+
+<div class="options" style="margin-top: 16px;">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>Monochrome + signal</h3><p>Brand lime = the only active colour. Quiet, disciplined, DAZN-style.</p></div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>Tonal tints</h3><p>Each semantic pill tints subtly in its own colour. Apple Sports / iOS-17 modern. My rec.</p></div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content"><h3>Semantic roles</h3><p>Lime / gold / red each own one job. FotMob / SofaScore confident.</p></div>
+  </div>
+</div>

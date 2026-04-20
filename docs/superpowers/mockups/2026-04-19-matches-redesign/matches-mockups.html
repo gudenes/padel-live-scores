@@ -1,0 +1,384 @@
+<h2>Matches page — three directions in your brand</h2>
+<p class="subtitle">All three default to today's matches grouped by tournament and use the chunky-polygon, neon-on-black language. What differs is how much is above the list.</p>
+
+<style>
+  .phones { display:grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 900px) { .phones { grid-template-columns: 1fr; } }
+  .phone {
+    background:#0a0a0a;
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow:0 20px 50px rgba(0,0,0,0.6);
+    font-family: system-ui, -apple-system, sans-serif;
+    color:#fff;
+    overflow:hidden;
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    min-height: 760px;
+  }
+  .phone .hdr {
+    padding:14px 16px 10px;
+    background:#0f0f0f;
+    border-bottom:1px solid rgba(255,255,255,0.06);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .phone .hdr .title { font-weight:900; font-size:15px; letter-spacing:0.5px; }
+  .phone .hdr .icons { display:flex; gap:12px; color:#6B7280; font-size:16px; }
+  .phone .datestrip { display:flex; padding:12px 16px; gap:14px; overflow:hidden; background:#0a0a0a; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .phone .datestrip .d { text-align:center; min-width:38px; }
+  .phone .datestrip .d .dow { color:#6B7280; font-size:9px; font-weight:800; letter-spacing:0.6px; }
+  .phone .datestrip .d .num { color:#6B7280; font-size:15px; font-weight:700; margin-top:2px; }
+  .phone .datestrip .d.active .dow { color:#7ED321; }
+  .phone .datestrip .d.active .num { color:#7ED321; }
+  .phone .datestrip .d.active {
+    padding-bottom:4px;
+    border-bottom:2px solid #7ED321;
+  }
+  .phone .chips { display:flex; gap:6px; padding:10px 16px 12px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .chip {
+    font-size:9px; font-weight:800; padding:4px 10px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    text-transform:uppercase; letter-spacing:0.6px;
+  }
+  .chip.on { background:#7ED321; color:#000; }
+  .chip.off { background:rgba(255,255,255,0.04); color:#6B7280; }
+  .chip.live { background:rgba(255,70,85,0.12); color:#FF4655; }
+  .chip.fav { background:rgba(255,255,255,0.04); color:#9CA3AF; }
+  .tgroup { padding: 10px 16px 6px; display:flex; align-items:center; justify-content:space-between; background:#0f0f0f; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .tgroup .tleft { display:flex; align-items:center; gap:8px; }
+  .tgroup .flag { width:16px; height:12px; background:linear-gradient(90deg,#ce1126 33%,#fff 33% 66%,#ce1126 66%); border-radius:1px; }
+  .tgroup .flag.be { background:linear-gradient(90deg,#000 33%,#fdda24 33% 66%,#ef3340 66%); }
+  .tgroup .flag.ar { background:linear-gradient(180deg,#74acdf 33%,#fff 33% 66%,#74acdf 66%); position:relative; }
+  .tgroup .tname { font-size:10px; font-weight:800; letter-spacing:0.5px; text-transform:uppercase; }
+  .tgroup .tbadge { font-size:8px; font-weight:800; padding:2px 6px; background:rgba(255,255,255,0.04); color:#6B7280; text-transform:uppercase; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); letter-spacing:0.4px; }
+  .row { position:relative; padding:10px 14px 10px 17px; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center; }
+  .row .accent { position:absolute; top:6px; left:0; bottom:6px; width:3px; }
+  .row .accent.men { background:#4A9EFF; }
+  .row .accent.women { background:#D966FF; }
+  .row .left { display:flex; flex-direction:column; gap:2px; }
+  .row .team { font-size:11px; font-weight:700; color:#fff; line-height:1.25; }
+  .row .team.win { color:#fff; }
+  .row .team.lose { color:#6B7280; }
+  .row .meta { font-size:8px; font-weight:700; color:#6B7280; letter-spacing:0.4px; text-transform:uppercase; margin-bottom:3px; }
+  .row .right { text-align:right; }
+  .row .live { font-size:9px; font-weight:800; color:#FF4655; letter-spacing:0.4px; }
+  .row .live::before { content:'● '; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .row .score { font-size:13px; font-weight:800; font-variant-numeric: tabular-nums; margin-top:2px; }
+  .row .sets { font-size:11px; font-weight:700; color:#aaa; font-variant-numeric: tabular-nums; margin-top:2px; letter-spacing:0.5px; }
+  .row .time { font-size:11px; font-weight:800; color:#6B7280; font-variant-numeric: tabular-nums; }
+  .row .final { font-size:8px; font-weight:800; color:#6B7280; letter-spacing:0.5px; text-transform:uppercase; }
+
+  .hero { margin:12px 14px 6px; padding:14px; position:relative; clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    background: linear-gradient(135deg, rgba(255,70,85,0.10) 0%, #141414 60%);
+    border:1.5px solid rgba(255,70,85,0.25);
+  }
+  .hero .htag { display:inline-flex; gap:5px; align-items:center; font-size:8px; font-weight:900; letter-spacing:0.8px; color:#FF4655; padding:3px 8px; background:rgba(255,70,85,0.15); clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); }
+  .hero .htag .dot { width:6px; height:6px; border-radius:50%; background:#FF4655; animation:pulse 2s infinite; }
+  .hero .hname { font-size:11px; font-weight:800; color:#fff; margin-top:8px; }
+  .hero .hpairs { display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+  .hero .hscore { font-size:18px; font-weight:900; color:#fff; font-variant-numeric: tabular-nums; }
+  .hero .htourn { font-size:9px; color:#6B7280; text-transform:uppercase; font-weight:800; letter-spacing:0.5px; }
+
+  .summary { padding:10px 16px; background:#0a0a0a; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; gap:12px; }
+  .summary .pill { display:flex; flex-direction:column; padding:8px 12px; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); flex:1; }
+  .summary .pill.live { background:rgba(255,70,85,0.10); }
+  .summary .pill.up   { background:rgba(245,166,35,0.10); }
+  .summary .pill.done { background:rgba(126,211,33,0.08); }
+  .summary .pill .n { font-size:18px; font-weight:900; color:#fff; font-variant-numeric: tabular-nums; line-height:1; }
+  .summary .pill.live .n { color:#FF4655; }
+  .summary .pill.up .n { color:#F5A623; }
+  .summary .pill.done .n { color:#7ED321; }
+  .summary .pill .l { font-size:8px; font-weight:800; color:#9CA3AF; letter-spacing:0.6px; text-transform:uppercase; margin-top:3px; }
+
+  .label { display:inline-block; font-size:10px; font-weight:900; color:#7ED321; letter-spacing:1px; text-transform:uppercase; padding:6px 10px 0; margin-bottom: 6px; }
+  .phone-title {
+    text-align:center; font-size:11px; font-weight:900; letter-spacing:1.2px; text-transform:uppercase; color:#9CA3AF;
+    margin-bottom: 10px;
+  }
+  .phone-wrap { display:flex; flex-direction:column; }
+  .phone-wrap .desc { text-align:center; color:#9CA3AF; font-size:11px; margin-top:10px; line-height:1.5; padding: 0 6px; }
+</style>
+
+<div class="phones">
+  <!-- ============ VARIANT A: PURE LIST ============ -->
+  <div class="phone-wrap">
+    <div class="phone-title">Option A · Pure list</div>
+    <div class="phone">
+      <div class="hdr">
+        <span class="title">MATCHES</span>
+        <span class="icons">🔍 ⚙</span>
+      </div>
+      <div class="datestrip">
+        <div class="d"><div class="dow">THU</div><div class="num">17</div></div>
+        <div class="d"><div class="dow">FRI</div><div class="num">18</div></div>
+        <div class="d active"><div class="dow">TODAY</div><div class="num">19</div></div>
+        <div class="d"><div class="dow">SUN</div><div class="num">20</div></div>
+        <div class="d"><div class="dow">MON</div><div class="num">21</div></div>
+      </div>
+      <div class="chips">
+        <span class="chip on">All</span>
+        <span class="chip live">● Live · 3</span>
+        <span class="chip fav">★ Favourites</span>
+      </div>
+
+      <div class="tgroup">
+        <div class="tleft"><div class="flag be"></div><div class="tname">Brussels P2 · R16</div></div>
+        <div class="tbadge">P2</div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="left">
+          <div class="meta">CENTRE · MEN</div>
+          <div class="team win">Galán / Chingotto</div>
+          <div class="team lose">Tapia / Coello</div>
+        </div>
+        <div class="right">
+          <div class="live">LIVE</div>
+          <div class="sets">6-4 · 3-2</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="left">
+          <div class="meta">CENTRE · MEN</div>
+          <div class="team">Stupaczuk / Di Nenno</div>
+          <div class="team">Lebrón / Belasteguin</div>
+        </div>
+        <div class="right">
+          <div class="time">18:00</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent women"></div>
+        <div class="left">
+          <div class="meta">COURT 2 · WOMEN</div>
+          <div class="team">Triay / Brea</div>
+          <div class="team">Gonzalez / Josemaria</div>
+        </div>
+        <div class="right">
+          <div class="time">19:30</div>
+        </div>
+      </div>
+
+      <div class="tgroup">
+        <div class="tleft"><div class="flag ar"></div><div class="tname">Buenos Aires P1 · QF</div></div>
+        <div class="tbadge">P1</div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="left">
+          <div class="meta">CENTRE · MEN</div>
+          <div class="team win">Stupaczuk / Di Nenno</div>
+          <div class="team lose">Gutiérrez / Sanyo</div>
+        </div>
+        <div class="right">
+          <div class="final">Final</div>
+          <div class="sets">6-3 · 7-5</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent women"></div>
+        <div class="left">
+          <div class="meta">COURT 1 · WOMEN</div>
+          <div class="team">Sánchez / Josemaría</div>
+          <div class="team">Salazar / Triay</div>
+        </div>
+        <div class="right">
+          <div class="time">21:00</div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">Straight into today's list. Fastest path to scores. Closest to SofaScore/FotMob.</div>
+  </div>
+
+  <!-- ============ VARIANT B: SUMMARY STRIP ============ -->
+  <div class="phone-wrap">
+    <div class="phone-title">Option B · Summary strip</div>
+    <div class="phone">
+      <div class="hdr">
+        <span class="title">MATCHES</span>
+        <span class="icons">🔍 ⚙</span>
+      </div>
+      <div class="datestrip">
+        <div class="d"><div class="dow">THU</div><div class="num">17</div></div>
+        <div class="d"><div class="dow">FRI</div><div class="num">18</div></div>
+        <div class="d active"><div class="dow">TODAY</div><div class="num">19</div></div>
+        <div class="d"><div class="dow">SUN</div><div class="num">20</div></div>
+        <div class="d"><div class="dow">MON</div><div class="num">21</div></div>
+      </div>
+      <div class="summary">
+        <div class="pill live"><div class="n">3</div><div class="l">Live now</div></div>
+        <div class="pill up"><div class="n">12</div><div class="l">Upcoming</div></div>
+        <div class="pill done"><div class="n">8</div><div class="l">Finished</div></div>
+      </div>
+      <div class="chips">
+        <span class="chip on">All</span>
+        <span class="chip fav">★ Favourites</span>
+      </div>
+
+      <div class="tgroup">
+        <div class="tleft"><div class="flag be"></div><div class="tname">Brussels P2 · R16</div></div>
+        <div class="tbadge">P2</div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="left">
+          <div class="meta">CENTRE · MEN</div>
+          <div class="team win">Galán / Chingotto</div>
+          <div class="team lose">Tapia / Coello</div>
+        </div>
+        <div class="right">
+          <div class="live">LIVE</div>
+          <div class="sets">6-4 · 3-2</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="left">
+          <div class="meta">CENTRE · MEN</div>
+          <div class="team">Stupaczuk / Di Nenno</div>
+          <div class="team">Lebrón / Belasteguin</div>
+        </div>
+        <div class="right">
+          <div class="time">18:00</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent women"></div>
+        <div class="left">
+          <div class="meta">COURT 2 · WOMEN</div>
+          <div class="team">Triay / Brea</div>
+          <div class="team">Gonzalez / Josemaria</div>
+        </div>
+        <div class="right">
+          <div class="time">19:30</div>
+        </div>
+      </div>
+      <div class="tgroup">
+        <div class="tleft"><div class="flag ar"></div><div class="tname">Buenos Aires P1 · QF</div></div>
+        <div class="tbadge">P1</div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="left">
+          <div class="meta">CENTRE · MEN</div>
+          <div class="team win">Stupaczuk / Di Nenno</div>
+          <div class="team lose">Gutiérrez / Sanyo</div>
+        </div>
+        <div class="right">
+          <div class="final">Final</div>
+          <div class="sets">6-3 · 7-5</div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">Adds a 3-pill "today at a glance" strip. Trades one screen inch for quick state-scan. Replaces the Live filter chip.</div>
+  </div>
+
+  <!-- ============ VARIANT C: LIVE HERO ============ -->
+  <div class="phone-wrap">
+    <div class="phone-title">Option C · Live hero</div>
+    <div class="phone">
+      <div class="hdr">
+        <span class="title">MATCHES</span>
+        <span class="icons">🔍 ⚙</span>
+      </div>
+      <div class="datestrip">
+        <div class="d"><div class="dow">THU</div><div class="num">17</div></div>
+        <div class="d"><div class="dow">FRI</div><div class="num">18</div></div>
+        <div class="d active"><div class="dow">TODAY</div><div class="num">19</div></div>
+        <div class="d"><div class="dow">SUN</div><div class="num">20</div></div>
+        <div class="d"><div class="dow">MON</div><div class="num">21</div></div>
+      </div>
+
+      <div class="hero">
+        <div class="htag"><span class="dot"></span> LIVE NOW · CENTRE COURT</div>
+        <div class="htourn" style="margin-top:8px;">🇧🇪  Brussels P2 · Round of 16</div>
+        <div class="hpairs" style="margin-top:10px;">
+          <div>
+            <div class="hname">Galán / Chingotto</div>
+            <div class="hname" style="color:#6B7280; margin-top:2px;">Tapia / Coello</div>
+          </div>
+          <div class="hscore">6-4<br>3-2</div>
+        </div>
+      </div>
+
+      <div class="chips">
+        <span class="chip on">All</span>
+        <span class="chip live">● Live · 3</span>
+        <span class="chip fav">★ Favourites</span>
+      </div>
+
+      <div class="tgroup">
+        <div class="tleft"><div class="flag be"></div><div class="tname">Brussels P2 · R16</div></div>
+        <div class="tbadge">P2</div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="left">
+          <div class="meta">CENTRE · MEN</div>
+          <div class="team">Stupaczuk / Di Nenno</div>
+          <div class="team">Lebrón / Belasteguin</div>
+        </div>
+        <div class="right">
+          <div class="time">18:00</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="accent women"></div>
+        <div class="left">
+          <div class="meta">COURT 2 · WOMEN</div>
+          <div class="team">Triay / Brea</div>
+          <div class="team">Gonzalez / Josemaria</div>
+        </div>
+        <div class="right">
+          <div class="time">19:30</div>
+        </div>
+      </div>
+      <div class="tgroup">
+        <div class="tleft"><div class="flag ar"></div><div class="tname">Buenos Aires P1 · QF</div></div>
+        <div class="tbadge">P1</div>
+      </div>
+      <div class="row">
+        <div class="accent men"></div>
+        <div class="left">
+          <div class="meta">CENTRE · MEN</div>
+          <div class="team win">Stupaczuk / Di Nenno</div>
+          <div class="team lose">Gutiérrez / Sanyo</div>
+        </div>
+        <div class="right">
+          <div class="final">Final</div>
+          <div class="sets">6-3 · 7-5</div>
+        </div>
+      </div>
+    </div>
+    <div class="desc">Promotes the hottest live match into a hero card. Only renders when there IS a live match — otherwise same as A.</div>
+  </div>
+</div>
+
+<div class="options" style="margin-top: 24px;" data-multiselect>
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>Pure list</h3><p>Fastest, least chrome. Every pixel is a match.</p></div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>Summary strip</h3><p>One small row of "today at a glance" pills, no hero.</p></div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content"><h3>Live hero</h3><p>Hero card for the featured live match when one exists.</p></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 20px;">
+  <h3>Notes on brand fidelity across all three</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li>Chunky polygon <code>clip-path</code> on badges, pills, hero card (reusing your <code>CHUNKY</code> presets)</li>
+    <li>Gender accent bar (<span style="color:#4A9EFF;">men blue</span> / <span style="color:#D966FF;">women purple</span>) on the left of every row, matching the current <code>V3MatchRow</code></li>
+    <li>Uppercase 9–10px micro-labels for round/court in your existing muted grey <code>#6B7280</code></li>
+    <li>Neon green <code>#7ED321</code> only for the active date + active filter chip (not overused)</li>
+    <li>Pulsing live red dot exactly as <code>LIVE_RED</code> is used today</li>
+    <li>No border-radius anywhere — chunky polygons only</li>
+  </ul>
+</div>
+
+<p class="subtitle" style="margin-top: 20px;">Click any option(s) you lean toward, or tell me in the terminal what to change.</p>

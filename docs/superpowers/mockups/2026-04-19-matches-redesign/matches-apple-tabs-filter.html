@@ -1,0 +1,639 @@
+<h2>Matches — Apple tabs + filter sheet</h2>
+<p class="subtitle">A filter icon sits next to the day tabs. Sub-filters (circuit, gender, favourites) move out of the always-visible strip and into a bottom sheet. Active filter count shows as a dot/badge on the icon.</p>
+
+<style>
+  :root {
+    --bg:      #0A0A0A;
+    --bg-2:    #141414;
+    --bg-3:    #1E1E1E;
+    --bg-4:    #252525;
+    --border:  rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.12);
+    --text:    #FFFFFF;
+    --muted:   #6B7280;
+    --muted-2: #9CA3AF;
+    --green:   #7ED321;
+    --green-dim: rgba(126,211,33,0.12);
+    --orange:  #F5A623;
+    --orange-dim: rgba(245,166,35,0.12);
+    --live:    #FF4655;
+    --live-dim: rgba(255,70,85,0.12);
+    --men:     #4A9EFF;
+    --men-dim: rgba(74,158,255,0.14);
+    --women:   #D966FF;
+    --women-dim: rgba(217,102,255,0.14);
+  }
+
+  .stage { display:grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items:flex-start; }
+  @media (max-width: 900px) { .stage { grid-template-columns: 1fr; } }
+
+  .phone-wrap { display:flex; flex-direction:column; }
+  .caption {
+    text-align:center; font-size:11px; font-weight:800;
+    letter-spacing:1.2px; text-transform:uppercase;
+    color: #9CA3AF; margin-bottom: 10px;
+  }
+
+  .phone {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    min-height: 780px;
+  }
+
+  /* ═══ Top bar ═══ */
+  .topbar {
+    padding: 14px 16px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo {
+    display:flex; align-items:center; gap: 8px;
+    font-size: 15px; font-weight: 900; letter-spacing: 0.3px;
+  }
+  .logo .green { color: var(--green); }
+  .icons { display:flex; gap: 10px; color: var(--muted-2); }
+  .iconbtn {
+    width: 32px; height: 32px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; background: transparent; border: none; color: inherit; padding: 0;
+    position: relative;
+  }
+  .iconbtn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ═══ Tabs row with filter icon ═══ */
+  .tabs-row {
+    display: flex; align-items: stretch;
+    padding: 16px 16px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 4px;
+  }
+  .tabs {
+    display: flex; flex: 1 1 auto; justify-content: space-around;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0 10px;
+    font-size: 16px; font-weight: 700; letter-spacing: -0.1px;
+    color: var(--muted);
+    background: transparent;
+    border: none; cursor: pointer;
+    position: relative;
+    transition: color .15s ease;
+  }
+  .tab.active { color: var(--text); font-weight: 800; }
+  .tab.active::after {
+    content:'';
+    position: absolute;
+    left: 22%; right: 22%;
+    bottom: -1px; height: 2.5px;
+    background: var(--green);
+    clip-path: polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%);
+  }
+
+  .filter-trigger {
+    flex: 0 0 auto;
+    position: relative;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    color: var(--muted-2);
+    cursor: pointer;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    margin-bottom: 6px;
+  }
+  .filter-trigger.active {
+    background: var(--green-dim);
+    border-color: transparent;
+    color: var(--green);
+  }
+  .filter-trigger svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .filter-trigger .dot {
+    position: absolute;
+    top: 4px; right: 4px;
+    min-width: 14px; height: 14px;
+    padding: 0 3px;
+    background: var(--green); color: #000;
+    font-size: 9px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    line-height: 1;
+  }
+
+  /* ═══ Applied-filter summary strip (optional, shows what's active) ═══ */
+  .applied-row {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .applied-row::-webkit-scrollbar { display: none; }
+  .applied-row { scrollbar-width: none; }
+  .applied-label {
+    font-size: 9px; font-weight: 800; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+    margin-right: 4px;
+  }
+  .applied-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 8px 4px 10px;
+    background: var(--green-dim); color: var(--green);
+    font-size: 10px; font-weight: 700;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    white-space: nowrap;
+  }
+  .applied-chip .x {
+    font-size: 12px; line-height: 1;
+    margin-left: 2px; cursor: pointer;
+    opacity: 0.7;
+  }
+  .applied-chip.men { background: var(--men-dim); color: var(--men); }
+  .applied-chip.women { background: var(--women-dim); color: var(--women); }
+  .applied-clear {
+    margin-left: auto;
+    font-size: 10px; font-weight: 700;
+    color: var(--muted-2); text-transform: uppercase;
+    letter-spacing: 0.4px;
+    cursor: pointer; background: none; border: none;
+  }
+
+  /* ═══ Live Now strip ═══ */
+  .livestrip {
+    padding: 12px 14px;
+    background: linear-gradient(180deg, rgba(255,70,85,0.06) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .livestrip .label {
+    display:inline-flex; align-items:center; gap: 6px;
+    font-size: 9px; font-weight: 900;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--live);
+  }
+  .livestrip .label .livedot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--live); animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* ═══ Tournament header ═══ */
+  .thead {
+    display:flex; align-items:center; gap: 10px; width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-3);
+    cursor: pointer; position: relative;
+    border-top: 1px solid var(--border);
+  }
+  .thead::before {
+    content:''; position:absolute; top:0; left:0; right:0; height: 2px;
+    background: var(--accent, var(--green));
+  }
+  .thead.live::before { background: var(--live); }
+  .thead .flag {
+    width: 20px; height: 14px; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .thead .flag.be { background: linear-gradient(90deg, #000 33.3%, #FDDA24 33.3% 66.6%, #EF3340 66.6%); }
+  .thead .flag.ar { background: linear-gradient(180deg, #74ACDF 33.3%, #fff 33.3% 66.6%, #74ACDF 66.6%); }
+  .thead .flag.ua { background: linear-gradient(180deg, #0057B7 50%, #FFD700 50%); }
+  .thead .flag.es { background: linear-gradient(180deg, #AA151B 25%, #F1BF00 25% 75%, #AA151B 75%); }
+  .thead .tname {
+    font-size: 12px; font-weight: 700; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .thead .stage-badge {
+    font-size: 8px; font-weight: 800; letter-spacing: 0.5px;
+    padding: 2px 6px; line-height: 12px; text-transform: uppercase;
+    color: var(--green); background: var(--green-dim);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .thead .tmeta {
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0.5px; text-transform: uppercase; margin-top: 2px;
+  }
+  .thead .count {
+    font-size: 10px; font-weight: 600; color: var(--muted);
+    background: rgba(255,255,255,0.05); padding: 2px 8px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .thead .chev { font-size: 10px; color: var(--muted); }
+  .thead .tleft { display:flex; flex-direction:column; gap: 1px; flex: 1 1 auto; min-width: 0; }
+  .thead .tright { display:flex; align-items:center; gap: 8px; flex-shrink: 0; }
+
+  /* ═══ Match row ═══ */
+  .row {
+    position: relative;
+    padding: 12px 14px 12px 17px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-2);
+    display: grid; grid-template-columns: 1fr auto; gap: 10px;
+    align-items: center;
+  }
+  .row:first-child { border-top: none; }
+  .row .accent {
+    position: absolute; top: 4px; left: 0; bottom: 4px;
+    width: 3px;
+  }
+  .row .accent.men { background: var(--men); }
+  .row .accent.women { background: var(--women); }
+  .row .meta-row { display:flex; align-items:center; gap: 6px; margin-bottom: 6px; }
+  .row .meta-badge {
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    padding: 2px 7px; background: rgba(255,255,255,0.04);
+    letter-spacing: 0.3px; text-transform: uppercase;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .row .statusbadge {
+    font-size: 8px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 2px 7px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .row .statusbadge.live {
+    color: var(--live); background: var(--live-dim);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .row .statusbadge.live::before {
+    content:''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--live); animation: pulse 2s infinite;
+  }
+  .row .pairs { display:flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .row .pair {
+    display:flex; align-items:center; gap: 7px;
+    font-size: 13px; font-weight: 700;
+  }
+  .row .pair.win { color: var(--text); }
+  .row .pair.lose { color: var(--muted-2); opacity: 0.7; }
+  .row .pair .cflag {
+    width: 14px; height: 10px; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .row .pair .cflag.es { background: linear-gradient(180deg, #AA151B 33%, #F1BF00 33% 66%, #AA151B 66%); }
+  .row .pair .cflag.ar { background: linear-gradient(180deg, #74ACDF 33%, #fff 33% 66%, #74ACDF 66%); }
+  .row .scores { display:flex; flex-direction: column; gap: 6px; align-items: flex-end; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .row .sset { display:flex; gap: 4px; align-items: center; }
+  .row .s { font-size: 15px; font-weight: 800; color: var(--muted-2); font-family: monospace; min-width: 14px; text-align: center; }
+  .row .s.win { color: var(--text); }
+  .row .s.current { color: var(--green); }
+  .row .pts {
+    font-size: 15px; font-weight: 800; color: var(--live); font-family: monospace;
+    min-width: 18px; text-align: center; margin-left: 2px;
+  }
+  .row .timecell { display:flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .row .timecell .date { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .row .timecell .time { font-size: 14px; color: var(--green); font-weight: 800; }
+
+  /* ═══ Filter bottom-sheet ═══ */
+  .sheet-scrim {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(3px);
+    z-index: 10;
+  }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--bg-2);
+    border-top: 1px solid var(--border-strong);
+    padding: 18px 18px 24px;
+    z-index: 11;
+    box-shadow: 0 -12px 40px rgba(0,0,0,0.5);
+    animation: sheet-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes sheet-in {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+  .sheet .grip {
+    width: 44px; height: 4px;
+    background: rgba(255,255,255,0.2);
+    margin: 0 auto 16px;
+  }
+  .sheet h4 {
+    margin: 0 0 10px;
+    font-size: 10px; font-weight: 900;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .sheet .section { margin-bottom: 20px; }
+  .sheet .section:last-of-type { margin-bottom: 10px; }
+
+  /* Filter pill */
+  .sheet .f-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .f-pill {
+    padding: 8px 14px;
+    font-size: 12px; font-weight: 800;
+    background: var(--bg-3);
+    color: var(--muted-2);
+    border: 1px solid var(--border);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    letter-spacing: 0.2px;
+  }
+  .f-pill svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+  .f-pill.on {
+    background: var(--green-dim);
+    color: var(--green);
+    border-color: transparent;
+  }
+  .f-pill.on::before {
+    content:'✓';
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .f-pill.men.on { background: var(--men-dim); color: var(--men); }
+  .f-pill.women.on { background: var(--women-dim); color: var(--women); }
+
+  /* Toggle row */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-top: 1px solid var(--border);
+  }
+  .toggle-row:first-child { border-top: none; }
+  .toggle-row .t-label { display:flex; align-items:center; gap: 8px; }
+  .toggle-row .t-label .t-name { font-size: 13px; font-weight: 700; color: var(--text); }
+  .toggle-row .t-label .t-sub { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .switch {
+    width: 44px; height: 26px; position: relative;
+    background: var(--bg-3); border: 1px solid var(--border);
+    cursor: pointer; transition: background .2s;
+  }
+  .switch.on { background: var(--green); border-color: var(--green); }
+  .switch .knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px;
+    background: #fff;
+    transition: transform .2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .switch.on .knob { transform: translateX(18px); background: var(--bg); }
+
+  /* Footer action buttons */
+  .sheet-footer {
+    display: flex; gap: 10px;
+    margin-top: 18px;
+  }
+  .sheet-btn {
+    flex: 1; padding: 14px;
+    font-size: 13px; font-weight: 900;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    cursor: pointer; border: none;
+    clip-path: polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);
+  }
+  .sheet-btn.reset {
+    background: var(--bg-3); color: var(--muted-2);
+    border: 1px solid var(--border);
+  }
+  .sheet-btn.apply {
+    background: var(--green); color: #0A0A0A;
+  }
+  .sheet-btn.apply .n {
+    margin-left: 4px;
+    font-size: 11px; opacity: 0.7;
+  }
+
+  .describe {
+    margin-top: 12px; font-size: 11px; color: #9CA3AF; line-height: 1.55;
+    text-align: center; padding: 0 6px;
+  }
+</style>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.5" y2="16.5"></line></symbol>
+  <symbol id="icon-star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></symbol>
+  <symbol id="icon-filter" viewBox="0 0 24 24">
+    <line x1="4" y1="6"  x2="20" y2="6"/>
+    <line x1="4" y1="12" x2="14" y2="12"/>
+    <line x1="4" y1="18" x2="10" y2="18"/>
+    <circle cx="17" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+    <circle cx="13" cy="18" r="2.2" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="icon-male" viewBox="0 0 24 24"><circle cx="10" cy="14" r="5"></circle><line x1="19" y1="5" x2="13.6" y2="10.4"></line><polyline points="14 5 19 5 19 10"></polyline></symbol>
+  <symbol id="icon-female" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"></circle><line x1="12" y1="14" x2="12" y2="22"></line><line x1="9" y1="19" x2="15" y2="19"></line></symbol>
+</svg>
+
+<div class="stage">
+  <!-- ══════════════ PHONE 1 — Closed, with active-filter summary ══════════════ -->
+  <div class="phone-wrap">
+    <div class="caption">1 · Closed — active filters shown as removable chips</div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="logo">PADEL<span class="green">NACHOS</span></div>
+        <div class="icons">
+          <button class="iconbtn"><svg><use href="#icon-search"/></svg></button>
+          <button class="iconbtn"><svg><use href="#icon-star"/></svg></button>
+        </div>
+      </div>
+
+      <div class="tabs-row">
+        <div class="tabs">
+          <button class="tab">Yesterday</button>
+          <button class="tab active">Today</button>
+          <button class="tab">Upcoming</button>
+        </div>
+        <button class="filter-trigger active" aria-label="Filters">
+          <svg><use href="#icon-filter"/></svg>
+          <span class="dot">2</span>
+        </button>
+      </div>
+
+      <div class="applied-row">
+        <span class="applied-label">Filters</span>
+        <span class="applied-chip">Premier Padel <span class="x">×</span></span>
+        <span class="applied-chip men">Men <span class="x">×</span></span>
+        <button class="applied-clear">Clear</button>
+      </div>
+
+      <div class="livestrip"><span class="label"><span class="livedot"></span> Live Now · 2</span></div>
+
+      <div class="thead live" style="--accent: var(--live);">
+        <div class="flag be"></div>
+        <div class="tleft">
+          <div style="display:flex; align-items:center; gap:6px;"><span class="tname">Brussels P2 2026</span><span class="stage-badge">QF</span></div>
+          <div class="tmeta">P2 · Live now</div>
+        </div>
+        <div class="tright"><span class="count">3</span><span class="chev">▾</span></div>
+      </div>
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="meta-row">
+            <span class="meta-badge">Centre · Men</span>
+            <span class="statusbadge live">Live · Set 2</span>
+          </div>
+          <div class="pairs">
+            <div class="pair win"><span class="cflag es"></span>Galán / Chingotto</div>
+            <div class="pair lose"><span class="cflag ar"></span>Tapia / Coello</div>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="sset"><span class="s win">6</span><span class="s current">3</span><span class="pts">30</span></div>
+          <div class="sset"><span class="s">4</span><span class="s current">2</span><span class="pts">15</span></div>
+        </div>
+      </div>
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="meta-row">
+            <span class="meta-badge">Centre · Men</span>
+          </div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Stupaczuk / Di Nenno</div>
+            <div class="pair"><span class="cflag es"></span>Lebrón / Belasteguín</div>
+          </div>
+        </div>
+        <div class="timecell"><span class="date">APR 19</span><span class="time">18:00</span></div>
+      </div>
+
+      <div class="thead" style="--accent: var(--green);">
+        <div class="flag ar"></div>
+        <div class="tleft">
+          <div class="tname">Buenos Aires P1 2026</div>
+          <div class="tmeta">P1 · Starts today</div>
+        </div>
+        <div class="tright"><span class="count">4</span><span class="chev">▾</span></div>
+      </div>
+      <div class="row">
+        <span class="accent men"></span>
+        <div>
+          <div class="meta-row"><span class="meta-badge">R32 · Men</span></div>
+          <div class="pairs">
+            <div class="pair"><span class="cflag ar"></span>Gutiérrez / Sanyo</div>
+            <div class="pair"><span class="cflag es"></span>Tello / Garrido</div>
+          </div>
+        </div>
+        <div class="timecell"><span class="date">APR 19</span><span class="time">21:00</span></div>
+      </div>
+    </div>
+    <div class="describe">Filter icon lives at the end of the tabs row. Two active filters → a small "2" badge on the icon, plus a slim row of removable chips below the tabs with a one-tap Clear on the right. No filters applied → icon is neutral and the chip row is hidden.</div>
+  </div>
+
+  <!-- ══════════════ PHONE 2 — Filter sheet OPEN ══════════════ -->
+  <div class="phone-wrap">
+    <div class="caption">2 · Sheet open — multi-select, apply or reset</div>
+    <div class="phone">
+      <!-- dimmed background content -->
+      <div class="topbar">
+        <div class="logo">PADEL<span class="green">NACHOS</span></div>
+        <div class="icons">
+          <button class="iconbtn"><svg><use href="#icon-search"/></svg></button>
+          <button class="iconbtn"><svg><use href="#icon-star"/></svg></button>
+        </div>
+      </div>
+
+      <div class="tabs-row">
+        <div class="tabs">
+          <button class="tab">Yesterday</button>
+          <button class="tab active">Today</button>
+          <button class="tab">Upcoming</button>
+        </div>
+        <button class="filter-trigger active"><svg><use href="#icon-filter"/></svg></button>
+      </div>
+
+      <div class="livestrip"><span class="label"><span class="livedot"></span> Live Now · 3</span></div>
+      <div class="thead live" style="--accent: var(--live);">
+        <div class="flag be"></div>
+        <div class="tleft">
+          <div class="tname">Brussels P2 2026</div>
+          <div class="tmeta">P2 · Live now</div>
+        </div>
+        <div class="tright"><span class="count">3</span><span class="chev">▾</span></div>
+      </div>
+
+      <!-- Scrim + sheet -->
+      <div class="sheet-scrim"></div>
+      <div class="sheet">
+        <div class="grip"></div>
+
+        <div class="section">
+          <h4>Circuit</h4>
+          <div class="f-row">
+            <button class="f-pill on">Premier Padel</button>
+            <button class="f-pill">FIP Tour</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Gender</h4>
+          <div class="f-row">
+            <button class="f-pill men on"><svg><use href="#icon-male"/></svg> Men</button>
+            <button class="f-pill women"><svg><use href="#icon-female"/></svg> Women</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h4>Level</h4>
+          <div class="f-row">
+            <button class="f-pill">Major</button>
+            <button class="f-pill">P1</button>
+            <button class="f-pill">P2</button>
+            <button class="f-pill">FIP Gold</button>
+            <button class="f-pill">FIP Silver</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="toggle-row">
+            <div class="t-label">
+              <div>
+                <div class="t-name">Favourites only</div>
+                <div class="t-sub">Players or tournaments you've starred</div>
+              </div>
+            </div>
+            <div class="switch on"><div class="knob"></div></div>
+          </div>
+          <div class="toggle-row">
+            <div class="t-label">
+              <div>
+                <div class="t-name">Hide qualifiers</div>
+                <div class="t-sub">Show only main-draw matches</div>
+              </div>
+            </div>
+            <div class="switch"><div class="knob"></div></div>
+          </div>
+        </div>
+
+        <div class="sheet-footer">
+          <button class="sheet-btn reset">Reset</button>
+          <button class="sheet-btn apply">Apply<span class="n">· 3 filters</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="describe">Bottom sheet slides up from the icon. Circuit + Gender = multi-select pills; Level = multi-select; toggles for favourites-only and hide-qualifiers. Footer has Reset (ghost) and Apply (brand green) with a live count of how many filters will apply.</div>
+  </div>
+</div>
+
+<div class="section" style="margin-top: 28px;">
+  <h3>Why a sheet, not a dropdown</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li><b>Thumb reach.</b> Bottom sheet puts Apply/Reset exactly where the thumb lives on a 6"+ screen.</li>
+    <li><b>Room to grow.</b> Today you want Circuit + Gender + Level + toggles; tomorrow we'll add Country, Seed, Round, Court. A sheet absorbs new sections without crowding the tabs row.</li>
+    <li><b>Clear modal dismiss.</b> Tap outside, swipe down, or hit Reset/Apply — unambiguous exit paths vs. a dropdown that can feel "how do I close this."</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>States the icon carries</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li><b>Neutral</b> — no filters applied. Icon sits in <code>var(--bg-3)</code> with muted color.</li>
+    <li><b>Active</b> — ≥1 filter applied. Icon fills with <code>--green-dim</code>, turns green, and gets a <code>"N"</code> badge in chunky-polygon style.</li>
+    <li><b>Active-filter chip strip</b> — optional thin row under the tabs showing each active filter as a removable chip, plus one-tap Clear. Can be suppressed if the user prefers cleaner chrome (config).</li>
+  </ul>
+</div>
+
+<div class="section">
+  <h3>Everything the existing page already ships with</h3>
+  <ul style="line-height:1.7; color:#ccc;">
+    <li><code>genderFilter</code> ('all' | 'men' | 'women') — already there, rewire into the sheet</li>
+    <li><code>leagueFilter</code> ('premier' | 'fip' | 'all') — already there, rewire into the sheet (now multi-select)</li>
+    <li>New state only for: level multi-select, favourites-only toggle, hide-qualifiers toggle</li>
+    <li>No new data fetches — all filters are client-side predicates on the already-loaded match arrays</li>
+  </ul>
+</div>
+
+<p class="subtitle">Tell me if the icon placement / chip row / sheet sections look right, or which to push on. Happy to iterate before writing the spec.</p>
