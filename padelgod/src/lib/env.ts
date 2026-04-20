@@ -12,6 +12,10 @@ const EnvSchema = z.object({
   ENABLE_WIDGET_CODE_LOOKUP: z.coerce.boolean().default(true),
   ENABLE_PLAYER_RANKINGS: z.coerce.boolean().default(true),
   ENABLE_PLAYER_PROFILE: z.coerce.boolean().default(true),
+  ENABLE_ENTRY_LIST_FETCHER: z.coerce.boolean().default(true),
+  ENABLE_DRAW_FETCHER: z.coerce.boolean().default(true),
+  ENABLE_OOP_FETCHER: z.coerce.boolean().default(true),
+  ENABLE_RESULTS_FETCHER: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

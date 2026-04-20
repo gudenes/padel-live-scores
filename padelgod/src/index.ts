@@ -53,6 +53,10 @@ async function main() {
       enableWidgetCodeLookup: env.ENABLE_WIDGET_CODE_LOOKUP,
       enablePlayerRankings: env.ENABLE_PLAYER_RANKINGS,
       enablePlayerProfile: env.ENABLE_PLAYER_PROFILE,
+      enableEntryListFetcher: env.ENABLE_ENTRY_LIST_FETCHER,
+      enableDrawFetcher: env.ENABLE_DRAW_FETCHER,
+      enableOopFetcher: env.ENABLE_OOP_FETCHER,
+      enableResultsFetcher: env.ENABLE_RESULTS_FETCHER,
     });
     const schedulerDeps: SchedulerDeps = { supabase, httpClient, logger };
     scheduledTasks = startScheduler(schedule, schedulerDeps);
