@@ -367,6 +367,84 @@ describe('LivePollerLoop.start / stop', () => {
     parseSpy.mockRestore();
   });
 
+  it('accepts mode="shadow" and includes it in start-log context', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({ matches: [] });
+
+    const infoCalls: Array<{ ctx: any; msg: string }> = [];
+    const logger = {
+      ...silentLogger(),
+      info: (ctx: any, msg: string) => {
+        infoCalls.push({ ctx, msg });
+      },
+    } as any;
+
+    const timers = createFakeTimers();
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-shadow',
+      widgetId: 'FIP-2026-SHADOW',
+      supabase: fakeSupabase({ matchId: 'match-uuid-1' }),
+      httpClient: fakeHttp() as any,
+      logger,
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+      mode: 'shadow',
+    });
+
+    await loop.start();
+    // The "starting" info log must carry mode='shadow' (so Railway operators
+    // can tell canonical vs shadow runs apart).
+    const startLog = infoCalls.find((c) => c.msg.includes('starting'));
+    expect(startLog).toBeDefined();
+    expect(startLog!.ctx.mode).toBe('shadow');
+    expect(startLog!.ctx.tournamentId).toBe('tour-uuid-shadow');
+    expect(startLog!.ctx.widgetId).toBe('FIP-2026-SHADOW');
+
+    await loop.stop();
+    const stopLog = infoCalls.find((c) => c.msg.includes('stopped'));
+    expect(stopLog).toBeDefined();
+    expect(stopLog!.ctx.mode).toBe('shadow');
+
+    parseSpy.mockRestore();
+  });
+
+  it('defaults mode to "canonical" in log context when omitted', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({ matches: [] });
+
+    const infoCalls: Array<{ ctx: any; msg: string }> = [];
+    const logger = {
+      ...silentLogger(),
+      info: (ctx: any, msg: string) => {
+        infoCalls.push({ ctx, msg });
+      },
+    } as any;
+
+    const timers = createFakeTimers();
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase: fakeSupabase({ matchId: 'match-uuid-1' }),
+      httpClient: fakeHttp() as any,
+      logger,
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+      // no mode — should default
+    });
+
+    await loop.start();
+    const startLog = infoCalls.find((c) => c.msg.includes('starting'));
+    expect(startLog).toBeDefined();
+    expect(startLog!.ctx.mode).toBe('canonical');
+
+    await loop.stop();
+    parseSpy.mockRestore();
+  });
+
   it('adaptive cadence drops to 3s after a tick where a match is in deuce', async () => {
     const mod = await import('../../parsers/crionet-tournamentlive.js');
     // One match currently at deuce.

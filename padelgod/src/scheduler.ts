@@ -12,6 +12,8 @@ import { runResultsFetcher } from './workers/results-fetcher.js';
 import { runStaticReconciler } from './workers/static-reconciler.js';
 import { runMatchStatsFetcher } from './workers/match-stats-fetcher.js';
 import { runLivePollerManager } from './workers/live-poller-manager.js';
+import { runShadowDiffFinalizer } from './workers/shadow-diff-finalizer.js';
+import { runShadowDiffLive } from './workers/shadow-diff-live.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -31,6 +33,8 @@ export interface SchedulerFlags {
   enableStaticReconciler: boolean;
   enableMatchStatsFetcher: boolean;
   enableLivePollerManager: boolean;
+  enableShadowDiffFinalizer: boolean;
+  enableShadowDiffLive: boolean;
 }
 
 export interface SchedulerDeps {
@@ -50,7 +54,9 @@ export type WorkerName =
   | 'results-fetcher'
   | 'static-reconciler'
   | 'match-stats-fetcher'
-  | 'live-poller-manager';
+  | 'live-poller-manager'
+  | 'shadow-diff-finalizer'
+  | 'shadow-diff-live';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -66,6 +72,8 @@ export const ALL_WORKERS: WorkerName[] = [
   'static-reconciler',
   'match-stats-fetcher',
   'live-poller-manager',
+  'shadow-diff-finalizer',
+  'shadow-diff-live',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -84,6 +92,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
     case 'match-stats-fetcher':  return (deps) => runMatchStatsFetcher(deps);
     case 'live-poller-manager':  return (deps) => runLivePollerManager(deps);
+    case 'shadow-diff-finalizer': return (deps) => runShadowDiffFinalizer({ supabase: deps.supabase, logger: deps.logger });
+    case 'shadow-diff-live':      return (deps) => runShadowDiffLive({ supabase: deps.supabase, logger: deps.logger });
     default: return null;
   }
 }
@@ -169,6 +179,22 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // node-cron. This cron entry is just the manager's lifecycle check.
       cron: '*/1 * * * *',
       run: getWorkerRunner('live-poller-manager')!,
+    });
+  }
+  if (flags.enableShadowDiffFinalizer) {
+    entries.push({
+      name: 'shadow-diff-finalizer',
+      // Twice hourly, interleaved with static-reconciler (:05, :35) so divergence
+      // rows land shortly after each reconciler tick flips matches to 'finished'.
+      cron: '10,40 * * * *',
+      run: getWorkerRunner('shadow-diff-finalizer')!,
+    });
+  }
+  if (flags.enableShadowDiffLive) {
+    entries.push({
+      name: 'shadow-diff-live',
+      cron: '*/1 * * * *', // every minute, snapshots per-live-match latency
+      run: getWorkerRunner('shadow-diff-live')!,
     });
   }
   return entries;

@@ -55,6 +55,19 @@ export interface ResolvedPlayers {
 
 export interface ApplyDiffOpts {
   logger?: Logger;
+  /**
+   * Write routing:
+   *   - `'canonical'` (default): writes go to public.sets / public.games /
+   *     public.match_points, exactly as before.
+   *   - `'shadow'`: writes go to padelgod.shadow_sets and
+   *     padelgod.shadow_match_points. The games table and the is_current
+   *     clearing steps are SKIPPED (no shadow_games table, no is_current
+   *     column on shadow_sets).
+   *
+   * Shadow mode is used by the Padelgod Shadow Mode plan to run the live
+   * poller against a parallel dataset without disturbing canonical rows.
+   */
+  mode?: 'canonical' | 'shadow';
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +166,7 @@ export async function applyDiff(
   opts: ApplyDiffOpts = {},
 ): Promise<void> {
   const logger = opts.logger;
+  const mode = opts.mode ?? 'canonical';
 
   // First poll — no prev state — nothing to write. The initial "we exist"
   // writes come from elsewhere (the reconciler creates the match row).
@@ -172,6 +186,25 @@ export async function applyDiff(
   const currentSetNumber = currIdxMax + 1;
   const currPair1Games = curr.team1Sets[currIdxMax]?.games ?? 0;
   const currPair2Games = curr.team2Sets[currIdxMax]?.games ?? 0;
+
+  // ── Shadow-mode write routing ────────────────────────────────────────
+  // When mode='shadow' we bypass public.sets/games/match_points entirely
+  // and write to padelgod.shadow_sets + padelgod.shadow_match_points.
+  // Game-level rows + is_current bookkeeping are skipped: shadow_sets has
+  // no is_current column, and there is no shadow_games table.
+  if (mode === 'shadow') {
+    await applyDiffShadow(
+      supabase,
+      matchId,
+      curr,
+      diff,
+      currentSetNumber,
+      currPair1Games,
+      currPair2Games,
+      logger,
+    );
+    return;
+  }
 
   // ── Clear is_current on other sets when the active set advanced ──────
   // Idempotent: issue unconditionally when there could be other sets.
@@ -323,6 +356,130 @@ export async function applyDiff(
             'applyDiff: failed to insert match_points row',
           );
         }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shadow-mode apply (mode='shadow')
+// ---------------------------------------------------------------------------
+
+/**
+ * Shadow-mode equivalent of `applyDiff`. Writes go to
+ * `padelgod.shadow_sets` (set-level aggregates) and
+ * `padelgod.shadow_match_points` (per-point log).
+ *
+ * Differences vs canonical mode:
+ *   - No `games` table (there is no shadow_games); game-level rows are skipped.
+ *   - No `is_current` bookkeeping (shadow_sets has no such column).
+ *   - No `score_source` (shadow rows are always "live" by construction).
+ *   - `shadow_match_points` keys on (match_id, set_number, game_number,
+ *     point_number) — no set_id / game_id / server_player_id. `server_team`
+ *     is the 1/2 team index directly; `is_golden_point` is populated from
+ *     `curr.pointState.kind`.
+ *
+ * Idempotency: double-calls are safe because of
+ *   UNIQUE (match_id, set_number, game_number, point_number).
+ * We compute `point_number` by counting existing rows for the (match, set,
+ * game) triple; a race between concurrent inserts would resolve to a UNIQUE
+ * violation that we swallow (benign on replay).
+ */
+async function applyDiffShadow(
+  supabase: SupabaseClient,
+  matchId: string,
+  curr: LiveMatchState,
+  diff: LiveStateDiff,
+  currentSetNumber: number,
+  currPair1Games: number,
+  currPair2Games: number,
+  logger: Logger | undefined,
+): Promise<void> {
+  const setScore = `${currPair1Games}-${currPair2Games}`;
+
+  // ── Upsert padelgod.shadow_sets ──────────────────────────────────────
+  const { error: setErr } = await supabase
+    .schema('padelgod')
+    .from('shadow_sets')
+    .upsert(
+      {
+        match_id: matchId,
+        set_number: currentSetNumber,
+        set_score: setScore,
+        pair1_games: currPair1Games,
+        pair2_games: currPair2Games,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'match_id,set_number' },
+    );
+
+  if (setErr) {
+    logger?.warn(
+      { matchId, err: setErr.message },
+      'applyDiff(shadow): failed to upsert shadow_sets row',
+    );
+    // Non-fatal — still try to record the point below.
+  }
+
+  // Games writes are skipped entirely in shadow mode.
+
+  // ── Insert shadow_match_points ───────────────────────────────────────
+  if (diff.pointsAdded.length === 0) return;
+
+  // game_number = completed games on both sides + 1 (in-progress game).
+  const gameNumber = currPair1Games + currPair2Games + 1;
+  const scoreAfter = formatPointScore(curr.pointState);
+  const isGoldenPoint = curr.pointState.kind === 'golden_point';
+
+  // Count existing rows for this (match, set, game) to compute point_number.
+  const { count: existingCount, error: countErr } = await supabase
+    .schema('padelgod')
+    .from('shadow_match_points')
+    .select('id', { count: 'exact', head: true })
+    .eq('match_id', matchId)
+    .eq('set_number', currentSetNumber)
+    .eq('game_number', gameNumber);
+  if (countErr) {
+    logger?.warn(
+      { matchId, currentSetNumber, gameNumber, err: countErr.message },
+      'applyDiff(shadow): failed to count existing shadow_match_points',
+    );
+    return;
+  }
+
+  const basePointNumber = existingCount ?? 0;
+
+  for (let i = 0; i < diff.pointsAdded.length; i++) {
+    const pt = diff.pointsAdded[i]!;
+    const pointNumber = basePointNumber + i + 1;
+    const { error: insertErr } = await supabase
+      .schema('padelgod')
+      .from('shadow_match_points')
+      .insert({
+        match_id: matchId,
+        set_number: currentSetNumber,
+        game_number: gameNumber,
+        point_number: pointNumber,
+        winner_pair: pt.winnerTeam,
+        score_after: scoreAfter,
+        server_team: curr.servingTeam,
+        is_golden_point: isGoldenPoint,
+      });
+
+    if (insertErr) {
+      const isDuplicate =
+        (insertErr as { code?: string }).code === '23505' ||
+        /duplicate key/i.test(insertErr.message ?? '');
+      if (isDuplicate) {
+        logger?.warn(
+          { matchId, currentSetNumber, gameNumber, pointNumber },
+          'applyDiff(shadow): shadow_match_points row already exists (replay — ignored)',
+        );
+      } else {
+        logger?.warn(
+          { matchId, currentSetNumber, gameNumber, pointNumber, err: insertErr.message },
+          'applyDiff(shadow): failed to insert shadow_match_points row',
+        );
       }
     }
   }

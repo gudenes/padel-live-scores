@@ -10,6 +10,7 @@ import PlayersTab from './PlayersTab'
 import ArchitectureTab from './ArchitectureTab'
 import BrandsTab from './BrandsTab'
 import ScheduleTab from './ScheduleTab'
+import PadelgodShadowTab from './PadelgodShadowTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -307,7 +308,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'schedule'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'schedule' | 'padelgod-shadow'>('ongoing')
   const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
   const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([])
   const [forcingSyncId, setForcingSyncId] = useState<string | null>(null)
@@ -405,6 +406,12 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       label: 'Tournament Manager',
       items: [
         { key: 'simulator' as const, label: 'Simulator', badge: null },
+      ],
+    },
+    {
+      label: 'Padelgod',
+      items: [
+        { key: 'padelgod-shadow' as const, label: 'Shadow Mode', badge: null },
       ],
     },
     {
@@ -892,6 +899,11 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       {tab === 'architecture' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>System Architecture</div>
         <ArchitectureTab />
+      </>}
+
+      {tab === 'padelgod-shadow' && <>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Padelgod Shadow Mode</div>
+        <PadelgodShadowTab />
       </>}
 
       </div>

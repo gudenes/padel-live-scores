@@ -78,6 +78,15 @@ export interface LivePollerLoopOptions {
   setTimeoutFn?: (fn: () => void, ms: number) => unknown;
   /** Injected for testing. Production uses the real clearTimeout. */
   clearTimeoutFn?: (handle: unknown) => void;
+  /**
+   * Write routing for applyDiff. Defaults to 'canonical' (writes to
+   * public.sets / games / match_points). When 'shadow', writes are
+   * redirected to padelgod.shadow_sets / shadow_match_points — used by the
+   * Shadow Mode plan to poll a parallel tournament without touching canonical
+   * rows. Propagated into log contexts so Railway operators can tell
+   * canonical vs shadow runs apart.
+   */
+  mode?: 'canonical' | 'shadow';
 }
 
 // ---------------------------------------------------------------------------
@@ -236,13 +245,25 @@ export class LivePollerLoop {
     return this.running;
   }
 
+  /** Resolve the configured mode, defaulting to canonical. */
+  private get mode(): 'canonical' | 'shadow' {
+    return this.opts.mode ?? 'canonical';
+  }
+
+  /** Common log context. Included on every log line the loop emits. */
+  private logCtx(extra: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      tournamentId: this.opts.tournamentId,
+      widgetId: this.opts.widgetId,
+      mode: this.mode,
+      ...extra,
+    };
+  }
+
   async start(): Promise<void> {
     if (this.running) return;
     this.running = true;
-    this.opts.logger.info(
-      { tournamentId: this.opts.tournamentId, widgetId: this.opts.widgetId },
-      'live-poller-loop: starting',
-    );
+    this.opts.logger.info(this.logCtx(), 'live-poller-loop: starting');
     // Kick off the first tick immediately (delay 0).
     this.scheduleNext(0);
   }
@@ -254,10 +275,7 @@ export class LivePollerLoop {
       this.clearTimeoutFn(this.pendingHandle);
       this.pendingHandle = null;
     }
-    this.opts.logger.info(
-      { tournamentId: this.opts.tournamentId, widgetId: this.opts.widgetId },
-      'live-poller-loop: stopped',
-    );
+    this.opts.logger.info(this.logCtx(), 'live-poller-loop: stopped');
   }
 
   private scheduleNext(delayMs: number): void {
@@ -286,11 +304,7 @@ export class LivePollerLoop {
       // this is a bug in the loop itself, not an upstream flake. Stop the
       // loop to avoid an infinite crash spiral.
       this.opts.logger.fatal(
-        {
-          tournamentId: this.opts.tournamentId,
-          widgetId: this.opts.widgetId,
-          err: err instanceof Error ? err.message : String(err),
-        },
+        this.logCtx({ err: err instanceof Error ? err.message : String(err) }),
         'live-poller-loop: fatal error in tick, stopping',
       );
       this.running = false;
@@ -334,11 +348,7 @@ export class LivePollerLoop {
       );
     } catch (err) {
       this.opts.logger.error(
-        {
-          tournamentId: this.opts.tournamentId,
-          widgetId: this.opts.widgetId,
-          err: err instanceof Error ? err.message : String(err),
-        },
+        this.logCtx({ err: err instanceof Error ? err.message : String(err) }),
         'live-poller-loop: scrape failed, retrying at default cadence',
       );
       return [];
@@ -354,11 +364,7 @@ export class LivePollerLoop {
       parsed = parseCrionetTournamentLive(body);
     } catch (err) {
       this.opts.logger.error(
-        {
-          tournamentId: this.opts.tournamentId,
-          widgetId: this.opts.widgetId,
-          err: err instanceof Error ? err.message : String(err),
-        },
+        this.logCtx({ err: err instanceof Error ? err.message : String(err) }),
         'live-poller-loop: parse failed, retrying at default cadence',
       );
       return [];
@@ -372,12 +378,10 @@ export class LivePollerLoop {
         if (state) currentStates.push(state);
       } catch (err) {
         this.opts.logger.warn(
-          {
-            tournamentId: this.opts.tournamentId,
-            widgetId: this.opts.widgetId,
+          this.logCtx({
             matchWidgetId: m.matchWidgetId,
             err: err instanceof Error ? err.message : String(err),
-          },
+          }),
           'live-poller-loop: match processing failed, continuing',
         );
       }
@@ -413,6 +417,7 @@ export class LivePollerLoop {
 
     await applyDiff(this.opts.supabase, matchId, prev, curr, diff, resolvedPlayers, {
       logger: this.opts.logger,
+      mode: this.mode,
     });
 
     this.states.set(matchId, curr);
