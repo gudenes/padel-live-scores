@@ -7,6 +7,11 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3002),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+  ENABLE_SCHEDULER: z.coerce.boolean().default(true),
+  ENABLE_TOURNAMENT_DISCOVERY: z.coerce.boolean().default(true),
+  ENABLE_WIDGET_CODE_LOOKUP: z.coerce.boolean().default(true),
+  ENABLE_PLAYER_RANKINGS: z.coerce.boolean().default(true),
+  ENABLE_PLAYER_PROFILE: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

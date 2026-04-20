@@ -3,6 +3,9 @@ import { loadEnv } from './lib/env.js';
 import { createLogger } from './lib/logger.js';
 import { createSupabaseClient } from './lib/supabase.js';
 import { registerHealthRoute } from './api/health.js';
+import { createHttpClient, PADELGOD_USER_AGENT } from './lib/http-client.js';
+import { buildSchedule, startScheduler, stopScheduler, type SchedulerDeps } from './scheduler.js';
+import { shutdownBrowser } from './lib/playwright-pool.js';
 
 const VERSION = '0.1.0';
 const startedAt = new Date();
@@ -41,17 +44,33 @@ async function main() {
     process.exit(1);
   }
 
+  // Scheduler — runs workers on cron schedules
+  let scheduledTasks: ReturnType<typeof startScheduler> = [];
+  if (env.ENABLE_SCHEDULER) {
+    const httpClient = createHttpClient({ userAgent: PADELGOD_USER_AGENT });
+    const schedule = buildSchedule({
+      enableTournamentDiscovery: env.ENABLE_TOURNAMENT_DISCOVERY,
+      enableWidgetCodeLookup: env.ENABLE_WIDGET_CODE_LOOKUP,
+      enablePlayerRankings: env.ENABLE_PLAYER_RANKINGS,
+      enablePlayerProfile: env.ENABLE_PLAYER_PROFILE,
+    });
+    const schedulerDeps: SchedulerDeps = { supabase, httpClient, logger };
+    scheduledTasks = startScheduler(schedule, schedulerDeps);
+    logger.info({ workers: schedule.length }, 'Scheduler started');
+  } else {
+    logger.warn('Scheduler disabled via ENABLE_SCHEDULER=false');
+  }
+
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutting down gracefully');
+    stopScheduler(scheduledTasks);
+    await shutdownBrowser();
     await app.close();
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
-
-  // Touch supabase to silence unused-var; replaced by real workers in Plan 2+
-  void supabase;
 }
 
 main().catch((err) => {
