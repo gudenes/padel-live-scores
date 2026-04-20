@@ -11,3 +11,6 @@ export const CRIONET_ENTRY_LIST_VERSION = 'crionet-entry-list-1.0.0';
 export const CRIONET_DRAW_VERSION = 'crionet-draw-1.0.0';
 export const CRIONET_OOP_VERSION = 'crionet-oop-1.0.0';
 export const CRIONET_RESULTS_VERSION = 'crionet-results-1.0.0';
+
+export const CRIONET_TOURNAMENTLIVE_VERSION = 'crionet-tournamentlive-1.0.0';
+export const CRIONET_MATCH_STATS_VERSION = 'crionet-match-stats-1.0.0';
