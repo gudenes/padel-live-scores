@@ -6,11 +6,8 @@ const COURT_LABEL_SELECTOR = '.court-name, .tournament-name';
 const ROUND_BLOCK_SELECTOR = '.round-name';
 const TEAM_ROW_SELECTOR = 'tr.draw-item-container';
 const TEAM_SELECTOR = 'td.team';
-const PLAYER_LINE_SELECTOR = 'div';
-const PLAYER_NAME_SELECTOR = 'span';
 const SET_SELECTOR = 'td.set';
 const STATS_BUTTON_SELECTOR = 'a.open';
-const WINNER_CLASS = 'winner';
 
 export type Category = 'men' | 'women';
 export type ResultsStatus = 'finished' | 'walkover' | 'retired';
@@ -42,25 +39,53 @@ function parseRoundLabel($block: cheerio.Cheerio<any>): string | null {
   return inner || null;
 }
 
+/**
+ * Extract player names and winner status from a team <td>.
+ *
+ * Real HTML structure (from Crionet/matchscorerlive.com):
+ *   Each player line is a div.d-flex.align-items-center containing:
+ *     - a flag <img class="flags">
+ *     - a name div with class "ml-2" (optionally + "winner", "line-thin")
+ *       containing TWO spans: initial (e.g. "F.") + surname (e.g. "Chingotto")
+ *
+ * Winner indicated by "winner" class on the name div OR fa-check icon in the td.
+ */
 function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
   player1: string | null;
   player2: string | null;
   hasWinner: boolean;
 } {
-  const lines = td.find(PLAYER_LINE_SELECTOR);
-  let p1: string | null = null;
-  let p2: string | null = null;
-  let hasWinner = false;
-  lines.each((idx, line) => {
-    const $line = $(line);
-    const span = $line.find(PLAYER_NAME_SELECTOR).first();
-    const text = span.text().trim();
-    if (!text) return;
-    if (span.hasClass(WINNER_CLASS)) hasWinner = true;
-    if (idx === 0) p1 = text;
-    else if (idx === 1) p2 = text;
+  // Winner check: fa-check icon or "winner" class anywhere in the td
+  const hasWinner = td.html()?.includes('fa-check') === true ||
+    td.find('[class*="winner"]').length > 0;
+
+  const playerNames: string[] = [];
+
+  td.find('div').each((_, el) => {
+    const $el = $(el);
+    const cls = $el.attr('class') ?? '';
+    // Match the name container: must have ml-2 or ms-2
+    if (!/(?:^|\s)(?:ml-2|ms-2)(?:\s|$)/.test(cls)) return;
+
+    // Must contain at least one span (not just small/separator)
+    const spans = $el.find('> span');
+    if (spans.length === 0) return;
+
+    const parts: string[] = [];
+    spans.each((_, span) => {
+      const text = $(span).text().trim();
+      if (text) parts.push(text);
+    });
+    if (parts.length === 0) return;
+
+    playerNames.push(parts.join(' ').trim());
   });
-  return { player1: p1, player2: p2, hasWinner };
+
+  return {
+    player1: playerNames[0] ?? null,
+    player2: playerNames[1] ?? null,
+    hasWinner,
+  };
 }
 
 export function parseCrionetResults(html: string, dayNumber: number): ParsedResultsMatch[] {

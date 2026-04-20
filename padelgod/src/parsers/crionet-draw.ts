@@ -6,10 +6,7 @@ const COURT_NAME_SELECTOR = '.court-name';
 const ROUND_NAME_SELECTOR = '.round-name';
 const TEAM_ROW_SELECTOR = 'tr.draw-item-container';
 const TEAM_SELECTOR = 'td.team';
-const PLAYER_LINE_SELECTOR = 'div';
-const PLAYER_NAME_SELECTOR = 'span';
 const SET_SELECTOR = 'td.set';
-const WINNER_CLASS = 'winner';
 
 export type Category = 'men' | 'women';
 export type DrawType = 'main_draw' | 'qualifying';
@@ -38,32 +35,89 @@ function statusFromHeaderClass(cls: string): DrawStatus {
   return 'scheduled';
 }
 
+/**
+ * Extract player names and winner status from a team <td>.
+ *
+ * Real HTML structure (from Crionet/matchscorerlive.com):
+ *   <td class="team">
+ *     <div class="d-flex justify-content-between align-items-center ml-2">
+ *       <div>
+ *         <div class="player-names"><div class="double">
+ *           <div class="d-flex align-items-center">
+ *             <div><img class="flags" src="/images/flags/ESP.jpg"/></div>
+ *             <div class="ml-2  line-thin"><span>I.</span><span>Sager</span></div>
+ *           </div>
+ *           <div class="d-flex align-items-center">
+ *             <div><img class="flags" src="/images/flags/ESP.jpg"/></div>
+ *             <div class="ml-2 winner line-thin"><span>M.</span><span>Ortega</span><small>(1)</small></div>
+ *           </div>
+ *         </div></div>
+ *       </div>
+ *       <div class="mr-2"><i class='fa-solid fa-check check-primary'></i></div>
+ *     </div>
+ *   </td>
+ *
+ * Key observations:
+ *   1. Each player has a name div with class "ml-2" (and optionally "winner", "line-thin").
+ *   2. Inside that div: two spans — initial (e.g. "I.") + surname (e.g. "Sager").
+ *   3. Winner indicated by "winner" class on that name div OR fa-check anywhere in the td.
+ *   4. Country from the flag <img> immediately before the name div.
+ */
 function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
   player1Name: string | null;
   player2Name: string | null;
   country: string | null;
   hasWinner: boolean;
 } {
-  const lines = td.find(PLAYER_LINE_SELECTOR);
-  let player1Name: string | null = null;
-  let player2Name: string | null = null;
+  // Winner check: fa-check icon or "winner" class anywhere in the td
+  const hasWinner = td.html()?.includes('fa-check') === true ||
+    td.find('[class*="winner"]').length > 0;
+
+  // Find all name divs: divs that contain class "ml-2" or "ms-2"
+  // These are the per-player name containers
+  const playerNames: string[] = [];
   let country: string | null = null;
-  let hasWinner = false;
-  lines.each((idx, line) => {
-    const $line = $(line);
-    const nameSpan = $line.find(PLAYER_NAME_SELECTOR).first();
-    const text = nameSpan.text().trim();
-    if (!text) return;
-    if (nameSpan.hasClass(WINNER_CLASS)) hasWinner = true;
-    if (idx === 0) player1Name = text;
-    else if (idx === 1) player2Name = text;
-    if (!country) {
-      const flag = $line.find('img.flags').first().attr('src');
-      const m = flag?.match(/([A-Z]{3})\.jpg/);
-      if (m) country = m[1] ?? null;
+
+  td.find('div').each((_, el) => {
+    const $el = $(el);
+    const cls = $el.attr('class') ?? '';
+    // Match the name container: must have ml-2 or ms-2 in class
+    if (!/(?:^|\s)(?:ml-2|ms-2)(?:\s|$)/.test(cls)) return;
+
+    // Must contain at least one span to be a player name div
+    const spans = $el.find('> span');
+    if (spans.length === 0) return;
+
+    // Build name from spans: "I." + "Sager" → "I. Sager"
+    const parts: string[] = [];
+    spans.each((_, span) => {
+      const text = $(span).text().trim();
+      if (text) parts.push(text);
+    });
+    if (parts.length === 0) return;
+
+    // Format: "I." + " " + "Sager" but avoid double spaces
+    const name = parts.join(' ').trim();
+    playerNames.push(name);
+
+    // Country from preceding flag image (sibling div contains the flag img)
+    if (country === null) {
+      const parentRow = $el.parent(); // d-flex align-items-center row
+      const flagImg = parentRow.find('img.flags').first();
+      if (flagImg.length > 0) {
+        const src = flagImg.attr('src') ?? '';
+        const m = src.match(/\/([A-Z]{2,3})\.(?:jpg|png|svg)/i);
+        if (m?.[1]) country = m[1].toUpperCase();
+      }
     }
   });
-  return { player1Name, player2Name, country, hasWinner };
+
+  return {
+    player1Name: playerNames[0] ?? null,
+    player2Name: playerNames[1] ?? null,
+    country,
+    hasWinner,
+  };
 }
 
 export function parseCrionetDraw(
@@ -102,7 +156,11 @@ export function parseCrionetDraw(
     }
     const setScores = sets.length > 0 ? sets.join(' ') : null;
 
-    const winnerTeam: 1 | 2 | null = team1.hasWinner ? 1 : team2.hasWinner ? 2 : null;
+    let winnerTeam: 1 | 2 | null = null;
+    if (status === 'finished') {
+      if (team1.hasWinner && !team2.hasWinner) winnerTeam = 1;
+      else if (team2.hasWinner && !team1.hasWinner) winnerTeam = 2;
+    }
 
     out.push({
       category,
