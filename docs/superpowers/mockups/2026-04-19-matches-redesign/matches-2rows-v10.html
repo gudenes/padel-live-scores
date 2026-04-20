@@ -78,6 +78,12 @@
   }
   .tab.active .t-label { color: var(--text); font-weight: 800; }
   .tab.active .t-date { color: var(--green); opacity: 1; }
+  /* Top bar on the active tab */
+  .tab.active::before {
+    content:''; position: absolute; left: 18%; right: 18%; top: 0; height: 2.5px;
+    background: var(--green); clip-path: polygon(0% 0%, 100% 0%, 97% 100%, 3% 100%);
+  }
+  /* Bottom bar on the active tab */
   .tab.active::after {
     content:''; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 2.5px;
     background: var(--green); clip-path: polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%);
