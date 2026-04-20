@@ -1,8 +1,8 @@
 # Padelgod — Session State (handoff)
 
-**Last updated:** 2026-04-20 (end of brainstorming-through-Plan-3 session)
+**Last updated:** 2026-04-20 (end of Plan 4 static-pipeline session)
 
-This document captures everything a fresh session needs to pick up Padelgod work cleanly. **Read this first** before starting Plan 4 execution.
+This document captures everything a fresh session needs to pick up Padelgod work cleanly. **Read this first** before continuing Plan 4 work.
 
 ---
 
@@ -10,208 +10,159 @@ This document captures everything a fresh session needs to pick up Padelgod work
 
 **What Padelgod is:** a separate Railway-deployed Node service that scrapes FIP/Crionet for tournaments, players, draws, OOP, results, and (eventually) live scoring. Eventually replaces `padelapi.org` as the live data source for the Next.js app.
 
-**Where we are:** Plans 1–3 shipped to production. 8 workers running on cron schedule in Railway. ~31 widget codes cached, 31 draw matches captured for FIP BRONZE MARRAKECH, all infrastructure proven E2E. Plan 4 doc written but **not yet executed**.
+**Where we are:** Plans 1–3 are shipped to production. Plan 4 is **~65% complete on branch `feat/padelgod-live`** (pushed to origin). All static-data plumbing and the match-stats pipeline land with tests. The live-polling libs (Tasks 11–15) were deliberately deferred — they build on Task 11's PointState comparator, which is the highest-risk component in the plan and needs fresh attention.
 
-**Next step:** Execute Plan 4 (live pipeline + reconciler) via subagent-driven development. Spec lives at `docs/superpowers/plans/2026-04-20-padelgod-04-live-pipeline.md`.
+**Next step:** Resume Plan 4 from Task 11 on branch `feat/padelgod-live`. Spec at `docs/superpowers/plans/2026-04-20-padelgod-04-live-pipeline.md`.
 
 ---
 
-## Production state
+## Plan 4 progress (2026-04-20)
+
+| Task | Status | Commit | Notes |
+|---|---|---|---|
+| 0 — Relay live_source gate | ✅ shipped | `12b3cb8` + `86095e5` | Gates relay subscriptions on `tournaments.live_source='padelapi'`; 60s reconciliation timer with in-flight guard; SIGTERM cleanup. Must deploy to Railway before Task 16. |
+| 1 — Migrations 016 + 017 | ✅ shipped | `3286477` | `padelgod_tournaments_for_live_polling()` RPC + partial index on entity_external_ids for crionet_widget matches. |
+| 2 — Parser version constants | ✅ shipped | `90949ab` | Added CRIONET_TOURNAMENTLIVE_VERSION + CRIONET_MATCH_STATS_VERSION. |
+| 3 — Tournamentlive parser | ✅ shipped | `ae0b42c` | 5 tests including one against a real Brussels P2 production fixture (`crionet-tournamentlive-brussels.html`). |
+| 4 — Match identifier lib | ✅ shipped | `31ccda7` | 7 tests. Includes the pair-based fallback that prevents duplicate matches between draw and OOP/results reconciliation. |
+| 5 — Static reconciler: entry list → players | ✅ shipped | `95e8e82` | 4 tests. Diff-checked updates (not blind upserts) + null-safe field handling. |
+| 6 — Static reconciler: draws | ✅ shipped | `bece87e` | 3 tests. Synthesizes `draw:{category}:{draw_type}:{round}:{position}` widget id so OOP/results can link via pair-fallback. One tournament_draws row per team (team1→2N-1, team2→2N). |
+| 7 — Static reconciler: OOP + results | ✅ shipped | `61c4255` | 3 tests. Writes real widget id via `padelgod.widget_id_cache`. Skips tournaments without a cached widget code. `score_source='api'` on sets. `scheduled_at` parsing deliberately deferred to main app's OOP review workflow. |
+| 8 — Wire static-reconciler in scheduler | ✅ shipped | `7cab6f2` | Cron `5,35 * * * *`. Added `ENABLE_STATIC_RECONCILER` flag. |
+| 9 — Match stats parser | ✅ shipped | `23c8225` | 3 tests. Real Brussels P2 fixture (`crionet-match-stats-brussels.html`). Parses 14 stat dimensions × 3 tabs (aggregate + per-set). |
+| 10 — Match stats fetcher worker | ✅ shipped | `b4fdd94` | 7 tests. Finds finished Crionet-widget matches without stats, POSTs /screen/getmatchstats, upserts match_stats with `source='crionet_widget'`. Skips synthetic draw widget ids. Cron `25 * * * *`. |
+| **11 — Live state diff lib + PointState** | 📝 **doc written, NOT executed** | — | **HIGHEST RISK.** Deferred deliberately. See "Why Task 11 is deferred" below. |
+| 12 — Point reconstruction lib | 📝 depends on Task 11 | — | |
+| 13 — Live poller loop | 📝 depends on Task 11 + 12 | — | |
+| 14 — Live poller manager worker | 📝 depends on Task 13 | — | |
+| 15 — Wire live-poller-manager in scheduler | 📝 depends on Task 14 | — | |
+| 16 — Smoke test on Brussels P2 (manual) | 📝 needs Tasks 11–15 + Task 0 deploy | — | |
+| 17 — Push branch + open PR + merge | 📝 blocked on Tasks 11–15 | — | Branch already pushed to `origin/feat/padelgod-live`. |
+
+**Tests: 72 baseline → 105 after Task 10** (+33 Plan-4 tests). Target is ~125 when Tasks 11–15 land (the comparator alone has 16 tests in the spec).
+
+**TypeScript: clean throughout all 11 commits.**
+
+### Commit order on `feat/padelgod-live`
+```
+b4fdd94 feat(padelgod): add match-stats-fetcher worker
+23c8225 feat(padelgod): add Crionet match stats parser
+7cab6f2 feat(padelgod): wire static-reconciler into scheduler
+61c4255 feat(padelgod): static-reconciler — OOP + results → matches + sets
+bece87e feat(padelgod): static-reconciler — draw → tournament_draws + matches
+95e8e82 feat(padelgod): add static-reconciler (entry list → players, V1)
+31ccda7 feat(padelgod): add match-identifier lib (find or create canonical match)
+ae0b42c feat(padelgod): add Crionet tournamentlive parser
+90949ab feat(padelgod): add Plan 4 parser version constants
+3286477 feat(db): add Plan 4 live pipeline helpers (RPC + index)
+86095e5 fix(relay): skip periodic sync tick if previous still in-flight
+12b3cb8 feat(relay): gate subscriptions by tournaments.live_source (Padelgod cutover prep)
+```
+All pushed to `origin/feat/padelgod-live`.
+
+---
+
+## Why Task 11 is deferred
+
+Task 11 is the `PointState` discriminated union + exhaustive comparator. The plan pressure-test amendment (commit `025812c` on main) explicitly called out this as the highest-risk component because a naive string diff gets deuce/AD/golden-point transitions wrong in ways that silently miscredit points for weeks before anyone notices.
+
+The plan spec contains:
+- An explicit comparator truth table covering 13 transition classes
+- 16 required tests covering every row of the truth table
+
+This deserves full context attention. The right move is a fresh session where the comparator is the primary focus, not rushed at the tail end of a long implementation run.
+
+Pre-req note from Task 3 that Task 11 MUST honor: the real Crionet widget emits `"Ad"` (mixed case), not `"AD"`. `parsePointState` must be case-insensitive on these labels.
+
+---
+
+## Production state (unchanged from previous session)
 
 ### Service deployment
 - **Railway service:** `padel-live-scores-production-4189.up.railway.app`
 - **Container port:** 8080 (Railway auto-injects `PORT`; app reads `env.PORT`)
 - **Health endpoint:** `GET /health` returns 200 with `{ status, uptime_seconds, version }`
-- **Admin endpoint:** `POST /admin/run-worker` — Bearer auth via `PADELGOD_ADMIN_TOKEN`. Body: `{ "worker": "<name>" }`. Triggers any of 8 workers ad-hoc.
+- **Admin endpoint:** `POST /admin/run-worker` — Bearer auth via `PADELGOD_ADMIN_TOKEN`. Body: `{ "worker": "<name>" }`. Triggers any worker ad-hoc.
 
-### Active scheduler (8 workers)
-| Worker | Cron | What it does |
+### Active scheduler (will be 10 workers after Plan 4 merge)
+
+Currently 8 in production; branch `feat/padelgod-live` adds 2 more (`static-reconciler`, `match-stats-fetcher`). Plan 4 Tasks 14–15 will add one more (`live-poller-manager`), bringing the total to 11.
+
+| Worker | Cron | Status |
 |---|---|---|
-| `tournament-discovery` | `0 * * * *` | WP API → upsert tournaments (incremental via modified_after) |
-| `widget-code-lookup` | `15 * * * *` | POST `/ft` search → cache widget codes |
-| `entry-list-fetcher` | `45 * * * *` | Snapshot entry lists per tournament+category |
-| `oop-fetcher` | `50 * * * *` | Snapshot OOP per day |
-| `results-fetcher` | `55 * * * *` | Snapshot completed match results |
-| `draw-fetcher` | `20 */2 * * *` | Snapshot draws per category × type × round |
-| `player-rankings` | `0 5 * * *` | FIP rankings page → upsert players |
-| `player-profile` | `30 * * * *` | Stub (no batch driver yet — V1.5) |
+| `tournament-discovery` | `0 * * * *` | prod |
+| `widget-code-lookup` | `15 * * * *` | prod |
+| `entry-list-fetcher` | `45 * * * *` | prod |
+| `oop-fetcher` | `50 * * * *` | prod |
+| `results-fetcher` | `55 * * * *` | prod |
+| `draw-fetcher` | `20 */2 * * *` | prod |
+| `player-rankings` | `0 5 * * *` | prod |
+| `player-profile` | `30 * * * *` | prod (stub) |
+| **`static-reconciler`** | `5,35 * * * *` | on branch (Task 8) |
+| **`match-stats-fetcher`** | `25 * * * *` | on branch (Task 10) |
+| `live-poller-manager` | `*/1 * * * *` | pending (Task 15) |
 
-### Schema in production
-All Plan 1 + Plan 3 schema additions are live AND in version control (after the cleanup PR merged):
-- `public.match_points` table
-- `public.games.is_tiebreak`, `games.server_player_id`
-- `public.tournaments.live_source` (default `'padelapi'`), `uses_golden_point`
-- `public.match_points.is_golden_point`
-- `public.{tournaments,players,matches}.public_id`, `created_at`, `updated_at`, `last_updated_by`
-- `public.players.slug`, `tournaments.slug` (was `fip_slug`)
-- `padelgod` schema with: `scrape_jobs`, `widget_id_cache`, `raw_payloads`, `unresolved_players`, `unresolved_matches`, `entry_list_snapshots`, `draw_snapshots`, `oop_snapshots`, `results_snapshots`
-- Migration 015 captured 5 hot fixes: GRANTs to service_role, last_updated_by columns, slug UNIQUE constraint, external_id nullable, NOTIFY pgrst
-
-### Supabase configuration (one-time setup, already done)
-- **Exposed schemas** in Data API settings: `public, graphql_public, padelgod`
-- **Extra search path**: `public, extensions, padelgod`
-- All migrations through `20260420000017` either applied or pending Plan 4
-
-### Production data scraped so far
-- 16+ FIP tournaments discovered (source='fip')
-- 31 widget codes cached (15.5% match rate; 169 needed Playwright fallback that doesn't exist yet)
-- 31 draw matches from FIP BRONZE MARRAKECH (full names + winner detection working ✅)
-- 0 entry list rows (active tournaments don't have published entry lists yet)
-- 0 OOP rows (same)
-- 0 results rows (same — need to test on a tournament with finished matches in the active window)
-
----
-
-## Architecture mental model
-
-### Three-tier data flow
-```
-Crionet widget HTML / WP API
-        ↓ (Plan 2 + 3 workers)
-padelgod.{scrape_jobs, raw_payloads, *_snapshots, widget_id_cache}
-        ↓ (Plan 4 reconciler — NOT YET BUILT)
-public.{tournaments, players, matches, sets, games, match_points, tournament_draws}
-        ↓ (Supabase Realtime)
-Next.js app (existing main app)
-```
-
-**Why snapshots are append-only:** scraping correctness is independent of canonical correctness. Parser bugs corrupt snapshots, not canonical. Reconciler is replayable when resolution logic improves.
-
-**Why the live poller writes DIRECTLY to canonical (no snapshot layer):** live data is time-sensitive. Latency of snapshot → reconciler defeats the purpose. The poller has its own diff/reconstruction logic in `point-reconstruction.ts`.
-
-### Cutover semantics
-- `tournaments.live_source TEXT NOT NULL DEFAULT 'padelapi'` — controls who owns live data per tournament
-- During Plan 4 rollout: flip individual tournaments to `'padelgod'` to test
-- Old `relay/index.js` (Pusher-based) still runs in parallel for tournaments where `live_source='padelapi'`
-- Plan 7 retires the relay once Padelgod proves stable
-
-### Repo structure
-```
-padelgod/                              # Long-running Railway service
-├── src/
-│   ├── api/                           # Fastify routes (health, admin)
-│   ├── lib/                           # http-client, scrape-job, supabase, env, logger,
-│   │                                  # tournament-dictionary, parser-versions
-│   ├── parsers/                       # Pure functions: HTML → typed object
-│   ├── workers/                       # Compose http-client + parser + scrape-job + DB
-│   ├── scheduler.ts                   # node-cron wiring
-│   └── index.ts                       # Entry point: Fastify + scheduler
-├── package.json                       # ESM, NodeNext module resolution
-├── Dockerfile                         # Multi-stage with chromium for Playwright fallback
-└── railway.toml
-
-src/                                   # Existing Next.js main app (not modified by Padelgod work)
-relay/                                 # Existing Pusher relay (still running, gets retired in Plan 7)
-supabase/migrations/                   # All migrations — repo-root path is what Supabase CLI scans
-docs/superpowers/                      # Specs + plans
-├── specs/                             # 3 Padelgod design docs
-└── plans/                             # 4 Padelgod plans (1–4); 5–7 are placeholders
-```
-
----
-
-## Plans status
-
-| Plan | Status | Notes |
-|---|---|---|
-| **Plan 1: Foundation** | ✅ shipped | Service skeleton, all migrations, Railway deploy |
-| **Plan 2: Discovery layer** | ✅ shipped | tournament-discovery, widget-code-lookup, player-rankings, player-profile |
-| **Plan 3: Static match data** | ✅ shipped | entry-list, draw, oop, results fetchers + tournament-dictionary lib |
-| **Cleanup (migration 015)** | ✅ shipped | Bundled 5 SQL hot fixes into version control |
-| **Admin trigger endpoint** | ✅ shipped | `POST /admin/run-worker` |
-| **Parser fixes** | ✅ shipped | Full names + winner detection + tiebreak via `<sup>` (commits 43144ad, f5f9f3c) |
-| **Plan 4: Live pipeline + reconciler** | 📝 **doc written, NOT executed** | 17 tasks, see plan doc |
-| **Plan 5: Admin API + ops dashboard** | 📋 placeholder | Expand admin endpoint into full API + ops tab |
-| **Plan 6: Articles + YouTube migration** | 📋 placeholder | Move existing main-app crons into Padelgod |
-| **Plan 7: padelapi.org → padelgod migration** | 📋 placeholder | Cutover all tournaments + retire relay |
-
----
-
-## Critical knowledge / gotchas (do not repeat these mistakes)
-
-### 1. Custom schemas need explicit grants
-Supabase doesn't auto-grant on custom schemas. After creating the `padelgod` schema, must run:
-```sql
-GRANT USAGE ON SCHEMA padelgod TO service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA padelgod TO service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA padelgod GRANT ALL ON TABLES TO service_role;
-```
-Plus expose the schema in Data API → Settings → Exposed schemas. Already done; captured in migration 015.
-
-### 2. PostgREST onConflict needs full UNIQUE constraint, not partial index
-Partial unique indexes (`WHERE col IS NOT NULL`) don't work with PostgREST's `onConflict`. Use full UNIQUE constraints — Postgres treats NULLs as distinct by default so it's safe.
-
-### 3. Migrations must live at repo-root `supabase/migrations/`
-Supabase CLI only scans this path. Migration files placed under `padelgod/supabase/migrations/` are silently ignored. Plan 3 hit this; fixed in cleanup PR.
-
-### 4. Path bug in subagent dispatches
-Subagents sometimes `cd padelgod && create-file supabase/migrations/...` which lands files at `padelgod/supabase/migrations/`. Always specify the **absolute** path or explicitly say "at the REPO ROOT path" in agent instructions.
-
-### 5. Subagents commit to wrong branch
-When the agent runs git from a parent checkout instead of the worktree, commits land on the wrong branch. Cleanup migration commit ended up on `main` instead of `fix/padelgod-plan1-followup` and we had to cherry-pick. Specify worktree path explicitly in agent prompts.
-
-### 6. Speculative HTML fixtures lead to silent parser bugs
-The Plan 3 parsers (draw, results, oop) were written with simplified HTML guesses. Production parsing extracted only player initials and missed winner detection. Lesson: always validate parser fixtures against real HTML BEFORE shipping. The reference implementation is `src/lib/fip-scraper.ts` in the main app — it's been battle-tested.
-
-### 7. Tiebreak only on resultsbyday endpoint, not draw
-The `/screen/draw/...` endpoint shows set scores without tiebreak digits. Only `/screen/resultsbyday/...` includes `<sup>N</sup>` for tiebreak losers. Reconciler should prefer results_snapshots when both have data for the same match.
-
-### 8. `external_id` is legacy, was NOT NULL
-Plan 1 didn't account for this. Made it nullable in migration 015. Padelgod uses `padelapi_id` / `fip_id` / `slug` instead.
-
-### 9. `last_updated_by` was on matches but not tournaments/players
-Plan 1 added it only to `matches`. Workers also write it on `tournaments` and `players` upserts. Added to those tables in migration 015.
-
-### 10. Active tournaments RPC requires `source='fip'` AND date window
-The `padelgod_active_tournaments_for_static_workers()` RPC excludes any tournament that's:
-- `source != 'fip'` (e.g. padelapi-discovered tournaments)
-- Outside ±7 days of NOW
-- Without an active widget_id_cache row
-
-For Plan 4 we add a similar RPC `padelgod_tournaments_for_live_polling()` that's gated on `live_source='padelgod'`. **Brussels P2** during the brainstorming phase was likely `source='padelapi'` so it didn't appear in the static workers' active list. Need to manually flip a known-live tournament for Plan 4 smoke testing.
-
-### 11. Railway has soft request timeout but workers can run >150s
-The widget-code-lookup worker ran 150s and survived (`"durationMs": 150654`). No need to worry about per-request timeouts breaking long-running admin triggers. But Vercel main app has stricter timeouts.
-
-### 12. EventEmitter MaxListeners warning is cosmetic
-Node 22 + axios concurrent requests can trigger this. Add `process.setMaxListeners(20)` in `index.ts` if it gets noisy. Not blocking.
-
----
-
-## Open issues / known TODOs
-
-### Must address before / during Plan 4
-- **None blocking** — Plan 4 can start fresh. The reconciler builds on existing snapshots; live poller is mostly new code.
-
-### Worth addressing in Plan 5+
-- **Player-rankings worker untested** in production. Selectors were speculative. When you actually need rankings, run it via `/admin/run-worker` and inspect the captured raw payload.
-- **Playwright fallback for widget-code-lookup** — 169/200 tournaments couldn't be resolved by search alone. Plan 4.5 or 5.
-- **Player-profile batch driver** — worker exists but no one tells it which players to refresh. Plan 5.
-- **Aggregate validation auto-write to `unresolved_matches`** — Plan 4 plans the validator function but doesn't wire to write the queue. Maybe Plan 5.
-
-### Documentation drift
-- **CLAUDE.md** still describes `tournaments.fip_slug` as a live legacy column — actually renamed to `slug` in Plan 1. Should be updated to reflect post-Padelgod schema.
-- **Source priority list** in `src/lib/source-priority.ts` doesn't yet include `padelgod` as a source. Will need adding once Plan 4 reconciler ships.
+### Current DB state (from 2026-04-20 smoke checks)
+- 106 widget codes cached (`padelgod.widget_id_cache`)
+- Brussels P2 padelapi row `b91c4c7d-dfdf-47bd-af99-e6d97515634e` is the Task 16 smoke-test target. Widget code `FIP-2026-1701` (confirmed via Crionet search, not yet in cache — insert manually during Task 16).
+- 0 FIP tournaments currently live have cached widget codes (widget-code-lookup gap — Playwright fallback is Plan 4.5 / 5).
+- Cross-source tournament dup: TWO Brussels P2 2026 rows. Use the padelapi-sourced one with proper dates, NOT the FIP-discovered stub (`8ef5752c`, dates=NULL).
 
 ---
 
 ## What to do in next session
 
 1. **Read this document first.**
-2. **Read `docs/superpowers/plans/2026-04-20-padelgod-04-live-pipeline.md`** — the full Plan 4 spec.
-3. **Skim the 3 Padelgod design specs** for context:
-   - `docs/superpowers/specs/2026-04-20-padelgod-design.md`
-   - `docs/superpowers/specs/2026-04-20-padelgod-api-schema.md`
-   - `docs/superpowers/specs/2026-04-20-padelgod-live-data-validation.md`
-4. **Skim the 3 prior plan docs** if execution patterns are unclear:
-   - `docs/superpowers/plans/2026-04-20-padelgod-01-foundation.md`
-   - `docs/superpowers/plans/2026-04-20-padelgod-02-discovery-layer.md`
-   - `docs/superpowers/plans/2026-04-20-padelgod-03-static-match-data.md`
-5. **Set up worktree** for Plan 4: `git worktree add .worktrees/padelgod-live -b feat/padelgod-live`
-6. **Use subagent-driven development** to execute Plan 4 task-by-task, dispatching haiku for mechanical work and sonnet for parsers + reconciler logic.
-7. **Test against a known-live tournament** (Task 16) — pick one currently happening, flip its `live_source='padelgod'`, watch the poller produce match_points.
-8. **Open PR + merge** when all 17 tasks done.
-9. **Update CLAUDE.md** to reflect the post-Padelgod schema (slug rename, padelgod schema, etc.) and add Padelgod to the Tech Stack section.
+2. **Re-read Task 11 in `docs/superpowers/plans/2026-04-20-padelgod-04-live-pipeline.md`** — the full PointState + comparator spec with the 13-row truth table and 16 tests.
+3. **Checkout the branch:** `git worktree add .worktrees/padelgod-live-resume feat/padelgod-live` (or reuse `.worktrees/padelgod-live/` if still present locally; it's gitignored — check first).
+4. **Run baseline:** `cd padelgod && npm test` — should be 105/105 before starting Task 11.
+5. **Task 11 is the anchor.** Tasks 12, 13, 14, 15 all build on its types. Implement 11 carefully with a subagent, full spec-review + code-quality review pass. After 11, Tasks 12–15 can be dispatched more mechanically.
+6. **Task 16 prereqs:**
+   - Deploy `relay/index.js` Task 0 changes to Railway (the gate). Verify unsubscribe log line fires on test tournament flip.
+   - Manually insert `padelgod.widget_id_cache` row for Brussels P2 with `widget_id='FIP-2026-1701'`, `is_active=true`.
+   - Verify SQL: `SELECT count(*) FROM matches WHERE status IN ('live','ended') AND pusher_channel IS NOT NULL AND tournament_id IS NULL;` must be 0 (the relay gate's `!inner` join would silently drop orphan-tournament matches otherwise).
+   - Apply migrations 016 + 017.
+   - Then flip `tournaments.live_source='padelgod'` for Brussels P2 row `b91c4c7d` and watch for match_points writes.
+
+---
+
+## Critical knowledge / gotchas (carry-forward + new)
+
+### Carry-forward from previous session
+1. **Custom schemas need explicit grants** — already captured in migration 015.
+2. **PostgREST onConflict needs full UNIQUE constraint, not partial index.**
+3. **Migrations must live at repo-root `supabase/migrations/`.** Subagents occasionally drop them under `padelgod/supabase/migrations/` by accident — always double-check on commit.
+4. **Specify absolute paths in subagent dispatches** — especially the worktree root.
+5. **Validate parsers against REAL HTML.** Plan 3's speculative HTML fixtures produced silent parser bugs. Both parsers in this session (tournamentlive + match stats) use real fetched fixtures committed alongside the tests.
+6. **Tournamentlive emits `"Ad"` mixed case**, not `"AD"`. Task 11's parser contract must be case-insensitive.
+7. **`external_id` legacy column is nullable** (migration 015).
+8. **Active-tournament RPCs** require `source='fip'` AND widget_id_cache AND date window — respect the filter when testing.
+
+### New this session
+9. **tournament_draws has no `round` column.** First Task 6 dispatch tried to upsert one; removed before commit. CLAUDE.md schema doesn't list `round` — trust the migration file.
+10. **TypeScript cast for Supabase client:** `(rows ?? []) as unknown as T[]` — direct cast gets a "no overlap" error because Supabase's typed client returns narrow error types.
+11. **`match_stats` stores raw counts, not percentages.** The Crionet parser gives percentages so we write structured columns only for the count-native fields (service_games, return_games, longest_streak) and put full percentages in `raw_payload` JSONB. Tagged `source='crionet_widget'` to distinguish from premierpadel-sourced rows.
+12. **Composite widget id format is load-bearing.** `${tournamentWidgetId}:${matchWidgetId}` e.g. `"FIP-2026-1701:MQ012"`. Task 6 uses a synthetic `"draw:..."` prefix; Task 7 uses the real tournament widget code from `padelgod.widget_id_cache`; Task 10's fetcher skips synthetic ids when POSTing to Crionet. When OOP/results (Task 7) sees a real widget for a match that Task 6 already created under a synthetic id, `findOrCreateMatch`'s pair-based fallback links them — no duplicate row.
+13. **Subagent commits to worktree:** verify `git branch --show-current` returns `feat/padelgod-live` at the start of every subagent dispatch prompt. A previous Plan 3 cleanup commit landed on `main` accidentally.
+14. **Rate limit resets in subagent dispatches** — the Task 6 dispatch hit a model rate limit mid-implementation. Uncommitted state was salvaged via diff inspection + manual fix (column bug) + tests-authoring. Worth knowing if it happens again: the subagent's partial work is still in the working tree.
+
+---
+
+## Open issues / known TODOs
+
+### Must address before Task 16 cutover
+- **Relay Task 0 deployed to Railway** — must land in prod before flipping any tournament.
+- **Migrations 016 + 017 applied to Supabase.**
+- **Brussels P2 widget_id manually seeded** into `padelgod.widget_id_cache`.
+- **Orphan-tournament matches query** returning 0 (see precondition in Task 16 step 1).
+
+### Worth addressing in Plan 5+
+- **Playwright fallback for widget-code-lookup** — 169/200 tournaments still unresolved by search alone.
+- **Player-profile batch driver** — worker exists but no one tells it which players to refresh.
+- **Percentage → count back-derivation for match_stats** — V1 leaves first/second serve counts NULL. UI reads percentages from `raw_payload` for Crionet source. If we ever need structured counts, this requires an upstream data model change.
+- **Cross-source tournament dedup** — Brussels P2 has two rows (source=fip stub, source=padelapi canonical). Affects anyone searching by name. Deferred to a manual script + UI.
+
+---
 
 ## Production smoke commands
 
@@ -219,44 +170,38 @@ Node 22 + axios concurrent requests can trigger this. Add `process.setMaxListene
 # Health
 curl -s https://padel-live-scores-production-4189.up.railway.app/health | python3 -m json.tool
 
-# Trigger any worker ad-hoc
+# Trigger a worker ad-hoc (after next deploy — will include new workers)
 curl -s -X POST https://padel-live-scores-production-4189.up.railway.app/admin/run-worker \
   -H "Authorization: Bearer <PADELGOD_ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"worker":"tournament-discovery"}' | python3 -m json.tool
+  -d '{"worker":"static-reconciler"}' | python3 -m json.tool
+
+curl -s -X POST https://padel-live-scores-production-4189.up.railway.app/admin/run-worker \
+  -H "Authorization: Bearer <PADELGOD_ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"worker":"match-stats-fetcher"}' | python3 -m json.tool
 
 # Recent scrape jobs
 psql/Supabase: SELECT job_type, status, duration_ms, started_at FROM padelgod.scrape_jobs
               ORDER BY started_at DESC LIMIT 20;
-
-# Recently touched tournaments
-psql/Supabase: SELECT name, slug, source, last_updated_by, updated_at FROM tournaments
-              WHERE last_updated_by = 'padelgod' ORDER BY updated_at DESC LIMIT 10;
 ```
-
-## Important env vars (already set in Railway)
-- `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (reused from main app)
-- `PADELGOD_ADMIN_TOKEN` (rotate after exposing in chat — see security note in conversation history)
-- `NODE_ENV=production`
-- All 8 worker enable flags (`ENABLE_TOURNAMENT_DISCOVERY=true` etc.)
-- For Plan 4: will need `ENABLE_STATIC_RECONCILER=true`, `ENABLE_LIVE_POLLER_MANAGER=true`, `ENABLE_MATCH_STATS_FETCHER=true`
 
 ---
 
 ## Branch naming convention used
 
-- Feature branches: `feat/padelgod-<area>` (e.g. `feat/padelgod-discovery`, `feat/padelgod-static`)
-- Cleanup branches: `fix/padelgod-<topic>` (e.g. `fix/padelgod-plan1-followup`)
+- Feature branches: `feat/padelgod-<area>` (e.g. `feat/padelgod-live` — current)
+- Cleanup branches: `fix/padelgod-<topic>`
 - All worktrees go in `.worktrees/<branch-name-suffix>/`
-- After merge: `git worktree remove .worktrees/<...>` + `git branch -d <feat-branch>`
 
 ---
 
 ## When in doubt
 
-- **Code reference for Crionet HTML parsing:** `src/lib/fip-scraper.ts` (main app). Battle-tested patterns for the same widget.
-- **Code reference for player resolution:** `src/lib/player-resolver.ts` (main app). 5-tier resolution chain Padelgod's tournament-dictionary builds on.
-- **Schema reference:** `CLAUDE.md` — table definitions (note: outdated re: `fip_slug` rename — verify with actual DB).
-- **Live data validation:** `docs/superpowers/specs/2026-04-20-padelgod-live-data-validation.md` — every endpoint shape we've ground-truthed.
+- **Code reference for Crionet HTML parsing:** `src/lib/fip-scraper.ts` (main app) — battle-tested patterns. Also the 3 new parsers in `padelgod/src/parsers/` now: `crionet-tournamentlive.ts`, `crionet-match-stats.ts`, plus Plan 3's `crionet-draw.ts` / `crionet-oop.ts` / `crionet-results.ts`.
+- **Code reference for player resolution:** `padelgod/src/lib/tournament-dictionary.ts` (Plan 3).
+- **Code reference for match identity:** `padelgod/src/lib/match-identifier.ts` — the pair-based fallback is load-bearing for Task 6 ↔ Task 7 deduplication.
+- **Schema reference:** `CLAUDE.md` — table definitions. Verify against actual migration SQL when in doubt.
+- **Live data validation:** `docs/superpowers/specs/2026-04-20-padelgod-live-data-validation.md` — every endpoint shape ground-truthed. Task 11's PointState work leans heavily on §4.
 
-Good luck. The boring infrastructure (8 workers, snapshots, scheduler, admin endpoint) is shipped and proven. Plan 4 is where Padelgod becomes the live source of truth.
+Good luck. The static pipeline + match stats fetcher are solid. Plan 4 Task 11's comparator is the remaining hard piece.
