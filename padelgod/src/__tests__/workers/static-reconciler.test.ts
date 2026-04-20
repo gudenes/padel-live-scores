@@ -49,12 +49,56 @@ interface ExistingTournamentDraw {
   draw_position: number;
 }
 
+interface OopSnapshotSeed {
+  id: string;
+  tournament_id: string;
+  category: 'men' | 'women';
+  day_number: number;
+  round_label: string | null;
+  court: string;
+  scheduled_label: string | null;
+  team1_player1_name: string | null;
+  team1_player2_name: string | null;
+  team2_player1_name: string | null;
+  team2_player2_name: string | null;
+  match_widget_id: string | null;
+  status: 'scheduled' | 'live' | 'finished' | 'walkover' | 'retired';
+  captured_at: string;
+}
+
+interface ResultsSnapshotSeed {
+  id: string;
+  tournament_id: string;
+  category: 'men' | 'women';
+  day_number: number;
+  round_label: string | null;
+  court: string | null;
+  match_widget_id: string | null;
+  team1_player1_name: string | null;
+  team1_player2_name: string | null;
+  team2_player1_name: string | null;
+  team2_player2_name: string | null;
+  set_scores: string;
+  winner_team: 1 | 2;
+  status: 'finished' | 'walkover' | 'retired';
+  captured_at: string;
+}
+
+interface WidgetIdCacheSeed {
+  tournament_id: string;
+  widget_id: string;
+  is_active: boolean;
+}
+
 function fakeSupabase(
   snapshots: SnapshotSeed[],
   players: PlayerSeed[],
   draws: DrawSnapshotSeed[] = [],
   existingMatchEids: ExistingMatchExternalId[] = [],
   existingTournamentDraws: ExistingTournamentDraw[] = [],
+  oopSnapshots: OopSnapshotSeed[] = [],
+  resultsSnapshots: ResultsSnapshotSeed[] = [],
+  widgetIdCache: WidgetIdCacheSeed[] = [],
 ) {
   const inserted: any[] = [];
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
@@ -62,6 +106,8 @@ function fakeSupabase(
   const matchEidsInserted: any[] = [];
   const tournamentDrawsUpserted: any[] = [];
   const unresolvedUpserted: any[] = [];
+  const matchesUpdated: Array<{ id: string; patch: Record<string, unknown> }> = [];
+  const setsUpserted: any[] = [];
 
   // Mutable state to simulate DB for concurrent/dedup scenarios
   const matchEidState: ExistingMatchExternalId[] = [...existingMatchEids];
@@ -156,6 +202,63 @@ function fakeSupabase(
           },
         }),
       }),
+      update: (patch: Record<string, unknown>) => ({
+        eq: (col: string, value: string) => {
+          if (col !== 'id')
+            throw new Error(`unexpected matches update filter: ${col}`);
+          matchesUpdated.push({ id: value, patch });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+    };
+  }
+
+  function setsTable() {
+    return {
+      upsert: (row: Record<string, unknown>, _opts: any) => {
+        setsUpserted.push(row);
+        return Promise.resolve({ data: null, error: null });
+      },
+    };
+  }
+
+  function oopSnapshotsTable() {
+    return {
+      select: (_cols: string) => ({
+        gte: (_col: string, _val: string) =>
+          Promise.resolve({ data: oopSnapshots, error: null }),
+      }),
+    };
+  }
+
+  function resultsSnapshotsTable() {
+    return {
+      select: (_cols: string) => ({
+        gte: (_col: string, _val: string) =>
+          Promise.resolve({ data: resultsSnapshots, error: null }),
+      }),
+    };
+  }
+
+  function widgetIdCacheTable() {
+    return {
+      select: (_cols: string) => ({
+        eq: (col1: string, val1: string) => ({
+          eq: (col2: string, val2: boolean | string) => ({
+            maybeSingle: () => {
+              const hit = widgetIdCache.find(
+                (r) =>
+                  (col1 !== 'tournament_id' || r.tournament_id === val1) &&
+                  (col2 !== 'is_active' || r.is_active === val2),
+              );
+              return Promise.resolve({
+                data: hit ? { widget_id: hit.widget_id } : null,
+                error: null,
+              });
+            },
+          }),
+        }),
+      }),
     };
   }
 
@@ -227,6 +330,8 @@ function fakeSupabase(
     matchEidsInserted,
     tournamentDrawsUpserted,
     unresolvedUpserted,
+    matchesUpdated,
+    setsUpserted,
     get tournamentDrawState() {
       return tournamentDrawState;
     },
@@ -235,6 +340,9 @@ function fakeSupabase(
         if (t === 'entry_list_snapshots') return snapshotsTable();
         if (t === 'draw_snapshots') return drawSnapshotsTable();
         if (t === 'unresolved_players') return unresolvedPlayersTable();
+        if (t === 'oop_snapshots') return oopSnapshotsTable();
+        if (t === 'results_snapshots') return resultsSnapshotsTable();
+        if (t === 'widget_id_cache') return widgetIdCacheTable();
         throw new Error(`unexpected padelgod-schema table: ${t}`);
       },
     }),
@@ -243,6 +351,7 @@ function fakeSupabase(
       if (t === 'matches') return matchesTable();
       if (t === 'entity_external_ids') return entityExternalIdsTable();
       if (t === 'tournament_draws') return tournamentDrawsTable();
+      if (t === 'sets') return setsTable();
       throw new Error(`unexpected public-schema table: ${t}`);
     },
   };
@@ -558,5 +667,302 @@ describe('runStaticReconciler — draw phase (V2)', () => {
     expect(supabase2.tournamentDrawState).toHaveLength(2);
     // And no duplicate match entity_external_ids mappings
     expect(supabase2.matchEidsInserted).toHaveLength(0); // second run hit conflict, no new mapping
+  });
+});
+
+describe('runStaticReconciler — OOP phase (V3)', () => {
+  const TEAM1_P1 = 'Juan Lebron';
+  const TEAM1_P2 = 'Federico Chingotto';
+  const TEAM2_P1 = 'Ale Galan';
+  const TEAM2_P2 = 'Arturo Coello';
+
+  const entryListRoster: SnapshotSeed[] = [
+    {
+      tournament_id: TOUR,
+      category: 'men',
+      fip_id: 'fip-P1',
+      name: TEAM1_P1,
+      country: 'ESP',
+      partner_fip_id: 'fip-P2',
+      partner_name: TEAM1_P2,
+      captured_at: T,
+    },
+    {
+      tournament_id: TOUR,
+      category: 'men',
+      fip_id: 'fip-P2',
+      name: TEAM1_P2,
+      country: 'ARG',
+      partner_fip_id: 'fip-P1',
+      partner_name: TEAM1_P1,
+      captured_at: T,
+    },
+    {
+      tournament_id: TOUR,
+      category: 'men',
+      fip_id: 'fip-P3',
+      name: TEAM2_P1,
+      country: 'ESP',
+      partner_fip_id: 'fip-P4',
+      partner_name: TEAM2_P2,
+      captured_at: T,
+    },
+    {
+      tournament_id: TOUR,
+      category: 'men',
+      fip_id: 'fip-P4',
+      name: TEAM2_P2,
+      country: 'ESP',
+      partner_fip_id: 'fip-P3',
+      partner_name: TEAM2_P1,
+      captured_at: T,
+    },
+  ];
+
+  const rosterPlayers: PlayerSeed[] = [
+    { id: 'uuid-P1', fip_id: 'fip-P1', name: TEAM1_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P2', fip_id: 'fip-P2', name: TEAM1_P2, country: 'ARG', category: 'men' },
+    { id: 'uuid-P3', fip_id: 'fip-P3', name: TEAM2_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P4', fip_id: 'fip-P4', name: TEAM2_P2, country: 'ESP', category: 'men' },
+  ];
+
+  it('resolves an OOP row and UPDATEs the match with court + round (findOrCreateMatch uses real widget id)', async () => {
+    const oop: OopSnapshotSeed[] = [
+      {
+        id: 'oop-1',
+        tournament_id: TOUR,
+        category: 'men',
+        day_number: 4,
+        round_label: 'F',
+        court: 'Center Court',
+        scheduled_label: 'Starting at 4:00 PM',
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        match_widget_id: 'M012',
+        status: 'scheduled',
+        captured_at: T,
+      },
+    ];
+
+    const widgets: WidgetIdCacheSeed[] = [
+      { tournament_id: TOUR, widget_id: 'FIP-2026-1701', is_active: true },
+    ];
+
+    const supabase = fakeSupabase(
+      entryListRoster,
+      rosterPlayers,
+      [],
+      [],
+      [],
+      oop,
+      [],
+      widgets,
+    );
+    const result = await runStaticReconciler({ supabase: supabase as any });
+
+    expect(result.oopMatchesUpdated).toBe(1);
+    expect(result.oopUnresolved).toBe(0);
+
+    // findOrCreateMatch was called with the REAL tournament widget id (via
+    // entity_external_ids upsert using composite 'FIP-2026-1701:M012').
+    expect(supabase.matchEidsInserted).toHaveLength(1);
+    expect(supabase.matchEidsInserted[0].external_id).toBe('FIP-2026-1701:M012');
+
+    // Exactly one match INSERT (new match row — no pair-based candidate existed)
+    expect(supabase.matchesInserted).toHaveLength(1);
+
+    // And exactly one matches UPDATE with court + round (scheduled_at NOT written in V1).
+    expect(supabase.matchesUpdated).toHaveLength(1);
+    const upd = supabase.matchesUpdated[0];
+    expect(upd.patch.court).toBe('Center Court');
+    expect(upd.patch.round).toBe('F');
+    expect(upd.patch.last_updated_by).toBe('padelgod');
+    expect(upd.patch.scheduled_at).toBeUndefined();
+  });
+});
+
+describe('runStaticReconciler — results phase (V4)', () => {
+  const TEAM1_P1 = 'Juan Lebron';
+  const TEAM1_P2 = 'Federico Chingotto';
+  const TEAM2_P1 = 'Ale Galan';
+  const TEAM2_P2 = 'Arturo Coello';
+
+  const entryListRoster: SnapshotSeed[] = [
+    {
+      tournament_id: TOUR,
+      category: 'men',
+      fip_id: 'fip-P1',
+      name: TEAM1_P1,
+      country: 'ESP',
+      partner_fip_id: 'fip-P2',
+      partner_name: TEAM1_P2,
+      captured_at: T,
+    },
+    {
+      tournament_id: TOUR,
+      category: 'men',
+      fip_id: 'fip-P2',
+      name: TEAM1_P2,
+      country: 'ARG',
+      partner_fip_id: 'fip-P1',
+      partner_name: TEAM1_P1,
+      captured_at: T,
+    },
+    {
+      tournament_id: TOUR,
+      category: 'men',
+      fip_id: 'fip-P3',
+      name: TEAM2_P1,
+      country: 'ESP',
+      partner_fip_id: 'fip-P4',
+      partner_name: TEAM2_P2,
+      captured_at: T,
+    },
+    {
+      tournament_id: TOUR,
+      category: 'men',
+      fip_id: 'fip-P4',
+      name: TEAM2_P2,
+      country: 'ESP',
+      partner_fip_id: 'fip-P3',
+      partner_name: TEAM2_P1,
+      captured_at: T,
+    },
+  ];
+
+  const rosterPlayers: PlayerSeed[] = [
+    { id: 'uuid-P1', fip_id: 'fip-P1', name: TEAM1_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P2', fip_id: 'fip-P2', name: TEAM1_P2, country: 'ARG', category: 'men' },
+    { id: 'uuid-P3', fip_id: 'fip-P3', name: TEAM2_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P4', fip_id: 'fip-P4', name: TEAM2_P2, country: 'ESP', category: 'men' },
+  ];
+
+  const widgets: WidgetIdCacheSeed[] = [
+    { tournament_id: TOUR, widget_id: 'FIP-2026-1701', is_active: true },
+  ];
+
+  it('upserts one set per parsed set_score token with correct games, status=finished and winner_pair', async () => {
+    const results: ResultsSnapshotSeed[] = [
+      {
+        id: 'res-1',
+        tournament_id: TOUR,
+        category: 'men',
+        day_number: 4,
+        round_label: 'F',
+        court: 'Center Court',
+        match_widget_id: 'M012',
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        set_scores: '6-4 4-6 6-2',
+        winner_team: 1,
+        status: 'finished',
+        captured_at: T,
+      },
+    ];
+
+    const supabase = fakeSupabase(
+      entryListRoster,
+      rosterPlayers,
+      [],
+      [],
+      [],
+      [],
+      results,
+      widgets,
+    );
+    const result = await runStaticReconciler({ supabase: supabase as any });
+
+    expect(result.resultsMatchesUpdated).toBe(1);
+    expect(result.setsWritten).toBe(3);
+    expect(result.resultsUnresolved).toBe(0);
+
+    // Match INSERT + UPDATE
+    expect(supabase.matchesInserted).toHaveLength(1);
+    expect(supabase.matchesUpdated).toHaveLength(1);
+    const mu = supabase.matchesUpdated[0];
+    expect(mu.patch.status).toBe('finished');
+    expect(mu.patch.winner_pair).toBe(1);
+
+    // Three sets upserted
+    expect(supabase.setsUpserted).toHaveLength(3);
+    expect(supabase.setsUpserted[0]).toMatchObject({
+      set_number: 1,
+      pair1_games: 6,
+      pair2_games: 4,
+      set_score: '6-4',
+      score_source: 'api',
+      is_current: false,
+    });
+    expect(supabase.setsUpserted[1]).toMatchObject({
+      set_number: 2,
+      pair1_games: 4,
+      pair2_games: 6,
+      set_score: '4-6',
+    });
+    expect(supabase.setsUpserted[2]).toMatchObject({
+      set_number: 3,
+      pair1_games: 6,
+      pair2_games: 2,
+      set_score: '6-2',
+    });
+  });
+
+  it('parses tiebreak notation: "7-6(3)" sets pair1=7, pair2=6, set_score="7-6" (tiebreak digit not on sets table)', async () => {
+    // Also exercises the reverse-side notation "6(5)-7" in set 2: loser (pair1)
+    // took 5 points in the tiebreak but the stored set_score is still "6-7".
+    const results: ResultsSnapshotSeed[] = [
+      {
+        id: 'res-tb',
+        tournament_id: TOUR,
+        category: 'men',
+        day_number: 4,
+        round_label: 'SF',
+        court: 'Court 1',
+        match_widget_id: 'M007',
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        set_scores: '7-6(3) 6(5)-7 6-2',
+        winner_team: 1,
+        status: 'finished',
+        captured_at: T,
+      },
+    ];
+
+    const supabase = fakeSupabase(
+      entryListRoster,
+      rosterPlayers,
+      [],
+      [],
+      [],
+      [],
+      results,
+      widgets,
+    );
+    const result = await runStaticReconciler({ supabase: supabase as any });
+
+    expect(result.setsWritten).toBe(3);
+    expect(supabase.setsUpserted[0]).toMatchObject({
+      set_number: 1,
+      pair1_games: 7,
+      pair2_games: 6,
+      set_score: '7-6',
+    });
+    expect(supabase.setsUpserted[1]).toMatchObject({
+      set_number: 2,
+      pair1_games: 6,
+      pair2_games: 7,
+      set_score: '6-7',
+    });
+
+    // Schema note: `sets` has no tiebreak column. Per-game tiebreak detail is
+    // Task 12's job (games table). Set-level rows carry the clean "7-6"
+    // score only — verified by the matchers above (no tiebreak key present).
+    expect(supabase.setsUpserted[0]).not.toHaveProperty('tiebreak_loser_points');
   });
 });

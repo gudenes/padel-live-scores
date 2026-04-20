@@ -20,6 +20,11 @@ export interface StaticReconcilerResult {
   drawMatchesWritten: number;
   drawTeamsWritten: number;
   drawsUnresolved: number;
+  oopMatchesUpdated: number;
+  oopUnresolved: number;
+  resultsMatchesUpdated: number;
+  setsWritten: number;
+  resultsUnresolved: number;
 }
 
 const SNAPSHOT_LOOKBACK_DAYS = 14;
@@ -83,13 +88,20 @@ export async function runStaticReconciler(
 
   const entryListResult = await reconcileEntryLists(deps, cutoff);
   const drawResult = await reconcileDraws(deps, cutoff);
+  const oopResult = await reconcileOOP(deps, cutoff);
+  const resultsResult = await reconcileResults(deps, cutoff);
 
   deps.logger?.info(
-    { ...entryListResult, ...drawResult },
+    { ...entryListResult, ...drawResult, ...oopResult, ...resultsResult },
     'static-reconciler run complete'
   );
 
-  return { ...entryListResult, ...drawResult };
+  return {
+    ...entryListResult,
+    ...drawResult,
+    ...oopResult,
+    ...resultsResult,
+  };
 }
 
 /**
@@ -612,4 +624,559 @@ async function reconcileDraws(
   );
 
   return { drawMatchesWritten, drawTeamsWritten, drawsUnresolved };
+}
+
+// ─── Shared helpers for OOP + results phases ─────────────────────────────────
+
+/**
+ * Build an in-memory player dictionary for (tournament_id, category) using the
+ * latest entry-list snapshot batch. Shared by the draw, OOP, and results
+ * phases. Returns an empty dictionary if the entry list hasn't been captured
+ * yet — callers must decide how to handle that (OOP/results currently skip
+ * rows that can't be resolved, same as the draw phase).
+ */
+async function buildDictForTournamentCategory(
+  supabase: SupabaseClient,
+  tournamentId: string,
+  category: 'men' | 'women',
+  cutoff: string
+): Promise<ReturnType<typeof buildTournamentDictionary>> {
+  const { data: elRows, error: elErr } = await supabase
+    .schema('padelgod')
+    .from('entry_list_snapshots')
+    .select(
+      'tournament_id, category, fip_id, name, country, partner_fip_id, partner_name, captured_at'
+    )
+    .eq('tournament_id', tournamentId)
+    .eq('category', category)
+    .gte('captured_at', cutoff);
+
+  if (elErr) {
+    throw new Error(
+      `entry_list_snapshots read failed for dict build (tournament=${tournamentId}, category=${category}): ${elErr.message}`
+    );
+  }
+
+  const rows = (elRows ?? []) as EntryListDictRow[];
+  if (rows.length === 0) return buildTournamentDictionary([]);
+
+  let maxAt = '';
+  for (const r of rows) {
+    if (r.captured_at > maxAt) maxAt = r.captured_at;
+  }
+  const latest = rows.filter((r) => r.captured_at === maxAt);
+
+  const dictPlayers: DictionaryPlayer[] = [];
+  const seenFipIds = new Set<string>();
+  for (const r of latest) {
+    if (!r.fip_id || !r.name) continue;
+    if (seenFipIds.has(r.fip_id)) continue;
+    seenFipIds.add(r.fip_id);
+    dictPlayers.push({
+      fipId: r.fip_id,
+      name: r.name,
+      country: r.country,
+      partnerFipId: r.partner_fip_id ?? null,
+      partnerName: r.partner_name ?? null,
+    });
+  }
+
+  return buildTournamentDictionary(dictPlayers);
+}
+
+/**
+ * Parse a Crionet-style set score string into structured per-set objects.
+ *
+ * Examples:
+ *   "6-4 4-6 6-2"        → three straight sets, no tiebreak
+ *   "7-6(3) 4-6 6-2"     → set 1 tiebreak, loser (pair2) took 3 points
+ *   "6(5)-7 6-4 6-3"     → set 1 tiebreak, loser (pair1) took 5 points
+ *
+ * For `set_score` we always return the clean "7-6" format (without the
+ * tiebreak digit) to match the main app convention — per-game tiebreak
+ * details belong in the `games` table which is out of scope for V1.
+ */
+export interface ParsedSet {
+  set_number: number;
+  pair1_games: number;
+  pair2_games: number;
+  set_score: string;
+  tiebreak_loser_points: number | null;
+}
+
+export function parseSetScores(text: string): ParsedSet[] {
+  const out: ParsedSet[] = [];
+  if (!text) return out;
+  const tokens = text
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  // Token shape: "G[(T)]-G[(T)]" — e.g. "6-4", "7-6(3)", "6(5)-7"
+  const RE = /^(\d+)(?:\((\d+)\))?-(\d+)(?:\((\d+)\))?$/;
+
+  tokens.forEach((tok, i) => {
+    const m = RE.exec(tok);
+    if (!m) return;
+    const pair1 = Number(m[1]);
+    const tb1 = m[2] != null ? Number(m[2]) : null;
+    const pair2 = Number(m[3]);
+    const tb2 = m[4] != null ? Number(m[4]) : null;
+    if (!Number.isFinite(pair1) || !Number.isFinite(pair2)) return;
+
+    // Only one side may carry the tiebreak digit — whichever side is the
+    // LOSER of the tiebreak. If both are present (malformed), prefer the
+    // loser-side digit.
+    let tbLoser: number | null = null;
+    if (pair1 > pair2 && tb2 != null) tbLoser = tb2;
+    else if (pair2 > pair1 && tb1 != null) tbLoser = tb1;
+    else if (tb1 != null) tbLoser = tb1;
+    else if (tb2 != null) tbLoser = tb2;
+
+    out.push({
+      set_number: i + 1,
+      pair1_games: pair1,
+      pair2_games: pair2,
+      set_score: `${pair1}-${pair2}`,
+      tiebreak_loser_points: tbLoser,
+    });
+  });
+
+  return out;
+}
+
+/**
+ * Resolve the four widget short names on an OOP/results snapshot row against
+ * the dictionary, then canonicalize fip_ids → UUIDs via the batch map. Returns
+ * null if any of the four names is missing or doesn't resolve.
+ */
+interface ResolvedPair {
+  p1p1: string;
+  p1p2: string;
+  p2p1: string;
+  p2p2: string;
+}
+
+function resolveFourNames(
+  dict: ReturnType<typeof buildTournamentDictionary>,
+  fipIdToPlayerId: Map<string, string>,
+  names: {
+    t1p1: string | null;
+    t1p2: string | null;
+    t2p1: string | null;
+    t2p2: string | null;
+  }
+): ResolvedPair | null {
+  if (!names.t1p1 || !names.t1p2 || !names.t2p1 || !names.t2p2) return null;
+  const r1 = resolveShortName(dict, names.t1p1, names.t1p2);
+  const r2 = resolveShortName(dict, names.t1p2, names.t1p1);
+  const r3 = resolveShortName(dict, names.t2p1, names.t2p2);
+  const r4 = resolveShortName(dict, names.t2p2, names.t2p1);
+  if (!r1.fipId || !r2.fipId || !r3.fipId || !r4.fipId) return null;
+
+  const u1 = fipIdToPlayerId.get(r1.fipId);
+  const u2 = fipIdToPlayerId.get(r2.fipId);
+  const u3 = fipIdToPlayerId.get(r3.fipId);
+  const u4 = fipIdToPlayerId.get(r4.fipId);
+  if (!u1 || !u2 || !u3 || !u4) return null;
+  return { p1p1: u1, p1p2: u2, p2p1: u3, p2p2: u4 };
+}
+
+/**
+ * Batch-fetch the fip_id → players.id map for every fip_id present in the
+ * supplied dictionaries.
+ */
+async function buildFipIdToPlayerIdMap(
+  supabase: SupabaseClient,
+  dictionaries: Iterable<ReturnType<typeof buildTournamentDictionary>>
+): Promise<Map<string, string>> {
+  const allFipIds = new Set<string>();
+  for (const dict of dictionaries) {
+    for (const fipId of dict.players.keys()) allFipIds.add(fipId);
+  }
+  const fipIdToPlayerId = new Map<string, string>();
+  if (allFipIds.size === 0) return fipIdToPlayerId;
+
+  const { data: playerRows, error: plErr } = await supabase
+    .from('players')
+    .select('id, fip_id')
+    .in('fip_id', Array.from(allFipIds));
+  if (plErr) {
+    throw new Error(
+      `players read for fip_id → UUID map failed: ${plErr.message}`
+    );
+  }
+  for (const row of (playerRows ?? []) as { id: string; fip_id: string }[]) {
+    if (row.fip_id && row.id) fipIdToPlayerId.set(row.fip_id, row.id);
+  }
+  return fipIdToPlayerId;
+}
+
+/**
+ * Fetch the active `widget_id_cache.widget_id` for a tournament, or null if
+ * widget-code-lookup hasn't resolved it yet. OOP + results phases skip
+ * tournaments where this is null — reconciliation will pick up on the next
+ * tick once the code is cached.
+ */
+async function getActiveWidgetId(
+  supabase: SupabaseClient,
+  tournamentId: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .schema('padelgod')
+    .from('widget_id_cache')
+    .select('widget_id')
+    .eq('tournament_id', tournamentId)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (error) {
+    throw new Error(
+      `widget_id_cache read failed (tournament=${tournamentId}): ${error.message}`
+    );
+  }
+  return (data as { widget_id?: string } | null)?.widget_id ?? null;
+}
+
+// ─── OOP phase ───────────────────────────────────────────────────────────────
+
+interface OopSnapshotRow {
+  id: string;
+  tournament_id: string;
+  category: 'men' | 'women';
+  day_number: number;
+  round_label: string | null;
+  court: string;
+  scheduled_label: string | null;
+  team1_player1_name: string | null;
+  team1_player2_name: string | null;
+  team2_player1_name: string | null;
+  team2_player2_name: string | null;
+  match_widget_id: string | null;
+  status: 'scheduled' | 'live' | 'finished' | 'walkover' | 'retired';
+  captured_at: string;
+}
+
+/**
+ * Phase 3: OOP → matches.
+ *
+ * For each recent `oop_snapshots` row, resolve its four widget short names
+ * against the latest entry-list dictionary and locate-or-create the match via
+ * the REAL tournament widget id from `padelgod.widget_id_cache`. Then UPDATE
+ * the match's `court` and `round`.
+ *
+ * **scheduled_at is intentionally not written in V1.** Widget time labels
+ * ("Starting at 10:00 AM", "Followed by", etc.) need tournament-timezone
+ * handling that this worker doesn't have — the main app's OOP review workflow
+ * (human-in-the-loop) owns scheduled_at writes. We only emit the structural
+ * fields (court + round) that don't depend on timezone.
+ */
+async function reconcileOOP(
+  deps: StaticReconcilerDeps,
+  cutoff: string
+): Promise<{ oopMatchesUpdated: number; oopUnresolved: number }> {
+  const { supabase, logger } = deps;
+
+  const { data: oopRows, error: oopErr } = await supabase
+    .schema('padelgod')
+    .from('oop_snapshots')
+    .select(
+      'id, tournament_id, category, day_number, round_label, court, scheduled_label, ' +
+        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
+        'match_widget_id, status, captured_at'
+    )
+    .gte('captured_at', cutoff);
+
+  if (oopErr) {
+    throw new Error(`oop_snapshots read failed: ${oopErr.message}`);
+  }
+
+  const rows = ((oopRows ?? []) as unknown as OopSnapshotRow[]).filter(
+    (r) => r.match_widget_id != null
+  );
+  if (rows.length === 0) {
+    return { oopMatchesUpdated: 0, oopUnresolved: 0 };
+  }
+
+  // Keep only the latest snapshot per (tournament_id, match_widget_id).
+  const latest = new Map<string, OopSnapshotRow>();
+  for (const r of rows) {
+    const key = `${r.tournament_id}::${r.match_widget_id}`;
+    const prev = latest.get(key);
+    if (!prev || r.captured_at > prev.captured_at) latest.set(key, r);
+  }
+  const latestRows = Array.from(latest.values());
+
+  // Build dicts + widget ids per (tournament_id, category) pair.
+  const tourCatPairs = new Set<string>();
+  for (const r of latestRows) {
+    tourCatPairs.add(`${r.tournament_id}::${r.category}`);
+  }
+  const dictionaries = new Map<
+    string,
+    ReturnType<typeof buildTournamentDictionary>
+  >();
+  const widgetIdByTournament = new Map<string, string | null>();
+  for (const key of tourCatPairs) {
+    const [tid, cat] = key.split('::') as [string, 'men' | 'women'];
+    if (!dictionaries.has(key)) {
+      dictionaries.set(key, await buildDictForTournamentCategory(supabase, tid, cat, cutoff));
+    }
+    if (!widgetIdByTournament.has(tid)) {
+      widgetIdByTournament.set(tid, await getActiveWidgetId(supabase, tid));
+    }
+  }
+
+  const fipIdToPlayerId = await buildFipIdToPlayerIdMap(
+    supabase,
+    dictionaries.values()
+  );
+
+  let oopMatchesUpdated = 0;
+  let oopUnresolved = 0;
+
+  for (const r of latestRows) {
+    const tournamentWidgetId = widgetIdByTournament.get(r.tournament_id);
+    if (!tournamentWidgetId) {
+      // Widget-code-lookup hasn't resolved yet — skip for now; next tick retries.
+      oopUnresolved += 1;
+      continue;
+    }
+
+    const dict = dictionaries.get(`${r.tournament_id}::${r.category}`);
+    if (!dict) {
+      oopUnresolved += 1;
+      continue;
+    }
+
+    const resolved = resolveFourNames(dict, fipIdToPlayerId, {
+      t1p1: r.team1_player1_name,
+      t1p2: r.team1_player2_name,
+      t2p1: r.team2_player1_name,
+      t2p2: r.team2_player2_name,
+    });
+    if (!resolved) {
+      oopUnresolved += 1;
+      continue;
+    }
+
+    const { matchId } = await findOrCreateMatch(supabase, {
+      tournamentId: r.tournament_id,
+      tournamentWidgetId,
+      matchWidgetId: r.match_widget_id!,
+      category: r.category,
+      roundLabel: r.round_label ?? '',
+      court: r.court,
+      pair1PlayerIds: [resolved.p1p1, resolved.p1p2],
+      pair2PlayerIds: [resolved.p2p1, resolved.p2p2],
+    });
+
+    const update: Record<string, unknown> = {
+      court: r.court,
+      last_updated_by: 'padelgod',
+      updated_at: new Date().toISOString(),
+    };
+    if (r.round_label != null) update.round = r.round_label;
+    // scheduled_at intentionally NOT written — see phase docblock.
+
+    const { error: updErr } = await supabase
+      .from('matches')
+      .update(update)
+      .eq('id', matchId);
+    if (updErr) {
+      throw new Error(
+        `matches update failed (id=${matchId}, oop widget=${r.match_widget_id}): ${updErr.message}`
+      );
+    }
+    oopMatchesUpdated += 1;
+  }
+
+  logger?.info(
+    { oopMatchesUpdated, oopUnresolved },
+    'static-reconciler OOP phase complete'
+  );
+  return { oopMatchesUpdated, oopUnresolved };
+}
+
+// ─── Results phase ───────────────────────────────────────────────────────────
+
+interface ResultsSnapshotRow {
+  id: string;
+  tournament_id: string;
+  category: 'men' | 'women';
+  day_number: number;
+  round_label: string | null;
+  court: string | null;
+  match_widget_id: string | null;
+  team1_player1_name: string | null;
+  team1_player2_name: string | null;
+  team2_player1_name: string | null;
+  team2_player2_name: string | null;
+  set_scores: string;
+  winner_team: 1 | 2;
+  status: 'finished' | 'walkover' | 'retired';
+  captured_at: string;
+}
+
+/**
+ * Phase 4: results → matches + sets.
+ *
+ * For each recent `results_snapshots` row, resolve its four widget short
+ * names, locate-or-create the match via the real tournament widget id, UPDATE
+ * status/winner_pair, then UPSERT the parsed per-set rows into `public.sets`
+ * with `score_source='api'` (results are the authoritative final state).
+ */
+async function reconcileResults(
+  deps: StaticReconcilerDeps,
+  cutoff: string
+): Promise<{
+  resultsMatchesUpdated: number;
+  setsWritten: number;
+  resultsUnresolved: number;
+}> {
+  const { supabase, logger } = deps;
+
+  const { data: resultsRows, error: resErr } = await supabase
+    .schema('padelgod')
+    .from('results_snapshots')
+    .select(
+      'id, tournament_id, category, day_number, round_label, court, match_widget_id, ' +
+        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
+        'set_scores, winner_team, status, captured_at'
+    )
+    .gte('captured_at', cutoff);
+
+  if (resErr) {
+    throw new Error(`results_snapshots read failed: ${resErr.message}`);
+  }
+
+  const rows = ((resultsRows ?? []) as unknown as ResultsSnapshotRow[]).filter(
+    (r) => r.match_widget_id != null
+  );
+  if (rows.length === 0) {
+    return { resultsMatchesUpdated: 0, setsWritten: 0, resultsUnresolved: 0 };
+  }
+
+  // Keep only the latest snapshot per (tournament_id, match_widget_id).
+  const latest = new Map<string, ResultsSnapshotRow>();
+  for (const r of rows) {
+    const key = `${r.tournament_id}::${r.match_widget_id}`;
+    const prev = latest.get(key);
+    if (!prev || r.captured_at > prev.captured_at) latest.set(key, r);
+  }
+  const latestRows = Array.from(latest.values());
+
+  const tourCatPairs = new Set<string>();
+  for (const r of latestRows) {
+    tourCatPairs.add(`${r.tournament_id}::${r.category}`);
+  }
+  const dictionaries = new Map<
+    string,
+    ReturnType<typeof buildTournamentDictionary>
+  >();
+  const widgetIdByTournament = new Map<string, string | null>();
+  for (const key of tourCatPairs) {
+    const [tid, cat] = key.split('::') as [string, 'men' | 'women'];
+    if (!dictionaries.has(key)) {
+      dictionaries.set(key, await buildDictForTournamentCategory(supabase, tid, cat, cutoff));
+    }
+    if (!widgetIdByTournament.has(tid)) {
+      widgetIdByTournament.set(tid, await getActiveWidgetId(supabase, tid));
+    }
+  }
+
+  const fipIdToPlayerId = await buildFipIdToPlayerIdMap(
+    supabase,
+    dictionaries.values()
+  );
+
+  let resultsMatchesUpdated = 0;
+  let setsWritten = 0;
+  let resultsUnresolved = 0;
+
+  for (const r of latestRows) {
+    const tournamentWidgetId = widgetIdByTournament.get(r.tournament_id);
+    if (!tournamentWidgetId) {
+      resultsUnresolved += 1;
+      continue;
+    }
+
+    const dict = dictionaries.get(`${r.tournament_id}::${r.category}`);
+    if (!dict) {
+      resultsUnresolved += 1;
+      continue;
+    }
+
+    const resolved = resolveFourNames(dict, fipIdToPlayerId, {
+      t1p1: r.team1_player1_name,
+      t1p2: r.team1_player2_name,
+      t2p1: r.team2_player1_name,
+      t2p2: r.team2_player2_name,
+    });
+    if (!resolved) {
+      resultsUnresolved += 1;
+      continue;
+    }
+
+    const { matchId } = await findOrCreateMatch(supabase, {
+      tournamentId: r.tournament_id,
+      tournamentWidgetId,
+      matchWidgetId: r.match_widget_id!,
+      category: r.category,
+      roundLabel: r.round_label ?? '',
+      court: r.court ?? null,
+      pair1PlayerIds: [resolved.p1p1, resolved.p1p2],
+      pair2PlayerIds: [resolved.p2p1, resolved.p2p2],
+    });
+
+    const nowIso = new Date().toISOString();
+    const matchUpdate: Record<string, unknown> = {
+      status: r.status,
+      winner_pair: r.winner_team,
+      last_updated_by: 'padelgod',
+      updated_at: nowIso,
+    };
+    if (r.round_label != null) matchUpdate.round = r.round_label;
+    if (r.court != null) matchUpdate.court = r.court;
+
+    const { error: mUpdErr } = await supabase
+      .from('matches')
+      .update(matchUpdate)
+      .eq('id', matchId);
+    if (mUpdErr) {
+      throw new Error(
+        `matches update failed (id=${matchId}, results widget=${r.match_widget_id}): ${mUpdErr.message}`
+      );
+    }
+    resultsMatchesUpdated += 1;
+
+    const parsedSets = parseSetScores(r.set_scores);
+    for (const s of parsedSets) {
+      const row = {
+        match_id: matchId,
+        set_number: s.set_number,
+        set_score: s.set_score,
+        pair1_games: s.pair1_games,
+        pair2_games: s.pair2_games,
+        is_current: false,
+        score_source: 'api',
+        updated_at: nowIso,
+      };
+      const { error: sUpErr } = await supabase
+        .from('sets')
+        .upsert(row, { onConflict: 'match_id,set_number' });
+      if (sUpErr) {
+        throw new Error(
+          `sets upsert failed (match=${matchId}, set=${s.set_number}): ${sUpErr.message}`
+        );
+      }
+      setsWritten += 1;
+    }
+  }
+
+  logger?.info(
+    { resultsMatchesUpdated, setsWritten, resultsUnresolved },
+    'static-reconciler results phase complete'
+  );
+
+  return { resultsMatchesUpdated, setsWritten, resultsUnresolved };
 }
