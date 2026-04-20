@@ -19,6 +19,8 @@ const EnvSchema = z.object({
   ENABLE_STATIC_RECONCILER: z.coerce.boolean().default(true),
   ENABLE_MATCH_STATS_FETCHER: z.coerce.boolean().default(true),
   ENABLE_LIVE_POLLER_MANAGER: z.coerce.boolean().default(true),
+  ENABLE_SHADOW_DIFF_FINALIZER: z.coerce.boolean().default(true),
+  ENABLE_SHADOW_DIFF_LIVE: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -13,10 +13,12 @@ const ALL_ENABLED = {
   enableStaticReconciler: true,
   enableMatchStatsFetcher: true,
   enableLivePollerManager: true,
+  enableShadowDiffFinalizer: true,
+  enableShadowDiffLive: true,
 };
 
 describe('buildSchedule', () => {
-  it('includes all 11 workers when fully enabled', () => {
+  it('includes all 13 workers when fully enabled', () => {
     const sched = buildSchedule(ALL_ENABLED);
     const names = sched.map((s) => s.name);
     expect(names).toContain('tournament-discovery');
@@ -30,6 +32,33 @@ describe('buildSchedule', () => {
     expect(names).toContain('static-reconciler');
     expect(names).toContain('match-stats-fetcher');
     expect(names).toContain('live-poller-manager');
+    expect(names).toContain('shadow-diff-finalizer');
+    expect(names).toContain('shadow-diff-live');
+  });
+
+  it('schedules shadow-diff-finalizer twice hourly at :10 and :40', () => {
+    const sched = buildSchedule(ALL_ENABLED);
+    const entry = sched.find((s) => s.name === 'shadow-diff-finalizer');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('10,40 * * * *');
+  });
+
+  it('schedules shadow-diff-live every minute', () => {
+    const sched = buildSchedule(ALL_ENABLED);
+    const entry = sched.find((s) => s.name === 'shadow-diff-live');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('*/1 * * * *');
+  });
+
+  it('respects enableShadowDiff flags false', () => {
+    const sched = buildSchedule({
+      ...ALL_ENABLED,
+      enableShadowDiffFinalizer: false,
+      enableShadowDiffLive: false,
+    });
+    const names = sched.map((s) => s.name);
+    expect(names).not.toContain('shadow-diff-finalizer');
+    expect(names).not.toContain('shadow-diff-live');
   });
 
   it('schedules match-stats-fetcher at :25', () => {
