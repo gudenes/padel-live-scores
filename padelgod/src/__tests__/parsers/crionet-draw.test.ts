@@ -165,4 +165,81 @@ describe('parseCrionetDraw', () => {
     const html = '<div class="message">Draw not available</div>';
     expect(parseCrionetDraw(html, 'women', 'qualifying')).toEqual([]);
   });
+
+  it('parses tiebreak set scores — <sup>N</sup> in loser cell appends (N) to set string', () => {
+    // Real Crionet format: the tiebreak loser's cell contains the games count + <sup>tbPoints</sup>
+    // e.g. team2 loses tiebreak with 1 point: <td class="set set-completed set-lost">6<sup>1</sup></td>
+    // team1 wins with 7: <td class="set set-completed ">7</td>
+    // Expected set string: "7-6(1)"
+    const html = `
+<table class="w-100">
+  <tr class="scorebox-header-completed">
+    <th colspan="1"><span class="court-name"><span>Court A</span></span></th>
+    <th colspan="4" class="round-name text-right"><small class="">Quarterfinal</small></th>
+  </tr>
+  <tr class="draw-item-container">
+    <td class="team">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div>
+          <div class="player-names"><div class="double">
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ESP.jpg" /></div>
+              <div class="ml-2 winner line-thin"><span>A.</span><span>Lopez</span></div>
+            </div>
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/ESP.jpg" /></div>
+              <div class="ml-2 winner line-thin"><span>B.</span><span>Torres</span></div>
+            </div>
+          </div></div>
+        </div>
+        <div class="mr-2"><i class='fa-solid fa-check check-primary'></i></div>
+      </div>
+    </td>
+    <td></td>
+    <td class="set set-completed ">7</td>
+    <td class="set set-completed set-lost">4</td>
+    <td class="set set-completed ">6</td>
+  </tr>
+  <tr class="draw-item-container">
+    <td class="team">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div>
+          <div class="player-names"><div class="double">
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/BEL.jpg" /></div>
+              <div class="ml-2  line-thin"><span>C.</span><span>Martin</span></div>
+            </div>
+            <div class="d-flex align-items-center">
+              <div><img class="flags" src="/images/flags/BEL.jpg" /></div>
+              <div class="ml-2  line-thin"><span>D.</span><span>Smith</span></div>
+            </div>
+          </div></div>
+        </div>
+        <div class="mr-2"></div>
+      </div>
+    </td>
+    <td></td>
+    <td class="set set-completed set-lost">6<sup>3</sup></td>
+    <td class="set set-completed ">6</td>
+    <td class="set set-completed set-lost">7<sup>5</sup></td>
+  </tr>
+</table>
+`;
+    const result = parseCrionetDraw(html, 'men', 'main_draw');
+    expect(result).toHaveLength(1);
+    // Set 1: team1=7, team2=6<sup>3</sup> → team1 wins TB → "7-6(3)"
+    // Set 2: team1=4(lost), team2=6 → no tiebreak → "4-6"
+    // Set 3: team1=6, team2=7<sup>5</sup> → team2 wins TB → "6-7(5)"
+    expect(result[0].setScores).toBe('7-6(3) 4-6 6-7(5)');
+    // No tiebreak suffix on set 2
+    expect(result[0].setScores).not.toContain('4-6(');
+    expect(result[0].winnerTeam).toBe(1);
+  });
+
+  it('does not append tiebreak suffix to regular sets (no <sup>)', () => {
+    const result = parseCrionetDraw(COMPLETED_MATCH_HTML, 'men', 'main_draw');
+    // Original fixture: 3-6 4-6 — no tiebreaks
+    expect(result[0].setScores).toBe('3-6 4-6');
+    expect(result[0].setScores).not.toContain('(');
+  });
 });

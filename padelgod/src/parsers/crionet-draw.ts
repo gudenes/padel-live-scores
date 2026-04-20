@@ -120,6 +120,23 @@ function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
   };
 }
 
+/**
+ * Parse a single set <td> cell.
+ *
+ * Normal set: <td class="set ...">6</td>          → { games: '6', tb: null }
+ * Tiebreak:   <td class="set ...">6<sup>3</sup></td> → { games: '6', tb: 3 }
+ *
+ * The <sup> is always in the LOSER's cell and holds the loser's tiebreak points.
+ */
+function parseSetCell($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): { games: string; tb: number | null } {
+  const sup = td.find('sup').first();
+  const tb = sup.length > 0 ? parseInt(sup.text().trim(), 10) : null;
+  // Remove <sup> before reading game count so it doesn't pollute the text
+  sup.remove();
+  const games = td.text().trim();
+  return { games, tb: isNaN(tb as number) ? null : tb };
+}
+
 export function parseCrionetDraw(
   html: string,
   category: Category,
@@ -145,14 +162,17 @@ export function parseCrionetDraw(
     const team1 = parseTeam($, team1Row.find(TEAM_SELECTOR).first());
     const team2 = parseTeam($, team2Row.find(TEAM_SELECTOR).first());
 
-    const team1Sets = team1Row.find(SET_SELECTOR).map((_, el) => $(el).text().trim()).get();
-    const team2Sets = team2Row.find(SET_SELECTOR).map((_, el) => $(el).text().trim()).get();
+    // Parse set cells: extract game count text + optional tiebreak from <sup>
+    const team1SetCells = team1Row.find(SET_SELECTOR).map((_, el) => parseSetCell($, $(el))).get();
+    const team2SetCells = team2Row.find(SET_SELECTOR).map((_, el) => parseSetCell($, $(el))).get();
     const sets: string[] = [];
-    for (let i = 0; i < Math.max(team1Sets.length, team2Sets.length); i++) {
-      const a = team1Sets[i] ?? '-';
-      const b = team2Sets[i] ?? '-';
-      if (a === '-' && b === '-') continue;
-      sets.push(`${a}-${b}`);
+    for (let i = 0; i < Math.max(team1SetCells.length, team2SetCells.length); i++) {
+      const a = team1SetCells[i] ?? { games: '-', tb: null };
+      const b = team2SetCells[i] ?? { games: '-', tb: null };
+      if (a.games === '-' && b.games === '-') continue;
+      // Tiebreak: <sup>N</sup> appears in the LOSER's cell; append (N) to the set string
+      const tbSuffix = a.tb !== null ? `(${a.tb})` : b.tb !== null ? `(${b.tb})` : '';
+      sets.push(`${a.games}-${b.games}${tbSuffix}`);
     }
     const setScores = sets.length > 0 ? sets.join(' ') : null;
 
