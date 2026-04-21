@@ -135,6 +135,17 @@ function V3MatchRow({ match }: { match: Match }) {
   const category = (match as any).category as string | null
   const genderColor = category === 'women' ? WOMEN_PURPLE : category === 'men' ? MEN_BLUE : MUTED
 
+  // Serving indicator — populated from games.server_player_id (hack: the
+  // parser only knows which PAIR is serving, not which player; padelgod +
+  // the canonical applyDiff both map team→pair.player1 as a stand-in).
+  const serverId = isLive ? (currentGame as any)?.server_player_id ?? null : null
+  const pair1IsServing = !!serverId && (
+    serverId === match.pair1_player1?.id || serverId === match.pair1_player2?.id
+  )
+  const pair2IsServing = !!serverId && (
+    serverId === match.pair2_player1?.id || serverId === match.pair2_player2?.id
+  )
+
   const pair1Name = pairName(match.pair1_player1, match.pair1_player2)
   const pair2Name = pairName(match.pair2_player1, match.pair2_player2)
 
@@ -318,6 +329,7 @@ function V3MatchRow({ match }: { match: Match }) {
           const isLoser = match.winner_pair && match.winner_pair !== pairNum
           const isRolling = flashPair === pairNum
           const pts = pairNum === 1 ? p1GamePts : p2GamePts
+          const isServing = pairNum === 1 ? pair1IsServing : pair2IsServing
           return (
             <div key={pairNum} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -364,6 +376,15 @@ function V3MatchRow({ match }: { match: Match }) {
                 }}>
                   {pair}
                 </span>
+                {isServing && (
+                  <span
+                    aria-label="serving"
+                    title="Serving"
+                    style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}
+                  >
+                    🎾
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, position: 'relative', zIndex: 2 }}>
                 {sets.map(s => {

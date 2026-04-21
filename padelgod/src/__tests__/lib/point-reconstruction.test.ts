@@ -1098,12 +1098,46 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
       game_score: '30-30',
       is_current: true,
       is_tiebreak: false,
+      // Server — approximates to "player 1" of the serving pair. The state
+      // builder defaults servingTeam=1, so we expect pair1Player1Id here.
+      server_player_id: RESOLVED.pair1Player1Id,
     });
-    // points[] should contain the single current game_score so UI's
-    // points[-1] lookup returns a value.
-    expect(s.gamesUpsertCalls[0]!.points).toEqual(['30-30']);
+    // points[] contains the current game_score normalized to the UI's
+    // colon-separated format (matches what padelapi/relay writes).
+    expect(s.gamesUpsertCalls[0]!.points).toEqual(['30:30']);
     // set_id is populated (references the current set we upserted).
     expect(typeof s.gamesUpsertCalls[0]!.set_id).toBe('string');
+  });
+
+  it('populates server_player_id from curr.servingTeam + resolvedPlayers', async () => {
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 30 }, { servingTeam: 2 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 30 }, { servingTeam: 2 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    expect(s.gamesUpsertCalls).toHaveLength(1);
+    // servingTeam=2 → pair2Player1Id.
+    expect(s.gamesUpsertCalls[0]!.server_player_id).toBe(RESOLVED.pair2Player1Id);
+  });
+
+  it('leaves server_player_id null when servingTeam cannot be determined', async () => {
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 30 }, { servingTeam: null });
+    const curr = state({ kind: 'regular', team1: 30, team2: 30 }, { servingTeam: null });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    expect(s.gamesUpsertCalls).toHaveLength(1);
+    expect(s.gamesUpsertCalls[0]!.server_player_id).toBeNull();
   });
 
   it('does not touch public tables when dualWritePublic is omitted (back-compat)', async () => {

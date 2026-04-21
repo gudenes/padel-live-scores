@@ -449,8 +449,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const pair1Label = pairName(match.pair1_player1, match.pair1_player2)
   const pair2Label = pairName(match.pair2_player1, match.pair2_player2)
 
-  const currentPoint = currentGame?.points?.filter(p => p !== '0:0').slice(-1)[0] ?? null
-  const [p1Point, p2Point] = currentPoint ? currentPoint.split(':') : [null, null]
+  // Accept both point-score separators: ':' (padelapi/relay canonical writes)
+  // and '-' (padelgod dual-write via formatPointScore). Also filter the empty
+  // start-of-game placeholder in either format.
+  const currentPoint = currentGame?.points?.filter(p => p !== '0:0' && p !== '0-0').slice(-1)[0] ?? null
+  const [p1Point, p2Point] = currentPoint ? currentPoint.split(/[:\-]/) : [null, null]
   const starPoint = currentGame ? isStarPoint(currentGame.points ?? []) : false
 
   const isScheduled = match.status === 'scheduled'
@@ -458,6 +461,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const isRetired = match.status === 'retired'
   const isWalkover = match.status === 'walkover'
   const isLive = match.status === 'live'
+
+  // Serving indicator — server_player_id is populated for live matches by
+  // the canonical /scores cron and by padelgod's dual-write. Parser only
+  // knows which PAIR is serving; stored as the pair's player1 UUID.
+  const serverId = isLive ? (currentGame as any)?.server_player_id ?? null : null
+  const pair1IsServing = !!serverId && (
+    serverId === match.pair1_player1?.id || serverId === match.pair1_player2?.id
+  )
+  const pair2IsServing = !!serverId && (
+    serverId === match.pair2_player1?.id || serverId === match.pair2_player2?.id
+  )
   const winnerPair = (match as any).winner_pair
   const p1Won = isFinished && winnerPair === 1
   const p2Won = isFinished && winnerPair === 2
@@ -766,7 +780,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <PlayerSquare player={match.pair1_player2} winner={p1Won} router={router} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <PlayerNameLink player={match.pair1_player1} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <PlayerNameLink player={match.pair1_player1} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
+              {pair1IsServing && (
+                <span aria-label="serving" title="Serving" style={{ fontSize: 12, lineHeight: 1 }}>🎾</span>
+              )}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
               <PlayerNameLink player={match.pair1_player2} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
               {isRetired && p2Won && <span style={{ fontSize: 8, fontWeight: 700, color: '#F5A623', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 6px', flexShrink: 0 }}>RET</span>}
@@ -825,7 +844,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <PlayerSquare player={match.pair2_player2} winner={p2Won} router={router} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <PlayerNameLink player={match.pair2_player1} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <PlayerNameLink player={match.pair2_player1} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
+              {pair2IsServing && (
+                <span aria-label="serving" title="Serving" style={{ fontSize: 12, lineHeight: 1 }}>🎾</span>
+              )}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
               <PlayerNameLink player={match.pair2_player2} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
               {isRetired && p1Won && <span style={{ fontSize: 8, fontWeight: 700, color: '#F5A623', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 6px', flexShrink: 0 }}>RET</span>}

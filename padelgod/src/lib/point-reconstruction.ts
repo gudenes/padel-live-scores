@@ -228,6 +228,7 @@ export async function applyDiff(
         matchId,
         curr,
         currentSetNumber,
+        resolvedPlayers,
         logger,
       );
     }
@@ -546,6 +547,7 @@ async function dualWriteShadowToPublic(
   matchId: string,
   curr: LiveMatchState,
   currentSetNumber: number,
+  resolvedPlayers: ResolvedPlayers,
   logger: Logger | undefined,
 ): Promise<void> {
   // 1. Status flip — 'scheduled' → 'live'. Guard via .eq('status','scheduled')
@@ -661,6 +663,16 @@ async function dualWriteShadowToPublic(
     const gameNumber = currentPair1Games + currentPair2Games + 1;
     const gameScore = formatPointScore(curr.pointState);
     const isTiebreak = curr.pointState.kind === 'tiebreak';
+    // Approximate the server as "player 1" of the serving pair — same
+    // hack the canonical applyDiff uses. Null for orphan matches that
+    // haven't had players resolved yet.
+    const serverId = serverPlayerId(curr.servingTeam, resolvedPlayers);
+    // The public UI (match detail, momentum chart) splits point scores on
+    // ':' — that's the canonical relay/padelapi format. padelgod's
+    // formatPointScore returns hyphen-separated strings ("15-0", "40-AD").
+    // Convert to colons here so the contract matches whatever the canonical
+    // pipeline would have written.
+    const publicPoints = [gameScore.replace('-', ':')];
 
     const { error: gameUpsertErr } = await supabase
       .from('games')
@@ -670,9 +682,10 @@ async function dualWriteShadowToPublic(
           match_id: matchId,
           game_number: gameNumber,
           game_score: gameScore,
-          points: [gameScore],
+          points: publicPoints,
           is_current: true,
           is_tiebreak: isTiebreak,
+          server_player_id: serverId,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'set_id,game_number' },
