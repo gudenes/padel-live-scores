@@ -58,7 +58,7 @@ Padelgod (Railway) is now capturing live matches from shadow-enrolled tournament
 ### Single shared API route
 
 ```
-GET /api/ops/padelgod-shadow/live-cards?scope=<live|live+next+recent>&tournament_id=<uuid?>
+GET /api/padelgod-shadow/live-cards?scope=<live|live+next+recent>&tournament_id=<uuid?>
 ```
 
 - `scope=live` → only `matches.status='live'`
@@ -129,7 +129,7 @@ src/components/ShadowMatchCard.tsx            // new — MatchCard-lookalike wit
 src/components/PointLog.tsx                   // new — monospace <pre> list
 src/app/ops/PadelgodShadowTab.tsx             // existing — add "Live cards" section + preview button
 src/app/x/live-preview/page.tsx               // new — hidden preview page (top-level, outside [locale])
-src/app/api/ops/padelgod-shadow/live-cards/route.ts
+src/app/api/padelgod-shadow/live-cards/route.ts
                                               // new — shared API
 ```
 
@@ -172,7 +172,7 @@ src/app/api/ops/padelgod-shadow/live-cards/route.ts
 
 Pragmatic coverage, not exhaustive.
 
-### API route — `src/app/api/ops/padelgod-shadow/live-cards/__tests__/route.test.ts`
+### API route — `src/app/api/padelgod-shadow/live-cards/__tests__/route.test.ts`
 
 - Match with 0 shadow points → `servingTeam=null`, `currentGame` reflects `"0-0"`, empty `points[]`
 - Match with points but `server_team=null` on latest → `servingTeam=null`, other fields populated

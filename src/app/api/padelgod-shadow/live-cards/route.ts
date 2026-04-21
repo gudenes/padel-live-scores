@@ -1,4 +1,7 @@
-// src/app/api/ops/padelgod-shadow/live-cards/route.ts
+// src/app/api/padelgod-shadow/live-cards/route.ts
+// NOTE: intentionally OUTSIDE /api/ops/ so the proxy's ops-cookie gate
+// doesn't swallow the unauth scope=live request path. Auth for the
+// scope=live+next+recent buckets is enforced in-route via checkOpsAuth().
 // GET live match cards for shadow-enabled tournaments.
 //
 // Scopes:

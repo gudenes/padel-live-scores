@@ -4,7 +4,7 @@
 
 **Goal:** Ship a shadow-mode live-match UI with two surfaces — an ops validation view and a hidden, `noindex`ed PadelNachos preview page — both consuming one shared API, both showing a 🎾 server indicator and a plain point-by-point log.
 
-**Architecture:** A single server route (`/api/ops/padelgod-shadow/live-cards`) builds the payload by joining `public.matches` + `padelgod.shadow_sets` + `padelgod.shadow_match_points`. All data-shaping logic lives in pure helpers in `src/lib/padelgod-live-cards.ts` and is unit-tested. Two thin UI surfaces poll this route every 5s: the `PadelgodShadowTab` gets a "Live cards" section + a "Preview live UI" button; a new `/x/live-preview` page sits outside the `[locale]` tree, off the sitemap, and returns `noindex,nofollow`.
+**Architecture:** A single server route (`/api/padelgod-shadow/live-cards`) builds the payload by joining `public.matches` + `padelgod.shadow_sets` + `padelgod.shadow_match_points`. All data-shaping logic lives in pure helpers in `src/lib/padelgod-live-cards.ts` and is unit-tested. Two thin UI surfaces poll this route every 5s: the `PadelgodShadowTab` gets a "Live cards" section + a "Preview live UI" button; a new `/x/live-preview` page sits outside the `[locale]` tree, off the sitemap, and returns `noindex,nofollow`.
 
 **Tech Stack:** Next.js 16, React 19, TypeScript, Tailwind inline styles (matching existing ops tab style), Supabase JS client (service key, server-side), Vitest for pure-function tests.
 
@@ -20,7 +20,7 @@
 NEW:
   src/lib/padelgod-live-cards.ts                         # Types + pure helpers (the heart of the feature)
   src/lib/__tests__/padelgod-live-cards.test.ts          # Vitest tests for the helpers
-  src/app/api/ops/padelgod-shadow/live-cards/route.ts    # Thin route: Supabase → helpers → Response
+  src/app/api/padelgod-shadow/live-cards/route.ts    # Thin route: Supabase → helpers → Response
   src/components/ShadowMatchCard.tsx                     # Presentational, MatchCard-lookalike with 🎾
   src/components/PointLog.tsx                            # Presentational, <pre>-style log
   src/app/x/live-preview/page.tsx                        # Server component wrapper (noindex metadata)
@@ -665,10 +665,10 @@ EOF
 
 ---
 
-## Task 5 — `/api/ops/padelgod-shadow/live-cards` route
+## Task 5 — `/api/padelgod-shadow/live-cards` route
 
 **Files:**
-- Create: `src/app/api/ops/padelgod-shadow/live-cards/route.ts`
+- Create: `src/app/api/padelgod-shadow/live-cards/route.ts`
 
 - [ ] **Step 1: Skim existing sibling route for pattern**
 
@@ -678,10 +678,10 @@ Confirm the imports and the `checkOpsAuth()` + service-key `createClient` shape.
 
 - [ ] **Step 2: Create the route file**
 
-Create `src/app/api/ops/padelgod-shadow/live-cards/route.ts`:
+Create `src/app/api/padelgod-shadow/live-cards/route.ts`:
 
 ```typescript
-// src/app/api/ops/padelgod-shadow/live-cards/route.ts
+// src/app/api/padelgod-shadow/live-cards/route.ts
 // GET live match cards for shadow-enabled tournaments.
 //
 // Scopes:
@@ -851,7 +851,7 @@ Expected: exits 0.
 Start the dev server if it's not running (`npm run dev`), then in a second terminal:
 
 ```bash
-curl -s 'http://localhost:3002/api/ops/padelgod-shadow/live-cards?scope=live' | python3 -m json.tool | head -80
+curl -s 'http://localhost:3002/api/padelgod-shadow/live-cards?scope=live' | python3 -m json.tool | head -80
 ```
 
 Expected: JSON with `observedAt` and a `matches` array. If Brussels has live matches, each card should have `servingTeam` populated (1, 2, or null), `points` (up to 50), and `sets`.
@@ -859,9 +859,9 @@ Expected: JSON with `observedAt` and a `matches` array. If Brussels has live mat
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/api/ops/padelgod-shadow/live-cards/route.ts
+git add src/app/api/padelgod-shadow/live-cards/route.ts
 git commit -m "$(cat <<'EOF'
-feat(shadow-ui): add GET /api/ops/padelgod-shadow/live-cards
+feat(shadow-ui): add GET /api/padelgod-shadow/live-cards
 
 Thin route that joins public.matches + padelgod.shadow_sets +
 padelgod.shadow_match_points for shadow-enabled tournaments and returns
@@ -1238,7 +1238,7 @@ Create `src/app/x/live-preview/ShadowLivePreview.tsx`:
 
 ```typescript
 // src/app/x/live-preview/ShadowLivePreview.tsx
-// Client component: polls /api/ops/padelgod-shadow/live-cards every 5s and
+// Client component: polls /api/padelgod-shadow/live-cards every 5s and
 // renders a ShadowMatchCard per match with a collapsible PointLog.
 
 'use client'
@@ -1260,7 +1260,7 @@ export default function ShadowLivePreview() {
 
     async function tick() {
       try {
-        const res = await fetch('/api/ops/padelgod-shadow/live-cards?scope=live', {
+        const res = await fetch('/api/padelgod-shadow/live-cards?scope=live', {
           cache: 'no-store',
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -1389,7 +1389,7 @@ git commit -m "$(cat <<'EOF'
 feat(shadow-ui): add hidden /x/live-preview page
 
 Non-indexed, non-linked preview of padelgod's live captures using the
-real MatchCard-style UI. Polls /api/ops/padelgod-shadow/live-cards
+real MatchCard-style UI. Polls /api/padelgod-shadow/live-cards
 every 5s; pauses when the tab is hidden.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
@@ -1429,7 +1429,7 @@ Within the existing `PadelgodShadowTab` component function, beside the existing 
     let cancelled = false
     async function tick() {
       const res = await fetchJson<LiveCardsResponse>(
-        '/api/ops/padelgod-shadow/live-cards?scope=live+next+recent'
+        '/api/padelgod-shadow/live-cards?scope=live+next+recent'
       )
       if (!cancelled && res) setLiveCards(res)
     }
@@ -1539,7 +1539,7 @@ Run:
 npx eslint \
   src/lib/padelgod-live-cards.ts \
   src/lib/__tests__/padelgod-live-cards.test.ts \
-  src/app/api/ops/padelgod-shadow/live-cards/route.ts \
+  src/app/api/padelgod-shadow/live-cards/route.ts \
   src/components/ShadowMatchCard.tsx \
   src/components/PointLog.tsx \
   src/app/x/live-preview/page.tsx \
@@ -1555,7 +1555,7 @@ Expected: 0 errors. Warnings in pre-existing code (PadelgodShadowTab, proxy) may
 
 With Brussels still in play (or any shadow-enabled tournament with live matches):
 
-1. `curl -s 'http://localhost:3002/api/ops/padelgod-shadow/live-cards?scope=live' | python3 -m json.tool` — should return the payload shape defined in the spec
+1. `curl -s 'http://localhost:3002/api/padelgod-shadow/live-cards?scope=live' | python3 -m json.tool` — should return the payload shape defined in the spec
 2. Open `http://localhost:3002/x/live-preview` — cards render, serving team marked with 🎾, clicking "Show point log" reveals the log
 3. Open `http://localhost:3002/ops` (with ops token) → Padelgod Shadow tab → new "Live cards" section visible with Preview button
 4. Wait ~10s → watch a point log line get added (newest appears at the bottom)
@@ -1572,7 +1572,7 @@ Expected: the `Disallow` block includes `/x/` (plus existing `/api/`, `/ops/`, `
 git push -u origin feat/padelgod-live-ui
 gh pr create --title "feat(shadow-ui): padelgod live UI (ops + hidden /x/live-preview)" --body "$(cat <<'EOF'
 ## Summary
-- New API: `GET /api/ops/padelgod-shadow/live-cards` — joins matches + shadow_sets + shadow_match_points for shadow-enabled tournaments
+- New API: `GET /api/padelgod-shadow/live-cards` — joins matches + shadow_sets + shadow_match_points for shadow-enabled tournaments
 - New components: `ShadowMatchCard` (🎾 serving indicator) and `PointLog` (monospace point-by-point)
 - Ops: PadelgodShadowTab gets a "Live cards" grid + "Preview live UI ↗" button
 - PadelNachos: new hidden `/x/live-preview` page (`noindex,nofollow`, excluded from robots, not linked from any nav)
@@ -1584,7 +1584,7 @@ gh pr create --title "feat(shadow-ui): padelgod live UI (ops + hidden /x/live-pr
 ## Test plan
 - [ ] `npx vitest run src/lib/__tests__/padelgod-live-cards.test.ts` passes
 - [ ] `npx tsc --noEmit` passes
-- [ ] `curl /api/ops/padelgod-shadow/live-cards?scope=live` returns expected shape
+- [ ] `curl /api/padelgod-shadow/live-cards?scope=live` returns expected shape
 - [ ] `/x/live-preview` renders with 🎾 on serving teams and working point log
 - [ ] Ops tab shows the new section with Preview button
 - [ ] `/robots.txt` disallows `/x/`
