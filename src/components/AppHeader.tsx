@@ -15,16 +15,8 @@ const CHUNKY = {
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
-// First hint is translated; the rest are example queries that stay as-is
-const STATIC_HINTS = [
-  'Try "Arturo Coello"',
-  'Try "Miami P1"',
-  'Try "Live matches"',
-  'Try "Gemma Triay"',
-]
-
 export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void }) {
-  const t = useTranslations('common')
+  const tHome = useTranslations('home')
   const { user } = useAuth()
   const { shareNow } = useInvite()
 
@@ -33,8 +25,14 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
 
-  // Rotating search hints
-  const searchHints = [t('search'), ...STATIC_HINTS]
+  // Rotating search hints — all 5 translated per locale (keys live under `home`)
+  const searchHints = [
+    tHome('searchHint0'),
+    tHome('searchHint1'),
+    tHome('searchHint2'),
+    tHome('searchHint3'),
+    tHome('searchHint4'),
+  ]
   const [hintIdx, setHintIdx] = useState(0)
   const [hintFading, setHintFading] = useState(false)
   useEffect(() => {
