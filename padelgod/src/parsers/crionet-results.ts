@@ -4,7 +4,10 @@ const TABLE_SELECTOR = 'table.w-100';
 const HEADER_SELECTOR = 'tr.scorebox-header-completed';
 const COURT_LABEL_SELECTOR = '.court-name, .tournament-name';
 const ROUND_BLOCK_SELECTOR = '.round-name';
-const TEAM_ROW_SELECTOR = 'tr.draw-item-container';
+// Match any tr containing a td.team. Production markup uses
+// `tr.scorebox-sep-bottom` for team 1 and a bare `<tr>` for team 2
+// (no .draw-item-container class). Both still carry td.team.
+const TEAM_ROW_SELECTOR = 'tr:has(td.team)';
 const TEAM_SELECTOR = 'td.team';
 const SET_SELECTOR = 'td.set';
 const STATS_BUTTON_SELECTOR = 'a.open';

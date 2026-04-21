@@ -233,4 +233,68 @@ describe('parseCrionetResults', () => {
     expect(result[0].setScores).toBe('7-5 3-6 7-5');
     expect(result[0].setScores).not.toContain('(');
   });
+
+  // Regression: production markup uses `tr.scorebox-sep-bottom` for team 1
+  // and a bare `<tr>` for team 2 — NOT `tr.draw-item-container`. Parser
+  // returned 0 results until TEAM_ROW_SELECTOR was switched to `tr:has(td.team)`.
+  it('parses production markup (scorebox-sep-bottom + bare tr) from matchscorerlive.com', () => {
+    const html = `
+<table class="w-100">
+  <tr class="scorebox-header-completed">
+    <th colspan="4"><span class="court-name">Starting at 11:00 AM</span></th>
+    <th colspan="4"><div class="round-name text-right"><small><b>Men </b><div>Q3</div></small></div></th>
+  </tr>
+  <tr class="scorebox-sep-bottom">
+    <td class="team" colspan="4">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div><div class="player-names"><div class="double">
+          <div class="d-flex align-items-center">
+            <div><img class="flags" src="/images/flags/ESP.jpg" /></div>
+            <div class="ml-2  line-thin"><span>T.</span><span class="">Zapata</span></div>
+          </div>
+          <div class="d-flex align-items-center">
+            <div><img class="flags" src="/images/flags/ESP.jpg" /></div>
+            <div class="ml-2  line-thin"><span>R.</span><span class="">Coello Manso</span></div>
+          </div>
+        </div></div></div>
+        <div class="mr-2"></div>
+      </div>
+    </td>
+    <td></td>
+    <td class="set set-completed">6</td>
+    <td class="set set-completed set-lost">1</td>
+    <td class="set set-completed set-lost">1</td>
+  </tr>
+  <tr>
+    <td class="team" colspan="4">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div><div class="player-names"><div class="double">
+          <div class="d-flex align-items-center">
+            <div><img class="flags" src="/images/flags/ESP.jpg" /></div>
+            <div class="ml-2 winner line-thin"><span>I.</span><span class="">Sager</span></div>
+          </div>
+          <div class="d-flex align-items-center">
+            <div><img class="flags" src="/images/flags/ESP.jpg" /></div>
+            <div class="ml-2 winner line-thin"><span>J.</span><span class="">Lopez</span></div>
+          </div>
+        </div></div></div>
+        <div class="mr-2"><i class='fa-solid fa-check check-primary'></i></div>
+      </div>
+    </td>
+    <td></td>
+    <td class="set set-completed set-lost">1</td>
+    <td class="set set-completed">6</td>
+    <td class="set set-completed">6</td>
+  </tr>
+</table>
+`;
+    const result = parseCrionetResults(html, 3);
+    expect(result).toHaveLength(1);
+    expect(result[0].team1Player1Name).toBe('T. Zapata');
+    expect(result[0].team2Player1Name).toBe('I. Sager');
+    expect(result[0].winnerTeam).toBe(2);
+    expect(result[0].setScores).toBe('6-1 1-6 1-6');
+    expect(result[0].category).toBe('men');
+    expect(result[0].roundLabel).toBe('Q3');
+  });
 });
