@@ -5,6 +5,10 @@
       "schedule": "*/2 * * * *"
     },
     {
+      "path": "/api/cron/shadow-sync",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/sync?scope=matches",
       "schedule": "0 */1 * * *"
     },
