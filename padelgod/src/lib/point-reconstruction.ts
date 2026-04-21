@@ -68,6 +68,25 @@ export interface ApplyDiffOpts {
    * poller against a parallel dataset without disturbing canonical rows.
    */
   mode?: 'canonical' | 'shadow';
+  /**
+   * Only consulted when `mode === 'shadow'`. When true, shadow writes are
+   * dual-written: `padelgod.shadow_sets` AND `public.sets` (with
+   * `score_source='shadow'`), plus a `public.matches.status = 'live'` flip
+   * on the first point of a match that's still `'scheduled'`.
+   *
+   * Why this exists: padelapi.org's `/api/live` can go dark (e.g. HTTP 402).
+   * When it does, shadow-enabled tournaments have no other route to the
+   * public UI. Dual-writing promotes shadow data to the canonical schema so
+   * padelnachos.com keeps rendering live scores.
+   *
+   * Safe by construction:
+   *   - public.sets writes are skipped when the existing row has
+   *     `score_source IN ('api','live')` — the canonical pipeline always
+   *     wins when it catches up.
+   *   - status flip is guarded by `.eq('status','scheduled')` so we never
+   *     regress `'live'`/`'finished'`/`'retired'`/`'walkover'`.
+   */
+  dualWritePublic?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +222,16 @@ export async function applyDiff(
       currPair2Games,
       logger,
     );
+    if (opts.dualWritePublic) {
+      await dualWriteShadowToPublic(
+        supabase,
+        matchId,
+        currentSetNumber,
+        currPair1Games,
+        currPair2Games,
+        logger,
+      );
+    }
     return;
   }
 
@@ -481,6 +510,110 @@ async function applyDiffShadow(
           'applyDiff(shadow): failed to insert shadow_match_points row',
         );
       }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dual-write: padelgod shadow data → public.* (for shadow-enabled tournaments)
+// ---------------------------------------------------------------------------
+
+/**
+ * Mirror a shadow-mode set update into `public.sets` and flip
+ * `public.matches.status → 'live'` when the match is still `'scheduled'`.
+ * Opt-in via `ApplyDiffOpts.dualWritePublic = true` — see that field's docs
+ * for why this exists (padelapi /live 402s leave shadow-enabled tournaments
+ * with no other route to the public UI).
+ *
+ * Source priority on `public.sets.score_source`: `api > live > shadow > inferred`.
+ * We skip the upsert when an existing row has `score_source IN ('api','live')`
+ * so the canonical pipeline always wins once it catches up.
+ *
+ * Called AFTER the padelgod shadow writes — dual-write failures here are
+ * non-fatal, logged at `warn`. Never overwrites terminal match statuses.
+ */
+async function dualWriteShadowToPublic(
+  supabase: SupabaseClient,
+  matchId: string,
+  currentSetNumber: number,
+  currPair1Games: number,
+  currPair2Games: number,
+  logger: Logger | undefined,
+): Promise<void> {
+  // 1. Status flip — 'scheduled' → 'live'. Guard via .eq('status','scheduled')
+  //    so we can fire this every tick idempotently without risk of regressing
+  //    a terminal status.
+  const { error: statusErr } = await supabase
+    .from('matches')
+    .update({ status: 'live', updated_at: new Date().toISOString() })
+    .eq('id', matchId)
+    .eq('status', 'scheduled');
+  if (statusErr) {
+    logger?.warn(
+      { matchId, err: statusErr.message },
+      'applyDiff(shadow dual-write): status flip failed',
+    );
+  }
+
+  // 2. public.sets upsert — skip when a higher-priority source owns the row.
+  const { data: existingSet, error: selErr } = await supabase
+    .from('sets')
+    .select('id, score_source')
+    .eq('match_id', matchId)
+    .eq('set_number', currentSetNumber)
+    .maybeSingle();
+
+  if (selErr) {
+    logger?.warn(
+      { matchId, currentSetNumber, err: selErr.message },
+      'applyDiff(shadow dual-write): failed to read existing public.sets',
+    );
+    return;
+  }
+
+  const existingSource = (existingSet?.score_source as string | null | undefined) ?? null;
+  if (existingSource === 'api' || existingSource === 'live') {
+    // Canonical pipeline owns this set — never overwrite.
+    return;
+  }
+
+  const setScore = `${currPair1Games}-${currPair2Games}`;
+  const { error: upsertErr } = await supabase
+    .from('sets')
+    .upsert(
+      {
+        match_id: matchId,
+        set_number: currentSetNumber,
+        set_score: setScore,
+        pair1_games: currPair1Games,
+        pair2_games: currPair2Games,
+        is_current: true,
+        score_source: 'shadow' as const,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'match_id,set_number' },
+    );
+
+  if (upsertErr) {
+    logger?.warn(
+      { matchId, currentSetNumber, err: upsertErr.message },
+      'applyDiff(shadow dual-write): failed to upsert public.sets',
+    );
+    return;
+  }
+
+  // 3. Clear is_current on other sets of the match. No-op for set 1.
+  if (currentSetNumber > 1) {
+    const { error: clearErr } = await supabase
+      .from('sets')
+      .update({ is_current: false })
+      .eq('match_id', matchId)
+      .neq('set_number', currentSetNumber);
+    if (clearErr) {
+      logger?.warn(
+        { matchId, currentSetNumber, err: clearErr.message },
+        'applyDiff(shadow dual-write): failed to clear is_current on old sets',
+      );
     }
   }
 }

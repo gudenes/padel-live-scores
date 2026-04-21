@@ -418,6 +418,11 @@ export class LivePollerLoop {
     await applyDiff(this.opts.supabase, matchId, prev, curr, diff, resolvedPlayers, {
       logger: this.opts.logger,
       mode: this.mode,
+      // Shadow-enabled tournaments need their live data visible on
+      // padelnachos.com too — dual-write public.sets + status. Guarded
+      // inside applyDiff: only acts when mode==='shadow' AND flag is true.
+      // See ApplyDiffOpts.dualWritePublic docs for rationale.
+      dualWritePublic: this.mode === 'shadow',
     });
 
     this.states.set(matchId, curr);
