@@ -110,7 +110,13 @@ export function formatPointScore(p: PointState): string {
     case 'regular':
       return `${p.team1}-${p.team2}`;
     case 'deuce':
-      return 'Deuce';
+      // Emit numeric "40-40" instead of the English "Deuce" word. The public
+      // UI's point-parser maps '40' → 40 and derives scorer by diffing
+      // consecutive values; keeping it numeric lets the momentum chart +
+      // Live Feed treat deuce like any other regular score instead of
+      // needing a special case. Also works across locales — no translation
+      // needed for the string "40-40".
+      return '40-40';
     case 'advantage':
       return p.side === 1 ? 'AD-40' : '40-AD';
     case 'golden_point':
