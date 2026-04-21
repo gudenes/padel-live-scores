@@ -106,17 +106,15 @@ export async function runOopFetcher(deps: OopFetcherDeps): Promise<OopFetcherRes
 
   let totalMatchesInserted = 0;
   for (const t of list) {
-    let consecutiveEmpty = 0;
+    // Iterate ALL expected days. The previous "bail after 2 consecutive
+    // empty" optimisation broke qualifier coverage: past days often return
+    // zero rows from the widget, so a tournament on day 3 would bail after
+    // days 1 and 2 and never reach today's live day. Cost of iterating the
+    // full range is bounded (~7 HTTP calls/tournament/hour).
     const maxDay = Math.max(t.expected_days ?? 7, 7);
     for (let day = 1; day <= maxDay; day++) {
       const inserted = await fetchOneDay(deps, t, day);
       totalMatchesInserted += inserted;
-      if (inserted === 0) {
-        consecutiveEmpty++;
-        if (consecutiveEmpty >= 2) break;
-      } else {
-        consecutiveEmpty = 0;
-      }
     }
   }
 
