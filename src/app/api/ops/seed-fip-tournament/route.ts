@@ -117,11 +117,24 @@ export async function POST(request: Request) {
   }
 
   // ── Step 1: cache widget_id ───────────────────────────────────────
+  // padelgod.widget_id_cache requires extraction_method ∈
+  // ('search', 'iframe', 'page_regex', 'manual'). The operator supplies the
+  // widget_id in the request body here, so it's 'manual' — padelgod's own
+  // widget-code-lookup worker uses 'search'/'iframe'/'page_regex' when it
+  // auto-discovers. `last_validated_at` gets refreshed on every upsert so
+  // stale-cache eviction (if any) sees recent activity.
+  const nowIso = new Date().toISOString()
   const { error: widgetErr } = await supabase
     .schema('padelgod')
     .from('widget_id_cache')
     .upsert(
-      { tournament_id: tournamentId, widget_id: widgetId, is_active: true },
+      {
+        tournament_id: tournamentId,
+        widget_id: widgetId,
+        is_active: true,
+        extraction_method: 'manual',
+        last_validated_at: nowIso,
+      },
       { onConflict: 'tournament_id' }
     )
   if (widgetErr) {
