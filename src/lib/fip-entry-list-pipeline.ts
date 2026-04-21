@@ -10,6 +10,9 @@ import type { PlayerResolver } from './player-resolver'
 import { normalizeCountry } from './player-resolver'
 import { parseEntryListText, type ParsedTeam } from './entry-list-parser'
 import { searchFipPlayer, type FipPlayerSearchResult } from './fip-player-search'
+// Side-effect import: populates Node-globals (DOMMatrix et al.) that
+// pdfjs-dist references at module-load time. MUST load before pdf-parse.
+import './pdf-node-polyfills'
 import {
   ADMIN_AJAX_URL,
   buildEntryListAjaxBody,
