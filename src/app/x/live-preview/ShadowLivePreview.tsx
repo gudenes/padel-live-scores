@@ -7,9 +7,7 @@
 import { useEffect, useState, useRef } from 'react'
 import ShadowMatchCard from '@/components/ShadowMatchCard'
 import PointLog from '@/components/PointLog'
-import type { LiveCardsResponse } from '@/lib/padelgod-live-cards'
-
-const POLL_MS = 5_000
+import { LIVE_CARDS_POLL_MS, type LiveCardsResponse } from '@/lib/padelgod-live-cards'
 
 export default function ShadowLivePreview() {
   const [data, setData] = useState<LiveCardsResponse | null>(null)
@@ -37,7 +35,7 @@ export default function ShadowLivePreview() {
 
     function startPolling() {
       tick()
-      timerRef.current = window.setInterval(tick, POLL_MS)
+      timerRef.current = window.setInterval(tick, LIVE_CARDS_POLL_MS)
     }
     function stopPolling() {
       if (timerRef.current) {

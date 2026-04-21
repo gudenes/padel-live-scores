@@ -30,6 +30,10 @@ const supabase = createClient(
 const UPCOMING_LIMIT = 6
 const RECENT_LIMIT = 6
 
+// Opt out of static rendering: this route depends on request query params
+// AND on current DB state that shouldn't be cached at build time.
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const scope = url.searchParams.get('scope') ?? 'live'

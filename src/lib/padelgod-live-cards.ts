@@ -2,6 +2,9 @@
 // Pure types + helpers for the Padelgod shadow-mode live UI.
 // No I/O. All Supabase interaction lives in the route file.
 
+// Shared polling interval for the ops tab + hidden preview page clients.
+export const LIVE_CARDS_POLL_MS = 5_000
+
 export type PlayerLite = { name: string; country: string | null } | null
 
 export type PointEntry = {

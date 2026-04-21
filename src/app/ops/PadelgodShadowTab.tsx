@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import ShadowMatchCard from '@/components/ShadowMatchCard'
 import PointLog from '@/components/PointLog'
-import type { LiveCardsResponse } from '@/lib/padelgod-live-cards'
+import { LIVE_CARDS_POLL_MS, type LiveCardsResponse } from '@/lib/padelgod-live-cards'
 
 interface HealthData {
   enrolledCount: number
@@ -109,7 +109,7 @@ export default function PadelgodShadowTab() {
       if (!cancelled && res) setLiveCards(res)
     }
     tick()
-    const t = window.setInterval(tick, 5_000)
+    const t = window.setInterval(tick, LIVE_CARDS_POLL_MS)
     return () => {
       cancelled = true
       window.clearInterval(t)

@@ -8,10 +8,12 @@ import { useEffect, useRef, useState } from 'react'
 import type { PointEntry } from '@/lib/padelgod-live-cards'
 
 function fmtTime(iso: string): string {
+  // Display in the viewer's LOCAL timezone — matches the project convention
+  // that all match/tournament times render in the user's tz (see CLAUDE.md).
   const d = new Date(iso)
-  const hh = String(d.getUTCHours()).padStart(2, '0')
-  const mm = String(d.getUTCMinutes()).padStart(2, '0')
-  const ss = String(d.getUTCSeconds()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const ss = String(d.getSeconds()).padStart(2, '0')
   return `${hh}:${mm}:${ss}`
 }
 
