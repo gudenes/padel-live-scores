@@ -15,6 +15,7 @@ import { createClient } from '@supabase/supabase-js'
 import { checkOpsAuth } from '@/lib/ops-auth'
 import {
   buildLiveCard,
+  LIVE_ACTIVITY_WINDOW_MS,
   type LiveCard,
   type LiveCardsResponse,
   type MatchRow,
@@ -69,11 +70,24 @@ export async function GET(request: Request) {
   const tournamentNames = new Map<string, string>(tournaments.map(t => [t.id, t.name]))
   const tournamentIds = tournaments.map(t => t.id)
 
-  // 2. Find matches in scope. Note: DB status column has 'ended', 'retired',
+  // 2a. Find matches that padelgod considers ACTIVE (recent shadow point).
+  // This is the key insight: for qualifier matches, padelapi.org has no
+  // padelapi_id and never promotes status to 'live' — so we must also surface
+  // matches with recent shadow_match_points activity, regardless of status.
+  const activeSince = new Date(Date.now() - LIVE_ACTIVITY_WINDOW_MS).toISOString()
+  const { data: activeRows } = await supabase
+    .schema('padelgod')
+    .from('shadow_match_points')
+    .select('match_id')
+    .gt('created_at', activeSince)
+  const activeMatchIds = new Set<string>((activeRows ?? []).map(r => r.match_id as string))
+
+  // 2b. Find matches in scope. Note: DB status column has 'ended', 'retired',
   // 'walkover' as final states alongside 'finished'. normaliseStatus() folds
-  // them all into 'finished', so we must fetch all of them.
+  // them all into 'finished', so we must fetch all of them. Even for
+  // scope=live we include 'scheduled' so padelgod-active qualifiers pass.
   const wantedStatuses = scope === 'live'
-    ? ['live']
+    ? ['live', 'scheduled']
     : ['live', 'scheduled', 'finished', 'ended', 'retired', 'walkover']
 
   const { data: matchData, error: mErr } = await supabase
@@ -92,7 +106,15 @@ export async function GET(request: Request) {
     console.error('[live-cards] matches query failed:', mErr.message)
     return Response.json({ error: mErr.message }, { status: 500 })
   }
-  const matches = (matchData ?? []) as unknown as (MatchRow & { updated_at: string | null })[]
+  let matches = (matchData ?? []) as unknown as (MatchRow & { updated_at: string | null })[]
+
+  // For scope=live, drop 'scheduled' matches that are NOT padelgod-active —
+  // they were fetched only because they *might* be active, and we don't want
+  // to flood the payload with upcoming matches.
+  if (scope === 'live') {
+    matches = matches.filter(m => m.status === 'live' || activeMatchIds.has(m.id))
+  }
+
   if (matches.length === 0) {
     const empty: LiveCardsResponse = { observedAt: new Date().toISOString(), matches: [] }
     return Response.json(empty)
