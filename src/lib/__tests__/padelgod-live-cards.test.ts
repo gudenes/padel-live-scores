@@ -147,20 +147,43 @@ describe('composeSets', () => {
     expect(composeSets([], [])).toEqual([])
   })
 
-  it('prefers points-derived counts over shadow_sets when they disagree', () => {
-    // shadow_sets says 5-1; points say 6-1 (padelgod recorded all 7 games).
-    const sets = [mkSet({ set_number: 1, pair1_games: 5, pair2_games: 1 })]
+  it('prefers shadow_sets counts over points-derived (real-world padelgod data has sparse point captures)', () => {
+    // shadow_sets says 6-5 (reality: 7-5 — off by one on the set-closer).
+    // points-derived would say 4-8 because many games have only 1-3 points
+    // captured and "last captured point winner" is wrong. We trust the
+    // running counter — closer to truth — and treat points as a fallback.
+    const sets = [mkSet({ set_number: 1, pair1_games: 6, pair2_games: 5 })]
     const points: ShadowPointRow[] = []
-    for (let g = 1; g <= 6; g++) {
-      points.push(mkPoint({ set_number: 1, game_number: g, point_number: 4, winner_pair: 1 }))
+    // Simulate 12 games played, last-captured-point winners landing 4-8 the "wrong" way
+    for (let g = 1; g <= 4; g++) {
+      points.push(mkPoint({ set_number: 1, game_number: g, point_number: 3, winner_pair: 1 }))
     }
-    points.push(mkPoint({ set_number: 1, game_number: 7, point_number: 4, winner_pair: 2 }))
+    for (let g = 5; g <= 12; g++) {
+      points.push(mkPoint({ set_number: 1, game_number: g, point_number: 3, winner_pair: 2 }))
+    }
+    // Set 2 has started, so set 1 should be "done" with a winner derived
+    // from the shadow_sets counts (pair1=6 > pair2=5 → winner=1).
     points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
     const result = composeSets(sets, points)
-    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 1, winner: 1, isCurrent: false })
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 5, winner: 1, isCurrent: false })
   })
 
-  it('falls back to shadow_sets when no points are available for a set', () => {
+  it('falls back to points-derived when a set is missing from shadow_sets', () => {
+    // shadow_sets only has set 1. Set 2 exists in points only — use derived counts.
+    const sets = [mkSet({ set_number: 1, pair1_games: 6, pair2_games: 3 })]
+    const points: ShadowPointRow[] = [
+      mkPoint({ set_number: 1, game_number: 1, point_number: 4, winner_pair: 1 }),
+      mkPoint({ set_number: 2, game_number: 1, point_number: 4, winner_pair: 2 }),
+      mkPoint({ set_number: 2, game_number: 2, point_number: 1, winner_pair: 2 }),
+    ]
+    const result = composeSets(sets, points)
+    // Set 1: shadow_sets primary (6-3), winner derived from counts (1 wins)
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 3, winner: 1, isCurrent: false })
+    // Set 2: no shadow_sets row → derived fallback (pair2=1), current
+    expect(result[1]).toEqual({ setNumber: 2, pair1Games: 0, pair2Games: 1, winner: null, isCurrent: true })
+  })
+
+  it('returns shadow_sets values even when no points are available', () => {
     const sets = [mkSet({ set_number: 1, pair1_games: 6, pair2_games: 3 })]
     const result = composeSets(sets, [])
     expect(result).toEqual([{ setNumber: 1, pair1Games: 6, pair2Games: 3, winner: null, isCurrent: true }])
@@ -341,21 +364,18 @@ describe('buildLiveCard', () => {
     expect(card.durationSec).toBe(30 * 60) // 30 min
   })
 
-  it('marks set winners via points (the off-by-one shadow_sets bug fix)', () => {
-    // shadow_sets incorrectly reports 5-1; points show all 7 games played,
-    // 6 won by pair1. Expect the card to render 6-1 with winner=1.
-    const shadowSets: ShadowSetRow[] = [mkSet({ set_number: 1, pair1_games: 5, pair2_games: 1 })]
-    const points: ShadowPointRow[] = []
-    for (let g = 1; g <= 6; g++) {
-      points.push(mkPoint({ set_number: 1, game_number: g, point_number: 4, winner_pair: 1 }))
-    }
-    points.push(mkPoint({ set_number: 1, game_number: 7, point_number: 4, winner_pair: 2 }))
-    points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
+  it('marks set winners from shadow_sets counts when a later set has started', () => {
+    // shadow_sets reports pair1=6, pair2=3 for set 1; set 2 started (has point)
+    // → set 1 is done, winner derived from counts as pair 1.
+    const shadowSets: ShadowSetRow[] = [mkSet({ set_number: 1, pair1_games: 6, pair2_games: 3 })]
+    const points: ShadowPointRow[] = [
+      mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }),
+    ]
     const match: MatchRow = { ...baseMatch, status: 'live' }
     const card = buildLiveCard(match, 'T', shadowSets, points)
     const set1 = card.sets.find(s => s.setNumber === 1)!
     expect(set1.pair1Games).toBe(6)
-    expect(set1.pair2Games).toBe(1)
+    expect(set1.pair2Games).toBe(3)
     expect(set1.winner).toBe(1)
     expect(set1.isCurrent).toBe(false)
   })

@@ -207,12 +207,23 @@ export function derivedSetScores(
 }
 
 // ---------------------------------------------------------------------------
-// composeSets — produce SetEntry[] by merging padelgod's shadow_sets rows
-// with the points-derived counts. Priority:
-//   1. Game counts come from derivedSetScores (point-based, trustworthy)
-//   2. If a set exists in shadow_sets but has zero recorded points (unlikely
-//      but possible), fall back to its stored pair*_games value
-//   3. isCurrent is set on the highest set_number across both sources
+// composeSets — produce SetEntry[] by merging shadow_sets (primary) with
+// points-derived counts (fallback). Priority:
+//
+//   1. shadow_sets.pair*_games wins when present. Padelgod sometimes drifts
+//      by one game on set-closers (the final point of a set may not be
+//      captured), but the running game count tracks reality far better than
+//      our points-derived heuristic does — because many games have only 1-3
+//      of their points captured, so "last captured point's winner = game
+//      winner" is wrong ~50% of the time with sparse data.
+//
+//   2. When a set is missing from shadow_sets entirely, fall back to
+//      derivedSetScores — better to show a rough count than nothing.
+//
+//   3. isCurrent = highest set_number across both sources.
+//
+//   4. winner derived locally: when a later set has points/data, the
+//      earlier set is done → winner is whichever pair has more games.
 // ---------------------------------------------------------------------------
 export function composeSets(
   shadowSets: ShadowSetRow[],
@@ -234,17 +245,20 @@ export function composeSets(
   const shadowByNum = new Map(shadowSets.map(s => [s.set_number, s]))
 
   return sorted.map(setNum => {
-    const d = derived.get(setNum)
     const s = shadowByNum.get(setNum)
-    const pair1Games = d?.pair1Games ?? s?.pair1_games ?? 0
-    const pair2Games = d?.pair2Games ?? s?.pair2_games ?? 0
-    return {
-      setNumber: setNum,
-      pair1Games,
-      pair2Games,
-      winner: d?.winner ?? null,
-      isCurrent: setNum === maxSetNum,
+    const d = derived.get(setNum)
+    // Primary: shadow_sets; secondary: derived; last-resort: 0.
+    const pair1Games = s?.pair1_games ?? d?.pair1Games ?? 0
+    const pair2Games = s?.pair2_games ?? d?.pair2Games ?? 0
+    // A set is "done" when it's not the current one. Winner is whoever has
+    // more games in that set. For the current set we leave winner=null.
+    const isCurrent = setNum === maxSetNum
+    let winner: 1 | 2 | null = null
+    if (!isCurrent) {
+      if (pair1Games > pair2Games) winner = 1
+      else if (pair2Games > pair1Games) winner = 2
     }
+    return { setNumber: setNum, pair1Games, pair2Games, winner, isCurrent }
   })
 }
 
