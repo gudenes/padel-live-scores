@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import ShadowMatchCard from '@/components/ShadowMatchCard'
+import PointLog from '@/components/PointLog'
+import type { LiveCardsResponse } from '@/lib/padelgod-live-cards'
 
 interface HealthData {
   enrolledCount: number
@@ -255,6 +258,24 @@ function DrilldownSection({ tournamentId }: { tournamentId: string }) {
     return () => clearInterval(timer)
   }, [tournamentId])
 
+  const [liveCards, setLiveCards] = useState<LiveCardsResponse | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function tick() {
+      const res = await fetchJson<LiveCardsResponse>(
+        '/api/padelgod-shadow/live-cards?scope=live%2Bnext%2Brecent'
+      )
+      if (!cancelled && res) setLiveCards(res)
+    }
+    tick()
+    const t = window.setInterval(tick, 5_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(t)
+    }
+  }, [])
+
   const perPointByMatchId = new Map((perPoints ?? []).map((p) => [p.match_id, p]))
 
   return (
@@ -262,6 +283,45 @@ function DrilldownSection({ tournamentId }: { tournamentId: string }) {
       <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
         Tournament detail
       </div>
+
+  {/* Live cards (padelgod-only, replicated MatchCard look) */}
+  <div style={{ marginTop: 20 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <h3 style={{ margin: 0, fontSize: 14, color: '#111', fontWeight: 700 }}>
+        Live cards
+      </h3>
+      <a
+        href="/x/live-preview"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          fontSize: 11,
+          color: '#3b82f6',
+          textDecoration: 'none',
+          padding: '4px 10px',
+          border: '1px solid #3b82f6',
+          borderRadius: 4,
+          fontWeight: 600,
+        }}
+      >
+        Preview live UI ↗
+      </a>
+    </div>
+
+    {liveCards && liveCards.matches.length === 0 && (
+      <div style={{ color: '#666', fontSize: 12, padding: 16, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8 }}>
+        No matches in the live / next-up / recent buckets for shadow-enabled tournaments.
+      </div>
+    )}
+
+    {liveCards?.matches.map(card => (
+      <div key={card.id}>
+        <ShadowMatchCard card={card} observedAt={liveCards.observedAt}>
+          <PointLog points={card.points} collapsible={false} />
+        </ShadowMatchCard>
+      </div>
+    ))}
+  </div>
 
       {/* Live matches */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
