@@ -7,13 +7,22 @@ export const LIVE_CARDS_POLL_MS = 5_000
 
 export type PlayerLite = { name: string; country: string | null } | null
 
+/**
+ * Side identifier used throughout the live-card payload.
+ * String enum chosen over numeric `1 | 2` for self-documenting logs and to
+ * match the tennis-industry convention (Sportradar, ITF, etc. reference a
+ * side by name rather than positional index). See
+ * docs/superpowers/specs/2026-04-21-padelgod-live-ui-design.md §Payload.
+ */
+export type Side = 'pair1' | 'pair2'
+
 export type PointEntry = {
   set: number
   game: number
   pt: number
-  server: 1 | 2 | null
+  server: Side | null
   score: string
-  winner: 1 | 2
+  winner: Side
   isGoldenPoint: boolean
   at: string
 }
@@ -22,8 +31,8 @@ export type SetEntry = {
   setNumber: number
   pair1Games: number
   pair2Games: number
-  /** 1 or 2 once the set is over; null while it's still being played. */
-  winner: 1 | 2 | null
+  /** Winning side once the set is over; null while it's still being played. */
+  winner: Side | null
   isCurrent: boolean
   // TODO(follow-up): tiebreak: { pair1: number; pair2: number } | null
 }
@@ -32,9 +41,9 @@ export type CurrentGame = {
   pair1Score: string
   pair2Score: string
   isGoldenPoint: boolean
-  /** Serving pair for the point that's currently being played. Null when the
+  /** Serving side for the point that's currently being played. Null when the
    *  match isn't live or we couldn't determine it from the shadow feed. */
-  server: 1 | 2 | null
+  server: Side | null
 }
 
 export type LiveCard = {
@@ -97,6 +106,18 @@ export type MatchRow = {
 }
 
 // ---------------------------------------------------------------------------
+// toSide — normalise raw DB pair index (1|2|null) to the Side string enum
+//   Used at the boundary where ShadowPointRow (DB) → PointEntry (payload).
+// ---------------------------------------------------------------------------
+function toSide(n: 1 | 2): Side
+function toSide(n: 1 | 2 | null): Side | null
+function toSide(n: 1 | 2 | null): Side | null {
+  if (n === 1) return 'pair1'
+  if (n === 2) return 'pair2'
+  return null
+}
+
+// ---------------------------------------------------------------------------
 // parseScoreAfter — split "40-30" into { pair1Score, pair2Score }
 // Returns { "0", "0" } for null or malformed input.
 // ---------------------------------------------------------------------------
@@ -134,7 +155,7 @@ export function deriveLiveState(points: ShadowPointRow[]): CurrentGame {
     pair1Score,
     pair2Score,
     isGoldenPoint: latest.is_golden_point,
-    server: latest.server_team,
+    server: toSide(latest.server_team),
   }
 }
 
@@ -150,8 +171,8 @@ export function deriveLiveState(points: ShadowPointRow[]): CurrentGame {
 // ---------------------------------------------------------------------------
 export function derivedSetScores(
   points: ShadowPointRow[],
-): Map<number, { pair1Games: number; pair2Games: number; winner: 1 | 2 | null }> {
-  const perSet = new Map<number, { pair1Games: number; pair2Games: number; winner: 1 | 2 | null }>()
+): Map<number, { pair1Games: number; pair2Games: number; winner: Side | null }> {
+  const perSet = new Map<number, { pair1Games: number; pair2Games: number; winner: Side | null }>()
   if (points.length === 0) return perSet
 
   // For each (set, game) find the LATEST captured point — its winner wins the game.
@@ -185,22 +206,22 @@ export function derivedSetScores(
   // Count completed-game wins per set
   for (const [key, g] of games) {
     if (key === inProgressKey) continue
-    const entry = perSet.get(g.set) ?? { pair1Games: 0, pair2Games: 0, winner: null as 1 | 2 | null }
+    const entry = perSet.get(g.set) ?? { pair1Games: 0, pair2Games: 0, winner: null as Side | null }
     if (g.winner === 1) entry.pair1Games += 1
     else entry.pair2Games += 1
     perSet.set(g.set, entry)
   }
 
   // A set is "won" when a pair reaches ≥6 games with a 2-game lead, OR 7 games.
-  // This is a simplification — tiebreaks at 6-6 aren't modelled yet. Good
-  // enough for "is this set over": if the next set has any point, the
-  // previous set is by definition over.
+  // Simplification: tiebreaks at 6-6 aren't modelled yet. Good enough for
+  // "is this set over": if the next set has any point, the previous set is
+  // by definition over.
   const setsWithAnyPoint = new Set(Array.from(games.values()).map(g => g.set))
   const maxSetSeen = Math.max(...setsWithAnyPoint)
   for (const [setNum, entry] of perSet) {
     const setIsDone = setNum < maxSetSeen
     if (setIsDone) {
-      entry.winner = entry.pair1Games > entry.pair2Games ? 1 : 2
+      entry.winner = entry.pair1Games > entry.pair2Games ? 'pair1' : 'pair2'
     }
   }
   return perSet
@@ -264,11 +285,11 @@ export function composeSets(
       else if (pair2Games === 6 && pair1Games === 5) pair2Games = 7
     }
 
-    // Winner = whoever has more games once the set is done.
-    let winner: 1 | 2 | null = null
+    // Winner = whichever side has more games once the set is done.
+    let winner: Side | null = null
     if (!isCurrent) {
-      if (pair1Games > pair2Games) winner = 1
-      else if (pair2Games > pair1Games) winner = 2
+      if (pair1Games > pair2Games) winner = 'pair1'
+      else if (pair2Games > pair1Games) winner = 'pair2'
     }
     return { setNumber: setNum, pair1Games, pair2Games, winner, isCurrent }
   })
@@ -368,7 +389,7 @@ export function buildLiveCard(
 
   const currentGame: CurrentGame = status === 'live'
     ? deriveLiveState(sortedPoints)
-    : { pair1Score: '0', pair2Score: '0', isGoldenPoint: false, server: null }
+    : { pair1Score: '0', pair2Score: '0', isGoldenPoint: false, server: null as Side | null }
 
   // Timing: "live" → elapsed from first point to now; "finished" → total
   // elapsed from first point to last point. "scheduled" → null.
@@ -400,9 +421,9 @@ export function buildLiveCard(
       set: p.set_number,
       game: p.game_number,
       pt: p.point_number,
-      server: p.server_team,
+      server: toSide(p.server_team),
       score: p.score_after ?? '0-0',
-      winner: p.winner_pair,
+      winner: toSide(p.winner_pair),
       isGoldenPoint: p.is_golden_point,
       at: p.created_at,
     })),

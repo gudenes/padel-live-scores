@@ -2,7 +2,7 @@
 // Presentational card for a shadow-captured match. Mirrors MatchCard's look
 // but reads from LiveCard (shadow-derived) data. 🎾 emoji marks the serving team.
 
-import type { LiveCard, PlayerLite } from '@/lib/padelgod-live-cards'
+import type { LiveCard, PlayerLite, Side } from '@/lib/padelgod-live-cards'
 
 const SERVE_BALL = '🎾'
 
@@ -109,20 +109,20 @@ export default function ShadowMatchCard({
       {/* Pair 1 row */}
       <TeamRow
         names={pair1Names}
-        isServing={card.currentGame.server === 1 && isLive}
+        isServing={card.currentGame.server === 'pair1' && isLive}
         sets={card.sets.map(s => s.pair1Games)}
         setWinners={card.sets.map(s => s.winner)}
-        pairKey={1}
+        pairKey="pair1"
         currentPoint={isLive ? card.currentGame.pair1Score : undefined}
         isGoldenPoint={card.currentGame.isGoldenPoint}
       />
       {/* Pair 2 row */}
       <TeamRow
         names={pair2Names}
-        isServing={card.currentGame.server === 2 && isLive}
+        isServing={card.currentGame.server === 'pair2' && isLive}
         sets={card.sets.map(s => s.pair2Games)}
         setWinners={card.sets.map(s => s.winner)}
-        pairKey={2}
+        pairKey="pair2"
         currentPoint={isLive ? card.currentGame.pair2Score : undefined}
         isGoldenPoint={card.currentGame.isGoldenPoint}
       />
@@ -145,8 +145,8 @@ function TeamRow({
   names: string
   isServing: boolean
   sets: number[]
-  setWinners: Array<1 | 2 | null>
-  pairKey: 1 | 2
+  setWinners: Array<Side | null>
+  pairKey: Side
   currentPoint?: string
   isGoldenPoint?: boolean
 }) {

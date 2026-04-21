@@ -59,14 +59,14 @@ describe('deriveLiveState', () => {
       mkPoint({ set_number: 1, game_number: 2, point_number: 3, score_after: '30-40', server_team: 2 }),
     ]
     expect(deriveLiveState(points)).toEqual({
-      pair1Score: '30', pair2Score: '40', isGoldenPoint: false, server: 2,
+      pair1Score: '30', pair2Score: '40', isGoldenPoint: false, server: 'pair2',
     })
   })
 
   it('flags a golden-point correctly', () => {
     const points = [mkPoint({ score_after: '40-40', server_team: 1, is_golden_point: true })]
     expect(deriveLiveState(points)).toEqual({
-      pair1Score: '40', pair2Score: '40', isGoldenPoint: true, server: 1,
+      pair1Score: '40', pair2Score: '40', isGoldenPoint: true, server: 'pair1',
     })
   })
 
@@ -100,7 +100,7 @@ describe('derivedSetScores', () => {
     points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
     points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 2, winner_pair: 2 }))
     const result = derivedSetScores(points)
-    expect(result.get(1)).toEqual({ pair1Games: 6, pair2Games: 0, winner: 1 })
+    expect(result.get(1)).toEqual({ pair1Games: 6, pair2Games: 0, winner: 'pair1' })
     // Set 2 has no completed games yet (the one in-progress game is excluded)
     expect(result.has(2)).toBe(false)
   })
@@ -122,7 +122,7 @@ describe('derivedSetScores', () => {
     // Set 1: 2-2, and because set 2 has started, set 1 is "done" → tie-break-free
     // winner is whichever pair has more games. In this synthetic case, both 2.
     // Implementation: winner = pair1Games > pair2Games ? 1 : 2 → pair2 when tied.
-    expect(result.get(1)).toEqual({ pair1Games: 2, pair2Games: 2, winner: 2 })
+    expect(result.get(1)).toEqual({ pair1Games: 2, pair2Games: 2, winner: 'pair2' })
   })
 
   it('handles a real-world off-by-one scenario (padelgod missed the winning point)', () => {
@@ -138,7 +138,7 @@ describe('derivedSetScores', () => {
     const result = derivedSetScores(points)
     expect(result.get(1)?.pair1Games).toBe(6)
     expect(result.get(1)?.pair2Games).toBe(1)
-    expect(result.get(1)?.winner).toBe(1)
+    expect(result.get(1)?.winner).toBe('pair1')
   })
 })
 
@@ -164,7 +164,7 @@ describe('composeSets', () => {
     // Set 2 has started, so set 1 should be "done" with winner from shadow_sets counts.
     points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
     const result = composeSets(sets, points)
-    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 4, winner: 1, isCurrent: false })
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 4, winner: 'pair1', isCurrent: false })
   })
 
   it('falls back to points-derived when a set is missing from shadow_sets', () => {
@@ -176,8 +176,8 @@ describe('composeSets', () => {
       mkPoint({ set_number: 2, game_number: 2, point_number: 1, winner_pair: 2 }),
     ]
     const result = composeSets(sets, points)
-    // Set 1: shadow_sets primary (6-3), winner derived from counts (1 wins)
-    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 3, winner: 1, isCurrent: false })
+    // Set 1: shadow_sets primary (6-3), winner derived from counts (pair1 wins)
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 3, winner: 'pair1', isCurrent: false })
     // Set 2: no shadow_sets row → derived fallback (pair2=1), current
     expect(result[1]).toEqual({ setNumber: 2, pair1Games: 0, pair2Games: 1, winner: null, isCurrent: true })
   })
@@ -195,7 +195,7 @@ describe('composeSets', () => {
     ]
     const result = composeSets([], points)
     expect(result.length).toBe(2)
-    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 1, pair2Games: 0, winner: 1, isCurrent: false })
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 1, pair2Games: 0, winner: 'pair1', isCurrent: false })
     expect(result[1]).toEqual({ setNumber: 2, pair1Games: 0, pair2Games: 0, winner: null, isCurrent: true })
   })
 
@@ -209,7 +209,7 @@ describe('composeSets', () => {
     ]
     const points = [mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 2 })]
     const result = composeSets(sets, points)
-    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 7, pair2Games: 5, winner: 1, isCurrent: false })
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 7, pair2Games: 5, winner: 'pair1', isCurrent: false })
     expect(result[1]).toEqual({ setNumber: 2, pair1Games: 0, pair2Games: 1, winner: null, isCurrent: true })
   })
 
@@ -220,7 +220,7 @@ describe('composeSets', () => {
     ]
     const points = [mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 })]
     const result = composeSets(sets, points)
-    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 5, pair2Games: 7, winner: 2, isCurrent: false })
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 5, pair2Games: 7, winner: 'pair2', isCurrent: false })
   })
 
   it('leaves the CURRENT set unchanged even when score reads 6-5 (it may still be ongoing)', () => {
@@ -241,10 +241,10 @@ describe('composeSets', () => {
     const result = composeSets(sets, points)
     expect(result[0].pair1Games).toBe(6)
     expect(result[0].pair2Games).toBe(4)
-    expect(result[0].winner).toBe(1)
+    expect(result[0].winner).toBe('pair1')
     expect(result[1].pair1Games).toBe(7)
     expect(result[1].pair2Games).toBe(6)
-    expect(result[1].winner).toBe(1)
+    expect(result[1].winner).toBe('pair1')
   })
 })
 
@@ -309,7 +309,7 @@ describe('buildLiveCard', () => {
       mkPoint({ set_number: 1, game_number: 2, point_number: 3, score_after: '30-40', server_team: 2 }),
     ]
     const card = buildLiveCard(baseMatch, 'Brussels P2 2026', [], points)
-    expect(card.currentGame.server).toBe(2)
+    expect(card.currentGame.server).toBe('pair2')
     expect(card.currentGame.pair1Score).toBe('30')
     expect(card.currentGame.pair2Score).toBe('40')
     expect('servingTeam' in card).toBe(false)
@@ -370,7 +370,7 @@ describe('buildLiveCard', () => {
     })]
     const card = buildLiveCard(match, 'T', [], points, now)
     expect(card.status).toBe('live')
-    expect(card.currentGame.server).toBe(2)
+    expect(card.currentGame.server).toBe('pair2')
     expect(card.currentGame.pair1Score).toBe('40')
     expect(card.currentGame.pair2Score).toBe('30')
   })
@@ -423,7 +423,7 @@ describe('buildLiveCard', () => {
     const set1 = card.sets.find(s => s.setNumber === 1)!
     expect(set1.pair1Games).toBe(6)
     expect(set1.pair2Games).toBe(3)
-    expect(set1.winner).toBe(1)
+    expect(set1.winner).toBe('pair1')
     expect(set1.isCurrent).toBe(false)
   })
 })
