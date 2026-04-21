@@ -144,3 +144,71 @@ export function markCurrentSets(sets: ShadowSetRow[]): SetEntry[] {
     isCurrent: i === maxIdx,
   }))
 }
+
+// ---------------------------------------------------------------------------
+// buildLiveCard — compose a LiveCard from a match row + its shadow sets + its
+// shadow points. Points ordered oldest-first, capped at 50.
+// ---------------------------------------------------------------------------
+
+const MAX_POINTS = 50
+
+function normaliseStatus(raw: string): 'live' | 'scheduled' | 'finished' {
+  if (raw === 'live') return 'live'
+  if (raw === 'ended' || raw === 'finished' || raw === 'retired' || raw === 'walkover') return 'finished'
+  return 'scheduled'
+}
+
+function comparePoints(a: ShadowPointRow, b: ShadowPointRow): number {
+  if (a.set_number !== b.set_number) return a.set_number - b.set_number
+  if (a.game_number !== b.game_number) return a.game_number - b.game_number
+  return a.point_number - b.point_number
+}
+
+export function buildLiveCard(
+  match: MatchRow,
+  tournamentName: string,
+  sets: ShadowSetRow[],
+  points: ShadowPointRow[],
+): LiveCard {
+  const status = normaliseStatus(match.status)
+  const sortedPoints = [...points].sort(comparePoints)
+  const cappedPoints = sortedPoints.slice(-MAX_POINTS)
+
+  const live = status === 'live'
+    ? deriveLiveState(sortedPoints)
+    : {
+        currentGame: { pair1Score: '0', pair2Score: '0', isGoldenPoint: false } as CurrentGame,
+        servingTeam: null as 1 | 2 | null,
+      }
+
+  return {
+    id: match.id,
+    tournamentId: match.tournament_id,
+    tournamentName,
+    status,
+    court: match.court,
+    round: match.round,
+    scheduledAt: match.scheduled_at,
+    pair1: {
+      player1: match.pair1_player1,
+      player2: match.pair1_player2,
+    },
+    pair2: {
+      player1: match.pair2_player1,
+      player2: match.pair2_player2,
+    },
+    sets: markCurrentSets(sets),
+    currentGame: live.currentGame,
+    servingTeam: live.servingTeam,
+    points: cappedPoints.map(p => ({
+      set: p.set_number,
+      game: p.game_number,
+      pt: p.point_number,
+      server: p.server_team,
+      score: p.score_after ?? '0-0',
+      winner: p.winner_pair,
+      isGoldenPoint: p.is_golden_point,
+      at: p.created_at,
+    })),
+  }
+}

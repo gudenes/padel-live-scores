@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { parseScoreAfter, deriveLiveState, markCurrentSets } from '../padelgod-live-cards'
-import type { ShadowPointRow, ShadowSetRow } from '../padelgod-live-cards'
+import { parseScoreAfter, deriveLiveState, markCurrentSets, buildLiveCard } from '../padelgod-live-cards'
+import type { ShadowPointRow, ShadowSetRow, MatchRow } from '../padelgod-live-cards'
 
 describe('parseScoreAfter', () => {
   it('parses a standard score string', () => {
@@ -110,5 +110,85 @@ describe('markCurrentSets', () => {
     expect(markCurrentSets(sets)).toEqual([
       { setNumber: 1, pair1Games: 0, pair2Games: 0, isCurrent: true },
     ])
+  })
+})
+
+const baseMatch: MatchRow = {
+  id: 'match-1',
+  tournament_id: 'tour-1',
+  status: 'live',
+  court: 'COURT NEXTENSA',
+  round: 'Q3',
+  scheduled_at: null,
+  pair1_player1: { name: 'Coello', country: 'ESP' },
+  pair1_player2: { name: 'Tapia', country: 'ARG' },
+  pair2_player1: { name: 'Galán', country: 'ESP' },
+  pair2_player2: { name: 'Chingotto', country: 'ARG' },
+}
+
+describe('buildLiveCard', () => {
+  it('builds a live card with servingTeam=null when points are empty', () => {
+    const card = buildLiveCard(baseMatch, 'Brussels P2 2026', [], [])
+    expect(card.status).toBe('live')
+    expect(card.servingTeam).toBeNull()
+    expect(card.currentGame).toEqual({ pair1Score: '0', pair2Score: '0', isGoldenPoint: false })
+    expect(card.sets).toEqual([])
+    expect(card.points).toEqual([])
+    expect(card.tournamentName).toBe('Brussels P2 2026')
+    expect(card.pair1.player1).toEqual({ name: 'Coello', country: 'ESP' })
+  })
+
+  it('sets servingTeam and currentGame from the latest point', () => {
+    const points: ShadowPointRow[] = [
+      mkPoint({ set_number: 1, game_number: 1, point_number: 1, score_after: '15-0',  server_team: 1 }),
+      mkPoint({ set_number: 1, game_number: 2, point_number: 3, score_after: '30-40', server_team: 2 }),
+    ]
+    const card = buildLiveCard(baseMatch, 'Brussels P2 2026', [], points)
+    expect(card.servingTeam).toBe(2)
+    expect(card.currentGame).toEqual({ pair1Score: '30', pair2Score: '40', isGoldenPoint: false })
+  })
+
+  it('orders points oldest-first regardless of input order', () => {
+    const points: ShadowPointRow[] = [
+      mkPoint({ set_number: 1, game_number: 2, point_number: 3, created_at: 't2' }),
+      mkPoint({ set_number: 1, game_number: 1, point_number: 1, created_at: 't1' }),
+    ]
+    const card = buildLiveCard(baseMatch, 'T', [], points)
+    expect(card.points.map(p => `${p.set}-${p.game}-${p.pt}`)).toEqual([
+      '1-1-1', '1-2-3',
+    ])
+  })
+
+  it('caps points at 50, keeping the most recent', () => {
+    const points: ShadowPointRow[] = []
+    for (let i = 1; i <= 60; i++) {
+      points.push(mkPoint({ set_number: 1, game_number: 1, point_number: i }))
+    }
+    const card = buildLiveCard(baseMatch, 'T', [], points)
+    expect(card.points).toHaveLength(50)
+    // First entry should be point_number 11 (oldest of the kept 50)
+    expect(card.points[0].pt).toBe(11)
+    expect(card.points[49].pt).toBe(60)
+  })
+
+  it('hides servingTeam for finished matches', () => {
+    const match: MatchRow = { ...baseMatch, status: 'finished' }
+    const points = [mkPoint({ server_team: 1 })]
+    const card = buildLiveCard(match, 'T', [], points)
+    expect(card.status).toBe('finished')
+    expect(card.servingTeam).toBeNull()
+  })
+
+  it('normalises status "ended" to "finished"', () => {
+    const match: MatchRow = { ...baseMatch, status: 'ended' }
+    const card = buildLiveCard(match, 'T', [], [])
+    expect(card.status).toBe('finished')
+  })
+
+  it('passes scheduled status through untouched', () => {
+    const match: MatchRow = { ...baseMatch, status: 'scheduled' }
+    const card = buildLiveCard(match, 'T', [], [])
+    expect(card.status).toBe('scheduled')
+    expect(card.servingTeam).toBeNull()
   })
 })
