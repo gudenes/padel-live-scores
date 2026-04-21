@@ -148,24 +148,23 @@ describe('composeSets', () => {
   })
 
   it('prefers shadow_sets counts over points-derived (real-world padelgod data has sparse point captures)', () => {
-    // shadow_sets says 6-5 (reality: 7-5 — off by one on the set-closer).
-    // points-derived would say 4-8 because many games have only 1-3 points
-    // captured and "last captured point winner" is wrong. We trust the
-    // running counter — closer to truth — and treat points as a fallback.
-    const sets = [mkSet({ set_number: 1, pair1_games: 6, pair2_games: 5 })]
+    // shadow_sets says 6-4 (valid final, no correction needed).
+    // points-derived would say something way off because many games have only
+    // 1-3 points captured and "last captured point winner" is wrong. We trust
+    // the running counter — closer to truth — and treat points as a fallback.
+    const sets = [mkSet({ set_number: 1, pair1_games: 6, pair2_games: 4 })]
     const points: ShadowPointRow[] = []
-    // Simulate 12 games played, last-captured-point winners landing 4-8 the "wrong" way
-    for (let g = 1; g <= 4; g++) {
+    // Simulate 10 games played, last-captured-point winners landing 3-7 the "wrong" way
+    for (let g = 1; g <= 3; g++) {
       points.push(mkPoint({ set_number: 1, game_number: g, point_number: 3, winner_pair: 1 }))
     }
-    for (let g = 5; g <= 12; g++) {
+    for (let g = 4; g <= 10; g++) {
       points.push(mkPoint({ set_number: 1, game_number: g, point_number: 3, winner_pair: 2 }))
     }
-    // Set 2 has started, so set 1 should be "done" with a winner derived
-    // from the shadow_sets counts (pair1=6 > pair2=5 → winner=1).
+    // Set 2 has started, so set 1 should be "done" with winner from shadow_sets counts.
     points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
     const result = composeSets(sets, points)
-    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 5, winner: 1, isCurrent: false })
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 4, winner: 1, isCurrent: false })
   })
 
   it('falls back to points-derived when a set is missing from shadow_sets', () => {
@@ -198,6 +197,54 @@ describe('composeSets', () => {
     expect(result.length).toBe(2)
     expect(result[0]).toEqual({ setNumber: 1, pair1Games: 1, pair2Games: 0, winner: 1, isCurrent: false })
     expect(result[1]).toEqual({ setNumber: 2, pair1Games: 0, pair2Games: 0, winner: null, isCurrent: true })
+  })
+
+  it('corrects impossible 6-5 final to 7-5 (padelgod missed the set-closing game)', () => {
+    // Set 1 per shadow_sets: 6-5 (mathematically invalid as a final under
+    // FIP rules — needs 2-game lead or 7-6 tiebreak). Set 2 has a point, so
+    // set 1 is done → bump leader to 7.
+    const sets = [
+      mkSet({ set_number: 1, pair1_games: 6, pair2_games: 5 }),
+      mkSet({ set_number: 2, pair1_games: 0, pair2_games: 1 }),
+    ]
+    const points = [mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 2 })]
+    const result = composeSets(sets, points)
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 7, pair2Games: 5, winner: 1, isCurrent: false })
+    expect(result[1]).toEqual({ setNumber: 2, pair1Games: 0, pair2Games: 1, winner: null, isCurrent: true })
+  })
+
+  it('mirrors the correction for 5-6 (pair2 leading)', () => {
+    const sets = [
+      mkSet({ set_number: 1, pair1_games: 5, pair2_games: 6 }),
+      mkSet({ set_number: 2, pair1_games: 1, pair2_games: 0 }),
+    ]
+    const points = [mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 })]
+    const result = composeSets(sets, points)
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 5, pair2Games: 7, winner: 2, isCurrent: false })
+  })
+
+  it('leaves the CURRENT set unchanged even when score reads 6-5 (it may still be ongoing)', () => {
+    // A mid-set observation at 6-5 is normal (next game will decide). Don't
+    // bump the current set — only finalise non-current sets.
+    const sets = [mkSet({ set_number: 1, pair1_games: 6, pair2_games: 5 })]
+    const result = composeSets(sets, [])
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 5, winner: null, isCurrent: true })
+  })
+
+  it('leaves valid finals (6-4, 7-6) unchanged', () => {
+    const sets = [
+      mkSet({ set_number: 1, pair1_games: 6, pair2_games: 4 }),
+      mkSet({ set_number: 2, pair1_games: 7, pair2_games: 6 }),
+      mkSet({ set_number: 3, pair1_games: 1, pair2_games: 0 }),
+    ]
+    const points = [mkPoint({ set_number: 3, game_number: 1, point_number: 1, winner_pair: 1 })]
+    const result = composeSets(sets, points)
+    expect(result[0].pair1Games).toBe(6)
+    expect(result[0].pair2Games).toBe(4)
+    expect(result[0].winner).toBe(1)
+    expect(result[1].pair1Games).toBe(7)
+    expect(result[1].pair2Games).toBe(6)
+    expect(result[1].winner).toBe(1)
   })
 })
 

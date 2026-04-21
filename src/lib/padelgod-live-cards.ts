@@ -248,11 +248,23 @@ export function composeSets(
     const s = shadowByNum.get(setNum)
     const d = derived.get(setNum)
     // Primary: shadow_sets; secondary: derived; last-resort: 0.
-    const pair1Games = s?.pair1_games ?? d?.pair1Games ?? 0
-    const pair2Games = s?.pair2_games ?? d?.pair2Games ?? 0
-    // A set is "done" when it's not the current one. Winner is whoever has
-    // more games in that set. For the current set we leave winner=null.
+    let pair1Games = s?.pair1_games ?? d?.pair1Games ?? 0
+    let pair2Games = s?.pair2_games ?? d?.pair2Games ?? 0
     const isCurrent = setNum === maxSetNum
+
+    // Padelgod's live-poller sometimes misses the set-closing game. If a
+    // done set ends 6-5 or 5-6, that's MATHEMATICALLY impossible in padel
+    // (FIP rules: 2-game lead at 6, else tiebreak at 6-6 → 7-5 or 7-6).
+    // Bump the leader by 1 to produce the correct 7-5. This catches the
+    // single-game-missing case, which is what we see in the wild.
+    // 6-6 without a recorded tiebreak result is left as-is; fix is to use
+    // results_snapshots once populated (TODO follow-up).
+    if (!isCurrent) {
+      if (pair1Games === 6 && pair2Games === 5) pair1Games = 7
+      else if (pair2Games === 6 && pair1Games === 5) pair2Games = 7
+    }
+
+    // Winner = whoever has more games once the set is done.
     let winner: 1 | 2 | null = null
     if (!isCurrent) {
       if (pair1Games > pair2Games) winner = 1
