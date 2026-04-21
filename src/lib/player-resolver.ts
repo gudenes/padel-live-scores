@@ -72,6 +72,21 @@ export interface LookupResult {
   matchType: 'exact' | 'fuzzy' | 'none'
 }
 
+export interface LookupOptions {
+  /**
+   * Loosen fuzzy matching to handle FIP PDF ↔ DB name/country variations.
+   * When true:
+   *   - Country codes are normalized via `normalizeCountry` before comparison
+   *     (ARG ↔ AR, BRA ↔ BR, etc.)
+   *   - `typoTolerantSimilarity` replaces `tokenSimilarity` for scoring,
+   *     matching at a 0.9 threshold. This catches subset names (e.g.
+   *     "Franco Renato Dal Bianco" → "Franco Dal Bianco") and 1-char typos
+   *     on ≥4-letter tokens (e.g. "Giannina" → "Gianina").
+   * Default: false (preserves the strict behaviour existing callers rely on).
+   */
+  lenient?: boolean
+}
+
 // ── Name normalization ───────────────────────────────────────────────────
 
 export function normalize(s: string): string {
@@ -95,6 +110,101 @@ export function tokenSimilarity(a: string, b: string): number {
   let overlap = 0
   for (const t of ta) if (tb.has(t)) overlap++
   return overlap / Math.max(ta.size, tb.size)
+}
+
+// ── Country code normalization ───────────────────────────────────────────
+// FIP entry list PDFs use 3-letter ISO codes (ARG, BRA, ESP); our DB stores
+// 2-letter ISO codes (AR, BR, ES). When comparing, normalize to the 2-letter form.
+// Only codes we actually see in FIP tour data are mapped.
+const COUNTRY_3TO2: Record<string, string> = {
+  ARG: 'AR', BRA: 'BR', CHI: 'CL', PAR: 'PY', ESP: 'ES', URU: 'UY',
+  VEN: 'VE', USA: 'US', COL: 'CO', MEX: 'MX', ITA: 'IT', FRA: 'FR',
+  POR: 'PT', DEU: 'DE', GBR: 'GB', NED: 'NL', BEL: 'BE', SWE: 'SE',
+  DNK: 'DK', NOR: 'NO', FIN: 'FI', POL: 'PL', KAZ: 'KZ', RUS: 'RU',
+  THA: 'TH', JPN: 'JP', CHN: 'CN', IND: 'IN', EGY: 'EG', MAR: 'MA',
+  GER: 'DE', SUI: 'CH', HUN: 'HU', CZE: 'CZ', NZL: 'NZ', AUS: 'AU',
+  CAN: 'CA', ISR: 'IL', TUR: 'TR', UKR: 'UA', ROU: 'RO', SVK: 'SK',
+  CRO: 'HR', GRE: 'GR', BUL: 'BG', SRB: 'RS', PER: 'PE', ECU: 'EC',
+  BOL: 'BO', CUB: 'CU', PAN: 'PA', CRC: 'CR',
+}
+
+export function normalizeCountry(c: string | null | undefined): string | null {
+  if (!c) return null
+  const up = c.trim().toUpperCase()
+  if (up.length === 0) return null
+  if (up.length === 2) return up
+  return COUNTRY_3TO2[up] ?? up
+}
+
+// ── Subset-tolerant and typo-tolerant similarity ─────────────────────────
+// FIP PDFs use full legal names ("Cristina Cirne Lima De Oliveira") while our
+// DB has shortened common names ("Cristina Cirne"). The Jaccard-style
+// `tokenSimilarity` scores these at 0.5 — below the fuzzy threshold — even
+// though the shorter name is a subset of the longer. `subsetSimilarity` uses
+// `min` instead of `max` as the denominator, returning 1.0 whenever every
+// token of the shorter name appears in the longer name.
+
+export function subsetSimilarity(a: string, b: string): number {
+  const ta = tokens(a)
+  const tb = tokens(b)
+  if (ta.size === 0 || tb.size === 0) return 0
+  let overlap = 0
+  for (const t of ta) if (tb.has(t)) overlap++
+  return overlap / Math.min(ta.size, tb.size)
+}
+
+/** Levenshtein distance between two strings. */
+function editDistance(a: string, b: string): number {
+  const m = a.length, n = b.length
+  if (m === 0) return n
+  if (n === 0) return m
+  // Two-row dynamic programming
+  let prev = new Array<number>(n + 1)
+  let curr = new Array<number>(n + 1)
+  for (let j = 0; j <= n; j++) prev[j] = j
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i
+    for (let j = 1; j <= n; j++) {
+      curr[j] = a[i - 1] === b[j - 1]
+        ? prev[j - 1]
+        : 1 + Math.min(prev[j - 1], prev[j], curr[j - 1])
+    }
+    [prev, curr] = [curr, prev]
+  }
+  return prev[n]
+}
+
+/**
+ * Like `subsetSimilarity` but tolerates single-character typos on tokens that
+ * are at least 4 characters long. Catches FIP's occasional transliteration
+ * differences like "Giannina" vs "Gianina".
+ */
+export function typoTolerantSimilarity(a: string, b: string): number {
+  const ta = [...tokens(a)]
+  const tb = [...tokens(b)]
+  if (ta.length === 0 || tb.length === 0) return 0
+  const used = new Array<boolean>(tb.length).fill(false)
+  let overlap = 0
+  for (const t of ta) {
+    for (let i = 0; i < tb.length; i++) {
+      if (used[i]) continue
+      const u = tb[i]
+      if (t === u) {
+        overlap++
+        used[i] = true
+        break
+      }
+      // Allow 1-char edit distance only for tokens of length >= 4 on both sides.
+      // Shorter tokens (initials, 2-letter words like "de"/"la") stay strict to
+      // avoid false positives.
+      if (t.length >= 4 && u.length >= 4 && editDistance(t, u) <= 1) {
+        overlap++
+        used[i] = true
+        break
+      }
+    }
+  }
+  return overlap / Math.min(ta.length, tb.length)
 }
 
 // ── In-memory player cache ───────────────────────────────────────────────
@@ -440,11 +550,13 @@ export class PlayerResolver {
    *   3. normalized name + category match
    *   4. fuzzy name match (token overlap >= 0.7 + same category)
    */
-  async lookup(input: PlayerInput): Promise<LookupResult> {
+  async lookup(input: PlayerInput, opts: LookupOptions = {}): Promise<LookupResult> {
     await this.ensureLoaded()
 
     let existing: CachedPlayer | null = null
     let matchType: 'exact' | 'fuzzy' | 'none' = 'none'
+    const lenient = opts.lenient === true
+    const inputCountry = lenient ? normalizeCountry(input.country) : input.country ?? null
 
     // 1. Lookup by fip_id
     if (input.fipId) {
@@ -506,15 +618,24 @@ export class PlayerResolver {
       }
     }
 
-    // 4. Fuzzy name match (token overlap >= 0.7, same category)
+    // 4. Fuzzy name match
+    //    Strict:  tokenSimilarity >= 0.7, exact country match (both must match char-for-char)
+    //    Lenient: typoTolerantSimilarity >= 0.9, country compared after normalizeCountry
+    //             (handles ARG/AR, BRA/BR, etc. and single-char typos on long tokens)
     if (!existing && input.category) {
+      const scoreFn = lenient ? typoTolerantSimilarity : tokenSimilarity
+      const threshold = lenient ? 0.9 : 0.7
       let bestScore = 0
       for (const [, players] of this.byNormalizedName) {
         for (const p of players) {
           if (p.category !== input.category) continue
-          const sim = tokenSimilarity(input.name, p.name)
-          if (sim >= 0.7 && sim > bestScore) {
-            if (input.country && p.country && input.country !== p.country) continue
+          // Country mismatch blocks the match when both sides have a country.
+          // In lenient mode, normalize candidate country so 3-letter FIP codes
+          // compare equal to our 2-letter ISO codes.
+          const candCountry = lenient ? normalizeCountry(p.country) : p.country
+          if (inputCountry && candCountry && inputCountry !== candCountry) continue
+          const sim = scoreFn(input.name, p.name)
+          if (sim >= threshold && sim > bestScore) {
             bestScore = sim
             existing = p
           }
@@ -581,6 +702,17 @@ export class PlayerResolver {
       }
     }
     return null
+  }
+
+  /**
+   * Return the `fip_id` of the given cached player, or null if not in cache
+   * or the player has no fip_id. Callers that need the fip_id after
+   * `lookup()` returns a `playerId` use this to avoid another DB round-trip.
+   */
+  async getFipIdForPlayer(playerId: string): Promise<string | null> {
+    await this.ensureLoaded()
+    const cached = this.findCachedById(playerId)
+    return cached?.fipId ?? null
   }
 
   /** Build update object to enrich existing player with new non-null data. */

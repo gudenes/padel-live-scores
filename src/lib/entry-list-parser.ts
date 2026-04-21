@@ -59,7 +59,13 @@ function isHeaderLine(line: string): boolean {
 export function parseEntryListText(text: string): ParseResult {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   const teams: ParsedTeam[] = []
-  const playerRe = /(\d+)\s+(.+?)\s+([A-Z]{2,3})\s*$/
+  // Anchored at start of string: prevents `(\d+)` from skipping arbitrary
+  // leading text ("points 1234 Name XYZ" should NOT match). Callers always
+  // feed already-trimmed substrings; anchoring is safe and more precise.
+  const playerRe = /^(\d+)\s+(.+?)\s+([A-Z]{2,3})\s*$/
+  // Alternate: player line without a ranking prefix. Used for entries near
+  // the end of the ranking list (rank > max, field shown blank by FIP).
+  const playerNoRankRe = /^(.+?)\s+([A-Z]{2,3})\s*$/
   const pointsRe = /(\d+)\s+points/
   const positionRe = /^(\d+)\s+/
 
@@ -103,11 +109,24 @@ export function parseEntryListText(text: string): ParseResult {
     if (!posMatch) { i++; continue }
     const position = parseInt(posMatch[1], 10)
     const afterPos = wcLine.replace(/^\d+\s*\t?\s*/, '')
+    // Player 1 may or may not have a visible ranking. FIP leaves it blank
+    // for players below the published ranking depth (e.g. "26 Giuliano San
+    // Martin ARG" vs "25 \t2635 Cléo Carvalho BRA").
     const p1Match = playerRe.exec(afterPos)
-    if (!p1Match) { i++; continue }
-    const player1Ranking = parseInt(p1Match[1], 10)
-    const player1Name = p1Match[2].trim()
-    const player1Country = p1Match[3]
+    let player1Ranking: number
+    let player1Name: string
+    let player1Country: string
+    if (p1Match) {
+      player1Ranking = parseInt(p1Match[1], 10)
+      player1Name = p1Match[2].trim()
+      player1Country = p1Match[3]
+    } else {
+      const p1NoRank = playerNoRankRe.exec(afterPos)
+      if (!p1NoRank) { i++; continue }
+      player1Ranking = 0
+      player1Name = p1NoRank[1].trim()
+      player1Country = p1NoRank[2]
+    }
     if (i + 1 >= lines.length) break
     const line2 = lines[i + 1]
     const p1PointsMatch = pointsRe.exec(line2)
