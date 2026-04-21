@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   parseScoreAfter,
   deriveLiveState,
-  markCurrentSets,
+  derivedSetScores,
+  composeSets,
+  computeMatchTiming,
   buildLiveCard,
   isRecentlyActive,
   LIVE_ACTIVITY_WINDOW_MS,
@@ -45,35 +47,32 @@ const mkPoint = (o: Partial<ShadowPointRow>): ShadowPointRow => ({
 })
 
 describe('deriveLiveState', () => {
-  it('returns 0-0 and null server when no points', () => {
+  it('returns 0-0 / null server when no points', () => {
     expect(deriveLiveState([])).toEqual({
-      currentGame: { pair1Score: '0', pair2Score: '0', isGoldenPoint: false },
-      servingTeam: null,
+      pair1Score: '0', pair2Score: '0', isGoldenPoint: false, server: null,
     })
   })
 
-  it('uses the latest point by (set, game, pt) — newest-last input', () => {
+  it('uses the latest point by (set, game, pt) and nests server', () => {
     const points: ShadowPointRow[] = [
-      mkPoint({ set_number: 1, game_number: 1, point_number: 1, score_after: '15-0',  server_team: 1 }),
+      mkPoint({ set_number: 1, game_number: 1, point_number: 1, score_after: '15-0', server_team: 1 }),
       mkPoint({ set_number: 1, game_number: 2, point_number: 3, score_after: '30-40', server_team: 2 }),
     ]
     expect(deriveLiveState(points)).toEqual({
-      currentGame: { pair1Score: '30', pair2Score: '40', isGoldenPoint: false },
-      servingTeam: 2,
+      pair1Score: '30', pair2Score: '40', isGoldenPoint: false, server: 2,
     })
   })
 
   it('flags a golden-point correctly', () => {
     const points = [mkPoint({ score_after: '40-40', server_team: 1, is_golden_point: true })]
     expect(deriveLiveState(points)).toEqual({
-      currentGame: { pair1Score: '40', pair2Score: '40', isGoldenPoint: true },
-      servingTeam: 1,
+      pair1Score: '40', pair2Score: '40', isGoldenPoint: true, server: 1,
     })
   })
 
-  it('returns null server when server_team is null', () => {
+  it('server is null when server_team is null', () => {
     const points = [mkPoint({ server_team: null, score_after: '15-0' })]
-    expect(deriveLiveState(points).servingTeam).toBeNull()
+    expect(deriveLiveState(points).server).toBeNull()
   })
 })
 
@@ -86,37 +85,124 @@ const mkSet = (o: Partial<ShadowSetRow>): ShadowSetRow => ({
   ...o,
 })
 
-describe('markCurrentSets', () => {
-  it('returns empty array for empty input', () => {
-    expect(markCurrentSets([])).toEqual([])
+describe('derivedSetScores', () => {
+  it('returns empty map for empty points', () => {
+    expect(derivedSetScores([])).toEqual(new Map())
   })
 
-  it('marks the highest-numbered set as current', () => {
-    const sets = [
-      mkSet({ set_number: 1, pair1_games: 6, pair2_games: 3 }),
-      mkSet({ set_number: 2, pair1_games: 3, pair2_games: 4 }),
+  it('counts won games from latest point in each game, skipping the in-progress game', () => {
+    // Set 1: 6 games, all won by pair1 (last point of each game won by pair1).
+    // Set 2: in progress — game 1 only has 2 points played, latest won by pair2 — IGNORED.
+    const points: ShadowPointRow[] = []
+    for (let g = 1; g <= 6; g++) {
+      points.push(mkPoint({ set_number: 1, game_number: g, point_number: 4, winner_pair: 1 }))
+    }
+    points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
+    points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 2, winner_pair: 2 }))
+    const result = derivedSetScores(points)
+    expect(result.get(1)).toEqual({ pair1Games: 6, pair2Games: 0, winner: 1 })
+    // Set 2 has no completed games yet (the one in-progress game is excluded)
+    expect(result.has(2)).toBe(false)
+  })
+
+  it('assigns winners only to SET that are done (not the latest set)', () => {
+    // Set 1: pair1 wins games 1+2; pair2 wins games 3+4; set is "done" in the sense
+    // that set 2 has started. Winner = whoever has more games (pair1 2 vs pair2 2 → tie,
+    // in reality a set ends 6-x so a tie can't actually happen; test keeps logic simple).
+    const points: ShadowPointRow[] = [
+      // set 1, 4 completed games
+      mkPoint({ set_number: 1, game_number: 1, point_number: 4, winner_pair: 1 }),
+      mkPoint({ set_number: 1, game_number: 2, point_number: 4, winner_pair: 1 }),
+      mkPoint({ set_number: 1, game_number: 3, point_number: 4, winner_pair: 2 }),
+      mkPoint({ set_number: 1, game_number: 4, point_number: 4, winner_pair: 2 }),
+      // set 1, game 5 is the latest (in-progress) — its winner is irrelevant
+      mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }),
     ]
-    expect(markCurrentSets(sets)).toEqual([
-      { setNumber: 1, pair1Games: 6, pair2Games: 3, isCurrent: false },
-      { setNumber: 2, pair1Games: 3, pair2Games: 4, isCurrent: true },
-    ])
+    const result = derivedSetScores(points)
+    // Set 1: 2-2, and because set 2 has started, set 1 is "done" → tie-break-free
+    // winner is whichever pair has more games. In this synthetic case, both 2.
+    // Implementation: winner = pair1Games > pair2Games ? 1 : 2 → pair2 when tied.
+    expect(result.get(1)).toEqual({ pair1Games: 2, pair2Games: 2, winner: 2 })
   })
 
-  it('returns sets sorted by set_number ascending regardless of input order', () => {
-    const sets = [
-      mkSet({ set_number: 2, pair1_games: 3, pair2_games: 4 }),
-      mkSet({ set_number: 1, pair1_games: 6, pair2_games: 3 }),
+  it('handles a real-world off-by-one scenario (padelgod missed the winning point)', () => {
+    // Set 1: padelgod captured 7 games; last game's last point is won by pair1
+    // (who was at "Ad"). Game 7 counts as pair1's win. pair1=6 games, pair2=1.
+    // Set 2 has started, so set 1 is "done".
+    const points: ShadowPointRow[] = []
+    for (let g = 1; g <= 6; g++) {
+      points.push(mkPoint({ set_number: 1, game_number: g, point_number: 4, winner_pair: 1 }))
+    }
+    points.push(mkPoint({ set_number: 1, game_number: 7, point_number: 7, winner_pair: 2, score_after: 'Ad-40' }))
+    points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
+    const result = derivedSetScores(points)
+    expect(result.get(1)?.pair1Games).toBe(6)
+    expect(result.get(1)?.pair2Games).toBe(1)
+    expect(result.get(1)?.winner).toBe(1)
+  })
+})
+
+describe('composeSets', () => {
+  it('returns empty array when no sets and no points', () => {
+    expect(composeSets([], [])).toEqual([])
+  })
+
+  it('prefers points-derived counts over shadow_sets when they disagree', () => {
+    // shadow_sets says 5-1; points say 6-1 (padelgod recorded all 7 games).
+    const sets = [mkSet({ set_number: 1, pair1_games: 5, pair2_games: 1 })]
+    const points: ShadowPointRow[] = []
+    for (let g = 1; g <= 6; g++) {
+      points.push(mkPoint({ set_number: 1, game_number: g, point_number: 4, winner_pair: 1 }))
+    }
+    points.push(mkPoint({ set_number: 1, game_number: 7, point_number: 4, winner_pair: 2 }))
+    points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
+    const result = composeSets(sets, points)
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 6, pair2Games: 1, winner: 1, isCurrent: false })
+  })
+
+  it('falls back to shadow_sets when no points are available for a set', () => {
+    const sets = [mkSet({ set_number: 1, pair1_games: 6, pair2_games: 3 })]
+    const result = composeSets(sets, [])
+    expect(result).toEqual([{ setNumber: 1, pair1Games: 6, pair2Games: 3, winner: null, isCurrent: true }])
+  })
+
+  it('includes the in-progress set with isCurrent=true even if it has 0 completed games', () => {
+    const points: ShadowPointRow[] = [
+      mkPoint({ set_number: 1, game_number: 1, point_number: 4, winner_pair: 1 }),
+      mkPoint({ set_number: 2, game_number: 1, point_number: 2, winner_pair: 1 }),
     ]
-    const result = markCurrentSets(sets)
-    expect(result.map(s => s.setNumber)).toEqual([1, 2])
-    expect(result[1].isCurrent).toBe(true)
+    const result = composeSets([], points)
+    expect(result.length).toBe(2)
+    expect(result[0]).toEqual({ setNumber: 1, pair1Games: 1, pair2Games: 0, winner: 1, isCurrent: false })
+    expect(result[1]).toEqual({ setNumber: 2, pair1Games: 0, pair2Games: 0, winner: null, isCurrent: true })
+  })
+})
+
+describe('computeMatchTiming', () => {
+  const now = Date.parse('2026-04-21T12:30:00.000Z')
+
+  it('returns null/null when no points', () => {
+    expect(computeMatchTiming([], now, true)).toEqual({ startedAt: null, durationSec: null })
   })
 
-  it('handles null games as 0', () => {
-    const sets = [mkSet({ set_number: 1, pair1_games: null, pair2_games: null })]
-    expect(markCurrentSets(sets)).toEqual([
-      { setNumber: 1, pair1Games: 0, pair2Games: 0, isCurrent: true },
-    ])
+  it('computes live duration against now', () => {
+    const points = [
+      mkPoint({ created_at: '2026-04-21T11:00:00.000Z' }), // 90 min ago
+      mkPoint({ created_at: '2026-04-21T12:29:00.000Z' }), // 1 min ago (latest)
+    ]
+    const result = computeMatchTiming(points, now, true)
+    expect(result.startedAt).toBe('2026-04-21T11:00:00.000Z')
+    expect(result.durationSec).toBe(90 * 60) // 90 min = 5400s
+  })
+
+  it('computes finished duration against last point', () => {
+    const points = [
+      mkPoint({ created_at: '2026-04-21T11:00:00.000Z' }),
+      mkPoint({ created_at: '2026-04-21T12:15:00.000Z' }), // 75 min after start
+    ]
+    const result = computeMatchTiming(points, now, false)
+    expect(result.startedAt).toBe('2026-04-21T11:00:00.000Z')
+    expect(result.durationSec).toBe(75 * 60)
   })
 })
 
@@ -134,31 +220,35 @@ const baseMatch: MatchRow = {
 }
 
 describe('buildLiveCard', () => {
-  it('builds a live card with servingTeam=null when points are empty', () => {
+  it('builds a live card with null server when points are empty', () => {
     const card = buildLiveCard(baseMatch, 'Brussels P2 2026', [], [])
     expect(card.status).toBe('live')
-    expect(card.servingTeam).toBeNull()
-    expect(card.currentGame).toEqual({ pair1Score: '0', pair2Score: '0', isGoldenPoint: false })
+    expect(card.currentGame.server).toBeNull()
+    expect(card.currentGame).toEqual({ pair1Score: '0', pair2Score: '0', isGoldenPoint: false, server: null })
     expect(card.sets).toEqual([])
     expect(card.points).toEqual([])
+    expect(card.startedAt).toBeNull()
+    expect(card.durationSec).toBeNull()
     expect(card.tournamentName).toBe('Brussels P2 2026')
     expect(card.pair1.player1).toEqual({ name: 'Coello', country: 'ESP' })
   })
 
-  it('sets servingTeam and currentGame from the latest point', () => {
+  it('nests the server inside currentGame (no top-level servingTeam)', () => {
     const points: ShadowPointRow[] = [
-      mkPoint({ set_number: 1, game_number: 1, point_number: 1, score_after: '15-0',  server_team: 1 }),
+      mkPoint({ set_number: 1, game_number: 1, point_number: 1, score_after: '15-0', server_team: 1 }),
       mkPoint({ set_number: 1, game_number: 2, point_number: 3, score_after: '30-40', server_team: 2 }),
     ]
     const card = buildLiveCard(baseMatch, 'Brussels P2 2026', [], points)
-    expect(card.servingTeam).toBe(2)
-    expect(card.currentGame).toEqual({ pair1Score: '30', pair2Score: '40', isGoldenPoint: false })
+    expect(card.currentGame.server).toBe(2)
+    expect(card.currentGame.pair1Score).toBe('30')
+    expect(card.currentGame.pair2Score).toBe('40')
+    expect('servingTeam' in card).toBe(false)
   })
 
   it('orders points oldest-first regardless of input order', () => {
     const points: ShadowPointRow[] = [
-      mkPoint({ set_number: 1, game_number: 2, point_number: 3, created_at: 't2' }),
-      mkPoint({ set_number: 1, game_number: 1, point_number: 1, created_at: 't1' }),
+      mkPoint({ set_number: 1, game_number: 2, point_number: 3, created_at: '2026-04-21T11:02:00.000Z' }),
+      mkPoint({ set_number: 1, game_number: 1, point_number: 1, created_at: '2026-04-21T11:01:00.000Z' }),
     ]
     const card = buildLiveCard(baseMatch, 'T', [], points)
     expect(card.points.map(p => `${p.set}-${p.game}-${p.pt}`)).toEqual([
@@ -173,17 +263,16 @@ describe('buildLiveCard', () => {
     }
     const card = buildLiveCard(baseMatch, 'T', [], points)
     expect(card.points).toHaveLength(50)
-    // First entry should be point_number 11 (oldest of the kept 50)
     expect(card.points[0].pt).toBe(11)
     expect(card.points[49].pt).toBe(60)
   })
 
-  it('hides servingTeam for finished matches', () => {
+  it('hides server for finished matches', () => {
     const match: MatchRow = { ...baseMatch, status: 'finished' }
     const points = [mkPoint({ server_team: 1 })]
     const card = buildLiveCard(match, 'T', [], points)
     expect(card.status).toBe('finished')
-    expect(card.servingTeam).toBeNull()
+    expect(card.currentGame.server).toBeNull()
   })
 
   it('normalises status "ended" to "finished"', () => {
@@ -196,21 +285,24 @@ describe('buildLiveCard', () => {
     const match: MatchRow = { ...baseMatch, status: 'scheduled' }
     const card = buildLiveCard(match, 'T', [], [])
     expect(card.status).toBe('scheduled')
-    expect(card.servingTeam).toBeNull()
+    expect(card.currentGame.server).toBeNull()
+    expect(card.startedAt).toBeNull()
+    expect(card.durationSec).toBeNull()
   })
 
-  it('treats a "scheduled" match with RECENT shadow activity as live (padelgod qualifier fix)', () => {
+  it('treats a "scheduled" match with RECENT shadow activity as live', () => {
     const now = Date.parse('2026-04-21T12:00:00.000Z')
     const match: MatchRow = { ...baseMatch, status: 'scheduled' }
     const points = [mkPoint({
       server_team: 2,
       score_after: '40-30',
-      created_at: '2026-04-21T11:59:00.000Z', // 60s ago
+      created_at: '2026-04-21T11:59:00.000Z',
     })]
     const card = buildLiveCard(match, 'T', [], points, now)
     expect(card.status).toBe('live')
-    expect(card.servingTeam).toBe(2)
-    expect(card.currentGame).toEqual({ pair1Score: '40', pair2Score: '30', isGoldenPoint: false })
+    expect(card.currentGame.server).toBe(2)
+    expect(card.currentGame.pair1Score).toBe('40')
+    expect(card.currentGame.pair2Score).toBe('30')
   })
 
   it('leaves a "scheduled" match with STALE shadow activity as scheduled', () => {
@@ -218,11 +310,11 @@ describe('buildLiveCard', () => {
     const match: MatchRow = { ...baseMatch, status: 'scheduled' }
     const points = [mkPoint({
       server_team: 1,
-      created_at: '2026-04-21T11:40:00.000Z', // 20 min ago > 5 min window
+      created_at: '2026-04-21T11:40:00.000Z',
     })]
     const card = buildLiveCard(match, 'T', [], points, now)
     expect(card.status).toBe('scheduled')
-    expect(card.servingTeam).toBeNull()
+    expect(card.currentGame.server).toBeNull()
   })
 
   it('does NOT resurrect a finished match even with recent activity', () => {
@@ -234,7 +326,38 @@ describe('buildLiveCard', () => {
     })]
     const card = buildLiveCard(match, 'T', [], points, now)
     expect(card.status).toBe('finished')
-    expect(card.servingTeam).toBeNull()
+    expect(card.currentGame.server).toBeNull()
+  })
+
+  it('populates startedAt and durationSec from captured points', () => {
+    const now = Date.parse('2026-04-21T12:00:00.000Z')
+    const match: MatchRow = { ...baseMatch, status: 'live' }
+    const points = [
+      mkPoint({ set_number: 1, game_number: 1, point_number: 1, created_at: '2026-04-21T11:30:00.000Z' }),
+      mkPoint({ set_number: 1, game_number: 1, point_number: 2, created_at: '2026-04-21T11:58:00.000Z' }),
+    ]
+    const card = buildLiveCard(match, 'T', [], points, now)
+    expect(card.startedAt).toBe('2026-04-21T11:30:00.000Z')
+    expect(card.durationSec).toBe(30 * 60) // 30 min
+  })
+
+  it('marks set winners via points (the off-by-one shadow_sets bug fix)', () => {
+    // shadow_sets incorrectly reports 5-1; points show all 7 games played,
+    // 6 won by pair1. Expect the card to render 6-1 with winner=1.
+    const shadowSets: ShadowSetRow[] = [mkSet({ set_number: 1, pair1_games: 5, pair2_games: 1 })]
+    const points: ShadowPointRow[] = []
+    for (let g = 1; g <= 6; g++) {
+      points.push(mkPoint({ set_number: 1, game_number: g, point_number: 4, winner_pair: 1 }))
+    }
+    points.push(mkPoint({ set_number: 1, game_number: 7, point_number: 4, winner_pair: 2 }))
+    points.push(mkPoint({ set_number: 2, game_number: 1, point_number: 1, winner_pair: 1 }))
+    const match: MatchRow = { ...baseMatch, status: 'live' }
+    const card = buildLiveCard(match, 'T', shadowSets, points)
+    const set1 = card.sets.find(s => s.setNumber === 1)!
+    expect(set1.pair1Games).toBe(6)
+    expect(set1.pair2Games).toBe(1)
+    expect(set1.winner).toBe(1)
+    expect(set1.isCurrent).toBe(false)
   })
 })
 
@@ -247,21 +370,21 @@ describe('isRecentlyActive', () => {
 
   it('returns true when the latest point is within the window', () => {
     const points = [
-      mkPoint({ created_at: '2026-04-21T11:50:00.000Z' }), // 10 min old
-      mkPoint({ created_at: '2026-04-21T11:58:00.000Z' }), // 2 min old — this one drives it
+      mkPoint({ created_at: '2026-04-21T11:50:00.000Z' }),
+      mkPoint({ created_at: '2026-04-21T11:58:00.000Z' }),
     ]
     expect(isRecentlyActive(points, now)).toBe(true)
   })
 
   it('returns false when even the latest point is outside the window', () => {
-    const points = [mkPoint({ created_at: '2026-04-21T11:54:00.000Z' })] // 6 min old > 5 min window
+    const points = [mkPoint({ created_at: '2026-04-21T11:54:00.000Z' })]
     expect(isRecentlyActive(points, now)).toBe(false)
   })
 
   it('respects a custom window', () => {
-    const points = [mkPoint({ created_at: '2026-04-21T11:54:00.000Z' })] // 6 min old
-    expect(isRecentlyActive(points, now, 10 * 60 * 1000)).toBe(true)  // 10 min window
-    expect(isRecentlyActive(points, now, 60 * 1000)).toBe(false)      // 1 min window
+    const points = [mkPoint({ created_at: '2026-04-21T11:54:00.000Z' })]
+    expect(isRecentlyActive(points, now, 10 * 60 * 1000)).toBe(true)
+    expect(isRecentlyActive(points, now, 60 * 1000)).toBe(false)
   })
 
   it('exposes the default window as 5 minutes', () => {
