@@ -100,6 +100,11 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // 6. Hidden /x/ preview routes — English-only, skip i18n
+  if (pathname.startsWith('/x/')) {
+    return NextResponse.next()
+  }
+
   // ── Cookie-wins locale redirect ────────────────────────────────
   //
   // When the user manually picks a language via LocaleSwitcher, we write

@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/ops/', '/auth/'],
+        disallow: ['/api/', '/ops/', '/auth/', '/x/'],
       },
     ],
     sitemap: 'https://padelnachos.com/sitemap.xml',
