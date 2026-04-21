@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { parseScoreAfter } from '../padelgod-live-cards'
+import { parseScoreAfter, deriveLiveState, markCurrentSets } from '../padelgod-live-cards'
+import type { ShadowPointRow, ShadowSetRow } from '../padelgod-live-cards'
 
 describe('parseScoreAfter', () => {
   it('parses a standard score string', () => {
@@ -20,5 +21,94 @@ describe('parseScoreAfter', () => {
 
   it('returns 0-0 for malformed input', () => {
     expect(parseScoreAfter('nonsense')).toEqual({ pair1Score: '0', pair2Score: '0' })
+  })
+})
+
+const mkPoint = (o: Partial<ShadowPointRow>): ShadowPointRow => ({
+  match_id: 'm1',
+  set_number: 1,
+  game_number: 1,
+  point_number: 1,
+  winner_pair: 1,
+  score_after: '15-0',
+  server_team: 1,
+  is_golden_point: false,
+  created_at: '2026-04-21T09:00:00.000Z',
+  ...o,
+})
+
+describe('deriveLiveState', () => {
+  it('returns 0-0 and null server when no points', () => {
+    expect(deriveLiveState([])).toEqual({
+      currentGame: { pair1Score: '0', pair2Score: '0', isGoldenPoint: false },
+      servingTeam: null,
+    })
+  })
+
+  it('uses the latest point by (set, game, pt) — newest-last input', () => {
+    const points: ShadowPointRow[] = [
+      mkPoint({ set_number: 1, game_number: 1, point_number: 1, score_after: '15-0',  server_team: 1 }),
+      mkPoint({ set_number: 1, game_number: 2, point_number: 3, score_after: '30-40', server_team: 2 }),
+    ]
+    expect(deriveLiveState(points)).toEqual({
+      currentGame: { pair1Score: '30', pair2Score: '40', isGoldenPoint: false },
+      servingTeam: 2,
+    })
+  })
+
+  it('flags a golden-point correctly', () => {
+    const points = [mkPoint({ score_after: '40-40', server_team: 1, is_golden_point: true })]
+    expect(deriveLiveState(points)).toEqual({
+      currentGame: { pair1Score: '40', pair2Score: '40', isGoldenPoint: true },
+      servingTeam: 1,
+    })
+  })
+
+  it('returns null server when server_team is null', () => {
+    const points = [mkPoint({ server_team: null, score_after: '15-0' })]
+    expect(deriveLiveState(points).servingTeam).toBeNull()
+  })
+})
+
+const mkSet = (o: Partial<ShadowSetRow>): ShadowSetRow => ({
+  match_id: 'm1',
+  set_number: 1,
+  pair1_games: 0,
+  pair2_games: 0,
+  updated_at: null,
+  ...o,
+})
+
+describe('markCurrentSets', () => {
+  it('returns empty array for empty input', () => {
+    expect(markCurrentSets([])).toEqual([])
+  })
+
+  it('marks the highest-numbered set as current', () => {
+    const sets = [
+      mkSet({ set_number: 1, pair1_games: 6, pair2_games: 3 }),
+      mkSet({ set_number: 2, pair1_games: 3, pair2_games: 4 }),
+    ]
+    expect(markCurrentSets(sets)).toEqual([
+      { setNumber: 1, pair1Games: 6, pair2Games: 3, isCurrent: false },
+      { setNumber: 2, pair1Games: 3, pair2Games: 4, isCurrent: true },
+    ])
+  })
+
+  it('returns sets sorted by set_number ascending regardless of input order', () => {
+    const sets = [
+      mkSet({ set_number: 2, pair1_games: 3, pair2_games: 4 }),
+      mkSet({ set_number: 1, pair1_games: 6, pair2_games: 3 }),
+    ]
+    const result = markCurrentSets(sets)
+    expect(result.map(s => s.setNumber)).toEqual([1, 2])
+    expect(result[1].isCurrent).toBe(true)
+  })
+
+  it('handles null games as 0', () => {
+    const sets = [mkSet({ set_number: 1, pair1_games: null, pair2_games: null })]
+    expect(markCurrentSets(sets)).toEqual([
+      { setNumber: 1, pair1Games: 0, pair2Games: 0, isCurrent: true },
+    ])
   })
 })

@@ -98,3 +98,49 @@ export function parseScoreAfter(score: string | null): {
   if (!a || !b) return { pair1Score: '0', pair2Score: '0' }
   return { pair1Score: a.trim(), pair2Score: b.trim() }
 }
+
+// ---------------------------------------------------------------------------
+// deriveLiveState — from a flat list of shadow points, return the currentGame
+// state and the servingTeam for "right now".
+// ---------------------------------------------------------------------------
+export function deriveLiveState(points: ShadowPointRow[]): {
+  currentGame: CurrentGame
+  servingTeam: 1 | 2 | null
+} {
+  if (points.length === 0) {
+    return {
+      currentGame: { pair1Score: '0', pair2Score: '0', isGoldenPoint: false },
+      servingTeam: null,
+    }
+  }
+  // Find the latest by (set, game, pt)
+  const latest = points.reduce((acc, cur) => {
+    if (cur.set_number > acc.set_number) return cur
+    if (cur.set_number < acc.set_number) return acc
+    if (cur.game_number > acc.game_number) return cur
+    if (cur.game_number < acc.game_number) return acc
+    return cur.point_number > acc.point_number ? cur : acc
+  }, points[0])
+
+  const { pair1Score, pair2Score } = parseScoreAfter(latest.score_after)
+  return {
+    currentGame: { pair1Score, pair2Score, isGoldenPoint: latest.is_golden_point },
+    servingTeam: latest.server_team,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// markCurrentSets — normalise shadow_set rows into SetEntry[], sorted ascending
+// with isCurrent=true on the highest set_number.
+// ---------------------------------------------------------------------------
+export function markCurrentSets(sets: ShadowSetRow[]): SetEntry[] {
+  if (sets.length === 0) return []
+  const sorted = [...sets].sort((a, b) => a.set_number - b.set_number)
+  const maxIdx = sorted.length - 1
+  return sorted.map((s, i) => ({
+    setNumber: s.set_number,
+    pair1Games: s.pair1_games ?? 0,
+    pair2Games: s.pair2_games ?? 0,
+    isCurrent: i === maxIdx,
+  }))
+}
