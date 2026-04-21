@@ -13,6 +13,54 @@ const SAMPLE_TEXT = `Pos Ranking \tPlayer \tRanking \tPlayer \tTeam Points
 1630 points 4030`
 
 describe('parseEntryListText', () => {
+  it('handles player 1 with no ranking (FIP below-ranking-depth entries)', () => {
+    // Shape observed on Ijuí men's entry list for teams 23 & 26: player 1's
+    // ranking is blank (unranked or below the published list depth), player 2
+    // has a ranking. Parser must not drop these teams.
+    const text = `Pos Ranking \tPlayer \tRanking \tPlayer \tTeam Points
+23 Andrei Huber BRA
+0 points 1739 David Pedroso Hennemann BRA
+5 points 5
+26 Giuliano Santino Propato San Martin ARG
+0 points 2635 Leonardo Sato BRA
+2 points 2`
+    const { teams } = parseEntryListText(text)
+    expect(teams).toHaveLength(2)
+    expect(teams[0]).toEqual({
+      position: 23,
+      teamPoints: 5,
+      drawType: 'main',
+      isWildCard: false,
+      player1: { name: 'Andrei Huber', country: 'BRA', ranking: 0, points: 0 },
+      player2: { name: 'David Pedroso Hennemann', country: 'BRA', ranking: 1739, points: 5 },
+    })
+    expect(teams[1]).toEqual({
+      position: 26,
+      teamPoints: 2,
+      drawType: 'main',
+      isWildCard: false,
+      player1: { name: 'Giuliano Santino Propato San Martin', country: 'ARG', ranking: 0, points: 0 },
+      player2: { name: 'Leonardo Sato', country: 'BRA', ranking: 2635, points: 2 },
+    })
+  })
+
+  it('does not cascade-misparse when a team boundary is malformed', () => {
+    // If one team's first line is malformed, the parser must skip that line
+    // only — not consume the NEXT team's "N points..." line as a bogus new team.
+    const text = `Pos Ranking \tPlayer \tRanking \tPlayer \tTeam Points
+1 \t100 Foo Bar ESP
+5 points 200 Qux Baz ESP
+3 points 8
+malformed line that cannot parse
+2 \t150 Alpha Beta ARG
+4 points 250 Gamma Delta ARG
+2 points 6`
+    const { teams } = parseEntryListText(text)
+    expect(teams).toHaveLength(2)
+    expect(teams[0].position).toBe(1)
+    expect(teams[1].position).toBe(2)
+  })
+
   it('parses teams from entry list text', () => {
     const { teams } = parseEntryListText(SAMPLE_TEXT)
     expect(teams).toHaveLength(3)
