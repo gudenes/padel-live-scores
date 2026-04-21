@@ -138,6 +138,27 @@ export async function GET(request: Request) {
     .in('match_id', matchIds)
   const shadowPoints = (pointData ?? []) as ShadowPointRow[]
 
+  // 4b. Fetch latest OOP snapshot rows per (tournament_id, court) to serve
+  // as a fallback source of player names when matches.pair*_player*_id FKs
+  // are NULL (common for qualifiers padelapi.org never scraped). Keep
+  // scope tight: only last 24h, only tournaments we're already returning.
+  const oopByKey = new Map<string, { team1_player1_name: string | null; team1_player2_name: string | null; team2_player1_name: string | null; team2_player2_name: string | null }>()
+  const { data: oopData } = await supabase
+    .schema('padelgod')
+    .from('oop_snapshots')
+    .select('tournament_id, court, team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, captured_at')
+    .in('tournament_id', tournamentIds)
+    .gt('captured_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    .order('captured_at', { ascending: false })
+  type OopRow = { tournament_id: string; court: string | null; team1_player1_name: string | null; team1_player2_name: string | null; team2_player1_name: string | null; team2_player2_name: string | null; captured_at: string }
+  for (const row of (oopData ?? []) as OopRow[]) {
+    if (!row.court) continue
+    // Normalise case for robust joining — our matches.court and padelgod's
+    // oop_snapshots.court can differ in casing (e.g. 'COURT CBC' vs 'Court Cbc').
+    const key = `${row.tournament_id}|${row.court.toUpperCase().trim()}`
+    if (!oopByKey.has(key)) oopByKey.set(key, row) // first is newest due to desc order
+  }
+
   const setsByMatch = new Map<string, ShadowSetRow[]>()
   for (const s of shadowSets) {
     const arr = setsByMatch.get(s.match_id) ?? []
@@ -151,13 +172,38 @@ export async function GET(request: Request) {
     pointsByMatch.set(p.match_id, arr)
   }
 
-  // 5. Build cards
-  const allCards: LiveCard[] = matches.map(m => buildLiveCard(
-    m,
-    tournamentNames.get(m.tournament_id) ?? '',
-    setsByMatch.get(m.id) ?? [],
-    pointsByMatch.get(m.id) ?? [],
-  ))
+  // 5. Build cards. For each match with NULL player FKs, synthesise
+  // PlayerLite placeholders from the matching oop_snapshots row before
+  // passing to buildLiveCard. Country info isn't in oop_snapshots so we
+  // pass it as null.
+  const allCards: LiveCard[] = matches.map(m => {
+    const needsFallback =
+      !m.pair1_player1 && !m.pair1_player2 && !m.pair2_player1 && !m.pair2_player2
+    let enrichedMatch = m
+    if (needsFallback && m.court) {
+      const key = `${m.tournament_id}|${m.court.toUpperCase().trim()}`
+      const oop = oopByKey.get(key)
+      if (oop) {
+        const toPlayer = (name: string | null) =>
+          name && name.trim().length > 0
+            ? { name: name.trim(), country: null }
+            : null
+        enrichedMatch = {
+          ...m,
+          pair1_player1: toPlayer(oop.team1_player1_name),
+          pair1_player2: toPlayer(oop.team1_player2_name),
+          pair2_player1: toPlayer(oop.team2_player1_name),
+          pair2_player2: toPlayer(oop.team2_player2_name),
+        }
+      }
+    }
+    return buildLiveCard(
+      enrichedMatch,
+      tournamentNames.get(m.tournament_id) ?? '',
+      setsByMatch.get(m.id) ?? [],
+      pointsByMatch.get(m.id) ?? [],
+    )
+  })
 
   // 6. Bucket + sort
   const live = allCards.filter(c => c.status === 'live')
