@@ -18,9 +18,10 @@ function fmtTime(iso: string): string {
 }
 
 function fmtLine(p: PointEntry): string {
-  const srv = p.server === 1 ? 'Pair 1 serves' : p.server === 2 ? 'Pair 2 serves' : 'server unknown'
+  const srv = p.server === 'pair1' ? 'Pair 1 serves' : p.server === 'pair2' ? 'Pair 2 serves' : 'server unknown'
+  const winnerLabel = p.winner === 'pair1' ? 'Pair 1 wins' : 'Pair 2 wins'
   const gp = p.isGoldenPoint ? '🥇 ' : ''
-  return `[${fmtTime(p.at)}] S${p.set} G${p.game} P${p.pt} · ${srv} · ${gp}${p.score} → Pair ${p.winner} wins`
+  return `[${fmtTime(p.at)}] S${p.set} G${p.game} P${p.pt} · ${srv} · ${gp}${p.score} → ${winnerLabel}`
 }
 
 export default function PointLog({
