@@ -70,12 +70,16 @@ interface FakeSupabase {
   shadowSetsUpsertCalls: any[];
   shadowMatchPointsInserted: ShadowMatchPointRow[];
   padelgodFromCalls: string[];
+  // Dual-write surfaces: public.matches.update (status flip) + public.sets.select
+  matchesUpdateCalls: Array<{ patch: Record<string, unknown>; filters: Record<string, unknown> }>;
+  matchesRows: Array<{ id: string; status: string }>;
 }
 
 function makeFakeSupabase(opts: {
   preSets?: SetRow[];
   preGames?: GameRow[];
   preMatchPoints?: MatchPointRow[];
+  preMatchesRows?: Array<{ id: string; status: string }>;
   setUpsertError?: boolean;
   gameUpsertError?: boolean;
 } = {}): { client: any; state: FakeSupabase } {
@@ -90,6 +94,8 @@ function makeFakeSupabase(opts: {
     shadowSetsUpsertCalls: [],
     shadowMatchPointsInserted: [],
     padelgodFromCalls: [],
+    matchesUpdateCalls: [],
+    matchesRows: opts.preMatchesRows ? [...opts.preMatchesRows] : [],
   };
 
   let setIdCounter = state.sets.length;
@@ -123,6 +129,10 @@ function makeFakeSupabase(opts: {
           select: (_c: string) => ({
             single: () => Promise.resolve({ data: { id }, error: null }),
           }),
+          // Upsert with no .select() — returned when the caller doesn't chain.
+          // Returns a thenable so `await supabase.from('sets').upsert(...)` resolves.
+          then: (resolve: (v: { data: null; error: null }) => void) =>
+            resolve({ data: null, error: null }),
         };
       },
       update: (patch: Record<string, unknown>) => ({
@@ -136,6 +146,50 @@ function makeFakeSupabase(opts: {
             for (const s of state.sets) {
               if (s.match_id === val1 && s.set_number !== val2) {
                 Object.assign(s, patch);
+              }
+            }
+            return Promise.resolve({ data: null, error: null });
+          },
+        }),
+      }),
+      // Used by dual-write to read existing score_source before overwriting.
+      // Chain: .select(...).eq(match_id).eq(set_number).maybeSingle()
+      select: (_cols: string) => {
+        const filters: Record<string, unknown> = {};
+        const api: any = {
+          eq: (col: string, val: unknown) => {
+            filters[col] = val;
+            return api;
+          },
+          maybeSingle: () => {
+            const row = state.sets.find(
+              (s) => s.match_id === filters.match_id && s.set_number === filters.set_number,
+            );
+            if (!row) return Promise.resolve({ data: null, error: null });
+            return Promise.resolve({
+              data: { id: row.id, score_source: (row as any).score_source ?? null },
+              error: null,
+            });
+          },
+        };
+        return api;
+      },
+    };
+  }
+
+  function matchesTable() {
+    return {
+      update: (patch: Record<string, unknown>) => ({
+        eq: (col1: string, val1: unknown) => ({
+          eq: (col2: string, val2: unknown) => {
+            state.matchesUpdateCalls.push({
+              patch,
+              filters: { [col1]: val1, [col2]: val2 },
+            });
+            // Apply only when the row matches both filters (status flip guard).
+            for (const m of state.matchesRows) {
+              if ((m as any)[col1] === val1 && (m as any)[col2] === val2) {
+                Object.assign(m, patch);
               }
             }
             return Promise.resolve({ data: null, error: null });
@@ -282,6 +336,7 @@ function makeFakeSupabase(opts: {
       if (t === 'sets') return setsTable();
       if (t === 'games') return gamesTable();
       if (t === 'match_points') return matchPointsTable();
+      if (t === 'matches') return matchesTable();
       throw new Error(`unexpected table: ${t}`);
     },
     schema: (schemaName: string) => {
@@ -847,5 +902,160 @@ describe('applyDiff (shadow mode)', () => {
 
     expect(s.shadowMatchPointsInserted).toHaveLength(2);
     expect(s.shadowMatchPointsInserted[1]!.point_number).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyDiff (shadow mode + dualWritePublic=true) — dual-write behavior
+// ---------------------------------------------------------------------------
+
+describe('applyDiff (shadow + dualWritePublic)', () => {
+  function makeClientWithMatch(status: string) {
+    return makeFakeSupabase({
+      preMatchesRows: [{ id: MATCH_ID, status }],
+    });
+  }
+
+  it('flips public.matches.status scheduled → live on first tick', async () => {
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+    };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    expect(s.matchesUpdateCalls).toHaveLength(1);
+    expect(s.matchesUpdateCalls[0]!.patch.status).toBe('live');
+    expect(s.matchesUpdateCalls[0]!.filters).toMatchObject({ id: MATCH_ID, status: 'scheduled' });
+    expect(s.matchesRows[0]!.status).toBe('live');
+  });
+
+  it('does not regress public.matches.status when already finished', async () => {
+    const { client, state: s } = makeClientWithMatch('finished');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // The update call is still issued (no pre-check), but the .eq('status','scheduled')
+    // guard means no row actually matches → DB state untouched.
+    expect(s.matchesRows[0]!.status).toBe('finished');
+  });
+
+  it('upserts public.sets with score_source=shadow', async () => {
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, {
+      team1Sets: [{ games: 2, tiebreak: null }],
+      team2Sets: [{ games: 1, tiebreak: null }],
+    });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 }, {
+      team1Sets: [{ games: 2, tiebreak: null }],
+      team2Sets: [{ games: 1, tiebreak: null }],
+    });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // Shadow path also fires (padelgod.shadow_sets).
+    expect(s.shadowSetsUpsertCalls).toHaveLength(1);
+    // Plus a public.sets upsert with score_source='shadow'.
+    expect(s.setsUpsertCalls).toHaveLength(1);
+    expect(s.setsUpsertCalls[0]).toMatchObject({
+      match_id: MATCH_ID,
+      set_number: 1,
+      set_score: '2-1',
+      pair1_games: 2,
+      pair2_games: 1,
+      is_current: true,
+      score_source: 'shadow',
+    });
+  });
+
+  it('skips public.sets upsert when existing row has score_source=api', async () => {
+    const { client, state: s } = makeFakeSupabase({
+      preMatchesRows: [{ id: MATCH_ID, status: 'live' }],
+      preSets: [
+        {
+          id: 'pre-set-1',
+          match_id: MATCH_ID,
+          set_number: 1,
+          pair1_games: 6,
+          pair2_games: 4,
+          is_current: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...({ score_source: 'api' } as any),
+        },
+      ],
+    });
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // Shadow path still runs (padelgod.shadow_sets is independent).
+    expect(s.shadowSetsUpsertCalls).toHaveLength(1);
+    // But public.sets is NOT touched — canonical source wins.
+    expect(s.setsUpsertCalls).toHaveLength(0);
+  });
+
+  it('clears is_current on older sets when currentSetNumber > 1', async () => {
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, {
+      team1Sets: [{ games: 6, tiebreak: null }, { games: 3, tiebreak: null }],
+      team2Sets: [{ games: 4, tiebreak: null }, { games: 2, tiebreak: null }],
+    });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 }, {
+      team1Sets: [{ games: 6, tiebreak: null }, { games: 3, tiebreak: null }],
+      team2Sets: [{ games: 4, tiebreak: null }, { games: 2, tiebreak: null }],
+    });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // One upsert for set 2 + one update clearing is_current on !=2.
+    expect(s.setsUpsertCalls).toHaveLength(1);
+    expect(s.setsUpsertCalls[0]!.set_number).toBe(2);
+    expect(s.setsUpdateCalls).toHaveLength(1);
+    expect(s.setsUpdateCalls[0]!.patch.is_current).toBe(false);
+    expect(s.setsUpdateCalls[0]!.filters).toMatchObject({
+      match_id: MATCH_ID,
+      '!set_number': 2,
+    });
+  });
+
+  it('does not touch public tables when dualWritePublic is omitted (back-compat)', async () => {
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    // mode='shadow' WITHOUT the flag — existing behavior preserved.
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, { mode: 'shadow' });
+
+    expect(s.matchesUpdateCalls).toHaveLength(0);
+    expect(s.setsUpsertCalls).toHaveLength(0);
+    expect(s.setsUpdateCalls).toHaveLength(0);
+    // Shadow writes still happen.
+    expect(s.shadowSetsUpsertCalls).toHaveLength(1);
   });
 });
