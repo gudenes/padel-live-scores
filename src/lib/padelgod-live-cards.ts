@@ -155,6 +155,11 @@ export function markCurrentSets(sets: ShadowSetRow[]): SetEntry[] {
 
 const MAX_POINTS = 50
 
+// If a match has a shadow point captured within this window, padelgod
+// considers it live — even if the canonical matches.status column hasn't
+// caught up (common for qualifiers where padelapi.org has no data).
+export const LIVE_ACTIVITY_WINDOW_MS = 5 * 60 * 1000
+
 function normaliseStatus(raw: string): 'live' | 'scheduled' | 'finished' {
   if (raw === 'live') return 'live'
   if (raw === 'ended' || raw === 'finished' || raw === 'retired' || raw === 'walkover') return 'finished'
@@ -167,15 +172,42 @@ function comparePoints(a: ShadowPointRow, b: ShadowPointRow): number {
   return a.point_number - b.point_number
 }
 
+/**
+ * Returns true if the most recent point in `points` was captured within
+ * `windowMs` of `nowMs`. Used to decide whether padelgod should surface a
+ * match as "live" regardless of the canonical matches.status value.
+ */
+export function isRecentlyActive(
+  points: ShadowPointRow[],
+  nowMs: number,
+  windowMs: number = LIVE_ACTIVITY_WINDOW_MS,
+): boolean {
+  if (points.length === 0) return false
+  const latestMs = points.reduce((max, p) => {
+    const t = Date.parse(p.created_at)
+    return Number.isFinite(t) && t > max ? t : max
+  }, 0)
+  if (latestMs === 0) return false
+  return nowMs - latestMs <= windowMs
+}
+
 export function buildLiveCard(
   match: MatchRow,
   tournamentName: string,
   sets: ShadowSetRow[],
   points: ShadowPointRow[],
+  nowMs: number = Date.now(),
 ): LiveCard {
-  const status = normaliseStatus(match.status)
+  const canonicalStatus = normaliseStatus(match.status)
   const sortedPoints = [...points].sort(comparePoints)
   const cappedPoints = sortedPoints.slice(-MAX_POINTS)
+
+  // Override to 'live' when padelgod is actively capturing points — unless
+  // the canonical pipeline has already declared the match finished.
+  const status: 'live' | 'scheduled' | 'finished' =
+    canonicalStatus !== 'finished' && isRecentlyActive(sortedPoints, nowMs)
+      ? 'live'
+      : canonicalStatus
 
   const live = status === 'live'
     ? deriveLiveState(sortedPoints)

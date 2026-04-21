@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { parseScoreAfter, deriveLiveState, markCurrentSets, buildLiveCard } from '../padelgod-live-cards'
+import {
+  parseScoreAfter,
+  deriveLiveState,
+  markCurrentSets,
+  buildLiveCard,
+  isRecentlyActive,
+  LIVE_ACTIVITY_WINDOW_MS,
+} from '../padelgod-live-cards'
 import type { ShadowPointRow, ShadowSetRow, MatchRow } from '../padelgod-live-cards'
 
 describe('parseScoreAfter', () => {
@@ -185,10 +192,79 @@ describe('buildLiveCard', () => {
     expect(card.status).toBe('finished')
   })
 
-  it('passes scheduled status through untouched', () => {
+  it('passes scheduled status through untouched when no points', () => {
     const match: MatchRow = { ...baseMatch, status: 'scheduled' }
     const card = buildLiveCard(match, 'T', [], [])
     expect(card.status).toBe('scheduled')
     expect(card.servingTeam).toBeNull()
+  })
+
+  it('treats a "scheduled" match with RECENT shadow activity as live (padelgod qualifier fix)', () => {
+    const now = Date.parse('2026-04-21T12:00:00.000Z')
+    const match: MatchRow = { ...baseMatch, status: 'scheduled' }
+    const points = [mkPoint({
+      server_team: 2,
+      score_after: '40-30',
+      created_at: '2026-04-21T11:59:00.000Z', // 60s ago
+    })]
+    const card = buildLiveCard(match, 'T', [], points, now)
+    expect(card.status).toBe('live')
+    expect(card.servingTeam).toBe(2)
+    expect(card.currentGame).toEqual({ pair1Score: '40', pair2Score: '30', isGoldenPoint: false })
+  })
+
+  it('leaves a "scheduled" match with STALE shadow activity as scheduled', () => {
+    const now = Date.parse('2026-04-21T12:00:00.000Z')
+    const match: MatchRow = { ...baseMatch, status: 'scheduled' }
+    const points = [mkPoint({
+      server_team: 1,
+      created_at: '2026-04-21T11:40:00.000Z', // 20 min ago > 5 min window
+    })]
+    const card = buildLiveCard(match, 'T', [], points, now)
+    expect(card.status).toBe('scheduled')
+    expect(card.servingTeam).toBeNull()
+  })
+
+  it('does NOT resurrect a finished match even with recent activity', () => {
+    const now = Date.parse('2026-04-21T12:00:00.000Z')
+    const match: MatchRow = { ...baseMatch, status: 'finished' }
+    const points = [mkPoint({
+      server_team: 1,
+      created_at: '2026-04-21T11:59:00.000Z',
+    })]
+    const card = buildLiveCard(match, 'T', [], points, now)
+    expect(card.status).toBe('finished')
+    expect(card.servingTeam).toBeNull()
+  })
+})
+
+describe('isRecentlyActive', () => {
+  const now = Date.parse('2026-04-21T12:00:00.000Z')
+
+  it('returns false for empty points array', () => {
+    expect(isRecentlyActive([], now)).toBe(false)
+  })
+
+  it('returns true when the latest point is within the window', () => {
+    const points = [
+      mkPoint({ created_at: '2026-04-21T11:50:00.000Z' }), // 10 min old
+      mkPoint({ created_at: '2026-04-21T11:58:00.000Z' }), // 2 min old — this one drives it
+    ]
+    expect(isRecentlyActive(points, now)).toBe(true)
+  })
+
+  it('returns false when even the latest point is outside the window', () => {
+    const points = [mkPoint({ created_at: '2026-04-21T11:54:00.000Z' })] // 6 min old > 5 min window
+    expect(isRecentlyActive(points, now)).toBe(false)
+  })
+
+  it('respects a custom window', () => {
+    const points = [mkPoint({ created_at: '2026-04-21T11:54:00.000Z' })] // 6 min old
+    expect(isRecentlyActive(points, now, 10 * 60 * 1000)).toBe(true)  // 10 min window
+    expect(isRecentlyActive(points, now, 60 * 1000)).toBe(false)      // 1 min window
+  })
+
+  it('exposes the default window as 5 minutes', () => {
+    expect(LIVE_ACTIVITY_WINDOW_MS).toBe(5 * 60 * 1000)
   })
 })
