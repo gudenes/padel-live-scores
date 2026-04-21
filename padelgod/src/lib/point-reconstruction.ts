@@ -596,8 +596,9 @@ async function dualWriteShadowToPublic(
   // 3. Iterate every set slot in curr, upsert those with data. Slot index i
   //    maps to set_number = i + 1. A slot is "empty" when both pairs' entries
   //    are null (happens for future sets that haven't started).
-  //    Track the current set's row id — we need it to write public.games below.
-  let currentSetId: string | null = null;
+  //    Capture set_id for EVERY set (not just current) — we need them all
+  //    when writing games.points[] history for completed games below.
+  const setIdBySetNumber = new Map<number, string>();
   let currentPair1Games = 0;
   let currentPair2Games = 0;
 
@@ -626,95 +627,147 @@ async function dualWriteShadowToPublic(
       updated_at: new Date().toISOString(),
     };
 
+    const { data: setRow, error: upsertErr } = await supabase
+      .from('sets')
+      .upsert(payload, { onConflict: 'match_id,set_number' })
+      .select('id')
+      .single();
+
+    if (upsertErr || !setRow) {
+      logger?.warn(
+        { matchId, setNumber, isCurrent, err: upsertErr?.message },
+        'applyDiff(shadow dual-write): failed to upsert public.sets row',
+      );
+      continue;
+    }
+
+    setIdBySetNumber.set(setNumber, setRow.id as string);
     if (isCurrent) {
-      // Capture the current set's id for the games write below.
-      const { data: setRow, error: upsertErr } = await supabase
-        .from('sets')
-        .upsert(payload, { onConflict: 'match_id,set_number' })
-        .select('id')
-        .single();
-      if (upsertErr || !setRow) {
-        logger?.warn(
-          { matchId, setNumber, err: upsertErr?.message },
-          'applyDiff(shadow dual-write): failed to upsert current public.sets row',
-        );
-      } else {
-        currentSetId = setRow.id as string;
-        currentPair1Games = pair1Games;
-        currentPair2Games = pair2Games;
-      }
-    } else {
-      const { error: upsertErr } = await supabase
-        .from('sets')
-        .upsert(payload, { onConflict: 'match_id,set_number' });
-      if (upsertErr) {
-        logger?.warn(
-          { matchId, setNumber, err: upsertErr.message },
-          'applyDiff(shadow dual-write): failed to upsert public.sets row',
-        );
-      }
+      currentPair1Games = pair1Games;
+      currentPair2Games = pair2Games;
     }
   }
 
-  // 4. Upsert public.games for the current in-progress game.
-  //    Without this, the UI falls back to showing pair-set-count in the "Pts"
-  //    column (see match detail page `{p1Point ?? pair1Sets}`). Writing a
-  //    single-element points[] with the current game_score gives the UI real
-  //    point data to render (e.g. "30", "40-AD", "Deuce", "GP").
+  // 4. Mirror padelgod.shadow_match_points → public.games.points[] for every
+  //    (set, game) with captured points. This is what powers the Live Feed
+  //    tab + Match Journey (momentum chart) on the match detail page — both
+  //    read games.points[] and diff consecutive elements to derive scorers.
   //
-  //    We do NOT write match_points rows from here — point history is only
-  //    tracked in padelgod.shadow_match_points; public.match_points stays
-  //    owned by the canonical pipeline.
-  if (currentSetId) {
-    const gameNumber = currentPair1Games + currentPair2Games + 1;
-    const gameScore = formatPointScore(curr.pointState);
-    const isTiebreak = curr.pointState.kind === 'tiebreak';
-    // Approximate the server as "player 1" of the serving pair — same
-    // hack the canonical applyDiff uses. Null for orphan matches that
-    // haven't had players resolved yet.
-    const serverId = serverPlayerId(curr.servingTeam, resolvedPlayers);
-    // The public UI (match detail, momentum chart) splits point scores on
-    // ':' — that's the canonical relay/padelapi format. padelgod's
-    // formatPointScore returns hyphen-separated strings ("15-0", "40-AD").
-    // Convert to colons here so the contract matches whatever the canonical
-    // pipeline would have written.
-    const publicPoints = [gameScore.replace('-', ':')];
+  //    Each game's points[] is the full sequence of `score_after` values in
+  //    chronological order, normalized to colon-separated format ("15:0").
+  //    When the current game has no shadow points captured yet, we seed it
+  //    with the current pointState so the card still shows live score.
+  //
+  //    Skips (set, game) pairs where the parent public.sets row has
+  //    score_source IN ('api','live') — canonical always wins.
+  //
+  //    Does NOT write public.match_points — the UI consumes games.points[],
+  //    not the per-point table. match_points stays owned by the canonical
+  //    pipeline (via /api/cron/scores when padelapi recovers).
+  const currentSetId = setIdBySetNumber.get(currentSetNumber) ?? null;
+  const currentGameNumber = currentPair1Games + currentPair2Games + 1;
 
-    const { error: gameUpsertErr } = await supabase
+  const { data: shadowPts, error: ptsErr } = await supabase
+    .schema('padelgod')
+    .from('shadow_match_points')
+    .select('set_number, game_number, point_number, score_after, server_team')
+    .eq('match_id', matchId)
+    .order('set_number')
+    .order('game_number')
+    .order('point_number');
+
+  if (ptsErr) {
+    logger?.warn(
+      { matchId, err: ptsErr.message },
+      'applyDiff(shadow dual-write): failed to read shadow_match_points for games mirror',
+    );
+    return;
+  }
+
+  type GameAgg = { points: string[]; lastServer: 1 | 2 | null };
+  const byGame = new Map<string, GameAgg>();
+  for (const p of (shadowPts ?? []) as Array<{
+    set_number: number;
+    game_number: number;
+    point_number: number;
+    score_after: string | null;
+    server_team: 1 | 2 | null;
+  }>) {
+    const key = `${p.set_number}:${p.game_number}`;
+    const entry = byGame.get(key) ?? { points: [], lastServer: null };
+    const score = (p.score_after ?? '').replace('-', ':');
+    if (score) entry.points.push(score);
+    if (p.server_team != null) entry.lastServer = p.server_team;
+    byGame.set(key, entry);
+  }
+
+  // Seed the current game from curr.pointState when shadow captured no points
+  // for it yet — keeps the "Pts" column rendering from tick 1 of a new game.
+  const currentKey = `${currentSetNumber}:${currentGameNumber}`;
+  if (!byGame.has(currentKey)) {
+    const fallback = formatPointScore(curr.pointState).replace('-', ':');
+    byGame.set(currentKey, {
+      points: [fallback],
+      lastServer: curr.servingTeam,
+    });
+  }
+
+  // Clear is_current on every game for this match first — the upsert loop
+  // below sets is_current=true on exactly one row (the current game). This
+  // avoids stale is_current=true flags left behind when a game transitions
+  // from current → completed and we never re-upsert it.
+  if (setIdBySetNumber.size > 0) {
+    const { error: clearErr } = await supabase
       .from('games')
-      .upsert(
-        {
-          set_id: currentSetId,
-          match_id: matchId,
-          game_number: gameNumber,
-          game_score: gameScore,
-          points: publicPoints,
-          is_current: true,
-          is_tiebreak: isTiebreak,
-          server_player_id: serverId,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'set_id,game_number' },
-      );
-
-    if (gameUpsertErr) {
+      .update({ is_current: false, updated_at: new Date().toISOString() })
+      .eq('match_id', matchId);
+    if (clearErr) {
       logger?.warn(
-        { matchId, setId: currentSetId, gameNumber, err: gameUpsertErr.message },
+        { matchId, err: clearErr.message },
+        'applyDiff(shadow dual-write): failed to clear is_current on games',
+      );
+    }
+  }
+
+  // Upsert one public.games row per (set, game) entry. current game is the
+  // one whose (set_number, game_number) matches (currentSetNumber, currentGameNumber).
+  const isTiebreakForCurrent = curr.pointState.kind === 'tiebreak';
+  for (const [key, agg] of byGame) {
+    const parts = key.split(':').map(Number);
+    const setNum = parts[0]!;
+    const gameNum = parts[1]!;
+    const setId = setIdBySetNumber.get(setNum);
+    if (!setId) continue;
+    // Defensive: parent set might have been skipped for canonical-source reasons.
+    const src = existingSource.get(setNum) ?? null;
+    if (src === 'api' || src === 'live') continue;
+
+    const isCurrent = setNum === currentSetNumber && gameNum === currentGameNumber;
+    const lastScore = agg.points[agg.points.length - 1] ?? '0:0';
+    const serverId = serverPlayerId(agg.lastServer, resolvedPlayers);
+
+    const { error: upsertErr } = await supabase.from('games').upsert(
+      {
+        set_id: setId,
+        match_id: matchId,
+        game_number: gameNum,
+        game_score: lastScore,
+        points: agg.points,
+        is_current: isCurrent,
+        // is_tiebreak only reliably known for the current game (from pointState).
+        // Completed tiebreak games default to false — acceptable approximation.
+        is_tiebreak: isCurrent ? isTiebreakForCurrent : false,
+        server_player_id: serverId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'set_id,game_number' },
+    );
+
+    if (upsertErr) {
+      logger?.warn(
+        { matchId, setNum, gameNum, err: upsertErr.message },
         'applyDiff(shadow dual-write): failed to upsert public.games row',
       );
-    } else {
-      // Clear is_current on other games in this set so only one game is "live".
-      const { error: clearErr } = await supabase
-        .from('games')
-        .update({ is_current: false })
-        .eq('set_id', currentSetId)
-        .neq('game_number', gameNumber);
-      if (clearErr) {
-        logger?.warn(
-          { matchId, setId: currentSetId, err: clearErr.message },
-          'applyDiff(shadow dual-write): failed to clear is_current on old games',
-        );
-      }
     }
   }
 }

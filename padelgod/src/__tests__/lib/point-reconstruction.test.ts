@@ -300,23 +300,38 @@ function makeFakeSupabase(opts: {
   function shadowMatchPointsTable() {
     return {
       select: (_cols: string, selOpts: any) => {
-        // Chain: .select().eq().eq().eq() — resolves as a Promise-like thenable
-        // that reports the count.
+        // Two supported chains:
+        //   .select('id', {count:'exact',head:true}).eq(...).eq(...).eq(...) → count
+        //   .select(...).eq(...).order(...).order(...).order(...)            → rows
         const filters: Array<{ col: string; val: unknown }> = [];
+        const orders: string[] = [];
         const api: any = {
           eq: (col: string, val: unknown) => {
             filters.push({ col, val });
             return api;
           },
-          then: (resolve: (v: { count: number; data: null; error: null }) => void) => {
+          order: (col: string, _opts?: { ascending?: boolean }) => {
+            orders.push(col);
+            return api;
+          },
+          then: (resolve: (v: { count?: number; data: any; error: null }) => void) => {
+            const matched = state.shadowMatchPointsInserted.filter((p) =>
+              filters.every((f) => (p as any)[f.col] === f.val),
+            );
             if (selOpts?.count === 'exact' && selOpts?.head === true) {
-              const count = state.shadowMatchPointsInserted.filter((p) =>
-                filters.every((f) => (p as any)[f.col] === f.val),
-              ).length;
-              resolve({ count, data: null, error: null });
-            } else {
-              resolve({ count: 0, data: null, error: null });
+              resolve({ count: matched.length, data: null, error: null });
+              return;
             }
+            // Sort by requested order columns (stable ASC, cumulative).
+            const sorted = [...matched].sort((a, b) => {
+              for (const col of orders) {
+                const av = (a as any)[col];
+                const bv = (b as any)[col];
+                if (av !== bv) return av < bv ? -1 : 1;
+              }
+              return 0;
+            });
+            resolve({ data: sorted, error: null });
           },
         };
         return api;
@@ -1095,7 +1110,9 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
     expect(s.gamesUpsertCalls[0]).toMatchObject({
       match_id: MATCH_ID,
       game_number: 6,
-      game_score: '30-30',
+      // game_score comes from the last element of points[] (colon-normalized)
+      // to keep a single source of truth between the array and the scalar.
+      game_score: '30:30',
       is_current: true,
       is_tiebreak: false,
       // Server — approximates to "player 1" of the serving pair. The state
@@ -1123,6 +1140,81 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
     expect(s.gamesUpsertCalls).toHaveLength(1);
     // servingTeam=2 → pair2Player1Id.
     expect(s.gamesUpsertCalls[0]!.server_player_id).toBe(RESOLVED.pair2Player1Id);
+  });
+
+  it('mirrors the full points[] history from shadow_match_points into public.games', async () => {
+    // Seeds 3 prior shadow_match_points rows for (set 1, game 1) — simulating
+    // points that were captured before this tick. The new point lands via
+    // applyDiffShadow as point 4. After dual-write, public.games.points[]
+    // should contain all 4 scores in order, colon-normalized.
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const pre = [
+      { match_id: MATCH_ID, set_number: 1, game_number: 1, point_number: 1, winner_pair: 1 as const, score_after: '15-0', server_team: 1 as const, is_golden_point: false },
+      { match_id: MATCH_ID, set_number: 1, game_number: 1, point_number: 2, winner_pair: 1 as const, score_after: '30-0', server_team: 1 as const, is_golden_point: false },
+      { match_id: MATCH_ID, set_number: 1, game_number: 1, point_number: 3, winner_pair: 2 as const, score_after: '30-15', server_team: 1 as const, is_golden_point: false },
+    ];
+    s.shadowMatchPointsInserted.push(...pre);
+
+    const prev = state({ kind: 'regular', team1: 30, team2: 15 }, { servingTeam: 1 });
+    const curr = state({ kind: 'regular', team1: 40, team2: 15 }, { servingTeam: 1 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // applyDiffShadow inserts point #4 → "40-15". dual-write reads all 4
+    // and writes them to public.games.points in colon format.
+    expect(s.gamesUpsertCalls).toHaveLength(1);
+    expect(s.gamesUpsertCalls[0]!.points).toEqual(['15:0', '30:0', '30:15', '40:15']);
+    expect(s.gamesUpsertCalls[0]!.game_score).toBe('40:15');
+  });
+
+  it('writes games rows for completed games in the same match, not just the current', async () => {
+    // Seeds points for TWO games: game 1 (completed, pair1 won to love) and
+    // game 2 (current, in progress). After dual-write, both games should
+    // have public.games rows, only game 2 should be is_current=true.
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const pre = [
+      // Game 1 — completed, pair1 won 40-0 (4 points, final "40-0" → team1 4, team2 0)
+      { match_id: MATCH_ID, set_number: 1, game_number: 1, point_number: 1, winner_pair: 1 as const, score_after: '15-0', server_team: 1 as const, is_golden_point: false },
+      { match_id: MATCH_ID, set_number: 1, game_number: 1, point_number: 2, winner_pair: 1 as const, score_after: '30-0', server_team: 1 as const, is_golden_point: false },
+      { match_id: MATCH_ID, set_number: 1, game_number: 1, point_number: 3, winner_pair: 1 as const, score_after: '40-0', server_team: 1 as const, is_golden_point: false },
+      // Game 2 — in progress, pair2 ahead 0-15
+      { match_id: MATCH_ID, set_number: 1, game_number: 2, point_number: 1, winner_pair: 2 as const, score_after: '0-15', server_team: 2 as const, is_golden_point: false },
+    ];
+    s.shadowMatchPointsInserted.push(...pre);
+
+    const prev = state({ kind: 'regular', team1: 0, team2: 0 }, {
+      team1Sets: [{ games: 1, tiebreak: null }],
+      team2Sets: [{ games: 0, tiebreak: null }],
+      servingTeam: 2,
+    });
+    const curr = state({ kind: 'regular', team1: 0, team2: 15 }, {
+      team1Sets: [{ games: 1, tiebreak: null }],
+      team2Sets: [{ games: 0, tiebreak: null }],
+      servingTeam: 2,
+    });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 2 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // applyDiffShadow inserts one new point → game 2 becomes 4 entries total
+    // (pre 1 + new 1). After the game 2 entry grows to 2 points actually —
+    // applyDiffShadow only inserts 1 row for the new pointsAdded[0]. Verify
+    // both games got upserts.
+    const byGame = new Map<number, any>();
+    for (const call of s.gamesUpsertCalls) byGame.set(call.game_number, call);
+    expect(byGame.size).toBe(2);
+    expect(byGame.get(1)!.is_current).toBe(false);
+    expect(byGame.get(2)!.is_current).toBe(true);
+    expect(byGame.get(1)!.points).toEqual(['15:0', '30:0', '40:0']);
+    // Game 2 has the seeded point + the one applyDiffShadow just inserted.
+    expect(byGame.get(2)!.points).toContain('0:15');
   });
 
   it('leaves server_player_id null when servingTeam cannot be determined', async () => {
