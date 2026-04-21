@@ -415,8 +415,8 @@ describe('formatPointScore', () => {
     expect(formatPointScore({ kind: 'regular', team1: 15, team2: 0 })).toBe('15-0');
     expect(formatPointScore({ kind: 'regular', team1: 30, team2: 40 })).toBe('30-40');
   });
-  it('formats deuce as "Deuce"', () => {
-    expect(formatPointScore({ kind: 'deuce' })).toBe('Deuce');
+  it('formats deuce as "40-40" so the UI point-parser treats it like any other numeric score', () => {
+    expect(formatPointScore({ kind: 'deuce' })).toBe('40-40');
   });
   it('formats advantage as AD-40 / 40-AD', () => {
     expect(formatPointScore({ kind: 'advantage', side: 1 })).toBe('AD-40');

@@ -380,10 +380,16 @@ function V3MatchRow({ match }: { match: Match }) {
                   <span
                     aria-label="serving"
                     title="Serving"
-                    style={{ fontSize: 11, lineHeight: 1, flexShrink: 0 }}
-                  >
-                    🎾
-                  </span>
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: '50%',
+                      background: '#F5D523',
+                      boxShadow: '0 0 4px rgba(245, 213, 35, 0.6)',
+                      flexShrink: 0,
+                      display: 'inline-block',
+                    }}
+                  />
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, position: 'relative', zIndex: 2 }}>

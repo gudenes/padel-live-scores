@@ -783,7 +783,19 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <PlayerNameLink player={match.pair1_player1} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
               {pair1IsServing && (
-                <span aria-label="serving" title="Serving" style={{ fontSize: 12, lineHeight: 1 }}>🎾</span>
+                <span
+                  aria-label="serving"
+                  title="Serving"
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#F5D523',
+                    boxShadow: '0 0 4px rgba(245, 213, 35, 0.6)',
+                    flexShrink: 0,
+                    display: 'inline-block',
+                  }}
+                />
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
@@ -847,7 +859,19 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <PlayerNameLink player={match.pair2_player1} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
               {pair2IsServing && (
-                <span aria-label="serving" title="Serving" style={{ fontSize: 12, lineHeight: 1 }}>🎾</span>
+                <span
+                  aria-label="serving"
+                  title="Serving"
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#F5D523',
+                    boxShadow: '0 0 4px rgba(245, 213, 35, 0.6)',
+                    flexShrink: 0,
+                    display: 'inline-block',
+                  }}
+                />
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>

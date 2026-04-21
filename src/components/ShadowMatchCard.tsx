@@ -4,7 +4,10 @@
 
 import type { LiveCard, PlayerLite, Side } from '@/lib/padelgod-live-cards'
 
-const SERVE_BALL = '🎾'
+// Yellow dot instead of 🎾 emoji — emoji rendering varies by device
+// (Android shows a racket+ball, iOS shows a fuzzy ball, some terminals
+// render no glyph at all). A dot is consistent everywhere.
+const SERVE_DOT_COLOR = '#F5D523'
 
 function playerDisplay(p: PlayerLite): string {
   if (!p) return 'TBD'
@@ -161,7 +164,22 @@ function TeamRow({
     }}>
       <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {names}
-        {isServing && <span style={{ marginLeft: 6 }} aria-label="serving">{SERVE_BALL}</span>}
+        {isServing && (
+          <span
+            aria-label="serving"
+            title="Serving"
+            style={{
+              display: 'inline-block',
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: SERVE_DOT_COLOR,
+              boxShadow: '0 0 4px rgba(245, 213, 35, 0.6)',
+              marginLeft: 6,
+              verticalAlign: 'middle',
+            }}
+          />
+        )}
       </span>
       {sets.map((g, i) => {
         const winner = setWinners[i]
