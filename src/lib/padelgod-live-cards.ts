@@ -22,13 +22,19 @@ export type SetEntry = {
   setNumber: number
   pair1Games: number
   pair2Games: number
+  /** 1 or 2 once the set is over; null while it's still being played. */
+  winner: 1 | 2 | null
   isCurrent: boolean
+  // TODO(follow-up): tiebreak: { pair1: number; pair2: number } | null
 }
 
 export type CurrentGame = {
   pair1Score: string
   pair2Score: string
   isGoldenPoint: boolean
+  /** Serving pair for the point that's currently being played. Null when the
+   *  match isn't live or we couldn't determine it from the shadow feed. */
+  server: 1 | 2 | null
 }
 
 export type LiveCard = {
@@ -39,11 +45,15 @@ export type LiveCard = {
   court: string | null
   round: string | null
   scheduledAt: string | null
+  /** ISO timestamp of the first captured point (null if match hasn't started). */
+  startedAt: string | null
+  /** Elapsed seconds since startedAt (live) or total match duration (finished).
+   *  Null if no points have been captured yet. */
+  durationSec: number | null
   pair1: { player1: PlayerLite; player2: PlayerLite }
   pair2: { player1: PlayerLite; player2: PlayerLite }
   sets: SetEntry[]
   currentGame: CurrentGame
-  servingTeam: 1 | 2 | null
   points: PointEntry[]
 }
 
@@ -104,17 +114,11 @@ export function parseScoreAfter(score: string | null): {
 
 // ---------------------------------------------------------------------------
 // deriveLiveState — from a flat list of shadow points, return the currentGame
-// state and the servingTeam for "right now".
+// state (score + server + golden-point flag) for "right now".
 // ---------------------------------------------------------------------------
-export function deriveLiveState(points: ShadowPointRow[]): {
-  currentGame: CurrentGame
-  servingTeam: 1 | 2 | null
-} {
+export function deriveLiveState(points: ShadowPointRow[]): CurrentGame {
   if (points.length === 0) {
-    return {
-      currentGame: { pair1Score: '0', pair2Score: '0', isGoldenPoint: false },
-      servingTeam: null,
-    }
+    return { pair1Score: '0', pair2Score: '0', isGoldenPoint: false, server: null }
   }
   // Find the latest by (set, game, pt)
   const latest = points.reduce((acc, cur) => {
@@ -127,25 +131,152 @@ export function deriveLiveState(points: ShadowPointRow[]): {
 
   const { pair1Score, pair2Score } = parseScoreAfter(latest.score_after)
   return {
-    currentGame: { pair1Score, pair2Score, isGoldenPoint: latest.is_golden_point },
-    servingTeam: latest.server_team,
+    pair1Score,
+    pair2Score,
+    isGoldenPoint: latest.is_golden_point,
+    server: latest.server_team,
   }
 }
 
 // ---------------------------------------------------------------------------
-// markCurrentSets — normalise shadow_set rows into SetEntry[], sorted ascending
-// with isCurrent=true on the highest set_number.
+// derivedSetScores — the trustworthy source of set scores.
+//
+// padelgod.shadow_sets.pair*_games is point-reconstruction-based and can
+// drift (observed in the wild: set ends 6-1 but shadow_sets still reads 5-1
+// because the game-winning point wasn't captured). Counting game winners
+// from shadow_match_points is more reliable: the winner of the LAST captured
+// point in a game is whoever won the game, and the last (set, game) tuple
+// overall is the one still in progress — don't count that one.
 // ---------------------------------------------------------------------------
-export function markCurrentSets(sets: ShadowSetRow[]): SetEntry[] {
-  if (sets.length === 0) return []
-  const sorted = [...sets].sort((a, b) => a.set_number - b.set_number)
-  const maxIdx = sorted.length - 1
-  return sorted.map((s, i) => ({
-    setNumber: s.set_number,
-    pair1Games: s.pair1_games ?? 0,
-    pair2Games: s.pair2_games ?? 0,
-    isCurrent: i === maxIdx,
-  }))
+export function derivedSetScores(
+  points: ShadowPointRow[],
+): Map<number, { pair1Games: number; pair2Games: number; winner: 1 | 2 | null }> {
+  const perSet = new Map<number, { pair1Games: number; pair2Games: number; winner: 1 | 2 | null }>()
+  if (points.length === 0) return perSet
+
+  // For each (set, game) find the LATEST captured point — its winner wins the game.
+  type GameSummary = { set: number; game: number; winner: 1 | 2; lastPt: number }
+  const games = new Map<string, GameSummary>()
+  for (const p of points) {
+    const key = `${p.set_number}:${p.game_number}`
+    const prev = games.get(key)
+    if (!prev || p.point_number > prev.lastPt) {
+      games.set(key, {
+        set: p.set_number,
+        game: p.game_number,
+        winner: p.winner_pair,
+        lastPt: p.point_number,
+      })
+    }
+  }
+
+  // The globally-highest (set, game) is the in-progress game. Exclude it.
+  let inProgressKey: string | null = null
+  let maxSet = -Infinity
+  let maxGame = -Infinity
+  for (const [key, g] of games) {
+    if (g.set > maxSet || (g.set === maxSet && g.game > maxGame)) {
+      maxSet = g.set
+      maxGame = g.game
+      inProgressKey = key
+    }
+  }
+
+  // Count completed-game wins per set
+  for (const [key, g] of games) {
+    if (key === inProgressKey) continue
+    const entry = perSet.get(g.set) ?? { pair1Games: 0, pair2Games: 0, winner: null as 1 | 2 | null }
+    if (g.winner === 1) entry.pair1Games += 1
+    else entry.pair2Games += 1
+    perSet.set(g.set, entry)
+  }
+
+  // A set is "won" when a pair reaches ≥6 games with a 2-game lead, OR 7 games.
+  // This is a simplification — tiebreaks at 6-6 aren't modelled yet. Good
+  // enough for "is this set over": if the next set has any point, the
+  // previous set is by definition over.
+  const setsWithAnyPoint = new Set(Array.from(games.values()).map(g => g.set))
+  const maxSetSeen = Math.max(...setsWithAnyPoint)
+  for (const [setNum, entry] of perSet) {
+    const setIsDone = setNum < maxSetSeen
+    if (setIsDone) {
+      entry.winner = entry.pair1Games > entry.pair2Games ? 1 : 2
+    }
+  }
+  return perSet
+}
+
+// ---------------------------------------------------------------------------
+// composeSets — produce SetEntry[] by merging padelgod's shadow_sets rows
+// with the points-derived counts. Priority:
+//   1. Game counts come from derivedSetScores (point-based, trustworthy)
+//   2. If a set exists in shadow_sets but has zero recorded points (unlikely
+//      but possible), fall back to its stored pair*_games value
+//   3. isCurrent is set on the highest set_number across both sources
+// ---------------------------------------------------------------------------
+export function composeSets(
+  shadowSets: ShadowSetRow[],
+  points: ShadowPointRow[],
+): SetEntry[] {
+  const derived = derivedSetScores(points)
+  const setNumbers = new Set<number>()
+  for (const s of shadowSets) setNumbers.add(s.set_number)
+  for (const n of derived.keys()) setNumbers.add(n)
+  // Include any set referenced by points, even if it has no completed games
+  // yet — this is the IN-PROGRESS set and must appear in the output with
+  // isCurrent=true so the UI renders it as the live set.
+  for (const p of points) setNumbers.add(p.set_number)
+  if (setNumbers.size === 0) return []
+
+  const sorted = Array.from(setNumbers).sort((a, b) => a - b)
+  const maxSetNum = sorted[sorted.length - 1]
+
+  const shadowByNum = new Map(shadowSets.map(s => [s.set_number, s]))
+
+  return sorted.map(setNum => {
+    const d = derived.get(setNum)
+    const s = shadowByNum.get(setNum)
+    const pair1Games = d?.pair1Games ?? s?.pair1_games ?? 0
+    const pair2Games = d?.pair2Games ?? s?.pair2_games ?? 0
+    return {
+      setNumber: setNum,
+      pair1Games,
+      pair2Games,
+      winner: d?.winner ?? null,
+      isCurrent: setNum === maxSetNum,
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// computeMatchTiming — startedAt (first captured point) + durationSec
+//   - durationSec against `nowMs` for live matches
+//   - durationSec against the LAST point for finished matches (a "final" duration)
+// ---------------------------------------------------------------------------
+export function computeMatchTiming(
+  points: ShadowPointRow[],
+  nowMs: number,
+  isLive: boolean,
+): { startedAt: string | null; durationSec: number | null } {
+  if (points.length === 0) return { startedAt: null, durationSec: null }
+  let earliestMs = Infinity
+  let latestMs = -Infinity
+  let earliestIso = ''
+  for (const p of points) {
+    const t = Date.parse(p.created_at)
+    if (!Number.isFinite(t)) continue
+    if (t < earliestMs) {
+      earliestMs = t
+      earliestIso = p.created_at
+    }
+    if (t > latestMs) latestMs = t
+  }
+  if (!Number.isFinite(earliestMs)) return { startedAt: null, durationSec: null }
+  const endMs = isLive ? nowMs : latestMs
+  return {
+    startedAt: earliestIso || null,
+    durationSec: Math.max(0, Math.floor((endMs - earliestMs) / 1000)),
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -209,12 +340,15 @@ export function buildLiveCard(
       ? 'live'
       : canonicalStatus
 
-  const live = status === 'live'
+  const currentGame: CurrentGame = status === 'live'
     ? deriveLiveState(sortedPoints)
-    : {
-        currentGame: { pair1Score: '0', pair2Score: '0', isGoldenPoint: false } as CurrentGame,
-        servingTeam: null as 1 | 2 | null,
-      }
+    : { pair1Score: '0', pair2Score: '0', isGoldenPoint: false, server: null }
+
+  // Timing: "live" → elapsed from first point to now; "finished" → total
+  // elapsed from first point to last point. "scheduled" → null.
+  const timing = status === 'scheduled'
+    ? { startedAt: null, durationSec: null }
+    : computeMatchTiming(sortedPoints, nowMs, status === 'live')
 
   return {
     id: match.id,
@@ -224,6 +358,8 @@ export function buildLiveCard(
     court: match.court,
     round: match.round,
     scheduledAt: match.scheduled_at,
+    startedAt: timing.startedAt,
+    durationSec: timing.durationSec,
     pair1: {
       player1: match.pair1_player1,
       player2: match.pair1_player2,
@@ -232,9 +368,8 @@ export function buildLiveCard(
       player1: match.pair2_player1,
       player2: match.pair2_player2,
     },
-    sets: markCurrentSets(sets),
-    currentGame: live.currentGame,
-    servingTeam: live.servingTeam,
+    sets: composeSets(sets, sortedPoints),
+    currentGame,
     points: cappedPoints.map(p => ({
       set: p.set_number,
       game: p.game_number,
