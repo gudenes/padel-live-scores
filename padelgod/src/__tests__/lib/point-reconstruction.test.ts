@@ -153,7 +153,9 @@ function makeFakeSupabase(opts: {
         }),
       }),
       // Used by dual-write to read existing score_source before overwriting.
-      // Chain: .select(...).eq(match_id).eq(set_number).maybeSingle()
+      // Two supported chains:
+      //   .select(...).eq(match_id).eq(set_number).maybeSingle() → single row
+      //   .select(...).eq(match_id) → all rows for match (thenable on .eq)
       select: (_cols: string) => {
         const filters: Record<string, unknown> = {};
         const api: any = {
@@ -170,6 +172,15 @@ function makeFakeSupabase(opts: {
               data: { id: row.id, score_source: (row as any).score_source ?? null },
               error: null,
             });
+          },
+          then: (resolve: (v: { data: any[]; error: null }) => void) => {
+            const rows = state.sets
+              .filter((s) => Object.entries(filters).every(([k, v]) => (s as any)[k] === v))
+              .map((s) => ({
+                set_number: s.set_number,
+                score_source: (s as any).score_source ?? null,
+              }));
+            resolve({ data: rows, error: null });
           },
         };
         return api;
@@ -1015,7 +1026,12 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
     expect(s.setsUpsertCalls).toHaveLength(0);
   });
 
-  it('clears is_current on older sets when currentSetNumber > 1', async () => {
+  it('upserts ALL sets (not just current) so completed sets stay in sync', async () => {
+    // Why: padelgod.shadow_sets only updates the current set per tick, so
+    // completed sets freeze at whatever value they had the last time they
+    // were "current" — often one game shy of the final score. Writing every
+    // set every tick from curr.team1Sets/team2Sets keeps public.sets in sync
+    // with the live widget for ALL sets.
     const { client, state: s } = makeClientWithMatch('scheduled');
     const prev = state({ kind: 'regular', team1: 15, team2: 0 }, {
       team1Sets: [{ games: 6, tiebreak: null }, { games: 3, tiebreak: null }],
@@ -1032,15 +1048,62 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
       dualWritePublic: true,
     });
 
-    // One upsert for set 2 + one update clearing is_current on !=2.
-    expect(s.setsUpsertCalls).toHaveLength(1);
-    expect(s.setsUpsertCalls[0]!.set_number).toBe(2);
-    expect(s.setsUpdateCalls).toHaveLength(1);
-    expect(s.setsUpdateCalls[0]!.patch.is_current).toBe(false);
-    expect(s.setsUpdateCalls[0]!.filters).toMatchObject({
-      match_id: MATCH_ID,
-      '!set_number': 2,
+    // Two upserts: set 1 (is_current=false) + set 2 (is_current=true).
+    expect(s.setsUpsertCalls).toHaveLength(2);
+    const bySetNum = new Map(s.setsUpsertCalls.map((c: any) => [c.set_number, c]));
+    expect(bySetNum.get(1)).toMatchObject({
+      set_number: 1,
+      set_score: '6-4',
+      pair1_games: 6,
+      pair2_games: 4,
+      is_current: false,
+      score_source: 'shadow',
     });
+    expect(bySetNum.get(2)).toMatchObject({
+      set_number: 2,
+      set_score: '3-2',
+      pair1_games: 3,
+      pair2_games: 2,
+      is_current: true,
+      score_source: 'shadow',
+    });
+  });
+
+  it('writes public.games for the current game so UI "Pts" column has real point data', async () => {
+    // Why: match detail page falls back to showing pair-set-count in the
+    // "Pts" column when no games row exists ({p1Point ?? pair1Sets}). Writing
+    // a single-element points[game_score] from the current pointState gives
+    // the UI real point data.
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 30 }, {
+      team1Sets: [{ games: 3, tiebreak: null }],
+      team2Sets: [{ games: 2, tiebreak: null }],
+    });
+    const curr = state({ kind: 'regular', team1: 30, team2: 30 }, {
+      team1Sets: [{ games: 3, tiebreak: null }],
+      team2Sets: [{ games: 2, tiebreak: null }],
+    });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // One public.games upsert for the current game (games=3+2+1=6).
+    expect(s.gamesUpsertCalls).toHaveLength(1);
+    expect(s.gamesUpsertCalls[0]).toMatchObject({
+      match_id: MATCH_ID,
+      game_number: 6,
+      game_score: '30-30',
+      is_current: true,
+      is_tiebreak: false,
+    });
+    // points[] should contain the single current game_score so UI's
+    // points[-1] lookup returns a value.
+    expect(s.gamesUpsertCalls[0]!.points).toEqual(['30-30']);
+    // set_id is populated (references the current set we upserted).
+    expect(typeof s.gamesUpsertCalls[0]!.set_id).toBe('string');
   });
 
   it('does not touch public tables when dualWritePublic is omitted (back-compat)', async () => {
@@ -1055,6 +1118,8 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
     expect(s.matchesUpdateCalls).toHaveLength(0);
     expect(s.setsUpsertCalls).toHaveLength(0);
     expect(s.setsUpdateCalls).toHaveLength(0);
+    expect(s.gamesUpsertCalls).toHaveLength(0);
+    expect(s.gamesUpdateCalls).toHaveLength(0);
     // Shadow writes still happen.
     expect(s.shadowSetsUpsertCalls).toHaveLength(1);
   });
