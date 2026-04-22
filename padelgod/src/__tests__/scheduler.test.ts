@@ -15,10 +15,11 @@ const ALL_ENABLED = {
   enableLivePollerManager: true,
   enableShadowDiffFinalizer: true,
   enableShadowDiffLive: true,
+  enableCloseStaleLiveSweeper: true,
 };
 
 describe('buildSchedule', () => {
-  it('includes all 13 workers when fully enabled', () => {
+  it('includes all 14 workers when fully enabled', () => {
     const sched = buildSchedule(ALL_ENABLED);
     const names = sched.map((s) => s.name);
     expect(names).toContain('tournament-discovery');
@@ -34,6 +35,22 @@ describe('buildSchedule', () => {
     expect(names).toContain('live-poller-manager');
     expect(names).toContain('shadow-diff-finalizer');
     expect(names).toContain('shadow-diff-live');
+    expect(names).toContain('close-stale-live-sweeper');
+  });
+
+  it('schedules close-stale-live-sweeper every 5 minutes', () => {
+    const sched = buildSchedule(ALL_ENABLED);
+    const entry = sched.find((s) => s.name === 'close-stale-live-sweeper');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('*/5 * * * *');
+  });
+
+  it('respects enableCloseStaleLiveSweeper=false', () => {
+    const sched = buildSchedule({
+      ...ALL_ENABLED,
+      enableCloseStaleLiveSweeper: false,
+    });
+    expect(sched.map((s) => s.name)).not.toContain('close-stale-live-sweeper');
   });
 
   it('schedules shadow-diff-finalizer twice hourly at :10 and :40', () => {
