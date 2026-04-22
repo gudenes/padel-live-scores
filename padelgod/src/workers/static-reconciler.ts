@@ -6,7 +6,10 @@ import {
   type DictionaryPlayer,
   type ResolveResult,
 } from '../lib/tournament-dictionary.js';
-import { findOrCreateMatch } from '../lib/match-identifier.js';
+import {
+  findLinkedMatchWithCompleteFks,
+  findOrCreateMatch,
+} from '../lib/match-identifier.js';
 import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
 
 export interface StaticReconcilerDeps {
@@ -1107,33 +1110,56 @@ async function reconcileResults(
       continue;
     }
 
-    const dict = dictionaries.get(`${r.tournament_id}::${r.category}`);
-    if (!dict) {
-      resultsUnresolved += 1;
-      continue;
-    }
-
-    const resolved = resolveFourNames(dict, fipIdToPlayerId, {
-      t1p1: r.team1_player1_name,
-      t1p2: r.team1_player2_name,
-      t2p1: r.team2_player1_name,
-      t2p2: r.team2_player2_name,
-    });
-    if (!resolved) {
-      resultsUnresolved += 1;
-      continue;
-    }
-
-    const { matchId } = await findOrCreateMatch(supabase, {
-      tournamentId: r.tournament_id,
+    // FK short-circuit: when the match is already linked in
+    // `entity_external_ids` AND has all four player FKs populated (e.g.
+    // padelapi owned it originally and we linked via findPadelapiTwin on an
+    // earlier tick), skip name resolution entirely. The identity is sealed —
+    // we can safely write status/sets even when `buildTournamentDictionary`
+    // returned empty (the common case for Premier tournaments whose Crionet
+    // entry-list widget returns "coming soon").
+    const shortCircuitId = await findLinkedMatchWithCompleteFks(
+      supabase,
       tournamentWidgetId,
-      matchWidgetId: r.match_widget_id!,
-      category: r.category,
-      roundLabel: r.round_label ?? '',
-      court: r.court ?? null,
-      pair1PlayerIds: [resolved.p1p1, resolved.p1p2],
-      pair2PlayerIds: [resolved.p2p1, resolved.p2p2],
-    });
+      r.match_widget_id!,
+    );
+
+    let matchId: string;
+    if (shortCircuitId) {
+      matchId = shortCircuitId;
+      logger?.debug(
+        { matchId, matchWidgetId: r.match_widget_id, tournamentId: r.tournament_id },
+        'static-reconciler: FK short-circuit — skipping name resolution',
+      );
+    } else {
+      const dict = dictionaries.get(`${r.tournament_id}::${r.category}`);
+      if (!dict) {
+        resultsUnresolved += 1;
+        continue;
+      }
+
+      const resolved = resolveFourNames(dict, fipIdToPlayerId, {
+        t1p1: r.team1_player1_name,
+        t1p2: r.team1_player2_name,
+        t2p1: r.team2_player1_name,
+        t2p2: r.team2_player2_name,
+      });
+      if (!resolved) {
+        resultsUnresolved += 1;
+        continue;
+      }
+
+      const result = await findOrCreateMatch(supabase, {
+        tournamentId: r.tournament_id,
+        tournamentWidgetId,
+        matchWidgetId: r.match_widget_id!,
+        category: r.category,
+        roundLabel: r.round_label ?? '',
+        court: r.court ?? null,
+        pair1PlayerIds: [resolved.p1p1, resolved.p1p2],
+        pair2PlayerIds: [resolved.p2p1, resolved.p2p2],
+      });
+      matchId = result.matchId;
+    }
 
     const nowIso = new Date().toISOString();
     const matchUpdate: Record<string, unknown> = {

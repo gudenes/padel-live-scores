@@ -367,6 +367,60 @@ async function linkWidgetId(
   return Array.isArray(data) && data.length > 0;
 }
 
+/**
+ * FK short-circuit lookup: return the matching row's id IFF
+ *   (a) an `entity_external_ids` mapping (source='crionet_widget') exists for
+ *       `(tournamentWidgetId, matchWidgetId)`, AND
+ *   (b) the linked `matches` row has ALL FOUR `pair{1,2}_player{1,2}_id` FKs
+ *       populated.
+ *
+ * Used by the static-reconciler to bypass the `resolveFourNames` gate when
+ * we already know the match identity. Needed for tournaments where Crionet's
+ * entry-list returns "coming soon" (Premier), so `buildTournamentDictionary`
+ * is empty and `resolveFourNames` can never succeed — but padelapi (or an
+ * earlier reconciler run) has already populated the FKs, so results can be
+ * written safely without re-resolving names.
+ *
+ * Returns null if the mapping is missing, the match row is missing, or any
+ * FK is null. Callers that hit null should fall back to the name-resolution
+ * path as before.
+ */
+export async function findLinkedMatchWithCompleteFks(
+  supabase: SupabaseClient,
+  tournamentWidgetId: string,
+  matchWidgetId: string
+): Promise<string | null> {
+  const composite = buildComposite(tournamentWidgetId, matchWidgetId);
+  const matchId = await lookupByWidgetId(supabase, composite);
+  if (!matchId) return null;
+
+  const { data, error } = await supabase
+    .from('matches')
+    .select(
+      'id, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id'
+    )
+    .eq('id', matchId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `findLinkedMatchWithCompleteFks: matches lookup failed: ${error.message}`
+    );
+  }
+  if (!data) return null;
+
+  const row = data as MatchCandidate;
+  if (
+    row.pair1_player1_id == null ||
+    row.pair1_player2_id == null ||
+    row.pair2_player1_id == null ||
+    row.pair2_player2_id == null
+  ) {
+    return null;
+  }
+  return row.id;
+}
+
 export async function findOrCreateMatch(
   supabase: SupabaseClient,
   input: MatchIdentifierInput,
