@@ -26,34 +26,26 @@
  * Pure: no I/O, no Date.now. Callers resolve schedule labels to absolute
  * ISO strings (tournament-timezone handling lives outside this module).
  *
+ *
  * Wiring status (as of 2026-04-22)
  * --------------------------------
- * This module is implemented and unit-tested, but NOT YET wired into the
- * static-reconciler. Two prerequisites remain on the OOP capture side before
- * the chain can be computed correctly:
+ * This module is implemented and unit-tested. The prerequisites that used
+ * to block reconciler integration — the OOP parser capturing the real
+ * court name, and `padelgod.oop_snapshots.court_position` existing — are
+ * both satisfied as of the court-capture branch (feat/padelgod-court-capture).
  *
- *   1. The current `crionet-oop.ts` parser extracts the schedule header
- *      (e.g. "Starting at 11:00 AM") into the `court` field and leaves
- *      `scheduled_label` null. The REAL court name (COURT CBC / NEXTENSA /
- *      LOTTO) sits in `.schedule-header .oop-court` one level up in the
- *      HTML hierarchy and is never captured. Chain grouping requires the
- *      real court name — fix the parser to:
- *        a. Iterate per column (`div.col-lg-4`), not per `<table>`
- *        b. Capture `.oop-court` → `court`
- *        c. Capture `.oop-court-start` / the first table's header →
- *           `scheduled_label`
- *        d. Record `court_position` (0-based index within the court) for
- *           stable ordering
- *
- *   2. `padelgod.oop_snapshots` schema needs a `court_position` column
- *      (or equivalent ordering) because the widget emits no explicit order
- *      and relying on insertion / UUID ordering is fragile.
- *
- * Once those two are in, the reconciler can group snapshots by
- * `(tournament_id, day_number, court)`, sort by `court_position`, pass each
- * court's timeline through `computeOopChain`, and write `started_at` onto
- * each match via an `.is('started_at', null)` guard — the live-poller's
- * precise back-stamped value always wins when present.
+ * The reconciler now writes `public.matches.court + court_order`. A
+ * follow-up plan is needed to actually call `computeOopChain` against the
+ * latest per-court snapshots and write `public.matches.started_at` (and
+ * eventually a computed `finished_at` fallback). Blockers for that wiring:
+ *   - Duration source: the results widget surfaces duration (HH:MM) for
+ *     finished matches but the parser doesn't yet capture it, and
+ *     `results_snapshots` has no `duration_minutes` column. The live-poller
+ *     writes `public.matches.duration` for matches we see live; unseen
+ *     matches still need a duration source before the chain can extend
+ *     past them.
+ *   - Inter-match gap: the chain uses a constant 15-minute default. Worth
+ *     calibrating against live-observed gaps once we have enough data.
  */
 
 export type OopChainStatus =
