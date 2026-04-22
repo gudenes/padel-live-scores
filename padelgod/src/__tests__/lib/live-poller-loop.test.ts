@@ -698,3 +698,132 @@ describe('LivePollerLoop.start / stop', () => {
     await loop.stop();
   });
 });
+
+// ---------------------------------------------------------------------------
+// getResolvedPlayers — private method behavior around cache invalidation
+// ---------------------------------------------------------------------------
+
+describe('LivePollerLoop.getResolvedPlayers cache invalidation', () => {
+  it('re-reads from DB when the cached entry has any null player FK', async () => {
+    // Simulate a thin row on first read, then populated FKs on the next read
+    // (e.g. because findPadelapiTwin or a SQL backfill landed between ticks).
+    const responses = [
+      {
+        pair1_player1_id: null,
+        pair1_player2_id: null,
+        pair2_player1_id: null,
+        pair2_player2_id: null,
+      },
+      {
+        pair1_player1_id: 'p-A',
+        pair1_player2_id: 'p-B',
+        pair2_player1_id: 'p-C',
+        pair2_player2_id: 'p-D',
+      },
+    ];
+    let callCount = 0;
+    const supabase: any = {
+      from: (table: string) => {
+        if (table !== 'matches') {
+          throw new Error(`unexpected table: ${table}`);
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => {
+                const data =
+                  responses[Math.min(callCount, responses.length - 1)];
+                callCount += 1;
+                return { data, error: null };
+              },
+            }),
+          }),
+        };
+      },
+    };
+
+    const timers = createFakeTimers();
+    const loop = new LivePollerLoop({
+      tournamentId: 't-1',
+      widgetId: 'W-1',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    const method = (loop as any).getResolvedPlayers.bind(loop) as (
+      matchId: string,
+    ) => Promise<{
+      pair1Player1Id: string | null;
+      pair1Player2Id: string | null;
+      pair2Player1Id: string | null;
+      pair2Player2Id: string | null;
+    }>;
+
+    // 1st call: thin row — returns nulls, caches nulls
+    const first = await method('match-x');
+    expect(first.pair1Player1Id).toBeNull();
+    expect(callCount).toBe(1);
+
+    // 2nd call: cache has nulls → must re-read → returns populated FKs
+    const second = await method('match-x');
+    expect(second.pair1Player1Id).toBe('p-A');
+    expect(second.pair2Player2Id).toBe('p-D');
+    expect(callCount).toBe(2);
+
+    // 3rd call: cache now has a full quartet → skips DB, returns cached
+    const third = await method('match-x');
+    expect(third.pair1Player1Id).toBe('p-A');
+    expect(callCount).toBe(2); // no additional DB read
+  });
+
+  it('caches and reuses fully-populated entries from the first read', async () => {
+    let callCount = 0;
+    const supabase: any = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => {
+              callCount += 1;
+              return {
+                data: {
+                  pair1_player1_id: 'p-A',
+                  pair1_player2_id: 'p-B',
+                  pair2_player1_id: 'p-C',
+                  pair2_player2_id: 'p-D',
+                },
+                error: null,
+              };
+            },
+          }),
+        }),
+      }),
+    };
+
+    const timers = createFakeTimers();
+    const loop = new LivePollerLoop({
+      tournamentId: 't-1',
+      widgetId: 'W-1',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    const method = (loop as any).getResolvedPlayers.bind(loop) as (
+      matchId: string,
+    ) => Promise<{ pair1Player1Id: string | null }>;
+
+    const first = await method('match-y');
+    expect(first.pair1Player1Id).toBe('p-A');
+    expect(callCount).toBe(1);
+
+    // Subsequent calls must hit the cache — no extra DB reads.
+    await method('match-y');
+    await method('match-y');
+    expect(callCount).toBe(1);
+  });
+});

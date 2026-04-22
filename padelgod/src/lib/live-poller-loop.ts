@@ -524,7 +524,22 @@ export class LivePollerLoop {
 
   private async getResolvedPlayers(matchId: string): Promise<ResolvedPlayers> {
     const cached = this.resolvedPlayersCache.get(matchId);
-    if (cached) return cached;
+    // Only trust the cache when all four player FKs are populated. If any
+    // are null, the match row was a thin row at first-read (e.g. live-poller
+    // hit a Premier tournament before its padelapi twin existed, or before
+    // static-reconciler / findPadelapiTwin retrofitted the FKs). Re-reading
+    // here lets subsequent backfills flow through to `applyDiff`, so the
+    // canonical `games.server_player_id` stops being written as null once
+    // the FKs are populated upstream.
+    if (
+      cached &&
+      cached.pair1Player1Id &&
+      cached.pair1Player2Id &&
+      cached.pair2Player1Id &&
+      cached.pair2Player2Id
+    ) {
+      return cached;
+    }
 
     const { data } = await this.opts.supabase
       .from('matches')
