@@ -12,6 +12,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { PlayerResolver } from '@/lib/player-resolver'
 import { logOpsEvent } from '@/lib/ops-logger'
+import { padelapiPausedResponse } from '@/lib/padelapi-pause'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -909,6 +910,11 @@ export async function GET(request: Request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
   }
+
+  // Ops kill-switch for all padelapi-consuming crons. Returns early when
+  // PADELAPI_PAUSED=true is set. See src/lib/padelapi-pause.ts.
+  const paused = padelapiPausedResponse('sync')
+  if (paused) return paused
 
   // Optional query params to scope the sync
   const url = new URL(request.url)

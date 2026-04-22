@@ -25,6 +25,7 @@ import {
   type CandidateTournament,
 } from '@/lib/source-matcher'
 import { findEntityBySourceId, registerSourceId } from '@/lib/external-id-registry'
+import { padelapiPausedResponse } from '@/lib/padelapi-pause'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -276,6 +277,10 @@ export async function GET(request: Request) {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  // Ops kill-switch — shared with padelapi crons (see src/lib/padelapi-pause.ts).
+  const paused = padelapiPausedResponse('premier-discovery')
+  if (paused) return paused
 
   const startedAt = Date.now()
   const result = {
