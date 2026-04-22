@@ -3,6 +3,8 @@ import {
   LivePollerLoop,
   computeNextInterval,
   buildLiveMatchState,
+  buildFinalSets,
+  inferWinnerFromLiveState,
   DEFAULT_INTERVAL_MS,
   CRITICAL_INTERVAL_MS,
 } from '../../lib/live-poller-loop.js';
@@ -88,34 +90,44 @@ interface MatchesUpdateCall {
   filters: Record<string, unknown>;
 }
 
+interface SetsUpsertCall {
+  row: Record<string, unknown>;
+  opts: Record<string, unknown>;
+}
+
 function fakeSupabase(opts: { matchId: string }): any {
   const matchesUpdateCalls: MatchesUpdateCall[] = [];
+  const setsUpsertCalls: SetsUpsertCall[] = [];
 
   const buildMatchesUpdateChain = (patch: Record<string, unknown>) => {
     const filters: Record<string, unknown> = {};
-    // Each terminal (.eq without a following .is, or .is) records the call.
-    // Using a PromiseLike shape lets the caller `await` the terminal chain.
-    const terminal = {
-      then: (resolve: (v: any) => void) => {
-        matchesUpdateCalls.push({ patch, filters: { ...filters } });
-        resolve({ data: null, error: null });
-      },
+    // The update chain supports several shapes we see in this module:
+    //   .update(...).eq('id', x)                         → stamp duration
+    //   .update(...).eq('id', x).is('col', null)         → one-shot stamps
+    //   .update(...).eq('id', x).eq('status', 'live')    → closeMatch guard
+    // All terminate as a PromiseLike so `await` resolves with a result.
+    const recordAndResolve = (resolve: (v: any) => void) => {
+      matchesUpdateCalls.push({ patch, filters: { ...filters } });
+      resolve({ data: null, error: null });
     };
-    const isNode = {
+    const makeTerminal = () => ({
+      then: (resolve: (v: any) => void) => recordAndResolve(resolve),
+      // Tolerate further `.is()` / `.eq()` chaining even after a terminal —
+      // defensive for mocks. Each additional filter is recorded before the
+      // final resolve.
       is: (col: string, val: unknown) => {
         filters[`is:${col}`] = val;
-        return terminal;
+        return makeTerminal();
       },
-      // also support terminating at .eq (e.g. duration write has no .is())
-      then: (resolve: (v: any) => void) => {
-        matchesUpdateCalls.push({ patch, filters: { ...filters } });
-        resolve({ data: null, error: null });
+      eq: (col: string, val: unknown) => {
+        filters[`eq:${col}`] = val;
+        return makeTerminal();
       },
-    };
+    });
     return {
       eq: (col: string, val: unknown) => {
         filters[`eq:${col}`] = val;
-        return isNode;
+        return makeTerminal();
       },
     };
   };
@@ -175,12 +187,27 @@ function fakeSupabase(opts: { matchId: string }): any {
           update: (patch: Record<string, unknown>) => buildMatchesUpdateChain(patch),
         };
       }
+      if (table === 'sets') {
+        return {
+          // closeMatch-only path: upsert each final set row with an onConflict
+          // on (match_id, set_number). We capture the row + opts so tests can
+          // assert on the exact values written.
+          upsert: async (
+            row: Record<string, unknown>,
+            upsertOpts: Record<string, unknown>,
+          ) => {
+            setsUpsertCalls.push({ row, opts: upsertOpts });
+            return { data: null, error: null };
+          },
+        };
+      }
       throw new Error(`fakeSupabase: unexpected table '${table}'`);
     },
   };
 
-  // Expose call log for assertions.
+  // Expose call logs for assertions.
   (api as any).__matchesUpdateCalls = matchesUpdateCalls;
+  (api as any).__setsUpsertCalls = setsUpsertCalls;
   return api;
 }
 
@@ -545,14 +572,19 @@ describe('LivePollerLoop.start / stop', () => {
     await loop.stop();
   });
 
-  it('stamps finished_at on the tick when a match transitions live → finished', async () => {
+  it('writes status + winner + finished_at on the tick when a match transitions live → finished', async () => {
     const mod = await import('../../parsers/crionet-tournamentlive.js');
 
-    // Tick 1: match is live.
-    // Tick 2: same match, but the parser now reports status='finished'.
-    // The loop's processMatch keeps prev state across ticks, so on tick 2 we
-    // should observe the transition and stamp finished_at.
-    const liveFixture = parsedMatchFixture({ team1Points: '15', team2Points: '0' });
+    // Tick 1: match is live at 2-0 sets (decisive for pair 1).
+    // Tick 2: same match, parser now reports status='finished'. closeMatch
+    // should fire on the live→finished transition and write status +
+    // winner_pair + finished_at in a single matches.update call.
+    const liveFixture = parsedMatchFixture({
+      team1Points: '40',
+      team2Points: '30',
+      team1SetGames: ['6', '6', '-'],
+      team2SetGames: ['3', '4', '-'],
+    });
     const finishedFixture: ParsedLiveMatch = { ...liveFixture, status: 'finished' };
 
     const parseSpy = vi
@@ -581,11 +613,17 @@ describe('LivePollerLoop.start / stop', () => {
       filters: Record<string, unknown>;
     }>;
 
-    const finishedCall = calls.find((c) => 'finished_at' in c.patch);
-    expect(finishedCall).toBeDefined();
-    expect(finishedCall!.filters['eq:id']).toBe('match-uuid-1');
-    expect(finishedCall!.filters['is:finished_at']).toBeNull();
-    expect(typeof finishedCall!.patch.finished_at).toBe('string');
+    // Find the closeMatch write — identified by the (eq:id + eq:status='live')
+    // guard shape and the combined status + winner_pair + finished_at payload.
+    const closeCall = calls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'live' &&
+        c.patch.status === 'finished',
+    );
+    expect(closeCall).toBeDefined();
+    expect(closeCall!.patch.winner_pair).toBe(1);
+    expect(typeof closeCall!.patch.finished_at).toBe('string');
 
     parseSpy.mockRestore();
     await loop.stop();
@@ -825,5 +863,408 @@ describe('LivePollerLoop.getResolvedPlayers cache invalidation', () => {
     await method('match-y');
     await method('match-y');
     expect(callCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pure helpers: inferWinnerFromLiveState + buildFinalSets
+// ---------------------------------------------------------------------------
+
+function liveSet(games: number): { games: number; tiebreak: number | null } {
+  return { games, tiebreak: null };
+}
+
+function makeLiveState(
+  team1Sets: Array<{ games: number; tiebreak: number | null } | null>,
+  team2Sets: Array<{ games: number; tiebreak: number | null } | null>,
+  status: LiveMatchState['status'] = 'finished',
+): LiveMatchState {
+  return {
+    matchWidgetId: 'MW1',
+    matchId: 'm1',
+    pointState: { kind: 'regular', team1: 0, team2: 0 },
+    team1Sets,
+    team2Sets,
+    servingTeam: 1,
+    status,
+  };
+}
+
+describe('inferWinnerFromLiveState', () => {
+  it('returns 1 when pair 1 has 2 set wins', () => {
+    const s = makeLiveState(
+      [liveSet(6), liveSet(6)],
+      [liveSet(3), liveSet(4)],
+    );
+    expect(inferWinnerFromLiveState(s)).toBe(1);
+  });
+
+  it('returns 2 when pair 2 has 2 set wins', () => {
+    const s = makeLiveState(
+      [liveSet(4), liveSet(3)],
+      [liveSet(6), liveSet(6)],
+    );
+    expect(inferWinnerFromLiveState(s)).toBe(2);
+  });
+
+  it('handles three-set splits (1-1 then decider)', () => {
+    const s = makeLiveState(
+      [liveSet(3), liveSet(6), liveSet(6)],
+      [liveSet(6), liveSet(0), liveSet(0)],
+    );
+    expect(inferWinnerFromLiveState(s)).toBe(1);
+  });
+
+  it('returns null when sets are split 1-1 with neither team at 2 wins', () => {
+    // Pair 1 wins set 1, pair 2 wins set 2 — one each, match not decided.
+    // (The naive p1>p2 rule also treats any leading in-progress set as a
+    // "win", so a scenario with a third mid-play set would no longer be
+    // indecisive here — this test covers the pure 1-1 case.)
+    const s = makeLiveState(
+      [liveSet(6), liveSet(4)],
+      [liveSet(4), liveSet(6)],
+    );
+    expect(inferWinnerFromLiveState(s)).toBeNull();
+  });
+
+  it('returns null for an empty state', () => {
+    const s = makeLiveState([], []);
+    expect(inferWinnerFromLiveState(s)).toBeNull();
+  });
+
+  it('skips sets where one side is null', () => {
+    const s = makeLiveState(
+      [liveSet(6), liveSet(6)],
+      [liveSet(3), null],
+    );
+    // Only one complete set counts → no winner yet
+    expect(inferWinnerFromLiveState(s)).toBeNull();
+  });
+});
+
+describe('buildFinalSets', () => {
+  it('leaves complete sets untouched', () => {
+    const s = makeLiveState(
+      [liveSet(6), liveSet(6)],
+      [liveSet(4), liveSet(2)],
+    );
+    expect(buildFinalSets(s, 1)).toEqual([
+      { set_number: 1, pair1_games: 6, pair2_games: 4 },
+      { set_number: 2, pair1_games: 6, pair2_games: 2 },
+    ]);
+  });
+
+  it('extrapolates a trailing 5-0 set to 6-0 when winner is pair 1', () => {
+    const s = makeLiveState(
+      [liveSet(3), liveSet(6), liveSet(5)],
+      [liveSet(6), liveSet(0), liveSet(0)],
+    );
+    expect(buildFinalSets(s, 1)).toEqual([
+      { set_number: 1, pair1_games: 3, pair2_games: 6 },
+      { set_number: 2, pair1_games: 6, pair2_games: 0 },
+      { set_number: 3, pair1_games: 6, pair2_games: 0 },
+    ]);
+  });
+
+  it('extrapolates a trailing set mirrored when winner is pair 2', () => {
+    const s = makeLiveState(
+      [liveSet(6), liveSet(0), liveSet(1)],
+      [liveSet(3), liveSet(6), liveSet(5)],
+    );
+    expect(buildFinalSets(s, 2)).toEqual([
+      { set_number: 1, pair1_games: 6, pair2_games: 3 },
+      { set_number: 2, pair1_games: 0, pair2_games: 6 },
+      { set_number: 3, pair1_games: 1, pair2_games: 6 },
+    ]);
+  });
+
+  it('bumps to 7 when the trailing set is at 6-6 (tiebreak win for match winner)', () => {
+    const s = makeLiveState(
+      [liveSet(6), liveSet(4), liveSet(6)],
+      [liveSet(3), liveSet(6), liveSet(6)],
+    );
+    expect(buildFinalSets(s, 1)).toEqual([
+      { set_number: 1, pair1_games: 6, pair2_games: 3 },
+      { set_number: 2, pair1_games: 4, pair2_games: 6 },
+      { set_number: 3, pair1_games: 7, pair2_games: 6 },
+    ]);
+  });
+
+  it('bumps to 7 when the trailing set is at 6-5 (winner closes 7-5)', () => {
+    const s = makeLiveState(
+      [liveSet(6), liveSet(3), liveSet(6)],
+      [liveSet(2), liveSet(6), liveSet(5)],
+    );
+    expect(buildFinalSets(s, 1)).toEqual([
+      { set_number: 1, pair1_games: 6, pair2_games: 2 },
+      { set_number: 2, pair1_games: 3, pair2_games: 6 },
+      { set_number: 3, pair1_games: 7, pair2_games: 5 },
+    ]);
+  });
+
+  it('skips sets where both team entries are null', () => {
+    const s = makeLiveState(
+      [liveSet(6), liveSet(6), null],
+      [liveSet(3), liveSet(4), null],
+    );
+    const result = buildFinalSets(s, 1);
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.set_number)).toEqual([1, 2]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// closeMatch integration — Case A (widget finished tick) + Case B (disappeared)
+// ---------------------------------------------------------------------------
+
+describe('LivePollerLoop.closeMatch — Case A: widget emits a finished tick', () => {
+  it('writes status=finished + winner_pair + finished_at + duration, upserts final sets', async () => {
+    // Parser returns a match with status='finished' on the first (and only) tick.
+    // With durationMinutes=90, the final set should be 6-4, 6-2 (complete) so
+    // no extrapolation — we're verifying the close-path itself.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [
+          {
+            ...parsedMatchFixture({
+              team1Points: '40',
+              team2Points: '30',
+              team1SetGames: ['6', '6', '-'],
+              team2SetGames: ['4', '2', '-'],
+            }),
+            status: 'finished' as const,
+            durationMinutes: 90,
+          },
+        ],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+
+    // One of the matches updates must be the closeMatch write, identified by
+    // the two-.eq() guard shape (id + status='live').
+    const closeCall = matchCalls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'live' &&
+        c.patch.status === 'finished',
+    );
+    expect(closeCall).toBeDefined();
+    expect(closeCall!.patch.winner_pair).toBe(1);
+    expect(typeof closeCall!.patch.finished_at).toBe('string');
+    expect(closeCall!.patch.duration).toBe('01:30');
+
+    // Final sets were upserted with is_current=false.
+    const setsCalls = (supabase as any).__setsUpsertCalls as Array<{
+      row: Record<string, unknown>;
+      opts: Record<string, unknown>;
+    }>;
+    expect(setsCalls).toHaveLength(2);
+    expect(setsCalls[0]!.row).toMatchObject({
+      match_id: 'match-uuid-1',
+      set_number: 1,
+      pair1_games: 6,
+      pair2_games: 4,
+      set_score: '6-4',
+      is_current: false,
+    });
+    expect(setsCalls[0]!.opts).toMatchObject({ onConflict: 'match_id,set_number' });
+    expect(setsCalls[1]!.row).toMatchObject({
+      set_number: 2,
+      pair1_games: 6,
+      pair2_games: 2,
+      set_score: '6-2',
+      is_current: false,
+    });
+
+    parseSpy.mockRestore();
+  });
+
+  it('does NOT call closeMatch when sets are indecisive (only one complete set)', async () => {
+    // status='finished' but only one set complete — inferWinner returns null.
+    // closeMatch must not fire.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [
+          {
+            ...parsedMatchFixture({
+              team1SetGames: ['6', '4', '-'],
+              team2SetGames: ['4', '5', '-'],
+            }),
+            status: 'finished' as const,
+          },
+        ],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    const closeCall = matchCalls.find(
+      (c) => c.patch.status === 'finished' && c.patch.winner_pair !== undefined,
+    );
+    expect(closeCall).toBeUndefined();
+
+    const setsCalls = (supabase as any).__setsUpsertCalls;
+    expect(setsCalls).toHaveLength(0);
+
+    parseSpy.mockRestore();
+  });
+});
+
+describe('LivePollerLoop.closeMatch — Case B: match disappears from feed', () => {
+  it('closes a previously-tracked match when it drops out of the parsed response', async () => {
+    // Tick 1: match is live at 2-0 sets for pair 1 (decisive even with set 3
+    // still mid-play — pair1 will be inferred as winner).
+    // Tick 2: parser returns no matches (match dropped). Expect closeMatch
+    // to be called with winner=1 and extrapolated set 3.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi.spyOn(mod, 'parseCrionetTournamentLive');
+
+    parseSpy
+      .mockReturnValueOnce({
+        matches: [
+          parsedMatchFixture({
+            team1Points: '30',
+            team2Points: '15',
+            team1SetGames: ['6', '6', '5'],
+            team2SetGames: ['3', '4', '0'],
+          }),
+        ],
+      })
+      .mockReturnValueOnce({ matches: [] });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest(); // tick 1: track the match
+    await timers.fireLatest(); // tick 2: match disappears → close
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    const closeCall = matchCalls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'live' &&
+        c.patch.status === 'finished',
+    );
+    expect(closeCall).toBeDefined();
+    expect(closeCall!.patch.winner_pair).toBe(1);
+
+    // Set 3 was mid-play at 5-0 — must be extrapolated to 6-0.
+    const setsCalls = (supabase as any).__setsUpsertCalls as Array<{
+      row: Record<string, unknown>;
+      opts: Record<string, unknown>;
+    }>;
+    const set3 = setsCalls.find((s) => s.row.set_number === 3);
+    expect(set3).toBeDefined();
+    expect(set3!.row).toMatchObject({
+      pair1_games: 6,
+      pair2_games: 0,
+      set_score: '6-0',
+      is_current: false,
+    });
+
+    parseSpy.mockRestore();
+  });
+
+  it('does not close a disappeared match when the state is indecisive', async () => {
+    // Tick 1: match at 1-1 in sets with only two sets played. Neither pair
+    // has 2 set wins → inferWinner returns null → closeMatch must NOT fire.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi.spyOn(mod, 'parseCrionetTournamentLive');
+
+    parseSpy
+      .mockReturnValueOnce({
+        matches: [
+          parsedMatchFixture({
+            team1SetGames: ['6', '3', '-'],
+            team2SetGames: ['4', '6', '-'],
+          }),
+        ],
+      })
+      .mockReturnValueOnce({ matches: [] });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+    await timers.fireLatest();
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    const closeCall = matchCalls.find(
+      (c) => c.patch.status === 'finished' && c.patch.winner_pair !== undefined,
+    );
+    expect(closeCall).toBeUndefined();
+
+    const setsCalls = (supabase as any).__setsUpsertCalls;
+    expect(setsCalls).toHaveLength(0);
+
+    parseSpy.mockRestore();
   });
 });

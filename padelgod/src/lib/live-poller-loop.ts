@@ -63,6 +63,7 @@ import {
   computeBackstampedStartedAt,
   formatDurationHHMM,
 } from './match-time-stamps.js';
+import { inferWinnerFromSets } from './shadow-winner-inference.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -217,6 +218,111 @@ export function buildLiveMatchState(
     servingTeam: parsed.servingTeam,
     status,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Match-close inference helpers (used by closeMatch)
+// ---------------------------------------------------------------------------
+
+/**
+ * Infer which pair won the match from a LiveMatchState — wraps
+ * shadow-winner-inference's `inferWinnerFromSets` by mapping the per-team
+ * LiveSetEntry arrays to (set_number, pair1_games, pair2_games) rows.
+ *
+ * Returns 1 | 2 when one team has won 2 sets; null when the state is
+ * indecisive (no team at 2 set wins yet, or both teams' arrays all null).
+ * Exported for tests.
+ */
+export function inferWinnerFromLiveState(state: LiveMatchState): 1 | 2 | null {
+  const n = Math.max(state.team1Sets.length, state.team2Sets.length);
+  const rows: Array<{
+    set_number: number;
+    pair1_games: number | null;
+    pair2_games: number | null;
+  }> = [];
+  for (let i = 0; i < n; i++) {
+    const t1 = state.team1Sets[i] ?? null;
+    const t2 = state.team2Sets[i] ?? null;
+    if (t1 === null && t2 === null) continue;
+    rows.push({
+      set_number: i + 1,
+      pair1_games: t1?.games ?? null,
+      pair2_games: t2?.games ?? null,
+    });
+  }
+  return inferWinnerFromSets(rows);
+}
+
+/**
+ * A set is "complete" when one team has won it under standard padel rules:
+ *   - First to 6 games with a 2-game lead, OR
+ *   - 7-5, OR
+ *   - 7-6 (tiebreak win, resolved internally)
+ */
+function isSetComplete(p1: number, p2: number): boolean {
+  if (p1 >= 6 && p1 - p2 >= 2) return true;
+  if (p2 >= 6 && p2 - p1 >= 2) return true;
+  if (p1 === 7 || p2 === 7) return true;
+  return false;
+}
+
+export interface FinalSetRow {
+  set_number: number;
+  pair1_games: number;
+  pair2_games: number;
+}
+
+/**
+ * Build the final set rows we'll upsert when closing a match. Starts from
+ * the last-known state's per-team arrays and extrapolates the trailing set
+ * if it's still mid-play — e.g. the live-poller caught the set at 5-0 for
+ * the winner but never saw the closing game, so we bump the winner's count
+ * to 6. Also handles the tiebreak case (6-6 or 6-5 → 7) on the same logic.
+ *
+ * Intermediate complete sets are written as-is. Sets with both teams still
+ * null are skipped.
+ *
+ * Exported for tests.
+ */
+export function buildFinalSets(
+  state: LiveMatchState,
+  winner: 1 | 2,
+): FinalSetRow[] {
+  const n = Math.max(state.team1Sets.length, state.team2Sets.length);
+  const out: FinalSetRow[] = [];
+
+  // Locate the last set that has any non-null entry — this is the candidate
+  // for trailing-set extrapolation. Any earlier set is taken as-is.
+  let lastNonNull = -1;
+  for (let i = 0; i < n; i++) {
+    if (state.team1Sets[i] != null || state.team2Sets[i] != null) lastNonNull = i;
+  }
+
+  for (let i = 0; i < n; i++) {
+    const t1 = state.team1Sets[i] ?? null;
+    const t2 = state.team2Sets[i] ?? null;
+    if (t1 === null && t2 === null) continue;
+
+    let p1 = t1?.games ?? 0;
+    let p2 = t2?.games ?? 0;
+
+    if (i === lastNonNull && !isSetComplete(p1, p2)) {
+      // Trailing incomplete set — assume the match winner also won this set.
+      // If they're already ≥6 and at a tiebreak score (6-6 or 6-5), bump
+      // winner to 7 (standard tiebreak win). Otherwise bump winner to 6.
+      if (winner === 1) {
+        if (p1 === 6 && p2 >= 5) p1 = 7;
+        else if (p1 < 6) p1 = 6;
+      } else {
+        if (p2 === 6 && p1 >= 5) p2 = 7;
+        else if (p2 < 6) p2 = 6;
+      }
+    }
+
+    out.push({ set_number: i + 1, pair1_games: p1, pair2_games: p2 });
+  }
+
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -375,11 +481,15 @@ export class LivePollerLoop {
     }
 
     const currentStates: LiveMatchState[] = [];
+    const seenMatchIds = new Set<string>();
 
     for (const m of parsed.matches) {
       try {
         const state = await this.processMatch(m);
-        if (state) currentStates.push(state);
+        if (state) {
+          currentStates.push(state);
+          seenMatchIds.add(state.matchId);
+        }
       } catch (err) {
         this.opts.logger.warn(
           this.logCtx({
@@ -388,6 +498,48 @@ export class LivePollerLoop {
           }),
           'live-poller-loop: match processing failed, continuing',
         );
+      }
+    }
+
+    // Case B: matches we were tracking that fell off the live feed without
+    // emitting a terminal tick. Crionet sometimes drops a finished match
+    // from the tournamentlive response before surfacing it with
+    // status='finished'. Without closeMatch here, the row stays `live`
+    // forever (and the stale-detector guard in scores cron correctly
+    // refuses to touch padelgod-owned rows). Canonical mode only.
+    if (this.mode === 'canonical') {
+      for (const [matchId, lastState] of Array.from(this.states.entries())) {
+        if (seenMatchIds.has(matchId)) continue;
+        const winner = inferWinnerFromLiveState(lastState);
+        if (winner === null) {
+          this.opts.logger.warn(
+            this.logCtx({ matchId }),
+            'tracked match disappeared with indecisive sets — leaving status unchanged',
+          );
+          // Keep the state so a subsequent tick can retry if the widget
+          // re-surfaces the match with updated sets.
+          continue;
+        }
+        try {
+          await this.closeMatch(
+            matchId,
+            winner,
+            lastState,
+            null,
+            'disappeared_from_feed',
+          );
+          // Successful close — drop the state so we don't keep re-closing.
+          this.states.delete(matchId);
+        } catch (err) {
+          this.opts.logger.warn(
+            this.logCtx({
+              matchId,
+              err: err instanceof Error ? err.message : String(err),
+            }),
+            'close-match failed for disappeared match; will retry next tick',
+          );
+          // Keep the state for a retry on the next tick.
+        }
       }
     }
 
@@ -438,6 +590,31 @@ export class LivePollerLoop {
       // See ApplyDiffOpts.dualWritePublic docs for rationale.
       dualWritePublic: this.mode === 'shadow',
     });
+
+    // Case A: widget emitted a terminal status tick. Close the match now
+    // (status + winner + finished_at + final sets). Only on the transition
+    // edge (live → finished); subsequent ticks see curr.status === 'finished'
+    // with a cached `prev` in the same state and skip the work. Canonical
+    // mode only — shadow runs never touch canonical status.
+    const observedFinish = curr.status === 'finished';
+    const wasLiveOrNew = prev === null || prev.status === 'live';
+    if (this.mode === 'canonical' && observedFinish && wasLiveOrNew) {
+      const winner = inferWinnerFromLiveState(curr);
+      if (winner !== null) {
+        await this.closeMatch(
+          matchId,
+          winner,
+          curr,
+          parsed.durationMinutes,
+          'widget_finished',
+        );
+      } else {
+        this.opts.logger.warn(
+          this.logCtx({ matchId }),
+          'widget signaled finished but sets are indecisive — leaving status=live for reconciler',
+        );
+      }
+    }
 
     this.states.set(matchId, curr);
     return curr;
@@ -500,26 +677,125 @@ export class LivePollerLoop {
       }
     }
 
-    // finished_at — only stamp on observed terminal status. One-shot: if the
-    // static-reconciler already stamped via fallback, we don't regress it.
-    // Status field is deliberately NOT written here — status writes stay owned
-    // by the static-reconciler so we keep a single source of truth for the
-    // winner_pair + status pair.
-    const observedFinish = curr.status === 'finished';
-    const wasLiveOrNew = prev === null || prev.status === 'live';
-    if (observedFinish && wasLiveOrNew) {
-      const { error: fErr } = await this.opts.supabase
-        .from('matches')
-        .update({ finished_at: new Date(nowMs).toISOString() })
-        .eq('id', matchId)
-        .is('finished_at', null);
-      if (fErr) {
+    // NOTE: finished_at is no longer written here — it moved to closeMatch,
+    // which also writes status + winner_pair + final sets atomically on the
+    // same terminal-status signal. See closeMatch docs for the ownership
+    // rationale.
+  }
+
+  /**
+   * Close a match: write status='finished', winner_pair, finished_at,
+   * duration, and upsert the final set rows.
+   *
+   * Ownership
+   * ---------
+   * Before this method existed, `status` + `winner_pair` transitions were
+   * owned exclusively by `static-reconciler` from results_snapshots. That
+   * split worked when all the fetchers were healthy, but:
+   *   - results-fetcher can go silent (2026-04-22 incident — no snapshots
+   *     for hours while matches finished)
+   *   - the reconciler's results phase gates on name resolution from an
+   *     entry-list dictionary, which is empty for Premier tournaments
+   *
+   * Either failure leaves finished matches stuck as `status='live'`.
+   * closeMatch moves the primary transition to the live-poller, which has
+   * direct observation of Crionet's widget state. The reconciler remains
+   * a secondary pass (score correction from the results widget) but is no
+   * longer on the critical path for closing.
+   *
+   * Triggers
+   * --------
+   * - Case A: `curr.status === 'finished'` observed on a live tick (widget
+   *   emits a terminal tick before the match drops from the response).
+   * - Case B: a match previously in `this.states` is absent from the new
+   *   parsed response (dropped without a terminal tick).
+   *
+   * Guards
+   * ------
+   * - `.eq('status', 'live')` — never regress a row already in a terminal
+   *   state (finished / retired / walkover).
+   * - Indecisive state (neither pair has 2 sets) — caller logs warn and
+   *   skips instead of calling this. This method itself is unconditional.
+   * - Canonical mode only. Shadow-mode runs must never mutate canonical.
+   *
+   * Idempotence
+   * -----------
+   * Safe to call multiple times on the same match. The match update's
+   * `.eq('status', 'live')` guard makes it a no-op after the first call.
+   * Sets upsert uses `(match_id, set_number)` onConflict — re-running
+   * overwrites with the same values.
+   */
+  private async closeMatch(
+    matchId: string,
+    winner: 1 | 2,
+    state: LiveMatchState,
+    durationMinutes: number | null,
+    reason: 'widget_finished' | 'disappeared_from_feed',
+  ): Promise<void> {
+    if (this.mode !== 'canonical') return;
+
+    const nowIso = new Date().toISOString();
+    const matchUpdate: Record<string, unknown> = {
+      status: 'finished',
+      winner_pair: winner,
+      finished_at: nowIso,
+      updated_at: nowIso,
+    };
+    if (durationMinutes !== null) {
+      matchUpdate.duration = formatDurationHHMM(durationMinutes);
+    }
+
+    const { error: mErr } = await this.opts.supabase
+      .from('matches')
+      .update(matchUpdate)
+      .eq('id', matchId)
+      .eq('status', 'live');
+    if (mErr) {
+      this.opts.logger.warn(
+        this.logCtx({ matchId, err: mErr.message, reason }),
+        'close-match: matches update failed',
+      );
+      return;
+    }
+
+    const finalSets = buildFinalSets(state, winner);
+    for (const row of finalSets) {
+      const { error: sErr } = await this.opts.supabase
+        .from('sets')
+        .upsert(
+          {
+            match_id: matchId,
+            set_number: row.set_number,
+            pair1_games: row.pair1_games,
+            pair2_games: row.pair2_games,
+            set_score: `${row.pair1_games}-${row.pair2_games}`,
+            is_current: false,
+            updated_at: nowIso,
+          },
+          { onConflict: 'match_id,set_number' },
+        );
+      if (sErr) {
         this.opts.logger.warn(
-          this.logCtx({ matchId, err: fErr.message }),
-          'stamp finished_at failed',
+          this.logCtx({
+            matchId,
+            setNumber: row.set_number,
+            err: sErr.message,
+            reason,
+          }),
+          'close-match: sets upsert failed',
         );
       }
     }
+
+    this.opts.logger.info(
+      this.logCtx({
+        matchId,
+        winner,
+        sets: finalSets.length,
+        reason,
+      }),
+      'close-match: transitioned to finished',
+    );
   }
 
   private async getResolvedPlayers(matchId: string): Promise<ResolvedPlayers> {
