@@ -192,14 +192,28 @@ function makeFakeSupabase(opts: {
     return {
       update: (patch: Record<string, unknown>) => ({
         eq: (col1: string, val1: unknown) => ({
+          // Shape A: .eq().eq() — legacy single-value guard.
           eq: (col2: string, val2: unknown) => {
             state.matchesUpdateCalls.push({
               patch,
               filters: { [col1]: val1, [col2]: val2 },
             });
-            // Apply only when the row matches both filters (status flip guard).
             for (const m of state.matchesRows) {
               if ((m as any)[col1] === val1 && (m as any)[col2] === val2) {
+                Object.assign(m, patch);
+              }
+            }
+            return Promise.resolve({ data: null, error: null });
+          },
+          // Shape B: .eq().in() — multi-value guard (used by the status-flip
+          // + heartbeat write that accepts status IN ('scheduled','live')).
+          in: (col2: string, vals: unknown[]) => {
+            state.matchesUpdateCalls.push({
+              patch,
+              filters: { [col1]: val1, [`${col2}In`]: vals },
+            });
+            for (const m of state.matchesRows) {
+              if ((m as any)[col1] === val1 && vals.includes((m as any)[col2])) {
                 Object.assign(m, patch);
               }
             }
@@ -958,7 +972,43 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
 
     expect(s.matchesUpdateCalls).toHaveLength(1);
     expect(s.matchesUpdateCalls[0]!.patch.status).toBe('live');
-    expect(s.matchesUpdateCalls[0]!.filters).toMatchObject({ id: MATCH_ID, status: 'scheduled' });
+    // Guard is now .in('status', ['scheduled', 'live']) so the heartbeat
+    // path bumps updated_at on every tick after the initial flip.
+    expect(s.matchesUpdateCalls[0]!.filters).toMatchObject({
+      id: MATCH_ID,
+      statusIn: ['scheduled', 'live'],
+    });
+    expect(s.matchesRows[0]!.status).toBe('live');
+    // updated_at must be written on this call so the sweeper knows the row is fresh.
+    expect(typeof s.matchesUpdateCalls[0]!.patch.updated_at).toBe('string');
+  });
+
+  it('bumps updated_at on every tick when match is already live (heartbeat)', async () => {
+    // Regression for the PR#7 + PR#9 interaction: without this heartbeat,
+    // `public.matches.updated_at` goes stale 15 min after the initial
+    // scheduled → live flip, and the close-stale-live-sweeper
+    // wrongly closes the match as "stuck" while the live-poller is still
+    // faithfully writing sets every 6–30s.
+    const { client, state: s } = makeClientWithMatch('live');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    const beforeMs = Date.now();
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // Status write must still fire even though status isn't changing —
+    // the purpose is to bump updated_at.
+    expect(s.matchesUpdateCalls).toHaveLength(1);
+    const call = s.matchesUpdateCalls[0]!;
+    expect(call.patch.status).toBe('live');
+    expect(typeof call.patch.updated_at).toBe('string');
+    const writtenMs = Date.parse(call.patch.updated_at as string);
+    expect(writtenMs).toBeGreaterThanOrEqual(beforeMs);
+    // And the guard matches so the row is actually touched in the fake DB.
     expect(s.matchesRows[0]!.status).toBe('live');
   });
 
@@ -973,9 +1023,25 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
       dualWritePublic: true,
     });
 
-    // The update call is still issued (no pre-check), but the .eq('status','scheduled')
-    // guard means no row actually matches → DB state untouched.
+    // The update call is still issued (no pre-check), but the
+    // .in('status', ['scheduled','live']) guard excludes terminal rows.
     expect(s.matchesRows[0]!.status).toBe('finished');
+  });
+
+  it('does not regress terminal statuses walkover or retired', async () => {
+    for (const terminal of ['walkover', 'retired'] as const) {
+      const { client, state: s } = makeClientWithMatch(terminal);
+      const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+      const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+      const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+      await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+        mode: 'shadow',
+        dualWritePublic: true,
+      });
+
+      expect(s.matchesRows[0]!.status).toBe(terminal);
+    }
   });
 
   it('upserts public.sets with score_source=shadow', async () => {

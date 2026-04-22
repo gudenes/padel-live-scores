@@ -556,14 +556,28 @@ async function dualWriteShadowToPublic(
   resolvedPlayers: ResolvedPlayers,
   logger: Logger | undefined,
 ): Promise<void> {
-  // 1. Status flip — 'scheduled' → 'live'. Guard via .eq('status','scheduled')
-  //    so we can fire this every tick idempotently without risk of regressing
-  //    a terminal status.
+  // 1. Status flip + liveness ping.
+  //
+  //    Writes `status: 'live'` + bumps `updated_at` on EVERY tick where the
+  //    match is still non-terminal. Serves two purposes:
+  //
+  //      a) One-shot transition `scheduled` → `live` on the first tick we
+  //         observe the match in the widget.
+  //      b) Per-tick heartbeat when status is already `live`. Without this,
+  //         `public.matches.updated_at` goes stale 15+ min after (a), and the
+  //         close-stale-live-sweeper (src/workers/close-stale-live-sweeper.ts)
+  //         wrongly closes the match as "stuck" even though the live-poller
+  //         is still writing sets every tick.
+  //
+  //    Guarded with `.in('status', ['scheduled','live'])` so terminal statuses
+  //    (`finished`/`walkover`/`retired`) are never regressed. Writing `'live'`
+  //    when status is already `'live'` is a harmless no-op for the status
+  //    column itself — the value we care about is `updated_at`.
   const { error: statusErr } = await supabase
     .from('matches')
     .update({ status: 'live', updated_at: new Date().toISOString() })
     .eq('id', matchId)
-    .eq('status', 'scheduled');
+    .in('status', ['scheduled', 'live']);
   if (statusErr) {
     logger?.warn(
       { matchId, err: statusErr.message },
