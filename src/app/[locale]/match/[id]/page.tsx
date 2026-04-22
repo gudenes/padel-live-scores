@@ -727,7 +727,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                     ...(flashPair === 1 ? { animation: 'pn-score-roll 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both' } : {}),
                   }}
                 >
-                  {p1Point ?? pair1Sets}
+                  {/* Fallback is '0' (start-of-game default), NOT pair1Sets —
+                      the sets-won count is a different concept and would leak
+                      into the Pts column when points[] is empty or filtered to
+                      empty (e.g., only the '0:0' placeholder). Matches the
+                      fallback used in the compact variant above. */}
+                  {p1Point ?? '0'}
                 </span>
               )}
             </div>
@@ -803,7 +808,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                     ...(flashPair === 2 ? { animation: 'pn-score-roll 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both' } : {}),
                   }}
                 >
-                  {p2Point ?? pair2Sets}
+                  {/* Fallback '0' matches the pair1 side above. See comment there. */}
+                  {p2Point ?? '0'}
                 </span>
               )}
             </div>
