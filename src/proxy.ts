@@ -105,6 +105,11 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // 7. PadelGod API docs — English-only developer docs, skip i18n routing
+  if (pathname === '/padelgodapi' || pathname.startsWith('/padelgodapi/')) {
+    return NextResponse.next()
+  }
+
   // ── Cookie-wins locale redirect ────────────────────────────────
   //
   // When the user manually picks a language via LocaleSwitcher, we write
