@@ -14,6 +14,7 @@ import { runMatchStatsFetcher } from './workers/match-stats-fetcher.js';
 import { runLivePollerManager } from './workers/live-poller-manager.js';
 import { runShadowDiffFinalizer } from './workers/shadow-diff-finalizer.js';
 import { runShadowDiffLive } from './workers/shadow-diff-live.js';
+import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -35,6 +36,7 @@ export interface SchedulerFlags {
   enableLivePollerManager: boolean;
   enableShadowDiffFinalizer: boolean;
   enableShadowDiffLive: boolean;
+  enableCloseStaleLiveSweeper: boolean;
 }
 
 export interface SchedulerDeps {
@@ -56,7 +58,8 @@ export type WorkerName =
   | 'match-stats-fetcher'
   | 'live-poller-manager'
   | 'shadow-diff-finalizer'
-  | 'shadow-diff-live';
+  | 'shadow-diff-live'
+  | 'close-stale-live-sweeper';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -74,6 +77,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'live-poller-manager',
   'shadow-diff-finalizer',
   'shadow-diff-live',
+  'close-stale-live-sweeper',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -94,6 +98,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'live-poller-manager':  return (deps) => runLivePollerManager(deps);
     case 'shadow-diff-finalizer': return (deps) => runShadowDiffFinalizer({ supabase: deps.supabase, logger: deps.logger });
     case 'shadow-diff-live':      return (deps) => runShadowDiffLive({ supabase: deps.supabase, logger: deps.logger });
+    case 'close-stale-live-sweeper': return (deps) => runCloseStaleLiveSweeper({ supabase: deps.supabase, logger: deps.logger });
     default: return null;
   }
 }
@@ -195,6 +200,16 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'shadow-diff-live',
       cron: '*/1 * * * *', // every minute, snapshots per-live-match latency
       run: getWorkerRunner('shadow-diff-live')!,
+    });
+  }
+  if (flags.enableCloseStaleLiveSweeper) {
+    entries.push({
+      name: 'close-stale-live-sweeper',
+      // Every 5 minutes. Closes matches stuck at live/ended when the live-poller
+      // can't (Crionet never emits terminal status; Railway restarts wipe in-memory
+      // state). Reads from our own DB — no external calls, safe to run frequently.
+      cron: '*/5 * * * *',
+      run: getWorkerRunner('close-stale-live-sweeper')!,
     });
   }
   return entries;

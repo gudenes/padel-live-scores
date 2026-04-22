@@ -21,6 +21,7 @@ const EnvSchema = z.object({
   ENABLE_LIVE_POLLER_MANAGER: z.coerce.boolean().default(true),
   ENABLE_SHADOW_DIFF_FINALIZER: z.coerce.boolean().default(true),
   ENABLE_SHADOW_DIFF_LIVE: z.coerce.boolean().default(true),
+  ENABLE_CLOSE_STALE_LIVE_SWEEPER: z.coerce.boolean().default(true),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

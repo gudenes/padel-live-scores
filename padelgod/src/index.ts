@@ -70,6 +70,7 @@ async function main() {
       enableLivePollerManager: env.ENABLE_LIVE_POLLER_MANAGER,
       enableShadowDiffFinalizer: env.ENABLE_SHADOW_DIFF_FINALIZER,
       enableShadowDiffLive: env.ENABLE_SHADOW_DIFF_LIVE,
+      enableCloseStaleLiveSweeper: env.ENABLE_CLOSE_STALE_LIVE_SWEEPER,
     });
     const schedulerDeps: SchedulerDeps = { supabase, httpClient, logger };
     scheduledTasks = startScheduler(schedule, schedulerDeps);
