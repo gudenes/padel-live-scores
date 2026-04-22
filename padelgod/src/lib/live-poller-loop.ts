@@ -502,44 +502,47 @@ export class LivePollerLoop {
     }
 
     // Case B: matches we were tracking that fell off the live feed without
-    // emitting a terminal tick. Crionet sometimes drops a finished match
-    // from the tournamentlive response before surfacing it with
-    // status='finished'. Without closeMatch here, the row stays `live`
-    // forever (and the stale-detector guard in scores cron correctly
-    // refuses to touch padelgod-owned rows). Canonical mode only.
-    if (this.mode === 'canonical') {
-      for (const [matchId, lastState] of Array.from(this.states.entries())) {
-        if (seenMatchIds.has(matchId)) continue;
-        const winner = inferWinnerFromLiveState(lastState);
-        if (winner === null) {
-          this.opts.logger.warn(
-            this.logCtx({ matchId }),
-            'tracked match disappeared with indecisive sets — leaving status unchanged',
-          );
-          // Keep the state so a subsequent tick can retry if the widget
-          // re-surfaces the match with updated sets.
-          continue;
-        }
-        try {
-          await this.closeMatch(
+    // emitting a terminal tick. Crionet sometimes (in fact usually) drops a
+    // finished match from the tournamentlive response before surfacing it
+    // with status='finished'. Without closeMatch here, the row stays `live`
+    // forever (and the stale-detector guard in scores cron correctly refuses
+    // to touch padelgod-owned rows).
+    //
+    // Runs in BOTH modes: the fan-visible UI reads canonical public.matches,
+    // so shadow-mode tournaments need their close to reach canonical too.
+    // closeMatch is internally idempotent via `.eq('status', 'live')`, so
+    // if padelapi races us to the terminal write nobody gets clobbered.
+    for (const [matchId, lastState] of Array.from(this.states.entries())) {
+      if (seenMatchIds.has(matchId)) continue;
+      const winner = inferWinnerFromLiveState(lastState);
+      if (winner === null) {
+        this.opts.logger.warn(
+          this.logCtx({ matchId }),
+          'tracked match disappeared with indecisive sets — leaving status unchanged',
+        );
+        // Keep the state so a subsequent tick can retry if the widget
+        // re-surfaces the match with updated sets.
+        continue;
+      }
+      try {
+        await this.closeMatch(
+          matchId,
+          winner,
+          lastState,
+          null,
+          'disappeared_from_feed',
+        );
+        // Successful close — drop the state so we don't keep re-closing.
+        this.states.delete(matchId);
+      } catch (err) {
+        this.opts.logger.warn(
+          this.logCtx({
             matchId,
-            winner,
-            lastState,
-            null,
-            'disappeared_from_feed',
-          );
-          // Successful close — drop the state so we don't keep re-closing.
-          this.states.delete(matchId);
-        } catch (err) {
-          this.opts.logger.warn(
-            this.logCtx({
-              matchId,
-              err: err instanceof Error ? err.message : String(err),
-            }),
-            'close-match failed for disappeared match; will retry next tick',
-          );
-          // Keep the state for a retry on the next tick.
-        }
+            err: err instanceof Error ? err.message : String(err),
+          }),
+          'close-match failed for disappeared match; will retry next tick',
+        );
+        // Keep the state for a retry on the next tick.
       }
     }
 
@@ -594,11 +597,15 @@ export class LivePollerLoop {
     // Case A: widget emitted a terminal status tick. Close the match now
     // (status + winner + finished_at + final sets). Only on the transition
     // edge (live → finished); subsequent ticks see curr.status === 'finished'
-    // with a cached `prev` in the same state and skip the work. Canonical
-    // mode only — shadow runs never touch canonical status.
+    // with a cached `prev` in the same state and skip the work.
+    //
+    // Runs in BOTH modes: the fan-visible UI reads canonical public.matches,
+    // so shadow-mode tournaments need their close to reach canonical too.
+    // closeMatch's `.eq('status', 'live')` guard keeps us idempotent and
+    // race-safe against padelapi if it writes the same transition.
     const observedFinish = curr.status === 'finished';
     const wasLiveOrNew = prev === null || prev.status === 'live';
-    if (this.mode === 'canonical' && observedFinish && wasLiveOrNew) {
+    if (observedFinish && wasLiveOrNew) {
       const winner = inferWinnerFromLiveState(curr);
       if (winner !== null) {
         await this.closeMatch(
@@ -732,7 +739,12 @@ export class LivePollerLoop {
     durationMinutes: number | null,
     reason: 'widget_finished' | 'disappeared_from_feed',
   ): Promise<void> {
-    if (this.mode !== 'canonical') return;
+    // Runs in both modes. The fan-visible UI reads canonical public.matches,
+    // so a shadow-mode tournament whose match has ended needs the close to
+    // land in canonical too — otherwise fans see "live" for minutes until
+    // the close-stale-live-sweeper catches up. The matches-update guard
+    // `.eq('status', 'live')` below makes this idempotent: if padelapi has
+    // already written `finished`, our update is a no-op.
 
     const nowIso = new Date().toISOString();
     const matchUpdate: Record<string, unknown> = {
