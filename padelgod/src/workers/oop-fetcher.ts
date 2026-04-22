@@ -79,6 +79,7 @@ async function fetchOneDay(
     category: m.category,
     round_label: m.roundLabel,
     court: m.court,
+    court_position: m.courtPosition,
     scheduled_label: m.scheduledLabel,
     team1_player1_name: m.team1Player1Name,
     team1_player2_name: m.team1Player2Name,
