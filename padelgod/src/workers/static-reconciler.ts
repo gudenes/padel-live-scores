@@ -847,6 +847,7 @@ interface OopSnapshotRow {
   day_number: number;
   round_label: string | null;
   court: string;
+  court_position: number | null;
   scheduled_label: string | null;
   team1_player1_name: string | null;
   team1_player2_name: string | null;
@@ -881,9 +882,9 @@ async function reconcileOOP(
     .schema('padelgod')
     .from('oop_snapshots')
     .select(
-      'id, tournament_id, category, day_number, round_label, court, scheduled_label, ' +
-        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
-        'match_widget_id, status, captured_at'
+      'id, tournament_id, category, day_number, round_label, court, court_position, ' +
+        'scheduled_label, team1_player1_name, team1_player2_name, team2_player1_name, ' +
+        'team2_player2_name, match_widget_id, status, captured_at'
     )
     .gte('captured_at', cutoff);
 
@@ -977,6 +978,11 @@ async function reconcileOOP(
       updated_at: new Date().toISOString(),
     };
     if (r.round_label != null) update.round = r.round_label;
+    // court_position is 0-based from the OOP widget; matches.court_order is
+    // 1-based (matches padelapi convention). Historical snapshots may carry
+    // NULL — leave court_order untouched in that case so we don't clobber a
+    // value the padelapi sync may have written earlier.
+    if (r.court_position != null) update.court_order = r.court_position + 1;
     // scheduled_at intentionally NOT written — see phase docblock.
 
     const { error: updErr } = await supabase
