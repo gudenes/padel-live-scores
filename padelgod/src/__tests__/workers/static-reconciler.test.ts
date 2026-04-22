@@ -56,6 +56,7 @@ interface OopSnapshotSeed {
   day_number: number;
   round_label: string | null;
   court: string;
+  court_position: number | null;
   scheduled_label: string | null;
   team1_player1_name: string | null;
   team1_player2_name: string | null;
@@ -756,6 +757,7 @@ describe('runStaticReconciler — OOP phase (V3)', () => {
         day_number: 4,
         round_label: 'F',
         court: 'Center Court',
+        court_position: 0,
         scheduled_label: 'Starting at 4:00 PM',
         team1_player1_name: 'J. Lebron',
         team1_player2_name: 'F. Chingotto',
@@ -801,6 +803,103 @@ describe('runStaticReconciler — OOP phase (V3)', () => {
     expect(upd.patch.round).toBe('F');
     expect(upd.patch.last_updated_by).toBe('padelgod');
     expect(upd.patch.scheduled_at).toBeUndefined();
+  });
+
+  it('copies court + court_position (→ court_order) from the snapshot onto public.matches', async () => {
+    const oop: OopSnapshotSeed[] = [
+      {
+        id: 'oop-cbc-0',
+        tournament_id: TOUR,
+        category: 'men',
+        day_number: 4,
+        round_label: 'R32',
+        court: 'COURT CBC',
+        court_position: 0,
+        scheduled_label: 'Starting at 11:00 AM',
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        match_widget_id: 'MQ007',
+        status: 'scheduled',
+        captured_at: T,
+      },
+    ];
+
+    const widgets: WidgetIdCacheSeed[] = [
+      { tournament_id: TOUR, widget_id: 'FIP-2026-1701', is_active: true },
+    ];
+
+    const supabase = fakeSupabase(
+      entryListRoster,
+      rosterPlayers,
+      [],
+      [],
+      [],
+      oop,
+      [],
+      widgets,
+    );
+    const result = await runStaticReconciler({ supabase: supabase as any });
+
+    expect(result.oopMatchesUpdated).toBe(1);
+
+    // One matches-update should carry both court + court_order (court_order is
+    // 1-based; court_position is 0-based → + 1).
+    const write = supabase.matchesUpdated.find(
+      (u: { patch: Record<string, unknown> }) => 'court' in u.patch,
+    )!;
+    expect(write.patch.court).toBe('COURT CBC');
+    expect(write.patch.court_order).toBe(1);
+  });
+
+  it('does NOT write court_order when court_position is null (historical / pre-migration rows)', async () => {
+    // Mirrors the shape of the previous test but with court_position = null.
+    // The reconciler's null-guard should skip the court_order write so we
+    // don't clobber a value padelapi may have set earlier.
+    const oop: OopSnapshotSeed[] = [
+      {
+        id: 'oop-null-pos',
+        tournament_id: TOUR,
+        category: 'men',
+        day_number: 4,
+        round_label: 'R32',
+        court: 'COURT CBC',
+        court_position: null,
+        scheduled_label: 'Starting at 11:00 AM',
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        match_widget_id: 'MQ007',
+        status: 'scheduled',
+        captured_at: T,
+      },
+    ];
+
+    const widgets: WidgetIdCacheSeed[] = [
+      { tournament_id: TOUR, widget_id: 'FIP-2026-1701', is_active: true },
+    ];
+
+    const supabase = fakeSupabase(
+      entryListRoster,
+      rosterPlayers,
+      [],
+      [],
+      [],
+      oop,
+      [],
+      widgets,
+    );
+    const result = await runStaticReconciler({ supabase: supabase as any });
+
+    expect(result.oopMatchesUpdated).toBe(1);
+
+    const write = supabase.matchesUpdated.find(
+      (u: { patch: Record<string, unknown> }) => 'court' in u.patch,
+    )!;
+    expect(write.patch.court).toBe('COURT CBC');
+    expect(write.patch.court_order).toBeUndefined();
   });
 });
 

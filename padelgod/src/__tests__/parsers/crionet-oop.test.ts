@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseCrionetOop } from '../../parsers/crionet-oop.js';
 
 // Realistic HTML matching production Crionet/matchscorerlive.com structure.
@@ -204,5 +207,42 @@ describe('parseCrionetOop', () => {
     expect(result[0].status).toBe('finished');
     expect(result[0].category).toBe('men');
     expect(result[0].roundLabel).toBe('Q3');
+  });
+});
+
+describe('parseCrionetOop — Brussels fixture (real court + position)', () => {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const fixturePath = join(__dirname, '../fixtures/crionet-oop-brussels.html');
+  const html = readFileSync(fixturePath, 'utf-8');
+
+  it('emits the real court name from .schedule-header .oop-court, not the schedule label from the table header', () => {
+    const matches = parseCrionetOop(html, 4);
+    const byId = Object.fromEntries(matches.map((m) => [m.matchWidgetId, m]));
+    expect(byId['MQ007']!.court).toBe('COURT CBC');
+    expect(byId['WD030']!.court).toBe('COURT CBC');
+    expect(byId['MD019']!.court).toBe('COURT NEXTENSA');
+    expect(byId['WD025']!.court).toBe('COURT LOTTO');
+  });
+
+  it('splits the schedule label out of the court field (MQ007 = "Starting at 11:00 AM", WD030 = "Followed by")', () => {
+    const matches = parseCrionetOop(html, 4);
+    const byId = Object.fromEntries(matches.map((m) => [m.matchWidgetId, m]));
+    expect(byId['MQ007']!.scheduledLabel).toBe('Starting at 11:00 AM');
+    expect(byId['WD030']!.scheduledLabel).toBe('Followed by');
+    expect(byId['MD019']!.scheduledLabel).toBe('Not before 6:00 PM');
+  });
+
+  it('assigns a 0-based courtPosition reflecting the match order within each court', () => {
+    const matches = parseCrionetOop(html, 4);
+    const cbc = matches
+      .filter((m) => m.court === 'COURT CBC')
+      .map((m) => ({ id: m.matchWidgetId, pos: m.courtPosition }));
+    expect(cbc).toEqual([
+      { id: 'MQ007', pos: 0 },
+      { id: 'WD030', pos: 1 },
+    ]);
+    const byId = Object.fromEntries(matches.map((m) => [m.matchWidgetId, m]));
+    expect(byId['MD019']!.courtPosition).toBe(0);
+    expect(byId['WD025']!.courtPosition).toBe(0);
   });
 });
