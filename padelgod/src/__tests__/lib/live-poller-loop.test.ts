@@ -1267,4 +1267,138 @@ describe('LivePollerLoop.closeMatch — Case B: match disappears from feed', () 
 
     parseSpy.mockRestore();
   });
+
+  it('closes a disappeared match in SHADOW mode too (fan-experience fix)', async () => {
+    // Regression test for the PR that removed the `mode === 'canonical'`
+    // gate around closeMatch / Case A / Case B. Shadow-mode tournaments
+    // (e.g. Brussels P2 during Shadow Mode rollout) still need their
+    // canonical public.matches row to transition to finished on disappearance
+    // — otherwise fans see "live" for up to 5 minutes until the
+    // close-stale-live-sweeper catches up.
+    //
+    // stampMatchTimes remains canonical-only (out of scope for this fix);
+    // we assert on the closeMatch write shape specifically.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi.spyOn(mod, 'parseCrionetTournamentLive');
+
+    // Tick 1: decisive 2-0 in sets (pair1 leads), set 3 mid-play.
+    // Tick 2: match disappears → closeMatch fires in shadow mode too.
+    parseSpy
+      .mockReturnValueOnce({
+        matches: [
+          parsedMatchFixture({
+            team1Points: '30',
+            team2Points: '15',
+            team1SetGames: ['6', '6', '5'],
+            team2SetGames: ['3', '4', '0'],
+          }),
+        ],
+      })
+      .mockReturnValueOnce({ matches: [] });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-shadow',
+      widgetId: 'FIP-2026-SHADOW',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+      mode: 'shadow',
+    });
+
+    await loop.start();
+    await timers.fireLatest(); // tick 1: track
+    await timers.fireLatest(); // tick 2: disappear → close
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    const closeCall = matchCalls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'live' &&
+        c.patch.status === 'finished',
+    );
+    expect(closeCall).toBeDefined();
+    expect(closeCall!.patch.winner_pair).toBe(1);
+    expect(typeof closeCall!.patch.finished_at).toBe('string');
+
+    // Final sets upserted — set 3 extrapolated 5-0 → 6-0.
+    const setsCalls = (supabase as any).__setsUpsertCalls as Array<{
+      row: Record<string, unknown>;
+      opts: Record<string, unknown>;
+    }>;
+    const set3 = setsCalls.find((s) => s.row.set_number === 3);
+    expect(set3).toBeDefined();
+    expect(set3!.row).toMatchObject({
+      pair1_games: 6,
+      pair2_games: 0,
+      set_score: '6-0',
+      is_current: false,
+    });
+
+    parseSpy.mockRestore();
+  });
+});
+
+describe('LivePollerLoop.closeMatch — Case A in SHADOW mode (fan-experience fix)', () => {
+  it('closes match when widget emits finished tick in shadow mode', async () => {
+    // Parallel regression guard for Case A (widget_finished reason).
+    // Rare in practice because Crionet usually drops finished matches rather
+    // than emitting a terminal tick, but when it does happen we want the
+    // close to reach canonical in shadow mode too.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [
+          {
+            ...parsedMatchFixture({
+              team1SetGames: ['6', '6', '-'],
+              team2SetGames: ['4', '2', '-'],
+            }),
+            status: 'finished' as const,
+            durationMinutes: 90,
+          },
+        ],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-shadow',
+      widgetId: 'FIP-2026-SHADOW',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+      mode: 'shadow',
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    const closeCall = matchCalls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'live' &&
+        c.patch.status === 'finished',
+    );
+    expect(closeCall).toBeDefined();
+    expect(closeCall!.patch.winner_pair).toBe(1);
+    expect(closeCall!.patch.duration).toBe('01:30');
+
+    parseSpy.mockRestore();
+  });
 });
