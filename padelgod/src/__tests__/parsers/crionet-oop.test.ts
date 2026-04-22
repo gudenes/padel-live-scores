@@ -223,4 +223,26 @@ describe('parseCrionetOop — Brussels fixture (real court + position)', () => {
     expect(byId['MD019']!.court).toBe('COURT NEXTENSA');
     expect(byId['WD025']!.court).toBe('COURT LOTTO');
   });
+
+  it('splits the schedule label out of the court field (MQ007 = "Starting at 11:00 AM", WD030 = "Followed by")', () => {
+    const matches = parseCrionetOop(html, 4);
+    const byId = Object.fromEntries(matches.map((m) => [m.matchWidgetId, m]));
+    expect(byId['MQ007']!.scheduledLabel).toBe('Starting at 11:00 AM');
+    expect(byId['WD030']!.scheduledLabel).toBe('Followed by');
+    expect(byId['MD019']!.scheduledLabel).toBe('Not before 6:00 PM');
+  });
+
+  it('assigns a 0-based courtPosition reflecting the match order within each court', () => {
+    const matches = parseCrionetOop(html, 4);
+    const cbc = matches
+      .filter((m) => m.court === 'COURT CBC')
+      .map((m) => ({ id: m.matchWidgetId, pos: m.courtPosition }));
+    expect(cbc).toEqual([
+      { id: 'MQ007', pos: 0 },
+      { id: 'WD030', pos: 1 },
+    ]);
+    const byId = Object.fromEntries(matches.map((m) => [m.matchWidgetId, m]));
+    expect(byId['MD019']!.courtPosition).toBe(0);
+    expect(byId['WD025']!.courtPosition).toBe(0);
+  });
 });
