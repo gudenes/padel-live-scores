@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+  findLinkedMatchWithCompleteFks,
   findOrCreateMatch,
   type MatchIdentifierInput,
 } from '../../lib/match-identifier.js';
@@ -215,6 +216,25 @@ function matchesBuilder(state: State) {
             })
           );
           return Promise.resolve({ data: rows, error: null }).then(resolve, reject);
+        },
+        async maybeSingle() {
+          // Terminator used by findLinkedMatchWithCompleteFks to fetch a single
+          // match row by id. Applies the same filter set as the awaited path.
+          const rows = Array.from(state.matches.values()).filter((r) =>
+            filters.every((f) => {
+              const actual = (r as any)[f.col];
+              if (f.op === 'eq') return actual === f.value;
+              if (f.op === 'ilike')
+                return (
+                  typeof actual === 'string' &&
+                  actual.toLowerCase() === f.value.toLowerCase()
+                );
+              if (f.op === 'notIsNull')
+                return actual !== null && actual !== undefined;
+              return false;
+            })
+          );
+          return { data: rows[0] ?? null, error: null };
         },
       };
       return self;
@@ -637,5 +657,89 @@ describe('findOrCreateMatch', () => {
     expect(result.matchId).toBe('unmapped-uuid');
     expect(result.linkedExisting).toBe(true);
     expect(logger.warn).toHaveBeenCalledOnce();
+  });
+});
+
+describe('findLinkedMatchWithCompleteFks', () => {
+  it('returns the match id when widget mapping exists AND all 4 FKs are populated', async () => {
+    const state = makeState();
+    state.matches.set('linked-uuid', {
+      id: 'linked-uuid',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: null,
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+    });
+    state.eids.set(COMPOSITE, {
+      entity_id: 'linked-uuid',
+      external_id: COMPOSITE,
+    });
+
+    const supabase = fakeSupabase(state);
+    const result = await findLinkedMatchWithCompleteFks(
+      supabase as any,
+      'FIP-2026-1701',
+      'MQ012'
+    );
+    expect(result).toBe('linked-uuid');
+  });
+
+  it('returns null when no widget mapping exists (Premier tournament, never linked)', async () => {
+    const state = makeState();
+    const supabase = fakeSupabase(state);
+    const result = await findLinkedMatchWithCompleteFks(
+      supabase as any,
+      'FIP-2026-1701',
+      'MQ012'
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null when widget mapping exists but ANY FK is null (thin row)', async () => {
+    const state = makeState();
+    state.matches.set('thin-uuid', {
+      id: 'thin-uuid',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: null,
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: null, // ← incomplete
+    });
+    state.eids.set(COMPOSITE, {
+      entity_id: 'thin-uuid',
+      external_id: COMPOSITE,
+    });
+
+    const supabase = fakeSupabase(state);
+    const result = await findLinkedMatchWithCompleteFks(
+      supabase as any,
+      'FIP-2026-1701',
+      'MQ012'
+    );
+    expect(result).toBeNull();
+  });
+
+  it('returns null when widget mapping exists but the match row is missing (dangling reference)', async () => {
+    const state = makeState();
+    state.eids.set(COMPOSITE, {
+      entity_id: 'ghost-uuid',
+      external_id: COMPOSITE,
+    });
+    // No matches row for ghost-uuid.
+
+    const supabase = fakeSupabase(state);
+    const result = await findLinkedMatchWithCompleteFks(
+      supabase as any,
+      'FIP-2026-1701',
+      'MQ012'
+    );
+    expect(result).toBeNull();
   });
 });
