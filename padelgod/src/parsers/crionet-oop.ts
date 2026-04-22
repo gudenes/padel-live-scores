@@ -169,8 +169,15 @@ export function parseCrionetOop(
         courtPosition: tableIdx,
       });
       if (m) {
-        // Legacy: preserve old behaviour — scheduledLabel is null for
-        // non-scheduled statuses (live, finished).
+        // Asymmetry from the main column-based path: when the HTML lacks
+        // the `.col-lg-4` wrapper (only seen in legacy inline test fixtures
+        // today), the schedule label and court name are both inside the
+        // table header's `.court-name` with no way to tell them apart. The
+        // old parser worked around this by nulling `scheduledLabel` for
+        // non-scheduled statuses — a pre-existing test relies on that null.
+        // Keep the same null here so the legacy path stays green. Remove
+        // this block (and the test that needs it) once no caller exercises
+        // the fallback.
         if (m.status !== 'scheduled') m.scheduledLabel = null;
         out.push(m);
       }
