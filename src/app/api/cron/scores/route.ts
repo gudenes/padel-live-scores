@@ -1112,13 +1112,22 @@ async function detectStaleMatches(currentlyLiveFromApi: ApiMatch[]): Promise<{
 }> {
   const liveExternalIds = new Set(currentlyLiveFromApi.map(m => String(m.id)))
 
-  // Find matches in DB with status='live' updated >15 min ago
+  // Find matches in DB with status='live' updated >15 min ago.
+  //
+  // Guard: restrict to padelapi-owned rows only (padelapi_id IS NOT NULL).
+  // The stale detector can only ask padelapi for a truth check
+  // (fetchMatchDetail / writeFinalState below), so it has no business deciding
+  // the fate of rows padelapi never created — e.g. padelgod-owned rows whose
+  // only identity is a crionet_widget external_id. Without this filter we
+  // force-finish live padelgod matches at the "Can't reach the API" branch
+  // even though their real-world matches are still in progress.
   const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
   const { data: staleMatches } = await supabase
     .from('matches')
     .select('id, external_id')
     .eq('status', 'live')
     .lt('updated_at', fifteenMinAgo)
+    .not('padelapi_id', 'is', null)
     .limit(10)
 
   if (!staleMatches || staleMatches.length === 0) return { found: 0, transitioned: 0, failed: 0 }
