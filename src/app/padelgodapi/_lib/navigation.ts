@@ -70,6 +70,15 @@ export const WORKER_DETAIL_ORDER: NavItem[] = [
   { label: 'static-reconciler', href: '/padelgodapi/workers/static-reconciler' },
 ]
 
+function findInList(list: NavItem[], href: string): { prev: NavItem | null; next: NavItem | null } | null {
+  const idx = list.findIndex(i => i.href === href)
+  if (idx === -1) return null
+  return {
+    prev: idx > 0 ? list[idx - 1]! : null,
+    next: idx < list.length - 1 ? list[idx + 1]! : null,
+  }
+}
+
 /**
  * Return the prev/next items for a given href. Tries `FLAT_NAVIGATION` first,
  * then falls back to `WORKER_DETAIL_ORDER`. Returns `{ prev: null, next: null }`
@@ -79,19 +88,9 @@ export function getAdjacent(currentHref: string): {
   prev: NavItem | null
   next: NavItem | null
 } {
-  const mainIdx = FLAT_NAVIGATION.findIndex(i => i.href === currentHref)
-  if (mainIdx !== -1) {
-    return {
-      prev: mainIdx > 0 ? FLAT_NAVIGATION[mainIdx - 1]! : null,
-      next: mainIdx < FLAT_NAVIGATION.length - 1 ? FLAT_NAVIGATION[mainIdx + 1]! : null,
-    }
-  }
-  const workerIdx = WORKER_DETAIL_ORDER.findIndex(i => i.href === currentHref)
-  if (workerIdx !== -1) {
-    return {
-      prev: workerIdx > 0 ? WORKER_DETAIL_ORDER[workerIdx - 1]! : null,
-      next: workerIdx < WORKER_DETAIL_ORDER.length - 1 ? WORKER_DETAIL_ORDER[workerIdx + 1]! : null,
-    }
-  }
-  return { prev: null, next: null }
+  return (
+    findInList(FLAT_NAVIGATION, currentHref) ??
+    findInList(WORKER_DETAIL_ORDER, currentHref) ??
+    { prev: null, next: null }
+  )
 }
