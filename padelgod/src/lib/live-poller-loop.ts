@@ -59,6 +59,10 @@ import {
 } from './live-state.js';
 import { applyDiff, type ResolvedPlayers } from './point-reconstruction.js';
 import { findOrCreateMatch } from './match-identifier.js';
+import {
+  computeBackstampedStartedAt,
+  formatDurationHHMM,
+} from './match-time-stamps.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -415,6 +419,16 @@ export class LivePollerLoop {
     const diff = diffLiveState(prev, curr, { logger: this.opts.logger });
     const resolvedPlayers = await this.getResolvedPlayers(matchId);
 
+    // Stamp match-level timestamps on public.matches BEFORE applyDiff.
+    // Timestamps are orthogonal to point-level diffs — we always want them
+    // recorded, even if applyDiff later throws on a transient sets/games DB
+    // error. Canonical mode only: shadow runs must never mutate canonical
+    // metadata. Individual stamp failures are logged at warn; they don't
+    // abort the tick.
+    if (this.mode === 'canonical') {
+      await this.stampMatchTimes(matchId, parsed, curr, prev);
+    }
+
     await applyDiff(this.opts.supabase, matchId, prev, curr, diff, resolvedPlayers, {
       logger: this.opts.logger,
       mode: this.mode,
@@ -427,6 +441,85 @@ export class LivePollerLoop {
 
     this.states.set(matchId, curr);
     return curr;
+  }
+
+  /**
+   * Write started_at / duration / finished_at onto `public.matches`.
+   *
+   * - `started_at`: back-computed from `parsed.durationMinutes` so late-discovered
+   *   matches still get an accurate start. One-shot write guarded with
+   *   `.is('started_at', null)` — the first successful stamp wins; subsequent
+   *   ticks are no-ops.
+   * - `duration`: written on every live tick in `HH:MM` form (monotonically
+   *   increasing while the match is live; safe to overwrite).
+   * - `finished_at`: stamped `now()` on the tick we first observe a terminal
+   *   status from the widget. One-shot guarded with `.is('finished_at', null)`.
+   *
+   * Schema note: `public.matches.duration` is a `text` column in `HH:MM`
+   * format (e.g. "01:20"), matching the legacy padelapi shape — see
+   * match-time-stamps.formatDurationHHMM.
+   */
+  private async stampMatchTimes(
+    matchId: string,
+    parsed: ParsedLiveMatch,
+    curr: LiveMatchState,
+    prev: LiveMatchState | null,
+  ): Promise<void> {
+    const nowMs = Date.now();
+
+    // started_at — back-compute from durationMinutes when present. If the
+    // widget didn't emit a duration this tick (rare but possible during page
+    // transitions), skip the stamp; a future tick will carry it.
+    const startedAtIso = computeBackstampedStartedAt(parsed.durationMinutes, nowMs);
+    if (startedAtIso) {
+      const { error: sErr } = await this.opts.supabase
+        .from('matches')
+        .update({ started_at: startedAtIso })
+        .eq('id', matchId)
+        .is('started_at', null);
+      if (sErr) {
+        this.opts.logger.warn(
+          this.logCtx({ matchId, err: sErr.message }),
+          'stamp started_at failed',
+        );
+      }
+    }
+
+    // duration — written on every live tick. Safe to overwrite: the widget's
+    // counter is monotonic for a given match.
+    if (parsed.durationMinutes !== null) {
+      const { error: dErr } = await this.opts.supabase
+        .from('matches')
+        .update({ duration: formatDurationHHMM(parsed.durationMinutes) })
+        .eq('id', matchId);
+      if (dErr) {
+        this.opts.logger.warn(
+          this.logCtx({ matchId, err: dErr.message }),
+          'stamp duration failed',
+        );
+      }
+    }
+
+    // finished_at — only stamp on observed terminal status. One-shot: if the
+    // static-reconciler already stamped via fallback, we don't regress it.
+    // Status field is deliberately NOT written here — status writes stay owned
+    // by the static-reconciler so we keep a single source of truth for the
+    // winner_pair + status pair.
+    const observedFinish = curr.status === 'finished';
+    const wasLiveOrNew = prev === null || prev.status === 'live';
+    if (observedFinish && wasLiveOrNew) {
+      const { error: fErr } = await this.opts.supabase
+        .from('matches')
+        .update({ finished_at: new Date(nowMs).toISOString() })
+        .eq('id', matchId)
+        .is('finished_at', null);
+      if (fErr) {
+        this.opts.logger.warn(
+          this.logCtx({ matchId, err: fErr.message }),
+          'stamp finished_at failed',
+        );
+      }
+    }
   }
 
   private async getResolvedPlayers(matchId: string): Promise<ResolvedPlayers> {

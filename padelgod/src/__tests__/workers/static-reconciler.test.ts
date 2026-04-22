@@ -182,14 +182,26 @@ function fakeSupabase(
 
   function matchesTable() {
     return {
-      // findOrCreateMatch does a select().tournament_id.category.round path for
-      // the pair-based fallback. Simpler path for the draw phase: no pre-existing
-      // matches, so select returns empty.
+      // Two shapes:
+      //   A. findOrCreateMatch pair-based fallback:
+      //      .select(cols).eq(a).eq(b).eq(c) → Promise<{data: []}>
+      //   B. finished_at backfill read (reconcileResults):
+      //      .select('started_at, duration, finished_at').eq('id', matchId).maybeSingle()
       select: (_cols: string) => ({
-        eq: () => ({
-          eq: () => ({
+        eq: (_col: string, _val: string) => ({
+          // Shape A continues: another .eq() chain
+          eq: (_c2: string, _v2: string) => ({
             eq: () => Promise.resolve({ data: [], error: null }),
           }),
+          // Shape B terminates here: finished_at backfill row lookup.
+          // Default: return a row with all null time fields so the backfill
+          // writes finished_at using captured_at as fallback. Specific tests
+          // can assert on the resulting `matchesUpdated` entry.
+          maybeSingle: () =>
+            Promise.resolve({
+              data: { started_at: null, duration: null, finished_at: null },
+              error: null,
+            }),
         }),
       }),
       insert: (row: Record<string, unknown>) => ({
@@ -206,8 +218,17 @@ function fakeSupabase(
         eq: (col: string, value: string) => {
           if (col !== 'id')
             throw new Error(`unexpected matches update filter: ${col}`);
-          matchesUpdated.push({ id: value, patch });
-          return Promise.resolve({ data: null, error: null });
+          // Chain may terminate here (plain .update().eq()) OR continue with
+          // .is('finished_at', null) for the backfill write. Return a
+          // PromiseLike that records the write on both paths.
+          const recordAndResolve = () => {
+            matchesUpdated.push({ id: value, patch });
+            return Promise.resolve({ data: null, error: null });
+          };
+          return {
+            is: (_c: string, _v: unknown) => recordAndResolve(),
+            then: (resolve: (v: any) => void) => recordAndResolve().then(resolve),
+          };
         },
       }),
     };
@@ -880,12 +901,22 @@ describe('runStaticReconciler — results phase (V4)', () => {
     expect(result.setsWritten).toBe(3);
     expect(result.resultsUnresolved).toBe(0);
 
-    // Match INSERT + UPDATE
+    // Match INSERT + two UPDATEs:
+    //  1. status/winner_pair patch (the main results-phase write)
+    //  2. finished_at backfill (guarded with .is('finished_at', null))
     expect(supabase.matchesInserted).toHaveLength(1);
-    expect(supabase.matchesUpdated).toHaveLength(1);
-    const mu = supabase.matchesUpdated[0];
+    expect(supabase.matchesUpdated).toHaveLength(2);
+    const mu = supabase.matchesUpdated.find(
+      (u: { patch: Record<string, unknown> }) => 'status' in u.patch,
+    )!;
     expect(mu.patch.status).toBe('finished');
     expect(mu.patch.winner_pair).toBe(1);
+
+    const finishedBackfill = supabase.matchesUpdated.find(
+      (u: { patch: Record<string, unknown> }) => 'finished_at' in u.patch,
+    )!;
+    // No live-poller data on this match → fallback to captured_at (T).
+    expect(finishedBackfill.patch.finished_at).toBe(T);
 
     // Three sets upserted
     expect(supabase.setsUpserted).toHaveLength(3);

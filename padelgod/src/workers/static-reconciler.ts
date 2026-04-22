@@ -7,6 +7,7 @@ import {
   type ResolveResult,
 } from '../lib/tournament-dictionary.js';
 import { findOrCreateMatch } from '../lib/match-identifier.js';
+import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
 
 export interface StaticReconcilerDeps {
   supabase: SupabaseClient;
@@ -1148,6 +1149,42 @@ async function reconcileResults(
       );
     }
     resultsMatchesUpdated += 1;
+
+    // Backfill finished_at when the live-poller didn't own this match.
+    // The live-poller stamps finished_at precisely on the live→finished tick,
+    // but only if padelgod was actively polling it. For matches scraped only
+    // via the results widget (poller wasn't running, late-enrolled tournament,
+    // etc.), fall back to `started_at + duration` if we have them, otherwise
+    // `captured_at`. The .is(null) guard ensures the live-poller's precise
+    // stamp always wins when present, so double-running is idempotent.
+    const { data: mRow, error: mReadErr } = await supabase
+      .from('matches')
+      .select('started_at, duration, finished_at')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (mReadErr) {
+      logger?.warn(
+        { matchId, err: mReadErr.message },
+        'static-reconciler: finished_at backfill read failed'
+      );
+    } else if (mRow && !mRow.finished_at) {
+      const finishedAt = computeFinishedAtFallback(
+        (mRow.started_at as string | null) ?? null,
+        (mRow.duration as string | null) ?? null,
+        r.captured_at
+      );
+      const { error: fUpdErr } = await supabase
+        .from('matches')
+        .update({ finished_at: finishedAt })
+        .eq('id', matchId)
+        .is('finished_at', null);
+      if (fUpdErr) {
+        logger?.warn(
+          { matchId, err: fUpdErr.message },
+          'static-reconciler: finished_at backfill write failed'
+        );
+      }
+    }
 
     const parsedSets = parseSetScores(r.set_scores);
     for (const s of parsedSets) {

@@ -75,12 +75,52 @@ const FAKE_BODY = '<html>fake-live-body</html>';
  *   3. entity_external_ids SELECT (via findOrCreateMatch's lookupByWidgetId)
  *      → returns a pre-existing matchId so we skip insert/link paths
  *   4. matches SELECT (via getResolvedPlayers) → returns null player UUIDs
+ *   5. matches UPDATE (via stampMatchTimes) — started_at / duration / finished_at
+ *      chains: .update(patch).eq('id', x)[.is(col, null)]
  *
  * On first poll (prev=null) applyDiff returns early, so we never hit sets /
  * games / match_points tables.
+ *
+ * `matchesUpdateCalls` lets tests assert on the timestamp writes.
  */
+interface MatchesUpdateCall {
+  patch: Record<string, unknown>;
+  filters: Record<string, unknown>;
+}
+
 function fakeSupabase(opts: { matchId: string }): any {
-  return {
+  const matchesUpdateCalls: MatchesUpdateCall[] = [];
+
+  const buildMatchesUpdateChain = (patch: Record<string, unknown>) => {
+    const filters: Record<string, unknown> = {};
+    // Each terminal (.eq without a following .is, or .is) records the call.
+    // Using a PromiseLike shape lets the caller `await` the terminal chain.
+    const terminal = {
+      then: (resolve: (v: any) => void) => {
+        matchesUpdateCalls.push({ patch, filters: { ...filters } });
+        resolve({ data: null, error: null });
+      },
+    };
+    const isNode = {
+      is: (col: string, val: unknown) => {
+        filters[`is:${col}`] = val;
+        return terminal;
+      },
+      // also support terminating at .eq (e.g. duration write has no .is())
+      then: (resolve: (v: any) => void) => {
+        matchesUpdateCalls.push({ patch, filters: { ...filters } });
+        resolve({ data: null, error: null });
+      },
+    };
+    return {
+      eq: (col: string, val: unknown) => {
+        filters[`eq:${col}`] = val;
+        return isNode;
+      },
+    };
+  };
+
+  const api = {
     schema: (_s: string) => ({
       from: (_table: string) => ({
         // scrape_jobs insert → returns a fake job row
@@ -132,11 +172,16 @@ function fakeSupabase(opts: { matchId: string }): any {
               }),
             }),
           }),
+          update: (patch: Record<string, unknown>) => buildMatchesUpdateChain(patch),
         };
       }
       throw new Error(`fakeSupabase: unexpected table '${table}'`);
     },
   };
+
+  // Expose call log for assertions.
+  (api as any).__matchesUpdateCalls = matchesUpdateCalls;
+  return api;
 }
 
 function fakeHttp() {
@@ -443,6 +488,178 @@ describe('LivePollerLoop.start / stop', () => {
 
     await loop.stop();
     parseSpy.mockRestore();
+  });
+
+  it('stamps started_at (back-computed) and duration on a canonical live tick', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    // durationMinutes=10 on the fixture → started_at = now - 10min, duration = "00:10".
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [parsedMatchFixture({ team1Points: '15', team2Points: '0' })],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+      // mode defaults to canonical
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    const calls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+
+    // Expect exactly two writes this tick: started_at (guarded) + duration.
+    // finished_at is NOT written because the match is still live.
+    const startedCall = calls.find((c) => 'started_at' in c.patch);
+    const durationCall = calls.find((c) => 'duration' in c.patch);
+    const finishedCall = calls.find((c) => 'finished_at' in c.patch);
+
+    expect(startedCall).toBeDefined();
+    expect(startedCall!.filters['eq:id']).toBe('match-uuid-1');
+    expect(startedCall!.filters['is:started_at']).toBeNull();
+    // The stamped value should be an ISO string (not null).
+    expect(typeof startedCall!.patch.started_at).toBe('string');
+    expect(startedCall!.patch.started_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+
+    expect(durationCall).toBeDefined();
+    expect(durationCall!.patch.duration).toBe('00:10');
+    expect(durationCall!.filters['eq:id']).toBe('match-uuid-1');
+    // Duration write does NOT use .is() — always overwrites.
+    expect(durationCall!.filters['is:duration']).toBeUndefined();
+
+    expect(finishedCall).toBeUndefined();
+
+    parseSpy.mockRestore();
+    await loop.stop();
+  });
+
+  it('stamps finished_at on the tick when a match transitions live → finished', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+
+    // Tick 1: match is live.
+    // Tick 2: same match, but the parser now reports status='finished'.
+    // The loop's processMatch keeps prev state across ticks, so on tick 2 we
+    // should observe the transition and stamp finished_at.
+    const liveFixture = parsedMatchFixture({ team1Points: '15', team2Points: '0' });
+    const finishedFixture: ParsedLiveMatch = { ...liveFixture, status: 'finished' };
+
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValueOnce({ matches: [liveFixture] })
+      .mockReturnValueOnce({ matches: [finishedFixture] });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest(); // tick 1 (live)
+    await timers.fireLatest(); // tick 2 (finished)
+
+    const calls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+
+    const finishedCall = calls.find((c) => 'finished_at' in c.patch);
+    expect(finishedCall).toBeDefined();
+    expect(finishedCall!.filters['eq:id']).toBe('match-uuid-1');
+    expect(finishedCall!.filters['is:finished_at']).toBeNull();
+    expect(typeof finishedCall!.patch.finished_at).toBe('string');
+
+    parseSpy.mockRestore();
+    await loop.stop();
+  });
+
+  it('does NOT write timestamps to public.matches in shadow mode', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [parsedMatchFixture({ team1Points: '15', team2Points: '0' })],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+      mode: 'shadow',
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    const calls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    // Shadow runs must stay scoped to padelgod.shadow_* tables — no canonical
+    // metadata writes at all.
+    expect(calls.length).toBe(0);
+
+    parseSpy.mockRestore();
+    await loop.stop();
+  });
+
+  it('skips started_at stamp when the widget emits durationMinutes=null', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const fx = parsedMatchFixture({ team1Points: '15', team2Points: '0' });
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({ matches: [{ ...fx, durationMinutes: null }] });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    const calls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    // Neither started_at nor duration should be written when durationMinutes
+    // is null — a future tick with a real value will carry both.
+    expect(calls.find((c) => 'started_at' in c.patch)).toBeUndefined();
+    expect(calls.find((c) => 'duration' in c.patch)).toBeUndefined();
+
+    parseSpy.mockRestore();
+    await loop.stop();
   });
 
   it('adaptive cadence drops to 3s after a tick where a match is in deuce', async () => {
