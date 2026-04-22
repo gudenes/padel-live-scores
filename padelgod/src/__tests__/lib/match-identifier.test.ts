@@ -41,6 +41,10 @@ interface State {
       pair1_player2_id: string | null;
       pair2_player1_id: string | null;
       pair2_player2_id: string | null;
+      // Optional — only set on padelapi-sync'd rows; used by the padelapi-twin
+      // fallback lookup (added in PR #2).
+      padelapi_id?: string | null;
+      scheduled_at?: string | null;
     }
   >;
   // Called on every entity_external_ids upsert. Lets tests simulate a
@@ -171,15 +175,44 @@ function applyEidFilters(
 function matchesBuilder(state: State) {
   return {
     select(_cols: string) {
-      const eqs: { col: string; value: unknown }[] = [];
+      // Each filter is applied as AND. `ilike` compares case-insensitively for
+      // both sides (no wildcard semantics needed for our usage). `not` with
+      // ('col', 'is', null) means "col IS NOT NULL".
+      type Filter =
+        | { op: 'eq'; col: string; value: unknown }
+        | { op: 'ilike'; col: string; value: string }
+        | { op: 'notIsNull'; col: string };
+      const filters: Filter[] = [];
       const self: any = {
         eq(col: string, value: unknown) {
-          eqs.push({ col, value });
+          filters.push({ op: 'eq', col, value });
           return self;
+        },
+        ilike(col: string, value: string) {
+          filters.push({ op: 'ilike', col, value });
+          return self;
+        },
+        not(col: string, op: string, value: unknown) {
+          if (op === 'is' && value === null) {
+            filters.push({ op: 'notIsNull', col });
+            return self;
+          }
+          throw new Error(`unsupported not() in matchesBuilder mock: ${col} ${op} ${String(value)}`);
         },
         then(resolve: any, reject?: any) {
           const rows = Array.from(state.matches.values()).filter((r) =>
-            eqs.every((f) => (r as any)[f.col] === f.value)
+            filters.every((f) => {
+              const actual = (r as any)[f.col];
+              if (f.op === 'eq') return actual === f.value;
+              if (f.op === 'ilike')
+                return (
+                  typeof actual === 'string' &&
+                  actual.toLowerCase() === f.value.toLowerCase()
+                );
+              if (f.op === 'notIsNull')
+                return actual !== null && actual !== undefined;
+              return false;
+            })
           );
           return Promise.resolve({ data: rows, error: null }).then(resolve, reject);
         },
@@ -429,6 +462,133 @@ describe('findOrCreateMatch', () => {
     expect(result.matchId).toBe(winnerId);
     expect(result.created).toBe(false);
     expect(result.linkedExisting).toBe(false);
+  });
+
+  it('padelapi-twin fallback: links widget to a single padelapi-owned row with a case-insensitive court match', async () => {
+    const state = makeState();
+    // Seed a padelapi-sync'd row: full pair FKs, padelapi_id, TitleCase court.
+    state.matches.set('padelapi-twin-uuid', {
+      id: 'padelapi-twin-uuid',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court 1',
+      padelapi_id: '8376',
+      scheduled_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 min ago
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+    });
+
+    const supabase = fakeSupabase(state);
+    // Live poller input: UPPERCASE court (as Crionet emits), NO pair IDs.
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      court: 'COURT 1',
+      // pair*PlayerIds intentionally undefined — this is the Premier live-poller path
+    });
+
+    expect(result.matchId).toBe('padelapi-twin-uuid');
+    expect(result.created).toBe(false);
+    expect(result.linkedExisting).toBe(true);
+    // No duplicate thin row should have been inserted.
+    expect(state.matches.size).toBe(1);
+    // Crionet widget id must now point at the padelapi-owned row.
+    expect(state.eids.get(COMPOSITE)?.entity_id).toBe('padelapi-twin-uuid');
+  });
+
+  it('padelapi-twin fallback: disambiguates multiple unmapped same-court rows by scheduled_at proximity', async () => {
+    const state = makeState();
+    const now = Date.now();
+    // Same court hosts three matches across the tournament day.
+    // (a) 8 hours ago — earlier slot, already finished.
+    // (b) 30 min ago — the match currently playing (closest to now).
+    // (c) 6 hours from now — later slot, not started.
+    state.matches.set('earlier-slot', {
+      id: 'earlier-slot',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court 1',
+      padelapi_id: '8001',
+      scheduled_at: new Date(now - 8 * 60 * 60 * 1000).toISOString(),
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+    });
+    state.matches.set('current-slot', {
+      id: 'current-slot',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court 1',
+      padelapi_id: '8002',
+      scheduled_at: new Date(now - 30 * 60 * 1000).toISOString(),
+      pair1_player1_id: 'p-E',
+      pair1_player2_id: 'p-F',
+      pair2_player1_id: 'p-G',
+      pair2_player2_id: 'p-H',
+    });
+    state.matches.set('later-slot', {
+      id: 'later-slot',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court 1',
+      padelapi_id: '8003',
+      scheduled_at: new Date(now + 6 * 60 * 60 * 1000).toISOString(),
+      pair1_player1_id: 'p-I',
+      pair1_player2_id: 'p-J',
+      pair2_player1_id: 'p-K',
+      pair2_player2_id: 'p-L',
+    });
+
+    const supabase = fakeSupabase(state);
+    const logger = { warn: vi.fn() };
+    const result = await findOrCreateMatch(
+      supabase as any,
+      { ...BASE_INPUT, court: 'COURT 1' },
+      { logger }
+    );
+
+    // Expect the "currently playing" slot — not the earlier one, not the later one.
+    expect(result.matchId).toBe('current-slot');
+    expect(result.linkedExisting).toBe(true);
+    expect(logger.warn).toHaveBeenCalledOnce();
+    // No new row created.
+    expect(state.matches.size).toBe(3);
+    expect(state.eids.get(COMPOSITE)?.entity_id).toBe('current-slot');
+  });
+
+  it('padelapi-twin fallback: skips when no court provided, falls through to INSERT', async () => {
+    const state = makeState();
+    // A padelapi twin exists but caller has no court — we can't court-match.
+    state.matches.set('padelapi-twin-uuid', {
+      id: 'padelapi-twin-uuid',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court 1',
+      padelapi_id: '8376',
+      scheduled_at: new Date().toISOString(),
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+    });
+
+    const supabase = fakeSupabase(state);
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      court: null,
+    });
+
+    // Falls through to step 4 (INSERT) since no court → no twin lookup.
+    expect(result.created).toBe(true);
+    expect(result.matchId).toBe('new-match-1');
+    expect(state.matches.size).toBe(2);
   });
 
   it('prefers the unmapped candidate when pair-based fallback finds multiple matches', async () => {
