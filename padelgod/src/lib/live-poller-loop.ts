@@ -217,6 +217,7 @@ export function buildLiveMatchState(
     team2Sets,
     servingTeam: parsed.servingTeam,
     status,
+    durationMinutes: parsed.durationMinutes,
   };
 }
 
@@ -525,11 +526,17 @@ export class LivePollerLoop {
         continue;
       }
       try {
+        // Pass the last-observed durationMinutes so closeMatch stamps
+        // `public.matches.duration`. Without this, Case B closes leave
+        // duration=null — critical for shadow-mode matches where
+        // stampMatchTimes never ran per tick. Accurate to ±1 min of the
+        // real end (the widget's elapsed counter is integer minutes, and
+        // we poll every 6–30s).
         await this.closeMatch(
           matchId,
           winner,
           lastState,
-          null,
+          lastState.durationMinutes,
           'disappeared_from_feed',
         );
         // Successful close — drop the state so we don't keep re-closing.

@@ -72,6 +72,15 @@ export interface LiveMatchState {
   team2Sets: Array<LiveSetEntry | null>;
   servingTeam: 1 | 2 | null;
   status: 'scheduled' | 'live' | 'finished';
+  /**
+   * Minutes elapsed since match start, as surfaced by the live widget's
+   * summary row. `null` when the widget didn't emit a duration this tick
+   * (rare — usually during page transitions between games). Propagated
+   * here so Case B (disappeared_from_feed) closeMatch can write
+   * `public.matches.duration` using the last-known value instead of null.
+   * Not involved in state diffing — additive metadata.
+   */
+  durationMinutes: number | null;
 }
 
 export interface LiveStateDiff {

@@ -302,6 +302,7 @@ describe('computeNextInterval', () => {
       team2Sets: [{ games: 0, tiebreak: null }],
       servingTeam: 1,
       status: 'live',
+      durationMinutes: null,
     };
   }
 
@@ -887,6 +888,7 @@ function makeLiveState(
     team2Sets,
     servingTeam: 1,
     status,
+    durationMinutes: null,
   };
 }
 
@@ -1328,6 +1330,11 @@ describe('LivePollerLoop.closeMatch — Case B: match disappears from feed', () 
     expect(closeCall!.patch.winner_pair).toBe(1);
     expect(typeof closeCall!.patch.finished_at).toBe('string');
 
+    // Duration captured from the last-observed live tick (parsedMatchFixture
+    // default durationMinutes=10 → "00:10"). Without this, shadow-mode Case B
+    // closes would leave duration=null since stampMatchTimes is canonical-only.
+    expect(closeCall!.patch.duration).toBe('00:10');
+
     // Final sets upserted — set 3 extrapolated 5-0 → 6-0.
     const setsCalls = (supabase as any).__setsUpsertCalls as Array<{
       row: Record<string, unknown>;
@@ -1341,6 +1348,121 @@ describe('LivePollerLoop.closeMatch — Case B: match disappears from feed', () 
       set_score: '6-0',
       is_current: false,
     });
+
+    parseSpy.mockRestore();
+  });
+
+  it('writes duration on Case B close in CANONICAL mode too (regression)', async () => {
+    // Tracks the last-observed durationMinutes through LiveMatchState so the
+    // Case B close stamps public.matches.duration. Before this PR, Case B
+    // always passed null as durationMinutes, leaving duration=null on every
+    // disappearance close (canonical + shadow).
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi.spyOn(mod, 'parseCrionetTournamentLive');
+
+    // Tick 1: match live, decisive 2-0 sets; durationMinutes=42 (from
+    // parsedMatchFixture override below → "00:42" after formatting).
+    // Tick 2: match disappears.
+    parseSpy
+      .mockReturnValueOnce({
+        matches: [
+          {
+            ...parsedMatchFixture({
+              team1SetGames: ['6', '6', '-'],
+              team2SetGames: ['3', '4', '-'],
+            }),
+            durationMinutes: 42,
+          },
+        ],
+      })
+      .mockReturnValueOnce({ matches: [] });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest(); // tick 1: track w/ duration=42
+    await timers.fireLatest(); // tick 2: disappear → close
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    const closeCall = matchCalls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'live' &&
+        c.patch.status === 'finished',
+    );
+    expect(closeCall).toBeDefined();
+    expect(closeCall!.patch.duration).toBe('00:42');
+
+    parseSpy.mockRestore();
+  });
+
+  it('skips duration write when Case B fires but lastState has no durationMinutes', async () => {
+    // Defensive: if the first (and only) tick arrived without a duration (rare
+    // but possible during page transitions), LiveMatchState holds null and we
+    // should NOT synthesize a duration. The static-reconciler or a later
+    // padelapi sync can backfill.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi.spyOn(mod, 'parseCrionetTournamentLive');
+
+    parseSpy
+      .mockReturnValueOnce({
+        matches: [
+          {
+            ...parsedMatchFixture({
+              team1SetGames: ['6', '6', '-'],
+              team2SetGames: ['3', '4', '-'],
+            }),
+            durationMinutes: null,
+          },
+        ],
+      })
+      .mockReturnValueOnce({ matches: [] });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+    await timers.fireLatest();
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as Array<{
+      patch: Record<string, unknown>;
+      filters: Record<string, unknown>;
+    }>;
+    const closeCall = matchCalls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'live' &&
+        c.patch.status === 'finished',
+    );
+    expect(closeCall).toBeDefined();
+    // duration must NOT be in the patch when we don't know it — better
+    // null-in-DB than a fabricated value.
+    expect(closeCall!.patch.duration).toBeUndefined();
 
     parseSpy.mockRestore();
   });

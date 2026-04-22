@@ -22,6 +22,7 @@ function state(
     team2Sets: opts.team2Sets ?? [{ games: 0, tiebreak: null }],
     servingTeam: opts.servingTeam ?? 1,
     status: opts.status ?? 'live',
+    durationMinutes: opts.durationMinutes ?? null,
   };
 }
 
