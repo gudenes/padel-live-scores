@@ -710,7 +710,7 @@ function V3ScoresPage() {
       const wrap = <T,>(p: Promise<T>, label: string) => withTimeout(p, 10_000, label)
       const results = await Promise.allSettled([
         wrap(supabase.from('matches').select(matchSelectLive)
-          .eq('status', 'live')
+          .in('status', ['live', 'on_court'])
           .order('court_order', { ascending: true }) as any, 'matches:live'),
         wrap(supabase.from('matches').select(matchSelectLean)
           .eq('status', 'scheduled')

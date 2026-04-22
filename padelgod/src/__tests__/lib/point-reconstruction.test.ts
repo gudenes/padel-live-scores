@@ -972,11 +972,12 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
 
     expect(s.matchesUpdateCalls).toHaveLength(1);
     expect(s.matchesUpdateCalls[0]!.patch.status).toBe('live');
-    // Guard is now .in('status', ['scheduled', 'live']) so the heartbeat
-    // path bumps updated_at on every tick after the initial flip.
+    // Guard is now .in('status', ['scheduled', 'on_court', 'live']) so the
+    // heartbeat path bumps updated_at on every tick after the initial flip,
+    // including from the on_court (warm-up) phase.
     expect(s.matchesUpdateCalls[0]!.filters).toMatchObject({
       id: MATCH_ID,
-      statusIn: ['scheduled', 'live'],
+      statusIn: ['scheduled', 'on_court', 'live'],
     });
     expect(s.matchesRows[0]!.status).toBe('live');
     // updated_at must be written on this call so the sweeper knows the row is fresh.
@@ -1042,6 +1043,73 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
 
       expect(s.matchesRows[0]!.status).toBe(terminal);
     }
+  });
+
+  it('flips scheduled → on_court when the parser saw the widget in warm-up (PR #12)', async () => {
+    // First tick: match row is still `scheduled` in DB, live widget shows it
+    // in warm-up (parser emits LiveMatchState.status='on_court'). dualWrite
+    // should write 'on_court' (not 'live') to canonical, plus a fresh
+    // updated_at. Fan UI picks this up and renders the 'ON COURT' badge.
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, { status: 'on_court' });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 }, { status: 'on_court' });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    expect(s.matchesUpdateCalls).toHaveLength(1);
+    expect(s.matchesUpdateCalls[0]!.patch.status).toBe('on_court');
+    expect(s.matchesRows[0]!.status).toBe('on_court');
+  });
+
+  it('transitions on_court → live when the widget label flips (PR #12)', async () => {
+    // Match was already on_court in DB (because we wrote it there last tick).
+    // New tick shows it as 'live' (first point scored, Crionet flipped label).
+    // dualWrite must flip to 'live' AND bump updated_at. Guard
+    // `.in('status', ['scheduled','on_court','live'])` allows this transition.
+    const { client, state: s } = makeClientWithMatch('on_court');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, { status: 'on_court' });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 }, { status: 'live' });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    expect(s.matchesUpdateCalls).toHaveLength(1);
+    expect(s.matchesUpdateCalls[0]!.patch.status).toBe('live');
+    expect(s.matchesRows[0]!.status).toBe('live');
+  });
+
+  it('heartbeats updated_at for matches already in on_court (PR #12)', async () => {
+    // Regression guard: if a match stays in warm-up for several poll ticks
+    // without the label changing, public.matches.updated_at must still get
+    // bumped every tick — otherwise the close-stale-live-sweeper's
+    // staleness check can wrongly close a warm-up match. (Today the sweeper
+    // filters status IN ('live','ended') so this specific failure mode isn't
+    // active, but the invariant "updated_at tracks poller activity" should
+    // hold for any future worker that reasons about staleness.)
+    const { client, state: s } = makeClientWithMatch('on_court');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, { status: 'on_court' });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 }, { status: 'on_court' });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    const before = Date.now();
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    expect(s.matchesUpdateCalls).toHaveLength(1);
+    const call = s.matchesUpdateCalls[0]!;
+    expect(call.patch.status).toBe('on_court');
+    const writtenMs = Date.parse(call.patch.updated_at as string);
+    expect(writtenMs).toBeGreaterThanOrEqual(before);
+    expect(s.matchesRows[0]!.status).toBe('on_court');
   });
 
   it('upserts public.sets with score_source=shadow', async () => {

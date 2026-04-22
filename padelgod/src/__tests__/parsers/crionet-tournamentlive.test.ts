@@ -337,4 +337,60 @@ describe('parseCrionetTournamentLive', () => {
     expect(wq009.team1.setGames).toEqual(['2', '3', '-']);
     expect(wq009.team2.setGames).toEqual(['6', '3', '-']);
   });
+
+  // ─── Status label parsing (PR #12) ──────────────────────────────────────
+  //
+  // Crionet's tournamentlive widget puts a status label inside
+  // `tr.summary span.ml-4`. Observed values in the wild:
+  //   - "Live match"     → match in progress, emit `status: 'live'`
+  //   - "On court"       → players arrived, no first point yet, emit 'on_court'
+  //   - "Warming up"     → actively warming up, also emit 'on_court'
+  // Matches BOTH pre-match phases into 'on_court' since fans don't care about
+  // the distinction — both signal "about to start".
+
+  function htmlWithStatusLabel(label: string): string {
+    return SINGLE_LIVE_MATCH_HTML.replace(
+      '<span class="ml-4">Live match</span>',
+      `<span class="ml-4">${label}</span>`,
+    );
+  }
+
+  it('emits status="live" when label is "Live match"', () => {
+    const result = parseCrionetTournamentLive(htmlWithStatusLabel('Live match'));
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]!.status).toBe('live');
+  });
+
+  it('emits status="on_court" when label is "On court"', () => {
+    const result = parseCrionetTournamentLive(htmlWithStatusLabel('On court'));
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]!.status).toBe('on_court');
+  });
+
+  it('emits status="on_court" when label is "Warming up"', () => {
+    const result = parseCrionetTournamentLive(htmlWithStatusLabel('Warming up'));
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]!.status).toBe('on_court');
+  });
+
+  it('emits status="on_court" for any "warm*" variant (case-insensitive)', () => {
+    for (const label of ['Warm up', 'WARMUP', 'warming-up', 'Warm-up']) {
+      const result = parseCrionetTournamentLive(htmlWithStatusLabel(label));
+      expect(result.matches[0]!.status, `label="${label}"`).toBe('on_court');
+    }
+  });
+
+  it('emits status="on_court" for "on court" case-insensitively', () => {
+    for (const label of ['on court', 'ON COURT', 'On Court']) {
+      const result = parseCrionetTournamentLive(htmlWithStatusLabel(label));
+      expect(result.matches[0]!.status, `label="${label}"`).toBe('on_court');
+    }
+  });
+
+  it('falls back to status="live" for unknown or empty labels', () => {
+    for (const label of ['', 'In progress', 'Playing']) {
+      const result = parseCrionetTournamentLive(htmlWithStatusLabel(label));
+      expect(result.matches[0]!.status, `label="${label}"`).toBe('live');
+    }
+  });
 });

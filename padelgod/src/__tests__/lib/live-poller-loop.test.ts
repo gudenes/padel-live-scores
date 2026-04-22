@@ -102,9 +102,10 @@ function fakeSupabase(opts: { matchId: string }): any {
   const buildMatchesUpdateChain = (patch: Record<string, unknown>) => {
     const filters: Record<string, unknown> = {};
     // The update chain supports several shapes we see in this module:
-    //   .update(...).eq('id', x)                         → stamp duration
-    //   .update(...).eq('id', x).is('col', null)         → one-shot stamps
-    //   .update(...).eq('id', x).eq('status', 'live')    → closeMatch guard
+    //   .update(...).eq('id', x)                                   → stamp duration
+    //   .update(...).eq('id', x).is('col', null)                   → one-shot stamps
+    //   .update(...).eq('id', x).eq('status', 'live')              → legacy closeMatch guard
+    //   .update(...).eq('id', x).in('status', ['on_court','live']) → post-PR#12 closeMatch guard
     // All terminate as a PromiseLike so `await` resolves with a result.
     const recordAndResolve = (resolve: (v: any) => void) => {
       matchesUpdateCalls.push({ patch, filters: { ...filters } });
@@ -112,15 +113,19 @@ function fakeSupabase(opts: { matchId: string }): any {
     };
     const makeTerminal = () => ({
       then: (resolve: (v: any) => void) => recordAndResolve(resolve),
-      // Tolerate further `.is()` / `.eq()` chaining even after a terminal —
-      // defensive for mocks. Each additional filter is recorded before the
-      // final resolve.
+      // Tolerate further `.is()` / `.eq()` / `.in()` chaining even after a
+      // terminal — defensive for mocks. Each additional filter is recorded
+      // before the final resolve.
       is: (col: string, val: unknown) => {
         filters[`is:${col}`] = val;
         return makeTerminal();
       },
       eq: (col: string, val: unknown) => {
         filters[`eq:${col}`] = val;
+        return makeTerminal();
+      },
+      in: (col: string, vals: unknown[]) => {
+        filters[`in:${col}`] = vals;
         return makeTerminal();
       },
     });
@@ -613,12 +618,13 @@ describe('LivePollerLoop.start / stop', () => {
       filters: Record<string, unknown>;
     }>;
 
-    // Find the closeMatch write — identified by the (eq:id + eq:status='live')
+    // Find the closeMatch write — identified by the (eq:id + in:status includes 'live')
     // guard shape and the combined status + winner_pair + finished_at payload.
     const closeCall = calls.find(
       (c) =>
         c.filters['eq:id'] === 'match-uuid-1' &&
-        c.filters['eq:status'] === 'live' &&
+        Array.isArray(c.filters['in:status']) &&
+        (c.filters['in:status'] as string[]).includes('live') &&
         c.patch.status === 'finished',
     );
     expect(closeCall).toBeDefined();
@@ -1066,7 +1072,8 @@ describe('LivePollerLoop.closeMatch — Case A: widget emits a finished tick', (
     const closeCall = matchCalls.find(
       (c) =>
         c.filters['eq:id'] === 'match-uuid-1' &&
-        c.filters['eq:status'] === 'live' &&
+        Array.isArray(c.filters['in:status']) &&
+        (c.filters['in:status'] as string[]).includes('live') &&
         c.patch.status === 'finished',
     );
     expect(closeCall).toBeDefined();
@@ -1196,7 +1203,8 @@ describe('LivePollerLoop.closeMatch — Case B: match disappears from feed', () 
     const closeCall = matchCalls.find(
       (c) =>
         c.filters['eq:id'] === 'match-uuid-1' &&
-        c.filters['eq:status'] === 'live' &&
+        Array.isArray(c.filters['in:status']) &&
+        (c.filters['in:status'] as string[]).includes('live') &&
         c.patch.status === 'finished',
     );
     expect(closeCall).toBeDefined();
@@ -1321,7 +1329,8 @@ describe('LivePollerLoop.closeMatch — Case B: match disappears from feed', () 
     const closeCall = matchCalls.find(
       (c) =>
         c.filters['eq:id'] === 'match-uuid-1' &&
-        c.filters['eq:status'] === 'live' &&
+        Array.isArray(c.filters['in:status']) &&
+        (c.filters['in:status'] as string[]).includes('live') &&
         c.patch.status === 'finished',
     );
     expect(closeCall).toBeDefined();
@@ -1392,7 +1401,8 @@ describe('LivePollerLoop.closeMatch — Case A in SHADOW mode (fan-experience fi
     const closeCall = matchCalls.find(
       (c) =>
         c.filters['eq:id'] === 'match-uuid-1' &&
-        c.filters['eq:status'] === 'live' &&
+        Array.isArray(c.filters['in:status']) &&
+        (c.filters['in:status'] as string[]).includes('live') &&
         c.patch.status === 'finished',
     );
     expect(closeCall).toBeDefined();

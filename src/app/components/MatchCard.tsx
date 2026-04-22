@@ -254,10 +254,11 @@ function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embe
                 </div>
               </div>
             </div>
-            {/* About to start — replaces the score column */}
+            {/* On court — replaces the score column. Matches the Crionet
+                widget's vocabulary ("On court" / "Warming up" → one badge). */}
             <div style={{ flexShrink: 0, width: 90, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-live)', letterSpacing: '0.5px', textTransform: 'uppercase', textAlign: 'center', lineHeight: 1.4, opacity: 0.85 }}>
-                About to<br />start
+                On court
               </span>
             </div>
           </div>

@@ -558,26 +558,38 @@ async function dualWriteShadowToPublic(
 ): Promise<void> {
   // 1. Status flip + liveness ping.
   //
-  //    Writes `status: 'live'` + bumps `updated_at` on EVERY tick where the
-  //    match is still non-terminal. Serves two purposes:
+  //    Writes the observed status (`on_court` or `live`) + bumps
+  //    `updated_at` on EVERY tick where the match is still non-terminal.
+  //    Serves three purposes:
   //
-  //      a) One-shot transition `scheduled` → `live` on the first tick we
-  //         observe the match in the widget.
-  //      b) Per-tick heartbeat when status is already `live`. Without this,
-  //         `public.matches.updated_at` goes stale 15+ min after (a), and the
-  //         close-stale-live-sweeper (src/workers/close-stale-live-sweeper.ts)
-  //         wrongly closes the match as "stuck" even though the live-poller
-  //         is still writing sets every tick.
+  //      a) One-shot transition `scheduled` → `on_court`/`live` on the first
+  //         tick we observe the match in the widget. Pre-match matches go
+  //         to `on_court`; in-progress matches go straight to `live`.
+  //      b) Phase transition `on_court` → `live` when the match actually
+  //         starts (first point scored and Crionet flips the label).
+  //      c) Per-tick heartbeat when status is already `on_court` or `live`.
+  //         Without this, `public.matches.updated_at` goes stale 15+ min
+  //         after the transition and the close-stale-live-sweeper wrongly
+  //         closes the match as "stuck" even though the live-poller is
+  //         still writing sets every tick.
   //
-  //    Guarded with `.in('status', ['scheduled','live'])` so terminal statuses
-  //    (`finished`/`walkover`/`retired`) are never regressed. Writing `'live'`
-  //    when status is already `'live'` is a harmless no-op for the status
-  //    column itself — the value we care about is `updated_at`.
+  //    Guarded with `.in('status', ['scheduled','on_court','live'])` so
+  //    terminal statuses (`finished`/`walkover`/`retired`) are never
+  //    regressed. Writing the same non-terminal value twice is a harmless
+  //    no-op for the status column itself — the value we care about is
+  //    `updated_at`.
+  //
+  //    We derive the target status from `curr.status`: pre-match phases
+  //    collapse to `on_court`, live ticks collapse to `live`. `finished`
+  //    from the parser is handled by closeMatch, not this dual-write, so
+  //    it's not a valid value here.
+  const targetStatus: 'on_court' | 'live' =
+    curr.status === 'on_court' ? 'on_court' : 'live';
   const { error: statusErr } = await supabase
     .from('matches')
-    .update({ status: 'live', updated_at: new Date().toISOString() })
+    .update({ status: targetStatus, updated_at: new Date().toISOString() })
     .eq('id', matchId)
-    .in('status', ['scheduled', 'live']);
+    .in('status', ['scheduled', 'on_court', 'live']);
   if (statusErr) {
     logger?.warn(
       { matchId, err: statusErr.message },

@@ -207,7 +207,15 @@ export function buildLiveMatchState(
     pointState = { kind: 'regular', team1: 0, team2: 0 };
   }
 
-  const status: LiveMatchState['status'] = parsed.status === 'finished' ? 'finished' : 'live';
+  // Pass through the parser's status. `on_court` is a pre-match phase
+  // (players arrived / warming up, no first point yet); `live` is the
+  // in-progress state; `finished` is the rare terminal-tick case.
+  const status: LiveMatchState['status'] =
+    parsed.status === 'finished'
+      ? 'finished'
+      : parsed.status === 'on_court'
+        ? 'on_court'
+        : 'live';
 
   return {
     matchWidgetId: parsed.matchWidgetId,
@@ -604,8 +612,9 @@ export class LivePollerLoop {
     // closeMatch's `.eq('status', 'live')` guard keeps us idempotent and
     // race-safe against padelapi if it writes the same transition.
     const observedFinish = curr.status === 'finished';
-    const wasLiveOrNew = prev === null || prev.status === 'live';
-    if (observedFinish && wasLiveOrNew) {
+    const wasActiveOrNew =
+      prev === null || prev.status === 'live' || prev.status === 'on_court';
+    if (observedFinish && wasActiveOrNew) {
       const winner = inferWinnerFromLiveState(curr);
       if (winner !== null) {
         await this.closeMatch(
@@ -742,9 +751,13 @@ export class LivePollerLoop {
     // Runs in both modes. The fan-visible UI reads canonical public.matches,
     // so a shadow-mode tournament whose match has ended needs the close to
     // land in canonical too — otherwise fans see "live" for minutes until
-    // the close-stale-live-sweeper catches up. The matches-update guard
-    // `.eq('status', 'live')` below makes this idempotent: if padelapi has
-    // already written `finished`, our update is a no-op.
+    // the close-stale-live-sweeper catches up.
+    //
+    // The matches-update guard `.in('status', ['on_court', 'live'])` makes
+    // this idempotent AND handles the edge case where a match goes directly
+    // from on_court → finished (walkover before first point). If padelapi has
+    // already written `finished`, our update is a no-op. Terminal statuses
+    // (`finished`/`walkover`/`retired`) are excluded — never regressed.
 
     const nowIso = new Date().toISOString();
     const matchUpdate: Record<string, unknown> = {
@@ -761,7 +774,7 @@ export class LivePollerLoop {
       .from('matches')
       .update(matchUpdate)
       .eq('id', matchId)
-      .eq('status', 'live');
+      .in('status', ['on_court', 'live']);
     if (mErr) {
       this.opts.logger.warn(
         this.logCtx({ matchId, err: mErr.message, reason }),
