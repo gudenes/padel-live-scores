@@ -183,16 +183,34 @@ function fakeSupabase(
 
   function matchesTable() {
     return {
-      // Two shapes:
+      // Three shapes:
       //   A. findOrCreateMatch pair-based fallback:
       //      .select(cols).eq(a).eq(b).eq(c) → Promise<{data: []}>
       //   B. finished_at backfill read (reconcileResults):
       //      .select('started_at, duration, finished_at').eq('id', matchId).maybeSingle()
+      //   C. findOrCreateMatch padelapi-twin lookup (PR 2):
+      //      .select(cols).eq(a).eq(b).eq(c).ilike('court', x).not('padelapi_id','is',null)
+      //      → Promise<{data: []}> (no twin → caller falls through to pair or INSERT)
       select: (_cols: string) => ({
         eq: (_col: string, _val: string) => ({
-          // Shape A continues: another .eq() chain
+          // Shape A / C continues: another .eq() chain
           eq: (_c2: string, _v2: string) => ({
-            eq: () => Promise.resolve({ data: [], error: null }),
+            eq: (_c3: string, _v3: string) => {
+              // Third .eq() terminates shape A directly, and ALSO supports
+              // shape C by exposing .ilike().not() — both resolve to no rows
+              // so the reconciler's existing expectations (pair-based finds
+              // nothing → INSERT new match) are preserved.
+              const emptyResult = () =>
+                Promise.resolve({ data: [], error: null });
+              return {
+                then: (resolve: any, reject?: any) =>
+                  emptyResult().then(resolve, reject),
+                ilike: (_c: string, _v: string) => ({
+                  not: (_col: string, _op: string, _val: unknown) =>
+                    emptyResult(),
+                }),
+              };
+            },
           }),
           // Shape B terminates here: finished_at backfill row lookup.
           // Default: return a row with all null time fields so the backfill
