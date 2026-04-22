@@ -10,6 +10,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { fetchPremierMatchDetail, withThrottle } from '@/lib/premier-api'
 import { parseMatchStatsPayload } from '@/lib/premier-stats-parser'
+import { padelapiPausedResponse } from '@/lib/padelapi-pause'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,6 +27,11 @@ export async function GET(request: Request) {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  // Ops kill-switch — shares the PADELAPI_PAUSED env var with padelapi crons
+  // so one toggle pauses every external-source writer that isn't padelgod.
+  const paused = padelapiPausedResponse('premier-stats')
+  if (paused) return paused
 
   const url = new URL(request.url)
   const requestedLimit = Number(url.searchParams.get('limit') ?? DEFAULT_LIMIT)

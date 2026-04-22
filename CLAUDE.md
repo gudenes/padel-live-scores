@@ -521,3 +521,22 @@ Search API (`/api/ops/search-players`) updated with pagination + filter params.
 ## OOP Parser Fix (2026-04-14)
 
 Player regex in `parseOopHtml()` required flag image as anchor. Players without country flag (e.g. Sharifova) were skipped → match dropped. Fixed by making flag optional.
+
+## Ops toggles
+
+### `PADELAPI_PAUSED` — kill-switch for external-source crons (2026-04-22)
+
+When set to `'true'` in Vercel env vars, the following cron routes return early with `{ paused: true }` and do **zero work** — no padelapi calls, no DB writes:
+
+- `/api/cron/scores` — every 2 min
+- `/api/cron/sync` — hourly at :00 + weekly
+- `/api/cron/premier-stats` — hourly at :13
+- `/api/cron/premier-discovery` — weekly
+
+Use when padelapi's writes are fighting manual SQL patches or padelgod's `closeMatch` logic during an incident (e.g., the 2026-04-22 Brussels P2 debugging session where padelapi's `'live' → 'ended'` transient was stomping our recovery). Toggle via Vercel env vars — no deploy needed (Vercel restarts the function when env vars change).
+
+Not guarded (these don't consume padelapi/Premier): `sync-fip-rankings` (FIP-sourced), `sync-articles`, `sync-highlights`, `social-drafts`, `oop-monitor`, `fip-scores`, `fip-tournaments`, `nacho-health`, `editorial-gen`, `sync-broadcasters`, `quality-scores`.
+
+Padelgod workers on Railway are unaffected — they don't read this env var.
+
+Implementation: `src/lib/padelapi-pause.ts` exports `padelapiPausedResponse(cronName)`, called right after the `CRON_SECRET` auth check in each guarded route.
