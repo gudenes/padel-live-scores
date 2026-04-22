@@ -2,6 +2,7 @@
 // Reference table of every scheduled worker.
 
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { PageHeader } from '../_components/PageHeader'
 import { Prose } from '../_components/Prose'
 import { PrevNextLinks } from '../_components/PrevNextLinks'
@@ -16,6 +17,8 @@ const WORKERS: Array<{
   purpose: string
   reads: string
   writes: string
+  /** When set, the worker's name cell links to a detail page. */
+  detailHref?: string
 }> = [
   {
     name: 'tournament-discovery',
@@ -88,6 +91,7 @@ const WORKERS: Array<{
     purpose: 'Consumes entry_list / draw / OOP / results snapshots and materializes public.matches, public.sets, public.tournament_draws with resolved player UUIDs.',
     reads: 'padelgod.*_snapshots, public.players',
     writes: 'public.matches, public.sets, public.tournament_draws, public.players (upsert)',
+    detailHref: '/padelgodapi/workers/static-reconciler',
   },
   {
     name: 'match-stats-fetcher',
@@ -104,6 +108,7 @@ const WORKERS: Array<{
     purpose: 'Lifecycle manager for in-process live-score pollers. Starts one LivePollerLoop per shadow-enabled tournament with active matches; stops it when the tournament ends.',
     reads: 'public.tournaments',
     writes: 'padelgod.shadow_match_points, padelgod.shadow_sets',
+    detailHref: '/padelgodapi/workers/live-poller-manager',
   },
   {
     name: 'shadow-diff-finalizer',
@@ -120,6 +125,7 @@ const WORKERS: Array<{
     purpose: 'Per-live-match latency snapshot — measures how fresh the shadow pipeline is vs. canonical.',
     reads: 'padelgod.shadow_sets, public.sets',
     writes: 'padelgod.shadow_diff (live_latency)',
+    detailHref: '/padelgodapi/workers/shadow-diff-live',
   },
 ]
 
@@ -160,9 +166,18 @@ export default function WorkersPage() {
               {WORKERS.map(w => (
                 <tr key={w.name} className="hover:bg-[var(--bg-subtle)]">
                   <td className="border-b border-[var(--border-base)] px-3 py-3 align-top">
-                    <div className="font-mono text-xs font-semibold text-[var(--text-primary)]">
-                      {w.name}
-                    </div>
+                    {w.detailHref ? (
+                      <Link
+                        href={w.detailHref}
+                        className="font-mono text-xs font-semibold text-[var(--color-accent)] hover:underline"
+                      >
+                        {w.name}
+                      </Link>
+                    ) : (
+                      <div className="font-mono text-xs font-semibold text-[var(--text-primary)]">
+                        {w.name}
+                      </div>
+                    )}
                     <div className="mt-1 font-mono text-[10px] text-[var(--text-muted)]">
                       {w.cron}
                     </div>
