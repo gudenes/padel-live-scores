@@ -6,13 +6,16 @@ const COURT_NAME_SELECTOR = '.tournament-name, .court-name';
 const ROUND_NAME_SELECTOR = '.round-name';
 const SUMMARY_ROW_SELECTOR = 'tr.summary';
 const STATS_BUTTON_SELECTOR = 'a.open[data-id]';
+// Widget's status label — Bootstrap's ml-4 utility class happens to uniquely
+// identify the label span inside the summary row. E.g. <span class="ml-4">On court</span>.
+const STATUS_LABEL_SELECTOR = 'span.ml-4';
 const TEAM_CELL_SELECTOR = 'td.team';
 const POINTS_CELL_SELECTOR = 'td.points';
 const SET_CELL_SELECTOR = 'td.set';
 const BALL_IMG_SELECTOR = 'img.ballg';
 
 export type Category = 'men' | 'women';
-export type LiveStatus = 'live' | 'finished';
+export type LiveStatus = 'on_court' | 'live' | 'finished';
 
 export interface ParsedLiveTeam {
   player1Name: string;
@@ -225,10 +228,19 @@ export function parseCrionetTournamentLive(html: string): ParsedLiveTournament {
     if (t1.isServing && !t2.isServing) servingTeam = 1;
     else if (t2.isServing && !t1.isServing) servingTeam = 2;
 
-    // Summary row: duration + stats button data-id.
+    // Summary row: duration + stats button data-id + status label.
     const summaryRow = $t.find(SUMMARY_ROW_SELECTOR).first();
     let durationMinutes: number | null = null;
     let matchWidgetId = '';
+    // Status label (the text inside <span class="ml-4">…</span>) tells us
+    // whether the widget considers the match "on court" (players arrived /
+    // warming up, but no first point yet) vs "live match" (in progress).
+    // Crionet uses at least two pre-match labels — "On court" and
+    // "Warming up" (casing may vary) — which we collapse into a single
+    // `on_court` status. Any other label, including an empty one, falls
+    // through to `live`. This is consistent with the earlier behavior
+    // (hardcoded 'live'); we only split out the pre-match case.
+    let status: LiveStatus = 'live';
     if (summaryRow.length > 0) {
       const spans = summaryRow.find('span');
       spans.each((_, el) => {
@@ -240,6 +252,11 @@ export function parseCrionetTournamentLive(html: string): ParsedLiveTournament {
       });
       const statsBtn = summaryRow.find(STATS_BUTTON_SELECTOR).first();
       matchWidgetId = statsBtn.attr('data-id')?.trim() ?? '';
+
+      const label = summaryRow.find(STATUS_LABEL_SELECTOR).first().text().trim().toLowerCase();
+      if (label === 'on court' || label.includes('warm')) {
+        status = 'on_court';
+      }
     }
 
     matches.push({
@@ -251,7 +268,7 @@ export function parseCrionetTournamentLive(html: string): ParsedLiveTournament {
       team2,
       servingTeam,
       durationMinutes,
-      status: 'live',
+      status,
     });
   });
 

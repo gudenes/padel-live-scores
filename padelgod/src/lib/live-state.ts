@@ -71,7 +71,19 @@ export interface LiveMatchState {
   team1Sets: Array<LiveSetEntry | null>;
   team2Sets: Array<LiveSetEntry | null>;
   servingTeam: 1 | 2 | null;
-  status: 'scheduled' | 'live' | 'finished';
+  /**
+   * Match status as observed by the live widget.
+   *
+   * - `scheduled` — default for match rows created out-of-band. Not emitted
+   *   by the tournamentlive parser directly.
+   * - `on_court` — widget label is "On court" or "Warming up". Players on
+   *   court, no first point scored. Fan-visible "about to start" signal.
+   * - `live` — widget label is "Live match" (or any non-pre-match text).
+   *   Match in progress.
+   * - `finished` — widget emitted a terminal status. Rare (Crionet usually
+   *   drops finished matches from the feed) but supported.
+   */
+  status: 'scheduled' | 'on_court' | 'live' | 'finished';
 }
 
 export interface LiveStateDiff {

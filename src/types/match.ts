@@ -67,10 +67,15 @@ export interface Match {
 }
 
 // ── Warmup detection ──────────────────────────────────────────
-// A match is "warming up" when the API reports it as live
-// but no real points have been scored yet.
-// Used to hide matches from the live feed until play starts.
+// A match is "warming up" when EITHER:
+//   (a) Padelgod's live-poller explicitly flagged it `status='on_court'`
+//       — widget label is "On court" or "Warming up" (fan-visible signal
+//       from the Crionet widget that the match is about to start), OR
+//   (b) The match is `status='live'` but no real points have been scored yet
+//       — inferred fallback for padelapi-sourced matches that skip straight
+//       to 'live' without the on_court phase.
 export function isWarmingUp(match: Match): boolean {
+  if ((match.status as string) === 'on_court') return true
   if (match.status !== 'live') return false
   const sets = match.sets ?? []
   if (sets.length === 0) return true
