@@ -702,6 +702,39 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
           continue
         }
 
+        // ── Push notification: match just went live ──
+        //
+        // Historically this trigger lived only in `/api/cron/scores`, which
+        // polls padelapi's `/live` endpoint every 2 min. We discovered on
+        // 2026-04-23 that `/live` has been returning an empty array for
+        // Premier Padel events (Brussels P2) despite our DB showing those
+        // matches as `status='live'`. The actual writer of those live
+        // transitions is THIS hourly sync cron — but it had no notify call.
+        //
+        // Result: matches were transitioning to live, but zero users were
+        // notified (user_notifications table had zero rows globally, ever).
+        // The diagnostic at `scratch-notif-diagnostic.mjs` confirmed the
+        // notify endpoint itself works end-to-end; only the trigger was
+        // missing.
+        //
+        // Mirroring the scores-cron pattern: fire-and-forget with CRON_SECRET
+        // auth. Notify handles dedup internally (no-op if no recipients) so
+        // it's safe to call even when nobody's bookmarked the match. Both
+        // crons now call it, which makes the system resilient to either one
+        // missing the transition window.
+        const wasNotLive = !existing || existing.status !== 'live'
+        if (wasNotLive && status === 'live' && matchRow?.id) {
+          const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3002'
+          fetch(`${baseUrl}/api/push/notify`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.CRON_SECRET}`,
+            },
+            body: JSON.stringify({ matchId: matchRow.id }),
+          }).catch(err => console.error('[Sync] Push notify failed:', err))
+        }
+
         // Upsert players for this match (team_1 = pair1, team_2 = pair2)
         const team1 = match.players?.team_1 ?? []
         const team2 = match.players?.team_2 ?? []
