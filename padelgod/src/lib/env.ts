@@ -19,6 +19,15 @@ const EnvSchema = z.object({
   // populated. Default OFF while we verify data quality on Brussels; flip
   // per-deploy via Railway env once confident. No writes to public.matches yet.
   ENABLE_FIP_DRAW_FETCHER: z.coerce.boolean().default(false),
+  // FIP draw linker (PR 2). Reads latest fip_event_page snapshots and
+  // writes `entity_external_ids` rows mapping Crionet widget composites
+  // to public.matches UUIDs. Default OFF; enables via Railway env.
+  ENABLE_FIP_DRAW_LINKER: z.coerce.boolean().default(false),
+  // Linker dry-run switch. When true (default), the worker logs every
+  // proposed linkage but writes nothing — lets operators review the
+  // matches on real traffic before any canonical data moves. Flip to
+  // `false` after the first dry-run confirms the expected links fire.
+  FIP_DRAW_LINKER_DRY_RUN: z.coerce.boolean().default(true),
   ENABLE_OOP_FETCHER: z.coerce.boolean().default(true),
   ENABLE_RESULTS_FETCHER: z.coerce.boolean().default(true),
   ENABLE_STATIC_RECONCILER: z.coerce.boolean().default(true),

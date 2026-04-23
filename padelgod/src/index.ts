@@ -63,6 +63,7 @@ async function main() {
     supabase,
     httpClient,
     logger,
+    fipDrawLinkerDryRun: env.FIP_DRAW_LINKER_DRY_RUN,
   });
 
   // Preserve known-client-error status codes (4xx) from Fastify — e.g.
@@ -120,6 +121,8 @@ async function main() {
       enableEntryListFetcher: env.ENABLE_ENTRY_LIST_FETCHER,
       enableDrawFetcher: env.ENABLE_DRAW_FETCHER,
       enableFipDrawFetcher: env.ENABLE_FIP_DRAW_FETCHER,
+      enableFipDrawLinker: env.ENABLE_FIP_DRAW_LINKER,
+      fipDrawLinkerDryRun: env.FIP_DRAW_LINKER_DRY_RUN,
       enableOopFetcher: env.ENABLE_OOP_FETCHER,
       enableResultsFetcher: env.ENABLE_RESULTS_FETCHER,
       enableStaticReconciler: env.ENABLE_STATIC_RECONCILER,
@@ -161,7 +164,13 @@ async function main() {
       );
     }
 
-    const schedulerDeps: SchedulerDeps = { supabase, httpClient, logger, notify };
+    const schedulerDeps: SchedulerDeps = {
+      supabase,
+      httpClient,
+      logger,
+      notify,
+      fipDrawLinkerDryRun: env.FIP_DRAW_LINKER_DRY_RUN,
+    };
     scheduledTasks = startScheduler(schedule, schedulerDeps);
     logger.info({ workers: schedule.length }, 'Scheduler started');
   } else {
