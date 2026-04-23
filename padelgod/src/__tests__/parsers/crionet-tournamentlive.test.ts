@@ -95,8 +95,9 @@ describe('parseCrionetTournamentLive', () => {
     // Team 1
     expect(m.team1.player1Name).toBe('M. Sintes Villalonga');
     expect(m.team1.player2Name).toBe('F. Gonzalez');
-    expect(m.team1.player1Country).toBe('ESP');
-    expect(m.team1.player2Country).toBe('ARG');
+    // Parser normalizes Crionet's alpha-3 to our canonical alpha-2.
+    expect(m.team1.player1Country).toBe('ES');
+    expect(m.team1.player2Country).toBe('AR');
     expect(m.team1.player2Seed).toBe(3);
     expect(m.team1.player1Seed).toBeNull();
     expect(m.team1.currentPoints).toBe('30');
@@ -106,8 +107,8 @@ describe('parseCrionetTournamentLive', () => {
     // Team 2
     expect(m.team2.player1Name).toBe('A. Rossi');
     expect(m.team2.player2Name).toBe('L. Dupont');
-    expect(m.team2.player1Country).toBe('ITA');
-    expect(m.team2.player2Country).toBe('FRA');
+    expect(m.team2.player1Country).toBe('IT');
+    expect(m.team2.player2Country).toBe('FR');
     expect(m.team2.currentPoints).toBe('15');
     expect(m.team2.setGames).toEqual(['0', '-', '-']);
 
@@ -310,14 +311,14 @@ describe('parseCrionetTournamentLive', () => {
     expect(wq008.servingTeam).toBe(2);
     expect(wq008.team1.player1Name).toBe('N. Sermant');
     expect(wq008.team1.player2Name).toBe('R. Vierendeels');
-    expect(wq008.team1.player1Country).toBe('BEL');
-    expect(wq008.team1.player2Country).toBe('BEL');
+    expect(wq008.team1.player1Country).toBe('BE');
+    expect(wq008.team1.player2Country).toBe('BE');
     // "(ALT)" is non-numeric — seed should be null
     expect(wq008.team1.player2Seed).toBeNull();
     expect(wq008.team2.player1Name).toBe('M. Parmigiani');
     expect(wq008.team2.player2Name).toBe('C. Touly');
-    expect(wq008.team2.player1Country).toBe('ITA');
-    expect(wq008.team2.player2Country).toBe('FRA');
+    expect(wq008.team2.player1Country).toBe('IT');
+    expect(wq008.team2.player2Country).toBe('FR');
     expect(wq008.team1.currentPoints).toBe('15');
     expect(wq008.team2.currentPoints).toBe('15');
     expect(wq008.team1.setGames).toEqual(['0', '-', '-']);

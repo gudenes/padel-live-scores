@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { normalizeCountry } from '../lib/country.js';
 
 const TABLE_SELECTOR = 'table';
 const LIVE_HEADER_SELECTOR = 'tr.scorebox-header-live';
@@ -67,14 +68,16 @@ function parseCategoryAndRound(roundNode: cheerio.Cheerio<any>): { category: Cat
 }
 
 /**
- * Extract a country code from a flag image src like "/images/flags/ESP.jpg".
+ * Extract a country code from a flag image src like "/images/flags/ESP.jpg"
+ * and normalize it to our canonical alpha-2 format (ESP → ES). See
+ * `lib/country.ts` for the normalization rules + rationale.
  */
 function countryFromFlag($: cheerio.CheerioAPI, container: cheerio.Cheerio<any>): string | null {
   const img = container.find('img.flags').first();
   if (img.length === 0) return null;
   const src = img.attr('src') ?? '';
   const m = src.match(/\/([A-Z]{2,3})\.(?:jpg|png|svg)/i);
-  return m?.[1] ? m[1].toUpperCase() : null;
+  return normalizeCountry(m?.[1] ?? null);
 }
 
 /**
