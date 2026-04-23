@@ -22,9 +22,11 @@ describe('parseFipRankings', () => {
       </table>
     `;
     const result = parseFipRankings(html, 'men');
+    // Parser normalizes FIP's alpha-3 (ESP/ARG) to our canonical
+    // alpha-2 (ES/AR). See padelgod/src/lib/country.ts.
     expect(result).toEqual([
-      { rank: 1, name: 'Arturo Coello', country: 'ESP', points: 14820, gender: 'men' },
-      { rank: 2, name: 'Agustín Tapia', country: 'ARG', points: 14750, gender: 'men' },
+      { rank: 1, name: 'Arturo Coello', country: 'ES', points: 14820, gender: 'men' },
+      { rank: 2, name: 'Agustín Tapia', country: 'AR', points: 14750, gender: 'men' },
     ]);
   });
 

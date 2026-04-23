@@ -24,7 +24,7 @@ describe('parseCrionetEntryList', () => {
     expect(result[0]).toMatchObject({
       fipId: 'P200038',
       name: 'Juan Lebron',
-      country: 'ESP',
+      country: 'ES', // alpha-3 ESP normalized to alpha-2 at parse time
       seed: 1,
       partnerFipId: 'P200042',
       partnerName: 'Federico Chingotto',

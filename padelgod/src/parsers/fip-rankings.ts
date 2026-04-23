@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { normalizeCountry } from '../lib/country.js';
 
 // === Parser selectors — adjust here after live HTML inspection ===
 const RANKING_ROW_SELECTOR = 'table.ranking-table tbody tr';
@@ -26,10 +27,14 @@ export function parseFipRankings(html: string, gender: Gender): ParsedRanking[] 
     const rank = parseInt(row.find(RANK_SELECTOR).first().text().trim(), 10);
     const name = row.find(NAME_SELECTOR).first().text().trim();
     const flag = row.find(COUNTRY_FLAG_SELECTOR).first();
-    const country =
+    // FIP emits alpha-3 via flag image alt/src. Normalize to our
+    // canonical alpha-2 (see `lib/country.ts`) so writes to
+    // public.players.country are uniform across sources.
+    const rawCountry =
       flag.attr('alt')?.trim() ||
       (flag.attr('src') ?? '').match(/([A-Z]{3})\.jpg/)?.[1] ||
       null;
+    const country = normalizeCountry(rawCountry);
     const points = parseInt(row.find(POINTS_SELECTOR).first().text().replace(/\D/g, ''), 10);
     if (Number.isNaN(rank) || !name) return;
     rows.push({

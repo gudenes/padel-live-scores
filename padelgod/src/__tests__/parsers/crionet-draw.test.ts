@@ -85,10 +85,13 @@ describe('parseCrionetDraw', () => {
     expect(result[0].winnerTeam).toBe(2);
   });
 
-  it('extracts country codes from flag images', () => {
+  it('extracts country codes from flag images and normalizes to alpha-2', () => {
+    // Crionet emits alpha-3 (ESP/ARG) via flag filenames; the parser
+    // normalizes to alpha-2 (ES/AR) to match our canonical storage
+    // format. See padelgod/src/lib/country.ts for the mapping.
     const result = parseCrionetDraw(COMPLETED_MATCH_HTML, 'men', 'main_draw');
-    expect(result[0].team1Country).toBe('ESP');
-    expect(result[0].team2Country).toBe('ARG');
+    expect(result[0].team1Country).toBe('ES');
+    expect(result[0].team2Country).toBe('AR');
   });
 
   it('parses set scores correctly — unplayed sets (dash) are excluded', () => {
