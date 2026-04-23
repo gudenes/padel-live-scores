@@ -43,7 +43,11 @@ interface Stats {
 }
 
 interface MatchesResponse {
-  tournament: { id: string; name: string } | null
+  // `starts_at` is always present in the API response (server selects it
+  // unconditionally) but can be null for tournaments whose start date
+  // hasn't been synced yet. The day-pill labels use it to compute the
+  // calendar date for each day_number — day N → starts_at + (N-1) days.
+  tournament: { id: string; name: string; starts_at: string | null } | null
   matches: ExplorerMatch[]
   stats: Stats
   capturedAt: { oop: string | null; results: string | null }
@@ -71,6 +75,28 @@ function renderTeam(
 ): string {
   if (p1 && p2) return `${p1} / ${p2}`
   return p1 ?? p2 ?? '—'
+}
+
+/**
+ * Resolve the calendar date for a tournament's `day_number`.
+ *
+ * Day N = starts_at + (N-1) whole days, computed in UTC to avoid the
+ * fencepost issue from DST or the operator's local tz. Returns a short
+ * "Apr 22" style label for the pills (2-3 chars month + day). Falls back
+ * to null when starts_at is missing or invalid — caller renders the raw
+ * "Day N" label only in that case.
+ */
+function dateLabelForDay(startsAtIso: string | null, dayNumber: number): string | null {
+  if (!startsAtIso) return null
+  const start = new Date(startsAtIso)
+  if (isNaN(start.getTime())) return null
+  const d = new Date(start.getTime())
+  d.setUTCDate(d.getUTCDate() + (dayNumber - 1))
+  return d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
 }
 
 function renderSetScores(raw: unknown): string {
@@ -268,15 +294,24 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
         <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ fontSize: 11, color: '#666', fontWeight: 600, marginRight: 4 }}>Day:</span>
           <DayChip label="All" active={day === null} onClick={() => setDay(null)} />
-          {days.map((d) => (
-            <DayChip
-              key={d}
-              label={`Day ${d}`}
-              live={liveDays.has(d)}
-              active={day === d}
-              onClick={() => setDay(d)}
-            />
-          ))}
+          {days.map((d) => {
+            // Pill label carries both the ordinal (Day N) and the calendar
+            // date (Apr 22) when we can derive it from the tournament's
+            // starts_at. Dates make it much easier to scan the pills at a
+            // glance when the operator is jumping into the middle of a 7-day
+            // event ("which day is today?" answered without guessing).
+            const dateLabel = dateLabelForDay(data.tournament?.starts_at ?? null, d)
+            return (
+              <DayChip
+                key={d}
+                label={`Day ${d}`}
+                subLabel={dateLabel}
+                live={liveDays.has(d)}
+                active={day === d}
+                onClick={() => setDay(d)}
+              />
+            )
+          })}
         </div>
       )}
 
@@ -469,11 +504,16 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 
 function DayChip({
   label,
+  subLabel,
   active,
   onClick,
   live = false,
 }: {
   label: string
+  /** Optional calendar date ("Apr 22"). Rendered in a smaller, dimmer
+   *  font next to the ordinal day label. Omit for the "All" pill or
+   *  when the tournament has no starts_at. */
+  subLabel?: string | null
   active: boolean
   onClick: () => void
   live?: boolean
@@ -509,7 +549,22 @@ function DayChip({
           }}
         />
       )}
-      {label}
+      <span>{label}</span>
+      {subLabel && (
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 500,
+            // Same hue family as the label but a touch dimmer so the
+            // ordinal still leads visually. On the active pill we pull
+            // the color slightly lighter (same opacity step) to maintain
+            // contrast without competing with the label.
+            color: active ? '#3b82f6' : '#9ca3af',
+          }}
+        >
+          · {subLabel}
+        </span>
+      )}
     </button>
   )
 }
