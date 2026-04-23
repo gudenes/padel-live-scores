@@ -126,8 +126,21 @@ function fakeSupabase(
       update: (patch: Record<string, unknown>) => ({
         eq: (col: string, value: string) => {
           if (col !== 'id') throw new Error(`unexpected update filter column: ${col}`);
-          updated.push({ id: value, patch });
-          return Promise.resolve({ data: null, error: null });
+          // Chain may terminate here (.update().eq()) OR continue with
+          // .in('status', [...]) — the status-regression guard added
+          // 2026-04-23 to prevent reconciler from overwriting terminal
+          // statuses. Both shapes resolve to the same write target; mock
+          // records once and returns either the terminal or the
+          // chainable proxy.
+          const record = () => {
+            updated.push({ id: value, patch });
+            return { data: null, error: null };
+          };
+          const terminal = {
+            in: (_col: string, _vals: unknown[]) => Promise.resolve(record()),
+            then: (resolve: (v: { data: null; error: null }) => void) => resolve(record()),
+          };
+          return terminal;
         },
       }),
       insert: (row: Record<string, unknown>) => {
@@ -237,15 +250,19 @@ function fakeSupabase(
         eq: (col: string, value: string) => {
           if (col !== 'id')
             throw new Error(`unexpected matches update filter: ${col}`);
-          // Chain may terminate here (plain .update().eq()) OR continue with
-          // .is('finished_at', null) for the backfill write. Return a
-          // PromiseLike that records the write on both paths.
+          // Chain may terminate here (plain .update().eq()) OR continue with:
+          //   - .is('finished_at', null)  — the finished_at backfill write
+          //   - .in('status', [...])       — the regression guard added
+          //                                  2026-04-23 to prevent status
+          //                                  overwrites on terminal matches
+          // Return a PromiseLike that records the write on all paths.
           const recordAndResolve = () => {
             matchesUpdated.push({ id: value, patch });
             return Promise.resolve({ data: null, error: null });
           };
           return {
             is: (_c: string, _v: unknown) => recordAndResolve(),
+            in: (_c: string, _v: unknown[]) => recordAndResolve(),
             then: (resolve: (v: any) => void) => recordAndResolve().then(resolve),
           };
         },

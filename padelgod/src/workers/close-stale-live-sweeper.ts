@@ -88,24 +88,62 @@ export async function runCloseStaleLiveSweeper(
   const nowIso = new Date(now).toISOString();
   const staleCutoffIso = new Date(now - staleMinutes * 60_000).toISOString();
 
-  // Step 1: candidate matches — stale live/ended rows whose scheduled_at is
-  // in the past (so we don't touch scheduled-but-delayed matches).
-  const { data: candidatesRaw, error: candErr } = await supabase
+  // Step 1: candidate matches. Union of two patterns:
+  //
+  //   Path A — "stale live/ended" (the original):
+  //     status IN ('live','ended') AND updated_at < now - staleMinutes
+  //     AND scheduled_at < now
+  //   Catches matches dropped from the live feed without padelgod
+  //   having a chance to close them (poller wasn't running, missed the
+  //   terminal tick, etc.). Conservative 15-min threshold avoids
+  //   false-closing matches with legitimate long breaks.
+  //
+  //   Path B — "regression repair" (added 2026-04-23):
+  //     status IN ('live','ended') AND finished_at IS NOT NULL
+  //   Catches matches where padelgod's closeMatch successfully wrote
+  //   finished_at (terminal state), but a subsequent writer reverted
+  //   status back to 'live' while leaving finished_at intact. Observed
+  //   on Brussels P2: scores/sync crons or static-reconciler writing
+  //   status='live' without touching finished_at. finished_at NOT NULL
+  //   is a strong signal the match was once closed and should be
+  //   re-closed immediately — no staleness wait needed.
+  //
+  // We union client-side rather than building a single OR query so each
+  // path stays independently debuggable in logs and the scheduled_at
+  // guard only applies to Path A (regression repair doesn't need it —
+  // finished_at being set already implies the match started and ended).
+
+  const { data: pathARaw, error: candErrA } = await supabase
     .from('matches')
-    .select(
-      'id, status, scheduled_at, updated_at, started_at, duration, finished_at',
-    )
+    .select('id, status, scheduled_at, updated_at, started_at, duration, finished_at')
     .in('status', ['live', 'ended'])
     .lt('updated_at', staleCutoffIso)
     .lt('scheduled_at', nowIso)
     .order('updated_at', { ascending: true })
     .limit(maxMatchesPerRun);
 
-  if (candErr) {
-    throw new Error(`close-stale-live-sweeper: candidate read failed: ${candErr.message}`);
+  if (candErrA) {
+    throw new Error(`close-stale-live-sweeper: Path A (stale) read failed: ${candErrA.message}`);
   }
 
-  const candidates = (candidatesRaw ?? []) as CandidateMatch[];
+  const { data: pathBRaw, error: candErrB } = await supabase
+    .from('matches')
+    .select('id, status, scheduled_at, updated_at, started_at, duration, finished_at')
+    .in('status', ['live', 'ended'])
+    .not('finished_at', 'is', null)
+    .order('finished_at', { ascending: true })
+    .limit(maxMatchesPerRun);
+
+  if (candErrB) {
+    throw new Error(`close-stale-live-sweeper: Path B (regression) read failed: ${candErrB.message}`);
+  }
+
+  // Dedup by id — a row can qualify under both paths.
+  const dedup = new Map<string, CandidateMatch>();
+  for (const r of (pathARaw ?? []) as CandidateMatch[]) dedup.set(r.id, r);
+  for (const r of (pathBRaw ?? []) as CandidateMatch[]) if (!dedup.has(r.id)) dedup.set(r.id, r);
+  const candidates = [...dedup.values()].slice(0, maxMatchesPerRun);
+
   if (candidates.length === 0) {
     logger?.info(
       { staleMinutes, staleCutoffIso },
@@ -118,6 +156,15 @@ export async function runCloseStaleLiveSweeper(
       setsWritten: 0,
     };
   }
+
+  logger?.info(
+    {
+      pathA: pathARaw?.length ?? 0,
+      pathB: pathBRaw?.length ?? 0,
+      total: candidates.length,
+    },
+    'close-stale-live-sweeper: candidates identified',
+  );
 
   // Step 2: fetch sets for every candidate in one round-trip.
   const matchIds = candidates.map((c) => c.id);

@@ -1171,10 +1171,19 @@ async function reconcileResults(
     if (r.round_label != null) matchUpdate.round = r.round_label;
     if (r.court != null) matchUpdate.court = r.court;
 
+    // Regression guard: never overwrite a terminal status. The results
+    // widget sometimes briefly reports status='live' for a match during
+    // the transition from live→finished, after live-poller-loop.closeMatch
+    // has already written status='finished'. Without this guard, the
+    // reconciler would flip status back to 'live' while leaving
+    // finished_at/winner_pair intact — producing the exact "finished_at
+    // set but status=live" state observed on Brussels P2 2026-04-23.
+    // Same pattern closeMatch itself already uses.
     const { error: mUpdErr } = await supabase
       .from('matches')
       .update(matchUpdate)
-      .eq('id', matchId);
+      .eq('id', matchId)
+      .in('status', ['scheduled', 'on_court', 'live']);
     if (mUpdErr) {
       throw new Error(
         `matches update failed (id=${matchId}, results widget=${r.match_widget_id}): ${mUpdErr.message}`
