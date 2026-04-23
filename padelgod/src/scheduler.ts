@@ -8,6 +8,7 @@ import { runPlayerRankings } from './workers/player-rankings.js';
 import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
 import { runDrawFetcher } from './workers/draw-fetcher.js';
 import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
+import { runFipDrawLinker } from './workers/fip-draw-linker.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
 import { runStaticReconciler } from './workers/static-reconciler.js';
@@ -31,6 +32,8 @@ export interface SchedulerFlags {
   enableEntryListFetcher: boolean;
   enableDrawFetcher: boolean;
   enableFipDrawFetcher: boolean;
+  enableFipDrawLinker: boolean;
+  fipDrawLinkerDryRun: boolean;
   enableOopFetcher: boolean;
   enableResultsFetcher: boolean;
   enableStaticReconciler: boolean;
@@ -54,6 +57,15 @@ export interface SchedulerDeps {
    * hook inside `dualWriteShadowToPublic` silently no-ops.
    */
   notify?: import('./lib/notify.js').NotifyDeps;
+  /**
+   * Dry-run flag for the fip-draw-linker worker. When true (default),
+   * the worker proposes and logs linkages without writing to
+   * entity_external_ids. Threaded via deps (not an option to
+   * runFipDrawLinker directly) because the scheduler dispatches workers
+   * via the uniform `getWorkerRunner(name)(deps)` signature — this
+   * keeps that signature unchanged.
+   */
+  fipDrawLinkerDryRun?: boolean;
 }
 
 export type WorkerName =
@@ -64,6 +76,7 @@ export type WorkerName =
   | 'entry-list-fetcher'
   | 'draw-fetcher'
   | 'fip-draw-fetcher'
+  | 'fip-draw-linker'
   | 'oop-fetcher'
   | 'results-fetcher'
   | 'static-reconciler'
@@ -83,6 +96,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'entry-list-fetcher',
   'draw-fetcher',
   'fip-draw-fetcher',
+  'fip-draw-linker',
   'oop-fetcher',
   'results-fetcher',
   'static-reconciler',
@@ -105,6 +119,10 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'entry-list-fetcher':   return (deps) => runEntryListFetcher(deps);
     case 'draw-fetcher':         return (deps) => runDrawFetcher(deps);
     case 'fip-draw-fetcher':     return (deps) => runFipDrawFetcher(deps);
+    case 'fip-draw-linker':      return (deps) => runFipDrawLinker(
+      { supabase: deps.supabase, logger: deps.logger },
+      { dryRun: deps.fipDrawLinkerDryRun ?? true },
+    );
     case 'oop-fetcher':          return (deps) => runOopFetcher(deps);
     case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
     case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
@@ -175,6 +193,16 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // brackets without hammering padelfip.com.
       cron: '35 * * * *',
       run: getWorkerRunner('fip-draw-fetcher')!,
+    });
+  }
+  if (flags.enableFipDrawLinker) {
+    entries.push({
+      name: 'fip-draw-linker',
+      // Hourly at :42 — ~7 min after fip-draw-fetcher (:35) so the latest
+      // snapshots have landed. Reads only, no external HTTP — all DB queries
+      // to our own Supabase. No need to worry about rate limits.
+      cron: '42 * * * *',
+      run: getWorkerRunner('fip-draw-linker')!,
     });
   }
   if (flags.enableOopFetcher) {

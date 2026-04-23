@@ -10,6 +10,14 @@ export interface AdminRouteOptions {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
   logger: Logger;
+  /**
+   * Dry-run flag for the fip-draw-linker worker, threaded from env.
+   * Admin-triggered runs respect the same env switch as scheduled runs
+   * so operators don't get surprised by the admin endpoint suddenly
+   * writing when the scheduled path was dry-run. Optional for admin
+   * route tests.
+   */
+  fipDrawLinkerDryRun?: boolean;
 }
 
 export function registerAdminRoutes(app: FastifyInstance, opts: AdminRouteOptions): void {
@@ -47,6 +55,7 @@ export function registerAdminRoutes(app: FastifyInstance, opts: AdminRouteOption
         supabase: opts.supabase,
         httpClient: opts.httpClient,
         logger: childLogger,
+        fipDrawLinkerDryRun: opts.fipDrawLinkerDryRun,
       });
       const durationMs = Date.now() - startedAt;
       childLogger.info({ result, durationMs }, 'Manual trigger completed');
