@@ -245,4 +245,26 @@ describe('parseCrionetOop — Brussels fixture (real court + position)', () => {
     expect(byId['MD019']!.courtPosition).toBe(0);
     expect(byId['WD025']!.courtPosition).toBe(0);
   });
+
+  it('assigns courtDisplayOrder matching the left-to-right column order of courts', () => {
+    // All matches on the same court share the same courtDisplayOrder, and
+    // courts are indexed 0, 1, 2, … in the order they appear as DOM columns
+    // on the OOP page. For Brussels: CBC=0, Nextensa=1, Lotto=2.
+    const matches = parseCrionetOop(html, 4);
+    const byCourt = new Map<string, number>();
+    for (const m of matches) {
+      if (!byCourt.has(m.court)) byCourt.set(m.court, m.courtDisplayOrder);
+      // Every match on the court must carry the same order as the first.
+      expect(m.courtDisplayOrder).toBe(byCourt.get(m.court));
+    }
+    // Spot-check the actual left-to-right sequence from the Brussels fixture.
+    expect(byCourt.get('COURT CBC')).toBe(0);
+    expect(byCourt.get('COURT NEXTENSA')).toBe(1);
+    expect(byCourt.get('COURT LOTTO')).toBe(2);
+    // Indices are contiguous starting at 0 — no gaps even if a column was
+    // rendered without a courtName (nextCourtDisplayOrder increments only
+    // when we accept a court).
+    const orders = [...byCourt.values()].sort((a, b) => a - b);
+    expect(orders).toEqual([0, 1, 2]);
+  });
 });

@@ -32,6 +32,20 @@ export interface ParsedOopMatch {
    */
   courtPosition: number;
   /**
+   * 0-based position of the COURT ITSELF among all courts on this page,
+   * derived from the left-to-right DOM order of `.col-lg-4` columns.
+   * This is the order the tournament organizer wants the courts displayed
+   * in (e.g. CBC=0, Nextensa=1, Lotto=2 at Brussels). Fan-visible UIs use
+   * this to sort matches consistently: group by tournament, then by this
+   * field, then by courtPosition inside the court.
+   *
+   * The "legacy fallback" path (no `.col-lg-4` wrapper, used only by a few
+   * inline test fixtures) can't know the column order, so it emits -1.
+   * Consumers treat -1 as "unknown" and fall back to alphabetical court
+   * name or match-level court_order.
+   */
+  courtDisplayOrder: number;
+  /**
    * Free-form schedule label from the table header — "Starting at 11:00 AM",
    * "Followed by", "Not before 6:00 PM". Null if the header has no label
    * text (e.g. partial/malformed row).
@@ -97,7 +111,12 @@ function parsePlayers(
 function parseMatchTable(
   $: cheerio.CheerioAPI,
   $table: cheerio.Cheerio<any>,
-  ctx: { dayNumber: number; court: string; courtPosition: number },
+  ctx: {
+    dayNumber: number;
+    court: string;
+    courtPosition: number;
+    courtDisplayOrder: number;
+  },
 ): ParsedOopMatch | null {
   const header = $table.find(HEADER_SELECTOR).first();
   if (header.length === 0) return null;
@@ -127,6 +146,7 @@ function parseMatchTable(
     roundLabel,
     court: ctx.court,
     courtPosition: ctx.courtPosition,
+    courtDisplayOrder: ctx.courtDisplayOrder,
     scheduledLabel,
     team1Player1Name: team1.player1,
     team1Player2Name: team1.player2,
@@ -167,6 +187,9 @@ export function parseCrionetOop(
         dayNumber,
         court: label,
         courtPosition: tableIdx,
+        // Legacy fallback path has no column wrapper → can't know display
+        // order. -1 signals "unknown" to consumers.
+        courtDisplayOrder: -1,
       });
       if (m) {
         // Asymmetry from the main column-based path: when the HTML lacks
@@ -185,15 +208,21 @@ export function parseCrionetOop(
     return out;
   }
 
+  // Track the display index of each distinct court — columns without a
+  // courtName are skipped, so we can't use the raw columns.each index
+  // (would count skipped columns). Increment only when we accept a court.
+  let nextCourtDisplayOrder = 0;
   columns.each((_, col) => {
     const $col = $(col);
     const courtName = $col.find(COURT_HEADER_SELECTOR).first().text().trim();
     if (!courtName) return;
+    const courtDisplayOrder = nextCourtDisplayOrder++;
     $col.find(TABLE_SELECTOR).each((tableIdx, table) => {
       const m = parseMatchTable($, $(table), {
         dayNumber,
         court: courtName,
         courtPosition: tableIdx,
+        courtDisplayOrder,
       });
       if (m) out.push(m);
     });

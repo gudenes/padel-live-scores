@@ -95,7 +95,61 @@ async function fetchOneDay(
     .insert(rows);
 
   if (error) throw new Error(`oop_snapshots insert failed: ${error.message}`);
+
+  // Upsert distinct courts into public.tournament_courts. Lets fan-visible
+  // UIs (match lists on /matches, /home, /matches/[date]) sort matches in
+  // the same left-to-right court order as the official OOP page. Skipped
+  // for matches with courtDisplayOrder === -1 (legacy fallback path — no
+  // column wrapper in the HTML, can't know order). See the table's
+  // comment in supabase/migrations/20260423000005_tournament_courts.sql
+  // for the full rationale.
+  await upsertTournamentCourts(deps.supabase, t.tournament_id, parsed);
+
   return rows.length;
+}
+
+async function upsertTournamentCourts(
+  supabase: SupabaseClient,
+  tournamentId: string,
+  parsed: ReturnType<typeof parseCrionetOop>,
+): Promise<void> {
+  // Deduplicate by court name — in a single OOP page, every match on the
+  // same court shares the same courtDisplayOrder. We only want one row per
+  // (tournament_id, court) in tournament_courts.
+  const byCourt = new Map<string, number>();
+  for (const m of parsed) {
+    if (m.courtDisplayOrder < 0) continue; // legacy fallback — skip
+    if (!m.court) continue;
+    if (!byCourt.has(m.court)) {
+      byCourt.set(m.court, m.courtDisplayOrder);
+    }
+  }
+  if (byCourt.size === 0) return;
+
+  const nowIso = new Date().toISOString();
+  const rows = Array.from(byCourt.entries()).map(([court_name, display_order]) => ({
+    tournament_id: tournamentId,
+    court_name,
+    display_order,
+    updated_at: nowIso,
+  }));
+
+  // Upsert with onConflict on the composite PK — each day's OOP parse
+  // overwrites the previous value. If court order shifts mid-tournament
+  // (rare, but e.g. a final gets moved to Show Court), we converge to the
+  // latest day's order, which is what the user sees on the official page.
+  const { error } = await supabase
+    .from('tournament_courts')
+    .upsert(rows, { onConflict: 'tournament_id,court_name' });
+
+  if (error) {
+    // Non-fatal: oop_snapshots insert already succeeded and that's the
+    // authoritative data. Log the failure but don't throw — next run retries.
+    console.warn(
+      `[oop-fetcher] tournament_courts upsert failed for ${tournamentId}:`,
+      error.message,
+    );
+  }
 }
 
 export async function runOopFetcher(deps: OopFetcherDeps): Promise<OopFetcherResult> {
