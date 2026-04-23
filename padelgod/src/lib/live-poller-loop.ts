@@ -92,6 +92,14 @@ export interface LivePollerLoopOptions {
    * canonical vs shadow runs apart.
    */
   mode?: 'canonical' | 'shadow';
+  /**
+   * Optional web-push notify configuration. When set AND the loop runs in
+   * `shadow` mode with dual-write enabled, `dualWriteShadowToPublic` fires
+   * `POST {baseUrl}/api/push/notify` on the first `scheduled → *` transition
+   * it performs. Silently no-ops when unset — live-poller keeps working as
+   * before.
+   */
+  notify?: import('./notify.js').NotifyDeps;
 }
 
 // ---------------------------------------------------------------------------
@@ -604,6 +612,10 @@ export class LivePollerLoop {
     await applyDiff(this.opts.supabase, matchId, prev, curr, diff, resolvedPlayers, {
       logger: this.opts.logger,
       mode: this.mode,
+      // Web-push notify on first `scheduled → *` transition performed by
+      // dual-write. Passed through unconditionally — the hook inside
+      // dualWriteShadowToPublic is a no-op when unset. See ApplyDiffOpts.notify.
+      notify: this.opts.notify,
       // Shadow-enabled tournaments need their live data visible on
       // padelnachos.com too — dual-write public.sets + status. Guarded
       // inside applyDiff: only acts when mode==='shadow' AND flag is true.

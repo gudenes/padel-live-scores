@@ -36,6 +36,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import type { LiveMatchState, LiveStateDiff, PointState } from './live-state.js';
+import { type NotifyDeps, notifyLiveTransition } from './notify.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -87,6 +88,24 @@ export interface ApplyDiffOpts {
    *     regress `'live'`/`'finished'`/`'retired'`/`'walkover'`.
    */
   dualWritePublic?: boolean;
+  /**
+   * Optional web-push notification hook. When set and `dualWritePublic` is
+   * also true, `dualWriteShadowToPublic` reads the existing match status
+   * before its UPDATE and — if the prev status was `'scheduled'` — fires
+   * `/api/push/notify` on padelnachos.com so bookmark + player-follow
+   * pushes go out.
+   *
+   * Without this, padelgod-initiated `scheduled → live` transitions silently
+   * land in the DB; the Vercel scores/sync crons would only fire notify when
+   * THEY wrote the transition, which never happens once padelgod has already
+   * flipped the row. Incident 2026-04-23: Brussels P2 fd345282 went live via
+   * padelgod at 15:26 UTC with both Vercel crons rate-limited → zero
+   * notifications despite active bookmarks.
+   *
+   * See `./notify.ts::notifyLiveTransition` for behavior. Fire-and-forget,
+   * never throws, never blocks the live-poller tick.
+   */
+  notify?: import('./notify.js').NotifyDeps;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +255,7 @@ export async function applyDiff(
         currentSetNumber,
         resolvedPlayers,
         logger,
+        opts.notify,
       );
     }
     return;
@@ -555,7 +575,30 @@ async function dualWriteShadowToPublic(
   currentSetNumber: number,
   resolvedPlayers: ResolvedPlayers,
   logger: Logger | undefined,
+  notify: NotifyDeps | undefined,
 ): Promise<void> {
+  // 0. Capture the current status BEFORE the flip so we can fire notify on
+  //    the first transition out of `scheduled`. One extra SELECT per tick
+  //    is acceptable — this path only runs for shadow-mode tournaments
+  //    during their live window. Non-fatal on error: if the read fails we
+  //    fall through without notify rather than blocking the status flip.
+  let prevStatus: string | null = null;
+  if (notify) {
+    const { data: prevRow, error: prevErr } = await supabase
+      .from('matches')
+      .select('status')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (prevErr) {
+      logger?.warn(
+        { matchId, err: prevErr.message },
+        'applyDiff(shadow dual-write): prev-status read for notify failed; skipping notify',
+      );
+    } else {
+      prevStatus = (prevRow?.status as string | null) ?? null;
+    }
+  }
+
   // 1. Status flip + liveness ping.
   //
   //    Writes the observed status (`on_court` or `live`) + bumps
@@ -595,6 +638,22 @@ async function dualWriteShadowToPublic(
       { matchId, err: statusErr.message },
       'applyDiff(shadow dual-write): status flip failed',
     );
+  }
+
+  // 1b. Web-push notification on the first transition out of `scheduled`.
+  //
+  //     We fire regardless of whether the new status is `on_court` or
+  //     `live` — bookmarkers + player-followers want to know the moment
+  //     a match leaves the scheduled state. On subsequent ticks
+  //     (`on_court` → `live`, or per-tick heartbeats on already-live
+  //     rows) prevStatus won't be `'scheduled'` so this no-ops.
+  //
+  //     Fire-and-forget: never awaits, never throws. Skipped entirely if
+  //     `notify` deps aren't configured (NOTIFY_BASE_URL / CRON_SECRET
+  //     unset) or the status flip itself errored (avoid false-positive
+  //     notifications on failed writes).
+  if (notify && !statusErr && prevStatus === 'scheduled') {
+    notifyLiveTransition(matchId, notify);
   }
 
   // 2. Read existing score_source per set — used to skip rows owned by a

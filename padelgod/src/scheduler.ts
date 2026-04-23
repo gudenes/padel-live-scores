@@ -43,6 +43,15 @@ export interface SchedulerDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
   logger: Logger;
+  /**
+   * Optional web-push notify configuration. Forwarded by getWorkerRunner to
+   * `runLivePollerManager` only. Populated in `index.ts` from the env:
+   *   - `NOTIFY_BASE_URL` (e.g. `https://padelnachos.com`)
+   *   - `CRON_SECRET` (same value as the Vercel side)
+   * If either env var is missing, `notify` stays `undefined` and the push
+   * hook inside `dualWriteShadowToPublic` silently no-ops.
+   */
+  notify?: import('./lib/notify.js').NotifyDeps;
 }
 
 export type WorkerName =
@@ -95,7 +104,12 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
     case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
     case 'match-stats-fetcher':  return (deps) => runMatchStatsFetcher(deps);
-    case 'live-poller-manager':  return (deps) => runLivePollerManager(deps);
+    case 'live-poller-manager':  return (deps) => runLivePollerManager({
+      supabase: deps.supabase,
+      httpClient: deps.httpClient,
+      logger: deps.logger,
+      notify: deps.notify,
+    });
     case 'shadow-diff-finalizer': return (deps) => runShadowDiffFinalizer({ supabase: deps.supabase, logger: deps.logger });
     case 'shadow-diff-live':      return (deps) => runShadowDiffLive({ supabase: deps.supabase, logger: deps.logger });
     case 'close-stale-live-sweeper': return (deps) => runCloseStaleLiveSweeper({ supabase: deps.supabase, logger: deps.logger });

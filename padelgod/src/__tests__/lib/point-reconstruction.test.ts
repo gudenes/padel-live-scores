@@ -190,6 +190,28 @@ function makeFakeSupabase(opts: {
 
   function matchesTable() {
     return {
+      // .select('status').eq('id', matchId).maybeSingle() — pre-read for
+      // the notify hook inside dualWriteShadowToPublic.
+      select: (_cols: string) => {
+        const filters: Record<string, unknown> = {};
+        const api: any = {
+          eq: (col: string, val: unknown) => {
+            filters[col] = val;
+            return api;
+          },
+          maybeSingle: () => {
+            const row = state.matchesRows.find((m) =>
+              Object.entries(filters).every(([k, v]) => (m as any)[k] === v),
+            );
+            if (!row) return Promise.resolve({ data: null, error: null });
+            return Promise.resolve({
+              data: { status: row.status },
+              error: null,
+            });
+          },
+        };
+        return api;
+      },
       update: (patch: Record<string, unknown>) => ({
         eq: (col1: string, val1: unknown) => ({
           // Shape A: .eq().eq() — legacy single-value guard.
@@ -1382,5 +1404,165 @@ describe('applyDiff (shadow + dualWritePublic)', () => {
     expect(s.gamesUpdateCalls).toHaveLength(0);
     // Shadow writes still happen.
     expect(s.shadowSetsUpsertCalls).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyDiff (shadow + dualWritePublic + notify) — push notification hook
+// ---------------------------------------------------------------------------
+//
+// Regression: Brussels P2 women R16 `fd345282` on 2026-04-23. Padelgod
+// flipped status='live' via dual-write, Vercel scores + sync crons were both
+// padelapi rate-limited, so neither cron observed the transition and fired
+// notify. Zero push notifications despite an active bookmark + player follow.
+// Fix: when `notify` is provided, fire `/api/push/notify` on the first
+// `scheduled → *` transition.
+
+describe('applyDiff (shadow + dualWritePublic + notify)', () => {
+  function makeClientWithMatch(status: string) {
+    return makeFakeSupabase({
+      preMatchesRows: [{ id: MATCH_ID, status }],
+    });
+  }
+
+  interface CapturedFetch {
+    url: string;
+    init: RequestInit;
+  }
+
+  function makeMockFetch(captures: CapturedFetch[]): typeof fetch {
+    return ((url: string, init?: RequestInit) => {
+      captures.push({ url, init: init ?? {} });
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    }) as unknown as typeof fetch;
+  }
+
+  function silentLogger(): import('pino').Logger {
+    // Minimal pino-shaped logger — notify only calls .warn / .info.
+    const noop = () => undefined;
+    return { info: noop, warn: noop, error: noop, debug: noop, trace: noop, fatal: noop, child: () => silentLogger() } as any;
+  }
+
+  it('fires notify exactly once on scheduled → live transition', async () => {
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const captures: CapturedFetch[] = [];
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+      notify: {
+        baseUrl: 'https://padelnachos.com',
+        cronSecret: 'secret-token',
+        logger: silentLogger(),
+        fetchImpl: makeMockFetch(captures),
+      },
+    });
+
+    // Status flipped…
+    expect(s.matchesRows[0]!.status).toBe('live');
+    // …and notify fired with the right URL, method, auth, body.
+    // Note: the promise inside notify is detached (fire-and-forget), but fetch
+    // itself is called synchronously so `captures` is populated by now.
+    expect(captures).toHaveLength(1);
+    expect(captures[0]!.url).toBe('https://padelnachos.com/api/push/notify');
+    expect(captures[0]!.init.method).toBe('POST');
+    expect(captures[0]!.init.headers).toMatchObject({
+      Authorization: 'Bearer secret-token',
+      'Content-Type': 'application/json',
+    });
+    expect(JSON.parse(captures[0]!.init.body as string)).toEqual({ matchId: MATCH_ID });
+  });
+
+  it('fires notify on scheduled → on_court transition (warm-up phase)', async () => {
+    const { client } = makeClientWithMatch('scheduled');
+    const captures: CapturedFetch[] = [];
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, { status: 'on_court' });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 }, { status: 'on_court' });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+      notify: {
+        baseUrl: 'https://padelnachos.com',
+        cronSecret: 'secret-token',
+        logger: silentLogger(),
+        fetchImpl: makeMockFetch(captures),
+      },
+    });
+
+    expect(captures).toHaveLength(1);
+    expect(captures[0]!.url).toBe('https://padelnachos.com/api/push/notify');
+  });
+
+  it('does NOT fire notify on on_court → live transition (avoid double push)', async () => {
+    // User would have already gotten the push at scheduled → on_court. The
+    // subsequent on_court → live flip should be silent.
+    const { client } = makeClientWithMatch('on_court');
+    const captures: CapturedFetch[] = [];
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+      notify: {
+        baseUrl: 'https://padelnachos.com',
+        cronSecret: 'secret-token',
+        logger: silentLogger(),
+        fetchImpl: makeMockFetch(captures),
+      },
+    });
+
+    expect(captures).toHaveLength(0);
+  });
+
+  it('does NOT fire notify on per-tick heartbeats when already live', async () => {
+    const { client } = makeClientWithMatch('live');
+    const captures: CapturedFetch[] = [];
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+      notify: {
+        baseUrl: 'https://padelnachos.com',
+        cronSecret: 'secret-token',
+        logger: silentLogger(),
+        fetchImpl: makeMockFetch(captures),
+      },
+    });
+
+    expect(captures).toHaveLength(0);
+  });
+
+  it('does NOT fire notify when opts.notify is omitted (back-compat)', async () => {
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 });
+    const diff: LiveStateDiff = { ...emptyDiff(), pointsAdded: [{ winnerTeam: 1 }] };
+
+    // No `notify` field — pre-existing behavior must be preserved exactly.
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // Status still flipped, dual-write still fired.
+    expect(s.matchesRows[0]!.status).toBe('live');
+    // Nothing else to check — no fetchImpl was wired, so if the code
+    // accidentally tried to call fetch it would explode here (there's no
+    // global mock). Passing the test = fetch was never called.
   });
 });
