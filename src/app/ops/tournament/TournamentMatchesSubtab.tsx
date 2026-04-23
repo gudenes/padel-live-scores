@@ -9,7 +9,7 @@
 // padelgod matches and only 20 are linked, we know the reconciler hasn't
 // caught up yet — and the UI shows exactly which ones are missing.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 // ── Types (mirror /api/ops/tournament-matches response) ─────────────────
 
@@ -112,12 +112,20 @@ const td: React.CSSProperties = {
 
 // ── Component ───────────────────────────────────────────────────────────
 
+type MatchTab = 'oop' | 'results'
+
 export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId: string }) {
   const [data, setData] = useState<MatchesResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filterCategory, setFilterCategory] = useState<'all' | 'men' | 'women'>('all')
   const [filterLinkage, setFilterLinkage] = useState<'all' | 'linked' | 'unlinked'>('all')
+  // Tab + day selection. `null` means "auto-pick default" — see the effect
+  // below that computes defaults once the data lands. Both are persisted
+  // across tab switches inside the session: switching OOP → Results keeps
+  // the same `day`.
+  const [tab, setTab] = useState<MatchTab>('oop')
+  const [day, setDay] = useState<number | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -135,6 +143,58 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load matches'))
       .finally(() => setLoading(false))
   }, [tournamentId])
+
+  // ── Derived: list of days + default selection ─────────────────────────
+  //
+  // `days` is the sorted list of distinct day_numbers across all matches
+  // (both sources). `liveDays` is the set of days that have at least one
+  // match in a live/on_court status — used to annotate the day pill with
+  // a 🟢 indicator.
+  //
+  // Default day and default tab fire once, when the data first arrives:
+  //   - day = the "today" day (highest day with activity) — falls back to
+  //     the max day_number if no live day is present
+  //   - tab = 'results' when every match is finished (tournament is over),
+  //     otherwise 'oop' (in-progress or upcoming view)
+  const { days, liveDays, defaultDay, defaultTab } = useMemo(() => {
+    if (!data) {
+      return { days: [] as number[], liveDays: new Set<number>(), defaultDay: null, defaultTab: 'oop' as MatchTab }
+    }
+    const dayset = new Set<number>()
+    const live = new Set<number>()
+    let allFinished = data.matches.length > 0
+    for (const m of data.matches) {
+      if (m.dayNumber != null) dayset.add(m.dayNumber)
+      if (m.status === 'live' || m.status === 'on_court') {
+        if (m.dayNumber != null) live.add(m.dayNumber)
+        allFinished = false
+      }
+      if (!['finished', 'retired', 'walkover'].includes(m.status ?? '')) {
+        allFinished = false
+      }
+    }
+    const sorted = [...dayset].sort((a, b) => a - b)
+    // Prefer the live day; if none, the most recent day with any activity.
+    const defDay = live.size > 0 ? Math.min(...live) : sorted[sorted.length - 1] ?? null
+    return {
+      days: sorted,
+      liveDays: live,
+      defaultDay: defDay,
+      defaultTab: (allFinished ? 'results' : 'oop') as MatchTab,
+    }
+  }, [data])
+
+  // Apply defaults once the data lands. Guarded so user selections aren't
+  // overwritten on refresh — we only fire while `day` is still null (its
+  // initial state).
+  useEffect(() => {
+    if (!data) return
+    if (day === null && defaultDay !== null) {
+      setDay(defaultDay)
+      setTab(defaultTab)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
 
   if (loading) {
     return <div style={{ ...card, color: '#666', fontSize: 12 }}>Loading matches…</div>
@@ -156,31 +216,91 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
     )
   }
 
-  const filtered = data.matches.filter((m) => {
+  // ── Filter pipeline ────────────────────────────────────────────────
+  // 1. Tab: OOP ⇒ source ∈ {oop, both} | Results ⇒ source ∈ {results, both}
+  // 2. Day: exact day_number match (null day filter = show all, used while
+  //    defaults are resolving).
+  // 3. Category + linkage: unchanged from the pre-tab single-view behaviour.
+  const tabFiltered = data.matches.filter((m) =>
+    tab === 'oop'
+      ? m.source === 'oop' || m.source === 'both'
+      : m.source === 'results' || m.source === 'both',
+  )
+  const dayFiltered = day === null
+    ? tabFiltered
+    : tabFiltered.filter((m) => m.dayNumber === day)
+  const filtered = dayFiltered.filter((m) => {
     if (filterCategory !== 'all' && m.category !== filterCategory) return false
     if (filterLinkage === 'linked' && m.linkedMatchId === null) return false
     if (filterLinkage === 'unlinked' && m.linkedMatchId !== null) return false
     return true
   })
 
-  const linkedPct = data.stats.total > 0 ? Math.round((data.stats.linked / data.stats.total) * 100) : 0
+  // ── Per-tab stats ─────────────────────────────────────────────────
+  // The header `data.stats` is a tournament-wide aggregate. In two-tab
+  // mode we want numbers scoped to the current tab × day view so the
+  // operator sees what's actually in the table below. `linked / unlinked`
+  // are computed from the tab-level slice (ignoring day + user filters)
+  // because that matches the mental model "how much of the OOP is linked
+  // for this tournament" regardless of which day you're looking at.
+  const tabStats = {
+    total: tabFiltered.length,
+    played: tabFiltered.filter((m) => ['finished', 'retired', 'walkover'].includes(m.status ?? '')).length,
+    scheduled: tabFiltered.filter((m) => (m.status ?? 'scheduled') === 'scheduled').length,
+    onCourt: tabFiltered.filter((m) => m.status === 'on_court' || m.status === 'live').length,
+    linked: tabFiltered.filter((m) => m.linkedMatchId !== null).length,
+    unlinked: tabFiltered.filter((m) => m.linkedMatchId === null).length,
+  }
+  const linkedPct = tabStats.total > 0 ? Math.round((tabStats.linked / tabStats.total) * 100) : 0
 
   return (
     <div>
+      {/* Tab header — OOP / Results */}
+      <div style={{ display: 'flex', gap: 2, borderBottom: '2px solid #e5e7eb', marginBottom: 12 }}>
+        <TabButton label="OOP" active={tab === 'oop'} onClick={() => setTab('oop')} />
+        <TabButton label="Results" active={tab === 'results'} onClick={() => setTab('results')} />
+      </div>
+
+      {/* Day picker — one pill per day_number present in the data. 'All'
+          option at the start clears the day filter if the operator wants
+          a cross-day view. Live-day pills show a 🟢 dot. */}
+      {days.length > 1 && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 11, color: '#666', fontWeight: 600, marginRight: 4 }}>Day:</span>
+          <DayChip label="All" active={day === null} onClick={() => setDay(null)} />
+          {days.map((d) => (
+            <DayChip
+              key={d}
+              label={`Day ${d}`}
+              live={liveDays.has(d)}
+              active={day === d}
+              onClick={() => setDay(d)}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Stats + freshness */}
       <div style={{ ...card, display: 'flex', gap: 24, alignItems: 'center', marginBottom: 12 }}>
-        <StatTile label="Total" value={data.stats.total} color="#111" />
-        <StatTile label="Played" value={data.stats.played} color="#1e40af" />
-        <StatTile label="Scheduled" value={data.stats.scheduled} color="#92400e" />
+        <StatTile label={tab === 'oop' ? 'In OOP' : 'In Results'} value={tabStats.total} color="#111" />
+        {tab === 'oop' ? (
+          <>
+            <StatTile label="On court" value={tabStats.onCourt} color="#166534" />
+            <StatTile label="Scheduled" value={tabStats.scheduled} color="#92400e" />
+            <StatTile label="Played" value={tabStats.played} color="#1e40af" />
+          </>
+        ) : (
+          <StatTile label="Played" value={tabStats.played} color="#1e40af" />
+        )}
         <StatTile
           label="Linked"
-          value={`${data.stats.linked} (${linkedPct}%)`}
+          value={`${tabStats.linked} (${linkedPct}%)`}
           color={linkedPct === 100 ? '#166534' : linkedPct > 50 ? '#1e40af' : '#991b1b'}
         />
         <StatTile
           label="Unlinked"
-          value={data.stats.unlinked}
-          color={data.stats.unlinked === 0 ? '#999' : '#991b1b'}
+          value={tabStats.unlinked}
+          color={tabStats.unlinked === 0 ? '#999' : '#991b1b'}
         />
         <div style={{ marginLeft: 'auto', fontSize: 11, color: '#666', textAlign: 'right' }}>
           <div>OOP: {formatAgo(data.capturedAt.oop)}</div>
@@ -319,6 +439,78 @@ function StatTile({ label, value, color }: { label: string; value: string | numb
       </div>
       <div style={{ fontSize: 16, fontWeight: 700, color }}>{value}</div>
     </div>
+  )
+}
+
+function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  // Tab underline indicator — same visual language as the main ops tabs
+  // (see OpsClient.tsx). Active tab gets a blue underline + emphasized
+  // text; inactive tabs stay neutral.
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '8px 16px',
+        fontSize: 13,
+        fontWeight: 700,
+        border: 'none',
+        background: 'transparent',
+        color: active ? '#1e40af' : '#555',
+        cursor: 'pointer',
+        borderBottom: '2px solid',
+        borderColor: active ? '#3b82f6' : 'transparent',
+        marginBottom: -2, // align underline with the parent's border-bottom
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+function DayChip({
+  label,
+  active,
+  onClick,
+  live = false,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+  live?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '4px 10px',
+        fontSize: 11,
+        fontWeight: 600,
+        border: '1px solid',
+        borderColor: active ? '#3b82f6' : '#d1d5db',
+        background: active ? '#eff6ff' : '#fff',
+        color: active ? '#1e40af' : '#555',
+        borderRadius: 999,
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+      }}
+    >
+      {live && (
+        <span
+          aria-label="has live matches"
+          style={{
+            display: 'inline-block',
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: '#16a34a',
+            boxShadow: '0 0 0 2px rgba(22,163,74,0.2)',
+          }}
+        />
+      )}
+      {label}
+    </button>
   )
 }
 
