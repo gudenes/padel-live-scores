@@ -402,6 +402,7 @@
     "min": "MIN",
     "sec": "SEC",
     "live": "LIVE",
+    "onCourt": "ON COURT",
     "goBack": "Go back"
   },
   "about": {

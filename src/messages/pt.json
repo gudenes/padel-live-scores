@@ -402,6 +402,7 @@
     "min": "MIN",
     "sec": "SEG",
     "live": "AO VIVO",
+    "onCourt": "EM QUADRA",
     "goBack": "Voltar"
   },
   "about": {

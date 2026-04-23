@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
 import {
@@ -15,6 +16,9 @@ const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'AD'
 const _liveScoresPrev = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
 
 function LiveMatchCardInner({ match }: { match: Match }) {
+  // Badge label lives in the `common` namespace so the same translation
+  // key is reused across /matches, /home and /matches/[date].
+  const tCommon = useTranslations('common')
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
   const currentSet = sets.find(s => s.is_current)
   // Pick the LAST current game (not first) — when a game finishes and a
@@ -121,7 +125,7 @@ function LiveMatchCardInner({ match }: { match: Match }) {
               color: isOnCourt ? '#000' : '#fff',
               letterSpacing: 0.5,
             }}>
-              {isOnCourt ? 'ON COURT' : 'LIVE'}
+              {isOnCourt ? tCommon('onCourt') : tCommon('live')}
             </span>
           </div>
           {match.round && (

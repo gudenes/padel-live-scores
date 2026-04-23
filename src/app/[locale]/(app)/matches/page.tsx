@@ -117,6 +117,9 @@ const LINGER_MS = 2 * 60 * 1000 // 2 minutes
 
 function V3MatchRow({ match }: { match: Match }) {
   const format = useFormatter()
+  // common namespace — 'live' + 'onCourt' power the status pill labels.
+  // See src/messages/{en,es,pt,it,fr}.json under "common".
+  const tCommon = useTranslations('common')
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
   const currentSet = sets.find(s => s.is_current)
   const currentGame = currentSet?.games?.find(g => g.is_current)
@@ -290,7 +293,7 @@ function V3MatchRow({ match }: { match: Match }) {
                   animation: 'v3-scores-pulse 2s infinite',
                   flexShrink: 0,
                 }} />
-                <span style={{ fontSize: 8, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>LIVE</span>
+                <span style={{ fontSize: 8, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>{tCommon('live')}</span>
               </div>
             )}
             {/* ON COURT pill — same shape as LIVE, orange to distinguish the
@@ -309,7 +312,7 @@ function V3MatchRow({ match }: { match: Match }) {
                   animation: 'v3-scores-pulse 2s infinite',
                   flexShrink: 0,
                 }} />
-                <span style={{ fontSize: 8, fontWeight: 800, color: '#000', letterSpacing: 0.5 }}>ON COURT</span>
+                <span style={{ fontSize: 8, fontWeight: 800, color: '#000', letterSpacing: 0.5 }}>{tCommon('onCourt')}</span>
               </div>
             )}
             {isLingering && (
