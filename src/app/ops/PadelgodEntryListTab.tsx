@@ -105,17 +105,33 @@ const card: React.CSSProperties = {
   padding: 12,
 }
 
-export default function PadelgodEntryListTab() {
+/**
+ * Props:
+ *   - tournamentId?: when provided, the component skips its internal
+ *     tournament picker and just renders entry-list detail for that
+ *     tournament. Used by the Tournament Explorer tab which owns the
+ *     picker at a higher level.
+ */
+export interface PadelgodEntryListTabProps {
+  tournamentId?: string
+}
+
+export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryListTabProps = {}) {
+  const embedded = Boolean(tournamentId)
+
   const [tournaments, setTournaments] = useState<TournamentRef[]>([])
-  const [selectedTournamentId, setSelectedTournamentId] = useState<string>('')
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>(tournamentId ?? '')
   const [detail, setDetail] = useState<DetailResponse | null>(null)
   const [loadingList, setLoadingList] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<'men' | 'women'>('men')
 
-  // ── Initial fetch: tournament list ──
+  // ── Initial fetch: tournament list (standalone only) ──
   useEffect(() => {
+    // When embedded, the parent (TournamentExplorer) already picked a
+    // tournament — don't query the padelgod list endpoint at all.
+    if (embedded) return
     setLoadingList(true)
     setError(null)
     fetch('/api/ops/padelgod-entry-list')
@@ -135,17 +151,22 @@ export default function PadelgodEntryListTab() {
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load list'))
       .finally(() => setLoadingList(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [embedded])
+
+  // Reflect prop changes when embedded — parent picker drives selection.
+  useEffect(() => {
+    if (embedded && tournamentId) setSelectedTournamentId(tournamentId)
+  }, [embedded, tournamentId])
 
   // ── Detail fetch whenever selection changes ──
   const fetchDetail = useCallback(
-    async (tournamentId: string) => {
-      if (!tournamentId) return
+    async (id: string) => {
+      if (!id) return
       setLoadingDetail(true)
       setError(null)
       try {
         const res = await fetch(
-          `/api/ops/padelgod-entry-list?tournament_id=${tournamentId}`,
+          `/api/ops/padelgod-entry-list?tournament_id=${id}`,
         )
         const body = (await res.json()) as DetailResponse & { error?: string }
         if (body.error) throw new Error(body.error)
@@ -181,72 +202,84 @@ export default function PadelgodEntryListTab() {
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111' }}>
-          Padelgod Entry Lists
-        </h2>
-        <p style={{ fontSize: 12, color: '#666', marginTop: 4, maxWidth: 680 }}>
-          Read-only view of <code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3 }}>padelgod.entry_list_snapshots</code>.
-          Shows what the hourly padelgod entry-list-fetcher captured from
-          matchscorerlive.com, with each player resolved against{' '}
-          <code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3 }}>public.players</code>.
-          Use this to judge whether padelgod's view is complete enough to
-          drive autonomous match creation.
-        </p>
-      </div>
-
-      {/* Tournament picker */}
-      <div style={{ ...card, marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 600,
-                color: '#999',
-                textTransform: 'uppercase',
-                marginBottom: 4,
-              }}
-            >
-              Tournament
-            </label>
-            <select
-              value={selectedTournamentId}
-              onChange={(e) => setSelectedTournamentId(e.target.value)}
-              disabled={loadingList || tournaments.length === 0}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                fontSize: 13,
-                border: '1px solid #d1d5db',
-                borderRadius: 4,
-                background: '#fff',
-                color: '#333',
-              }}
-            >
-              {tournaments.length === 0 && <option value="">No snapshots found</option>}
-              {tournaments.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.starts_at ? ` — ${t.starts_at.slice(0, 10)}` : ''}
-                  {t.level ? ` · ${t.level}` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-          {detail?.capturedAt && (
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 600, color: '#999', textTransform: 'uppercase' }}>
-                Snapshot
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>
-                {formatAgo(detail.capturedAt)}
-              </div>
-            </div>
-          )}
+      {!embedded && (
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111' }}>
+            Padelgod Entry Lists
+          </h2>
+          <p style={{ fontSize: 12, color: '#666', marginTop: 4, maxWidth: 680 }}>
+            Read-only view of <code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3 }}>padelgod.entry_list_snapshots</code>.
+            Shows what the hourly padelgod entry-list-fetcher captured from
+            matchscorerlive.com, with each player resolved against{' '}
+            <code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3 }}>public.players</code>.
+            Use this to judge whether padelgod's view is complete enough to
+            drive autonomous match creation.
+          </p>
         </div>
-      </div>
+      )}
+
+      {/* Tournament picker — hidden when embedded (parent owns the picker) */}
+      {!embedded && (
+        <div style={{ ...card, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: '#999',
+                  textTransform: 'uppercase',
+                  marginBottom: 4,
+                }}
+              >
+                Tournament
+              </label>
+              <select
+                value={selectedTournamentId}
+                onChange={(e) => setSelectedTournamentId(e.target.value)}
+                disabled={loadingList || tournaments.length === 0}
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  fontSize: 13,
+                  border: '1px solid #d1d5db',
+                  borderRadius: 4,
+                  background: '#fff',
+                  color: '#333',
+                }}
+              >
+                {tournaments.length === 0 && <option value="">No snapshots found</option>}
+                {tournaments.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {t.starts_at ? ` — ${t.starts_at.slice(0, 10)}` : ''}
+                    {t.level ? ` · ${t.level}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {detail?.capturedAt && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: '#999', textTransform: 'uppercase' }}>
+                  Snapshot
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>
+                  {formatAgo(detail.capturedAt)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Embedded-mode freshness badge — since the parent picker doesn't know
+          about per-subtab snapshot freshness, we show it inline. */}
+      {embedded && detail?.capturedAt && (
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12, fontSize: 11, color: '#666' }}>
+          <span>Entry-list snapshot: <b style={{ color: '#333' }}>{formatAgo(detail.capturedAt)}</b></span>
+        </div>
+      )}
 
       {error && (
         <div style={{ ...card, background: '#fee2e2', borderColor: '#fecaca', color: '#991b1b', fontSize: 12, marginBottom: 16 }}>
