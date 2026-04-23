@@ -106,18 +106,13 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;')
 }
 
-export async function sendWelcomeEmail(params: {
-  email: string
+// Pure builder — returns { subject, html } for a given name/locale. Exported
+// so the admin preview route (/api/admin/preview-welcome-email) can render
+// the exact same output a Resend send would produce, without hitting Resend.
+export function buildWelcomeEmail(params: {
   name?: string | null
   locale?: string | null
-}): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) {
-    // Quietly skip in local dev without Resend configured rather than crash signup.
-    console.warn('[welcome-email] RESEND_API_KEY not set — skipping')
-    return
-  }
-
+}): { subject: string; html: string; locale: SupportedLocale } {
   const locale = resolveLocale(params.locale)
   const messages = messagesByLocale[locale]
   const t = createTranslator({ locale, messages, namespace: 'email.welcome' })
@@ -140,6 +135,26 @@ export async function sendWelcomeEmail(params: {
     footer: t('footer'),
   })
 
+  return { subject: t('subject'), html, locale }
+}
+
+export async function sendWelcomeEmail(params: {
+  email: string
+  name?: string | null
+  locale?: string | null
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) {
+    // Quietly skip in local dev without Resend configured rather than crash signup.
+    console.warn('[welcome-email] RESEND_API_KEY not set — skipping')
+    return
+  }
+
+  const { subject, html, locale } = buildWelcomeEmail({
+    name: params.name,
+    locale: params.locale,
+  })
+
   try {
     const { Resend: ResendClient } = await import('resend')
     const resend = new ResendClient(apiKey)
@@ -147,7 +162,7 @@ export async function sendWelcomeEmail(params: {
       {
         from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos <hello@padelnachos.com>',
         to: params.email,
-        subject: t('subject'),
+        subject,
         html,
       },
       {
