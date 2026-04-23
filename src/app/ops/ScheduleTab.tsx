@@ -5,6 +5,19 @@
 
 import React, { useState, useCallback, useEffect } from 'react'
 
+type PlayerSlotKey =
+  | 'pair1_player1_id'
+  | 'pair1_player2_id'
+  | 'pair2_player1_id'
+  | 'pair2_player2_id'
+
+interface PlayerSlotDiff {
+  slot: PlayerSlotKey
+  currentId: string | null
+  oopName: string | null
+  resolvedNewId: string | null
+}
+
 interface ScheduleMatch {
   oopIndex: number
   court: string
@@ -18,7 +31,14 @@ interface ScheduleMatch {
   dbMatchRound: string | null
   dbScheduledAt: string | null
   dbHasTime: boolean
+  dbCourt: string | null
   confidence: 'high' | 'medium' | 'low' | 'none'
+  // Per-field diff flags (PR #14) — at least one must be true for the row
+  // to be selectable. Replaces the old "dbHasTime blocks everything" rule.
+  needsTimeChange: boolean
+  needsCourtChange: boolean
+  needsPlayersChange: boolean
+  playerSlots: PlayerSlotDiff[]
   proposedScheduledAt: string | null
   proposedCourt: string | null
   proposedScheduleLabel: string | null
@@ -36,6 +56,8 @@ interface FetchResult {
   source?: string
   capturedAt?: string | null
   exactMatchCount?: number
+  /** Rows where at least one field will actually change on apply. PR #14. */
+  needsUpdateCount?: number
 }
 
 /**
@@ -125,10 +147,17 @@ export default function ScheduleTab() {
       }
       const data: FetchResult = await res.json()
       setResult(data)
-      // Auto-select all high-confidence matches that don't already have a time
+      // Auto-select all high-confidence matches with at least one resolvable
+      // diff. Replaces the old "dbHasTime blocks everything" rule — now we
+      // include rows where time is already set but court is wrong, or where
+      // players are TBD and the OOP resolved them.
       const autoSelect = new Set<number>()
       data.matches.forEach((m, i) => {
-        if (m.dbMatchId && m.confidence === 'high' && !m.dbHasTime && m.proposedScheduledAt) {
+        if (
+          m.dbMatchId &&
+          m.confidence === 'high' &&
+          (m.needsTimeChange || m.needsCourtChange || m.needsPlayersChange)
+        ) {
           autoSelect.add(i)
         }
       })
@@ -139,24 +168,63 @@ export default function ScheduleTab() {
     setLoading(false)
   }, [tournamentId, matchscorerCode, day])
 
-  // Apply selected schedule changes
+  // Apply selected schedule changes — builds a per-field PATCH payload so
+  // the server only touches the fields that actually differ. Covers three
+  // independent changes per row (time / court / players), mixed freely
+  // across selected rows.
   const handleApply = useCallback(async () => {
     if (!result) return
     setApplying(true)
     setApplyResult(null)
     const updates = result.matches
       .filter((_, i) => selected.has(i))
-      .map((m, i) => {
-        const matchId = manualLinks[i] || m.dbMatchId
-        if (!matchId || !m.proposedScheduledAt) return null
-        return {
-          matchId,
-          scheduledAt: m.proposedScheduledAt,
-          court: m.proposedCourt,
-          scheduleLabel: m.proposedScheduleLabel,
+      .map((m) => {
+        const matchId = manualLinks[m.oopIndex] || m.dbMatchId
+        if (!matchId) return null
+
+        // Only include fields in the payload when the diff flag says they
+        // should change. Omitted fields are left untouched by the server.
+        const update: {
+          matchId: string
+          scheduledAt?: string
+          court?: string
+          scheduleLabel?: string
+          playerUpdates?: Partial<Record<PlayerSlotKey, string>>
+        } = { matchId }
+
+        if (m.needsTimeChange && m.proposedScheduledAt) {
+          update.scheduledAt = m.proposedScheduledAt
+          // scheduleLabel follows time — always overwrite together.
+          if (m.proposedScheduleLabel) update.scheduleLabel = m.proposedScheduleLabel
         }
+        if (m.needsCourtChange && m.proposedCourt) {
+          update.court = m.proposedCourt
+        }
+        if (m.needsPlayersChange) {
+          const pu: Partial<Record<PlayerSlotKey, string>> = {}
+          for (const slot of m.playerSlots) {
+            if (slot.currentId === null && slot.resolvedNewId) {
+              pu[slot.slot] = slot.resolvedNewId
+            }
+          }
+          if (Object.keys(pu).length > 0) update.playerUpdates = pu
+        }
+
+        // Empty update (nothing to change) — skip.
+        const hasWork =
+          update.scheduledAt !== undefined ||
+          update.court !== undefined ||
+          update.scheduleLabel !== undefined ||
+          update.playerUpdates !== undefined
+        return hasWork ? update : null
       })
-      .filter(Boolean) as { matchId: string; scheduledAt: string; court: string | null; scheduleLabel: string | null }[]
+      .filter(Boolean) as Array<{
+        matchId: string
+        scheduledAt?: string
+        court?: string
+        scheduleLabel?: string
+        playerUpdates?: Partial<Record<PlayerSlotKey, string>>
+      }>
 
     try {
       const res = await fetch('/api/ops/schedule-review', {
@@ -170,13 +238,16 @@ export default function ScheduleTab() {
       setApplyResult({ updated: 0, skipped: 0, errors: [e instanceof Error ? e.message : 'Failed'] })
     }
     setApplying(false)
-  }, [result, selected])
+  }, [result, selected, manualLinks])
 
   const toggleAll = useCallback(() => {
     if (!result) return
     const eligible = result.matches
       .map((m, i) => ({ m, i }))
-      .filter(({ m }) => m.dbMatchId && !m.dbHasTime && m.proposedScheduledAt)
+      .filter(({ m }) =>
+        m.dbMatchId &&
+        (m.needsTimeChange || m.needsCourtChange || m.needsPlayersChange),
+      )
 
     if (selected.size >= eligible.length) {
       setSelected(new Set())
@@ -320,6 +391,17 @@ export default function ScheduleTab() {
               <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>Unmatched</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: result.unmatched > 0 ? '#f59e0b' : '#999' }}>{result.unmatched}</div>
             </div>
+            {/* Needs-update counter (PR #14) — rows where at least one field
+                differs vs DB. Replaces the "must have dbHasTime=false" filter
+                that wrongly hid rows with good time but wrong court. */}
+            {typeof result.needsUpdateCount === 'number' && (
+              <div>
+                <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>Needs Update</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: result.needsUpdateCount > 0 ? '#1e40af' : '#999' }}>
+                  {result.needsUpdateCount}
+                </div>
+              </div>
+            )}
             {/* Provenance indicator — shows how stale the snapshot is. Data
                 comes from padelgod's hourly oop-fetcher; up to ~1h old is
                 expected. Exact count shows how many rows linked via widget
@@ -339,7 +421,7 @@ export default function ScheduleTab() {
             )}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button onClick={toggleAll} style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, borderRadius: 4, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#333' }}>
-                {selected.size > 0 ? 'Deselect All' : 'Select All Matched'}
+                {selected.size > 0 ? 'Deselect All' : 'Select All With Changes'}
               </button>
               <button
                 onClick={handleApply}
@@ -383,6 +465,7 @@ export default function ScheduleTab() {
                   <th style={{ padding: '6px 8px', textAlign: 'left', color: '#666', fontWeight: 600 }}>Team 1</th>
                   <th style={{ padding: '6px 8px', textAlign: 'left', color: '#666', fontWeight: 600 }}>Team 2</th>
                   <th style={{ padding: '6px 8px', textAlign: 'center', color: '#666', fontWeight: 600 }}>Match</th>
+                  <th style={{ padding: '6px 8px', textAlign: 'left', color: '#666', fontWeight: 600 }}>Changes</th>
                   <th style={{ padding: '6px 8px', textAlign: 'left', color: '#666', fontWeight: 600 }}>DB Round</th>
                   <th style={{ padding: '6px 8px', textAlign: 'left', color: '#666', fontWeight: 600 }}>Proposed UTC</th>
                 </tr>
@@ -394,7 +477,16 @@ export default function ScheduleTab() {
                   const conf = confidenceColor[effectiveConf]
                   const isSelected = selected.has(i)
                   const effectiveMatchId = manualLinks[i] || m.dbMatchId
-                  const canSelect = effectiveMatchId && !m.dbHasTime && m.proposedScheduledAt
+                  // PR #14: selectable if ANY field would change. Replaces the
+                  // old !dbHasTime blanket block that was over-restrictive.
+                  const anyDiff =
+                    m.needsTimeChange || m.needsCourtChange || m.needsPlayersChange
+                  const canSelect = effectiveMatchId && anyDiff
+                  // Count fillable TBD slots so the chip says "2/4 missing".
+                  const fillableSlotCount = m.playerSlots.filter(
+                    (s) => s.currentId === null && s.resolvedNewId !== null,
+                  ).length
+                  const nullSlotCount = m.playerSlots.filter((s) => s.currentId === null).length
 
                   return (
                     <tr key={i} style={{
@@ -456,6 +548,65 @@ export default function ScheduleTab() {
                             {hasManualLink ? 'MANUAL' : conf.label}
                           </span>
                         )}
+                      </td>
+                      {/* Changes column — per-field diff chips so operators
+                          can see WHAT will change on apply. Empty cell when
+                          row is in sync. Chip colors: blue = time, amber =
+                          court, green = players. */}
+                      <td style={{ padding: '5px 8px' }}>
+                        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          {m.needsTimeChange && (
+                            <span
+                              title={
+                                m.dbScheduledAt
+                                  ? `Time: ${new Date(m.dbScheduledAt).toISOString().slice(11, 16)} → ${m.proposedScheduledAt ? new Date(m.proposedScheduledAt).toISOString().slice(11, 16) : '?'}`
+                                  : 'Will set time'
+                              }
+                              style={{
+                                fontSize: 9, fontWeight: 700, padding: '1px 5px',
+                                borderRadius: 3, background: '#dbeafe', color: '#1e40af',
+                                letterSpacing: '0.03em',
+                              }}
+                            >
+                              ↻ TIME
+                            </span>
+                          )}
+                          {m.needsCourtChange && (
+                            <span
+                              title={`Court: ${m.dbCourt ?? '(none)'} → ${m.proposedCourt ?? '?'}`}
+                              style={{
+                                fontSize: 9, fontWeight: 700, padding: '1px 5px',
+                                borderRadius: 3, background: '#fef3c7', color: '#92400e',
+                                letterSpacing: '0.03em',
+                              }}
+                            >
+                              ↻ COURT
+                            </span>
+                          )}
+                          {m.needsPlayersChange && (
+                            <span
+                              title={`Players: will fill ${fillableSlotCount} of ${nullSlotCount} TBD slot${nullSlotCount === 1 ? '' : 's'} (Option A — null-only writes)`}
+                              style={{
+                                fontSize: 9, fontWeight: 700, padding: '1px 5px',
+                                borderRadius: 3, background: '#dcfce7', color: '#166534',
+                                letterSpacing: '0.03em',
+                              }}
+                            >
+                              ↻ {fillableSlotCount}/{nullSlotCount} TBD
+                            </span>
+                          )}
+                          {!anyDiff && m.dbMatchId && (
+                            <span
+                              title="All fields match DB — nothing to apply"
+                              style={{
+                                fontSize: 9, fontWeight: 500, padding: '1px 5px',
+                                color: '#9ca3af', letterSpacing: '0.03em',
+                              }}
+                            >
+                              ✓ in sync
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '5px 8px', color: '#666', fontSize: 10 }}>{m.dbMatchRound || '—'}</td>
                       <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 10, color: '#555' }}>
