@@ -2,7 +2,13 @@ import * as cheerio from 'cheerio';
 import { normalizeCountry } from '../lib/country.js';
 
 const TABLE_SELECTOR = 'table';
-const LIVE_HEADER_SELECTOR = 'tr.scorebox-header-live';
+// Accepts both `scorebox-header-live` (live matches) and the bare
+// `scorebox-header` (completed matches — Crionet drops the `-live` suffix
+// when a match finishes but keeps the row visible in tournamentlive for
+// ~2 min). Without matching both, Completed rows get filtered out at the
+// selector level and never reach the status-label branch that collapses
+// them to `status='finished'`. Observed missing on Brussels P2 QF fixture.
+const LIVE_HEADER_SELECTOR = 'tr.scorebox-header-live, tr.scorebox-header';
 const COURT_NAME_SELECTOR = '.tournament-name, .court-name';
 const ROUND_NAME_SELECTOR = '.round-name';
 const SUMMARY_ROW_SELECTOR = 'tr.summary';
@@ -240,9 +246,30 @@ export function parseCrionetTournamentLive(html: string): ParsedLiveTournament {
     // warming up, but no first point yet) vs "live match" (in progress).
     // Crionet uses at least two pre-match labels — "On court" and
     // "Warming up" (casing may vary) — which we collapse into a single
-    // `on_court` status. Any other label, including an empty one, falls
-    // through to `live`. This is consistent with the earlier behavior
-    // (hardcoded 'live'); we only split out the pre-match case.
+    // `on_court` status.
+    //
+    // Terminal labels (2026-04-23): Crionet also keeps matches visible in
+    // the tournamentlive widget for ~2 minutes AFTER they finish, rendered
+    // with a terminal label ("Completed", "Retired", "Walkover"). Before
+    // this branch existed, those rows fell through to `live` — live-poller
+    // kept bumping `matches.updated_at`, never called closeMatch, and the
+    // row got stuck at `status='live'` until the match eventually
+    // disappeared from the widget AND the sweeper decided it was stale.
+    // Brussels P2 2026 match 58eabeb6 hit exactly this: the widget said
+    // "Completed" with decisive scores (6-3, 6-4) for ~2 min, but we read
+    // it as still-live. Emitting `'finished'` here lets
+    // live-poller-loop.ts's existing close-on-widget-finish branch fire
+    // with the widget-reported sets — closing the match within one poll
+    // tick instead of waiting for disappear + sweeper.
+    //
+    // The three terminal labels all collapse to `'finished'` today. If we
+    // need to preserve the retired/walkover distinction downstream (the UI
+    // renders RET / W/O badges), that's a follow-up: closeMatch currently
+    // hardcodes status='finished', so distinguishing at the parser level
+    // alone wouldn't change DB writes. TODO: extend LiveStatus + closeMatch
+    // to carry the terminal kind through.
+    //
+    // Any other label, including an empty one, falls through to `live`.
     let status: LiveStatus = 'live';
     if (summaryRow.length > 0) {
       const spans = summaryRow.find('span');
@@ -259,6 +286,13 @@ export function parseCrionetTournamentLive(html: string): ParsedLiveTournament {
       const label = summaryRow.find(STATUS_LABEL_SELECTOR).first().text().trim().toLowerCase();
       if (label === 'on court' || label.includes('warm')) {
         status = 'on_court';
+      } else if (
+        label === 'completed' ||
+        label === 'finished' ||
+        label === 'retired' ||
+        label === 'walkover'
+      ) {
+        status = 'finished';
       }
     }
 

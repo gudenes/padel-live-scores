@@ -286,20 +286,32 @@ describe('parseCrionetTournamentLive', () => {
     expect(typeof html).toBe('string');
   });
 
-  it('parses the real Brussels P2 production fixture — multiple live matches + filters completed', () => {
+  it('parses the real Brussels P2 production fixture — 2 live + 1 completed', () => {
     const fixturePath = join(__dirname, '../fixtures/crionet-tournamentlive-brussels.html');
     const html = readFileSync(fixturePath, 'utf-8');
     const result = parseCrionetTournamentLive(html);
 
     // Fixture has 3 match blocks: 2 live (WQ008, WQ009) + 1 completed (WQ014).
-    // V1: completed matches are filtered out.
-    expect(result.matches).toHaveLength(2);
+    // Prior to 2026-04-23 the parser's header selector was `scorebox-header-live`
+    // only, which filtered out the completed row. Widened to also accept the
+    // bare `scorebox-header` so completed matches surface with status='finished',
+    // letting live-poller's close-on-finish branch fire within one poll tick
+    // instead of waiting for the match to disappear from the widget.
+    expect(result.matches).toHaveLength(3);
     const ids = result.matches.map((m) => m.matchWidgetId).sort();
-    expect(ids).toEqual(['WQ008', 'WQ009']);
+    expect(ids).toEqual(['WQ008', 'WQ009', 'WQ014']);
 
-    // All live, all women Q1
-    for (const m of result.matches) {
-      expect(m.status).toBe('live');
+    // The completed match (WQ014) must carry status='finished' AND its
+    // observed set scores — closeMatch needs both to infer the winner.
+    const wq014 = result.matches.find((m) => m.matchWidgetId === 'WQ014')!;
+    expect(wq014.status).toBe('finished');
+    expect(wq014.category).toBe('women');
+    // 3-6 / 4-6 — team 2 won 6-3, 6-4
+    expect(wq014.team1.setGames).toEqual(['3', '4', '-']);
+    expect(wq014.team2.setGames).toEqual(['6', '6', '-']);
+
+    // The live matches (WQ008, WQ009) are unchanged — still women Q1.
+    for (const m of result.matches.filter((m) => m.status === 'live')) {
       expect(m.category).toBe('women');
       expect(m.roundLabel).toBe('Q1');
     }
@@ -385,6 +397,36 @@ describe('parseCrionetTournamentLive', () => {
     for (const label of ['on court', 'ON COURT', 'On Court']) {
       const result = parseCrionetTournamentLive(htmlWithStatusLabel(label));
       expect(result.matches[0]!.status, `label="${label}"`).toBe('on_court');
+    }
+  });
+
+  // 2026-04-23: Crionet leaves matches visible in tournamentlive with a
+  // terminal label for ~2 min after they finish. Without detecting these,
+  // the live-poller keeps heartbeating and the match stays stuck at
+  // status='live' in the DB until the sweeper gives up. Brussels P2
+  // match 58eabeb6 hit this exact gap. Regression tests so that
+  // "Completed" / "Retired" / "Walkover" + case variants always collapse
+  // to the `'finished'` status that live-poller-loop's close-on-finish
+  // branch looks for.
+  it('emits status="finished" when label is "Completed"', () => {
+    const result = parseCrionetTournamentLive(htmlWithStatusLabel('Completed'));
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]!.status).toBe('finished');
+  });
+
+  it('emits status="finished" for all terminal labels (case-insensitive)', () => {
+    const labels = [
+      'Completed',
+      'COMPLETED',
+      'completed',
+      'Finished',
+      'Retired',
+      'RETIRED',
+      'Walkover',
+    ];
+    for (const label of labels) {
+      const result = parseCrionetTournamentLive(htmlWithStatusLabel(label));
+      expect(result.matches[0]!.status, `label="${label}"`).toBe('finished');
     }
   });
 
