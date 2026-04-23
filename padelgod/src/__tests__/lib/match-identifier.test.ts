@@ -582,6 +582,111 @@ describe('findOrCreateMatch', () => {
     expect(state.eids.get(COMPOSITE)?.entity_id).toBe('current-slot');
   });
 
+  it('padelapi-twin fallback: rejects court-match twin when widget pair disagrees, falls through to pair-based lookup', async () => {
+    // Regression: Brussels P2 women R16 2026-04-23 — tournament swapped
+    // court assignments last-minute. padelapi still held the stale court
+    // for match A ("Court Nextensa"), so the live widget on Court Cbc
+    // found only match B (unrelated pair) and hijacked B's row as live.
+    // With the pair sanity check, a court-only match is rejected when
+    // pairs disagree and findByPairs runs next, correctly linking the
+    // widget to A regardless of its stale court.
+    const state = makeState();
+
+    // match-A: the one actually playing. Widget pair is A's pair. But
+    // padelapi still has its court as 'Court Nextensa' (stale — tournament
+    // moved it to 'Court Cbc' at the last minute).
+    state.matches.set('match-A-stale-court', {
+      id: 'match-A-stale-court',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court Nextensa',
+      padelapi_id: '8381',
+      scheduled_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+    });
+
+    // match-B: scheduled later on Court Cbc with a different pair.
+    // Court-only lookup would hijack this row; pair sanity check rejects.
+    state.matches.set('match-B-same-court', {
+      id: 'match-B-same-court',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court Cbc',
+      padelapi_id: '8378',
+      scheduled_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      pair1_player1_id: 'p-E',
+      pair1_player2_id: 'p-F',
+      pair2_player1_id: 'p-G',
+      pair2_player2_id: 'p-H',
+    });
+
+    const supabase = fakeSupabase(state);
+    const logger = { warn: vi.fn() };
+    // Widget tells us: pair = A/B vs C/D, playing on Court Cbc.
+    const result = await findOrCreateMatch(
+      supabase as any,
+      {
+        ...BASE_INPUT,
+        court: 'Court Cbc',
+        pair1PlayerIds: ['p-A', 'p-B'],
+        pair2PlayerIds: ['p-C', 'p-D'],
+      },
+      { logger }
+    );
+
+    // Pair-based fallback should have linked us to match-A, NOT match-B.
+    expect(result.matchId).toBe('match-A-stale-court');
+    expect(result.linkedExisting).toBe(true);
+    expect(result.created).toBe(false);
+    // No duplicate thin row.
+    expect(state.matches.size).toBe(2);
+    // Widget id must point at match-A.
+    expect(state.eids.get(COMPOSITE)?.entity_id).toBe('match-A-stale-court');
+    // Twin-rejection warning should have been emitted.
+    expect(
+      logger.warn.mock.calls.some((args: unknown[]) =>
+        String(args[1] ?? '').includes('rejected by pair mismatch')
+      )
+    ).toBe(true);
+  });
+
+  it('padelapi-twin fallback: accepts court-match twin when widget pair agrees', async () => {
+    // Sanity: the pair check must NOT reject a valid twin. With matching
+    // pairs on the same court, twin still wins in one step.
+    const state = makeState();
+    state.matches.set('padelapi-twin-uuid', {
+      id: 'padelapi-twin-uuid',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court 1',
+      padelapi_id: '8376',
+      scheduled_at: new Date().toISOString(),
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+    });
+
+    const supabase = fakeSupabase(state);
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      court: 'COURT 1',
+      pair1PlayerIds: ['p-A', 'p-B'],
+      pair2PlayerIds: ['p-C', 'p-D'],
+    });
+
+    expect(result.matchId).toBe('padelapi-twin-uuid');
+    expect(result.linkedExisting).toBe(true);
+    expect(state.matches.size).toBe(1);
+    expect(state.eids.get(COMPOSITE)?.entity_id).toBe('padelapi-twin-uuid');
+  });
+
   it('padelapi-twin fallback: skips when no court provided, falls through to INSERT', async () => {
     const state = makeState();
     // A padelapi twin exists but caller has no court — we can't court-match.
