@@ -1547,6 +1547,123 @@ describe('applyDiff (shadow + dualWritePublic + notify)', () => {
     expect(captures).toHaveLength(0);
   });
 
+  it('writes status=on_court on warm-up ticks that have NO diff effect (regression 2026-04-23)', async () => {
+    // The Crionet widget shows the match in `on_court` / `WARMUP` state for
+    // several minutes BEFORE the first point is scored. Those ticks carry
+    // no pointsAdded / gameChanged / setChanged / statusChanged (in-memory
+    // prev.status === curr.status === 'on_court'), so diffHasEffect returns
+    // false and applyDiff would normally bail. That's exactly what happened
+    // on Brussels P2 2026-04-23: zero `on_court` rows ever written to the
+    // DB across an entire tournament day despite 5+ minutes of warm-up per
+    // match in the widget. The fix runs flipShadowPublicStatus BEFORE the
+    // diff-effect gate so warm-up ticks still write status.
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const captures: CapturedFetch[] = [];
+    const prev = state({ kind: 'regular', team1: 0, team2: 0 }, { status: 'on_court' });
+    const curr = state({ kind: 'regular', team1: 0, team2: 0 }, { status: 'on_court' });
+    // No-op diff — warm-up tick. statusChanged stays false because in-memory
+    // prev.status === curr.status (we've been seeing on_court for a while).
+    const diff = emptyDiff();
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+      notify: {
+        baseUrl: 'https://padelnachos.com',
+        cronSecret: 'secret',
+        logger: silentLogger(),
+        fetchImpl: makeMockFetch(captures),
+      },
+    });
+
+    // Status MUST be written to on_court even though diff is empty.
+    expect(s.matchesUpdateCalls).toHaveLength(1);
+    expect(s.matchesUpdateCalls[0]!.patch.status).toBe('on_court');
+    expect(s.matchesRows[0]!.status).toBe('on_court');
+    // Notify fires once — the DB prev was 'scheduled' (first write).
+    expect(captures).toHaveLength(1);
+    // But NO sets dual-write happened — the diff gate kept the rest of
+    // dualWriteShadowToPublic from running, which is correct (nothing to
+    // write when no point was scored).
+    expect(s.setsUpsertCalls).toHaveLength(0);
+  });
+
+  it('still writes on the very first tick (prev=null) so first-observation warm-ups get captured', async () => {
+    // In-memory prev is null the first time we see a match in the widget.
+    // Previously applyDiff returned immediately on prev===null, so the
+    // first-observation status never reached the DB. After the fix, the
+    // shadow status flip runs BEFORE the prev-null gate.
+    const { client, state: s } = makeClientWithMatch('scheduled');
+    const captures: CapturedFetch[] = [];
+    const curr = state({ kind: 'regular', team1: 0, team2: 0 }, { status: 'on_court' });
+    const diff = emptyDiff();
+
+    await applyDiff(client, MATCH_ID, null, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+      notify: {
+        baseUrl: 'https://padelnachos.com',
+        cronSecret: 'secret',
+        logger: silentLogger(),
+        fetchImpl: makeMockFetch(captures),
+      },
+    });
+
+    expect(s.matchesRows[0]!.status).toBe('on_court');
+    expect(captures).toHaveLength(1);
+  });
+
+  it('does NOT regress live → on_court when widget briefly flips label during set break', async () => {
+    // Regression guard for the tightened `.in(allowedFromStates)`. If a match
+    // is already live in the DB and the widget momentarily returns to an
+    // `on_court` label (we've occasionally seen this between sets), we must
+    // NOT overwrite the live status. Allowed transitions for targetStatus
+    // on_court are only from scheduled; live → on_court is rejected by the
+    // Supabase guard.
+    const { client, state: s } = makeClientWithMatch('live');
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, { status: 'on_court' });
+    const curr = state({ kind: 'regular', team1: 15, team2: 0 }, { status: 'on_court' });
+    const diff = emptyDiff();
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+    });
+
+    // Update is ATTEMPTED (for the heartbeat) but the allowedFromStates
+    // guard excludes 'live' for an on_court target, so the DB row stays live.
+    expect(s.matchesRows[0]!.status).toBe('live');
+  });
+
+  it('progresses on_court → live when the widget flips to Live match label', async () => {
+    const { client, state: s } = makeClientWithMatch('on_court');
+    const captures: CapturedFetch[] = [];
+    const prev = state({ kind: 'regular', team1: 0, team2: 0 }, { status: 'on_court' });
+    const curr = state({ kind: 'regular', team1: 15, team2: 0 });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+      statusChanged: true,
+    };
+
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED, {
+      mode: 'shadow',
+      dualWritePublic: true,
+      notify: {
+        baseUrl: 'https://padelnachos.com',
+        cronSecret: 'secret',
+        logger: silentLogger(),
+        fetchImpl: makeMockFetch(captures),
+      },
+    });
+
+    expect(s.matchesRows[0]!.status).toBe('live');
+    // Notify must NOT re-fire on on_court → live (prevStatus in DB was
+    // 'on_court', not 'scheduled'; the user already got their push when
+    // we stamped scheduled → on_court earlier).
+    expect(captures).toHaveLength(0);
+  });
+
   it('does NOT fire notify when opts.notify is omitted (back-compat)', async () => {
     const { client, state: s } = makeClientWithMatch('scheduled');
     const prev = state({ kind: 'regular', team1: 15, team2: 0 });

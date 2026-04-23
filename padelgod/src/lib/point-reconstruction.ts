@@ -212,6 +212,25 @@ export async function applyDiff(
   const logger = opts.logger;
   const mode = opts.mode ?? 'canonical';
 
+  // Shadow-mode public-status flip + notify.
+  //
+  // Runs BEFORE the prev-null and diff-effect gates because warm-up ticks
+  // produce no diff — no points scored, games unchanged, server unchanged —
+  // yet the match IS observed in the widget under an `on_court` label for
+  // minutes. If this ran inside dualWriteShadowToPublic (gated by diff), we
+  // would never stamp `on_court` and every match would jump `scheduled →
+  // live` the moment the first point is scored. Incident 2026-04-23:
+  // five+ minutes of warm-up for every Brussels match, zero on_court rows
+  // ever written. This early call captures that phase.
+  //
+  // Also fires `/api/push/notify` on the scheduled → on_court OR
+  // scheduled → live edge, exactly once per match. Safe on the very first
+  // tick (prev=null) — `flipShadowPublicStatus` does its own DB read for
+  // prev status, independent of the in-memory `prev` param.
+  if (mode === 'shadow' && opts.dualWritePublic) {
+    await flipShadowPublicStatus(supabase, matchId, curr, logger, opts.notify);
+  }
+
   // First poll — no prev state — nothing to write. The initial "we exist"
   // writes come from elsewhere (the reconciler creates the match row).
   if (prev === null) return;
@@ -255,7 +274,6 @@ export async function applyDiff(
         currentSetNumber,
         resolvedPlayers,
         logger,
-        opts.notify,
       );
     }
     return;
@@ -568,6 +586,107 @@ async function applyDiffShadow(
  * Called AFTER the padelgod shadow writes — dual-write failures here are
  * non-fatal, logged at `warn`. Never overwrites terminal match statuses.
  */
+/**
+ * Shadow-mode status flip + notify. Runs on EVERY live-poller tick for
+ * shadow-dual-write tournaments, INCLUDING ticks that produce no point/
+ * game/set diff — that's the whole point.
+ *
+ * Why this is separate from dualWriteShadowToPublic
+ * -------------------------------------------------
+ * `dualWriteShadowToPublic` (the sets/games dual-write) is gated inside
+ * `applyDiff` by `if (!diffHasEffect(diff)) return;` — if no points were
+ * scored this tick, everything is skipped. During the pre-match warm-up
+ * phase, the widget can show "On court" for 5+ minutes with zero points
+ * scored, so the diff is effect-less every tick. Previously the status
+ * flip lived inside dualWriteShadowToPublic, so warm-up ticks never wrote
+ * `on_court` to the DB — every match jumped straight from `scheduled` to
+ * `live` the moment the first point was scored. Evidence: zero rows with
+ * `status='on_court'` anywhere in the DB as of 2026-04-23, despite the
+ * Crionet widget literally emitting `<span class="ml-4">On court</span>`
+ * for 5+ minutes per match.
+ *
+ * Pulling the status flip out ahead of the diff gate fixes that. It also
+ * enables per-tick heartbeats during warm-up (so close-stale-live-sweeper
+ * has a fresh `updated_at` to reason about), though the sweeper only
+ * targets `status IN ('live','ended')` so warm-up heartbeats aren't
+ * strictly required — they're just nice to have.
+ *
+ * Regression guard (2026-04-23 tightening)
+ * ----------------------------------------
+ * The old guard `.in('status', ['scheduled','on_court','live'])` allowed
+ * `live → on_court` regressions — if the widget briefly flipped the label
+ * back to "On court" during a set break (we've occasionally seen this),
+ * the DB row would regress. Tightened: `on_court` writes are only allowed
+ * from `scheduled`. `live` writes are allowed from `scheduled | on_court
+ * | live` (including self-heartbeats). Terminal states (`finished` /
+ * `walkover` / `retired`) remain untouchable.
+ *
+ * Notify
+ * ------
+ * When the row transitions out of `scheduled` (to either `on_court` or
+ * `live`), fires `POST /api/push/notify` fire-and-forget. Only fires once
+ * per match lifetime — subsequent ticks see `prevStatus !== 'scheduled'`
+ * and no-op. See `./notify.ts` for the dispatch details.
+ */
+async function flipShadowPublicStatus(
+  supabase: SupabaseClient,
+  matchId: string,
+  curr: LiveMatchState,
+  logger: Logger | undefined,
+  notify: NotifyDeps | undefined,
+): Promise<void> {
+  // Widget parser emits 'scheduled' | 'on_court' | 'live' | 'finished'.
+  // `finished` ticks are handled upstream by closeMatch — not this function.
+  // Pre-match phases ('scheduled' — unusual, we normally don't see it) and
+  // 'on_court' collapse to `on_court`. Everything else is `live`.
+  const targetStatus: 'on_court' | 'live' =
+    curr.status === 'on_court' ? 'on_court' : 'live';
+
+  // Allowed prev states by target:
+  //   - on_court ← scheduled                  (forward-only; never live → on_court)
+  //   - live     ← scheduled | on_court | live (allows self-heartbeat on live)
+  // Terminal statuses never land in this list so they can't be overwritten.
+  const allowedFromStates =
+    targetStatus === 'on_court'
+      ? ['scheduled', 'on_court']
+      : ['scheduled', 'on_court', 'live'];
+
+  // Capture prev status so we can fire notify on the scheduled → * edge.
+  // Also used below as a cheap sanity signal in the heartbeat log.
+  let prevStatus: string | null = null;
+  const { data: prevRow, error: prevErr } = await supabase
+    .from('matches')
+    .select('status')
+    .eq('id', matchId)
+    .maybeSingle();
+  if (prevErr) {
+    logger?.warn(
+      { matchId, err: prevErr.message },
+      'flipShadowPublicStatus: prev-status read failed; proceeding with update',
+    );
+  } else {
+    prevStatus = (prevRow?.status as string | null) ?? null;
+  }
+
+  const { error: statusErr } = await supabase
+    .from('matches')
+    .update({ status: targetStatus, updated_at: new Date().toISOString() })
+    .eq('id', matchId)
+    .in('status', allowedFromStates);
+  if (statusErr) {
+    logger?.warn(
+      { matchId, err: statusErr.message },
+      'flipShadowPublicStatus: status flip failed',
+    );
+  }
+
+  // Notify on the first transition out of `scheduled`. On_court → live
+  // and heartbeats do not notify (prevStatus !== 'scheduled').
+  if (notify && !statusErr && prevStatus === 'scheduled') {
+    notifyLiveTransition(matchId, notify);
+  }
+}
+
 async function dualWriteShadowToPublic(
   supabase: SupabaseClient,
   matchId: string,
@@ -575,86 +694,11 @@ async function dualWriteShadowToPublic(
   currentSetNumber: number,
   resolvedPlayers: ResolvedPlayers,
   logger: Logger | undefined,
-  notify: NotifyDeps | undefined,
 ): Promise<void> {
-  // 0. Capture the current status BEFORE the flip so we can fire notify on
-  //    the first transition out of `scheduled`. One extra SELECT per tick
-  //    is acceptable — this path only runs for shadow-mode tournaments
-  //    during their live window. Non-fatal on error: if the read fails we
-  //    fall through without notify rather than blocking the status flip.
-  let prevStatus: string | null = null;
-  if (notify) {
-    const { data: prevRow, error: prevErr } = await supabase
-      .from('matches')
-      .select('status')
-      .eq('id', matchId)
-      .maybeSingle();
-    if (prevErr) {
-      logger?.warn(
-        { matchId, err: prevErr.message },
-        'applyDiff(shadow dual-write): prev-status read for notify failed; skipping notify',
-      );
-    } else {
-      prevStatus = (prevRow?.status as string | null) ?? null;
-    }
-  }
-
-  // 1. Status flip + liveness ping.
-  //
-  //    Writes the observed status (`on_court` or `live`) + bumps
-  //    `updated_at` on EVERY tick where the match is still non-terminal.
-  //    Serves three purposes:
-  //
-  //      a) One-shot transition `scheduled` → `on_court`/`live` on the first
-  //         tick we observe the match in the widget. Pre-match matches go
-  //         to `on_court`; in-progress matches go straight to `live`.
-  //      b) Phase transition `on_court` → `live` when the match actually
-  //         starts (first point scored and Crionet flips the label).
-  //      c) Per-tick heartbeat when status is already `on_court` or `live`.
-  //         Without this, `public.matches.updated_at` goes stale 15+ min
-  //         after the transition and the close-stale-live-sweeper wrongly
-  //         closes the match as "stuck" even though the live-poller is
-  //         still writing sets every tick.
-  //
-  //    Guarded with `.in('status', ['scheduled','on_court','live'])` so
-  //    terminal statuses (`finished`/`walkover`/`retired`) are never
-  //    regressed. Writing the same non-terminal value twice is a harmless
-  //    no-op for the status column itself — the value we care about is
-  //    `updated_at`.
-  //
-  //    We derive the target status from `curr.status`: pre-match phases
-  //    collapse to `on_court`, live ticks collapse to `live`. `finished`
-  //    from the parser is handled by closeMatch, not this dual-write, so
-  //    it's not a valid value here.
-  const targetStatus: 'on_court' | 'live' =
-    curr.status === 'on_court' ? 'on_court' : 'live';
-  const { error: statusErr } = await supabase
-    .from('matches')
-    .update({ status: targetStatus, updated_at: new Date().toISOString() })
-    .eq('id', matchId)
-    .in('status', ['scheduled', 'on_court', 'live']);
-  if (statusErr) {
-    logger?.warn(
-      { matchId, err: statusErr.message },
-      'applyDiff(shadow dual-write): status flip failed',
-    );
-  }
-
-  // 1b. Web-push notification on the first transition out of `scheduled`.
-  //
-  //     We fire regardless of whether the new status is `on_court` or
-  //     `live` — bookmarkers + player-followers want to know the moment
-  //     a match leaves the scheduled state. On subsequent ticks
-  //     (`on_court` → `live`, or per-tick heartbeats on already-live
-  //     rows) prevStatus won't be `'scheduled'` so this no-ops.
-  //
-  //     Fire-and-forget: never awaits, never throws. Skipped entirely if
-  //     `notify` deps aren't configured (NOTIFY_BASE_URL / CRON_SECRET
-  //     unset) or the status flip itself errored (avoid false-positive
-  //     notifications on failed writes).
-  if (notify && !statusErr && prevStatus === 'scheduled') {
-    notifyLiveTransition(matchId, notify);
-  }
+  // Status flip + heartbeat + notify have moved to `flipShadowPublicStatus`,
+  // which applyDiff calls BEFORE the diff-has-effect gate so warm-up ticks
+  // (no points scored) still write status. This function now focuses
+  // exclusively on the sets dual-write.
 
   // 2. Read existing score_source per set — used to skip rows owned by a
   //    higher-priority pipeline ('api' / 'live'). One query for the match
