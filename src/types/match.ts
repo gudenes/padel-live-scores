@@ -262,9 +262,36 @@ export function getLastNPoints(
   return allPoints.slice(-n)
 }
 
-// Country code → flag emoji
+// 3-letter ISO 3166-1 alpha-3 → 2-letter alpha-2. Kept inline here
+// (not imported from player-resolver.ts) because match.ts is consumed
+// by the browser bundle and we want the mapping tree-shakable. Covers
+// the 3-letter codes that actually appear in our `players.country`
+// column today, plus a handful of common non-ISO aliases that the FIP
+// search API occasionally emits (POR, NED, DEN, SUI, CRO, RSA …).
+const CC3_TO_CC2: Record<string, string> = {
+  ESP: 'ES', ARG: 'AR', BRA: 'BR', PRT: 'PT', POR: 'PT', FRA: 'FR',
+  ITA: 'IT', BEL: 'BE', NLD: 'NL', NED: 'NL', DEU: 'DE', GER: 'DE',
+  GBR: 'GB', DNK: 'DK', DEN: 'DK', SWE: 'SE', URY: 'UY', URU: 'UY',
+  PRY: 'PY', PAR: 'PY', CHL: 'CL', CHI: 'CL', MEX: 'MX', USA: 'US',
+  AUS: 'AU', QAT: 'QA', ARE: 'AE', UAE: 'AE', EGY: 'EG', COL: 'CO',
+  PER: 'PE', CRI: 'CR', CRC: 'CR', FIN: 'FI', NOR: 'NO', POL: 'PL',
+  AUT: 'AT', CHE: 'CH', SUI: 'CH', GRC: 'GR', GRE: 'GR', SAU: 'SA',
+  JPN: 'JP', KOR: 'KR', CHN: 'CN', IND: 'IN', MAR: 'MA', ZAF: 'ZA',
+  RSA: 'ZA', IRL: 'IE', CZE: 'CZ', HRV: 'HR', CRO: 'HR', BHR: 'BH',
+  KWT: 'KW', ECU: 'EC', ROU: 'RO', UKR: 'UA', BOL: 'BO',
+}
+
+// Country code → flag emoji. Accepts both 2-letter (alpha-2) and
+// 3-letter (alpha-3) ISO codes — our `players.country` column today
+// has a mix: padelapi sync writes alpha-2 ("ES"), FIP-search + FIP
+// PDF pipeline write alpha-3 ("ESP"). Verified distribution at
+// audit time: 13 alpha-2, 162 alpha-3 across 175 Brussels players.
+// Before this change, only alpha-2 rendered flags — the alpha-3 rows
+// fell through to '' and the MatchCard showed no flag.
 export function countryFlag(country: string | null): string {
   if (!country) return ''
+  const up = country.trim().toUpperCase()
+  const cc2 = up.length === 2 ? up : CC3_TO_CC2[up] ?? up
   const flags: Record<string, string> = {
     ES: '🇪🇸', AR: '🇦🇷', BR: '🇧🇷', PT: '🇵🇹',
     FR: '🇫🇷', IT: '🇮🇹', BE: '🇧🇪', NL: '🇳🇱',
@@ -277,6 +304,7 @@ export function countryFlag(country: string | null): string {
     KR: '🇰🇷', CN: '🇨🇳', IN: '🇮🇳', MA: '🇲🇦',
     ZA: '🇿🇦', IE: '🇮🇪', CZ: '🇨🇿', HR: '🇭🇷',
     BH: '🇧🇭', KW: '🇰🇼', EC: '🇪🇨', RO: '🇷🇴',
+    UA: '🇺🇦', BO: '🇧🇴',
   }
-  return flags[country.toUpperCase()] ?? ''
+  return flags[cc2] ?? ''
 }
