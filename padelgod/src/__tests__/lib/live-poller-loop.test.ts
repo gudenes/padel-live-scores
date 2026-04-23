@@ -111,6 +111,18 @@ function fakeSupabase(opts: { matchId: string }): any {
       matchesUpdateCalls.push({ patch, filters: { ...filters } });
       resolve({ data: null, error: null });
     };
+    // After `.select('id')` the chain becomes a non-recording promise that
+    // resolves with a synthesized [{ id: opts.matchId }] array so closeMatch's
+    // `causedTransition` check (updated.length > 0) evaluates to true, while
+    // still recording the original update call via the underlying record.
+    // We record-and-resolve once at the terminator the CLIENT CODE actually
+    // awaits — whichever terminator that is.
+    const makeSelectTerminal = () => ({
+      then: (resolve: (v: any) => void) => {
+        matchesUpdateCalls.push({ patch, filters: { ...filters } });
+        resolve({ data: [{ id: opts.matchId }], error: null });
+      },
+    });
     const makeTerminal = () => ({
       then: (resolve: (v: any) => void) => recordAndResolve(resolve),
       // Tolerate further `.is()` / `.eq()` / `.in()` chaining even after a
@@ -128,6 +140,12 @@ function fakeSupabase(opts: { matchId: string }): any {
         filters[`in:${col}`] = vals;
         return makeTerminal();
       },
+      // closeMatch (post-2026-04-23) chains `.select('id')` after the update
+      // filters so it can distinguish "caused the flip" (rows returned) from
+      // "no-op, already terminal" (empty array). Returns a promise that resolves
+      // with a single-row array so tests continue to see causedTransition=true
+      // (which matches the prior behavior of an unconditional notify).
+      select: (_cols: string) => makeSelectTerminal(),
     });
     return {
       eq: (col: string, val: unknown) => {

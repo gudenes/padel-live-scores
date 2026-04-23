@@ -1,20 +1,36 @@
 // src/app/api/push/notify/route.ts
 //
-// Internal endpoint — fired by the score cron when a match goes live.
-// Protected by CRON_SECRET. Same request shape as before: { matchId }.
+// Internal endpoint — fired by padelgod's live-poller + Vercel score cron
+// on match state transitions. Protected by CRON_SECRET.
 //
-// RECIPIENT FAN-OUT (unchanged from the pre-rewire version):
+// REQUEST: { matchId }  (same as before — no event param needed)
+//
+// AUTO-DETECT EVENT FROM match.status:
+//   - scheduled / on_court / live → "Match is Live" / "X is on court" category
+//     (match_live_bookmark / match_live_follow)
+//   - finished / retired / walkover → "Match finished" / "X won/lost"
+//     (match_finished)
+//
+// Callers don't pass an event — the endpoint reads match.status and picks
+// the right content + category. Simplifies the caller API (padelgod just
+// says "notify about this match" whenever it writes a transition) and
+// prevents mismatches between caller intent and DB truth.
+//
+// RECIPIENT FAN-OUT:
 //   1. Users who BOOKMARKED the match       → reason 'bookmark'
 //   2. Users who FOLLOW any of the 4 players → reason 'follow'
 //   When a user is in both groups, the follow reason wins (more specific).
 //
-// NEW: per-user prefs gate each channel:
-//   - category = reason.kind === 'follow' ? 'match_live_follow' : 'match_live_bookmark'
-//   - resolvePrefs(userPrefs, category) → { push, inApp }
-//   - push  flag gates the existing sendPush() call
-//   - inApp flag gates a row insert into user_notifications
-//   - Both branches run independently via Promise.allSettled — a failure
-//     in one does not prevent the other.
+// Per-user prefs gate each channel via resolvePrefs(). push flag gates
+// sendPush, inApp flag gates user_notifications insert. Both branches
+// run via Promise.allSettled — independent success/failure.
+//
+// DEDUP (2026-04-23): for finished events, a (user_id, match_id, category)
+// row in user_notifications means we already sent it — skip the whole
+// pipeline for that user. Protects against double-fires when both
+// padelgod's closeMatch and Vercel's writeFinalState try to notify on the
+// same transition. Live events don't need this guard because the writer
+// guards with prevStatus === 'scheduled' at the caller side.
 
 import { createClient } from '@supabase/supabase-js'
 import { sendPush } from '@/lib/push'
@@ -26,9 +42,17 @@ const supabase = createClient(
 )
 
 interface PlayerLite { id: string; name: string | null }
+interface SetLite {
+  set_number: number | null
+  set_score: string | null
+  pair1_games: number | null
+  pair2_games: number | null
+}
 interface MatchRow {
   id: string
+  status: string | null
   round: string | null
+  winner_pair: number | null
   pair1_player1_id: string | null
   pair1_player2_id: string | null
   pair2_player1_id: string | null
@@ -38,7 +62,10 @@ interface MatchRow {
   pair1_player2: PlayerLite | null
   pair2_player1: PlayerLite | null
   pair2_player2: PlayerLite | null
+  sets: SetLite[] | null
 }
+
+const FINISHED_STATUSES = new Set(['finished', 'retired', 'walkover', 'ended'])
 
 function lastName(fullName: string | null | undefined): string {
   if (!fullName) return ''
@@ -56,9 +83,134 @@ function buildBody(m: MatchRow): string {
   return `${team1} vs ${team2}${tournament ? ` — ${tournament}` : ''}${round ? ` ${round}` : ''}`
 }
 
+// ── Finished-event helpers ──────────────────────────────────────────
+//
+// Render a compact final score from the sets array. Prefers `set_score`
+// (the authoritative string written by padelapi/relay, e.g. "6-3") and
+// falls back to `{pair1_games}-{pair2_games}` for sets where the score
+// string never landed (live-inferred sets). Sets are rendered in
+// set_number order and joined with `, ` — "6-3, 4-6, 7-5".
+function renderFinalScore(sets: SetLite[] | null | undefined): string {
+  if (!sets || sets.length === 0) return ''
+  const ordered = [...sets].sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
+  const parts: string[] = []
+  for (const s of ordered) {
+    if (s.set_score) {
+      parts.push(s.set_score)
+      continue
+    }
+    if (s.pair1_games != null && s.pair2_games != null) {
+      parts.push(`${s.pair1_games}-${s.pair2_games}`)
+    }
+  }
+  return parts.join(', ')
+}
+
+// Build "<winners> won" name pair for the title, OR return null when we
+// can't confidently identify the winners (missing winner_pair, missing
+// player names). Callers fall back to a generic "Match finished" title.
+function winnerPairName(m: MatchRow): string | null {
+  if (m.winner_pair !== 1 && m.winner_pair !== 2) return null
+  const pair = m.winner_pair === 1
+    ? [m.pair1_player1, m.pair1_player2]
+    : [m.pair2_player1, m.pair2_player2]
+  const names = pair
+    .map(p => (p?.name ? lastName(p.name) : null))
+    .filter((n): n is string => !!n)
+  if (names.length === 0) return null
+  return names.join('/')
+}
+
+interface FinishedContent {
+  title: string
+  body: string
+}
+
+// Finished-event content, tailored per recipient reason.
+//
+// bookmark (user bookmarked the match):
+//   Title: "Match finished 🏆"
+//   Body:  "Triay/Brea won 6-3, 6-4 — Brussels P2 R16"
+//
+// follow (user follows one of the 4 players):
+//   Title: "<lastName> won 🏆"   OR   "<lastName> lost"
+//   Body:  "6-3, 6-4 vs Rodriguez/Pozzo — Brussels P2 R16"
+//   (The body shows the OPPONENT team to give the user their player's
+//    context. Score is written from the followed-player's perspective.)
+//
+// retired/walkover:
+//   Title: "Match ended"
+//   Body:  "6-3 (retired) — …"  or "Walkover — …"
+function buildFinishedContent(
+  m: MatchRow,
+  reason: RecipientReason,
+  followedPlayerId: string | null,
+): FinishedContent {
+  const tournament = m.tournament?.name ?? ''
+  const round = m.round ?? ''
+  const tail = [tournament, round].filter(Boolean).join(' ')
+  const status = (m.status ?? '').toLowerCase()
+  const isRetired = status === 'retired'
+  const isWalkover = status === 'walkover'
+
+  const score = renderFinalScore(m.sets)
+  const winners = winnerPairName(m)
+
+  // ── Walkover / retired special cases ─────────────────────────────
+  if (isWalkover) {
+    return {
+      title: 'Match ended',
+      body: `Walkover${tail ? ` — ${tail}` : ''}`,
+    }
+  }
+  if (isRetired) {
+    return {
+      title: 'Match ended',
+      body: `${score ? `${score} ` : ''}(retired)${tail ? ` — ${tail}` : ''}`,
+    }
+  }
+
+  // ── Follow-reason — tailor title from the user's player's perspective ──
+  if (reason.kind === 'follow' && reason.followedPlayerName && followedPlayerId) {
+    const followedInPair1 = m.pair1_player1?.id === followedPlayerId || m.pair1_player2?.id === followedPlayerId
+    const followedPairNum = followedInPair1 ? 1 : 2
+    const userWon = m.winner_pair === followedPairNum
+    const title = userWon
+      ? `${reason.followedPlayerName} won 🏆`
+      : `${reason.followedPlayerName} lost`
+    // Opponent team for context
+    const opp = followedPairNum === 1
+      ? [m.pair2_player1, m.pair2_player2]
+      : [m.pair1_player1, m.pair1_player2]
+    const oppNames = opp
+      .map(p => (p?.name ? lastName(p.name) : null))
+      .filter((n): n is string => !!n)
+      .join('/')
+    const body = [
+      score,
+      oppNames ? `vs ${oppNames}` : '',
+      tail ? `— ${tail}` : '',
+    ].filter(Boolean).join(' ')
+    return { title, body }
+  }
+
+  // ── Bookmark reason (or follow fallback with no winner data) ─────
+  const title = 'Match finished 🏆'
+  const body = winners && score
+    ? `${winners} won ${score}${tail ? ` — ${tail}` : ''}`
+    : score
+      ? `${score}${tail ? ` — ${tail}` : ''}`
+      : buildBody(m) // final fallback — reuse the live-event body format
+  return { title, body }
+}
+
 interface RecipientReason {
   kind: 'bookmark' | 'follow'
   followedPlayerName?: string
+  // Needed for finished-event body rendering — lets us tell which pair
+  // the user's player was on (so we can render "won 6-3, 6-4" vs the
+  // other team). Not used for live events.
+  followedPlayerId?: string
 }
 
 export async function POST(request: Request) {
@@ -73,16 +225,20 @@ export async function POST(request: Request) {
   }
 
   // ── Fetch match details ────────────────────────────────────
+  //    status + winner_pair + sets drive the event-type branch below.
+  //    For live matches those three are often empty/null — harmless,
+  //    we only read them when status is in FINISHED_STATUSES.
   const { data: matchRaw } = await supabase
     .from('matches')
     .select(`
-      id, round,
+      id, status, round, winner_pair,
       pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id,
       tournament:tournaments(name),
       pair1_player1:players!matches_pair1_player1_id_fkey(id, name),
       pair1_player2:players!matches_pair1_player2_id_fkey(id, name),
       pair2_player1:players!matches_pair2_player1_id_fkey(id, name),
-      pair2_player2:players!matches_pair2_player2_id_fkey(id, name)
+      pair2_player2:players!matches_pair2_player2_id_fkey(id, name),
+      sets(set_number, set_score, pair1_games, pair2_games)
     `)
     .eq('id', matchId)
     .single()
@@ -129,7 +285,11 @@ export async function POST(request: Request) {
       if (existing?.kind === 'follow') continue
       const playerDisplayName = playerNameById.get(playerId)
       if (!playerDisplayName) continue
-      recipientReason.set(userId, { kind: 'follow', followedPlayerName: playerDisplayName })
+      recipientReason.set(userId, {
+        kind: 'follow',
+        followedPlayerName: playerDisplayName,
+        followedPlayerId: playerId,
+      })
     }
   }
 
@@ -137,12 +297,47 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, recipients: 0, sent: 0, inapp_written: 0, reason: 'no recipients' })
   }
 
+  // ── Event resolution ──────────────────────────────────────
+  // The endpoint auto-detects finished vs live from match.status.
+  // 'ended' is a transitional state (score being confirmed) — treated
+  // as finished for notify purposes since the match is no longer active.
+  const isFinishedEvent = FINISHED_STATUSES.has((match.status ?? '').toLowerCase())
+
   const userIds = [...recipientReason.keys()]
+
+  // ── Dedup for finished events ─────────────────────────────
+  // If user_notifications already has a (user, match, match_finished)
+  // row, we've already notified — skip that user entirely. Prevents
+  // double-push when both padelgod's closeMatch and Vercel's scores
+  // cron writeFinalState try to fire for the same transition. Live
+  // events don't need this guard (caller-side prevStatus check handles
+  // it) so we skip the extra query for speed.
+  const alreadyNotifiedUsers = new Set<string>()
+  if (isFinishedEvent) {
+    const { data: existing } = await supabase
+      .from('user_notifications')
+      .select('user_id')
+      .eq('category', 'match_finished')
+      .eq('metadata->>match_id', matchId)
+      .in('user_id', userIds)
+    for (const row of existing ?? []) {
+      if (row.user_id) alreadyNotifiedUsers.add(row.user_id as string)
+    }
+  }
+  // Filter recipients to only those not yet notified for this event type.
+  for (const uid of alreadyNotifiedUsers) recipientReason.delete(uid)
+  if (recipientReason.size === 0) {
+    return Response.json({
+      ok: true, recipients: 0, sent: 0, inapp_written: 0,
+      reason: 'all recipients already notified (finished dedup)',
+    })
+  }
+  const filteredUserIds = [...recipientReason.keys()]
 
   // ── Batch-fetch prefs + subscriptions in parallel ──────────
   const [prefsRes, subsRes] = await Promise.all([
-    supabase.from('profiles').select('id, notification_prefs').in('id', userIds),
-    supabase.from('push_subscriptions').select('id, user_id, endpoint, keys').in('user_id', userIds),
+    supabase.from('profiles').select('id, notification_prefs').in('id', filteredUserIds),
+    supabase.from('push_subscriptions').select('id, user_id, endpoint, keys').in('user_id', filteredUserIds),
   ])
 
   const prefsByUser = new Map<string, Record<string, Partial<ChannelPrefs>>>()
@@ -162,7 +357,10 @@ export async function POST(request: Request) {
   }
 
   // ── Per-recipient resolve → split into in-app inserts + push payloads ──
-  const body = buildBody(match)
+  // Live-event body is shared across recipients. Finished content is built
+  // per-recipient because the title depends on which player the user
+  // follows (won vs lost) and the body swaps the opponent team in.
+  const liveBody = buildBody(match)
   const inAppRows: Array<{
     user_id: string
     category: string
@@ -177,11 +375,25 @@ export async function POST(request: Request) {
   const reasonBySubId = new Map<string, 'bookmark' | 'follow'>()
 
   for (const [userId, reason] of recipientReason) {
-    const category = reason.kind === 'follow' ? 'match_live_follow' : 'match_live_bookmark'
+    // Category depends on event type: finished matches always land in
+    // match_finished (single bucket regardless of bookmark/follow), while
+    // live matches split by reason kind for channel-level preference.
+    const category = isFinishedEvent
+      ? 'match_finished'
+      : (reason.kind === 'follow' ? 'match_live_follow' : 'match_live_bookmark')
     const resolved = resolvePrefs(prefsByUser.get(userId), category)
-    const title = reason.kind === 'follow' && reason.followedPlayerName
-      ? `${reason.followedPlayerName} is on court! 🟢`
-      : 'Match is Live! 🟢'
+    let title: string
+    let body: string
+    if (isFinishedEvent) {
+      const content = buildFinishedContent(match, reason, reason.followedPlayerId ?? null)
+      title = content.title
+      body = content.body
+    } else {
+      title = reason.kind === 'follow' && reason.followedPlayerName
+        ? `${reason.followedPlayerName} is on court! 🟢`
+        : 'Match is Live! 🟢'
+      body = liveBody
+    }
 
     if (resolved.inApp) {
       inAppRows.push({
@@ -193,6 +405,7 @@ export async function POST(request: Request) {
         metadata: {
           match_id: matchId,
           reason: reason.kind,
+          event: isFinishedEvent ? 'finished' : 'live',
           ...(reason.followedPlayerName ? { followed_player_name: reason.followedPlayerName } : {}),
         },
       })

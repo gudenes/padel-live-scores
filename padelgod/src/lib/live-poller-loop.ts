@@ -59,6 +59,7 @@ import {
 } from './live-state.js';
 import { applyDiff, type ResolvedPlayers } from './point-reconstruction.js';
 import { findOrCreateMatch } from './match-identifier.js';
+import { notifyLiveTransition } from './notify.js';
 import {
   computeBackstampedStartedAt,
   formatDurationHHMM,
@@ -883,11 +884,18 @@ export class LivePollerLoop {
       matchUpdate.duration = formatDurationHHMM(durationMinutes);
     }
 
-    const { error: mErr } = await this.opts.supabase
+    // `.select('id')` distinguishes "we caused the scheduled→finished flip"
+    // (updated.length === 1) from "no-op, already terminal" (updated.length
+    // === 0). We only fire the web-push notify when we caused the flip —
+    // prevents double-notify when padelapi races us or when this code path
+    // runs twice in quick succession (e.g. widget + disappeared_from_feed
+    // both firing).
+    const { data: updated, error: mErr } = await this.opts.supabase
       .from('matches')
       .update(matchUpdate)
       .eq('id', matchId)
-      .in('status', ['on_court', 'live']);
+      .in('status', ['on_court', 'live'])
+      .select('id');
     if (mErr) {
       this.opts.logger.warn(
         this.logCtx({ matchId, err: mErr.message, reason }),
@@ -895,6 +903,7 @@ export class LivePollerLoop {
       );
       return;
     }
+    const causedTransition = Array.isArray(updated) && updated.length > 0;
 
     const finalSets = buildFinalSets(state, winner);
     for (const row of finalSets) {
@@ -934,6 +943,20 @@ export class LivePollerLoop {
       }),
       'close-match: transitioned to finished',
     );
+
+    // ── Web-push notify: "Match finished 🏆" ──────────────────
+    // Fire only when this call actually caused the status transition
+    // (guarded by causedTransition above). The /api/push/notify endpoint
+    // auto-detects match.status and picks the finished content + the
+    // match_finished category. It also dedups at the user_notifications
+    // level, so even if Vercel's scores cron races us here, only the
+    // first caller's notification reaches the user.
+    //
+    // Fire-and-forget — notify.ts handles all error + missing-env cases
+    // internally. Never blocks the close flow.
+    if (causedTransition && this.opts.notify) {
+      notifyLiveTransition(matchId, this.opts.notify);
+    }
   }
 
   private async getResolvedPlayers(matchId: string): Promise<ResolvedPlayers> {
