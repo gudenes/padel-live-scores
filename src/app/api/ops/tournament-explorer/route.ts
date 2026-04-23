@@ -38,6 +38,11 @@ interface TournamentWithSources {
   level: string | null
   country: string | null
   logo_url: string | null
+  // FIP id — when present, this tournament can be seeded from padelfip.com's
+  // PDF entry list via /api/ops/seed-fip-entry-list. Null for padelapi-only
+  // events, which can't use the FIP PDF fallback (e.g. most Premier Padel
+  // tournaments — Brussels P2 is a classic example).
+  fip_id: string | null
   // Most-recent captured_at per padelgod source (null = no snapshot yet).
   entryListCapturedAt: string | null
   oopCapturedAt: string | null
@@ -138,7 +143,7 @@ export async function GET() {
 
   const { data: tournaments, error: tourErr } = await supabase
     .from('tournaments')
-    .select('id, name, starts_at, ends_at, source, level, country, logo_url')
+    .select('id, name, starts_at, ends_at, source, level, country, logo_url, fip_id')
     .in('id', [...tournamentIds])
     .order('starts_at', { ascending: false, nullsFirst: false })
 
@@ -158,6 +163,7 @@ export async function GET() {
     level: string | null
     country: string | null
     logo_url: string | null
+    fip_id: string | null
   }) => ({
     ...t,
     entryListCapturedAt: entryListMap.get(t.id) ?? null,

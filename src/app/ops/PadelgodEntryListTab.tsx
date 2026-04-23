@@ -59,6 +59,7 @@ interface TournamentRef {
   source: string | null
   level: string | null
   country: string | null
+  fip_id: string | null
   latestSnapshotAt?: string | null
 }
 
@@ -116,6 +117,26 @@ export interface PadelgodEntryListTabProps {
   tournamentId?: string
 }
 
+// Summary the seed endpoint returns — matches POST /api/ops/seed-fip-entry-list
+// response shape so the UI can surface what was inserted.
+interface SeedResult {
+  ok: boolean
+  tournament?: { id: string; name: string; fip_id: string }
+  scrapeJobId?: string
+  playersInserted?: number
+  snapshotsInserted?: number
+  stats?: {
+    dbMatches?: number
+    fipSearchMatches?: number
+    unresolved?: number
+    teamsParsed?: number
+    pdfsDownloaded?: number
+  }
+  unresolved?: Array<{ name: string; category: string; reason: string }>
+  pdfUrls?: Record<string, string | null>
+  error?: string
+}
+
 export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryListTabProps = {}) {
   const embedded = Boolean(tournamentId)
 
@@ -126,6 +147,12 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeCategory, setActiveCategory] = useState<'men' | 'women'>('men')
+
+  // FIP PDF seed state — dormant unless the operator clicks the button.
+  // Tracked per-tournament via the active selectedTournamentId, so switching
+  // tournaments clears the banner implicitly via the render guards below.
+  const [seeding, setSeeding] = useState(false)
+  const [seedResult, setSeedResult] = useState<SeedResult | null>(null)
 
   // ── Initial fetch: tournament list (standalone only) ──
   useEffect(() => {
@@ -191,10 +218,45 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
 
   useEffect(() => {
     if (selectedTournamentId) {
+      // Clear any prior seed banner — it's tied to the previous tournament.
+      setSeedResult(null)
       void fetchDetail(selectedTournamentId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTournamentId])
+
+  // ── FIP PDF seed action ──
+  //
+  // POSTs to /api/ops/seed-fip-entry-list which runs the pipeline:
+  //   event page → PDF urls → parse → resolve via PlayerResolver →
+  //   persist to padelgod.entry_list_snapshots with job_type='fip_pdf_entry_list'.
+  // After success we refetch the detail so the freshly-imported rows appear
+  // in the table immediately.
+  const handleSeedFromFip = useCallback(async () => {
+    if (!selectedTournamentId) return
+    setSeeding(true)
+    setSeedResult(null)
+    setError(null)
+    try {
+      const res = await fetch('/api/ops/seed-fip-entry-list', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tournamentId: selectedTournamentId }),
+      })
+      const body = (await res.json()) as SeedResult
+      setSeedResult(body)
+      if (body.ok) {
+        await fetchDetail(selectedTournamentId)
+      }
+    } catch (e) {
+      setSeedResult({
+        ok: false,
+        error: e instanceof Error ? e.message : 'Seed request failed',
+      })
+    } finally {
+      setSeeding(false)
+    }
+  }, [selectedTournamentId, fetchDetail])
 
   // ── Render ──
 
@@ -289,6 +351,21 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
 
       {loadingDetail && (
         <div style={{ ...card, color: '#666', fontSize: 12 }}>Loading snapshot…</div>
+      )}
+
+      {/* ── FIP PDF seed panel ──
+          Shows when the selected tournament has a fip_id (i.e. we can scrape
+          padelfip.com's entry-list PDF). Renders whether or not snapshots
+          already exist — operators may want to force-refresh after the FIP
+          event page changes. */}
+      {detail && !loadingDetail && detail.tournament?.fip_id && (
+        <FipSeedPanel
+          tournament={detail.tournament}
+          hasExistingSnapshot={Boolean(detail.capturedAt)}
+          seeding={seeding}
+          onSeed={handleSeedFromFip}
+          result={seedResult}
+        />
       )}
 
       {detail && !loadingDetail && (
@@ -497,4 +574,172 @@ const tdStyle: React.CSSProperties = {
   padding: '6px 10px',
   color: '#333',
   verticalAlign: 'top',
+}
+
+// ── FIP PDF seed panel ─────────────────────────────────────────────────
+// Rendered when the selected tournament has a `fip_id`. Gives the operator
+// a one-click action to run /api/ops/seed-fip-entry-list — useful for:
+//   1. FIP-only tournaments with no Crionet entry list published
+//      (e.g. FIP BRONZE IJUÍ, 2026-04-21 test case)
+//   2. Tournaments where Crionet's widget still says "Entry list coming
+//      soon" but padelfip.com already has the PDF published
+//   3. Force-refreshing after the FIP page publishes an updated PDF
+//
+// The panel is deliberately loud when there's NO existing snapshot (primary
+// CTA button with an explainer), and subdued when snapshots already exist
+// (small "Re-seed from FIP PDF" link).
+
+function FipSeedPanel({
+  tournament,
+  hasExistingSnapshot,
+  seeding,
+  onSeed,
+  result,
+}: {
+  tournament: { id: string; name: string; fip_id: string | null }
+  hasExistingSnapshot: boolean
+  seeding: boolean
+  onSeed: () => void
+  result: SeedResult | null
+}) {
+  const [expanded, setExpanded] = useState(!hasExistingSnapshot)
+
+  // Compact "already have data" mode — show a single-line link that
+  // expands on click. Operators rarely need to re-seed, so this keeps
+  // the common path quiet.
+  if (!expanded) {
+    return (
+      <div style={{ marginBottom: 12, fontSize: 11, color: '#666' }}>
+        FIP id detected (<code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3 }}>{tournament.fip_id}</code>){' '}
+        —{' '}
+        <button
+          onClick={() => setExpanded(true)}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            color: '#3b82f6',
+            fontSize: 11,
+            cursor: 'pointer',
+            textDecoration: 'underline',
+          }}
+        >
+          re-seed from FIP PDF
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      style={{
+        background: '#fffbeb',
+        border: '1px solid #fde68a',
+        borderRadius: 8,
+        padding: 14,
+        marginBottom: 12,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+            {hasExistingSnapshot ? 'Re-seed entry list from FIP PDF' : 'No entry list yet — seed from FIP PDF?'}
+          </div>
+          <div style={{ fontSize: 11, color: '#78350f', lineHeight: 1.5 }}>
+            This tournament has a FIP id (<code style={{ background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>{tournament.fip_id}</code>),
+            so we can scrape the entry-list PDF from padelfip.com and write
+            it into <code style={{ background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>padelgod.entry_list_snapshots</code> directly.
+            Useful when Crionet&apos;s widget returns &quot;Entry list coming soon&quot; but padelfip.com already has the PDF published.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button
+            onClick={onSeed}
+            disabled={seeding}
+            style={{
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 700,
+              background: seeding ? '#fde68a' : '#f59e0b',
+              color: seeding ? '#92400e' : '#fff',
+              border: 'none',
+              borderRadius: 4,
+              cursor: seeding ? 'wait' : 'pointer',
+            }}
+          >
+            {seeding ? 'Scraping PDF…' : hasExistingSnapshot ? 'Re-seed' : 'Seed from FIP PDF'}
+          </button>
+          {hasExistingSnapshot && !seeding && (
+            <button
+              onClick={() => setExpanded(false)}
+              style={{
+                padding: '6px 10px',
+                fontSize: 12,
+                background: 'transparent',
+                color: '#92400e',
+                border: '1px solid #fde68a',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Result banner — persists until the next tournament switch */}
+      {result && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 10,
+            borderRadius: 6,
+            fontSize: 11,
+            background: result.ok ? '#ecfdf5' : '#fee2e2',
+            border: `1px solid ${result.ok ? '#a7f3d0' : '#fecaca'}`,
+            color: result.ok ? '#065f46' : '#991b1b',
+          }}
+        >
+          {result.ok ? (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>
+                ✅ Seeded {result.snapshotsInserted ?? 0} entry-list rows
+                {result.playersInserted ? ` · ${result.playersInserted} new players created` : ''}
+              </div>
+              {result.stats && (
+                <div style={{ color: '#065f46', fontSize: 10 }}>
+                  Teams parsed: {result.stats.teamsParsed ?? 0}
+                  {' · '}DB matches: {result.stats.dbMatches ?? 0}
+                  {' · '}FIP-search matches: {result.stats.fipSearchMatches ?? 0}
+                  {' · '}Unresolved: {result.stats.unresolved ?? 0}
+                  {' · '}PDFs: {result.stats.pdfsDownloaded ?? 0}
+                </div>
+              )}
+              {result.unresolved && result.unresolved.length > 0 && (
+                <details style={{ marginTop: 6 }}>
+                  <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+                    {result.unresolved.length} unresolved — click to view
+                  </summary>
+                  <ul style={{ marginTop: 4, paddingLeft: 16 }}>
+                    {result.unresolved.map((u, i) => (
+                      <li key={i}>
+                        <span style={{ textTransform: 'capitalize' }}>{u.category}</span>:{' '}
+                        <b>{u.name}</b> <span style={{ color: '#666' }}>({u.reason})</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </>
+          ) : (
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 2 }}>❌ Seed failed</div>
+              <div style={{ fontFamily: 'monospace', fontSize: 10 }}>{result.error ?? 'unknown error'}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }

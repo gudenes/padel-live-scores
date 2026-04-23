@@ -115,7 +115,7 @@ export async function GET(request: Request) {
 
     const { data: tournaments, error: tourErr } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, source, level, country')
+      .select('id, name, starts_at, ends_at, source, level, country, fip_id')
       .in('id', tournamentIds)
       .order('starts_at', { ascending: false })
 
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
 
   const { data: tournament, error: tourErr } = await supabase
     .from('tournaments')
-    .select('id, name, starts_at, ends_at, source, level, country')
+    .select('id, name, starts_at, ends_at, source, level, country, fip_id')
     .eq('id', tournamentId)
     .maybeSingle()
 
