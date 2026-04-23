@@ -375,13 +375,28 @@ export async function GET(request: Request) {
     results: latestResults.length > 0 ? latestResults[0]!.captured_at : null,
   }
 
-  // Build day_number → calendar date map from linked matches' scheduled_at.
-  // See the DetailResponse.dayDates doc for why we can't infer from starts_at.
-  // Picks the MIN scheduled_at per day_number so ambiguous cases (two linked
-  // matches under the same day_number with slightly different dates — shouldn't
-  // happen but defensive) converge deterministically. Date-only substring
-  // (the first 10 chars) drops the time + timezone, giving us YYYY-MM-DD.
+  // Build day_number → calendar date map. See DetailResponse.dayDates docs
+  // for the broader rationale. Two paths:
+  //
+  // 1. Linked path — match has a crionet_widget mapping → public.matches
+  //    row → scheduled_at. Cheap and exact. But linking relies on the
+  //    tournament having an entity_external_ids row of source='crionet_widget'
+  //    (set by padelgod's match-identifier), and for some tournaments that
+  //    hasn't happened (e.g. Premier tournaments whose only sidecar entry is
+  //    source='premierpadel'). In those cases linkedMatchByWidgetId is empty
+  //    and path 1 contributes nothing.
+  //
+  // 2. Round-label path — for each day, collect the round_labels that appear
+  //    in its OOP/results snapshots, then look up public.matches by
+  //    (tournament, round) to get scheduled_at. Assigned greedily in
+  //    day_number order so a round that spans two days (e.g. R32 on day 3
+  //    AND day 4 of a Brussels-size draw) gets distinct calendar dates.
+  //    Qualifier-only days (Q1/Q2/Q3 have no corresponding public.matches
+  //    rows in our DB) stay empty and fall back to starts_at offset on the
+  //    client.
   const dayDates: Record<number, string> = {}
+
+  // Path 1: direct from linked matches.
   for (const m of matches) {
     if (m.dayNumber == null) continue
     if (!m.matchWidgetId) continue
@@ -391,6 +406,89 @@ export async function GET(request: Request) {
     const existing = dayDates[m.dayNumber]
     if (!existing || datePart < existing) {
       dayDates[m.dayNumber] = datePart
+    }
+  }
+
+  // Path 2: round-label fallback for days we couldn't resolve via linking.
+  // Only bother querying public.matches when there's at least one gap.
+  const dayToRounds = new Map<number, Set<string>>()
+  for (const m of matches) {
+    if (m.dayNumber == null) continue
+    if (!m.roundLabel) continue
+    if (dayDates[m.dayNumber]) continue // already resolved via path 1
+    const set = dayToRounds.get(m.dayNumber) ?? new Set<string>()
+    set.add(m.roundLabel)
+    dayToRounds.set(m.dayNumber, set)
+  }
+
+  if (dayToRounds.size > 0) {
+    // OOP and public.matches sometimes spell the same round differently
+    // — e.g. OOP says "Quarterfinals" while public says "Quarter". Canonicalize
+    // to a single lowercase key so the lookup doesn't miss. Add aliases here
+    // if more variants show up (observed 2026-04-24 for Brussels P2; SF / F
+    // happen to match exactly between both sources).
+    const canonicalRound = (r: string): string => {
+      const s = r.toLowerCase().trim()
+      if (s === 'quarterfinals' || s === 'quarter' || s === 'quarterfinal') return 'quarter'
+      if (s === 'semifinals' || s === 'semi' || s === 'semifinal') return 'semi'
+      if (s === 'finals' || s === 'final') return 'final'
+      return s
+    }
+
+    const allRounds = [...new Set([...dayToRounds.values()].flatMap((s) => [...s]))]
+    // Query a superset: the raw OOP strings AND their canonical aliases that
+    // public.matches might use. Gets "Quarter" into the result set when OOP
+    // only said "Quarterfinals".
+    const canonicalToRaw = new Map<string, string[]>() // canonical → public-side variants
+    const queryRounds = new Set<string>(allRounds)
+    for (const r of allRounds) {
+      const canon = canonicalRound(r)
+      if (!canonicalToRaw.has(canon)) canonicalToRaw.set(canon, [])
+      canonicalToRaw.get(canon)!.push(r)
+      // Add known public-side spellings for this canonical key.
+      if (canon === 'quarter') { queryRounds.add('Quarter'); queryRounds.add('Quarterfinals') }
+      if (canon === 'semi') { queryRounds.add('Semi'); queryRounds.add('Semifinals') }
+      if (canon === 'final') { queryRounds.add('Final'); queryRounds.add('Finals') }
+    }
+
+    const { data: publicMatches } = await supabase
+      .from('matches')
+      .select('round, scheduled_at')
+      .eq('tournament_id', tournamentId)
+      .in('round', [...queryRounds])
+      .not('scheduled_at', 'is', null)
+
+    // canonical round → sorted-ASC distinct calendar dates. Merges variants
+    // so "Quarter" rows and "Quarterfinals" rows land in the same bucket.
+    const datesByCanonical = new Map<string, string[]>()
+    for (const r of (publicMatches ?? []) as Array<{ round: string; scheduled_at: string }>) {
+      const canon = canonicalRound(r.round)
+      const date = r.scheduled_at.slice(0, 10)
+      const arr = datesByCanonical.get(canon) ?? []
+      if (!arr.includes(date)) arr.push(date)
+      datesByCanonical.set(canon, arr)
+    }
+    for (const arr of datesByCanonical.values()) arr.sort()
+
+    // Greedy walk: for each day_number (ascending), pick the earliest date
+    // across its rounds that hasn't already been claimed by an earlier day.
+    // This handles rounds that span multiple days — R32 on day 3 gets
+    // Apr 21, R32 on day 4 gets Apr 22.
+    const claimedDates = new Set(Object.values(dayDates))
+    const sortedDays = [...dayToRounds.keys()].sort((a, b) => a - b)
+    for (const day of sortedDays) {
+      const rounds = dayToRounds.get(day)!
+      const candidates: string[] = []
+      for (const round of rounds) {
+        const dates = datesByCanonical.get(canonicalRound(round)) ?? []
+        for (const d of dates) {
+          if (!claimedDates.has(d)) candidates.push(d)
+        }
+      }
+      if (candidates.length === 0) continue
+      candidates.sort()
+      dayDates[day] = candidates[0]!
+      claimedDates.add(candidates[0]!)
     }
   }
 
