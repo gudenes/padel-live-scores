@@ -11,6 +11,7 @@ import ArchitectureTab from './ArchitectureTab'
 import BrandsTab from './BrandsTab'
 import ScheduleTab from './ScheduleTab'
 import PadelgodShadowTab from './PadelgodShadowTab'
+import PadelgodEntryListTab from './PadelgodEntryListTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -308,7 +309,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'schedule' | 'padelgod-shadow'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'schedule' | 'padelgod-shadow' | 'padelgod-entries'>('ongoing')
   const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
   const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([])
   const [forcingSyncId, setForcingSyncId] = useState<string | null>(null)
@@ -412,6 +413,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       label: 'Padelgod',
       items: [
         { key: 'padelgod-shadow' as const, label: 'Shadow Mode', badge: null },
+        { key: 'padelgod-entries' as const, label: 'Entry Lists', badge: null },
       ],
     },
     {
@@ -905,6 +907,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Padelgod Shadow Mode</div>
         <PadelgodShadowTab />
       </>}
+
+      {tab === 'padelgod-entries' && <PadelgodEntryListTab />}
 
       </div>
       </div>
