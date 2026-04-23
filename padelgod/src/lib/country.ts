@@ -55,3 +55,122 @@ export function normalizeCountry(c: string | null | undefined): string | null {
 // Re-export the loaded JSON so the drift test can compare it against
 // the `/shared/` copy without round-tripping through normalizeCountry.
 export const COUNTRY_MAP = CC3_TO_CC2 as Record<string, string>;
+
+// ─── FIP event-page country-name map ────────────────────────────────────────
+//
+// padelfip.com encodes countries in flag image filenames using English-ish
+// country NAMES (not ISO codes). Examples:
+//   .../Spain_Fip.jpg        → "SPAIN"
+//   .../Argentina_Fip.jpg    → "ARGENTINA"
+//   .../TheNetherlands_Fip.jpg → "THENETHERLANDS"
+//   .../Marocco_Fip.jpg      → "MAROCCO"  (Italian spelling)
+//   .../Israele_Fip.jpg      → "ISRAELE"  (Italian spelling)
+//
+// `normalizeCountry` above only knows alpha-3 codes. Running FIP names
+// through it returns null AND emits one `console.warn` per team, which
+// Railway classifies as ERROR severity — the 2026-04-23 Brussels dry-run
+// produced 995 spurious "errors" in 2 minutes with zero actual problems.
+//
+// This map is the FIP-specific layer. Keyed by the UPPERCASED filename
+// stem (whatever appears before `_Fip.jpg`), value is ISO 3166-1 alpha-2.
+// Populated initially from the distinct values observed in the Brussels
+// dry-run logs (30 countries) plus a reasonable padding of major padel
+// nations we haven't seen yet but certainly will.
+//
+// Unknown keys return null SILENTLY (no warn). Rationale: the FIP layer
+// is append-only via scheduled cron, so an unknown key lands `country=null`
+// and ops can surface it via a data-quality view. Log spam at error
+// severity would drown real issues.
+const FIP_NAME_TO_ALPHA2: Record<string, string> = {
+  // Seen in Brussels 2026-04-23 logs (sorted; FIP's odd spellings preserved):
+  ARGENTINA: 'AR',
+  ARMENIA: 'AM',
+  AUSTRALIA: 'AU',
+  BELGIUM: 'BE',
+  BRAZIL: 'BR',
+  CANADA: 'CA',
+  CHILE: 'CL',
+  CHINA: 'CN',
+  DENMARK: 'DK',
+  EGYPT: 'EG',
+  FRANCE: 'FR',
+  GERMANY: 'DE',
+  GREATBRITAIN: 'GB',
+  IRAN: 'IR',
+  ISRAELE: 'IL',       // Italian spelling FIP uses
+  ITALY: 'IT',
+  JAPAN: 'JP',
+  LUXEMBURG: 'LU',     // non-standard English spelling
+  MAROCCO: 'MA',       // Italian spelling FIP uses
+  MEXICO: 'MX',
+  PARAGUAY: 'PY',
+  POLAND: 'PL',
+  PORTUGAL: 'PT',
+  ROMANIA: 'RO',
+  SLOVENIA: 'SI',
+  SPAIN: 'ES',
+  SWEDEN: 'SE',
+  THENETHERLANDS: 'NL',
+  UKRAINE: 'UA',
+  VENEZUELA: 'VE',
+  // Additional common padel nations not yet observed but likely to appear:
+  ANDORRA: 'AD',
+  AUSTRIA: 'AT',
+  BULGARIA: 'BG',
+  CROATIA: 'HR',
+  CYPRUS: 'CY',
+  CZECHREPUBLIC: 'CZ',
+  DOMINICANREPUBLIC: 'DO',
+  ECUADOR: 'EC',
+  ESTONIA: 'EE',
+  FINLAND: 'FI',
+  GREECE: 'GR',
+  HUNGARY: 'HU',
+  INDIA: 'IN',
+  INDONESIA: 'ID',
+  IRELAND: 'IE',
+  KAZAKHSTAN: 'KZ',
+  KUWAIT: 'KW',
+  LATVIA: 'LV',
+  LITHUANIA: 'LT',
+  MALAYSIA: 'MY',
+  NETHERLANDS: 'NL',   // alternate spelling without "The"
+  NEWZEALAND: 'NZ',
+  NORWAY: 'NO',
+  PANAMA: 'PA',
+  PERU: 'PE',
+  PHILIPPINES: 'PH',
+  QATAR: 'QA',
+  RUSSIA: 'RU',
+  SAUDIARABIA: 'SA',
+  SERBIA: 'RS',
+  SINGAPORE: 'SG',
+  SLOVAKIA: 'SK',
+  SOUTHAFRICA: 'ZA',
+  SOUTHKOREA: 'KR',
+  SWITZERLAND: 'CH',
+  THAILAND: 'TH',
+  TUNISIA: 'TN',
+  TURKEY: 'TR',
+  UAE: 'AE',
+  UK: 'GB',
+  UNITEDKINGDOM: 'GB',
+  UNITEDSTATES: 'US',
+  URUGUAY: 'UY',
+  USA: 'US',
+};
+
+/**
+ * Map a padelfip.com flag-filename country NAME (e.g. "Spain", "TheNetherlands",
+ * "Marocco") to ISO 3166-1 alpha-2. Returns null for unknown names (silently —
+ * use the data-quality view `null_country_fip_draw_rows` to surface them).
+ *
+ * Case-insensitive — callers can pass either the raw filename stem or an
+ * already-uppercased string.
+ */
+export function fipCountryNameToAlpha2(name: string | null | undefined): string | null {
+  if (name == null) return null;
+  const key = name.trim().toUpperCase();
+  if (key.length === 0) return null;
+  return FIP_NAME_TO_ALPHA2[key] ?? null;
+}

@@ -195,6 +195,18 @@ describe('runFipDrawFetcher', () => {
     expect(wq011, 'WQ011 must end up in draw_snapshots').toBeDefined();
     expect(wq011.team1_fip_id).toMatch(/^P\d+$/);
     expect(wq011.team2_fip_id).toMatch(/^P\d+$/);
+
+    // Country codes must be normalized alpha-2 at insert time (NOT raw
+    // FIP names like "Spain"). Regression test for the 2026-04-23 dry-run
+    // where normalizeCountry was mis-applied, turning every row's country
+    // into null and emitting one Railway-classified-as-error log per team.
+    const nonNullCountries = supabase.insertedDrawSnapshots
+      .flatMap((r) => [r.team1_country, r.team2_country])
+      .filter((c) => c !== null);
+    expect(nonNullCountries.length).toBeGreaterThan(0);
+    for (const c of nonNullCountries) {
+      expect(c, `expected alpha-2 but got "${c}"`).toMatch(/^[A-Z]{2}$/);
+    }
   });
 
   it('skips a tournament when the event page has no padelfip_ajax config', async () => {
