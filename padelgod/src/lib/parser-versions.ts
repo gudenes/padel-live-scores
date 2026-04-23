@@ -14,3 +14,8 @@ export const CRIONET_RESULTS_VERSION = 'crionet-results-1.0.0';
 
 export const CRIONET_TOURNAMENTLIVE_VERSION = 'crionet-tournamentlive-1.0.0';
 export const CRIONET_MATCH_STATS_VERSION = 'crionet-match-stats-1.0.0';
+
+// FIP event-page draw AJAX (www.padelfip.com/wp-admin/admin-ajax.php).
+// Captures the full bracket in one payload per draw type (MD/WD/MQ/WQ),
+// with `data-match-id` widget IDs as the primary join key.
+export const FIP_EVENT_DRAW_VERSION = 'fip-event-draw-1.0.0';

@@ -7,6 +7,7 @@ import { runWidgetCodeLookup } from './workers/widget-code-lookup.js';
 import { runPlayerRankings } from './workers/player-rankings.js';
 import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
 import { runDrawFetcher } from './workers/draw-fetcher.js';
+import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
 import { runStaticReconciler } from './workers/static-reconciler.js';
@@ -29,6 +30,7 @@ export interface SchedulerFlags {
   enablePlayerProfile: boolean;
   enableEntryListFetcher: boolean;
   enableDrawFetcher: boolean;
+  enableFipDrawFetcher: boolean;
   enableOopFetcher: boolean;
   enableResultsFetcher: boolean;
   enableStaticReconciler: boolean;
@@ -61,6 +63,7 @@ export type WorkerName =
   | 'player-profile'
   | 'entry-list-fetcher'
   | 'draw-fetcher'
+  | 'fip-draw-fetcher'
   | 'oop-fetcher'
   | 'results-fetcher'
   | 'static-reconciler'
@@ -79,6 +82,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'player-profile',
   'entry-list-fetcher',
   'draw-fetcher',
+  'fip-draw-fetcher',
   'oop-fetcher',
   'results-fetcher',
   'static-reconciler',
@@ -100,6 +104,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     };
     case 'entry-list-fetcher':   return (deps) => runEntryListFetcher(deps);
     case 'draw-fetcher':         return (deps) => runDrawFetcher(deps);
+    case 'fip-draw-fetcher':     return (deps) => runFipDrawFetcher(deps);
     case 'oop-fetcher':          return (deps) => runOopFetcher(deps);
     case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
     case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
@@ -159,6 +164,17 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'draw-fetcher',
       cron: '20 */2 * * *', // every 2 hours at :20
       run: getWorkerRunner('draw-fetcher')!,
+    });
+  }
+  if (flags.enableFipDrawFetcher) {
+    entries.push({
+      name: 'fip-draw-fetcher',
+      // Hourly at :35 — slots between oop-fetcher (:50) and static-reconciler
+      // (:05/:35). FIP nonces are short-lived, so we re-fetch the event page
+      // on every run; hourly gives us low-latency pickup of newly-seeded
+      // brackets without hammering padelfip.com.
+      cron: '35 * * * *',
+      run: getWorkerRunner('fip-draw-fetcher')!,
     });
   }
   if (flags.enableOopFetcher) {
