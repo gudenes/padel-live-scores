@@ -520,10 +520,15 @@ export default function ScheduleTab() {
                           {m.category === 'men' ? 'M' : m.category === 'women' ? 'W' : '?'}{m.oopRound ? ` ${m.oopRound}` : ''}
                         </span>
                       </td>
-                      <td style={{ padding: '5px 8px', color: '#111', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {/* Team columns — cap grew from 180→280 so multi-word
+                          surnames like "Llaguno Zielinski" or
+                          "Gonzalez Fernandez" stop ellipsising on the wider
+                          (post-OpsClient 1600) layout. nowrap preserved so
+                          row height stays single-line. */}
+                      <td style={{ padding: '5px 8px', color: '#111', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {m.team1Display}
                       </td>
-                      <td style={{ padding: '5px 8px', color: '#111', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '5px 8px', color: '#111', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {m.team2Display}
                       </td>
                       <td style={{ padding: '5px 8px', textAlign: 'center' }}>

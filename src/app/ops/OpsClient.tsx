@@ -487,9 +487,16 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         </div>
       </nav>
 
-      {/* ── Main content ── */}
+      {/* ── Main content ──
+          Cap width at 1600 (was 1000 — too tight for the Schedule tab's
+          9-column table, which forced horizontal scroll on standard
+          1440–1920 desktops and truncated team-name cells). 1600 still
+          reads comfortably for text-heavy tabs (Integration Health,
+          Data Quality, Readiness) without turning into an unreadable
+          raw-viewport sprawl on ultra-wide displays. Narrow displays
+          still flex down via the viewport-based `flex: 1`. */}
       <div style={{ flex: 1, overflow: 'auto', padding: '24px 28px' }}>
-      <div style={{ maxWidth: 1000 }}>
+      <div style={{ maxWidth: 1600 }}>
 
       {/* Ongoing Events page */}
       {tab === 'ongoing' && (
