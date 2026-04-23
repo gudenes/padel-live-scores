@@ -8,6 +8,9 @@ import Google from 'next-auth/providers/google'
 import Resend from 'next-auth/providers/resend'
 import PostgresAdapter from '@auth/pg-adapter'
 import { Pool } from 'pg'
+import { cookies } from 'next/headers'
+import { routing } from '@/i18n/routing'
+import { sendWelcomeEmail } from '@/lib/email/welcome'
 
 // Parse DATABASE_URL manually to avoid issues with special characters in passwords.
 // The pg Pool's connectionString parser doesn't handle URL-encoded chars reliably.
@@ -82,18 +85,47 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Auto-create a profiles row when a new user signs in for the first time.
     // Many tables (user_badges, user_bookmarks, etc.) have FK constraints on
     // profiles(id), so this row must exist before any user data can be written.
+    //
+    // Also captures the user's locale (from the NEXT_LOCALE cookie set by
+    // next-intl's proxy) and fires a welcome email in that language. Both are
+    // best-effort — we never block signup on email/cookie failures.
     async createUser({ user }) {
       if (!user.id) return
+
+      // Resolve locale from NEXT_LOCALE cookie; default to 'en' if absent or
+      // not one of our supported locales. Wrapped in try/catch because
+      // cookies() can throw in some edge runtimes / test contexts.
+      let locale: string = routing.defaultLocale
+      try {
+        const cookieStore = await cookies()
+        const raw = cookieStore.get('NEXT_LOCALE')?.value
+        if (raw && (routing.locales as readonly string[]).includes(raw)) {
+          locale = raw
+        }
+      } catch {
+        // Fall through with default locale.
+      }
+
       const client = await pool.connect()
       try {
         await client.query(
-          `INSERT INTO profiles (id, display_name, avatar_url, created_at)
-           VALUES ($1, $2, $3, NOW())
+          `INSERT INTO profiles (id, display_name, avatar_url, locale, created_at)
+           VALUES ($1, $2, $3, $4, NOW())
            ON CONFLICT (id) DO NOTHING`,
-          [user.id, user.name ?? null, user.image ?? null]
+          [user.id, user.name ?? null, user.image ?? null, locale]
         )
       } finally {
         client.release()
+      }
+
+      // Fire-and-forget: welcome email must not block signup. The sender has
+      // its own try/catch + Resend idempotency key so retries are safe.
+      if (user.email) {
+        void sendWelcomeEmail({
+          email: user.email,
+          name: user.name,
+          locale,
+        })
       }
     },
   },

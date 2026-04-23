@@ -544,5 +544,22 @@
     "noMatchesSub": "Try yesterday's results or tomorrow's schedule using the picker above.",
     "faqHeading": "Frequently asked questions",
     "approxTime": "time is approximate"
+  },
+  "email": {
+    "welcome": {
+      "subject": "Welcome to PadelNachos 🎾",
+      "greeting": "Hey {name} 👋",
+      "greetingFallback": "there",
+      "lead": "Welcome to PadelNachos — live scores, rankings, and everything padel in one place.",
+      "getMostOfIt": "To get the most out of it:",
+      "tip1Bold": "Bookmark matches",
+      "tip1Rest": "— get a notification when they go live",
+      "tip2Bold": "Follow players",
+      "tip2Rest": "— we'll ping you when they take the court",
+      "tip3Bold": "Enable push notifications",
+      "tip3Rest": "on your phone for instant updates",
+      "cta": "Open PadelNachos",
+      "footer": "You're getting this because you just signed up for PadelNachos."
+    }
   }
 }

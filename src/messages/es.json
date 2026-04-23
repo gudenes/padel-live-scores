@@ -544,5 +544,22 @@
     "noMatchesSub": "Prueba con los resultados de ayer o los partidos de mañana usando el selector superior.",
     "faqHeading": "Preguntas frecuentes",
     "approxTime": "hora aproximada"
+  },
+  "email": {
+    "welcome": {
+      "subject": "Bienvenido a PadelNachos 🎾",
+      "greeting": "¡Hola, {name}! 👋",
+      "greetingFallback": "",
+      "lead": "Bienvenido a PadelNachos — marcadores en directo, rankings y todo el pádel en un solo sitio.",
+      "getMostOfIt": "Para sacarle el máximo partido:",
+      "tip1Bold": "Guarda partidos",
+      "tip1Rest": "— te avisamos cuando empiecen en directo",
+      "tip2Bold": "Sigue jugadores",
+      "tip2Rest": "— te notificamos cuando salten a la pista",
+      "tip3Bold": "Activa las notificaciones push",
+      "tip3Rest": "en tu móvil para recibir avisos al instante",
+      "cta": "Abrir PadelNachos",
+      "footer": "Recibes este correo porque acabas de registrarte en PadelNachos."
+    }
   }
 }
