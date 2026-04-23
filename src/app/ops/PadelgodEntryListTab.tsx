@@ -590,8 +590,14 @@ function CategoryTable({ block }: { block: CategoryBlock }) {
                   {t.player2 ? <PlayerCell p={t.player2} /> : <span style={{ color: '#ccc' }}>—</span>}
                 </td>
                 <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11, color: '#555' }}>
+                  {/* Show both codes always. Previously collapsed to a single
+                      code when player1.country === player2.country, which
+                      made same-country pairs (e.g. Valentin/Bazin → BEL)
+                      look like player2 was missing country data. Verified
+                      data is populated 100% in `entry_list_snapshots`; only
+                      the deduping display was confusing. */}
                   {t.player1.country ?? '—'}
-                  {t.player2 && t.player2.country !== t.player1.country ? ` / ${t.player2.country ?? '?'}` : ''}
+                  {t.player2 ? ` / ${t.player2.country ?? '—'}` : ''}
                 </td>
                 <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 10, color: '#777' }}>
                   {t.player1.fipId ? t.player1.fipId.replace(/^fip-/, '') : '—'}
