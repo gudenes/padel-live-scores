@@ -121,14 +121,53 @@ function V3MatchRow({ match }: { match: Match }) {
   // See src/messages/{en,es,pt,it,fr}.json under "common".
   const tCommon = useTranslations('common')
   const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
-  const currentSet = sets.find(s => s.is_current)
-  const currentGame = currentSet?.games?.find(g => g.is_current)
+
+  // ── Current set / game selection — fallback-safe (2026-04-23) ────
+  //
+  // Padelgod + the relay write sets and games across MULTIPLE inserts/updates
+  // per tick. Between those writes, the DB briefly has zero rows with
+  // `is_current=true` (old row just got flipped to false, new one not yet
+  // inserted). A naive `sets.find(is_current)` returns undefined in that
+  // window → the point-score column unmounts and visibly flickers for 2–5s
+  // until the next refetch. Fallback to the highest set_number / game_number
+  // when the flag is unset — that's always the most recent row and re-attaches
+  // the display without having to wait for the next tick.
+  const currentSet = useMemo(() => {
+    if (sets.length === 0) return null
+    const flagged = sets.find(s => s.is_current)
+    if (flagged) return flagged
+    // Fallback — latest by set_number. `sets` is already sorted ascending.
+    return sets[sets.length - 1] ?? null
+  }, [sets])
+
+  const currentGame = useMemo(() => {
+    const games = currentSet?.games ?? []
+    if (games.length === 0) return null
+    const flagged = games.filter(g => g.is_current)
+    if (flagged.length > 0) {
+      // Pick the highest game_number among flagged — mirrors LiveMatchCard's
+      // defense against the <1s window where both old and new games carry
+      // is_current=true while the realtime relay catches up.
+      return flagged.reduce((latest, g) =>
+        (g.game_number ?? 0) > (latest.game_number ?? 0) ? g : latest,
+      )
+    }
+    // Fallback — highest game_number overall. Same rationale as currentSet.
+    return games.reduce((latest, g) =>
+      (g.game_number ?? 0) > (latest.game_number ?? 0) ? g : latest,
+    )
+  }, [currentSet])
+
   // Live point score comes from the last entry in the points[] array
   // (game_score is the running game count like "1-1", NOT the point score)
   // Points format: "30:40", "A:40", "15:15", etc.
+  //
+  // When a game just started and no points have been played yet, points[] is
+  // empty. Default to "0:0" so the column keeps showing something correct
+  // (game is at love-love) rather than flashing empty until the first point.
   const currentPoints = currentGame?.points?.length
     ? currentGame.points[currentGame.points.length - 1]
-    : ''
+    : (currentGame ? '0:0' : '')
   const pointsParts = (currentPoints ?? '').split(/[:\-]/)
   const p1GamePts = pointsParts[0] ?? ''
   const p2GamePts = pointsParts[1] ?? ''
@@ -445,7 +484,16 @@ function V3MatchRow({ match }: { match: Match }) {
                     </span>
                   )
                 })}
-                {isLive && (p1GamePts || p2GamePts) && (
+                {/* Point-score column.
+                    Always mounted while the match is live so the layout
+                    never jumps when points momentarily go empty (mid-tick
+                    write race between padelgod and the sets/games writes).
+                    When pts is empty (game just started or in-flight write
+                    race), `currentPoints` fallback above already defaulted
+                    to '0:0' if currentGame exists — we still guard with
+                    `|| '0'` here as a defense-in-depth. See the 2026-04-23
+                    flicker fix in currentGame/currentPoints above. */}
+                {isLive && (
                   <span
                     key={isRolling ? `${pts}-${flashKeyRef.current}` : pts}
                     style={{
@@ -457,7 +505,7 @@ function V3MatchRow({ match }: { match: Match }) {
                       ...(isRolling ? { animation: 'v3-score-roll 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both' } : {}),
                     }}
                   >
-                    {pts}
+                    {pts || '0'}
                   </span>
                 )}
               </div>
