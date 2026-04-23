@@ -1,81 +1,57 @@
 // Country-code normalization for padelgod captures.
 //
-// Every source we scrape emits country codes in one of two formats:
+// Canonical storage format: ISO 3166-1 alpha-2 ("ES"). Every source
+// we scrape emits either alpha-2 (padelapi) or alpha-3 (Crionet flag
+// filenames, padelfip WP events + search API, ranking tables). This
+// module lives at the WRITE boundary — parsers call `normalizeCountry`
+// before returning, so downstream tables receive a uniform alpha-2.
 //
-//   - `alpha-2` (ISO 3166-1 alpha-2)  — "ES", "AR", "BR"
-//       Used by padelapi.org and the web platform at large (HTML lang,
-//       flag emoji, Intl APIs, most CDN flag libraries).
+// Canonical mapping table: `country-codes-3to2.json` (sibling file).
+// The same JSON is duplicated at `/shared/country-codes-3to2.json`
+// for Next.js consumption (padelgod's tsconfig `rootDir: ./src`
+// prevents reaching outside this directory). A vitest drift check in
+// `__tests__/lib/country-map-sync.test.ts` fails CI if the two copies
+// diverge — keep them in sync.
 //
-//   - `alpha-3` (ISO 3166-1 alpha-3) — "ESP", "ARG", "BRA"
-//       What padelfip.com and matchscorerlive.com (Crionet) emit from
-//       their flag-image URLs (e.g. /images/flags/ESP.jpg).
+// Why alpha-2
+// -----------
+// 1. Flag emoji are built from alpha-2 regional-indicator pairs.
+// 2. Padelapi already writes alpha-2 — aligning with the primary
+//    source costs nothing.
+// 3. Web conventions (HTML lang, Intl APIs) are alpha-2.
 //
-// Historically we stored whatever the source returned, which produced
-// a mixed-format column. Downstream consumers like flag-emoji renderers
-// only understand alpha-2, so 93 % of Brussels players rendered no flag
-// until we added a display-time shim (`countryFlag` in
-// `src/types/match.ts`).
+// Unknown codes policy
+// --------------------
+// Unmapped 3-letter codes return `null`, NOT pass-through upper-cased.
+// The `country` columns have a CHECK constraint
+//   `country IS NULL OR length(country) = 2`
+// so pass-through would hard-fail the write. Null is the "unknown
+// country" signal; ops data-quality views surface null-country rows
+// for manual triage + adding to the shared map.
 //
-// Canonical choice going forward: **alpha-2**. This module is the
-// write-time normalization point for every padelgod capture — parsers
-// call `normalizeCountry()` before returning, so the shape of
-// `entry_list_snapshots.country`, `draw_snapshots.team1_country`, etc.
-// is uniform. The Next.js-side display shim stays as defense-in-depth.
-//
-// Mapping covers every 3-letter code we've actually seen in our data
-// plus FIFA-style aliases FIP occasionally returns (POR/NED/GER/SUI…).
-// Unknown inputs pass through unchanged, upper-cased — so the column
-// stays queryable even if we add a new source that emits a code we
-// haven't seen before. Unknown codes trigger no rendering but also
-// don't throw; they're visible in the Ops data-quality view for manual
-// triage.
+// A `console.warn` also fires so unknown codes are visible in Railway
+// logs. Production log pipelines can grep for `[country] unknown
+// code` to trigger a mapping update PR.
 
-const CC3_TO_CC2: Record<string, string> = {
-  // Iberia + Americas
-  ESP: 'ES', ARG: 'AR', BRA: 'BR', PRT: 'PT', POR: 'PT',
-  URY: 'UY', URU: 'UY', PRY: 'PY', PAR: 'PY',
-  CHL: 'CL', CHI: 'CL', MEX: 'MX', USA: 'US',
-  COL: 'CO', PER: 'PE', CRI: 'CR', CRC: 'CR',
-  ECU: 'EC', BOL: 'BO',
+import CC3_TO_CC2 from './country-codes-3to2.json' with { type: 'json' };
 
-  // Western Europe
-  FRA: 'FR', ITA: 'IT', BEL: 'BE', NLD: 'NL', NED: 'NL',
-  DEU: 'DE', GER: 'DE', GBR: 'GB', DNK: 'DK', DEN: 'DK',
-  SWE: 'SE', FIN: 'FI', NOR: 'NO', AUT: 'AT',
-  CHE: 'CH', SUI: 'CH', IRL: 'IE', GRC: 'GR', GRE: 'GR',
-
-  // Central/Eastern Europe
-  POL: 'PL', CZE: 'CZ', HRV: 'HR', CRO: 'HR',
-  ROU: 'RO', UKR: 'UA',
-
-  // Middle East + Africa
-  QAT: 'QA', ARE: 'AE', UAE: 'AE', EGY: 'EG',
-  SAU: 'SA', BHR: 'BH', KWT: 'KW', MAR: 'MA',
-  ZAF: 'ZA', RSA: 'ZA',
-
-  // Asia-Pacific
-  JPN: 'JP', KOR: 'KR', CHN: 'CN', IND: 'IN', AUS: 'AU',
-};
-
-/**
- * Normalize a country code to ISO 3166-1 alpha-2, or null when empty.
- *
- * Behaviour:
- *   - null / undefined / '' → null
- *   - alpha-2 (already) → upper-cased pass-through
- *   - known alpha-3 → mapped to alpha-2
- *   - unknown → upper-cased pass-through (won't render as a flag but
- *     preserved for debuggability)
- *
- * Intended for use at every WRITE site where a scraped country lands
- * in a DB column. Never called at read time — the DB should already
- * hold normalized values after this module rolls out.
- */
 export function normalizeCountry(c: string | null | undefined): string | null {
   if (c == null) return null;
   const trimmed = c.trim();
   if (trimmed.length === 0) return null;
   const up = trimmed.toUpperCase();
   if (up.length === 2) return up;
-  return CC3_TO_CC2[up] ?? up;
+  const mapped = (CC3_TO_CC2 as Record<string, string>)[up];
+  if (mapped) return mapped;
+  // Unknown 3+ letter code. Surface + return null so the row lands
+  // with country=null instead of violating the CHECK constraint.
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[country] unknown code "${up}" → null (add to shared/country-codes-3to2.json + padelgod/src/lib/country-codes-3to2.json)`
+  );
+  return null;
 }
+
+// Re-export the loaded JSON so the drift test can compare it against
+// the `/shared/` copy without round-tripping through normalizeCountry.
+export const COUNTRY_MAP = CC3_TO_CC2 as Record<string, string>;

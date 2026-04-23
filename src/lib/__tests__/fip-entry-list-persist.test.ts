@@ -144,7 +144,10 @@ describe('persistPipelineResult', () => {
       category: 'men',
       country: 'BR',
       ranking: 1736,
-      source: 'fip',
+      // NOTE: `source` was removed from the insert payload on 2026-04-23 —
+      // `public.players` has no `source` column (provenance lives in
+      // `last_updated_by`, which is set to 'padelgod' by the persist layer).
+      last_updated_by: 'padelgod',
     })
 
     // Snapshots inserted with scrape_job_id + tournament_id on every row

@@ -30,24 +30,22 @@ const CATEGORY_ID_TO_LEVEL: Record<number, string> = {
   [FIP_CATEGORY_IDS.Bronze]: 'fip_other',
 }
 
-/** 3-letter → 2-letter ISO country codes (Olympic/FIP style) */
-export const ISO3_TO_ISO2: Record<string, string> = {
-  ESP: 'ES', ARG: 'AR', BRA: 'BR', MEX: 'MX', FRA: 'FR', ITA: 'IT',
-  POR: 'PT', GER: 'DE', GBR: 'GB', USA: 'US', CHI: 'CL', COL: 'CO',
-  URU: 'UY', PAR: 'PY', BOL: 'BO', PER: 'PE', ECU: 'EC', VEN: 'VE',
-  BEL: 'BE', NED: 'NL', SWE: 'SE', NOR: 'NO', DEN: 'DK', FIN: 'FI',
-  SUI: 'CH', AUT: 'AT', POL: 'PL', CZE: 'CZ', ROM: 'RO', GRE: 'GR',
-  TUR: 'TR', ISR: 'IL', UAE: 'AE', KSA: 'SA', QAT: 'QA', HKG: 'HK',
-  JPN: 'JP', AUS: 'AU', RSA: 'ZA', MAR: 'MA', EGY: 'EG', KAZ: 'KZ',
-  CAN: 'CA', IRL: 'IE', CRO: 'HR', SRB: 'RS', UKR: 'UA', HUN: 'HU',
-  SLO: 'SI', SVK: 'SK', BUL: 'BG', LTU: 'LT', LAT: 'LV', EST: 'EE',
-  CYP: 'CY', MLT: 'MT', LUX: 'LU', ISL: 'IS', AND: 'AD', MON: 'MC',
-  ALG: 'DZ', TUN: 'TN', SEN: 'SN', CIV: 'CI', CMR: 'CM', GHA: 'GH',
-  NGA: 'NG', KEN: 'KE', SGP: 'SG', IND: 'IN', CHN: 'CN', KOR: 'KR',
-  TWN: 'TW', THA: 'TH', IDN: 'ID', MAS: 'MY', PHI: 'PH', NZL: 'NZ',
-  CRC: 'CR', PAN: 'PA', DOM: 'DO', CUB: 'CU', GTM: 'GT', HON: 'HN',
-  ESA: 'SV', NCA: 'NI', JAM: 'JM', TTO: 'TT', GUY: 'GY', SUR: 'SR',
-}
+/**
+ * 3-letter → 2-letter ISO country codes.
+ *
+ * Canonical source: `/shared/country-codes-3to2.json` — mirrored in
+ * `padelgod/src/lib/country-codes-3to2.json` because padelgod's
+ * tsconfig `rootDir: ./src` can't reach outside. A drift test
+ * (`src/lib/__tests__/country-map-sync.test.ts`) asserts the two
+ * copies are byte-identical.
+ *
+ * Includes both ISO 3166-1 alpha-3 (ESP, ARG) AND FIFA-style aliases
+ * (POR, NED, GER, SUI, INA, SIN, NGR, LIT…) that padelfip.com and
+ * matchscorerlive.com emit.
+ */
+import ISO3_TO_ISO2_JSON from '../../shared/country-codes-3to2.json'
+
+export const ISO3_TO_ISO2: Record<string, string> = ISO3_TO_ISO2_JSON
 
 /** Pre-computed set of valid 2-letter ISO codes for fast lookup */
 const ISO2_VALUES = new Set(Object.values(ISO3_TO_ISO2))

@@ -113,27 +113,39 @@ export function tokenSimilarity(a: string, b: string): number {
 }
 
 // ── Country code normalization ───────────────────────────────────────────
-// FIP entry list PDFs use 3-letter ISO codes (ARG, BRA, ESP); our DB stores
-// 2-letter ISO codes (AR, BR, ES). When comparing, normalize to the 2-letter form.
-// Only codes we actually see in FIP tour data are mapped.
-const COUNTRY_3TO2: Record<string, string> = {
-  ARG: 'AR', BRA: 'BR', CHI: 'CL', PAR: 'PY', ESP: 'ES', URU: 'UY',
-  VEN: 'VE', USA: 'US', COL: 'CO', MEX: 'MX', ITA: 'IT', FRA: 'FR',
-  POR: 'PT', DEU: 'DE', GBR: 'GB', NED: 'NL', BEL: 'BE', SWE: 'SE',
-  DNK: 'DK', NOR: 'NO', FIN: 'FI', POL: 'PL', KAZ: 'KZ', RUS: 'RU',
-  THA: 'TH', JPN: 'JP', CHN: 'CN', IND: 'IN', EGY: 'EG', MAR: 'MA',
-  GER: 'DE', SUI: 'CH', HUN: 'HU', CZE: 'CZ', NZL: 'NZ', AUS: 'AU',
-  CAN: 'CA', ISR: 'IL', TUR: 'TR', UKR: 'UA', ROU: 'RO', SVK: 'SK',
-  CRO: 'HR', GRE: 'GR', BUL: 'BG', SRB: 'RS', PER: 'PE', ECU: 'EC',
-  BOL: 'BO', CUB: 'CU', PAN: 'PA', CRC: 'CR',
-}
+// FIP entry list PDFs + FIP search API + Crionet flag filenames use 3-letter
+// codes (ESP, ARG, BRA) including FIFA-style aliases (POR, NED, GER, SUI,
+// INA, SIN…). Our DB stores ISO 3166-1 alpha-2 (ES, AR, BR). This function
+// is the WRITE-side normalizer used by every Next.js pipeline that lands
+// data in `public.players.country` / `public.tournaments.country` /
+// `padelgod.entry_list_snapshots.country`.
+//
+// Canonical mapping: `/shared/country-codes-3to2.json` (mirrored into
+// padelgod/src/lib/country-codes-3to2.json for Railway builds). A drift
+// test in `__tests__/country-map-sync.test.ts` enforces the two copies
+// stay in sync.
+//
+// Unknown-code policy: return NULL (not pass-through). DB has a CHECK
+// constraint `country IS NULL OR length(country) = 2`, so pass-through
+// would hard-fail the write. Null is the "unknown country" signal; ops
+// data-quality views surface null-country rows for manual triage.
+//
+// A console.warn also fires so unknown codes show up in Vercel function
+// logs during development.
+import COUNTRY_3TO2_JSON from '../../shared/country-codes-3to2.json'
+const COUNTRY_3TO2: Record<string, string> = COUNTRY_3TO2_JSON
 
 export function normalizeCountry(c: string | null | undefined): string | null {
   if (!c) return null
-  const up = c.trim().toUpperCase()
-  if (up.length === 0) return null
+  const trimmed = c.trim()
+  if (trimmed.length === 0) return null
+  const up = trimmed.toUpperCase()
   if (up.length === 2) return up
-  return COUNTRY_3TO2[up] ?? up
+  const mapped = COUNTRY_3TO2[up]
+  if (mapped) return mapped
+  // eslint-disable-next-line no-console
+  console.warn(`[country] unknown code "${up}" → null (add to shared/country-codes-3to2.json)`)
+  return null
 }
 
 // ── Subset-tolerant and typo-tolerant similarity ─────────────────────────

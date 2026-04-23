@@ -59,11 +59,29 @@ describe('normalizeCountry', () => {
     expect(normalizeCountry('\tEsp\n')).toBe('ES');
   });
 
-  it('passes unknown 3-letter codes through upper-cased', () => {
-    // Keeps the value queryable without silently discarding data. Ops
-    // data-quality views can surface these as "add a mapping entry".
-    expect(normalizeCountry('XYZ')).toBe('XYZ');
-    expect(normalizeCountry('zzz')).toBe('ZZZ');
+  it('returns null for unknown 3-letter codes (respects CHECK constraint)', () => {
+    // DB has a CHECK constraint `country IS NULL OR length = 2`, so
+    // pass-through would hard-fail the write. Null is the "unknown"
+    // signal — surfaces in ops data-quality views; the warn() in the
+    // normalizer flags it in Railway logs for a mapping update.
+    expect(normalizeCountry('XYZ')).toBeNull();
+    expect(normalizeCountry('zzz')).toBeNull();
+  });
+
+  it('maps the previously-missing FIFA aliases (regression from 2026-04-23)', () => {
+    // These 11 codes leaked because the initial CC3_TO_CC2 table was
+    // incomplete. All verified present in production before this PR.
+    expect(normalizeCountry('RUS')).toBe('RU');
+    expect(normalizeCountry('INA')).toBe('ID');
+    expect(normalizeCountry('SIN')).toBe('SG');
+    expect(normalizeCountry('PAK')).toBe('PK');
+    expect(normalizeCountry('KOS')).toBe('XK');
+    expect(normalizeCountry('NGR')).toBe('NG');
+    expect(normalizeCountry('GEO')).toBe('GE');
+    expect(normalizeCountry('BRN')).toBe('BH'); // FIFA-Bahrain (not ISO-Brunei)
+    expect(normalizeCountry('LIT')).toBe('LT');
+    expect(normalizeCountry('ARM')).toBe('AM');
+    expect(normalizeCountry('AZE')).toBe('AZ');
   });
 
   it('does not collapse POR and PRT to different values', () => {
