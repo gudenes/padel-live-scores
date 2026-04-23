@@ -117,21 +117,21 @@ export function linkOopSnapshotsToPublicMatches(
 
   for (const oop of parsed) {
     if (!oop.matchWidgetId) continue;
-    const oopNames = lastNameSetFromOopRow(oop);
-    if (oopNames.size < minNameOverlap) continue;
+    const oopPlayers = playerTokensFromOopRow(oop);
+    if (oopPlayers.filter((p) => p.length > 0).length < minNameOverlap) continue;
 
     if (!oop.roundLabel) continue;
     const roundCatKey = `${canonicalRound(oop.roundLabel)}::${oop.category}`;
     const candidates = byRoundCat.get(roundCatKey) ?? [];
     if (candidates.length === 0) continue;
 
-    // Score each candidate by overlap; keep the top score(s).
+    // Score each candidate by bipartite player matching; keep the top score(s).
     let bestScore = 0;
     let bestCandidates: PublicMatchCandidate[] = [];
     for (const pm of candidates) {
       if (claimedMatchIds.has(pm.id)) continue;
-      const pmNames = lastNameSetFromPublicMatch(pm);
-      const overlap = countOverlap(oopNames, pmNames);
+      const pmPlayers = playerTokensFromPublicMatch(pm);
+      const overlap = countMatchedPlayers(oopPlayers, pmPlayers);
       if (overlap < minNameOverlap) continue;
       if (overlap > bestScore) {
         bestScore = overlap;
@@ -183,59 +183,91 @@ function canonicalRound(r: string): string {
   return s;
 }
 
-/** Extract the "last name" portion of a player display name.
- * OOP emits "M. Gonzalez Gallego" (initial + last name(s)). Some public
- * rows store "Maria Gonzalez Gallego" (first + last). To maximize match
- * recall, take everything after the first whitespace-separated token
- * that has length > 1 — skips single-letter initials. Falls back to
- * the whole trimmed string when no such token exists. */
-export function extractLastName(displayName: string): string {
+/**
+ * Tokenize a player display name into lowercase "surname tokens": strip
+ * single-letter initials ("M.", "J.") and return the remaining word list.
+ *
+ * OOP emits short-form names like "M. Gonzalez Gallego" → ["gonzalez",
+ * "gallego"]. Public.matches stores long-form names like
+ * "Marta Ortega Gallego" → ["marta", "ortega", "gallego"].
+ *
+ * We use these token lists for bipartite player matching (see
+ * countMatchedPlayers below): an OOP player matches a public player
+ * when every OOP token is also present in the public token list. That
+ * rule correctly handles:
+ *   - initial drift ("M." vs "Marta" — tokens still align on the
+ *     shared surnames)
+ *   - single-surname players ("M. Jensen" vs "Claudia Jensen")
+ *   - compound surnames ("M. Calvo" vs "Martina Calvo Santamaria" —
+ *     OOP tokens {calvo} are a subset of public {martina, calvo,
+ *     santamaria})
+ *   - reversed order ("Ortega M." would tokenize the same way)
+ *
+ * Non-ASCII + accents are preserved (toLowerCase keeps diacritics so
+ * "Muñoz" doesn't collide with "Munoz" — if that becomes an issue we
+ * can strip accents via normalize('NFD'), but for now exact-match is
+ * fine since both sides come from the same Crionet pipeline and agree
+ * on the codepoints).
+ */
+export function extractSurnameTokens(displayName: string): string[] {
   const trimmed = displayName.trim();
-  if (trimmed.length === 0) return '';
-  // Strip trailing punctuation commonly attached to widget HTML leak.
+  if (trimmed.length === 0) return [];
   const cleaned = trimmed.replace(/[^\p{L}\p{M}\s.-]/gu, '').trim();
   const parts = cleaned.split(/\s+/);
-  // Drop leading parts that look like initials ("M.", "J.") — single char
-  // optionally followed by '.'.
-  const idx = parts.findIndex((p) => !/^\p{L}\.?$/u.test(p));
-  if (idx === -1) return parts.join(' ').toLowerCase();
-  return parts.slice(idx).join(' ').toLowerCase();
+  return parts
+    .filter((p) => !/^\p{L}\.?$/u.test(p)) // drop initials like "M." or "M"
+    .map((p) => p.toLowerCase());
 }
 
-function lastNameSetFromOopRow(o: ParsedOopMatch): Set<string> {
-  const s = new Set<string>();
-  for (const n of [
+function playerTokensFromOopRow(o: ParsedOopMatch): string[][] {
+  return [
     o.team1Player1Name,
     o.team1Player2Name,
     o.team2Player1Name,
     o.team2Player2Name,
-  ]) {
-    if (!n) continue;
-    const ln = extractLastName(n);
-    if (ln) s.add(ln);
-  }
-  return s;
+  ].map((n) => (n ? extractSurnameTokens(n) : []));
 }
 
-function lastNameSetFromPublicMatch(m: PublicMatchCandidate): Set<string> {
-  const s = new Set<string>();
-  for (const n of [
+function playerTokensFromPublicMatch(m: PublicMatchCandidate): string[][] {
+  return [
     m.pair1Player1Name,
     m.pair1Player2Name,
     m.pair2Player1Name,
     m.pair2Player2Name,
-  ]) {
-    if (!n) continue;
-    const ln = extractLastName(n);
-    if (ln) s.add(ln);
-  }
-  return s;
+  ].map((n) => (n ? extractSurnameTokens(n) : []));
 }
 
-function countOverlap(a: Set<string>, b: Set<string>): number {
-  let c = 0;
-  for (const x of a) if (b.has(x)) c++;
-  return c;
+/**
+ * Count how many OOP players can be uniquely matched to public players
+ * (bipartite, greedy). An OOP player matches a public player iff every
+ * one of the OOP player's surname tokens is present in the public
+ * player's surname tokens. Each public player is claimed by at most
+ * one OOP player — prevents double-counting when two OOP names share
+ * a surname (e.g. two siblings on the same team).
+ *
+ * Returns 0..4. Callers compare this against `minNameOverlap` (default
+ * 3) to decide whether to link.
+ */
+function countMatchedPlayers(
+  oopPlayers: string[][],
+  publicPlayers: string[][],
+): number {
+  const claimed = new Set<number>();
+  let matched = 0;
+  for (const ot of oopPlayers) {
+    if (ot.length === 0) continue;
+    for (let i = 0; i < publicPlayers.length; i++) {
+      if (claimed.has(i)) continue;
+      const pt = publicPlayers[i]!;
+      if (pt.length === 0) continue;
+      if (ot.every((t) => pt.includes(t))) {
+        claimed.add(i);
+        matched++;
+        break;
+      }
+    }
+  }
+  return matched;
 }
 
 function normalizeCourt(c: string): string {
