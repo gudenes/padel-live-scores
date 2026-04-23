@@ -230,7 +230,14 @@ function V3HomePageInner() {
         withTimeout(p as Promise<T>, 10_000, label)
 
       const results = await Promise.allSettled([
-        wrap(supabase.from('matches').select(MATCH_SELECT_LIVE).eq('status', 'live').order('court_order', { ascending: true }) as any, 'home:live'),
+        // Include on_court — matches in the warmup phase belong in the
+        // "Live Now" section too. Padelapi owns scheduled→live; on_court
+        // is a padelgod-only status the live-poller stamps when the widget
+        // reports players are warming up. The `trulyLive` filter below
+        // (via !isWarmingUp) keeps counters honest; we just show the card
+        // early so fans see the match is about to start instead of the
+        // scheduled-card fallback.
+        wrap(supabase.from('matches').select(MATCH_SELECT_LIVE).in('status', ['live', 'on_court']).order('court_order', { ascending: true }) as any, 'home:live'),
         wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
         wrap(supabase.from('tournaments')
           .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url')

@@ -133,7 +133,11 @@ export default async function DailyMatchesPage({ params }: Props) {
   const faqs = buildDailyFaq({ iso, locale, dateLong, matches: summaries })
 
   // ── Bucket by status ──────────────────────────────────────────
-  const liveMatches = matches.filter(m => m.status === 'live')
+  // `on_court` (warmup phase observed by padelgod's live-poller) belongs
+  // in the live bucket — fans want to see those matches in the "Live Now"
+  // section rather than the upcoming list. MatchCard renders them with an
+  // "On court" badge instead of a score via the existing isWarmingUp path.
+  const liveMatches = matches.filter(m => m.status === 'live' || m.status === 'on_court')
   const upcomingMatches = matches.filter(m => m.status === 'scheduled')
   const finishedMatches = matches.filter(m => ['finished', 'retired', 'walkover'].includes(m.status))
 
