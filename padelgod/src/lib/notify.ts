@@ -36,6 +36,14 @@
  */
 
 import type { Logger } from 'pino';
+import {
+  recordAttempt,
+  recordFetchError,
+  recordFired,
+  recordNonOk,
+  recordSkipEnvMissing,
+  recordSuccess,
+} from './notify-stats.js';
 
 export interface NotifyDeps {
   baseUrl: string | undefined;
@@ -56,14 +64,23 @@ export function notifyLiveTransition(
   matchId: string,
   deps: NotifyDeps,
 ): void {
+  // recordAttempt runs for every call into this function — before any guards —
+  // so `/admin/notify-stats.total_attempted` reflects the true call volume
+  // from the caller side. Env-skipped calls then increment a separate
+  // counter for easy triage.
+  recordAttempt();
+
   const { baseUrl, cronSecret, logger } = deps;
   if (!baseUrl || !cronSecret) {
     // Env not configured — silent no-op. Production should always have these.
+    recordSkipEnvMissing(matchId);
     return;
   }
 
   const url = `${baseUrl.replace(/\/$/, '')}/api/push/notify`;
   const fetchImpl = deps.fetchImpl ?? fetch;
+
+  recordFired();
 
   // Detached — we don't await, don't return the promise.
   fetchImpl(url, {
@@ -77,16 +94,19 @@ export function notifyLiveTransition(
     .then(async (res) => {
       if (!res.ok) {
         const body = await res.text().catch(() => '<unreadable>');
+        recordNonOk(matchId, res.status, body);
         logger.warn(
           { matchId, status: res.status, body: body.slice(0, 500) },
           'notify: push-notify endpoint returned non-ok',
         );
       } else {
+        recordSuccess(matchId);
         logger.info({ matchId }, 'notify: fired push-notify for live transition');
       }
     })
     .catch((err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
+      recordFetchError(matchId, message);
       logger.warn({ matchId, err: message }, 'notify: push-notify fetch failed');
     });
 }

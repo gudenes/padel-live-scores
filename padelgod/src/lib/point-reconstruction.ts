@@ -37,6 +37,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import type { LiveMatchState, LiveStateDiff, PointState } from './live-state.js';
 import { type NotifyDeps, notifyLiveTransition } from './notify.js';
+import { recordSkipNotScheduled } from './notify-stats.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -684,6 +685,12 @@ async function flipShadowPublicStatus(
   // and heartbeats do not notify (prevStatus !== 'scheduled').
   if (notify && !statusErr && prevStatus === 'scheduled') {
     notifyLiveTransition(matchId, notify);
+  } else if (notify && !statusErr && prevStatus !== null) {
+    // Record the skip so /admin/notify-stats explains "no notify" cases
+    // where the match was already past `scheduled` in DB (common after a
+    // Railway restart — in-memory state is empty but DB already shows
+    // the match as on_court or live from previous ticks).
+    recordSkipNotScheduled(matchId, prevStatus);
   }
 }
 
