@@ -3,8 +3,15 @@ import { runWidgetCodeLookup } from '../../workers/widget-code-lookup.js';
 
 function fakeSupabase(needingResolution: any[]) {
   const inserted: any[] = [];
+  // Records upserts to `public.entity_external_ids` via the top-level
+  // `.from()` method (the widget-code-lookup worker mirrors every
+  // discovered widget_id into the sidecar so ops Tournament Explorer can
+  // resolve matches without reaching into the padelgod schema). Tests
+  // assert on this array to pin the dual-write behaviour.
+  const entityExternalIdsUpserted: any[] = [];
   return {
     inserted,
+    entityExternalIdsUpserted,
     schema: (_s: string) => ({
       from: (t: string) => ({
         insert: (row: any) => {
@@ -37,6 +44,18 @@ function fakeSupabase(needingResolution: any[]) {
         }),
       }),
     }),
+    // Top-level `.from()` for the public schema — only exercises the path
+    // used by `syncWidgetIdToEntityExternalIds`. Extend when other public-
+    // schema writes are added.
+    from: (t: string) => ({
+      upsert: (row: any, _opts?: any) => {
+        if (t === 'entity_external_ids') {
+          entityExternalIdsUpserted.push(row);
+          return Promise.resolve({ data: row, error: null });
+        }
+        return Promise.resolve({ data: null, error: { message: `unexpected table ${t}` } });
+      },
+    }),
     rpc: vi.fn(async (_name: string) => ({ data: needingResolution, error: null })),
   };
 }
@@ -67,6 +86,17 @@ describe('runWidgetCodeLookup', () => {
       tournament_id: 'tour-uuid-1',
       widget_id: 'FIP-2026-1701',
       extraction_method: 'search',
+    });
+    // Dual-write check: the discovered widget_id must ALSO land in
+    // public.entity_external_ids so the ops Tournament Explorer can
+    // resolve widget-composite external ids → public.matches links.
+    // See syncWidgetIdToEntityExternalIds in the worker for rationale.
+    expect(supabase.entityExternalIdsUpserted).toHaveLength(1);
+    expect(supabase.entityExternalIdsUpserted[0]).toMatchObject({
+      entity_type: 'tournament',
+      entity_id: 'tour-uuid-1',
+      source: 'crionet_widget',
+      external_id: 'FIP-2026-1701',
     });
   });
 
