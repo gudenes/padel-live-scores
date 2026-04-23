@@ -192,6 +192,10 @@ async function findByPairs(
 interface TwinCandidate {
   id: string;
   scheduled_at: string | null;
+  pair1_player1_id: string | null;
+  pair1_player2_id: string | null;
+  pair2_player1_id: string | null;
+  pair2_player2_id: string | null;
 }
 
 /**
@@ -207,6 +211,16 @@ interface TwinCandidate {
  * one whose `scheduled_at` is closest to NOW — that's the match currently
  * playing. Candidates with a NULL `scheduled_at` are treated as
  * infinitely distant so they never win the tiebreaker.
+ *
+ * Pair sanity check: if the widget input carries all four player UUIDs,
+ * candidates are additionally filtered through `pairsMatchUnordered`.
+ * This guards against court swaps — when the tournament moves match X
+ * from court A to court B and our DB still has X on court A (because
+ * padelapi hasn't pushed the update), a naive court-only lookup will
+ * "hijack" whatever unrelated match Y is stored on court B. With the
+ * pair check, a mismatched twin is rejected and the caller falls through
+ * to `findByPairs`, which can link the widget to X regardless of its
+ * stale court. Incident: Brussels P2 women R16 2026-04-23.
  */
 async function findPadelapiTwin(
   supabase: SupabaseClient,
@@ -217,7 +231,9 @@ async function findPadelapiTwin(
 
   const { data, error } = await supabase
     .from('matches')
-    .select('id, scheduled_at')
+    .select(
+      'id, scheduled_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id'
+    )
     .eq('tournament_id', input.tournamentId)
     .eq('category', input.category)
     .eq('round', input.roundLabel)
@@ -228,8 +244,49 @@ async function findPadelapiTwin(
     throw new Error(`padelapi-twin lookup failed: ${error.message}`);
   }
 
-  const candidates = (data ?? []) as TwinCandidate[];
+  let candidates = (data ?? []) as TwinCandidate[];
   if (candidates.length === 0) return null;
+
+  // Pair sanity check — reject twins whose players don't match the widget's
+  // pair. Only applied when all four player UUIDs are present in the input
+  // (Premier live-poller path often omits them, which is fine — the court
+  // match alone is the only signal available in that case).
+  const p1 = input.pair1PlayerIds;
+  const p2 = input.pair2PlayerIds;
+  const haveFullPairs =
+    !!p1 &&
+    !!p2 &&
+    p1[0] != null &&
+    p1[1] != null &&
+    p2[0] != null &&
+    p2[1] != null;
+
+  if (haveFullPairs) {
+    const widgetPair1: [string, string] = [p1[0]!, p1[1]!];
+    const widgetPair2: [string, string] = [p2[0]!, p2[1]!];
+    const beforeCount = candidates.length;
+    const rejected = candidates.filter(
+      (c) => !pairsMatchUnordered(c, widgetPair1, widgetPair2)
+    );
+    candidates = candidates.filter((c) =>
+      pairsMatchUnordered(c, widgetPair1, widgetPair2)
+    );
+    if (candidates.length === 0) {
+      logger?.warn(
+        {
+          tournamentId: input.tournamentId,
+          round: input.roundLabel,
+          category: input.category,
+          court: input.court,
+          beforeCount,
+          rejectedIds: rejected.map((c) => c.id),
+        },
+        'match-identifier: all padelapi twins on this court rejected by pair mismatch — falling through to pair-based lookup (likely court swap)'
+      );
+      return null;
+    }
+  }
+
   if (candidates.length === 1) return candidates[0]!.id;
 
   // Multi-candidate path — same court hosts several matches (different days/slots).
