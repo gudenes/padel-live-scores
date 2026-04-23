@@ -117,6 +117,30 @@ export interface PadelgodEntryListTabProps {
   tournamentId?: string
 }
 
+// Twin-matcher response — mirrors GET /api/ops/tournament-fip-twin.
+interface TwinResponse {
+  target?: {
+    id: string
+    name: string
+    fip_id: string | null
+  }
+  twin: {
+    candidate: {
+      id: string
+      name: string
+      slug: string | null
+      fip_id: string | null
+    }
+    confidence: 'high' | 'medium' | 'low'
+    matchedTokens: string[]
+    reasons: string[]
+  } | null
+  alreadyLinked?: boolean
+  fip_id?: string
+  poolSize?: number
+  error?: string
+}
+
 // Summary the seed endpoint returns — matches POST /api/ops/seed-fip-entry-list
 // response shape so the UI can surface what was inserted.
 interface SeedResult {
@@ -153,6 +177,14 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
   // tournaments clears the banner implicitly via the render guards below.
   const [seeding, setSeeding] = useState(false)
   const [seedResult, setSeedResult] = useState<SeedResult | null>(null)
+
+  // FIP twin linker state — used when the tournament has no fip_id but
+  // padelgod's tournament-discovery worker captured an orphan twin. We
+  // fetch the candidate once per selected tournament; clicking "Link"
+  // copies the fip_id onto the target row.
+  const [twin, setTwin] = useState<TwinResponse | null>(null)
+  const [linking, setLinking] = useState(false)
+  const [linkError, setLinkError] = useState<string | null>(null)
 
   // ── Initial fetch: tournament list (standalone only) ──
   useEffect(() => {
@@ -218,12 +250,65 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
 
   useEffect(() => {
     if (selectedTournamentId) {
-      // Clear any prior seed banner — it's tied to the previous tournament.
+      // Clear any prior seed banner + twin state — both are tied to the
+      // previous tournament.
       setSeedResult(null)
+      setTwin(null)
+      setLinkError(null)
       void fetchDetail(selectedTournamentId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTournamentId])
+
+  // ── Twin lookup — runs once per selected tournament, only when the
+  //    canonical row is missing a fip_id (saves a round-trip for the
+  //    common "already linked" case). ──
+  useEffect(() => {
+    if (!selectedTournamentId || !detail) return
+    if (detail.tournament?.fip_id) return // already linked, skip
+    let cancelled = false
+    fetch(`/api/ops/tournament-fip-twin?tournament_id=${selectedTournamentId}`)
+      .then((r) => r.json())
+      .then((body: TwinResponse) => {
+        if (!cancelled) setTwin(body)
+      })
+      .catch(() => {
+        /* silent — twin is a nice-to-have, failure shouldn't block the page */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedTournamentId, detail])
+
+  // ── Link action — POST to /api/ops/link-fip-id, refetch on success ──
+  const handleLinkFipId = useCallback(async () => {
+    if (!selectedTournamentId || !twin?.twin) return
+    setLinking(true)
+    setLinkError(null)
+    try {
+      const res = await fetch('/api/ops/link-fip-id', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          targetTournamentId: selectedTournamentId,
+          sourceTournamentId: twin.twin.candidate.id,
+        }),
+      })
+      const body = (await res.json()) as { ok?: boolean; error?: string }
+      if (!body.ok) {
+        setLinkError(body.error ?? 'Link failed')
+        return
+      }
+      // Success — refetch detail so the fip_id appears and the twin
+      // banner auto-dismisses.
+      setTwin(null)
+      await fetchDetail(selectedTournamentId)
+    } catch (e) {
+      setLinkError(e instanceof Error ? e.message : 'Link request failed')
+    } finally {
+      setLinking(false)
+    }
+  }, [selectedTournamentId, twin, fetchDetail])
 
   // ── FIP PDF seed action ──
   //
@@ -351,6 +436,21 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
 
       {loadingDetail && (
         <div style={{ ...card, color: '#666', fontSize: 12 }}>Loading snapshot…</div>
+      )}
+
+      {/* ── FIP twin linker banner ──
+          When the canonical tournament has no fip_id, but padelgod's
+          tournament-discovery worker has captured an orphan FIP row that
+          looks like a twin, we surface it here so the operator can link
+          with one click. After linking, the fip_id shows up on the
+          canonical row and the FIP PDF seed panel below becomes usable. */}
+      {detail && !loadingDetail && !detail.tournament?.fip_id && twin?.twin && (
+        <FipTwinBanner
+          twin={twin.twin}
+          linking={linking}
+          error={linkError}
+          onLink={handleLinkFipId}
+        />
       )}
 
       {/* ── FIP PDF seed panel ──
@@ -574,6 +674,110 @@ const tdStyle: React.CSSProperties = {
   padding: '6px 10px',
   color: '#333',
   verticalAlign: 'top',
+}
+
+// ── FIP twin linker banner ─────────────────────────────────────────────
+// Shown ABOVE the seed panel when the canonical tournament has no fip_id
+// but padelgod's tournament-discovery worker has already captured a
+// matching padelfip.com event as a separate row. One click copies
+// fip_id + slug onto the canonical row so the seed panel becomes usable.
+
+function FipTwinBanner({
+  twin,
+  linking,
+  error,
+  onLink,
+}: {
+  twin: NonNullable<TwinResponse['twin']>
+  linking: boolean
+  error: string | null
+  onLink: () => void
+}) {
+  const confidenceColor =
+    twin.confidence === 'high'
+      ? { bg: '#ecfdf5', border: '#a7f3d0', pill: '#065f46', pillBg: '#d1fae5' }
+      : twin.confidence === 'medium'
+        ? { bg: '#eff6ff', border: '#bfdbfe', pill: '#1e40af', pillBg: '#dbeafe' }
+        : { bg: '#fffbeb', border: '#fde68a', pill: '#92400e', pillBg: '#fef3c7' }
+
+  return (
+    <div
+      style={{
+        background: confidenceColor.bg,
+        border: `1px solid ${confidenceColor.border}`,
+        borderRadius: 8,
+        padding: 14,
+        marginBottom: 12,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>
+              🔗 FIP ID available from padelgod discovery
+            </span>
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: confidenceColor.pill,
+                background: confidenceColor.pillBg,
+                padding: '2px 6px',
+                borderRadius: 3,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {twin.confidence} confidence
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: '#444', lineHeight: 1.5 }}>
+            Padelgod&apos;s tournament-discovery worker captured this event on
+            padelfip.com as{' '}
+            <code style={{ background: '#fff', padding: '1px 5px', borderRadius: 3, border: '1px solid #eee' }}>
+              {twin.candidate.fip_id}
+            </code>
+            {' '}(
+            <a
+              href={`https://www.padelfip.com/events/${twin.candidate.slug ?? twin.candidate.fip_id}/`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#3b82f6', textDecoration: 'underline' }}
+            >
+              padelfip.com ↗
+            </a>
+            ) but the FIP id isn&apos;t linked to this tournament row yet. Linking enables the FIP PDF entry-list seeding below.
+          </div>
+          <div style={{ fontSize: 10, color: '#666', marginTop: 6, fontFamily: 'monospace' }}>
+            Matched on: {twin.reasons.join(' · ')}
+          </div>
+        </div>
+        <div style={{ flexShrink: 0 }}>
+          <button
+            onClick={onLink}
+            disabled={linking}
+            style={{
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 700,
+              background: linking ? '#d1d5db' : '#111',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 4,
+              cursor: linking ? 'wait' : 'pointer',
+            }}
+          >
+            {linking ? 'Linking…' : 'Link fip_id'}
+          </button>
+        </div>
+      </div>
+      {error && (
+        <div style={{ marginTop: 10, padding: 8, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 4, fontSize: 11, color: '#991b1b' }}>
+          ❌ {error}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── FIP PDF seed panel ─────────────────────────────────────────────────
