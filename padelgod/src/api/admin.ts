@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AxiosInstance } from 'axios';
 import type { Logger } from 'pino';
 import { getWorkerRunner, ALL_WORKERS } from '../scheduler.js';
+import { getNotifyStats } from '../lib/notify-stats.js';
 
 export interface AdminRouteOptions {
   adminToken: string;
@@ -57,5 +58,40 @@ export function registerAdminRoutes(app: FastifyInstance, opts: AdminRouteOption
       reply.status(500);
       return { error: { code: 'INTERNAL_ERROR', message: errorMessage.slice(0, 1000) } };
     }
+  });
+
+  // GET /admin/notify-stats — returns the in-memory counters tracked by
+  // `../lib/notify-stats.ts`. Used to verify from outside Railway whether
+  // the push-notify hook is armed and firing. Counters reset on restart;
+  // the `started_at` field lets the caller tell "restarted 5 min ago" vs
+  // "been up for hours with zero activity".
+  //
+  // Same bearer-token auth as /admin/run-worker (PADELGOD_ADMIN_TOKEN).
+  //
+  // Example successful response after one live transition:
+  //   {
+  //     "data": {
+  //       "env_configured": true,
+  //       "started_at": "2026-04-23T16:20:00.000Z",
+  //       "total_attempted": 1,
+  //       "total_skipped_env_missing": 0,
+  //       "total_skipped_not_scheduled": 0,
+  //       "total_fired": 1,
+  //       "total_success": 1,
+  //       "total_non_ok": 0,
+  //       "total_fetch_error": 0,
+  //       "last_success": { "at": "…", "matchId": "…" },
+  //       "last_non_ok": null,
+  //       "last_fetch_error": null,
+  //       "last_skip": null
+  //     }
+  //   }
+  app.get('/admin/notify-stats', async (req: FastifyRequest, reply: FastifyReply) => {
+    const auth = req.headers.authorization;
+    if (!auth || auth !== `Bearer ${opts.adminToken}`) {
+      reply.status(401);
+      return { error: { code: 'UNAUTHENTICATED', message: 'Invalid or missing admin token' } };
+    }
+    return { data: getNotifyStats() };
   });
 }

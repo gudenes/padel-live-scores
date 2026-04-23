@@ -7,6 +7,7 @@ import { registerAdminRoutes } from './api/admin.js';
 import { createHttpClient, PADELGOD_USER_AGENT } from './lib/http-client.js';
 import { buildSchedule, startScheduler, stopScheduler, type SchedulerDeps } from './scheduler.js';
 import { shutdownBrowser } from './lib/playwright-pool.js';
+import { recordEnvConfigured } from './lib/notify-stats.js';
 
 const VERSION = '0.1.0';
 const startedAt = new Date();
@@ -85,6 +86,10 @@ async function main() {
             logger: logger.child({ component: 'notify' }),
           }
         : undefined;
+    // Surface env-config state to /admin/notify-stats so operators can
+    // verify from outside Railway whether the push hook is armed.
+    recordEnvConfigured(!!notify);
+
     if (!notify) {
       logger.warn(
         {
