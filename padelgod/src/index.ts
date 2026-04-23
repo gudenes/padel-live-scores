@@ -119,6 +119,7 @@ async function main() {
       enablePlayerProfile: env.ENABLE_PLAYER_PROFILE,
       enableEntryListFetcher: env.ENABLE_ENTRY_LIST_FETCHER,
       enableDrawFetcher: env.ENABLE_DRAW_FETCHER,
+      enableFipDrawFetcher: env.ENABLE_FIP_DRAW_FETCHER,
       enableOopFetcher: env.ENABLE_OOP_FETCHER,
       enableResultsFetcher: env.ENABLE_RESULTS_FETCHER,
       enableStaticReconciler: env.ENABLE_STATIC_RECONCILER,

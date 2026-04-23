@@ -14,6 +14,11 @@ const EnvSchema = z.object({
   ENABLE_PLAYER_PROFILE: z.coerce.boolean().default(true),
   ENABLE_ENTRY_LIST_FETCHER: z.coerce.boolean().default(true),
   ENABLE_DRAW_FETCHER: z.coerce.boolean().default(true),
+  // FIP event-page draw fetcher (PR 1 of the draw-linker pipeline). Source =
+  // `fip_event_page`; writes to padelgod.draw_snapshots with match_widget_id
+  // populated. Default OFF while we verify data quality on Brussels; flip
+  // per-deploy via Railway env once confident. No writes to public.matches yet.
+  ENABLE_FIP_DRAW_FETCHER: z.coerce.boolean().default(false),
   ENABLE_OOP_FETCHER: z.coerce.boolean().default(true),
   ENABLE_RESULTS_FETCHER: z.coerce.boolean().default(true),
   ENABLE_STATIC_RECONCILER: z.coerce.boolean().default(true),
