@@ -750,7 +750,22 @@ export class LivePollerLoop {
     matchId: string,
     curr: LiveMatchState,
   ): Promise<void> {
+    // Only fire on the one transition this method owns.
     if (curr.status !== 'on_court') return;
+
+    // Diagnostic (2026-04-23): the first production deployment of this
+    // method produced zero `on_court` rows across multiple matches that
+    // definitively went through a warmup phase. The `attempting` log
+    // line lets us verify in Railway logs that the method is actually
+    // being called (not being swallowed silently by an earlier early-
+    // return). If we see `attempting` but no effect on DB rows, it's
+    // the classic race: padelapi flips scheduled → live before we stamp,
+    // and our `.eq('status', 'scheduled')` guard matches 0 rows (no
+    // error, no-op).
+    this.opts.logger.info(
+      this.logCtx({ matchId }),
+      'stamp on_court status: attempting (curr.status=on_court)',
+    );
 
     const nowIso = new Date().toISOString();
     const { error } = await this.opts.supabase
@@ -764,7 +779,25 @@ export class LivePollerLoop {
         this.logCtx({ matchId, err: error.message }),
         'stamp on_court status failed',
       );
+      return;
     }
+
+    // Cross-check: re-read the row to see what actually landed. One extra
+    // query per on_court candidate isn't a hot-path concern — we only
+    // emit `on_court` during the warmup window (few ticks per tournament).
+    // If status is now 'on_court', great. If it's 'live', padelapi raced.
+    const { data: verify } = await this.opts.supabase
+      .from('matches')
+      .select('status')
+      .eq('id', matchId)
+      .maybeSingle();
+    const actual = verify?.status ?? 'unknown';
+    this.opts.logger.info(
+      this.logCtx({ matchId, resultingStatus: actual }),
+      actual === 'on_court'
+        ? 'stamp on_court status: SUCCESS (scheduled → on_court)'
+        : `stamp on_court status: NO-OP (row is '${actual}', expected 'scheduled')`,
+    );
   }
 
   /**
