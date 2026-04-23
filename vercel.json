@@ -1,12 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/scores",
-      "schedule": "*/2 * * * *"
-    },
-    {
       "path": "/api/cron/sync?scope=matches",
-      "schedule": "0 */1 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/sync",
