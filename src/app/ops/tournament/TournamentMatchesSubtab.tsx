@@ -45,12 +45,18 @@ interface Stats {
 interface MatchesResponse {
   // `starts_at` is always present in the API response (server selects it
   // unconditionally) but can be null for tournaments whose start date
-  // hasn't been synced yet. The day-pill labels use it to compute the
-  // calendar date for each day_number — day N → starts_at + (N-1) days.
+  // hasn't been synced yet. Used as a fallback for day-pill date labels
+  // when dayDates has no entry for a given day_number.
   tournament: { id: string; name: string; starts_at: string | null } | null
   matches: ExplorerMatch[]
   stats: Stats
   capturedAt: { oop: string | null; results: string | null }
+  /** Server-derived map of day_number → YYYY-MM-DD — taken from the
+   *  scheduled_at of linked public.matches. Correct across qualifier days
+   *  that the Crionet OOP numbers BEFORE our stored starts_at. Empty
+   *  object when no matches are linked yet (Premier / brand-new).
+   *  Optional in the type so older (cached) responses don't crash the UI. */
+  dayDates?: Record<number, string>
   error?: string
 }
 
@@ -80,23 +86,44 @@ function renderTeam(
 /**
  * Resolve the calendar date for a tournament's `day_number`.
  *
- * Day N = starts_at + (N-1) whole days, computed in UTC to avoid the
- * fencepost issue from DST or the operator's local tz. Returns a short
- * "Apr 22" style label for the pills (2-3 chars month + day). Falls back
- * to null when starts_at is missing or invalid — caller renders the raw
- * "Day N" label only in that case.
+ * Primary source: `dayDates[dayNumber]` — a server-derived YYYY-MM-DD
+ * string built from the scheduled_at of linked public.matches. This is
+ * the accurate path: it reflects reality including qualifier days that
+ * Crionet numbers BEFORE the main-draw starts_at.
+ *
+ * Fallback: `starts_at + (N-1) days`. Only used when dayDates has no
+ * entry (unlinked matches, brand-new tournaments). Known to be off by
+ * however many pre-starts_at qualifier days the OOP includes (Brussels
+ * P2 2026 was off by one — QF appeared on day 6 → Apr 25 instead of the
+ * real Apr 24). We keep the fallback so the UI doesn't just show "Day 6"
+ * with no date, but it's second-best.
+ *
+ * Returns a short "Apr 22" style label. Null when neither source works.
  */
-function dateLabelForDay(startsAtIso: string | null, dayNumber: number): string | null {
-  if (!startsAtIso) return null
-  const start = new Date(startsAtIso)
-  if (isNaN(start.getTime())) return null
-  const d = new Date(start.getTime())
-  d.setUTCDate(d.getUTCDate() + (dayNumber - 1))
+function dateLabelForDay(
+  dayDates: Record<number, string> | undefined,
+  startsAtIso: string | null,
+  dayNumber: number,
+): string | null {
+  const isoFromDayDates = dayDates?.[dayNumber]
+  const iso = isoFromDayDates ?? startsAtOffset(startsAtIso, dayNumber)
+  if (!iso) return null
+  const d = new Date(`${iso}T00:00:00Z`)
+  if (isNaN(d.getTime())) return null
   return d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',
   })
+}
+
+function startsAtOffset(startsAtIso: string | null, dayNumber: number): string | null {
+  if (!startsAtIso) return null
+  const start = new Date(startsAtIso)
+  if (isNaN(start.getTime())) return null
+  const d = new Date(start.getTime())
+  d.setUTCDate(d.getUTCDate() + (dayNumber - 1))
+  return d.toISOString().slice(0, 10)
 }
 
 function renderSetScores(raw: unknown): string {
@@ -300,7 +327,7 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
             // starts_at. Dates make it much easier to scan the pills at a
             // glance when the operator is jumping into the middle of a 7-day
             // event ("which day is today?" answered without guessing).
-            const dateLabel = dateLabelForDay(data.tournament?.starts_at ?? null, d)
+            const dateLabel = dateLabelForDay(data.dayDates, data.tournament?.starts_at ?? null, d)
             return (
               <DayChip
                 key={d}

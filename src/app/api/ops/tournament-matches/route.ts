@@ -82,6 +82,21 @@ interface DetailResponse {
     oop: string | null
     results: string | null
   }
+  /**
+   * Map of `day_number` → ISO date string (YYYY-MM-DD) derived from the
+   * scheduled_at of linked public.matches. Used by the ops UI to label
+   * day pills with their real calendar date rather than inferring from
+   * the tournament's starts_at — Crionet's `oopbyday/{id}/{day}` URL
+   * numbers qualifier days before the main-draw starts_at, so a naive
+   * `starts_at + (day - 1)` offset is off by however many qualifier days
+   * precede the main draw (observed: Brussels P2 2026 QF was day 6 but
+   * starts_at + 5 days = Apr 25 instead of the real Apr 24).
+   *
+   * Populated only for days that have at least one LINKED match with a
+   * scheduled_at. Unlinked days and days with all-null scheduled_at
+   * fall back to the starts_at-offset path on the client.
+   */
+  dayDates: Record<number, string>
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────
@@ -249,7 +264,10 @@ export async function GET(request: Request) {
     if (ro?.match_widget_id) widgetIdsForLookup.push(ro.match_widget_id)
   }
 
-  const linkedMatchByWidgetId = new Map<string, { id: string; external_id: string | null }>()
+  const linkedMatchByWidgetId = new Map<
+    string,
+    { id: string; external_id: string | null; scheduled_at: string | null }
+  >()
   if (tournamentWidgetId && widgetIdsForLookup.length > 0) {
     const compositeIds = widgetIdsForLookup.map((w) => `${tournamentWidgetId}:${w}`)
     const { data: linkRows, error: linkErr } = await supabase
@@ -274,13 +292,14 @@ export async function GET(request: Request) {
       matchIdToWidget.set(row.entity_id, widget)
     }
 
-    // Enrich with padelapi_id from public.matches so the UI can deep-link
-    // (external_id is the legacy mirror of padelapi_id).
+    // Enrich with padelapi_id + scheduled_at from public.matches. padelapi_id
+    // lets the UI deep-link (it's the legacy mirror of external_id); scheduled_at
+    // lets us derive the REAL calendar date per day_number further below.
     const matchIds = [...matchIdToWidget.keys()]
     if (matchIds.length > 0) {
       const { data: matchRows, error: matchErr } = await supabase
         .from('matches')
-        .select('id, external_id')
+        .select('id, external_id, scheduled_at')
         .in('id', matchIds)
       if (matchErr) {
         return Response.json(
@@ -288,10 +307,14 @@ export async function GET(request: Request) {
           { status: 500 },
         )
       }
-      for (const m of (matchRows ?? []) as Array<{ id: string; external_id: string | null }>) {
+      for (const m of (matchRows ?? []) as Array<{ id: string; external_id: string | null; scheduled_at: string | null }>) {
         const widget = matchIdToWidget.get(m.id)
         if (widget) {
-          linkedMatchByWidgetId.set(widget, { id: m.id, external_id: m.external_id })
+          linkedMatchByWidgetId.set(widget, {
+            id: m.id,
+            external_id: m.external_id,
+            scheduled_at: m.scheduled_at,
+          })
         }
       }
     }
@@ -352,11 +375,31 @@ export async function GET(request: Request) {
     results: latestResults.length > 0 ? latestResults[0]!.captured_at : null,
   }
 
+  // Build day_number → calendar date map from linked matches' scheduled_at.
+  // See the DetailResponse.dayDates doc for why we can't infer from starts_at.
+  // Picks the MIN scheduled_at per day_number so ambiguous cases (two linked
+  // matches under the same day_number with slightly different dates — shouldn't
+  // happen but defensive) converge deterministically. Date-only substring
+  // (the first 10 chars) drops the time + timezone, giving us YYYY-MM-DD.
+  const dayDates: Record<number, string> = {}
+  for (const m of matches) {
+    if (m.dayNumber == null) continue
+    if (!m.matchWidgetId) continue
+    const link = linkedMatchByWidgetId.get(m.matchWidgetId)
+    if (!link?.scheduled_at) continue
+    const datePart = link.scheduled_at.slice(0, 10)
+    const existing = dayDates[m.dayNumber]
+    if (!existing || datePart < existing) {
+      dayDates[m.dayNumber] = datePart
+    }
+  }
+
   const response: DetailResponse = {
     tournament,
     matches,
     stats,
     capturedAt,
+    dayDates,
   }
 
   return Response.json(response)
