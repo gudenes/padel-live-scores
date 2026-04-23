@@ -751,6 +751,10 @@ function FipTwinBanner({
           <div style={{ fontSize: 10, color: '#666', marginTop: 6, fontFamily: 'monospace' }}>
             Matched on: {twin.reasons.join(' · ')}
           </div>
+          <div style={{ fontSize: 10, color: '#666', marginTop: 4, fontStyle: 'italic' }}>
+            Linking will clear the orphan row&apos;s fip_id + slug (releases UNIQUE
+            constraint) then copy them here. Non-atomic but safe to retry.
+          </div>
         </div>
         <div style={{ flexShrink: 0 }}>
           <button

@@ -101,29 +101,86 @@ export async function POST(request: Request) {
     )
   }
 
-  // Do the update. We copy `slug` too so the discovery worker's
-  // `onConflict: 'slug'` upsert will update THIS row on the next
-  // discovery run (instead of resurrecting the orphan).
+  // ── Two-step update to work around unique constraints ──
+  //
+  // `tournaments.fip_id` has a UNIQUE constraint (tournaments_fip_id_key).
+  // `tournaments.slug` is also effectively unique (the discovery worker
+  // upserts with `onConflict: 'slug'`, which requires a unique index).
+  //
+  // The orphan row currently holds the fip_id (and usually the slug) we
+  // want to copy onto the target. A naive UPDATE on target fails with:
+  //   "duplicate key value violates unique constraint tournaments_fip_id_key"
+  //
+  // Solution: null out the orphan's fip_id + slug FIRST, then update the
+  // target. Not atomic — but the flow is safe against partial failure:
+  //   - If step 1 fails → no writes, caller sees error and retries
+  //   - If step 2 fails → orphan has lost fip_id but we restore it
+  //     best-effort below; caller sees error and retries (re-linking is
+  //     idempotent because fip_id is still on the orphan after restore,
+  //     or not on anything after a clean retry)
+  //
+  // Keep source fip_id + slug cached since we need them for both steps
+  // and the restore path.
+  const sourceFipId = source.fip_id
+  const sourceSlug = source.slug
+  const nowIso = new Date().toISOString()
+
+  // Step 1 — clear orphan's identity fields to release the unique
+  // constraints. The orphan row keeps its UUID so any FK references
+  // (rare — discovery-created rows usually have none) stay intact.
+  const { error: clearErr } = await supabase
+    .from('tournaments')
+    .update({
+      fip_id: null,
+      slug: null,
+      last_updated_by: 'ops_manual_link_orphan_cleared',
+      updated_at: nowIso,
+    })
+    .eq('id', source.id)
+
+  if (clearErr) {
+    return Response.json(
+      { error: `orphan clear failed (unique constraint still held): ${clearErr.message}` },
+      { status: 500 },
+    )
+  }
+
+  // Step 2 — copy fip_id + slug onto the target. Copying slug too lets
+  // padelgod's `tournament-discovery` worker's `onConflict: 'slug'`
+  // upsert match THIS row on its next tick, instead of resurrecting
+  // the orphan.
   const { error: upErr } = await supabase
     .from('tournaments')
     .update({
-      fip_id: source.fip_id,
-      slug: source.slug ?? source.fip_id,
+      fip_id: sourceFipId,
+      slug: sourceSlug ?? sourceFipId,
       last_updated_by: 'ops_manual_link',
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     })
     .eq('id', targetId)
 
   if (upErr) {
-    return Response.json({ error: `update failed: ${upErr.message}` }, { status: 500 })
+    // Best-effort rollback: restore orphan's fip_id + slug. If this also
+    // fails, we've left the orphan with null identity — the next retry
+    // of this endpoint will simply skip the step-1 clear (since fip_id
+    // is already null) and succeed at step 2. The orphan's name stays
+    // intact either way.
+    await supabase
+      .from('tournaments')
+      .update({ fip_id: sourceFipId, slug: sourceSlug })
+      .eq('id', source.id)
+    return Response.json(
+      { error: `target update failed (orphan cleanup rolled back): ${upErr.message}` },
+      { status: 500 },
+    )
   }
 
   return Response.json({
     ok: true,
     target: { id: target.id, name: target.name },
     linked: {
-      fip_id: source.fip_id,
-      slug: source.slug ?? source.fip_id,
+      fip_id: sourceFipId,
+      slug: sourceSlug ?? sourceFipId,
     },
     matchConfidence: match.confidence,
     matchedTokens: match.matchedTokens,
