@@ -32,6 +32,27 @@ interface FetchResult {
   matched: number
   unmatched: number
   matches: ScheduleMatch[]
+  // Provenance (added when reading from padelgod.oop_snapshots)
+  source?: string
+  capturedAt?: string | null
+  exactMatchCount?: number
+}
+
+/**
+ * Format a human-readable "X ago" for a past ISO timestamp. Used to surface
+ * how stale the padelgod OOP snapshot is (hourly scrape cadence). Returns
+ * "—" for null inputs or ">24h" for anything older than a day.
+ */
+function formatAgo(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const ms = Date.now() - new Date(iso).getTime()
+  if (!isFinite(ms) || ms < 0) return '—'
+  const mins = Math.floor(ms / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return '>24h ago'
 }
 
 const card: React.CSSProperties = {
@@ -299,6 +320,23 @@ export default function ScheduleTab() {
               <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>Unmatched</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: result.unmatched > 0 ? '#f59e0b' : '#999' }}>{result.unmatched}</div>
             </div>
+            {/* Provenance indicator — shows how stale the snapshot is. Data
+                comes from padelgod's hourly oop-fetcher; up to ~1h old is
+                expected. Exact count shows how many rows linked via widget
+                id (skipping fuzzy matching entirely). */}
+            {result.source === 'padelgod.oop_snapshots' && (
+              <div>
+                <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>Snapshot</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>
+                  {formatAgo(result.capturedAt)}
+                  {typeof result.exactMatchCount === 'number' && result.exactMatchCount > 0 && (
+                    <span style={{ marginLeft: 6, fontSize: 10, color: '#166534', fontWeight: 500 }}>
+                      · {result.exactMatchCount} exact
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button onClick={toggleAll} style={{ padding: '4px 12px', fontSize: 11, fontWeight: 600, borderRadius: 4, border: '1px solid #d1d5db', cursor: 'pointer', background: '#fff', color: '#333' }}>
                 {selected.size > 0 ? 'Deselect All' : 'Select All Matched'}

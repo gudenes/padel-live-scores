@@ -5,8 +5,11 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { checkOpsAuth } from '@/lib/ops-auth'
-import { fetchOopDay } from '@/lib/fip-scraper'
 import type { OopMatch } from '@/lib/fip-scraper'
+import {
+  readOopFromSnapshots,
+  lookupMatchesByWidgetIds,
+} from '@/lib/oop-snapshots-reader'
 import { normalize, tokenSimilarity } from '@/lib/player-resolver'
 
 const supabase = createClient(
@@ -56,12 +59,35 @@ export async function GET(request: Request) {
     return Response.json({ error: 'day must be 1-10' }, { status: 400 })
   }
 
-  // 1. Fetch OOP from widget
-  const oopDay = await fetchOopDay(matchscorerCode, day)
+  // 1. Read OOP from padelgod.oop_snapshots (populated hourly by padelgod's
+  //    oop-fetcher worker). Replaces the legacy fetchOopDay() direct scrape
+  //    which had a brittle court-name regex. One parser of record now.
+  const oopDay = await readOopFromSnapshots(supabase, tournamentId, day)
 
   if (oopDay.matches.length === 0) {
-    return Response.json({ matches: [], day, message: 'No matches found for this day' })
+    return Response.json({
+      matches: [],
+      day,
+      capturedAt: oopDay.capturedAt,
+      source: 'padelgod.oop_snapshots',
+      message: oopDay.capturedAt
+        ? 'No matches found for this day in latest snapshot'
+        : 'No snapshot yet — padelgod oop-fetcher may not have run for this tournament',
+    })
   }
+
+  // Exact match-widget-id lookup — when present, lets us skip fuzzy name
+  // matching entirely and get confidence='high' automatically. Padelgod's
+  // parser captures this from the stats-button data-id; padelapi rows get
+  // linked during live polling via entity_external_ids(source='crionet_widget').
+  const widgetIdsPresent = oopDay.matches
+    .map((m) => m.matchCode)
+    .filter((c): c is string => !!c)
+  const widgetIdToMatchId = await lookupMatchesByWidgetIds(
+    supabase,
+    matchscorerCode,
+    widgetIdsPresent,
+  )
 
   // 2. Get tournament timezone
   const { data: tournament } = await supabase
@@ -123,12 +149,32 @@ export async function GET(request: Request) {
     const team1Display = `${fmtPlayer(oop.team1[0])} / ${fmtPlayer(oop.team1[1])}`
     const team2Display = `${fmtPlayer(oop.team2[0])} / ${fmtPlayer(oop.team2[1])}`
 
-    // Try to match against DB matches by player name similarity
+    // Exact match path — if the OOP row has a widget id that's already linked
+    // in entity_external_ids, we know the DB match without any fuzzy logic.
+    // Confidence is 'high' by construction.
     let bestMatch: any = null
     let bestScore = 0
     let bestRoundPriority = 0
+    const exactMatchId = oop.matchCode
+      ? widgetIdToMatchId.get(oop.matchCode) ?? null
+      : null
 
+    if (exactMatchId) {
+      bestMatch = (dbMatches || []).find((m: any) => m.id === exactMatchId) ?? null
+      if (bestMatch) {
+        // Bypass fuzzy scoring — exact widget-id linkage is the strongest
+        // signal available. Use a score > any fuzzy score so downstream
+        // confidence math settles on 'high'.
+        bestScore = 4
+        bestRoundPriority = 1
+      }
+    }
+
+    // Fall back to fuzzy name matching when no exact widget-id link exists
+    // (e.g. a freshly discovered OOP entry whose match row in DB was created
+    // before findPadelapiTwin or live-poller linked it).
     for (const dbm of (dbMatches || []) as any[]) {
+      if (exactMatchId) break // already resolved exactly
       // Compare OOP players against DB match players
       const dbNames = [
         dbm.pair1_player1?.name,
@@ -269,6 +315,12 @@ export async function GET(request: Request) {
     matched: scheduleMatches.filter(m => m.dbMatchId).length,
     unmatched: scheduleMatches.filter(m => !m.dbMatchId).length,
     matches: scheduleMatches,
+    // Provenance + freshness. `capturedAt` is when padelgod's oop-fetcher
+    // last scraped this widget page; UI surfaces it so operators can judge
+    // whether a "Refresh" (not implemented in this PR) would help.
+    source: 'padelgod.oop_snapshots',
+    capturedAt: oopDay.capturedAt,
+    exactMatchCount: scheduleMatches.filter(m => m.matchCode && widgetIdToMatchId.has(m.matchCode)).length,
   })
 }
 
