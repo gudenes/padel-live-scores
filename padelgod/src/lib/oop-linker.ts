@@ -1,0 +1,243 @@
+// padelgod/src/lib/oop-linker.ts
+//
+// Match padelgod OOP snapshots to public.matches rows via player-name
+// overlap + (round, court) filters. Produces a list of
+// `entity_external_ids` rows to insert so the ops Tournament Explorer
+// and cross-source reconcilers can resolve the Crionet composite
+// `{tournamentWidgetId}:{matchWidgetId}` → real match UUID.
+//
+// Why this exists separately from match-identifier:
+// match-identifier.findOrCreateMatch takes player UUIDs and is called
+// from the live-poller when a match is observed on the Crionet widget.
+// For OOP-only matches that padelgod never saw live (finals wrapped up
+// before a poll tick, live-poller inactive during the window, etc.),
+// no entity_external_ids row ever gets written — the ops page shows
+// those rows as "Unlinked" forever.
+//
+// The static-reconciler has a player-UUID path too, but it needs the
+// entry list to resolve OOP names → fip_ids → player UUIDs. Crionet
+// returns "coming soon" for Premier tournaments, so the reconciler
+// skips them — and we can't rely on it here either.
+//
+// This module takes a different approach: compare OOP's player-name
+// strings directly against public.matches' joined player names. Pair-
+// level name overlap with a (round, court) filter is usually enough to
+// pick the right row unambiguously. When it's ambiguous (two matches
+// on the same court / same round / similar names), we skip silently —
+// better to leave unlinked than link wrong.
+//
+// Pure function module — no DB access inside `linkOopSnapshotsToPublicMatches`.
+// Callers fetch public.matches rows separately and pass them in so
+// testing is trivial (`oop-linker.test.ts`).
+
+import type { ParsedOopMatch } from '../parsers/crionet-oop.js';
+
+/**
+ * A public.matches row enriched with player name joins. Shape mirrors
+ * what Supabase returns for:
+ *   .select('id, round, court, category, pair1_player1:players(name), …')
+ */
+export interface PublicMatchCandidate {
+  id: string;
+  round: string | null;
+  court: string | null;
+  category: 'men' | 'women' | null;
+  pair1Player1Name: string | null;
+  pair1Player2Name: string | null;
+  pair2Player1Name: string | null;
+  pair2Player2Name: string | null;
+}
+
+/** A linkage we propose to write: crionet widget external id → match UUID. */
+export interface OopLinkage {
+  /** The OOP parsed match this linkage is for — returned for caller logging. */
+  matchWidgetId: string;
+  /** `{tournamentWidgetId}:{matchWidgetId}` — the external_id column value. */
+  compositeExternalId: string;
+  /** public.matches UUID we matched this OOP row to. */
+  matchId: string;
+}
+
+export interface LinkingOptions {
+  /** Minimum number of player names (out of 4) that must overlap between the
+   * OOP match and a public.matches candidate for a link to be considered.
+   * Default 3 (3/4 surnames) — catches cases where one OOP name has a typo
+   * or a nickname while avoiding false positives from same-tournament
+   * common surnames. Use 4 for stricter matching. */
+  minNameOverlap?: number;
+  /** When two candidates tie on overlap score, skip linking. Default true —
+   * "linked wrong" is worse than "not linked" for our use case. Set to
+   * false only in tests where you explicitly want tie-break behaviour. */
+  skipOnTie?: boolean;
+}
+
+/**
+ * Build a list of `entity_external_ids` rows to insert, linking OOP parsed
+ * matches to public.matches UUIDs via player-name overlap.
+ *
+ * Skips matches where:
+ *   - matchWidgetId is missing (no composite to write)
+ *   - fewer than minNameOverlap OOP player names are present
+ *   - no public-match candidate meets the overlap threshold
+ *   - multiple candidates tie on score (when skipOnTie=true)
+ *
+ * The overlap score is the number of OOP player LAST-NAMES that match
+ * any of the public match's 4 player last names (case-insensitive,
+ * whitespace-normalized). Last-name-only because OOP uses short-form
+ * "M. Gonzalez Gallego" while public.matches can store longer variants.
+ *
+ * Matches are also filtered by round (canonicalized so "Quarterfinals"
+ * == "Quarter") and category before scoring. Court is used only as a
+ * tiebreaker when two candidates share the same score.
+ */
+export function linkOopSnapshotsToPublicMatches(
+  parsed: ParsedOopMatch[],
+  publicMatches: PublicMatchCandidate[],
+  tournamentWidgetId: string,
+  opts: LinkingOptions = {},
+): OopLinkage[] {
+  const minNameOverlap = opts.minNameOverlap ?? 3;
+  const skipOnTie = opts.skipOnTie ?? true;
+
+  // Index publicMatches by (canonical round, category) for fast filtering.
+  // Key: "<canonicalRound>::<category>" → candidates
+  const byRoundCat = new Map<string, PublicMatchCandidate[]>();
+  for (const pm of publicMatches) {
+    if (!pm.round || !pm.category) continue;
+    const key = `${canonicalRound(pm.round)}::${pm.category}`;
+    const arr = byRoundCat.get(key) ?? [];
+    arr.push(pm);
+    byRoundCat.set(key, arr);
+  }
+
+  const linkages: OopLinkage[] = [];
+  // Track which public matches have already been claimed — don't link two
+  // OOP widget ids to the same public match row.
+  const claimedMatchIds = new Set<string>();
+
+  for (const oop of parsed) {
+    if (!oop.matchWidgetId) continue;
+    const oopNames = lastNameSetFromOopRow(oop);
+    if (oopNames.size < minNameOverlap) continue;
+
+    if (!oop.roundLabel) continue;
+    const roundCatKey = `${canonicalRound(oop.roundLabel)}::${oop.category}`;
+    const candidates = byRoundCat.get(roundCatKey) ?? [];
+    if (candidates.length === 0) continue;
+
+    // Score each candidate by overlap; keep the top score(s).
+    let bestScore = 0;
+    let bestCandidates: PublicMatchCandidate[] = [];
+    for (const pm of candidates) {
+      if (claimedMatchIds.has(pm.id)) continue;
+      const pmNames = lastNameSetFromPublicMatch(pm);
+      const overlap = countOverlap(oopNames, pmNames);
+      if (overlap < minNameOverlap) continue;
+      if (overlap > bestScore) {
+        bestScore = overlap;
+        bestCandidates = [pm];
+      } else if (overlap === bestScore) {
+        bestCandidates.push(pm);
+      }
+    }
+
+    if (bestCandidates.length === 0) continue;
+
+    // Tie-break by court match when possible.
+    if (bestCandidates.length > 1 && oop.court) {
+      const courtMatches = bestCandidates.filter(
+        (c) => c.court && normalizeCourt(c.court) === normalizeCourt(oop.court),
+      );
+      if (courtMatches.length === 1) {
+        bestCandidates = courtMatches;
+      }
+    }
+
+    if (bestCandidates.length > 1 && skipOnTie) continue;
+
+    const winner = bestCandidates[0]!;
+    claimedMatchIds.add(winner.id);
+    linkages.push({
+      matchWidgetId: oop.matchWidgetId,
+      compositeExternalId: `${tournamentWidgetId}:${oop.matchWidgetId}`,
+      matchId: winner.id,
+    });
+  }
+
+  return linkages;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Normalize a round label so "Quarterfinals" matches "Quarter",
+ * "Semifinals" matches "Semi", etc. Same canonicalizer as
+ * `src/app/api/ops/tournament-matches/route.ts` — keep in sync if you
+ * add aliases. Lower-cased + trimmed so case variants match too.
+ */
+function canonicalRound(r: string): string {
+  const s = r.toLowerCase().trim();
+  if (s === 'quarterfinals' || s === 'quarter' || s === 'quarterfinal') return 'quarter';
+  if (s === 'semifinals' || s === 'semi' || s === 'semifinal') return 'semi';
+  if (s === 'finals' || s === 'final') return 'final';
+  return s;
+}
+
+/** Extract the "last name" portion of a player display name.
+ * OOP emits "M. Gonzalez Gallego" (initial + last name(s)). Some public
+ * rows store "Maria Gonzalez Gallego" (first + last). To maximize match
+ * recall, take everything after the first whitespace-separated token
+ * that has length > 1 — skips single-letter initials. Falls back to
+ * the whole trimmed string when no such token exists. */
+export function extractLastName(displayName: string): string {
+  const trimmed = displayName.trim();
+  if (trimmed.length === 0) return '';
+  // Strip trailing punctuation commonly attached to widget HTML leak.
+  const cleaned = trimmed.replace(/[^\p{L}\p{M}\s.-]/gu, '').trim();
+  const parts = cleaned.split(/\s+/);
+  // Drop leading parts that look like initials ("M.", "J.") — single char
+  // optionally followed by '.'.
+  const idx = parts.findIndex((p) => !/^\p{L}\.?$/u.test(p));
+  if (idx === -1) return parts.join(' ').toLowerCase();
+  return parts.slice(idx).join(' ').toLowerCase();
+}
+
+function lastNameSetFromOopRow(o: ParsedOopMatch): Set<string> {
+  const s = new Set<string>();
+  for (const n of [
+    o.team1Player1Name,
+    o.team1Player2Name,
+    o.team2Player1Name,
+    o.team2Player2Name,
+  ]) {
+    if (!n) continue;
+    const ln = extractLastName(n);
+    if (ln) s.add(ln);
+  }
+  return s;
+}
+
+function lastNameSetFromPublicMatch(m: PublicMatchCandidate): Set<string> {
+  const s = new Set<string>();
+  for (const n of [
+    m.pair1Player1Name,
+    m.pair1Player2Name,
+    m.pair2Player1Name,
+    m.pair2Player2Name,
+  ]) {
+    if (!n) continue;
+    const ln = extractLastName(n);
+    if (ln) s.add(ln);
+  }
+  return s;
+}
+
+function countOverlap(a: Set<string>, b: Set<string>): number {
+  let c = 0;
+  for (const x of a) if (b.has(x)) c++;
+  return c;
+}
+
+function normalizeCourt(c: string): string {
+  return c.toLowerCase().trim().replace(/\s+/g, ' ');
+}

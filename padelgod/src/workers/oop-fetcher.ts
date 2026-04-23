@@ -4,6 +4,10 @@ import { createHash } from 'node:crypto';
 import { parseCrionetOop } from '../parsers/crionet-oop.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { CRIONET_OOP_VERSION } from '../lib/parser-versions.js';
+import {
+  linkOopSnapshotsToPublicMatches,
+  type PublicMatchCandidate,
+} from '../lib/oop-linker.js';
 
 export interface OopFetcherDeps {
   supabase: SupabaseClient;
@@ -105,7 +109,134 @@ async function fetchOneDay(
   // for the full rationale.
   await upsertTournamentCourts(deps.supabase, t.tournament_id, parsed);
 
+  // Auto-link OOP snapshots to padelapi-sourced public.matches rows. Without
+  // this, matches that were never observed live by the live-poller (e.g.
+  // QFs that flipped from scheduled → finished between poll ticks) show as
+  // "Unlinked" in the ops Tournament Explorer forever, even though a
+  // corresponding public.matches row exists. See oop-linker.ts for why
+  // this can't just reuse match-identifier (entry-list gap for Premier).
+  await autolinkOopMatches(deps.supabase, t.tournament_id, t.widget_id, parsed);
+
   return rows.length;
+}
+
+/**
+ * For every parsed OOP match with a widget id + player names, attempt to
+ * write an `entity_external_ids` row linking the Crionet widget id to a
+ * real public.matches UUID. Uses `linkOopSnapshotsToPublicMatches` from
+ * ../lib/oop-linker.ts — name-overlap + (round, court) scoring.
+ *
+ * Short-circuits when public.matches has no rows for this tournament yet
+ * (tournament_courts would also be empty in that case — nothing to link
+ * to). Never creates new public.matches rows: strictly a "link existing
+ * padelapi twin" operation. If a link can't be inferred unambiguously,
+ * we skip silently — the ops page just keeps showing the row unlinked.
+ *
+ * Non-fatal on every error: oop_snapshots is the authoritative capture
+ * and succeeded already; linking is best-effort enrichment.
+ */
+async function autolinkOopMatches(
+  supabase: SupabaseClient,
+  tournamentId: string,
+  tournamentWidgetId: string,
+  parsed: ReturnType<typeof parseCrionetOop>,
+): Promise<void> {
+  // Only bother if some parsed row has a widget id AND player names — the
+  // linker needs both to score candidates.
+  const hasCandidates = parsed.some(
+    (m) =>
+      !!m.matchWidgetId &&
+      (m.team1Player1Name || m.team1Player2Name || m.team2Player1Name || m.team2Player2Name),
+  );
+  if (!hasCandidates) return;
+
+  // Fetch public.matches for the tournament WITH player names joined in.
+  // Shape mirrors what linkOopSnapshotsToPublicMatches expects. The
+  // category filter on the linker works by exact match ('men' | 'women')
+  // so we select it here too.
+  const { data: publicRows, error } = await supabase
+    .from('matches')
+    .select(
+      `id, round, court, category,
+       pair1_player1:players!matches_pair1_player1_id_fkey(name),
+       pair1_player2:players!matches_pair1_player2_id_fkey(name),
+       pair2_player1:players!matches_pair2_player1_id_fkey(name),
+       pair2_player2:players!matches_pair2_player2_id_fkey(name)`,
+    )
+    .eq('tournament_id', tournamentId);
+  if (error) {
+    console.warn(
+      `[oop-fetcher] public.matches read for autolink failed (${tournamentId}): ${error.message}`,
+    );
+    return;
+  }
+
+  // Supabase's embedded-resource joins can return either a single object
+  // or an array depending on the FK cardinality hints in the schema. For
+  // our `players!matches_pair1_player1_id_fkey(...)` form we get objects
+  // in practice, but the generated types assume arrays — normalize either
+  // shape to a single name string.
+  const firstName = (p: unknown): string | null => {
+    if (!p) return null;
+    if (Array.isArray(p)) {
+      return (p[0] as { name?: string | null } | undefined)?.name ?? null;
+    }
+    return (p as { name?: string | null }).name ?? null;
+  };
+
+  const candidates: PublicMatchCandidate[] = (publicRows ?? []).map(
+    (raw): PublicMatchCandidate => {
+      const r = raw as {
+        id: string;
+        round: string | null;
+        court: string | null;
+        category: 'men' | 'women' | null;
+        pair1_player1: unknown;
+        pair1_player2: unknown;
+        pair2_player1: unknown;
+        pair2_player2: unknown;
+      };
+      return {
+        id: r.id,
+        round: r.round,
+        court: r.court,
+        category: r.category,
+        pair1Player1Name: firstName(r.pair1_player1),
+        pair1Player2Name: firstName(r.pair1_player2),
+        pair2Player1Name: firstName(r.pair2_player1),
+        pair2Player2Name: firstName(r.pair2_player2),
+      };
+    },
+  );
+
+  const linkages = linkOopSnapshotsToPublicMatches(parsed, candidates, tournamentWidgetId);
+  if (linkages.length === 0) return;
+
+  const nowIso = new Date().toISOString();
+  const rows = linkages.map((l) => ({
+    entity_type: 'match',
+    entity_id: l.matchId,
+    source: 'crionet_widget',
+    external_id: l.compositeExternalId,
+    first_seen_at: nowIso,
+    last_seen_at: nowIso,
+  }));
+
+  // Upsert with onConflict so re-runs don't error when the row is already
+  // there (live-poller may have written it in the meantime). We use
+  // ignoreDuplicates so an existing row pointing at a DIFFERENT match id
+  // is left alone — live-poller's link is canonical when present.
+  const { error: upErr } = await supabase
+    .from('entity_external_ids')
+    .upsert(rows, {
+      onConflict: 'source,entity_type,external_id',
+      ignoreDuplicates: true,
+    });
+  if (upErr) {
+    console.warn(
+      `[oop-fetcher] entity_external_ids upsert failed for ${tournamentId}: ${upErr.message}`,
+    );
+  }
 }
 
 async function upsertTournamentCourts(
