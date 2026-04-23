@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { normalizeCountry } from '../lib/country.js';
 
 const TABLE_SELECTOR = 'table.w-100';
 const HEADER_SELECTOR = 'tr.scorebox-header-completed, tr.scorebox-header-live, tr.scorebox-header-scheduled';
@@ -107,7 +108,9 @@ function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
       if (flagImg.length > 0) {
         const src = flagImg.attr('src') ?? '';
         const m = src.match(/\/([A-Z]{2,3})\.(?:jpg|png|svg)/i);
-        if (m?.[1]) country = m[1].toUpperCase();
+        // Normalize Crionet's alpha-3 (ESP) to our canonical alpha-2 (ES).
+        // See `lib/country.ts` for the mapping + rationale.
+        country = normalizeCountry(m?.[1] ?? null);
       }
     }
   });

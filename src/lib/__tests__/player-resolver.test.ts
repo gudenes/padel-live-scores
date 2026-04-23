@@ -85,8 +85,24 @@ describe('normalizeCountry', () => {
     expect(normalizeCountry('Bra')).toBe('BR')
   })
 
-  it('returns unknown 3-letter codes unchanged, upper-cased', () => {
-    expect(normalizeCountry('XYZ')).toBe('XYZ')
+  it('returns null for unknown 3-letter codes (respects DB CHECK constraint)', () => {
+    // Changed 2026-04-23 — DB got CHECK constraint `length(country)=2`.
+    // Pass-through would hard-fail the write. Null is the "unknown
+    // country" signal; ops data-quality views surface null rows.
+    expect(normalizeCountry('XYZ')).toBeNull()
+  })
+
+  it('maps previously-missing FIFA aliases (regression from 2026-04-23)', () => {
+    // Initial migration missed these; production data still showed up
+    // as alpha-3 until this PR shipped. Guardrail against forgetting.
+    expect(normalizeCountry('RUS')).toBe('RU')
+    expect(normalizeCountry('INA')).toBe('ID')
+    expect(normalizeCountry('SIN')).toBe('SG')
+    expect(normalizeCountry('PAK')).toBe('PK')
+    expect(normalizeCountry('NGR')).toBe('NG')
+    expect(normalizeCountry('GEO')).toBe('GE')
+    expect(normalizeCountry('ALG')).toBe('DZ')
+    expect(normalizeCountry('KAZ')).toBe('KZ')
   })
 })
 

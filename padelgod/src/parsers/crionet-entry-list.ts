@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { normalizeCountry } from '../lib/country.js';
 
 // === Selectors — adjust post-deploy after live HTML inspection ===
 const ROW_SELECTOR = '.entry-list-row';
@@ -39,9 +40,13 @@ function parseSeed(raw: string): number | null {
 }
 
 function parseCountry(flagSrc: string, alt: string): string | null {
-  if (alt && alt.trim().length === 3) return alt.trim().toUpperCase();
-  const m = flagSrc.match(/([A-Z]{3})\.jpg/);
-  return m && m[1] ? m[1] : null;
+  // Extract whatever Crionet gave us (alpha-3 from flag filename or alt
+  // attr) then normalize to our canonical alpha-2 via the shared helper.
+  // Unknown codes fall through upper-cased — see `lib/country.ts`.
+  const raw = alt && alt.trim().length === 3
+    ? alt.trim().toUpperCase()
+    : flagSrc.match(/([A-Z]{3})\.jpg/)?.[1] ?? null;
+  return normalizeCountry(raw);
 }
 
 export function parseCrionetEntryList(html: string, category: Category): ParsedEntryListPlayer[] {

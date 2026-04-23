@@ -12,6 +12,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PipelineResult, PipelineNewPlayer } from './fip-entry-list-pipeline'
+import { normalizeCountry } from './player-resolver'
 
 export interface PersistResult {
   scrapeJobId: string
@@ -51,6 +52,12 @@ export async function persistPipelineResult(
     const playersInserted = await upsertNewPlayers(supabase, result.newPlayers)
 
     // 3. Bulk-insert snapshots
+    //
+    // Normalize country at the write boundary. The pipeline's rows carry
+    // whatever the upstream (PDF parser or FIP search) returned — which
+    // is usually alpha-3 ("ESP") for FIP-sourced data. Canonical storage
+    // is alpha-2 ("ES") — see `padelgod/src/lib/country.ts` + the
+    // countryFlag shim in `src/types/match.ts`.
     let snapshotsInserted = 0
     if (result.rows.length > 0) {
       const snapshotRows = result.rows.map(r => ({
@@ -59,7 +66,7 @@ export async function persistPipelineResult(
         category: r.category,
         fip_id: r.fip_id,
         name: r.name,
-        country: r.country,
+        country: normalizeCountry(r.country),
         seed: r.seed,
         partner_fip_id: r.partner_fip_id,
         partner_name: r.partner_name,
@@ -115,7 +122,8 @@ async function upsertNewPlayers(
     fip_id: p.fipId,
     external_id: p.fipId, // keep legacy column in sync — tournaments table triggers expect this
     name: p.name,
-    country: p.country,
+    // Normalize to alpha-2 at write (FIP search returns alpha-3).
+    country: normalizeCountry(p.country),
     category: p.category,
     ranking: p.rank,
     points: p.points,
