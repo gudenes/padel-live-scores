@@ -72,7 +72,35 @@ async function main() {
       enableShadowDiffLive: env.ENABLE_SHADOW_DIFF_LIVE,
       enableCloseStaleLiveSweeper: env.ENABLE_CLOSE_STALE_LIVE_SWEEPER,
     });
-    const schedulerDeps: SchedulerDeps = { supabase, httpClient, logger };
+    // Build the notify config for live-poller-manager. Both env vars must be
+    // present — otherwise we pass `undefined` and the hook inside
+    // `dualWriteShadowToPublic` no-ops (safe fallback for local/test).
+    // Logger is child-scoped so notify errors carry the `notify:true` tag
+    // for easy grep in Railway logs.
+    const notify =
+      env.NOTIFY_BASE_URL && env.CRON_SECRET
+        ? {
+            baseUrl: env.NOTIFY_BASE_URL,
+            cronSecret: env.CRON_SECRET,
+            logger: logger.child({ component: 'notify' }),
+          }
+        : undefined;
+    if (!notify) {
+      logger.warn(
+        {
+          hasBaseUrl: !!env.NOTIFY_BASE_URL,
+          hasCronSecret: !!env.CRON_SECRET,
+        },
+        'NOTIFY_BASE_URL or CRON_SECRET not set — push notify hook disabled',
+      );
+    } else {
+      logger.info(
+        { baseUrl: env.NOTIFY_BASE_URL },
+        'Push notify hook enabled for live-poller transitions',
+      );
+    }
+
+    const schedulerDeps: SchedulerDeps = { supabase, httpClient, logger, notify };
     scheduledTasks = startScheduler(schedule, schedulerDeps);
     logger.info({ workers: schedule.length }, 'Scheduler started');
   } else {

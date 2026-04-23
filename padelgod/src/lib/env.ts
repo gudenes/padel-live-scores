@@ -22,6 +22,13 @@ const EnvSchema = z.object({
   ENABLE_SHADOW_DIFF_FINALIZER: z.coerce.boolean().default(true),
   ENABLE_SHADOW_DIFF_LIVE: z.coerce.boolean().default(true),
   ENABLE_CLOSE_STALE_LIVE_SWEEPER: z.coerce.boolean().default(true),
+  // Web push notification hook — set to the padelnachos.com origin to fire
+  // `/api/push/notify` whenever padelgod flips a match out of `scheduled`.
+  // Both vars optional: if either is unset, notify is skipped silently (so
+  // local/test runs don't crash). CRON_SECRET must match the Vercel value.
+  // See live-poller-loop.ts::notifyLiveTransition.
+  NOTIFY_BASE_URL: z.string().url().optional(),
+  CRON_SECRET: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

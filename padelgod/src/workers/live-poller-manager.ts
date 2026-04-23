@@ -51,6 +51,13 @@ export interface LivePollerManagerDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
   logger: Logger;
+  /**
+   * Optional web-push notify configuration. Forwarded to every LivePollerLoop
+   * this manager starts. Fires `/api/push/notify` on the first
+   * `scheduled → on_court/live` transition padelgod performs via dual-write.
+   * No-op when unset (local/test) — the loop keeps working unchanged.
+   */
+  notify?: import('../lib/notify.js').NotifyDeps;
 }
 
 export interface LivePollerManagerResult {
@@ -183,6 +190,9 @@ export async function runLivePollerManager(
         widget: want.widget_id,
         mode: want.mode,
       }),
+      // Forward notify config so loops in shadow mode fire /api/push/notify
+      // on the scheduled→* transition. No-op when undefined.
+      notify: deps.notify,
     });
 
     try {
