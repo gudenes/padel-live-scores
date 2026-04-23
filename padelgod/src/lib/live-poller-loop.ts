@@ -590,6 +590,15 @@ export class LivePollerLoop {
     // abort the tick.
     if (this.mode === 'canonical') {
       await this.stampMatchTimes(matchId, parsed, curr, prev);
+      // `on_court` is a padelgod-only observation. Padelapi never emits
+      // this status (it only knows scheduled/live/finished), so in
+      // canonical mode `applyDiff` below is a no-op for status writes
+      // (`dualWritePublic: false`). We stamp the transition directly
+      // here — guarded with `.eq('status', 'scheduled')` so we never
+      // regress a match already past warmup. Same precedent as
+      // `closeMatch`, which runs in both modes because padelapi can't
+      // be trusted to close terminal states quickly either.
+      await this.stampObservedStatus(matchId, curr);
     }
 
     await applyDiff(this.opts.supabase, matchId, prev, curr, diff, resolvedPlayers, {
@@ -697,6 +706,65 @@ export class LivePollerLoop {
     // which also writes status + winner_pair + final sets atomically on the
     // same terminal-status signal. See closeMatch docs for the ownership
     // rationale.
+  }
+
+  /**
+   * Stamp `status='on_court'` on public.matches when the widget reports
+   * the match is in the pre-play warmup phase.
+   *
+   * Why this exists
+   * ---------------
+   * `on_court` is a padelgod-only observation — it comes from the Crionet
+   * tournamentlive widget's `<span class="ml-4">On court</span>` label,
+   * emitted while players are warming up but before the first point is
+   * scored. Padelapi has no equivalent concept; it transitions matches
+   * directly from `scheduled` → `live` when the first point happens.
+   *
+   * In canonical mode `applyDiff` passes `dualWritePublic: false`, so
+   * the status field on public.matches is NOT written by the live-poller
+   * — padelapi owns scheduled→live→finished. But because padelapi never
+   * emits `on_court`, relying on dualWrite means the warmup phase never
+   * surfaces to the fan-visible UI (feature was shipped in PR #256 but
+   * never actually worked end-to-end until this fix).
+   *
+   * Since padelapi can't race us on this transition (there's no value to
+   * race with), writing it directly from the live-poller is safe.
+   *
+   * Guards
+   * ------
+   * - `.eq('status', 'scheduled')` — only stamp on the one-shot transition
+   *   scheduled → on_court. Never regress a match already `live` or
+   *   `finished` back to `on_court` (e.g. if the widget flips labels
+   *   mid-match, which we've occasionally seen during set breaks).
+   * - Only called when `curr.status === 'on_court'`. No-op for other
+   *   statuses — `live` is handled by padelapi, `finished` by closeMatch.
+   *
+   * Idempotence
+   * -----------
+   * Safe to call repeatedly. After the first successful stamp the match
+   * is `on_court` and subsequent calls' `.eq('status', 'scheduled')` guard
+   * makes them no-ops. When the first point is played and padelapi
+   * transitions to `live`, subsequent on_court ticks here also no-op.
+   */
+  private async stampObservedStatus(
+    matchId: string,
+    curr: LiveMatchState,
+  ): Promise<void> {
+    if (curr.status !== 'on_court') return;
+
+    const nowIso = new Date().toISOString();
+    const { error } = await this.opts.supabase
+      .from('matches')
+      .update({ status: 'on_court', updated_at: nowIso })
+      .eq('id', matchId)
+      .eq('status', 'scheduled');
+
+    if (error) {
+      this.opts.logger.warn(
+        this.logCtx({ matchId, err: error.message }),
+        'stamp on_court status failed',
+      );
+    }
   }
 
   /**

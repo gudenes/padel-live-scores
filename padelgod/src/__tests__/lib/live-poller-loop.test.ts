@@ -1412,3 +1412,150 @@ describe('LivePollerLoop.closeMatch — Case A in SHADOW mode (fan-experience fi
     parseSpy.mockRestore();
   });
 });
+
+// ---------------------------------------------------------------------------
+// stampObservedStatus — on_court transition in CANONICAL mode
+// ---------------------------------------------------------------------------
+//
+// `on_court` is a padelgod-only status padelapi never emits. In canonical
+// mode `applyDiff` passes `dualWritePublic: false` so the status field
+// isn't written through that path. The live-poller must stamp it directly
+// — same pattern as `closeMatch` which also bypasses the mode gate because
+// padelapi can't be trusted to close terminal states quickly.
+//
+// Regression: shipped in PR #256 but the `applyDiff` gate was overlooked,
+// so global DB rows with `status='on_court'` was 0 until this fix.
+
+describe('LivePollerLoop.stampObservedStatus — canonical mode on_court', () => {
+  it('writes status=on_court to public.matches when the widget reports warmup', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+
+    // Parser emits a match in the `on_court` phase: no points scored yet,
+    // status explicitly tagged by the widget's `<span class="ml-4">On court</span>`.
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [
+          {
+            ...parsedMatchFixture({
+              team1Points: '0',
+              team2Points: '0',
+              team1SetGames: ['-', '-', '-'],
+              team2SetGames: ['-', '-', '-'],
+            }),
+            status: 'on_court',
+            durationMinutes: 0,
+          },
+        ],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      mode: 'canonical',
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    const calls = (supabase as any).__matchesUpdateCalls as MatchesUpdateCall[];
+    // Find the on_court stamp specifically — filtered by the
+    // scheduled→on_court guard.
+    const stampCall = calls.find(
+      (c) =>
+        c.patch.status === 'on_court' &&
+        c.filters['eq:status'] === 'scheduled' &&
+        c.filters['eq:id'] === 'match-uuid-1',
+    );
+    expect(stampCall, 'expected exactly one on_court stamp write').toBeDefined();
+    expect(stampCall!.patch.updated_at).toBeTypeOf('string');
+
+    parseSpy.mockRestore();
+    await loop.stop();
+  });
+
+  it('does NOT stamp on_court when curr.status is live or finished', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+
+    // Parser emits a normal live match (status='live' is the default in fixture)
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [parsedMatchFixture({ team1Points: '30', team2Points: '15' })],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      mode: 'canonical',
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    const calls = (supabase as any).__matchesUpdateCalls as MatchesUpdateCall[];
+    const stampCall = calls.find((c) => c.patch.status === 'on_court');
+    expect(stampCall, 'on_court stamp should NOT fire for live matches').toBeUndefined();
+
+    parseSpy.mockRestore();
+    await loop.stop();
+  });
+
+  it('does NOT run in shadow mode (dualWrite handles it there)', async () => {
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [
+          {
+            ...parsedMatchFixture({ team1Points: '0', team2Points: '0' }),
+            status: 'on_court',
+          },
+        ],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      mode: 'shadow', // ← key difference
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    const calls = (supabase as any).__matchesUpdateCalls as MatchesUpdateCall[];
+    // No stampMatchTimes calls and no stampObservedStatus calls — both are
+    // canonical-only. applyDiff's dualWritePublic handles status writes in
+    // shadow mode, but this test stops short of asserting on applyDiff's
+    // own path (covered separately in point-reconstruction.test.ts).
+    const stampCall = calls.find(
+      (c) => c.patch.status === 'on_court' && c.filters['eq:status'] === 'scheduled',
+    );
+    expect(stampCall, 'stampObservedStatus should not fire in shadow mode').toBeUndefined();
+
+    parseSpy.mockRestore();
+    await loop.stop();
+  });
+});
