@@ -130,6 +130,15 @@ function V3MatchRow({ match }: { match: Match }) {
   const p1GamePts = pointsParts[0] ?? ''
   const p2GamePts = pointsParts[1] ?? ''
   const isLive = match.status === 'live'
+  // on_court = padelgod observed the Crionet widget labeled "On court" / "Warming up".
+  // Players are on the court but no first point yet. Treat as "active" for layout
+  // (no schedule time, no follow star), but render a distinct orange pill so
+  // fans can tell the difference between "about to start" and "actively playing".
+  const isOnCourt = (match.status as string) === 'on_court'
+  // Shared flag for the "match is in the live section" cases — both LIVE and ON COURT
+  // need the same treatment for: hiding the follow star, hiding the schedule
+  // date/time, hiding the "PREDICTED" badge, and highlighting the current set.
+  const isActive = isLive || isOnCourt
   const isFinished = ['finished', 'retired', 'walkover'].includes(match.status)
   const isLingering = isFinished && _finishedAt.has(match.id)
   const category = (match as any).category as string | null
@@ -238,7 +247,7 @@ function V3MatchRow({ match }: { match: Match }) {
           width: 3,
           background: genderColor,
         }} />
-        {!isLive && <FollowButton type="match" targetId={match.id} variant="star" size={14} style={{ position: 'absolute', top: 8, right: 8 }} />}
+        {!isActive && <FollowButton type="match" targetId={match.id} variant="star" size={14} style={{ position: 'absolute', top: 8, right: 8 }} />}
 
         {/* Top row: round + court + status/time */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -284,6 +293,25 @@ function V3MatchRow({ match }: { match: Match }) {
                 <span style={{ fontSize: 8, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>LIVE</span>
               </div>
             )}
+            {/* ON COURT pill — same shape as LIVE, orange to distinguish the
+                pre-play phase. Shown when padelgod observed the widget's
+                "On court" / "Warming up" label. The pulsing dot keeps it
+                visually related to LIVE without being mistaken for it. */}
+            {isOnCourt && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: ORANGE,
+                padding: '2px 8px',
+                clipPath: CHUNKY.badge,
+              }}>
+                <span style={{
+                  width: 5, height: 5, borderRadius: '50%', background: '#fff',
+                  animation: 'v3-scores-pulse 2s infinite',
+                  flexShrink: 0,
+                }} />
+                <span style={{ fontSize: 8, fontWeight: 800, color: '#000', letterSpacing: 0.5 }}>ON COURT</span>
+              </div>
+            )}
             {isLingering && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 4,
@@ -301,7 +329,7 @@ function V3MatchRow({ match }: { match: Match }) {
             {isFinished && !isLingering && (match as any).status === 'walkover' && (
               <span style={{ fontSize: 9, fontWeight: 700, color: ORANGE }}>W/O</span>
             )}
-            {hasPrediction && !isLive && !isFinished && (
+            {hasPrediction && !isActive && !isFinished && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 3,
                 background: 'rgba(126,211,33,0.06)',
@@ -435,7 +463,7 @@ function V3MatchRow({ match }: { match: Match }) {
         })}
         </div>
         {/* Schedule date/time — right side, aligned with player rows */}
-        {!isLive && !isFinished && (scheduleDisplay.date || timeStr) && (
+        {!isActive && !isFinished && (scheduleDisplay.date || timeStr) && (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
             justifyContent: 'center', flexShrink: 0, marginLeft: 8, marginRight: 16,
