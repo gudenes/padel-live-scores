@@ -39,7 +39,36 @@ async function main() {
     logger,
   });
 
+  // Preserve known-client-error status codes (4xx) from Fastify — e.g.
+  // FST_ERR_CTP_INVALID_MEDIA_TYPE (415) from a request with no/wrong
+  // Content-Type header. Without this, every client-side mistake surfaces
+  // as a generic 500 "Internal server error" and callers can't tell the
+  // difference between "you sent a bad header" and "our service crashed".
+  //
+  // Rules:
+  //   - err.statusCode < 500 → pass through the real status + real message
+  //     + real Fastify error code (e.g. "FST_ERR_CTP_INVALID_MEDIA_TYPE")
+  //   - anything else (no statusCode, >=500, runtime throws) → keep the
+  //     original behaviour: log at error + return 500 INTERNAL_ERROR with
+  //     a generic message so we don't leak internals to the caller
+  //
+  // Route handlers still log at `info` for the request itself via Fastify's
+  // built-in logger — this handler only fires on UNHANDLED errors, so a
+  // 415 from a bad Content-Type is logged at `warn` (expected client
+  // misuse, not a service bug) while a real runtime throw stays `error`.
   app.setErrorHandler((err, _req, reply) => {
+    const isClientError =
+      typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500;
+    if (isClientError) {
+      logger.warn({ err }, 'Client error');
+      reply.status(err.statusCode!).send({
+        error: {
+          code: err.code ?? 'CLIENT_ERROR',
+          message: err.message || 'Client error',
+        },
+      });
+      return;
+    }
     logger.error({ err }, 'Unhandled error');
     reply.status(500).send({
       error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },

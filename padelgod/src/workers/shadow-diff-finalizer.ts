@@ -265,12 +265,25 @@ async function computeAndWriteFinalState(
     .from('shadow_diff')
     .insert(insertRow);
   if (insErr) {
-    // A race with the partial unique index is a no-op success, not a failure.
-    // Log and continue — the other runner got there first.
-    logger?.warn(
-      { err: insErr.message, matchId: match.id, type: 'final_state' },
-      'shadow_diff final_state insert failed (possibly unique-index race)'
-    );
+    // Duplicate-key (Postgres 23505) against the partial unique index
+    // `uniq_shadow_diff_final` just means the row was already computed on
+    // a previous run — the comparison is idempotent and finalized, so
+    // there's nothing to do. This is BY FAR the most common outcome once
+    // the backlog is caught up (observed ~230 / 1.5h on Brussels day).
+    // Log at debug only so prod logs stay focused on real issues; retain
+    // warn for any other failure (schema drift, connectivity, etc.).
+    const isDuplicate = (insErr as { code?: string }).code === '23505';
+    if (isDuplicate) {
+      logger?.debug(
+        { matchId: match.id, type: 'final_state' },
+        'shadow_diff final_state already computed — skipping'
+      );
+    } else {
+      logger?.warn(
+        { err: insErr.message, code: (insErr as { code?: string }).code, matchId: match.id, type: 'final_state' },
+        'shadow_diff final_state insert failed'
+      );
+    }
     return false;
   }
   return true;
@@ -402,10 +415,22 @@ async function computeAndWritePerPoint(
     .from('shadow_diff')
     .insert(insertRow);
   if (insErr) {
-    logger?.warn(
-      { err: insErr.message, matchId: match.id, type: 'per_point_sequence' },
-      'shadow_diff per_point_sequence insert failed (possibly unique-index race)'
-    );
+    // Same idempotent semantics as final_state above (see that comment
+    // for the full rationale). Duplicate-key against the partial unique
+    // index `uniq_shadow_diff_per_point` = already computed = OK, log
+    // at debug. Anything else is a real failure → warn.
+    const isDuplicate = (insErr as { code?: string }).code === '23505';
+    if (isDuplicate) {
+      logger?.debug(
+        { matchId: match.id, type: 'per_point_sequence' },
+        'shadow_diff per_point_sequence already computed — skipping'
+      );
+    } else {
+      logger?.warn(
+        { err: insErr.message, code: (insErr as { code?: string }).code, matchId: match.id, type: 'per_point_sequence' },
+        'shadow_diff per_point_sequence insert failed'
+      );
+    }
     return false;
   }
   return true;
