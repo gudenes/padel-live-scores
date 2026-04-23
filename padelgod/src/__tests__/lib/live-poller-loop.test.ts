@@ -635,7 +635,7 @@ describe('LivePollerLoop.start / stop', () => {
     await loop.stop();
   });
 
-  it('does NOT write timestamps to public.matches in shadow mode', async () => {
+  it('does NOT write canonical timestamps (started_at/duration) to public.matches in shadow mode', async () => {
     const mod = await import('../../parsers/crionet-tournamentlive.js');
     const parseSpy = vi
       .spyOn(mod, 'parseCrionetTournamentLive')
@@ -663,9 +663,20 @@ describe('LivePollerLoop.start / stop', () => {
       patch: Record<string, unknown>;
       filters: Record<string, unknown>;
     }>;
-    // Shadow runs must stay scoped to padelgod.shadow_* tables — no canonical
-    // metadata writes at all.
-    expect(calls.length).toBe(0);
+    // Canonical metadata writes (started_at, duration) are forbidden in
+    // shadow mode — those are the ones stampMatchTimes is responsible for,
+    // and it only runs when mode === 'canonical'.
+    for (const call of calls) {
+      expect(call.patch).not.toHaveProperty('started_at');
+      expect(call.patch).not.toHaveProperty('duration');
+      expect(call.patch).not.toHaveProperty('finished_at');
+      expect(call.patch).not.toHaveProperty('winner_pair');
+    }
+    // NOTE: status + updated_at writes ARE expected in shadow mode since
+    // 2026-04-23 — that's the fix that captures the on_court warm-up phase
+    // and fires push notifications. See `flipShadowPublicStatus` in
+    // point-reconstruction.ts. If you're here because this test regressed,
+    // check that only { status, updated_at } are in the patch.
 
     parseSpy.mockRestore();
     await loop.stop();
