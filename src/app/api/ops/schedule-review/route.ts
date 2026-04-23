@@ -11,6 +11,7 @@ import {
   lookupMatchesByWidgetIds,
 } from '@/lib/oop-snapshots-reader'
 import { normalize, tokenSimilarity } from '@/lib/player-resolver'
+import { resolveOopPlayerToId } from '@/lib/oop-player-lookup'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,13 +20,40 @@ const supabase = createClient(
 
 // ── GET: Fetch OOP and match against DB ────────────────────────
 
+// Player slot positions in public.matches. Keeping the DB column names
+// literal so the PATCH writer can compose updates without translation.
+type PlayerSlotKey =
+  | 'pair1_player1_id'
+  | 'pair1_player2_id'
+  | 'pair2_player1_id'
+  | 'pair2_player2_id'
+
+/**
+ * Per-slot detail surfaced to the UI so operators can see WHICH players are
+ * TBD and whether the OOP can fill them. `currentId` is the FK value in the
+ * DB today (null = TBD). `oopName` is the abbreviated name from the widget
+ * (may itself be null if the widget row is incomplete). `resolvedNewId` is
+ * only set when oopName parsed, category matched, and exactly one DB player
+ * was found — otherwise null (ambiguous or missing).
+ *
+ * Option A safety: `resolvedNewId` is only meaningful when `currentId === null`.
+ * When `currentId` is populated, we never propose an overwrite — the UI treats
+ * that slot as sealed.
+ */
+interface PlayerSlotDiff {
+  slot: PlayerSlotKey
+  currentId: string | null
+  oopName: string | null
+  resolvedNewId: string | null
+}
+
 interface ScheduleMatch {
   oopIndex: number
   court: string
   scheduleLabel: string
   category: 'men' | 'women' | null
   matchCode: string | null
-  team1Display: string // "L. Perez Parra (ESP) / C. Rose (GBR)"
+  team1Display: string // "L. Perez Parra / C. Rose" (country codes dropped in PR #13)
   team2Display: string
   // DB match link (if found)
   dbMatchId: string | null
@@ -33,7 +61,22 @@ interface ScheduleMatch {
   dbMatchRound: string | null
   dbScheduledAt: string | null
   dbHasTime: boolean // true if scheduled_at already has a non-midnight time
+  dbCourt: string | null
   confidence: 'high' | 'medium' | 'low' | 'none'
+  // Per-field diff flags — UI uses these to render chips ("↻ TIME" / "↻ COURT"
+  // / "↻ PLAYERS") and to decide whether the row is selectable. A row is
+  // selectable iff at least one is true (replaces the old blanket !dbHasTime
+  // rule which wrongly blocked rows that had a good time but wrong court).
+  needsTimeChange: boolean
+  needsCourtChange: boolean
+  needsPlayersChange: boolean
+  /**
+   * Four slots (pair1 players + pair2 players). Only populated when this
+   * OOP row is linked to a DB match (dbMatchId !== null). Each slot carries
+   * enough state for the UI to show "3/4 TBD" counters and for the PATCH
+   * writer to know which slots are fillable vs sealed.
+   */
+  playerSlots: PlayerSlotDiff[]
   // What would change
   proposedScheduledAt: string | null
   proposedCourt: string | null
@@ -106,11 +149,14 @@ export async function GET(request: Request) {
     dayDate = d.toISOString().slice(0, 10)
   }
 
-  // 3. Get all DB matches for this tournament
+  // 3. Get all DB matches for this tournament. We select both the player
+  //    name (for fuzzy-match display + legacy logic) AND the raw FK id
+  //    (for per-slot diff + Option A safety guard in PATCH).
   const { data: dbMatches } = await supabase
     .from('matches')
     .select(`
       id, round, court, scheduled_at, schedule_label, category, status,
+      pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id,
       pair1_player1:players!matches_pair1_player1_id_fkey(name),
       pair1_player2:players!matches_pair1_player2_id_fkey(name),
       pair2_player1:players!matches_pair2_player1_id_fkey(name),
@@ -144,7 +190,7 @@ export async function GET(request: Request) {
   const lastTimePerCourt = new Map<string, Date>()
 
   // 4. Match OOP entries against DB matches
-  const scheduleMatches: ScheduleMatch[] = oopDay.matches.map((oop, idx) => {
+  const scheduleMatches: ScheduleMatch[] = await Promise.all(oopDay.matches.map(async (oop, idx): Promise<ScheduleMatch> => {
     const fmtPlayer = (p: { fullDisplay: string; country: string | null }) => p.country ? `${p.fullDisplay} (${p.country})` : p.fullDisplay
     const team1Display = `${fmtPlayer(oop.team1[0])} / ${fmtPlayer(oop.team1[1])}`
     const team2Display = `${fmtPlayer(oop.team2[0])} / ${fmtPlayer(oop.team2[1])}`
@@ -287,6 +333,71 @@ export async function GET(request: Request) {
       ? (() => { const d = new Date(bestMatch.scheduled_at); return d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0 })()
       : false
 
+    // ── Per-slot player diff ───────────────────────────────────────────
+    // For each of the 4 player FKs on the linked DB match, pair it with the
+    // corresponding OOP name and (for null slots only) try to resolve the
+    // OOP abbreviated name to a players.id. Option A safety: only slots
+    // where currentId is null produce a resolvedNewId; sealed slots are
+    // left alone. The UI uses this to render "PLAYERS (2/4 missing)" chips.
+    const oopSlotNames: Record<PlayerSlotKey, string | null> = {
+      pair1_player1_id: oop.team1[0]?.fullDisplay || null,
+      pair1_player2_id: oop.team1[1]?.fullDisplay || null,
+      pair2_player1_id: oop.team2[0]?.fullDisplay || null,
+      pair2_player2_id: oop.team2[1]?.fullDisplay || null,
+    }
+    const dbSlotIds: Record<PlayerSlotKey, string | null> = {
+      pair1_player1_id: (bestMatch?.pair1_player1_id ?? null) as string | null,
+      pair1_player2_id: (bestMatch?.pair1_player2_id ?? null) as string | null,
+      pair2_player1_id: (bestMatch?.pair2_player1_id ?? null) as string | null,
+      pair2_player2_id: (bestMatch?.pair2_player2_id ?? null) as string | null,
+    }
+    const SLOT_KEYS: PlayerSlotKey[] = [
+      'pair1_player1_id',
+      'pair1_player2_id',
+      'pair2_player1_id',
+      'pair2_player2_id',
+    ]
+    // Only attempt resolution when we have an OOP name, a null DB slot, and
+    // a category (resolver needs it to scope the search).
+    const playerSlots: PlayerSlotDiff[] = await Promise.all(
+      SLOT_KEYS.map(async (slot): Promise<PlayerSlotDiff> => {
+        const currentId = bestMatch ? dbSlotIds[slot] : null
+        const oopName = oopSlotNames[slot]
+        let resolvedNewId: string | null = null
+        if (bestMatch && currentId === null && oopName && oop.category) {
+          resolvedNewId = await resolveOopPlayerToId(
+            supabase,
+            oopName,
+            oop.category,
+          )
+        }
+        return { slot, currentId, oopName, resolvedNewId }
+      }),
+    )
+
+    // ── Per-field diff flags ────────────────────────────────────────────
+    // needsTimeChange — proposed time differs from DB time (or DB has none).
+    //   Covers the "Unknown court but good time" case: time matches → no
+    //   flag, only court gets the change chip.
+    const needsTimeChange = !!(
+      bestMatch &&
+      proposedScheduledAt &&
+      bestMatch.scheduled_at !== proposedScheduledAt
+    )
+    // needsCourtChange — OOP has a court AND DB court differs (case-insensitive
+    //   to tolerate "COURT CBC" vs "Court Cbc" storage variance).
+    const oopCourtNorm = oop.court.trim().toLowerCase()
+    const dbCourtNorm = (bestMatch?.court ?? '').trim().toLowerCase()
+    const needsCourtChange = !!(
+      bestMatch &&
+      oopCourtNorm &&
+      oopCourtNorm !== dbCourtNorm
+    )
+    // needsPlayersChange — at least one null DB slot has a resolved OOP id.
+    const needsPlayersChange = playerSlots.some(
+      (s) => s.currentId === null && s.resolvedNewId !== null,
+    )
+
     return {
       oopIndex: idx,
       court: oop.court,
@@ -300,12 +411,17 @@ export async function GET(request: Request) {
       dbMatchRound: bestMatch?.round ?? null,
       dbScheduledAt: bestMatch?.scheduled_at ?? null,
       dbHasTime,
+      dbCourt: bestMatch?.court ?? null,
       confidence,
+      needsTimeChange,
+      needsCourtChange,
+      needsPlayersChange,
+      playerSlots,
       proposedScheduledAt,
       proposedCourt: oop.court,
       proposedScheduleLabel: oop.scheduleLabel,
     }
-  })
+  }))
 
   return Response.json({
     day,
@@ -314,6 +430,12 @@ export async function GET(request: Request) {
     totalOopMatches: oopDay.matches.length,
     matched: scheduleMatches.filter(m => m.dbMatchId).length,
     unmatched: scheduleMatches.filter(m => !m.dbMatchId).length,
+    // Rows the operator can act on — any row with a resolvable diff in at
+    // least one field. Replaces the old "matches that don't have a time yet"
+    // counter which was misleading (blocked valid court/player updates).
+    needsUpdateCount: scheduleMatches.filter(
+      m => m.dbMatchId && (m.needsTimeChange || m.needsCourtChange || m.needsPlayersChange),
+    ).length,
     matches: scheduleMatches,
     // Provenance + freshness. `capturedAt` is when padelgod's oop-fetcher
     // last scraped this widget page; UI surfaces it so operators can judge
@@ -325,15 +447,56 @@ export async function GET(request: Request) {
 }
 
 // ── PATCH: Apply approved schedule changes ─────────────────────
+//
+// Payload shape (PR #14 — per-field granular):
+//   {
+//     updates: [
+//       {
+//         matchId: string,
+//         scheduledAt?: string,       // ISO, only written when present
+//         court?: string,             // only written when present
+//         scheduleLabel?: string,     // only written when present
+//         playerUpdates?: Partial<Record<PlayerSlotKey, string>>
+//       }
+//     ]
+//   }
+//
+// Per-field semantics
+//  - scheduledAt/court/scheduleLabel: if present in payload, written (overwrite
+//    OK — operator opted in). Absence means "don't touch." Replaces the prior
+//    blanket "never overwrite non-midnight scheduled_at" rule, which blocked
+//    valid court-only updates.
+//  - playerUpdates: per-slot map. Writes ONLY when the current DB value is
+//    NULL — Option A safety. If the slot is already populated, the update is
+//    silently skipped so we can't regress curated player FKs.
+
+type PlayerSlotKeyInternal =
+  | 'pair1_player1_id'
+  | 'pair1_player2_id'
+  | 'pair2_player1_id'
+  | 'pair2_player2_id'
+
+interface UpdateRequest {
+  matchId: string
+  scheduledAt?: string
+  court?: string
+  scheduleLabel?: string
+  playerUpdates?: Partial<Record<PlayerSlotKeyInternal, string>>
+}
+
+const PLAYER_SLOT_KEYS: readonly PlayerSlotKeyInternal[] = [
+  'pair1_player1_id',
+  'pair1_player2_id',
+  'pair2_player1_id',
+  'pair2_player2_id',
+]
 
 export async function PATCH(request: Request) {
   const authErr = await checkOpsAuth()
   if (authErr) return authErr
 
   const body = await request.json()
-  const { updates } = body as {
-    updates: { matchId: string; scheduledAt: string; court: string | null; scheduleLabel: string | null }[]
-  }
+  const { updates } = body as { updates: UpdateRequest[] }
 
   if (!updates || !Array.isArray(updates) || updates.length === 0) {
     return Response.json({ error: 'No updates provided' }, { status: 400 })
@@ -341,45 +504,80 @@ export async function PATCH(request: Request) {
 
   let updated = 0
   let skipped = 0
+  let playerFieldsFilled = 0
   const errors: string[] = []
 
   for (const u of updates) {
-    if (!u.matchId || !u.scheduledAt) {
+    if (!u.matchId) {
       skipped++
       continue
     }
 
-    // Safety: only update if match exists and scheduled_at doesn't already have a real time
-    const { data: existing } = await supabase
-      .from('matches')
-      .select('id, scheduled_at')
-      .eq('id', u.matchId)
-      .single()
+    // Build the update payload from whatever fields are present. Empty
+    // payload (no scheduledAt/court/scheduleLabel AND no player writes) is
+    // a no-op; skip cleanly.
+    const scheduleFields: Record<string, unknown> = {}
+    if (u.scheduledAt) scheduleFields.scheduled_at = u.scheduledAt
+    if (u.court) scheduleFields.court = u.court
+    if (u.scheduleLabel) scheduleFields.schedule_label = u.scheduleLabel
 
-    if (!existing) {
-      errors.push(`Match ${u.matchId.slice(0, 8)} not found`)
+    const playerUpdates = u.playerUpdates ?? {}
+    const playerSlotsRequested = PLAYER_SLOT_KEYS.filter(
+      (k) => typeof playerUpdates[k] === 'string' && playerUpdates[k]!.length > 0,
+    )
+
+    if (
+      Object.keys(scheduleFields).length === 0 &&
+      playerSlotsRequested.length === 0
+    ) {
+      skipped++
       continue
     }
 
-    // Don't overwrite if already has a non-midnight time (unless it's the same date)
-    if (existing.scheduled_at) {
-      const d = new Date(existing.scheduled_at)
-      if (d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0) {
-        skipped++
-        continue // Already has a real time — don't overwrite
+    // ── Option A safety for player writes ───────────────────────────────
+    // Re-read current FK values under the lock of this single SELECT. Only
+    // include slots that are currently NULL in the write — never overwrite.
+    let playerFields: Record<string, unknown> = {}
+    if (playerSlotsRequested.length > 0) {
+      const { data: existing, error: readErr } = await supabase
+        .from('matches')
+        .select('pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
+        .eq('id', u.matchId)
+        .single()
+
+      if (readErr || !existing) {
+        errors.push(
+          `${u.matchId.slice(0, 8)}: pre-write read failed — ${readErr?.message ?? 'no row'}`,
+        )
+        continue
+      }
+
+      for (const slot of playerSlotsRequested) {
+        const currentValue = (existing as Record<string, string | null>)[slot]
+        if (currentValue === null) {
+          playerFields[slot] = playerUpdates[slot]!
+          playerFieldsFilled++
+        }
+        // If currentValue is not null, silently drop — Option A never overwrites.
       }
     }
 
-    const updateFields: Record<string, unknown> = {
-      scheduled_at: u.scheduledAt,
-      updated_at: new Date().toISOString(),
+    const fullUpdate: Record<string, unknown> = {
+      ...scheduleFields,
+      ...playerFields,
     }
-    if (u.court) updateFields.court = u.court
-    if (u.scheduleLabel) updateFields.schedule_label = u.scheduleLabel
+
+    // Still possible to end with an empty update if all player slots were
+    // already filled and no schedule fields were requested — skip cleanly.
+    if (Object.keys(fullUpdate).length === 0) {
+      skipped++
+      continue
+    }
+    fullUpdate.updated_at = new Date().toISOString()
 
     const { error } = await supabase
       .from('matches')
-      .update(updateFields)
+      .update(fullUpdate)
       .eq('id', u.matchId)
 
     if (error) {
@@ -389,5 +587,5 @@ export async function PATCH(request: Request) {
     }
   }
 
-  return Response.json({ updated, skipped, errors })
+  return Response.json({ updated, skipped, playerFieldsFilled, errors })
 }
