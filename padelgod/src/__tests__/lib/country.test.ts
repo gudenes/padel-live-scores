@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { normalizeCountry } from '../../lib/country.js';
+import { describe, expect, it, vi } from 'vitest';
+import { normalizeCountry, fipCountryNameToAlpha2 } from '../../lib/country.js';
 
 describe('normalizeCountry', () => {
   it('returns null for null, undefined, and empty strings', () => {
@@ -99,5 +99,66 @@ describe('normalizeCountry', () => {
     const inputs = ['ESP', 'ES', 'FRA', 'FR', 'POR', 'PT', 'NED', 'NL'];
     const outputs = inputs.map(normalizeCountry);
     expect(outputs).toEqual(['ES', 'ES', 'FR', 'FR', 'PT', 'PT', 'NL', 'NL']);
+  });
+});
+
+describe('fipCountryNameToAlpha2', () => {
+  it('returns null for null/undefined/empty input', () => {
+    expect(fipCountryNameToAlpha2(null)).toBeNull();
+    expect(fipCountryNameToAlpha2(undefined)).toBeNull();
+    expect(fipCountryNameToAlpha2('')).toBeNull();
+    expect(fipCountryNameToAlpha2('   ')).toBeNull();
+  });
+
+  it('maps common FIP country names to alpha-2 codes', () => {
+    // Core nations seen in every recent FIP draw.
+    expect(fipCountryNameToAlpha2('Spain')).toBe('ES');
+    expect(fipCountryNameToAlpha2('Argentina')).toBe('AR');
+    expect(fipCountryNameToAlpha2('Italy')).toBe('IT');
+    expect(fipCountryNameToAlpha2('France')).toBe('FR');
+    expect(fipCountryNameToAlpha2('Brazil')).toBe('BR');
+    expect(fipCountryNameToAlpha2('Belgium')).toBe('BE');
+    expect(fipCountryNameToAlpha2('Portugal')).toBe('PT');
+  });
+
+  it('handles FIP-specific non-standard spellings', () => {
+    // FIP's flag filenames use some quirky spellings we have to preserve.
+    expect(fipCountryNameToAlpha2('TheNetherlands')).toBe('NL');
+    expect(fipCountryNameToAlpha2('Marocco')).toBe('MA');      // Italian "Morocco"
+    expect(fipCountryNameToAlpha2('Israele')).toBe('IL');      // Italian "Israel"
+    expect(fipCountryNameToAlpha2('Luxemburg')).toBe('LU');
+    expect(fipCountryNameToAlpha2('GreatBritain')).toBe('GB');
+    expect(fipCountryNameToAlpha2('UAE')).toBe('AE');
+    // Still accepts the canonical English spelling as a fallback.
+    expect(fipCountryNameToAlpha2('Netherlands')).toBe('NL');
+  });
+
+  it('is case-insensitive', () => {
+    expect(fipCountryNameToAlpha2('SPAIN')).toBe('ES');
+    expect(fipCountryNameToAlpha2('spain')).toBe('ES');
+    expect(fipCountryNameToAlpha2('Spain')).toBe('ES');
+    expect(fipCountryNameToAlpha2('  thenetherlands  ')).toBe('NL');
+  });
+
+  it('returns null SILENTLY for unknown names (no console output)', () => {
+    // The whole point of the helper is to avoid normalizeCountry's
+    // warn-per-unknown log spam when we know up-front that FIP emits
+    // names, not codes. Regression test so nobody sneaks a console.warn
+    // back in.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(fipCountryNameToAlpha2('Atlantis')).toBeNull();
+    expect(fipCountryNameToAlpha2('ZZZ_FICTIONAL')).toBeNull();
+    expect(fipCountryNameToAlpha2('NorthKorea')).toBeNull(); // not in map yet — really null
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
   });
 });

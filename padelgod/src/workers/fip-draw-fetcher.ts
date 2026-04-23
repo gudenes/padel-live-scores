@@ -11,7 +11,7 @@ import {
 import { parseFipEventPageConfig } from '../parsers/fip-event-page-config.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { FIP_EVENT_DRAW_VERSION } from '../lib/parser-versions.js';
-import { normalizeCountry } from '../lib/country.js';
+import { fipCountryNameToAlpha2 } from '../lib/country.js';
 
 /**
  * FIP event-page draw fetcher.
@@ -249,11 +249,14 @@ async function fetchAndStoreDraw(
     team2_player2_name: m.team2.isBye ? null : m.team2.player2Name,
     team1_seed: m.team1.seed,
     team2_seed: m.team2.seed,
-    // FIP country names → alpha-2 at the write boundary. normalizeCountry
-    // accepts both alpha-2 and alpha-3; for full English names (e.g. "Spain")
-    // it returns null and warns, which is what we want for unknowns.
-    team1_country: normalizeCountry(m.team1.country),
-    team2_country: normalizeCountry(m.team2.country),
+    // FIP country names → alpha-2. We use the dedicated `fipCountryNameToAlpha2`
+    // helper (NOT normalizeCountry) because FIP's flag-filename convention is
+    // full English country NAMES (e.g. "Spain", "TheNetherlands"), not ISO
+    // alpha-3 codes. Running them through normalizeCountry would emit one
+    // console.warn per team → 995 spurious "error" lines in Railway in 2 min
+    // during the 2026-04-23 dry-run. Unknowns return null silently.
+    team1_country: fipCountryNameToAlpha2(m.team1.country),
+    team2_country: fipCountryNameToAlpha2(m.team2.country),
     set_scores: m.setScores,
     winner_team: m.winnerTeam,
     status: mappedStatus(m.status),
