@@ -105,6 +105,12 @@ async function upsertNewPlayers(
   if (toInsert.length === 0) return 0
 
   const now = new Date().toISOString()
+  // NOTE: `public.players` has NO `source` column — per source-priority.ts
+  // provenance is code-level config, not a DB column. Only `last_updated_by`
+  // carries runtime provenance. The first production run of this persist
+  // (2026-04-21, Ijuí) failed with
+  //   "Could not find the 'source' column of 'players' in the schema cache"
+  // because the original code also wrote `source: 'fip'`. Removed.
   const rows = toInsert.map(p => ({
     fip_id: p.fipId,
     external_id: p.fipId, // keep legacy column in sync — tournaments table triggers expect this
@@ -114,7 +120,6 @@ async function upsertNewPlayers(
     ranking: p.rank,
     points: p.points,
     profile_url: p.profileUrl,
-    source: 'fip',
     last_updated_by: 'padelgod',
     updated_at: now,
   }))
