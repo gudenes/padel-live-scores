@@ -540,3 +540,22 @@ Not guarded (these don't consume padelapi/Premier): `sync-fip-rankings` (FIP-sou
 Padelgod workers on Railway are unaffected — they don't read this env var.
 
 Implementation: `src/lib/padelapi-pause.ts` exports `padelapiPausedResponse(cronName)`, called right after the `CRON_SECRET` auth check in each guarded route.
+
+## Welcome email (2026-04-23)
+
+Auth signup sends a localized welcome email. All 5 locales covered (en/es/pt/it/fr).
+
+- **Capture:** `src/auth.ts` `events.createUser` reads `NEXT_LOCALE` cookie (set by next-intl's proxy) and persists to `profiles.locale`. Migration: `supabase/migrations/20260423000004_profiles_locale.sql` — `locale text NOT NULL DEFAULT 'en'` + CHECK constraint for the 5 supported locales.
+- **Sender:** `src/lib/email/welcome.ts` — framework-agnostic, uses next-intl's `createTranslator` with all 5 locale JSONs imported inline. Fire-and-forget from `createUser` (never blocks signup). Resend `idempotencyKey = welcome-<email>-<locale>` guards against retries.
+- **Templates:** translations live in `src/messages/{en,es,pt,it,fr}.json` under `email.welcome.*` namespace. Styling matches the magic-link email (#7ED321 CTA, logo header, pill layout).
+- **Preview:** `GET /api/admin/preview-welcome-email` renders the exact HTML Resend would deliver, no real send. Index page lists all 5 locales; `?locale=es&name=Lia` renders one. Auth: `ops_token` cookie (ops login) or `Authorization: Bearer $CRON_SECRET` header. Exported `buildWelcomeEmail()` from `src/lib/email/welcome.ts` so preview + sender share identical render logic.
+- **Typing gotcha for future email templates:** when importing JSON messages for `createTranslator`, use `satisfies Record<Locale, unknown>` on the map — NOT `Record<string, Record<string, unknown>>`. The latter widens the literal types and next-intl's `NamespaceKeys` inference collapses to `never`.
+
+## Match-identifier pair sanity check (2026-04-23)
+
+`padelgod/src/lib/match-identifier.ts::findPadelapiTwin` now filters court-matched candidates through `pairsMatchUnordered` when the widget input carries all four player UUIDs. Guards against last-minute court swaps — if padelapi holds a stale court for the actual live match, the court-only lookup would hijack whatever unrelated match happens to be stored on the live court. With the pair check, mismatched twins are rejected and `findByPairs` (court-agnostic) runs next.
+
+- **Incident:** Brussels P2 women R16 2026-04-23. Caldera/Goenaga moved from Nextensa → CBC last-minute. Widget WD011 landed on Triay/Brea (the next CBC slot, 2h later) instead of Caldera. UI showed Triay/Brea as live with Caldera's score data.
+- **Premier unaffected:** Premier live-poller path doesn't populate pair UUIDs → pair check is skipped → behaves exactly as before.
+- **Monitoring:** `"match-identifier: all padelapi twins on this court rejected by pair mismatch — falling through to pair-based lookup (likely court swap)"` warn log is the signal the fix fired.
+- **Manual hotfix pattern** when a widget mapping is wrong: (1) reset the wrongly-flipped match's `status` back to `scheduled` + delete phantom sets/games, (2) delete the bad `entity_external_ids` mapping, (3) update the right match's `court` to match reality. Padelgod re-links within ~80s via the next live-poll.
