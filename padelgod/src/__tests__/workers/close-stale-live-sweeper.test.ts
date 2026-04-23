@@ -36,11 +36,25 @@ function fakeSupabase(inputs: FakeInputs) {
   const gameUpdates: Array<{ matchId: string; patch: any }> = [];
 
   function matchesSelect() {
-    // Query shape: .select(cols).in('status', [...]).lt('updated_at', X).lt('scheduled_at', Y).order(...).limit(N)
+    // Two query shapes, sharing `.in('status', [...])`:
+    //   Path A (stale): .in(status).lt('updated_at').lt('scheduled_at').order().limit()
+    //   Path B (regression repair, added 2026-04-23):
+    //     .in(status).not('finished_at', 'is', null).order('finished_at').limit()
+    const toRow = (m: any) => ({
+      id: m.id,
+      status: m.status,
+      scheduled_at: m.scheduled_at,
+      updated_at: m.updated_at,
+      started_at: m.started_at ?? null,
+      duration: m.duration ?? null,
+      finished_at: m.finished_at ?? null,
+    });
     return {
       in: (col1: string, statuses: string[]) => {
         if (col1 !== 'status') throw new Error(`unexpected .in: ${col1}`);
-        return {
+
+        // ── Path A ──────────────────────────────────────────────
+        const pathA = {
           lt: (col2: string, updatedCutoff: string) => {
             if (col2 !== 'updated_at') throw new Error(`unexpected .lt: ${col2}`);
             return {
@@ -52,8 +66,8 @@ function fakeSupabase(inputs: FakeInputs) {
                     limit: (n: number) => {
                       const filtered = matches
                         .filter((m) => statuses.includes(m.status))
-                        .filter((m) =>
-                          m.updated_at !== null && m.updated_at < updatedCutoff,
+                        .filter(
+                          (m) => m.updated_at !== null && m.updated_at < updatedCutoff,
                         )
                         .filter(
                           (m) =>
@@ -64,15 +78,7 @@ function fakeSupabase(inputs: FakeInputs) {
                           (a.updated_at ?? '').localeCompare(b.updated_at ?? ''),
                         )
                         .slice(0, n)
-                        .map((m) => ({
-                          id: m.id,
-                          status: m.status,
-                          scheduled_at: m.scheduled_at,
-                          updated_at: m.updated_at,
-                          started_at: m.started_at ?? null,
-                          duration: m.duration ?? null,
-                          finished_at: m.finished_at ?? null,
-                        }));
+                        .map(toRow);
                       return Promise.resolve({ data: filtered, error: null });
                     },
                   }),
@@ -80,7 +86,29 @@ function fakeSupabase(inputs: FakeInputs) {
               },
             };
           },
+          // ── Path B ────────────────────────────────────────────
+          not: (col2: string, op: string, value: unknown) => {
+            if (col2 !== 'finished_at' || op !== 'is' || value !== null) {
+              throw new Error(`unexpected .not: ${col2} ${op} ${String(value)}`);
+            }
+            return {
+              order: (_c: string, _opts: any) => ({
+                limit: (n: number) => {
+                  const filtered = matches
+                    .filter((m) => statuses.includes(m.status))
+                    .filter((m) => m.finished_at !== null && m.finished_at !== undefined)
+                    .sort((a, b) =>
+                      (a.finished_at ?? '').localeCompare(b.finished_at ?? ''),
+                    )
+                    .slice(0, n)
+                    .map(toRow);
+                  return Promise.resolve({ data: filtered, error: null });
+                },
+              }),
+            };
+          },
         };
+        return pathA;
       },
     };
   }
@@ -413,5 +441,76 @@ describe('runCloseStaleLiveSweeper', () => {
 
     expect(result.candidatesConsidered).toBe(2);
     expect(result.matchesClosed).toBe(2);
+  });
+
+  // ── Path B: regression repair (added 2026-04-23) ──
+  //
+  // A match was closed properly by live-poller (finished_at written), but
+  // a subsequent writer — sync-matches, scores cron, or a pre-guard
+  // static-reconciler — reverted status to 'live' without touching
+  // finished_at. The sweeper must re-close it within one tick regardless
+  // of staleness, because the finished_at signal is unambiguous evidence
+  // the match is terminal.
+
+  it('PATH B: match with finished_at set but status=live is closed immediately (no staleness wait)', async () => {
+    // Fresh updated_at — Path A would skip this (not stale). Only Path B
+    // catches it, via the finished_at-is-not-null signal.
+    const freshUpdatedAt = new Date(NOW - 2 * 60_000).toISOString(); // 2 min ago
+    const finishedAtMark = new Date(NOW - 30 * 60_000).toISOString(); // 30 min ago
+    const supabase = fakeSupabase({
+      matches: [
+        {
+          id: 'm-regression',
+          status: 'live',                 // ← regression state
+          scheduled_at: SCHEDULED_IS0,
+          updated_at: freshUpdatedAt,     // ← not stale, Path A would skip
+          finished_at: finishedAtMark,    // ← Path B triggers on this
+        },
+      ],
+      sets: [
+        { match_id: 'm-regression', set_number: 1, pair1_games: 6, pair2_games: 2, set_score: '6-2', is_current: false },
+        { match_id: 'm-regression', set_number: 2, pair1_games: 6, pair2_games: 0, set_score: '6-0', is_current: false },
+      ],
+      now: NOW,
+    });
+
+    const result = await runCloseStaleLiveSweeper({
+      supabase: supabase as any,
+      nowMs: () => NOW,
+    });
+
+    expect(result.candidatesConsidered).toBe(1);
+    expect(result.matchesClosed).toBe(1);
+    const update = supabase.matchUpdates[0]!;
+    expect(update.patch.status).toBe('finished');
+    expect(update.patch.winner_pair).toBe(1);
+    // Preserves the original finished_at (never overwritten) — matches
+    // the existing "preserves existing finished_at" semantics.
+    expect(update.patch.finished_at).toBe(finishedAtMark);
+  });
+
+  it('PATH B: match with finished_at but status=finished already is NOT a candidate (idempotent)', async () => {
+    // Already correctly closed — neither path should pick it up.
+    const supabase = fakeSupabase({
+      matches: [
+        {
+          id: 'm-already-done',
+          status: 'finished',                // ← terminal
+          scheduled_at: SCHEDULED_IS0,
+          updated_at: new Date(NOW - 2 * 60_000).toISOString(),
+          finished_at: new Date(NOW - 10 * 60_000).toISOString(),
+        },
+      ],
+      sets: [],
+      now: NOW,
+    });
+
+    const result = await runCloseStaleLiveSweeper({
+      supabase: supabase as any,
+      nowMs: () => NOW,
+    });
+
+    expect(result.candidatesConsidered).toBe(0);
+    expect(result.matchesClosed).toBe(0);
   });
 });
