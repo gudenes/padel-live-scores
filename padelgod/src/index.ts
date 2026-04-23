@@ -1,5 +1,31 @@
+import { EventEmitter } from 'node:events';
 import Fastify from 'fastify';
 import { loadEnv } from './lib/env.js';
+
+// Bump the default EventEmitter listener ceiling before anything else loads.
+//
+// Node's native `fetch` (undici) attaches an 'error' listener to each pooled
+// TLSSocket per request. With keep-alive connection reuse + multiple workers
+// (shadow-diff-live runs every minute, live-poller-manager every minute,
+// static-reconciler twice/hr, etc.) a single pooled socket can legitimately
+// carry more than 10 concurrent/pending request listeners. The 24h log audit
+// on 2026-04-23 showed 20+ `MaxListenersExceededWarning` at 11 listeners —
+// always starting ~7 min after startup and plateauing there, never growing
+// unbounded. That matches "pooled socket handling ~N concurrent requests",
+// not an actual leak.
+//
+// Raising to 50 gives us generous headroom for normal operation while still
+// catching a REAL leak (a leak would blow past 50 rapidly). `process` +
+// `EventEmitter.defaultMaxListeners` cover the two places Node reads the
+// limit from — we set both to be defensive.
+//
+// Source references:
+//   - https://github.com/supabase/supabase-js/issues (recurring theme in
+//     multi-worker deployments on Node 18+)
+//   - https://undici.nodejs.org/ (connection pooling + listener attach)
+const MAX_LISTENERS_CEILING = 50;
+EventEmitter.defaultMaxListeners = MAX_LISTENERS_CEILING;
+process.setMaxListeners(MAX_LISTENERS_CEILING);
 import { createLogger } from './lib/logger.js';
 import { createSupabaseClient } from './lib/supabase.js';
 import { registerHealthRoute } from './api/health.js';
