@@ -23,7 +23,12 @@ export type NotificationCategory =
 export const CATEGORY_DEFAULTS: Record<NotificationCategory, ChannelPrefs> = {
   match_live_follow:   { push: true,  inApp: true  },
   match_live_bookmark: { push: true,  inApp: true  },
-  match_finished:      { push: false, inApp: true  },
+  // match_finished now defaults push:true (2026-04-23). The /api/push/notify
+  // endpoint auto-detects finished events from match.status and fires a
+  // "Match finished 🏆 X won 6-3, 6-4" notification. Users can opt out via
+  // the notifications settings page — the resolvePrefs override path still
+  // respects stored prefs as before.
+  match_finished:      { push: true,  inApp: true  },
   match_upcoming:      { push: false, inApp: true  },
   badge_earned:        { push: true,  inApp: true  },
   streak_milestone:    { push: true,  inApp: true  },
