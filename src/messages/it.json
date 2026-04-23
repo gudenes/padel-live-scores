@@ -402,6 +402,7 @@
     "min": "MIN",
     "sec": "SEC",
     "live": "LIVE",
+    "onCourt": "IN CAMPO",
     "goBack": "Torna indietro"
   },
   "about": {

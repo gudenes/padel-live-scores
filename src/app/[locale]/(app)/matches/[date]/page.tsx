@@ -126,6 +126,10 @@ export default async function DailyMatchesPage({ params }: Props) {
 
   // ── Build intro + FAQ copy ────────────────────────────────────
   const tDaily = await getTranslations({ locale, namespace: 'daily' })
+  // common namespace — used by the status pill (live / on_court) in
+  // DailyMatchRow. Loaded here server-side so the row doesn't need its
+  // own translator.
+  const tCommon = await getTranslations({ locale, namespace: 'common' })
   const dateLong = formatLongDate(iso, locale)
   const summaries: DailyMatchSummary[] = matches.map(m => ({
     status: (m.status as DailyMatchSummary['status']) ?? 'scheduled',
@@ -217,7 +221,7 @@ export default async function DailyMatchesPage({ params }: Props) {
       {liveMatches.length > 0 && (
         <Section title={tDaily('liveSection')} accent={LIVE_RED}>
           {groupByTournament(liveMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} />
+            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
           ))}
         </Section>
       )}
@@ -226,7 +230,7 @@ export default async function DailyMatchesPage({ params }: Props) {
       {upcomingMatches.length > 0 && (
         <Section title={tDaily('upcomingSection')} accent={GREEN}>
           {groupByTournament(upcomingMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} />
+            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
           ))}
         </Section>
       )}
@@ -235,7 +239,7 @@ export default async function DailyMatchesPage({ params }: Props) {
       {finishedMatches.length > 0 && (
         <Section title={tDaily('finishedSection')} accent={MUTED}>
           {groupByTournament(finishedMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} />
+            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
           ))}
         </Section>
       )}
@@ -343,14 +347,21 @@ interface TranslatorT {
   (key: 'approxTime'): string
 }
 
+// Narrow type for just the badge labels used by DailyMatchRow. Kept tight
+// to avoid over-fetching the entire common namespace into the row component.
+interface CommonBadgeTranslatorT {
+  (key: 'live' | 'onCourt'): string
+}
+
 function TournamentGroup({
-  group, locale, userTz, isToday, tDaily,
+  group, locale, userTz, isToday, tDaily, tCommon,
 }: {
   group: { tournamentId: string; tournamentName: string; matches: MatchRow[] }
   locale: string
   userTz: string
   isToday: boolean
   tDaily: TranslatorT
+  tCommon: CommonBadgeTranslatorT
 }) {
   return (
     <div style={{
@@ -372,7 +383,7 @@ function TournamentGroup({
       </Link>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {group.matches.map(m => (
-          <DailyMatchRow key={m.id} match={m} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} />
+          <DailyMatchRow key={m.id} match={m} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
         ))}
       </div>
     </div>
@@ -380,13 +391,14 @@ function TournamentGroup({
 }
 
 function DailyMatchRow({
-  match, locale, userTz, isToday, tDaily,
+  match, locale, userTz, isToday, tDaily, tCommon,
 }: {
   match: MatchRow
   locale: string
   userTz: string
   isToday: boolean
   tDaily: TranslatorT
+  tCommon: CommonBadgeTranslatorT
 }) {
   const time = match.scheduled_at
     ? new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz })
@@ -446,7 +458,7 @@ function DailyMatchRow({
             textTransform: 'uppercase',
             letterSpacing: 0.3,
             whiteSpace: 'nowrap',
-          }}>{isOnCourt ? 'ON COURT' : 'LIVE'}</span>
+          }}>{isOnCourt ? tCommon('onCourt') : tCommon('live')}</span>
         ) : (
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: isFinished ? MUTED : '#FFF' }}>

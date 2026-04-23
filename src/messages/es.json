@@ -402,6 +402,7 @@
     "min": "MIN",
     "sec": "SEG",
     "live": "EN DIRECTO",
+    "onCourt": "EN PISTA",
     "goBack": "Volver"
   },
   "about": {
