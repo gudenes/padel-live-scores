@@ -28,6 +28,10 @@ export const revalidate = 300 // 5 min
 // ── Brand tokens ─────────────────────────────────────────────────
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
+// Used for the "ON COURT" warm-up pill — same hue as the /matches page + home
+// LiveMatchCard so all three surfaces look consistent. See isWarmingUp in
+// src/types/match.ts for the status signal.
+const ORANGE = '#F5A623'
 const BG_BASE = '#1A1A1A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
@@ -390,6 +394,12 @@ function DailyMatchRow({
     : '—'
   const approx = match.schedule_approximate
   const isLive = match.status === 'live'
+  // on_court = padelgod observed the Crionet widget's "On court" / "Warming up"
+  // label. Belongs in the Live section (same filter as live above at line ~140)
+  // but rendered with an orange pill so it's distinguishable from an actively
+  // playing match.
+  const isOnCourt = (match.status as string) === 'on_court'
+  const isActive = isLive || isOnCourt
   const isRet = match.status === 'retired'
   const isWalkover = match.status === 'walkover'
   const isFinished = match.status === 'finished' || isRet || isWalkover
@@ -419,20 +429,24 @@ function DailyMatchRow({
         padding: '6px 0',
       }}
     >
-      {/* Time / Live badge */}
+      {/* Time / Live / On court badge. Shows an ORANGE pill for matches
+          padelgod flagged as on_court — same shape as LIVE to anchor them
+          visually, different color + copy so fans can tell the difference.
+          Date page uses a compact 9px badge; keep parity. */}
       <div style={{ textAlign: 'center' }}>
-        {isLive ? (
+        {isActive ? (
           <span style={{
             display: 'inline-block',
-            background: LIVE_RED,
-            color: '#FFF',
+            background: isOnCourt ? ORANGE : LIVE_RED,
+            color: isOnCourt ? '#000' : '#FFF',
             fontSize: 9,
             fontWeight: 800,
             padding: '3px 6px',
             clipPath: CHUNKY_BADGE,
             textTransform: 'uppercase',
             letterSpacing: 0.3,
-          }}>LIVE</span>
+            whiteSpace: 'nowrap',
+          }}>{isOnCourt ? 'ON COURT' : 'LIVE'}</span>
         ) : (
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: isFinished ? MUTED : '#FFF' }}>

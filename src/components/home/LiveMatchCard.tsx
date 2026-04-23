@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Link } from '@/i18n/navigation'
 import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
 import {
-  GREEN, LIVE_RED, BG_CARD, MUTED, CHUNKY, FlagImg,
+  GREEN, LIVE_RED, ORANGE, BG_CARD, MUTED, CHUNKY, FlagImg,
 } from './shared'
 
 // ── Live score-change detection ─────────────────────────────────
@@ -43,6 +43,10 @@ function LiveMatchCardInner({ match }: { match: Match }) {
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
   const flashKeyRef = useRef(0)
   const isLive = match.status === 'live'
+  // on_court = Crionet widget showed "On court" / "Warming up" — players are
+  // on the court but no first point yet. Rendered with an orange "ON COURT"
+  // pill (same shape as LIVE) so fans can tell it apart from an active match.
+  const isOnCourt = (match.status as string) === 'on_court'
   const p1Games = sets.reduce((s, st) => s + (st.pair1_games ?? 0), 0)
   const p2Games = sets.reduce((s, st) => s + (st.pair2_games ?? 0), 0)
   const p1Pts = p1GamePts
@@ -82,7 +86,9 @@ function LiveMatchCardInner({ match }: { match: Match }) {
     <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', position: 'relative' }}>
       <div style={{
         background: BG_CARD,
-        border: `1px solid rgba(255,70,85,0.2)`,
+        // Orange border/glow when warming up, red when live. Keeps the "something
+        // is happening" visual cue while distinguishing the two phases.
+        border: `1px solid ${isOnCourt ? 'rgba(245,166,35,0.22)' : 'rgba(255,70,85,0.2)'}`,
         clipPath: CHUNKY.card,
         padding: '16px 18px',
         position: 'relative',
@@ -90,17 +96,19 @@ function LiveMatchCardInner({ match }: { match: Match }) {
         minWidth: 300,
         flexShrink: 0,
       }}>
-        {/* Red glow */}
+        {/* Corner glow — matches the border color */}
         <div style={{
           position: 'absolute', top: -40, right: -40, width: 120, height: 120,
-          background: 'radial-gradient(circle, rgba(255,70,85,0.12) 0%, transparent 70%)',
+          background: isOnCourt
+            ? 'radial-gradient(circle, rgba(245,166,35,0.14) 0%, transparent 70%)'
+            : 'radial-gradient(circle, rgba(255,70,85,0.12) 0%, transparent 70%)',
         }} />
 
-        {/* LIVE badge + round */}
+        {/* LIVE / ON COURT badge + round */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: LIVE_RED,
+            background: isOnCourt ? ORANGE : LIVE_RED,
             padding: '3px 10px',
             clipPath: CHUNKY.badge,
           }}>
@@ -108,7 +116,13 @@ function LiveMatchCardInner({ match }: { match: Match }) {
               width: 6, height: 6, borderRadius: '50%', background: '#fff',
               animation: 'v3-pulse 2s infinite',
             }} />
-            <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>LIVE</span>
+            <span style={{
+              fontSize: 10, fontWeight: 800,
+              color: isOnCourt ? '#000' : '#fff',
+              letterSpacing: 0.5,
+            }}>
+              {isOnCourt ? 'ON COURT' : 'LIVE'}
+            </span>
           </div>
           {match.round && (
             <span style={{ fontSize: 10, fontWeight: 600, color: MUTED }}>
