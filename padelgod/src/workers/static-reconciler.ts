@@ -1000,33 +1000,60 @@ async function reconcileOOP(
       continue;
     }
 
-    const dict = dictionaries.get(`${r.tournament_id}::${r.category}`);
-    if (!dict) {
-      oopUnresolved += 1;
-      continue;
-    }
-
-    const resolved = resolveFourNames(dict, fipIdToPlayerId, {
-      t1p1: r.team1_player1_name,
-      t1p2: r.team1_player2_name,
-      t2p1: r.team2_player1_name,
-      t2p2: r.team2_player2_name,
-    });
-    if (!resolved) {
-      oopUnresolved += 1;
-      continue;
-    }
-
-    const { matchId } = await findOrCreateMatch(supabase, {
-      tournamentId: r.tournament_id,
+    // FK short-circuit: if reconcileDraws already created the match with
+    // the real widget composite AND all 4 player FKs are populated, skip
+    // name resolution entirely. Mirrors the same logic in reconcileResults
+    // below. Required for tournaments where OOP emits short-form names
+    // (e.g. "N. Baptista") that don't resolve cleanly against entry lists
+    // with long-form names — the match identity is already sealed via
+    // the composite, so we can safely write court/court_order without
+    // re-resolving names. Observed 2026-04-24 on FIP BRONZE Isla de la
+    // Palma: 5 matches had real composites + full FKs but reconcileOOP
+    // was skipping them because short-form resolution was ambiguous
+    // (duplicate "Nuno Baptista" in public.players).
+    const shortCircuitId = await findLinkedMatchWithCompleteFks(
+      supabase,
       tournamentWidgetId,
-      matchWidgetId: r.match_widget_id!,
-      category: r.category,
-      roundLabel: r.round_label ?? '',
-      court: r.court,
-      pair1PlayerIds: [resolved.p1p1, resolved.p1p2],
-      pair2PlayerIds: [resolved.p2p1, resolved.p2p2],
-    });
+      r.match_widget_id!,
+    );
+
+    let matchId: string;
+    if (shortCircuitId) {
+      matchId = shortCircuitId;
+      logger?.debug(
+        { matchId, matchWidgetId: r.match_widget_id, tournamentId: r.tournament_id },
+        'static-reconciler OOP: FK short-circuit — skipping name resolution',
+      );
+    } else {
+      const dict = dictionaries.get(`${r.tournament_id}::${r.category}`);
+      if (!dict) {
+        oopUnresolved += 1;
+        continue;
+      }
+
+      const resolved = resolveFourNames(dict, fipIdToPlayerId, {
+        t1p1: r.team1_player1_name,
+        t1p2: r.team1_player2_name,
+        t2p1: r.team2_player1_name,
+        t2p2: r.team2_player2_name,
+      });
+      if (!resolved) {
+        oopUnresolved += 1;
+        continue;
+      }
+
+      const result = await findOrCreateMatch(supabase, {
+        tournamentId: r.tournament_id,
+        tournamentWidgetId,
+        matchWidgetId: r.match_widget_id!,
+        category: r.category,
+        roundLabel: r.round_label ?? '',
+        court: r.court,
+        pair1PlayerIds: [resolved.p1p1, resolved.p1p2],
+        pair2PlayerIds: [resolved.p2p1, resolved.p2p2],
+      });
+      matchId = result.matchId;
+    }
 
     const update: Record<string, unknown> = {
       court: r.court,
