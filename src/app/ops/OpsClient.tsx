@@ -9,7 +9,14 @@ import SimulatorTab from './SimulatorTab'
 import PlayersTab from './PlayersTab'
 import ArchitectureTab from './ArchitectureTab'
 import BrandsTab from './BrandsTab'
-import ScheduleTab from './ScheduleTab'
+// ScheduleTab (standalone) retired 2026-04-24 — functionality moved
+// inline into the Tournament Explorer → Matches → OOP subtab via
+// src/app/ops/tournament/ScheduleReviewPanel.tsx. Operators now apply
+// OOP-derived schedule/court/player changes to public.matches from the
+// same view that shows the OOP snapshot, avoiding a context switch.
+// The /api/ops/schedule-review route is unchanged — only the UI shell
+// moved. Keeping this comment + the import-less absence so future
+// greps for "ScheduleTab" land here.
 import PadelgodShadowTab from './PadelgodShadowTab'
 import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentExplorerTab from './TournamentExplorerTab'
@@ -311,7 +318,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'schedule' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'padelgod-health'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'padelgod-health'>('ongoing')
   const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
   const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([])
   const [forcingSyncId, setForcingSyncId] = useState<string | null>(null)
@@ -425,7 +432,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       items: [
         { key: 'players' as const, label: 'Players', badge: null },
         { key: 'brands' as const, label: 'Brands & Equipment', badge: null },
-        { key: 'schedule' as const, label: 'Schedule', badge: null },
+        // Schedule tab retired — apply flow now inline in Tournament
+        // Explorer → Matches → OOP subtab (see ScheduleReviewPanel).
         { key: 'architecture' as const, label: 'Architecture', badge: null },
       ],
     },
@@ -904,10 +912,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         <BrandsTab />
       </>}
 
-      {tab === 'schedule' && <>
-        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Schedule Review</div>
-        <ScheduleTab />
-      </>}
+      {/* 'schedule' tab branch removed 2026-04-24 — see note near the
+          ScheduleTab import at top of file. */}
 
       {tab === 'architecture' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>System Architecture</div>

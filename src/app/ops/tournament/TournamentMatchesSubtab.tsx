@@ -10,6 +10,7 @@
 // caught up yet — and the UI shows exactly which ones are missing.
 
 import { useEffect, useMemo, useState } from 'react'
+import ScheduleReviewPanel from './ScheduleReviewPanel'
 
 // ── Types (mirror /api/ops/tournament-matches response) ─────────────────
 
@@ -57,6 +58,13 @@ interface MatchesResponse {
    *  object when no matches are linked yet (Premier / brand-new).
    *  Optional in the type so older (cached) responses don't crash the UI. */
   dayDates?: Record<number, string>
+  /**
+   * Crionet tournament widget code surfaced by the API so the embedded
+   * Schedule Review panel can call /api/ops/schedule-review without a
+   * separate lookup. Null if no `entity_external_ids(source='crionet_widget',
+   * entity_type='tournament')` row exists — the apply panel is hidden then.
+   */
+  matchscorerCode?: string | null
   error?: string
 }
 
@@ -390,6 +398,21 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
           />
         ))}
       </div>
+
+      {/* Schedule Review — OOP → public.matches apply panel. Only renders
+          when the operator is on the OOP tab AND has a specific day selected
+          AND the tournament has a MatchScorer code linked. Replaces the
+          former standalone Schedule tab; now lives inline with the OOP
+          snapshot it mirrors so operators don't have to switch contexts to
+          push OOP changes into public.matches. */}
+      {tab === 'oop' && day !== null && data.matchscorerCode && (
+        <ScheduleReviewPanel
+          tournamentId={tournamentId}
+          matchscorerCode={data.matchscorerCode}
+          day={day}
+          dayDate={data.dayDates?.[day] ?? null}
+        />
+      )}
 
       {/* Table */}
       <div style={{ ...card, padding: 0, overflow: 'auto' }}>

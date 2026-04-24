@@ -97,6 +97,17 @@ interface DetailResponse {
    * fall back to the starts_at-offset path on the client.
    */
   dayDates: Record<number, string>
+  /**
+   * Crionet tournament widget code (e.g. "FIP-2026-1701") — the
+   * `entity_external_ids(source='crionet_widget', entity_type='tournament')`
+   * row's external_id. Null when no such row exists.
+   *
+   * Surfaced so the Tournament Explorer's Matches subtab can embed the
+   * Schedule Review Apply panel without an extra lookup round-trip.
+   * When null, the embedded panel is hidden because the schedule-review
+   * API keys on this code to match OOP entries back to public.matches.
+   */
+  matchscorerCode: string | null
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────
@@ -498,6 +509,12 @@ export async function GET(request: Request) {
     stats,
     capturedAt,
     dayDates,
+    // Expose the Crionet tournament widget code (e.g. "FIP-2026-1701") so
+    // the embedded Schedule Review panel in TournamentMatchesSubtab can
+    // call /api/ops/schedule-review without a separate lookup. Null when
+    // no entity_external_ids row exists for this tournament — in that
+    // case the Apply-changes panel is hidden client-side.
+    matchscorerCode: tournamentWidgetId,
   }
 
   return Response.json(response)
