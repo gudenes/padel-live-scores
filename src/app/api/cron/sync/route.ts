@@ -998,8 +998,15 @@ export async function GET(request: Request) {
       // Date bounds naturally limit the set size; the isRateLimited() guard inside
       // the per-tournament loop is the real safety net. Deterministic ordering by
       // starts_at so repeated runs process the same tournaments in the same order.
-      // .not('source', 'eq', 'fip') excludes rows from the paused FIP scraper pipeline
-      // whose external_ids don't resolve on padelapi.
+      //
+      // Gate on external_id (not source). `external_id` on tournaments mirrors
+      // padelapi_id via trigger — so "has external_id" == "padelapi knows this
+      // tournament." Gating by `source != 'fip'` was too coarse: it silently
+      // excluded any tournament whose provenance was FIP but which also carried
+      // a valid padelapi_id (e.g., Brussels P2, source='fip', padelapi_id='731').
+      // That meant SF/F schedule_label + court + starts_at data from padelapi
+      // never landed — user-facing symptom was "upcoming matches for tomorrow
+      // aren't showing." See the 2026-04-24 investigation.
       if (syncScopes.includes('all') || syncScopes.includes('matches')) {
         const today = new Date().toISOString().slice(0, 10)
         const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -1010,7 +1017,7 @@ export async function GET(request: Request) {
           .select('external_id, name')
           .lte('starts_at', today)
           .gte('ends_at', today)
-          .not('source', 'eq', 'fip')
+          .not('external_id', 'is', null)
           .order('starts_at', { ascending: false })
 
         // Recently completed tournaments
@@ -1019,7 +1026,7 @@ export async function GET(request: Request) {
           .select('external_id, name')
           .gte('ends_at', twoWeeksAgo)
           .lt('ends_at', today)
-          .not('source', 'eq', 'fip')
+          .not('external_id', 'is', null)
           .order('ends_at', { ascending: false })
 
         // Upcoming tournaments: starting within the next 7 days
@@ -1030,7 +1037,7 @@ export async function GET(request: Request) {
           .select('external_id, name')
           .gt('starts_at', today)
           .lte('starts_at', oneWeekFromNow)
-          .not('source', 'eq', 'fip')
+          .not('external_id', 'is', null)
           .order('starts_at', { ascending: true })
 
         const allTournaments = [
