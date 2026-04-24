@@ -124,6 +124,7 @@ async function main() {
       enableFipDrawLinker: env.ENABLE_FIP_DRAW_LINKER,
       enableFipDrawPopulator: env.ENABLE_FIP_DRAW_POPULATOR,
       fipDrawPopulatorDryRun: env.FIP_DRAW_POPULATOR_DRY_RUN,
+      fipDrawPopulatorOnlyTournaments: env.FIP_DRAW_POPULATOR_ONLY_TOURNAMENTS,
       enableFipOopWriter: env.ENABLE_FIP_OOP_WRITER,
       fipOopWriterDryRun: env.FIP_OOP_WRITER_DRY_RUN,
       enableFipResultsWriter: env.ENABLE_FIP_RESULTS_WRITER,

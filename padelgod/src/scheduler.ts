@@ -41,6 +41,9 @@ export interface SchedulerFlags {
    *  no DB changes. Flip to false in Railway once dry-run output is
    *  reviewed and we're ready for real writes. */
   fipDrawPopulatorDryRun: boolean;
+  /** Comma-separated tournament UUIDs. Empty → no filter (process
+   *  all eligible). See FIP_DRAW_POPULATOR_ONLY_TOURNAMENTS env var. */
+  fipDrawPopulatorOnlyTournaments: string;
   enableFipOopWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipOopWriterDryRun: boolean;
@@ -196,6 +199,24 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
   }
 }
 
+/**
+ * Parse the `FIP_DRAW_POPULATOR_ONLY_TOURNAMENTS` env string into a
+ * UUID set. Empty/whitespace input → undefined (no filter). Invalid
+ * entries are silently dropped (operator sees the resulting set size
+ * in the worker's log output at startup and can self-correct).
+ */
+function parseTournamentAllowlist(raw: string): Set<string> | undefined {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return undefined;
+  const UUID_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const ids = trimmed
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0 && UUID_RE.test(s));
+  return ids.length > 0 ? new Set(ids) : undefined;
+}
+
 export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   const entries: ScheduleEntry[] = [];
   if (flags.enableTournamentDiscovery) {
@@ -273,10 +294,14 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
         // Override the default admin-trigger dry-run with the env-flag
         // value for scheduled runs — this is the only path that can
         // flip dry-run off.
+        const allowlist = parseTournamentAllowlist(
+          flags.fipDrawPopulatorOnlyTournaments,
+        );
         return runFipDrawPopulator({
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipDrawPopulatorDryRun,
+          onlyTournamentIds: allowlist,
         });
       },
     });

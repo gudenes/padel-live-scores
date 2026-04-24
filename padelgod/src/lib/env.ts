@@ -27,6 +27,20 @@ const EnvSchema = z.object({
   // Defaults OFF + DRY-RUN so enabling it in Railway is a two-step commit.
   ENABLE_FIP_DRAW_POPULATOR: z.coerce.boolean().default(false),
   FIP_DRAW_POPULATOR_DRY_RUN: z.coerce.boolean().default(true),
+  // Per-tournament allowlist for the populator. Comma-separated
+  // tournament UUIDs. When set, the populator processes ONLY those
+  // tournaments — everything else is skipped.
+  //
+  // Migration use case (2026-04-24): Brussels P2 has 100+ legacy
+  // public.matches rows that live-poller is actively updating with
+  // live scores. Enabling populator writes globally would create
+  // duplicate rows visible in tournament UI. Scope to clean-slate
+  // tournaments first; bring Brussels across only when we're ready
+  // to clean its legacy rows.
+  //
+  // Empty string / unset → no filter (process all eligible
+  // tournaments, original behavior).
+  FIP_DRAW_POPULATOR_ONLY_TOURNAMENTS: z.string().default(''),
   // fip-oop-writer — simplified-pipeline writer #2. Reads
   // padelgod.oop_snapshots and UPDATEs public.matches.court +
   // court_order on composite-keyed rows (created by fip-draw-populator).
