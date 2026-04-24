@@ -11,6 +11,7 @@ import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
 import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
 import { runFipOopWriter } from './workers/fip-oop-writer.js';
 import { runFipResultsWriter } from './workers/fip-results-writer.js';
+import { runFipWinnerPropagator } from './workers/fip-winner-propagator.js';
 import { runFipDrawLinker } from './workers/fip-draw-linker.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
@@ -46,6 +47,9 @@ export interface SchedulerFlags {
   enableFipResultsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipResultsWriterDryRun: boolean;
+  enableFipWinnerPropagator: boolean;
+  /** Same dry-run semantics. Independent. */
+  fipWinnerPropagatorDryRun: boolean;
   enableFipDrawLinker: boolean;
   fipDrawLinkerDryRun: boolean;
   enableOopFetcher: boolean;
@@ -94,6 +98,7 @@ export type WorkerName =
   | 'fip-draw-populator'
   | 'fip-oop-writer'
   | 'fip-results-writer'
+  | 'fip-winner-propagator'
   | 'oop-fetcher'
   | 'results-fetcher'
   | 'static-reconciler'
@@ -117,6 +122,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'fip-draw-populator',
   'fip-oop-writer',
   'fip-results-writer',
+  'fip-winner-propagator',
   'oop-fetcher',
   'results-fetcher',
   'static-reconciler',
@@ -160,6 +166,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       logger: deps.logger,
       // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
       // real env flag via closure (buildSchedule below).
+      dryRun: true,
+    });
+    case 'fip-winner-propagator': return (deps) => runFipWinnerPropagator({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure.
       dryRun: true,
     });
     case 'fip-draw-linker':      return (deps) => runFipDrawLinker(
@@ -297,6 +310,25 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipResultsWriterDryRun,
+        });
+      },
+    });
+  }
+  if (flags.enableFipWinnerPropagator) {
+    entries.push({
+      name: 'fip-winner-propagator',
+      // Hourly at :02 — the FIRST slot of each hour, right after any
+      // late-arriving results from the previous hour. Clean window
+      // before reconciler at :05 so there's no contention on
+      // public.matches writes. Pure DB-to-DB, fast (<1s per
+      // tournament), so running every hour even when most rounds have
+      // already been propagated is fine.
+      cron: '2 * * * *',
+      run: async (deps) => {
+        return runFipWinnerPropagator({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipWinnerPropagatorDryRun,
         });
       },
     });

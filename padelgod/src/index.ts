@@ -128,6 +128,8 @@ async function main() {
       fipOopWriterDryRun: env.FIP_OOP_WRITER_DRY_RUN,
       enableFipResultsWriter: env.ENABLE_FIP_RESULTS_WRITER,
       fipResultsWriterDryRun: env.FIP_RESULTS_WRITER_DRY_RUN,
+      enableFipWinnerPropagator: env.ENABLE_FIP_WINNER_PROPAGATOR,
+      fipWinnerPropagatorDryRun: env.FIP_WINNER_PROPAGATOR_DRY_RUN,
       fipDrawLinkerDryRun: env.FIP_DRAW_LINKER_DRY_RUN,
       enableOopFetcher: env.ENABLE_OOP_FETCHER,
       enableResultsFetcher: env.ENABLE_RESULTS_FETCHER,
