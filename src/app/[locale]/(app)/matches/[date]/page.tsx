@@ -113,6 +113,15 @@ export default async function DailyMatchesPage({ params }: Props) {
     pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, ranking),
     pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, ranking)
   `
+  // Fetch matches whose scheduled_at OR finished_at lands in this day's UTC
+  // window. Pulling on both columns matters because upstream `scheduled_at`
+  // can be stale — e.g. a Brussels R16 stamped "Starting at 12:00 PM" on the
+  // 25th but actually played on the 23rd — so without the finished_at arm
+  // matches would be pinned to the wrong day forever. The post-fetch filter
+  // below bucketizes per-column: active (live/on_court/scheduled) keys off
+  // scheduled_at, finished (finished/retired/walkover) keys off finished_at.
+  const startIso = startUtc.toISOString()
+  const endIso = endUtc.toISOString()
   const { data: rawMatches, error } = await supabase
     .from('matches')
     .select(`
@@ -122,16 +131,59 @@ export default async function DailyMatchesPage({ params }: Props) {
       ${playerJoins},
       sets(set_number, set_score, pair1_games, pair2_games, is_current)
     `)
-    .gte('scheduled_at', startUtc.toISOString())
-    .lt('scheduled_at', endUtc.toISOString())
+    .or(
+      `and(scheduled_at.gte.${startIso},scheduled_at.lt.${endIso}),` +
+      `and(finished_at.gte.${startIso},finished_at.lt.${endIso})`,
+    )
     .order('scheduled_at', { ascending: true })
-    .limit(300)
+    .limit(400)
 
   if (error) {
     console.error('[daily page] fetch failed:', error.message)
   }
 
+  // De-dup (a single match could match both arms of the OR if it finished
+  // the same day it was scheduled — PostgREST returns distinct rows per
+  // match anyway, but be defensive) and drop rows whose tournament join
+  // failed.
   const matches = ((rawMatches ?? []) as unknown as MatchRow[]).filter(m => !!m.tournament)
+
+  // Per-bucket day-window check. A match returned by the OR query may
+  // belong to one bucket-day and not the other — e.g. a R16 scheduled on
+  // the 25th but finished on the 23rd shows up when fetching 2026-04-25
+  // (via scheduled_at) but should NOT appear as "Finished" on the 25th.
+  // We reject it by comparing the finished_at to today's window.
+  const inWindow = (iso: string | null): boolean => {
+    if (!iso) return false
+    const t = Date.parse(iso)
+    return !Number.isNaN(t) && t >= startUtc.getTime() && t < endUtc.getTime()
+  }
+
+  // ── Bucket by status + the date column that's semantically correct ──
+  // `on_court` (warmup phase observed by padelgod's live-poller) belongs
+  // in the live bucket — fans want to see those matches in the "Live Now"
+  // section rather than the upcoming list. MatchCard renders them with an
+  // "On court" badge instead of a score via the existing isWarmingUp path.
+  //
+  // Active matches key off `scheduled_at` (the user cares WHEN it's meant
+  // to play). Finished matches key off `finished_at` (what day did it
+  // actually happen) — this is what prevents a R16 finished 2 days ago
+  // with a stale scheduled_at appearing on a future day's page.
+  const liveMatches = matches.filter(
+    m => (m.status === 'live' || m.status === 'on_court') && inWindow(m.scheduled_at),
+  )
+  const upcomingMatches = matches.filter(
+    m => m.status === 'scheduled' && inWindow(m.scheduled_at),
+  )
+  const finishedMatches = matches.filter(
+    m => ['finished', 'retired', 'walkover'].includes(m.status) && inWindow(m.finished_at),
+  )
+  // Union — used for the day's intro/FAQ copy and the SEO JSON-LD ItemList.
+  // Must stay in sync with the three bucket filters above. A match that
+  // appeared in the OR-fetched set but didn't qualify for any bucket
+  // (scheduled_at in window but status=finished with finished_at out of
+  // window, for example) is intentionally excluded from the day's story.
+  const dayMatches = [...liveMatches, ...upcomingMatches, ...finishedMatches]
 
   // ── Build intro + FAQ copy ────────────────────────────────────
   const tDaily = await getTranslations({ locale, namespace: 'daily' })
@@ -140,7 +192,7 @@ export default async function DailyMatchesPage({ params }: Props) {
   // own translator.
   const tCommon = await getTranslations({ locale, namespace: 'common' })
   const dateLong = formatLongDate(iso, locale)
-  const summaries: DailyMatchSummary[] = matches.map(m => ({
+  const summaries: DailyMatchSummary[] = dayMatches.map(m => ({
     status: (m.status as DailyMatchSummary['status']) ?? 'scheduled',
     scheduledAt: m.scheduled_at,
     tournament: m.tournament ? { name: m.tournament.name, level: m.tournament.level } : null,
@@ -149,18 +201,9 @@ export default async function DailyMatchesPage({ params }: Props) {
   const intro = buildDailyIntro({ iso, locale, dateLong, matches: summaries })
   const faqs = buildDailyFaq({ iso, locale, dateLong, matches: summaries })
 
-  // ── Bucket by status ──────────────────────────────────────────
-  // `on_court` (warmup phase observed by padelgod's live-poller) belongs
-  // in the live bucket — fans want to see those matches in the "Live Now"
-  // section rather than the upcoming list. MatchCard renders them with an
-  // "On court" badge instead of a score via the existing isWarmingUp path.
-  const liveMatches = matches.filter(m => m.status === 'live' || m.status === 'on_court')
-  const upcomingMatches = matches.filter(m => m.status === 'scheduled')
-  const finishedMatches = matches.filter(m => ['finished', 'retired', 'walkover'].includes(m.status))
-
   // ── JSON-LD: ItemList of SportsEvent + FAQPage ─────────────────
   const jsonLd = buildJsonLd({
-    iso, locale, intro, matches,
+    iso, locale, intro, matches: dayMatches,
   })
   const faqJsonLd = {
     '@context': 'https://schema.org',
@@ -215,7 +258,7 @@ export default async function DailyMatchesPage({ params }: Props) {
       </header>
 
       {/* Empty state */}
-      {matches.length === 0 && (
+      {dayMatches.length === 0 && (
         <div style={{ padding: '40px 16px', textAlign: 'center' }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#FFF', marginBottom: 8 }}>
             {tDaily('noMatchesTitle')}
