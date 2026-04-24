@@ -10,6 +10,7 @@ import { runDrawFetcher } from './workers/draw-fetcher.js';
 import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
 import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
 import { runFipOopWriter } from './workers/fip-oop-writer.js';
+import { runFipResultsWriter } from './workers/fip-results-writer.js';
 import { runFipDrawLinker } from './workers/fip-draw-linker.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
@@ -42,6 +43,9 @@ export interface SchedulerFlags {
   enableFipOopWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipOopWriterDryRun: boolean;
+  enableFipResultsWriter: boolean;
+  /** Same dry-run semantics as the populator flag. Independent. */
+  fipResultsWriterDryRun: boolean;
   enableFipDrawLinker: boolean;
   fipDrawLinkerDryRun: boolean;
   enableOopFetcher: boolean;
@@ -89,6 +93,7 @@ export type WorkerName =
   | 'fip-draw-linker'
   | 'fip-draw-populator'
   | 'fip-oop-writer'
+  | 'fip-results-writer'
   | 'oop-fetcher'
   | 'results-fetcher'
   | 'static-reconciler'
@@ -111,6 +116,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'fip-draw-linker',
   'fip-draw-populator',
   'fip-oop-writer',
+  'fip-results-writer',
   'oop-fetcher',
   'results-fetcher',
   'static-reconciler',
@@ -147,6 +153,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       logger: deps.logger,
       // Same admin-trigger dry-run-SAFE default as populator. Scheduled
       // cron entry threads the real env flag via closure.
+      dryRun: true,
+    });
+    case 'fip-results-writer':   return (deps) => runFipResultsWriter({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure (buildSchedule below).
       dryRun: true,
     });
     case 'fip-draw-linker':      return (deps) => runFipDrawLinker(
@@ -268,6 +281,22 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipOopWriterDryRun,
+        });
+      },
+    });
+  }
+  if (flags.enableFipResultsWriter) {
+    entries.push({
+      name: 'fip-results-writer',
+      // Hourly at :57 — sequenced AFTER results-fetcher (:55) so the
+      // snapshots are fresh. Last of the simplified-pipeline writers
+      // each hour; doesn't compete with reconciler at :05/:35.
+      cron: '57 * * * *',
+      run: async (deps) => {
+        return runFipResultsWriter({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipResultsWriterDryRun,
         });
       },
     });
