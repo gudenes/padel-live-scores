@@ -65,7 +65,16 @@ interface MatchRow {
   finished_at: string | null
   round: string | null
   court: string | null
-  schedule_approximate: boolean | null
+  /**
+   * Free-text schedule note from upstream (e.g. "Not before 4:00 PM",
+   * "Followed by"). Presence of these phrases marks an approximate time
+   * — derived at render time, NOT a boolean column on the table. See
+   * sibling `/matches` page which uses the same regex. The page used
+   * to reference a nonexistent `schedule_approximate` column, which
+   * made every Supabase query fail silently with PGRST 42703 and the
+   * page always rendered the empty state.
+   */
+  schedule_label: string | null
   winner_pair: number | null
   tournament: { id: string; name: string; level: string | null } | null
   pair1_player1: PlayerRow | null
@@ -108,7 +117,7 @@ export default async function DailyMatchesPage({ params }: Props) {
     .from('matches')
     .select(`
       id, status, scheduled_at, finished_at, round, court,
-      schedule_approximate, winner_pair,
+      schedule_label, winner_pair,
       tournament:tournaments(id, name, level),
       ${playerJoins},
       sets(set_number, set_score, pair1_games, pair2_games, is_current)
@@ -404,7 +413,13 @@ function DailyMatchRow({
     ? new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz })
         .format(new Date(match.scheduled_at))
     : '—'
-  const approx = match.schedule_approximate
+  // Derived from the free-text schedule_label: "Not before 4:00 PM" and
+  // "Followed by Court X" both mean the padelapi-published start time is
+  // an approximation, not a commitment. Renders a "*" suffix next to the
+  // time. Matches the logic in src/app/[locale]/(app)/matches/page.tsx.
+  const approx = match.schedule_label
+    ? /not before|followed by/i.test(match.schedule_label)
+    : false
   const isLive = match.status === 'live'
   // on_court = padelgod observed the Crionet widget's "On court" / "Warming up"
   // label. Belongs in the Live section (same filter as live above at line ~140)
