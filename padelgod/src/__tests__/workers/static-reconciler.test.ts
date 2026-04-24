@@ -35,6 +35,11 @@ interface DrawSnapshotSeed {
   team2_seed: number | null;
   team1_country: string | null;
   team2_country: string | null;
+  /** Real widget-visible match id ("MD017") from fip_event_page source —
+   *  null for legacy Crionet draw-widget rows. Reconciler prefers the
+   *  real id for composite construction when both tournament + match
+   *  widget ids are present. */
+  match_widget_id?: string | null;
   captured_at: string;
 }
 
@@ -637,6 +642,97 @@ describe('runStaticReconciler — draw phase (V2)', () => {
     expect(team2Row.player1_id).toBe('uuid-P3');
     expect(team2Row.player2_id).toBe('uuid-P4');
     expect(team2Row.seed).toBe(2);
+  });
+
+  /**
+   * Regression for the 2026-04-24 Isla de la Palma linkage gap: when the
+   * draw_snapshot row has a real `match_widget_id` ("MD017") AND the
+   * tournament has an active widget_id_cache row ("FIP-2026-1706"), the
+   * reconciler must write the match with the REAL composite so that
+   * downstream reconcileOOP / reconcileResults can find and update it.
+   *
+   * Before the fix, the reconciler always used the synthetic
+   * "draw:men:main_draw:R32:1" form — which never matched Crionet's OOP
+   * snapshots (they emit "MD017"). Result: 36/36 OOP+results rows
+   * unlinked to public.matches despite all data being captured.
+   */
+  it('uses real widget_id composite when match_widget_id + tournament widget_id_cache are both present', async () => {
+    const draws: DrawSnapshotSeed[] = [
+      {
+        id: 'draw-real',
+        tournament_id: TOUR,
+        category: 'men',
+        draw_type: 'main_draw',
+        round_label: 'F',
+        draw_position: 1,
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        team1_seed: 1,
+        team2_seed: 2,
+        team1_country: 'ESP',
+        team2_country: 'ESP',
+        match_widget_id: 'MD031', // from fip_event_page source
+        captured_at: T,
+      },
+    ];
+
+    const supabase = fakeSupabase(
+      entryListRoster,
+      rosterPlayers,
+      draws,
+      [],
+      [],
+      [],
+      [],
+      [{ tournament_id: TOUR, widget_id: 'FIP-2026-1706', is_active: true }],
+    );
+    const result = await runStaticReconciler({ supabase: supabase as any });
+
+    expect(result.drawMatchesWritten).toBe(1);
+    expect(supabase.matchEidsInserted).toHaveLength(1);
+
+    // Composite must be "FIP-2026-1706:MD031" — NOT the synthetic form.
+    expect(supabase.matchEidsInserted[0].external_id).toBe('FIP-2026-1706:MD031');
+    expect(supabase.matchEidsInserted[0].source).toBe('crionet_widget');
+  });
+
+  /**
+   * Negative case: when either the draw row or the tournament widget code
+   * is missing, fall back to the synthetic composite (legacy Crionet draw
+   * widget path). Keeps pre-fix tournaments working without regression.
+   */
+  it('falls back to synthetic widget_id when match_widget_id is missing', async () => {
+    const draws: DrawSnapshotSeed[] = [
+      {
+        id: 'draw-legacy',
+        tournament_id: TOUR,
+        category: 'men',
+        draw_type: 'main_draw',
+        round_label: 'F',
+        draw_position: 1,
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        team1_seed: 1,
+        team2_seed: 2,
+        team1_country: 'ESP',
+        team2_country: 'ESP',
+        match_widget_id: null, // legacy crionet_draw_widget row
+        captured_at: T,
+      },
+    ];
+
+    // Tournament has no widget_id_cache row either — true legacy path.
+    const supabase = fakeSupabase(entryListRoster, rosterPlayers, draws);
+    const result = await runStaticReconciler({ supabase: supabase as any });
+
+    expect(result.drawMatchesWritten).toBe(1);
+    expect(supabase.matchEidsInserted[0].external_id).toBe(
+      'draw:men:main_draw:F:1',
+    );
   });
 
   it('queues unresolved raw names and skips the draw row entirely when any name fails to resolve', async () => {
