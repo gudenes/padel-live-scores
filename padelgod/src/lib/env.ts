@@ -33,6 +33,12 @@ const EnvSchema = z.object({
   // Same safety posture as the populator: default OFF + dry-run ON.
   ENABLE_FIP_OOP_WRITER: z.coerce.boolean().default(false),
   FIP_OOP_WRITER_DRY_RUN: z.coerce.boolean().default(true),
+  // fip-results-writer — simplified-pipeline writer #3. Reads
+  // padelgod.results_snapshots and UPDATEs matches.status + winner_pair
+  // + UPSERTs sets rows for composite-keyed matches. Same safety
+  // posture as the other writers.
+  ENABLE_FIP_RESULTS_WRITER: z.coerce.boolean().default(false),
+  FIP_RESULTS_WRITER_DRY_RUN: z.coerce.boolean().default(true),
   // FIP draw linker (PR 2). Reads latest fip_event_page snapshots and
   // writes `entity_external_ids` rows mapping Crionet widget composites
   // to public.matches UUIDs. Default OFF; enables via Railway env.

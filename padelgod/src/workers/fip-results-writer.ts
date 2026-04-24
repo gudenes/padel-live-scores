@@ -1,0 +1,353 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Logger } from 'pino';
+import { parseSetScores } from './static-reconciler.js';
+
+/**
+ * fip-results-writer — simplified-pipeline writer #3.
+ *
+ * Reads `padelgod.results_snapshots` (populated by `results-fetcher`
+ * every hour at :55) and UPDATEs `public.matches` status / winner_pair
+ * + UPSERTs `public.sets` rows for composite-keyed matches (created by
+ * `fip-draw-populator`).
+ *
+ * One job only
+ * ------------
+ * - Composite lookup per tournament (batched prefix query)
+ * - UPDATE matches.status, winner_pair, duration (if provided)
+ * - UPDATE matches.finished_at NULL-only (live-poller's precise stamp
+ *   wins when it got there first)
+ * - UPSERT public.sets rows from parsed `set_scores` string
+ *
+ * Terminal-status regression guard
+ * --------------------------------
+ * Only flips status when current is in {'scheduled', 'on_court',
+ * 'live'}. Protects against the "live→finished in-flight" race
+ * observed on Brussels 2026-04-23: results widget briefly reports
+ * status='live' during the transition, and without this guard the
+ * writer could flip a completed match back to 'live' while keeping
+ * finished_at set. Same guard the legacy reconciler uses.
+ *
+ * What this writer does NOT touch
+ * -------------------------------
+ * - pair_player_ids (populator owns)
+ * - court, court_order (oop-writer owns)
+ * - scheduled_at (padelapi narrow sync owns)
+ * - Matches keyed by synthetic composite (widget_id_composite NULL;
+ *   invisible to the LIKE lookup)
+ * - `public.games` (point-by-point level — out of scope for V1; the
+ *   live-poller and padelapi Pusher relay remain sources for that)
+ *
+ * Parallel-safety during migration
+ * --------------------------------
+ *   - ENABLE_FIP_RESULTS_WRITER=false   ← default
+ *   - FIP_RESULTS_WRITER_DRY_RUN=true   ← default
+ *   - Cron :57 — runs after results-fetcher (:55). Independent of
+ *     reconciler's :05/:35.
+ */
+
+export interface FipResultsWriterDeps {
+  supabase: SupabaseClient;
+  logger?: Logger;
+  /** When true (default), log proposed writes but don't actually write. */
+  dryRun: boolean;
+}
+
+export interface FipResultsWriterResult {
+  tournamentsProcessed: number;
+  tournamentsSkippedNoWidget: number;
+  resultsRowsConsidered: number;
+  matchesUpdated: number;
+  setsWritten: number;
+  finishedAtBackfilled: number;
+  skippedNoMatch: number;
+  skippedTerminalStatus: number;
+  skippedNoWidgetId: number;
+  dryRun: boolean;
+}
+
+interface TournamentRow {
+  tournament_id: string;
+  tournament_name: string;
+  slug: string;
+}
+
+interface ResultsRow {
+  tournament_id: string;
+  match_widget_id: string | null;
+  category: 'men' | 'women';
+  round_label: string | null;
+  court: string | null;
+  team1_player1_name: string | null;
+  team1_player2_name: string | null;
+  team2_player1_name: string | null;
+  team2_player2_name: string | null;
+  set_scores: string | null;
+  winner_team: 1 | 2 | null;
+  status: 'finished' | 'walkover' | 'retired';
+  captured_at: string;
+}
+
+interface ExistingMatch {
+  id: string;
+  widget_id_composite: string;
+  status: string | null;
+  winner_pair: number | null;
+  duration: string | null;
+  finished_at: string | null;
+  started_at: string | null;
+}
+
+// ── Main entry ─────────────────────────────────────────────────────────
+
+export async function runFipResultsWriter(
+  deps: FipResultsWriterDeps
+): Promise<FipResultsWriterResult> {
+  const { supabase, logger, dryRun } = deps;
+
+  const result: FipResultsWriterResult = {
+    tournamentsProcessed: 0,
+    tournamentsSkippedNoWidget: 0,
+    resultsRowsConsidered: 0,
+    matchesUpdated: 0,
+    setsWritten: 0,
+    finishedAtBackfilled: 0,
+    skippedNoMatch: 0,
+    skippedTerminalStatus: 0,
+    skippedNoWidgetId: 0,
+    dryRun,
+  };
+
+  const { data: tours, error: toursErr } = await supabase.rpc(
+    'padelgod_active_tournaments_with_slug'
+  );
+  if (toursErr) {
+    throw new Error(
+      `padelgod_active_tournaments_with_slug RPC failed: ${toursErr.message}`
+    );
+  }
+  const tournaments = (tours ?? []) as TournamentRow[];
+
+  for (const t of tournaments) {
+    const tournamentWidgetId = await getActiveWidgetIdCode(
+      supabase,
+      t.tournament_id
+    );
+    if (!tournamentWidgetId) {
+      result.tournamentsSkippedNoWidget += 1;
+      continue;
+    }
+
+    const latestResults = await loadLatestResultsRows(
+      supabase,
+      t.tournament_id
+    );
+    if (latestResults.length === 0) continue;
+
+    result.tournamentsProcessed += 1;
+
+    const compositePrefix = `${tournamentWidgetId}:`;
+    const matchByComposite = await loadExistingMatchesByPrefix(
+      supabase,
+      compositePrefix
+    );
+
+    for (const r of latestResults) {
+      result.resultsRowsConsidered += 1;
+
+      if (!r.match_widget_id) {
+        result.skippedNoWidgetId += 1;
+        continue;
+      }
+
+      const composite = `${tournamentWidgetId}:${r.match_widget_id}`;
+      const existing = matchByComposite.get(composite);
+
+      if (!existing) {
+        result.skippedNoMatch += 1;
+        continue;
+      }
+
+      // Terminal-status regression guard. See docblock.
+      const currentStatus = existing.status ?? 'scheduled';
+      if (!['scheduled', 'on_court', 'live'].includes(currentStatus)) {
+        result.skippedTerminalStatus += 1;
+        continue;
+      }
+
+      const nowIso = new Date().toISOString();
+
+      // Build match UPDATE patch
+      const matchPatch: Record<string, unknown> = {
+        status: r.status,
+        winner_pair: r.winner_team,
+        last_updated_by: 'padelgod',
+        updated_at: nowIso,
+      };
+
+      // Backfill finished_at NULL-only. live-poller's precise stamp
+      // wins when present. Fallback: started_at+duration or captured_at.
+      if (existing.finished_at === null) {
+        const finishedAt = computeFinishedAt(existing, r.captured_at);
+        if (finishedAt) {
+          matchPatch.finished_at = finishedAt;
+          result.finishedAtBackfilled += 1;
+        }
+      }
+
+      if (dryRun) {
+        logger?.info(
+          { composite, matchId: existing.id, matchPatch, setsCount: (r.set_scores ? parseSetScores(r.set_scores).length : 0) },
+          'fip-results-writer [dry-run]: would UPDATE match + UPSERT sets'
+        );
+      } else {
+        const { error: updErr } = await supabase
+          .from('matches')
+          .update(matchPatch)
+          .eq('id', existing.id)
+          .in('status', ['scheduled', 'on_court', 'live']);
+        if (updErr) {
+          throw new Error(
+            `matches update failed (id=${existing.id}, results widget=${r.match_widget_id}): ${updErr.message}`
+          );
+        }
+      }
+      result.matchesUpdated += 1;
+
+      // UPSERT sets
+      if (r.set_scores) {
+        const parsedSets = parseSetScores(r.set_scores);
+        for (const s of parsedSets) {
+          const row = {
+            match_id: existing.id,
+            set_number: s.set_number,
+            set_score: s.set_score,
+            pair1_games: s.pair1_games,
+            pair2_games: s.pair2_games,
+            is_current: false,
+            score_source: 'api',
+            updated_at: nowIso,
+          };
+          if (dryRun) {
+            // already logged above in aggregate
+          } else {
+            const { error: sUpErr } = await supabase
+              .from('sets')
+              .upsert(row, { onConflict: 'match_id,set_number' });
+            if (sUpErr) {
+              throw new Error(
+                `sets upsert failed (match=${existing.id}, set=${s.set_number}): ${sUpErr.message}`
+              );
+            }
+          }
+          result.setsWritten += 1;
+        }
+      }
+    }
+  }
+
+  logger?.info(result, 'fip-results-writer run complete');
+  return result;
+}
+
+// ── Helpers (exported for testing) ─────────────────────────────────────
+
+/**
+ * Resolve the timestamp to stamp as finished_at when live-poller didn't
+ * handle this match (the usual case for non-Premier tournaments).
+ *
+ * Priority:
+ *   1. started_at + duration ("hh:mm" format) — gives the actual finish
+ *      time, which is what the UI cares about
+ *   2. captured_at — the snapshot's fetch time. Close enough when we
+ *      have nothing better.
+ *
+ * Returns null if we can't compute anything (shouldn't happen in
+ * practice — captured_at is always present on the row).
+ */
+export function computeFinishedAt(
+  existing: { started_at: string | null; duration: string | null },
+  capturedAt: string
+): string | null {
+  if (existing.started_at && existing.duration) {
+    const m = existing.duration.match(/^(\d{1,2}):(\d{2})$/);
+    if (m && m[1] != null && m[2] != null) {
+      const mins = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      const t = new Date(existing.started_at).getTime();
+      if (!Number.isNaN(t)) return new Date(t + mins * 60_000).toISOString();
+    }
+  }
+  return capturedAt;
+}
+
+// ── DB helpers ─────────────────────────────────────────────────────────
+
+async function getActiveWidgetIdCode(
+  supabase: SupabaseClient,
+  tournamentId: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .schema('padelgod')
+    .from('widget_id_cache')
+    .select('widget_id')
+    .eq('tournament_id', tournamentId)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (error) {
+    throw new Error(
+      `widget_id_cache read failed (tournament=${tournamentId}): ${error.message}`
+    );
+  }
+  return (data?.widget_id as string | undefined) ?? null;
+}
+
+async function loadLatestResultsRows(
+  supabase: SupabaseClient,
+  tournamentId: string
+): Promise<ResultsRow[]> {
+  const { data, error } = await supabase
+    .schema('padelgod')
+    .from('results_snapshots')
+    .select(
+      'tournament_id, match_widget_id, category, round_label, court, ' +
+        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
+        'set_scores, winner_team, status, captured_at'
+    )
+    .eq('tournament_id', tournamentId);
+  if (error) {
+    throw new Error(
+      `results_snapshots read failed (tournament=${tournamentId}): ${error.message}`
+    );
+  }
+  const rows = (data ?? []) as unknown as ResultsRow[];
+
+  const latest = new Map<string, ResultsRow>();
+  for (const r of rows) {
+    if (!r.match_widget_id) continue;
+    const key = r.match_widget_id;
+    const prev = latest.get(key);
+    if (!prev || r.captured_at > prev.captured_at) latest.set(key, r);
+  }
+  return Array.from(latest.values());
+}
+
+async function loadExistingMatchesByPrefix(
+  supabase: SupabaseClient,
+  compositePrefix: string
+): Promise<Map<string, ExistingMatch>> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select(
+      'id, widget_id_composite, status, winner_pair, duration, finished_at, started_at'
+    )
+    .like('widget_id_composite', `${compositePrefix}%`);
+  if (error) {
+    throw new Error(
+      `matches read failed (prefix=${compositePrefix}): ${error.message}`
+    );
+  }
+  const map = new Map<string, ExistingMatch>();
+  for (const row of (data ?? []) as ExistingMatch[]) {
+    if (row.widget_id_composite) map.set(row.widget_id_composite, row);
+  }
+  return map;
+}
