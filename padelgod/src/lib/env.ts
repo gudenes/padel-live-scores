@@ -39,6 +39,13 @@ const EnvSchema = z.object({
   // posture as the other writers.
   ENABLE_FIP_RESULTS_WRITER: z.coerce.boolean().default(false),
   FIP_RESULTS_WRITER_DRY_RUN: z.coerce.boolean().default(true),
+  // fip-winner-propagator — simplified-pipeline writer #4. When a match
+  // is finished with a winner, the propagator copies the winning pair's
+  // 2 player UUIDs into the next-round match via bracket math. Pure
+  // DB-to-DB (no external calls). Same safety posture: default OFF +
+  // dry-run ON.
+  ENABLE_FIP_WINNER_PROPAGATOR: z.coerce.boolean().default(false),
+  FIP_WINNER_PROPAGATOR_DRY_RUN: z.coerce.boolean().default(true),
   // FIP draw linker (PR 2). Reads latest fip_event_page snapshots and
   // writes `entity_external_ids` rows mapping Crionet widget composites
   // to public.matches UUIDs. Default OFF; enables via Railway env.
