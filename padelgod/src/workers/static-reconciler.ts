@@ -71,6 +71,13 @@ interface DrawSnapshotRow {
   team2_seed: number | null;
   team1_country: string | null;
   team2_country: string | null;
+  /**
+   * Widget-visible match ID ("MD017", "WQ011") — populated only on rows
+   * from `fip_event_page` source (PR 1 of the FIP pipeline). Legacy rows
+   * and Crionet draw-widget snapshots have it null; synthetic widget id
+   * is used in that case. See reconcileDraws for the selection logic.
+   */
+  match_widget_id: string | null;
   captured_at: string;
 }
 
@@ -318,7 +325,7 @@ async function reconcileDraws(
     .select(
       'id, tournament_id, category, draw_type, round_label, draw_position, ' +
         'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
-        'team1_seed, team2_seed, team1_country, team2_country, captured_at'
+        'team1_seed, team2_seed, team1_country, team2_country, match_widget_id, captured_at'
     )
     .gte('captured_at', cutoff);
 
@@ -431,6 +438,28 @@ async function reconcileDraws(
     for (const row of (playerRows ?? []) as { id: string; fip_id: string }[]) {
       if (row.fip_id && row.id) fipIdToPlayerId.set(row.fip_id, row.id);
     }
+  }
+
+  // 4b. Fetch each tournament's Crionet widget code (e.g. "FIP-2026-1706")
+  //     from `padelgod.widget_id_cache`. When present, we prefer the REAL
+  //     match widget id ("MD017") over the synthetic
+  //     "draw:category:type:round:pos" format — this is the join key that
+  //     downstream reconcileOOP / reconcileResults use to find existing
+  //     public.matches rows. Without the real widget id, OOP/results updates
+  //     silently skip because the composite doesn't match.
+  //
+  //     Observed 2026-04-24 on FIP BRONZE Isla de la Palma: 36 OOP+results
+  //     rows captured in snapshots but 0 linked to public.matches — all
+  //     unlinked because the reconciler previously always used synthetic
+  //     widget ids.
+  //
+  //     Uses the shared `getActiveWidgetId` helper (also used by OOP +
+  //     results phases) so one codepath drives widget lookup. N+1 queries
+  //     here are fine — active-window tournaments are bounded to ~50.
+  const tournamentWidgetIds = new Map<string, string>();
+  for (const tid of tournamentIds) {
+    const code = await getActiveWidgetId(supabase, tid);
+    if (code) tournamentWidgetIds.set(tid, code);
   }
 
   // 5. Iterate draws, resolve players, and write.
@@ -550,13 +579,37 @@ async function reconcileDraws(
     // player record was missing for some other reason), we can't drive the
     // pair-based fallback in match-identifier — findOrCreateMatch will just
     // insert a thin match row without player UUIDs. That's OK — the next run
-    // (after phase 1 catches up) will still work because the synthetic
-    // widget id is stable across runs.
+    // (after phase 1 catches up) will still work because the widget id is
+    // stable across runs (both real and synthetic forms).
 
-    const matchWidgetId = `${d.category}:${d.draw_type}:${d.round_label}:${d.draw_position}`;
+    // Widget-id selection: prefer the REAL match widget id ("MD017",
+    // "WQ011") + the tournament's real Crionet widget code
+    // ("FIP-2026-1706") when both are available. This produces a composite
+    // matching what Crionet's OOP / results snapshots emit, so
+    // reconcileOOP / reconcileResults can find this same public.matches
+    // row by widget-id lookup and merge schedule / scores into it.
+    //
+    // Fall back to synthetic ("draw:men:main_draw:R32:8" + "draw") when
+    // either the draw source doesn't carry a widget id (legacy Crionet
+    // draw widget path) OR the tournament has no Crionet widget code
+    // registered yet. Synthetic is still stable across runs — rows keep
+    // their matchId — they just can't cross-link with OOP/results until
+    // the real codes show up. A later reconciler run that sees both real
+    // codes will *create a fresh match* via the real composite; the
+    // synthetic row is then effectively orphaned. Acceptable because:
+    //   1. Synthetic-only tournaments never flip to real codes in practice
+    //      (if FIP draw has widget_id, so does Crionet OOP).
+    //   2. Orphan cleanup is out of scope for the reconciler.
+    const realTournamentWidget = tournamentWidgetIds.get(d.tournament_id) ?? null;
+    const useRealComposite =
+      d.match_widget_id != null && realTournamentWidget != null;
+    const tournamentWidgetId = useRealComposite ? realTournamentWidget! : 'draw';
+    const matchWidgetId = useRealComposite
+      ? d.match_widget_id!
+      : `${d.category}:${d.draw_type}:${d.round_label}:${d.draw_position}`;
     const { matchId } = await findOrCreateMatch(supabase, {
       tournamentId: d.tournament_id,
-      tournamentWidgetId: 'draw',
+      tournamentWidgetId,
       matchWidgetId,
       category: d.category,
       roundLabel: d.round_label,
