@@ -75,11 +75,34 @@ export interface FipDrawPopulatorDeps {
    * before committing the migration.
    */
   dryRun: boolean;
+  /**
+   * Optional per-tournament allowlist — when non-empty, the populator
+   * processes ONLY tournaments whose UUID is in this set. When empty
+   * or undefined, processes all eligible tournaments (default).
+   *
+   * Added to let operators migrate tournaments one-at-a-time, leaving
+   * the legacy pipeline's rows untouched for tournaments NOT in the
+   * list. Brussels 2026 specifically: already has 109 legacy matches
+   * with live-poller state; flipping populator writes globally would
+   * create user-visible duplicate rows in tournament views. With the
+   * allowlist we keep Brussels on legacy while migrating clean-slate
+   * tournaments (Isla, Mendoza, Marrakech, Ijuí) to the new pipeline.
+   *
+   * Because the 3 downstream writers (oop-writer, results-writer,
+   * winner-propagator) all look up matches by widget_id_composite
+   * prefix, skipping Brussels HERE automatically keeps them off
+   * Brussels too — no writes means no composite-keyed rows for
+   * them to target. Only the populator needs the filter.
+   */
+  onlyTournamentIds?: Set<string>;
 }
 
 export interface FipDrawPopulatorResult {
   tournamentsProcessed: number;
   tournamentsSkippedNoWidget: number;
+  /** Tournaments skipped because they weren't in the allowlist. When
+   *  `onlyTournamentIds` is unset/empty this is always 0. */
+  tournamentsSkippedNotInAllowlist: number;
   drawRowsConsidered: number;
   inserted: number;
   updated: number;
@@ -156,11 +179,13 @@ function isRealFipTeamId(id: string | null): boolean {
 export async function runFipDrawPopulator(
   deps: FipDrawPopulatorDeps
 ): Promise<FipDrawPopulatorResult> {
-  const { supabase, logger, dryRun } = deps;
+  const { supabase, logger, dryRun, onlyTournamentIds } = deps;
+  const allowlistActive = onlyTournamentIds && onlyTournamentIds.size > 0;
 
   const result: FipDrawPopulatorResult = {
     tournamentsProcessed: 0,
     tournamentsSkippedNoWidget: 0,
+    tournamentsSkippedNotInAllowlist: 0,
     drawRowsConsidered: 0,
     inserted: 0,
     updated: 0,
@@ -170,6 +195,13 @@ export async function runFipDrawPopulator(
     skippedAlreadyComplete: 0,
     dryRun,
   };
+
+  if (allowlistActive) {
+    logger?.info(
+      { allowlistSize: onlyTournamentIds.size },
+      'fip-draw-populator: tournament allowlist active — processing only listed tournaments'
+    );
+  }
 
   // 1. Active tournaments with FIP slug
   const { data: tours, error: toursErr } = await supabase.rpc(
@@ -183,6 +215,15 @@ export async function runFipDrawPopulator(
   const tournaments = (tours ?? []) as TournamentRow[];
 
   for (const t of tournaments) {
+    // Allowlist filter. Evaluated FIRST so we don't waste widget-id
+    // lookups on tournaments we won't process. Kept as a counter so
+    // the result object can prove to operators that the allowlist
+    // actually narrowed the set (matches expected count).
+    if (allowlistActive && !onlyTournamentIds.has(t.tournament_id)) {
+      result.tournamentsSkippedNotInAllowlist += 1;
+      continue;
+    }
+
     // 2. Per-tournament: Crionet widget code
     const tournamentWidgetId = await getActiveWidgetIdCode(
       supabase,

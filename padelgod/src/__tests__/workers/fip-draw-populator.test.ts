@@ -528,4 +528,72 @@ describe('runFipDrawPopulator', () => {
     expect(result.inserted).toBe(1);
     expect(supabase.inserted[0].widget_id_composite).toBe('FIP-2026-1706:MD017');
   });
+
+  // ── Allowlist ────────────────────────────────────────────────────────
+  //
+  // The allowlist lets operators migrate tournaments one at a time. The
+  // immediate use case (2026-04-24 Brussels): Brussels P2 already has
+  // 100+ legacy rows with live-poller state, so enabling populator
+  // writes globally would create user-visible duplicates. With the
+  // allowlist we keep Brussels untouched while migrating Isla +
+  // clean-slate tournaments to the new pipeline.
+
+  it('onlyTournamentIds: processes only listed tournaments; skips others', async () => {
+    const OTHER_ID = 't-brussels';
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+        { tournament_id: OTHER_ID, tournament_name: 'Brussels', slug: 'brussels-p2-2026' },
+      ],
+      widgetCodeByTournament: {
+        [TOURNAMENT_ID]: TOURNAMENT_WIDGET,
+        [OTHER_ID]: 'FIP-2026-1701',
+      },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      onlyTournamentIds: new Set([TOURNAMENT_ID]),
+    });
+
+    expect(result.tournamentsSkippedNotInAllowlist).toBe(1);
+    // Isla was processed (tournamentsProcessed counts only those with
+    // at least one draw row — Brussels has none in this fixture).
+    expect(result.tournamentsProcessed).toBe(1);
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted[0].widget_id_composite).toBe('FIP-2026-1706:MD017');
+  });
+
+  it('onlyTournamentIds empty/undefined: behaves exactly as before (no filter)', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    // Empty set — same as no filter
+    const resultEmpty = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: true,
+      onlyTournamentIds: new Set(),
+    });
+    expect(resultEmpty.tournamentsSkippedNotInAllowlist).toBe(0);
+    expect(resultEmpty.inserted).toBe(1);
+
+    // Undefined — same
+    const resultUndefined = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: true,
+    });
+    expect(resultUndefined.tournamentsSkippedNotInAllowlist).toBe(0);
+    expect(resultUndefined.inserted).toBe(1);
+  });
 });
