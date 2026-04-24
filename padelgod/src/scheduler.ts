@@ -9,6 +9,7 @@ import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
 import { runDrawFetcher } from './workers/draw-fetcher.js';
 import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
 import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
+import { runFipOopWriter } from './workers/fip-oop-writer.js';
 import { runFipDrawLinker } from './workers/fip-draw-linker.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
@@ -38,6 +39,9 @@ export interface SchedulerFlags {
    *  no DB changes. Flip to false in Railway once dry-run output is
    *  reviewed and we're ready for real writes. */
   fipDrawPopulatorDryRun: boolean;
+  enableFipOopWriter: boolean;
+  /** Same dry-run semantics as the populator flag. Independent. */
+  fipOopWriterDryRun: boolean;
   enableFipDrawLinker: boolean;
   fipDrawLinkerDryRun: boolean;
   enableOopFetcher: boolean;
@@ -84,6 +88,7 @@ export type WorkerName =
   | 'fip-draw-fetcher'
   | 'fip-draw-linker'
   | 'fip-draw-populator'
+  | 'fip-oop-writer'
   | 'oop-fetcher'
   | 'results-fetcher'
   | 'static-reconciler'
@@ -105,6 +110,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'fip-draw-fetcher',
   'fip-draw-linker',
   'fip-draw-populator',
+  'fip-oop-writer',
   'oop-fetcher',
   'results-fetcher',
   'static-reconciler',
@@ -134,6 +140,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       // The scheduled cron entry in buildSchedule() threads in the
       // actual env-flag value via a closure override. See the
       // 'fip-draw-populator' branch of buildSchedule below.
+      dryRun: true,
+    });
+    case 'fip-oop-writer':       return (deps) => runFipOopWriter({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Same admin-trigger dry-run-SAFE default as populator. Scheduled
+      // cron entry threads the real env flag via closure.
       dryRun: true,
     });
     case 'fip-draw-linker':      return (deps) => runFipDrawLinker(
@@ -238,6 +251,23 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipDrawPopulatorDryRun,
+        });
+      },
+    });
+  }
+  if (flags.enableFipOopWriter) {
+    entries.push({
+      name: 'fip-oop-writer',
+      // Hourly at :52 — sequenced AFTER oop-fetcher (:50) so the
+      // snapshots are fresh, BEFORE results-fetcher (:55) to stay out
+      // of its way. Deliberately not piggybacking on the reconciler
+      // slots (:05 / :35) — independence is the whole point.
+      cron: '52 * * * *',
+      run: async (deps) => {
+        return runFipOopWriter({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipOopWriterDryRun,
         });
       },
     });
