@@ -543,10 +543,29 @@ function DailyMatchRow({
   const p2b = shortName(match.pair2_player2)
 
   const setsSorted = (match.sets ?? []).slice().sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-  const scoreLine = setsSorted.map(s => s.set_score ?? `${s.pair1_games ?? 0}-${s.pair2_games ?? 0}`).filter(Boolean).join(' · ')
+  const setDisplays = setsSorted.map(parseSetDisplay)
+  const hasScores = setDisplays.length > 0
 
   const p1Winner = match.winner_pair === 1
   const p2Winner = match.winner_pair === 2
+
+  // Row-level styling for the per-team rows (name + score share the same
+  // grid row so they stay aligned). "Active" = live and isn't finished, so
+  // we colour in red; otherwise winners get full white and losers (on a
+  // finished match) fade to muted.
+  const rowStyleFor = (isWinner: boolean) => {
+    const isLoser = isFinished && !isWinner
+    return {
+      color: isLive
+        ? LIVE_RED
+        : isWinner
+        ? '#FFF'
+        : isLoser
+        ? MUTED
+        : '#FFF',
+      fontWeight: isWinner || isLive ? 700 : 500,
+    } as const
+  }
 
   return (
     <Link
@@ -555,18 +574,21 @@ function DailyMatchRow({
       style={{
         display: 'grid',
         gridTemplateColumns: '46px 1fr auto',
-        gap: 10,
+        gridTemplateRows: 'auto auto',
+        columnGap: 10,
+        rowGap: 2,
         alignItems: 'center',
         textDecoration: 'none',
         color: '#FFF',
         padding: '6px 0',
       }}
     >
-      {/* Time / Live / On court badge. Shows an ORANGE pill for matches
-          padelgod flagged as on_court — same shape as LIVE to anchor them
-          visually, different color + copy so fans can tell the difference.
-          Date page uses a compact 9px badge; keep parity. */}
-      <div style={{ textAlign: 'center' }}>
+      {/* Time / Live / On court badge — spans both rows so it centers
+          vertically against the two-line team+score block. Shows an ORANGE
+          pill for matches padelgod flagged as on_court — same shape as
+          LIVE to anchor them visually, different color + copy so fans can
+          tell the difference. */}
+      <div style={{ gridRow: '1 / span 2', textAlign: 'center', alignSelf: 'center' }}>
         {isActive ? (
           <span style={{
             display: 'inline-block',
@@ -595,34 +617,128 @@ function DailyMatchRow({
         )}
       </div>
 
-      {/* Teams */}
-      <div style={{ fontSize: 12, lineHeight: 1.35, minWidth: 0 }}>
-        <div style={{
-          fontWeight: p1Winner ? 700 : 500,
-          color: p1Winner ? '#FFF' : (isFinished ? MUTED : '#FFF'),
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {p1a} / {p1b}
-        </div>
-        <div style={{
-          fontWeight: p2Winner ? 700 : 500,
-          color: p2Winner ? '#FFF' : (isFinished ? MUTED : '#FFF'),
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {p2a} / {p2b}
-        </div>
-      </div>
-
-      {/* Score */}
+      {/* Pair 1 — name + per-set scores on the same grid row */}
       <div style={{
-        fontSize: 12,
-        fontVariantNumeric: 'tabular-nums',
-        color: isLive ? LIVE_RED : MUTED,
-        fontWeight: isLive ? 700 : 500,
+        gridColumn: 2, gridRow: 1,
+        fontSize: 12, lineHeight: 1.35, minWidth: 0,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        ...rowStyleFor(p1Winner),
       }}>
-        {isWalkover ? 'W/O' : (scoreLine || (isRet ? 'RET' : ''))}
+        {p1a} / {p1b}
       </div>
+      <TeamScoreCells
+        grid={{ col: 3, row: 1 }}
+        sets={setDisplays}
+        teamIndex={1}
+        rowStyle={rowStyleFor(p1Winner)}
+        placeholder={isWalkover && !hasScores ? 'W/O' : isRet && !hasScores ? 'RET' : null}
+      />
+
+      {/* Pair 2 — name + per-set scores on the same grid row */}
+      <div style={{
+        gridColumn: 2, gridRow: 2,
+        fontSize: 12, lineHeight: 1.35, minWidth: 0,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        ...rowStyleFor(p2Winner),
+      }}>
+        {p2a} / {p2b}
+      </div>
+      <TeamScoreCells
+        grid={{ col: 3, row: 2 }}
+        sets={setDisplays}
+        teamIndex={2}
+        rowStyle={rowStyleFor(p2Winner)}
+        placeholder={null}
+      />
     </Link>
+  )
+}
+
+/**
+ * Parsed per-set display data. pair1_games / pair2_games are the games
+ * numbers; the tiebreak "loser score" (bracketed in set_score like
+ * "7-6(5)") is attached to whichever pair lost the tiebreak so we can
+ * render it as a small superscript next to their games count.
+ */
+interface SetDisplay {
+  p1: number
+  p2: number
+  p1Tb: number | null
+  p2Tb: number | null
+}
+
+function parseSetDisplay(s: SetRow): SetDisplay {
+  const p1 = s.pair1_games ?? 0
+  const p2 = s.pair2_games ?? 0
+  const m = s.set_score?.match(/\((\d+)\)/)
+  const tb = m && m[1] != null ? parseInt(m[1], 10) : null
+  if (tb === null) return { p1, p2, p1Tb: null, p2Tb: null }
+  // Tiebreak score always attributed to the LOSER of the tiebreak (lower
+  // games count). This matches the "7-6(5)" convention — the (5) is how
+  // many points the losing pair scored in the tiebreak.
+  return {
+    p1,
+    p2,
+    p1Tb: p1 < p2 ? tb : null,
+    p2Tb: p2 < p1 ? tb : null,
+  }
+}
+
+/**
+ * Renders the per-set score cells for a single team as a flex row that
+ * sits on grid row 1 or 2 of the DailyMatchRow. Collapses to a single
+ * centered placeholder ("W/O" / "RET") when the match ended without
+ * scoreline data — pair 2's row renders nothing in that case (the
+ * placeholder on pair 1's row visually spans the block).
+ */
+function TeamScoreCells({
+  grid, sets, teamIndex, rowStyle, placeholder,
+}: {
+  grid: { col: number; row: number }
+  sets: SetDisplay[]
+  teamIndex: 1 | 2
+  rowStyle: { color: string; fontWeight: number }
+  placeholder: string | null
+}) {
+  if (placeholder !== null) {
+    return (
+      <div style={{
+        gridColumn: grid.col, gridRow: grid.row,
+        fontSize: 11, fontWeight: 700,
+        letterSpacing: 0.3,
+        color: MUTED,
+        textAlign: 'right',
+      }}>
+        {placeholder}
+      </div>
+    )
+  }
+  return (
+    <div style={{
+      gridColumn: grid.col, gridRow: grid.row,
+      display: 'flex',
+      gap: 10,
+      justifyContent: 'flex-end',
+      fontSize: 13,
+      lineHeight: 1.35,
+      fontVariantNumeric: 'tabular-nums',
+      ...rowStyle,
+    }}>
+      {sets.map((d, i) => {
+        const value = teamIndex === 1 ? d.p1 : d.p2
+        const tb = teamIndex === 1 ? d.p1Tb : d.p2Tb
+        return (
+          <span key={i} style={{ minWidth: 10, textAlign: 'right' }}>
+            {value}
+            {tb !== null && (
+              <sup style={{ fontSize: 8, marginLeft: 1, fontWeight: 600, opacity: 0.85 }}>
+                {tb}
+              </sup>
+            )}
+          </span>
+        )
+      })}
+    </div>
   )
 }
 
