@@ -544,7 +544,10 @@
     "noMatchesTitle": "Sem jogos neste dia",
     "noMatchesSub": "Experimente os resultados de ontem ou os jogos de amanhã usando o seletor acima.",
     "faqHeading": "Perguntas frequentes",
-    "approxTime": "horário aproximado"
+    "approxTime": "horário aproximado",
+    "whereToWatchHeading": "Onde assistir",
+    "inRegion": "Em {region}",
+    "freeBadge": "GRÁTIS"
   },
   "email": {
     "welcome": {

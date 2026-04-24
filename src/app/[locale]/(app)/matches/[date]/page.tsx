@@ -22,6 +22,7 @@ import {
 } from '@/lib/locale-time'
 import { buildDailyIntro, buildDailyFaq, type DailyMatchSummary } from '@/lib/daily-page-copy'
 import { DailyDatePills } from '@/components/DailyDatePills'
+import { DailyWhereToWatch } from './DailyWhereToWatch'
 
 export const revalidate = 300 // 5 min
 
@@ -185,6 +186,11 @@ export default async function DailyMatchesPage({ params }: Props) {
   // window, for example) is intentionally excluded from the day's story.
   const dayMatches = [...liveMatches, ...upcomingMatches, ...finishedMatches]
 
+  // Premier presence drives the Where-to-Watch header (only tier with
+  // broadcaster data). Computed from the day's tournaments, not status —
+  // a page with only upcoming Premier still earns the section.
+  const hasPremierToday = dayMatches.some(m => isPremierLevel(m.tournament?.level ?? null))
+
   // ── Build intro + FAQ copy ────────────────────────────────────
   const tDaily = await getTranslations({ locale, namespace: 'daily' })
   // common namespace — used by the status pill (live / on_court) in
@@ -256,6 +262,13 @@ export default async function DailyMatchesPage({ params }: Props) {
           {intro.lead}
         </p>
       </header>
+
+      {/* Where to watch — only when the day has a Premier-tier tournament.
+          The Premier API (sync-broadcasters cron) is the only source the
+          broadcasters table is wired up to; rendering this block on an
+          all-FIP day would show Premier broadcasters for matches that
+          won't be on them. */}
+      {hasPremierToday && <DailyWhereToWatch locale={locale} />}
 
       {/* Empty state */}
       {dayMatches.length === 0 && (
@@ -362,16 +375,66 @@ function pickFeaturedFromMatch(m: MatchRow): { name: string; ranking: number | n
   return best
 }
 
-function groupByTournament(ms: MatchRow[]): { tournamentId: string; tournamentName: string; matches: MatchRow[] }[] {
-  const map = new Map<string, { tournamentId: string; tournamentName: string; matches: MatchRow[] }>()
+// Tier priority for tournament groups within a section. Premier Padel
+// (Major → Finals → P1 → P2 → WPT-era rebrands) sits at the top of every
+// day because it's the tier with the largest audience + the only one
+// with Where-to-Watch broadcaster data. FIP falls below in its own
+// pecking order (Platinum → Gold → Silver → Other). Null/unknown levels
+// land last so uncategorised rows don't accidentally jump the queue.
+// The daily page uses this to sort groups after `groupByTournament`.
+const TIER_ORDER: Record<string, number> = {
+  // Premier / WPT-era
+  major:        0,
+  finals:       0,
+  p1:           0,
+  p2:           0,
+  wpt_final:    0,
+  wpt_1000:     0,
+  wpt_master:   0,
+  wpt_500:      0,
+  // FIP cascade
+  fip_platinum: 1,
+  fip_gold:     2,
+  fip_silver:   3,
+  fip_other:    4,
+}
+
+function tournamentTierRank(level: string | null): number {
+  if (!level) return 99
+  return TIER_ORDER[level] ?? 99
+}
+
+function isPremierLevel(level: string | null): boolean {
+  return tournamentTierRank(level) === 0
+}
+
+interface TournamentGroupShape {
+  tournamentId: string
+  tournamentName: string
+  tournamentLevel: string | null
+  matches: MatchRow[]
+}
+
+function groupByTournament(ms: MatchRow[]): TournamentGroupShape[] {
+  const map = new Map<string, TournamentGroupShape>()
   for (const m of ms) {
     const t = m.tournament
     if (!t) continue
     const existing = map.get(t.id)
     if (existing) existing.matches.push(m)
-    else map.set(t.id, { tournamentId: t.id, tournamentName: t.name, matches: [m] })
+    else map.set(t.id, {
+      tournamentId: t.id,
+      tournamentName: t.name,
+      tournamentLevel: t.level,
+      matches: [m],
+    })
   }
-  return Array.from(map.values())
+  // Sort groups: Premier first, then FIP by tier, then unknown. Within a
+  // tier we keep insertion order (which inherits from match scheduled_at
+  // ascending), so same-tier tournaments stay time-ordered.
+  const groups = Array.from(map.values())
+  groups.sort((a, b) => tournamentTierRank(a.tournamentLevel) - tournamentTierRank(b.tournamentLevel))
+  return groups
 }
 
 function Section({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
@@ -408,7 +471,7 @@ interface CommonBadgeTranslatorT {
 function TournamentGroup({
   group, locale, userTz, isToday, tDaily, tCommon,
 }: {
-  group: { tournamentId: string; tournamentName: string; matches: MatchRow[] }
+  group: TournamentGroupShape
   locale: string
   userTz: string
   isToday: boolean

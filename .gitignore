@@ -43,6 +43,7 @@ next-env.d.ts
 
 # claude code worktrees (contain full node_modules copies, overloads file watcher)
 .claude/worktrees/
+.claude/scheduled_tasks.lock
 
 # superpowers worktrees (project-local isolated workspaces)
 .worktrees/

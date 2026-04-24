@@ -544,7 +544,10 @@
     "noMatchesTitle": "Nessuna partita in questo giorno",
     "noMatchesSub": "Prova i risultati di ieri o le partite di domani con il selettore in alto.",
     "faqHeading": "Domande frequenti",
-    "approxTime": "orario approssimativo"
+    "approxTime": "orario approssimativo",
+    "whereToWatchHeading": "Dove vedere",
+    "inRegion": "In {region}",
+    "freeBadge": "GRATIS"
   },
   "email": {
     "welcome": {

@@ -544,7 +544,10 @@
     "noMatchesTitle": "No matches on this day",
     "noMatchesSub": "Try yesterday's results or tomorrow's schedule using the picker above.",
     "faqHeading": "Frequently asked questions",
-    "approxTime": "time is approximate"
+    "approxTime": "time is approximate",
+    "whereToWatchHeading": "Where to watch",
+    "inRegion": "In {region}",
+    "freeBadge": "FREE"
   },
   "email": {
     "welcome": {
