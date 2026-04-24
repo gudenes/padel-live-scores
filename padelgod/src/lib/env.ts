@@ -27,6 +27,12 @@ const EnvSchema = z.object({
   // Defaults OFF + DRY-RUN so enabling it in Railway is a two-step commit.
   ENABLE_FIP_DRAW_POPULATOR: z.coerce.boolean().default(false),
   FIP_DRAW_POPULATOR_DRY_RUN: z.coerce.boolean().default(true),
+  // fip-oop-writer — simplified-pipeline writer #2. Reads
+  // padelgod.oop_snapshots and UPDATEs public.matches.court +
+  // court_order on composite-keyed rows (created by fip-draw-populator).
+  // Same safety posture as the populator: default OFF + dry-run ON.
+  ENABLE_FIP_OOP_WRITER: z.coerce.boolean().default(false),
+  FIP_OOP_WRITER_DRY_RUN: z.coerce.boolean().default(true),
   // FIP draw linker (PR 2). Reads latest fip_event_page snapshots and
   // writes `entity_external_ids` rows mapping Crionet widget composites
   // to public.matches UUIDs. Default OFF; enables via Railway env.
