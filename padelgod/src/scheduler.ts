@@ -8,6 +8,7 @@ import { runPlayerRankings } from './workers/player-rankings.js';
 import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
 import { runDrawFetcher } from './workers/draw-fetcher.js';
 import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
+import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
 import { runFipDrawLinker } from './workers/fip-draw-linker.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
 import { runResultsFetcher } from './workers/results-fetcher.js';
@@ -32,6 +33,11 @@ export interface SchedulerFlags {
   enableEntryListFetcher: boolean;
   enableDrawFetcher: boolean;
   enableFipDrawFetcher: boolean;
+  enableFipDrawPopulator: boolean;
+  /** When true (default), the populator logs proposed writes but makes
+   *  no DB changes. Flip to false in Railway once dry-run output is
+   *  reviewed and we're ready for real writes. */
+  fipDrawPopulatorDryRun: boolean;
   enableFipDrawLinker: boolean;
   fipDrawLinkerDryRun: boolean;
   enableOopFetcher: boolean;
@@ -77,6 +83,7 @@ export type WorkerName =
   | 'draw-fetcher'
   | 'fip-draw-fetcher'
   | 'fip-draw-linker'
+  | 'fip-draw-populator'
   | 'oop-fetcher'
   | 'results-fetcher'
   | 'static-reconciler'
@@ -97,6 +104,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'draw-fetcher',
   'fip-draw-fetcher',
   'fip-draw-linker',
+  'fip-draw-populator',
   'oop-fetcher',
   'results-fetcher',
   'static-reconciler',
@@ -119,6 +127,15 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'entry-list-fetcher':   return (deps) => runEntryListFetcher(deps);
     case 'draw-fetcher':         return (deps) => runDrawFetcher(deps);
     case 'fip-draw-fetcher':     return (deps) => runFipDrawFetcher(deps);
+    case 'fip-draw-populator':   return (deps) => runFipDrawPopulator({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin triggers via /admin/run-worker default to dry-run-SAFE.
+      // The scheduled cron entry in buildSchedule() threads in the
+      // actual env-flag value via a closure override. See the
+      // 'fip-draw-populator' branch of buildSchedule below.
+      dryRun: true,
+    });
     case 'fip-draw-linker':      return (deps) => runFipDrawLinker(
       { supabase: deps.supabase, logger: deps.logger },
       { dryRun: deps.fipDrawLinkerDryRun ?? true },
@@ -203,6 +220,26 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // to our own Supabase. No need to worry about rate limits.
       cron: '42 * * * *',
       run: getWorkerRunner('fip-draw-linker')!,
+    });
+  }
+  if (flags.enableFipDrawPopulator) {
+    entries.push({
+      name: 'fip-draw-populator',
+      // Hourly at :47 — sequenced AFTER fip-draw-fetcher (:35, writes
+      // draw_snapshots) AND entry-list-fetcher (:45, writes the
+      // name→fip_id map the populator needs). Running at :47 means the
+      // populator always sees the fresh snapshots from the current hour.
+      cron: '47 * * * *',
+      run: async (deps) => {
+        // Override the default admin-trigger dry-run with the env-flag
+        // value for scheduled runs — this is the only path that can
+        // flip dry-run off.
+        return runFipDrawPopulator({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipDrawPopulatorDryRun,
+        });
+      },
     });
   }
   if (flags.enableOopFetcher) {

@@ -19,6 +19,14 @@ const EnvSchema = z.object({
   // populated. Default OFF while we verify data quality on Brussels; flip
   // per-deploy via Railway env once confident. No writes to public.matches yet.
   ENABLE_FIP_DRAW_FETCHER: z.coerce.boolean().default(false),
+  // fip-draw-populator — simplified-pipeline writer #1. Reads
+  // padelgod.draw_snapshots (source='fip_event_page') and creates/updates
+  // public.matches keyed by widget_id_composite. Intentionally parallel to
+  // the legacy static-reconciler — see
+  // docs/superpowers/specs/2026-04-24-simplified-pipeline-architecture.md.
+  // Defaults OFF + DRY-RUN so enabling it in Railway is a two-step commit.
+  ENABLE_FIP_DRAW_POPULATOR: z.coerce.boolean().default(false),
+  FIP_DRAW_POPULATOR_DRY_RUN: z.coerce.boolean().default(true),
   // FIP draw linker (PR 2). Reads latest fip_event_page snapshots and
   // writes `entity_external_ids` rows mapping Crionet widget composites
   // to public.matches UUIDs. Default OFF; enables via Railway env.
