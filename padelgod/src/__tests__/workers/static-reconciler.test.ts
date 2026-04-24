@@ -96,6 +96,17 @@ interface WidgetIdCacheSeed {
   is_active: boolean;
 }
 
+/** Pre-seeded match with all 4 pair_player_id FKs — used to exercise the
+ *  composite-first short-circuit in reconcileOOP + reconcileResults
+ *  (findLinkedMatchWithCompleteFks). */
+interface ExistingMatchSeed {
+  id: string;
+  pair1_player1_id: string | null;
+  pair1_player2_id: string | null;
+  pair2_player1_id: string | null;
+  pair2_player2_id: string | null;
+}
+
 function fakeSupabase(
   snapshots: SnapshotSeed[],
   players: PlayerSeed[],
@@ -105,6 +116,7 @@ function fakeSupabase(
   oopSnapshots: OopSnapshotSeed[] = [],
   resultsSnapshots: ResultsSnapshotSeed[] = [],
   widgetIdCache: WidgetIdCacheSeed[] = [],
+  existingMatches: ExistingMatchSeed[] = [],
 ) {
   const inserted: any[] = [];
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
@@ -234,11 +246,38 @@ function fakeSupabase(
           // Default: return a row with all null time fields so the backfill
           // writes finished_at using captured_at as fallback. Specific tests
           // can assert on the resulting `matchesUpdated` entry.
-          maybeSingle: () =>
-            Promise.resolve({
+          //
+          // Shape D ALSO terminates here: findLinkedMatchWithCompleteFks
+          // selects ('id, pair1_player1_id, pair1_player2_id, pair2_player1_id,
+          //          pair2_player2_id').eq('id', x).maybeSingle(). When the
+          // eq column is 'id' and we have an existingMatches seed for it,
+          // return its FKs. Otherwise fall back to the finished_at shape
+          // for backward compat with the results-phase tests.
+          maybeSingle: () => {
+            if (_col === 'id') {
+              const hit = existingMatches.find((m) => m.id === _val);
+              if (hit) {
+                return Promise.resolve({
+                  data: {
+                    id: hit.id,
+                    pair1_player1_id: hit.pair1_player1_id,
+                    pair1_player2_id: hit.pair1_player2_id,
+                    pair2_player1_id: hit.pair2_player1_id,
+                    pair2_player2_id: hit.pair2_player2_id,
+                    // finished_at shape fields also — harmless extra keys.
+                    started_at: null,
+                    duration: null,
+                    finished_at: null,
+                  },
+                  error: null,
+                });
+              }
+            }
+            return Promise.resolve({
               data: { started_at: null, duration: null, finished_at: null },
               error: null,
-            }),
+            });
+          },
         }),
       }),
       insert: (row: Record<string, unknown>) => ({
@@ -982,6 +1021,92 @@ describe('runStaticReconciler — OOP phase (V3)', () => {
     )!;
     expect(write.patch.court).toBe('COURT CBC');
     expect(write.patch.court_order).toBe(1);
+  });
+
+  /**
+   * Regression for 2026-04-24 FIP BRONZE Isla de la Palma: reconcileDraws
+   * had already created public.matches rows keyed by the real widget
+   * composite (`FIP-2026-1706:MD017`) with all 4 player FKs populated. But
+   * reconcileOOP was SKIPPING those matches because short-form OOP names
+   * like "N. Baptista" didn't resolve cleanly against the entry-list
+   * dictionary (duplicate "Nuno Baptista" in public.players caused
+   * ambiguity). Result: 5 linked Isla matches but 0 with court/round
+   * populated from OOP.
+   *
+   * Fix: reconcileOOP now tries findLinkedMatchWithCompleteFks FIRST —
+   * when the composite lookup succeeds AND the matched row has all 4 FKs
+   * populated, name resolution is bypassed entirely.
+   */
+  it('short-circuits name resolution when composite + complete FKs already exist', async () => {
+    const oop: OopSnapshotSeed[] = [
+      {
+        id: 'oop-shortcircuit',
+        tournament_id: TOUR,
+        category: 'men',
+        day_number: 4,
+        round_label: 'F',
+        court: 'COURT CBC',
+        court_position: 2,
+        scheduled_label: 'Not before 6:00 PM',
+        // Deliberately UNRESOLVABLE short-form names — entry list has no
+        // fip_id for these. Before the fix, this row would land in
+        // oopUnresolved and the match would never get court/round set.
+        team1_player1_name: 'X. Totally Unknown',
+        team1_player2_name: 'Y. AlsoUnknown',
+        team2_player1_name: 'Z. NotInDict',
+        team2_player2_name: 'W. AlsoNotHere',
+        match_widget_id: 'M099',
+        status: 'scheduled',
+        captured_at: T,
+      },
+    ];
+
+    const widgets: WidgetIdCacheSeed[] = [
+      { tournament_id: TOUR, widget_id: 'FIP-2026-1701', is_active: true },
+    ];
+
+    // Pre-existing linkage FIP-2026-1701:M099 → match-existing (e.g.
+    // written by reconcileDraws on an earlier tick).
+    const existingEids: ExistingMatchExternalId[] = [
+      { entity_id: 'match-existing', external_id: 'FIP-2026-1701:M099' },
+    ];
+
+    // Pre-existing match row with all 4 FKs populated.
+    const existingMatch: ExistingMatchSeed = {
+      id: 'match-existing',
+      pair1_player1_id: 'uuid-A',
+      pair1_player2_id: 'uuid-B',
+      pair2_player1_id: 'uuid-C',
+      pair2_player2_id: 'uuid-D',
+    };
+
+    const supabase = fakeSupabase(
+      [],              // no entry list snapshots
+      [],              // no roster players
+      [],              // no draws
+      existingEids,
+      [],
+      oop,
+      [],
+      widgets,
+      [existingMatch], // NEW: pre-seeded match with complete FKs
+    );
+    const result = await runStaticReconciler({ supabase: supabase as any });
+
+    // Short-circuit SHOULD fire → oopMatchesUpdated=1, not unresolved.
+    expect(result.oopMatchesUpdated).toBe(1);
+    expect(result.oopUnresolved).toBe(0);
+
+    // The UPDATE targets the existing match-existing id.
+    expect(supabase.matchesUpdated).toHaveLength(1);
+    expect(supabase.matchesUpdated[0].id).toBe('match-existing');
+    const patch = supabase.matchesUpdated[0].patch;
+    expect(patch.court).toBe('COURT CBC');
+    expect(patch.round).toBe('F');
+    expect(patch.court_order).toBe(3); // court_position=2, stored 1-based
+
+    // No new match was created (we reused the pre-existing one).
+    expect(supabase.matchesInserted).toHaveLength(0);
   });
 
   it('does NOT write court_order when court_position is null (historical / pre-migration rows)', async () => {
