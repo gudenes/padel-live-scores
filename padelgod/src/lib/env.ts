@@ -87,6 +87,15 @@ const EnvSchema = z.object({
   // tournaments don't have FIP draw snapshots, so they wouldn't be
   // processed anyway. This filter is the explicit safety net.
   FIP_DRAW_POPULATOR_EXCLUDE_LEVELS: z.string().default(''),
+  // fip-entry-list-populator — simplified-pipeline writer #5 (PR 3).
+  // Reads padelgod.entry_list_snapshots and UPSERTs public.players by
+  // fip_id. Replaces the entry-list phase of static-reconciler. No
+  // tournament-scope filters: the player set is universal, NULL-only
+  // updates protect against clobbering source-priority data, and
+  // dry-run + idempotency carry the rest. Same safety posture: default
+  // OFF + dry-run ON so enabling it in Railway is a two-step commit.
+  ENABLE_FIP_ENTRY_LIST_POPULATOR: boolEnv(false),
+  FIP_ENTRY_LIST_POPULATOR_DRY_RUN: boolEnv(true),
   // fip-oop-writer — simplified-pipeline writer #2. Reads
   // padelgod.oop_snapshots and UPDATEs public.matches.court +
   // court_order on composite-keyed rows (created by fip-draw-populator).

@@ -9,6 +9,7 @@ import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
 import { runDrawFetcher } from './workers/draw-fetcher.js';
 import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
 import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
+import { runFipEntryListPopulator } from './workers/fip-entry-list-populator.js';
 import { runFipOopWriter } from './workers/fip-oop-writer.js';
 import { runFipResultsWriter } from './workers/fip-results-writer.js';
 import { runFipWinnerPropagator } from './workers/fip-winner-propagator.js';
@@ -49,6 +50,9 @@ export interface SchedulerFlags {
    *  Composes with the allowlist (allowlist applied first). Empty →
    *  no level exclusion. See FIP_DRAW_POPULATOR_EXCLUDE_LEVELS env var. */
   fipDrawPopulatorExcludeLevels: string;
+  enableFipEntryListPopulator: boolean;
+  /** Same dry-run semantics as the populator flag. Independent. */
+  fipEntryListPopulatorDryRun: boolean;
   enableFipOopWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipOopWriterDryRun: boolean;
@@ -104,6 +108,7 @@ export type WorkerName =
   | 'fip-draw-fetcher'
   | 'fip-draw-linker'
   | 'fip-draw-populator'
+  | 'fip-entry-list-populator'
   | 'fip-oop-writer'
   | 'fip-results-writer'
   | 'fip-winner-propagator'
@@ -128,6 +133,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'fip-draw-fetcher',
   'fip-draw-linker',
   'fip-draw-populator',
+  'fip-entry-list-populator',
   'fip-oop-writer',
   'fip-results-writer',
   'fip-winner-propagator',
@@ -160,6 +166,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       // The scheduled cron entry in buildSchedule() threads in the
       // actual env-flag value via a closure override. See the
       // 'fip-draw-populator' branch of buildSchedule below.
+      dryRun: true,
+    });
+    case 'fip-entry-list-populator': return (deps) => runFipEntryListPopulator({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Same admin-trigger dry-run-SAFE default. Scheduled cron entry
+      // threads the real env flag via closure (see buildSchedule below).
       dryRun: true,
     });
     case 'fip-oop-writer':       return (deps) => runFipOopWriter({
@@ -304,6 +317,25 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // to our own Supabase. No need to worry about rate limits.
       cron: '42 * * * *',
       run: getWorkerRunner('fip-draw-linker')!,
+    });
+  }
+  if (flags.enableFipEntryListPopulator) {
+    entries.push({
+      name: 'fip-entry-list-populator',
+      // Hourly at :46 — sequenced AFTER entry-list-fetcher (:45, which
+      // writes padelgod.entry_list_snapshots) and BEFORE
+      // fip-draw-populator (:47, which reads public.players to resolve
+      // fip_id → player.id during draw position writes). One-minute
+      // gap is comfortably enough — entry-list-fetcher's slowest
+      // observed run is ~25s.
+      cron: '46 * * * *',
+      run: async (deps) => {
+        return runFipEntryListPopulator({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipEntryListPopulatorDryRun,
+        });
+      },
     });
   }
   if (flags.enableFipDrawPopulator) {
