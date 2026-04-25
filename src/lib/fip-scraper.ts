@@ -187,25 +187,78 @@ export function parseWpEvent(event: any): FipTournament {
   }
 }
 
+// Internal helper: extract a labeled DD/MM/YYYY date from a "Tournament
+// Structure" / "Estructura del torneo" block. Used by parseEventDates and
+// parseDrawSizes to read the structured per-stage data FIP exposes.
+//
+// Why labeled: the page also contains date ranges in unrelated sections
+// (e.g. "PRACTICE COURTS — Available dates: 20, 21, 22 April 2026"),
+// which the previous "first DD/MM/YYYY wins" parser would silently
+// promote to startsAt. The Isla Bronze 2026 row was set to 2026-04-20
+// because of exactly this — practice-court dates leaking into starts_at.
+//
+// `[^\d]*` between the label and the date is bounded; if a non-date
+// number appears between (e.g. "Qualification Draw: 32 (30DA+2WC)"),
+// the regex engine tries the next occurrence of `label` and so on. The
+// goal is to always end up at the labeled date even when the same word
+// appears earlier in a different context.
+function findLabeledDate(html: string, label: string): string | null {
+  const re = new RegExp(
+    `${label}[^\\d]*(\\d{2})\\/(\\d{2})\\/(\\d{4})`,
+    'i',
+  )
+  const m = re.exec(html)
+  if (!m) return null
+  const [, d, mo, y] = m
+  return `${y}-${mo}-${d}`
+}
+
 /**
  * Extract start/end dates from event page HTML.
- * Dates appear as "DD/MM/YYYY - DD/MM/YYYY" in the page body.
+ *
+ * Preferred path: read the labeled "Main draw DD/MM/YYYY" line in the
+ * Tournament Structure block (FIP exposes this on every modern event
+ * page in both EN and ES — `Cuadro principal` matches the same regex
+ * because we anchor on "Main draw" / "Cuadro principal" via the EN
+ * version that the scraper hits at FIP_WP_BASE/events/<slug>/). When
+ * the labeled field is present it's authoritative.
+ *
+ * Fallback: the legacy "first DD/MM/YYYY range in the HTML" behavior,
+ * preserved for older event pages or unexpected layout changes. The
+ * range's end date is also used as endsAt regardless of which path
+ * found the start, since the structured block gives only the start.
  */
 export function parseEventDates(html: string): EventDates {
-  // Match patterns like "15/03/2025 - 22/03/2025" or "15/03/2025 – 22/03/2025"
+  // First date-range we encounter — typically the page header
+  // "DD/MM/YYYY - DD/MM/YYYY" (now main-draw-only on modern FIP pages).
+  // Captured up-front so we have an endsAt regardless of which path
+  // wins the start date.
   const dateRangeRe =
     /(\d{2})\/(\d{2})\/(\d{4})\s*[-\u2013\u2014]\s*(\d{2})\/(\d{2})\/(\d{4})/
-
   const rangeMatch = dateRangeRe.exec(html)
-  if (rangeMatch) {
-    const [, d1, m1, y1, d2, m2, y2] = rangeMatch
-    return {
-      startsAt: `${y1}-${m1}-${d1}`,
-      endsAt: `${y2}-${m2}-${d2}`,
-    }
+  const headerStart = rangeMatch ? `${rangeMatch[3]}-${rangeMatch[2]}-${rangeMatch[1]}` : null
+  const headerEnd = rangeMatch ? `${rangeMatch[6]}-${rangeMatch[5]}-${rangeMatch[4]}` : null
+
+  // Preferred: labeled "Main draw" date from the Tournament Structure
+  // block. The label is identical (apart from case) on both EN and ES
+  // event pages — `Cuadro principal` is the ES rendering of the same
+  // structured field. We hit the EN base URL today so the EN label
+  // wins; if ever we switch language paths, the ES label is matched
+  // by the same regex when we add it as a second `findLabeledDate`
+  // call.
+  const mainDrawDate = findLabeledDate(html, 'Main\\s+draw')
+    ?? findLabeledDate(html, 'Cuadro\\s+principal')
+
+  if (mainDrawDate) {
+    return { startsAt: mainDrawDate, endsAt: headerEnd }
   }
 
-  // Try to extract a single date at minimum
+  // Fallback: first range wins.
+  if (rangeMatch) {
+    return { startsAt: headerStart, endsAt: headerEnd }
+  }
+
+  // Last resort: any single date in the HTML.
   const singleRe = /(\d{2})\/(\d{2})\/(\d{4})/
   const singleMatch = singleRe.exec(html)
   if (singleMatch) {
@@ -244,10 +297,26 @@ export function parseMatchscorerIds(html: string): MatchscorerIds | null {
 
 /**
  * Extract draw sizes and prize money from event page overview.
+ *
  * Looks for patterns like:
  *   "Main draw: 32 (26 DA + 4 Qualy + 2 WC)"
  *   "Qualification draw: 16 (14 DA + 2 WC)"
- *   "10000€" or "€10,000"
+ *   "Prize Money 10,000€"
+ *
+ * Prize money: prefer the labeled "Prize Money <amount>€" pattern over
+ * the first €-suffixed number. The legacy fallback ("first € sign in
+ * HTML") was unreliable — most FIP pages also list per-round payouts
+ * (€131.25, €250, etc.) in a "Prize Distribution" table. Without label
+ * anchoring, the parser would either pick the wrong cell or — as
+ * observed for FIP Bronze Isla 2026 — return null when neither pattern
+ * matched the actual page formatting.
+ *
+ * On a separate note: the trigger logic in fip-tournaments/route.ts
+ * also matters. That cron only re-runs the scraper when one of
+ * (starts_at, matchscorer_url, draw_size_md) is missing — so a
+ * tournament that landed without prize_money_fip would never refetch
+ * even after this parser is fixed. See the same PR for the trigger
+ * widening to include `prize_money_fip` and stale `starts_at`.
  */
 export function parseDrawSizes(html: string): DrawSize {
   // Main draw: look for "Main draw" followed by a number
@@ -258,11 +327,14 @@ export function parseDrawSizes(html: string): DrawSize {
   const qdMatch = /[Qq]ualif(?:ication|ying)\s*[Dd]raw[:\s]*(\d+)/i.exec(html)
   const qualifyingDraw = qdMatch ? parseInt(qdMatch[1], 10) : null
 
-  // Prize money: look for number followed by € or € followed by number
-  // Patterns: "10000€", "€10,000", "€ 10.000", "10,000 €"
+  // Prize money — labeled match first, € suffix fallback second.
+  // The labeled pattern accepts an optional ":" or whitespace, then any
+  // non-digit chars (whitespace / nbsp / colon / dash), then captures
+  // the number with thousand separators, then required € suffix.
   let prizeMoney: number | null = null
-  const prizeMatch = /(?:€\s*|Prize\s*Money[:\s]*)(\d[\d.,]*)\s*€?/i.exec(html)
-    || /(\d[\d.,]*)\s*€/.exec(html)
+  const labeledRe = /Prize\s*Money[^\d]*(\d[\d.,]*)\s*€/i
+  const fallbackRe = /(\d[\d.,]*)\s*€/
+  const prizeMatch = labeledRe.exec(html) ?? fallbackRe.exec(html)
   if (prizeMatch) {
     // Remove thousand separators (both . and ,) and parse
     const cleaned = prizeMatch[1].replace(/[.,]/g, '')

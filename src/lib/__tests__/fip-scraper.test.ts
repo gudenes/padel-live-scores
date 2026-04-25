@@ -11,6 +11,7 @@ import {
   parseEventDates,
   parseMatchscorerIds,
   parseDrawHtml,
+  parseDrawSizes,
   FIP_CATEGORY_IDS,
   toIso2,
 } from '../fip-scraper'
@@ -259,6 +260,146 @@ describe('parseEventDates', () => {
     const result = parseEventDates(html)
     expect(result.startsAt).toBe('2026-01-01')
     expect(result.endsAt).toBe('2026-01-09')
+  })
+
+  // ─── 2026-04-25 regression: labeled "Main draw" date wins over the
+  // first DD/MM/YYYY in the page. Until today the parser would pick up
+  // the practice-courts availability dates (e.g. "Available dates: 20,
+  // 21, 22 April 2026" rendered as "20/04/2026") and store them as the
+  // tournament's starts_at, even though the actual main draw started
+  // 3 days later. FIP Bronze Isla 2026 was the canonical bug report.
+  describe('2026-04-25 — labeled "Main draw" date is authoritative', () => {
+    it('uses "Main draw DD/MM/YYYY" when present, ignoring earlier dates in the HTML', () => {
+      // Practice-court date appears earlier in the HTML than the main
+      // draw label — old parser would pick up "20/04/2026" as startsAt.
+      const html = `
+        <h1>FIP BRONZE AQUAHOBBY ISLA DE LA PALMA</h1>
+        <p>Isla de la Palma - Spain 23/04/2026 - 26/04/2026</p>
+        <section>
+          <h3>PRACTICE COURTS</h3>
+          <p>Available dates: 20/04/2026, 21/04/2026, 22/04/2026</p>
+        </section>
+        <section>
+          <h3>Tournament Structure</h3>
+          <dl>
+            <dt>Qualification</dt><dd>21/04/2026</dd>
+            <dt>Main draw</dt><dd>23/04/2026</dd>
+          </dl>
+        </section>
+      `
+      const result = parseEventDates(html)
+      expect(result.startsAt).toBe('2026-04-23') // ← Main draw label wins
+      expect(result.endsAt).toBe('2026-04-26')   // ← header range end
+    })
+
+    it('does not get tricked by "Qualification Draw: 32" preceding the labeled qualification date', () => {
+      // Common shape: "Qualification Draw: 32 (30DA+2WC)" appears before
+      // "Qualification 21/04/2026". The bounded `[^\\d]*` segment makes
+      // the regex skip the failed match and try the next occurrence,
+      // landing on the structured date.
+      const html = `
+        Main draw: 32 (26DA+4Q+2WC)
+        Qualification draw: 32 (30DA+2WC)
+        Tournament Structure
+        Qualification 21/04/2026
+        Main draw 23/04/2026
+      `
+      const result = parseEventDates(html)
+      expect(result.startsAt).toBe('2026-04-23')
+    })
+
+    it('matches the Spanish "Cuadro principal" label as a secondary anchor', () => {
+      // Defensive: if FIP_WP_BASE ever switches to /es/ paths, the
+      // parser still finds the labeled main draw date.
+      const html = `
+        <p>Available dates: 20/04/2026</p>
+        <p>Cualificación 21/04/2026</p>
+        <p>Cuadro principal 23/04/2026</p>
+        <p>20/04/2026 - 26/04/2026</p>
+      `
+      const result = parseEventDates(html)
+      expect(result.startsAt).toBe('2026-04-23')
+    })
+
+    it('falls back to first date range when no labeled main draw is found (legacy pages)', () => {
+      const html = `<div>Tournament dates: 15/03/2025 - 22/03/2025</div>`
+      const result = parseEventDates(html)
+      expect(result.startsAt).toBe('2025-03-15')
+      expect(result.endsAt).toBe('2025-03-22')
+    })
+
+    it('returns endsAt from header range even when main draw label sets startsAt', () => {
+      const html = `
+        Header: 23/04/2026 - 26/04/2026
+        Practice: 20/04/2026
+        Main draw 23/04/2026
+      `
+      const result = parseEventDates(html)
+      expect(result.startsAt).toBe('2026-04-23')
+      expect(result.endsAt).toBe('2026-04-26')
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// parseDrawSizes — labeled prize-money matching
+// ---------------------------------------------------------------------------
+
+describe('parseDrawSizes (prize money — 2026-04-25 fix)', () => {
+  // Until today the prize-money parser had a "first € sign in HTML"
+  // fallback that routinely caught a per-round payout (e.g. €131.25
+  // from the prize distribution table) before reaching the actual
+  // total. FIP Bronze Isla 2026 stored prize_money_fip = NULL because
+  // neither the labeled regex nor the fallback hit the page's actual
+  // formatting. The fix anchors strictly on "Prize Money <amount>€".
+
+  it('reads "Prize Money X€" from a Tournament Structure block', () => {
+    const html = `
+      <section>
+        <h3>Tournament Structure</h3>
+        <table>
+          <tr><th>Main draw</th><td>32 (26DA+4Q+2WC)</td></tr>
+          <tr><th>Qualification draw</th><td>32 (30DA+2WC)</td></tr>
+          <tr><th>Prize Money</th><td>10,000€</td></tr>
+        </table>
+      </section>
+    `
+    const result = parseDrawSizes(html)
+    expect(result.prizeMoney).toBe(10000)
+  })
+
+  it('does not get fooled by per-round payouts that appear in the HTML before the total', () => {
+    // The "Prize distribution" table lists per-round prizes ahead of
+    // (or interleaved with) the labeled total. The labeled match must
+    // win regardless of position.
+    const html = `
+      Prize distribution
+      1/4 Final  €131.25
+      Semifinal  €250
+      Finalist   €525
+      Winner     €950
+      Prize Money 10,000€
+    `
+    const result = parseDrawSizes(html)
+    expect(result.prizeMoney).toBe(10000)
+  })
+
+  it('handles dot thousand-separator formats like "10.000€"', () => {
+    const html = `Prize Money: 10.000€`
+    const result = parseDrawSizes(html)
+    expect(result.prizeMoney).toBe(10000)
+  })
+
+  it('falls back to first €-suffixed value when no labeled match (legacy pages)', () => {
+    const html = `<p>Total prize: 25,000€</p>`
+    const result = parseDrawSizes(html)
+    expect(result.prizeMoney).toBe(25000)
+  })
+
+  it('returns null when no euro value appears at all', () => {
+    const html = `<p>Tournament Structure: TBD</p>`
+    const result = parseDrawSizes(html)
+    expect(result.prizeMoney).toBeNull()
   })
 })
 

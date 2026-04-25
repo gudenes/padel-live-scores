@@ -41,7 +41,7 @@ export async function GET(request: Request) {
           // Check if tournament already exists with full data
           const { data: existing } = await supabase
             .from('tournaments')
-            .select('id, starts_at, matchscorer_url, logo_url, draw_size_md')
+            .select('id, starts_at, matchscorer_url, logo_url, draw_size_md, prize_money_fip')
             .eq('slug', event.slug)
             .single()
 
@@ -59,12 +59,20 @@ export async function GET(request: Request) {
             updated_at: new Date().toISOString(),
           }
 
-          // Fetch event page for dates + matchscorer ID + draw sizes (only if missing)
+          // Fetch event page for dates + matchscorer ID + draw sizes (only if missing).
+          //
+          // `prize_money_fip` is part of the trigger so a row that was first
+          // ingested before parseDrawSizes could read the labeled
+          // "Prize Money X€" line will refetch once. Without it, the
+          // cron sees `starts_at` already populated and skips — leaving
+          // prize_money_fip permanently null. See FIP Bronze Isla 2026
+          // (id eebede66-…) for the canonical example.
           const needsDates = !existing?.starts_at
           const needsMatchscorer = !existing?.matchscorer_url
           const needsDrawSize = !existing?.draw_size_md
+          const needsPrizeMoney = existing?.prize_money_fip == null
 
-          if (needsDates || needsMatchscorer || needsDrawSize) {
+          if (needsDates || needsMatchscorer || needsDrawSize || needsPrizeMoney) {
             const pageData = await fetchEventPageData(event.slug)
 
             if (pageData.dates.startsAt) {
