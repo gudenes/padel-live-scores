@@ -1,6 +1,15 @@
 import { EventEmitter } from 'node:events';
 import Fastify from 'fastify';
 import { loadEnv } from './lib/env.js';
+import { initSentry } from './lib/sentry.js';
+
+// Initialize Sentry FIRST — before any other module that might throw.
+// initSentry is a no-op when SENTRY_DSN is unset, so this stays safe in
+// local dev. The reason we init this far up the file (above even
+// EventEmitter / loadEnv) is so any surprise error during boot — e.g.
+// loadEnv itself failing on a malformed env var — has a chance of being
+// captured and shipped before the process exits.
+initSentry();
 
 // Bump the default EventEmitter listener ceiling before anything else loads.
 //

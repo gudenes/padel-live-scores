@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin'
+import { withSentryConfig } from '@sentry/nextjs'
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 
@@ -47,4 +48,29 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+// Compose: Sentry plugin wraps the next-intl plugin which wraps the
+// raw config. Sentry's wrapper handles source-map upload at build
+// time so production stack traces are readable. It's a no-op when
+// SENTRY_AUTH_TOKEN is unset (local dev / PR previews) — won't fail
+// the build, just skips upload.
+export default withSentryConfig(withNextIntl(nextConfig), {
+  // Read from env so the same config works for any Sentry org/project.
+  // All four env vars are optional: missing any of them disables source
+  // map upload but keeps the runtime SDK working.
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  // Silent in dev / when auth missing; emits the upload progress when
+  // it actually has something to do.
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  // Hide source-map files from the deployed bundle so they're only
+  // visible to Sentry, not random visitors.
+  widenClientFileUpload: true,
+  // Tunnel route through our own domain to bypass ad-blockers that
+  // block sentry.io. Required for accurate front-end error capture
+  // — most ad-blockers shadow-drop direct ingest URLs.
+  tunnelRoute: '/monitoring',
+  // Disable the "test that errors get to Sentry" auto-injected page.
+  // We'll smoke-test ourselves the first time we wire in a real DSN.
+  disableLogger: true,
+});
