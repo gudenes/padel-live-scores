@@ -296,8 +296,19 @@ export async function runOopFetcher(deps: OopFetcherDeps): Promise<OopFetcherRes
     // empty" optimisation broke qualifier coverage: past days often return
     // zero rows from the widget, so a tournament on day 3 would bail after
     // days 1 and 2 and never reach today's live day. Cost of iterating the
-    // full range is bounded (~7 HTTP calls/tournament/hour).
-    const maxDay = Math.max(t.expected_days ?? 7, 7);
+    // full range is bounded (~8 HTTP calls/tournament/hour).
+    //
+    // Floor of 8 is the minimum needed to cover Premier P2 events, which
+    // Crionet numbers Day 1 (pre-quals) through Day 8 (Final). The
+    // `expected_days` value coming from the RPC is computed from
+    // (ends_at - starts_at) + 1 and gives 7 for typical Premier P2 rows —
+    // wrong because Crionet's day numbering includes a pre-quals day
+    // before our stored starts_at. Symptom: Brussels P2 2026's Final
+    // (day 8) was never fetched because maxDay capped at 7. The proper
+    // long-term fix is to persist FIP's `totalday` JS variable (which we
+    // already parse but discard) into a tournament column; until then,
+    // the floor here covers the worst case.
+    const maxDay = Math.max(t.expected_days ?? 8, 8);
     for (let day = 1; day <= maxDay; day++) {
       const inserted = await fetchOneDay(deps, t, day);
       totalMatchesInserted += inserted;

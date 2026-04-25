@@ -112,7 +112,14 @@ export async function runResultsFetcher(deps: ResultsFetcherDeps): Promise<Resul
     // days often return zero rows from the widget, so a tournament on day 3
     // would bail after days 1 and 2 and never reach today's day. Mirrors
     // the same fix applied to oop-fetcher.
-    const maxDay = Math.max(t.expected_days ?? 7, 7);
+    //
+    // Floor bumped to 8 (2026-04-25): Premier P2 events have 8 days on
+    // Crionet (pre-quals + 7-day main schedule). The RPC's
+    // (ends_at - starts_at) + 1 calc gives 7 because our stored starts_at
+    // doesn't include the pre-qual day Crionet calls Day 1. Brussels P2
+    // 2026's Final (day 8) wasn't being fetched until we bumped this. See
+    // oop-fetcher.ts for the full context — same change there.
+    const maxDay = Math.max(t.expected_days ?? 8, 8);
     for (let day = 1; day <= maxDay; day++) {
       const inserted = await fetchOneDay(deps, t, day);
       totalMatchesInserted += inserted;
