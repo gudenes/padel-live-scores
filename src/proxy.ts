@@ -110,6 +110,17 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // 8. Sentry tunnel route — `tunnelRoute: '/monitoring'` in next.config.ts
+  // makes the SDK POST events to /monitoring/... so they look like
+  // first-party traffic to ad-blockers (uBlock etc. shadow-block direct
+  // sentry.io ingest URLs). Without this skip, next-intl wraps the
+  // request in /es/monitoring/... and the rewritten path 404s — events
+  // never reach Sentry. Discovered 2026-04-25 when the first prod test
+  // errors all returned 404 (Not Found) on the tunnel POST.
+  if (pathname === '/monitoring' || pathname.startsWith('/monitoring/')) {
+    return NextResponse.next()
+  }
+
   // ── Cookie-wins locale redirect ────────────────────────────────
   //
   // When the user manually picks a language via LocaleSwitcher, we write
