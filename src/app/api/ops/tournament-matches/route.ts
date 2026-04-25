@@ -54,6 +54,16 @@ interface ExplorerMatch {
   // Public DB linkage
   linkedMatchId: string | null
   linkedMatchExternalId: string | null
+  /**
+   * The simplified-pipeline marker. NULL when the linked
+   * `public.matches` row was created by the legacy static-reconciler
+   * (synthetic widget id stored only in `entity_external_ids`); set
+   * to `{tournamentWidget}:{matchWidget}` when fip-draw-populator
+   * created the row using the canonical composite key. Drives the
+   * NEW vs LEGACY badge in the ops dashboard during the migration
+   * soak phase. Always null when `linkedMatchId` is null.
+   */
+  linkedComposite: string | null
   // Freshness
   capturedAt: string | null
 }
@@ -277,55 +287,121 @@ export async function GET(request: Request) {
 
   const linkedMatchByWidgetId = new Map<
     string,
-    { id: string; external_id: string | null; scheduled_at: string | null }
+    {
+      id: string
+      external_id: string | null
+      scheduled_at: string | null
+      // The simplified-pipeline marker. NULL when the row was created
+      // by the legacy static-reconciler (synthetic widget id stored in
+      // entity_external_ids only); set when fip-draw-populator wrote
+      // the row using the canonical composite key. Used by the ops
+      // dashboard to show NEW vs LEGACY badges per match during the
+      // migration soak phase.
+      widget_id_composite: string | null
+    }
   >()
   if (tournamentWidgetId && widgetIdsForLookup.length > 0) {
     const compositeIds = widgetIdsForLookup.map((w) => `${tournamentWidgetId}:${w}`)
-    const { data: linkRows, error: linkErr } = await supabase
-      .from('entity_external_ids')
-      .select('external_id, entity_id')
-      .eq('entity_type', 'match')
-      .eq('source', 'crionet_widget')
-      .in('external_id', compositeIds)
 
-    if (linkErr) {
+    // Path A — simplified pipeline. Match rows created by
+    // fip-draw-populator have `widget_id_composite` set directly on
+    // public.matches. Single round-trip, no sidecar table.
+    const { data: directRows, error: directErr } = await supabase
+      .from('matches')
+      .select('id, external_id, scheduled_at, widget_id_composite')
+      .in('widget_id_composite', compositeIds)
+    if (directErr) {
       return Response.json(
-        { error: `entity_external_ids read failed: ${linkErr.message}` },
+        { error: `matches direct lookup failed: ${directErr.message}` },
         { status: 500 },
       )
     }
-
-    const matchIdToWidget = new Map<string, string>()
-    for (const row of (linkRows ?? []) as Array<{ external_id: string; entity_id: string }>) {
-      // external_id shape: `{tournamentWidgetId}:{matchWidgetId}`
-      const idx = row.external_id.indexOf(':')
-      const widget = idx >= 0 ? row.external_id.slice(idx + 1) : row.external_id
-      matchIdToWidget.set(row.entity_id, widget)
+    for (const m of (directRows ?? []) as Array<{
+      id: string
+      external_id: string | null
+      scheduled_at: string | null
+      widget_id_composite: string | null
+    }>) {
+      if (!m.widget_id_composite) continue
+      const idx = m.widget_id_composite.indexOf(':')
+      const widget =
+        idx >= 0 ? m.widget_id_composite.slice(idx + 1) : m.widget_id_composite
+      linkedMatchByWidgetId.set(widget, {
+        id: m.id,
+        external_id: m.external_id,
+        scheduled_at: m.scheduled_at,
+        widget_id_composite: m.widget_id_composite,
+      })
     }
 
-    // Enrich with padelapi_id + scheduled_at from public.matches. padelapi_id
-    // lets the UI deep-link (it's the legacy mirror of external_id); scheduled_at
-    // lets us derive the REAL calendar date per day_number further below.
-    const matchIds = [...matchIdToWidget.keys()]
-    if (matchIds.length > 0) {
-      const { data: matchRows, error: matchErr } = await supabase
-        .from('matches')
-        .select('id, external_id, scheduled_at')
-        .in('id', matchIds)
-      if (matchErr) {
+    // Path B — legacy reconciler. Rows reach public.matches via the
+    // entity_external_ids sidecar (synthetic composite stored only in
+    // the sidecar, NOT on public.matches.widget_id_composite). For
+    // widgets we already resolved via Path A, the new pipeline wins
+    // — we don't overwrite. For everything else, this is the only
+    // way to find the link until PR 8 retires the reconciler.
+    const unresolvedComposites = compositeIds.filter((c) => {
+      const idx = c.indexOf(':')
+      const widget = idx >= 0 ? c.slice(idx + 1) : c
+      return !linkedMatchByWidgetId.has(widget)
+    })
+
+    if (unresolvedComposites.length > 0) {
+      const { data: linkRows, error: linkErr } = await supabase
+        .from('entity_external_ids')
+        .select('external_id, entity_id')
+        .eq('entity_type', 'match')
+        .eq('source', 'crionet_widget')
+        .in('external_id', unresolvedComposites)
+
+      if (linkErr) {
         return Response.json(
-          { error: `matches read failed: ${matchErr.message}` },
+          { error: `entity_external_ids read failed: ${linkErr.message}` },
           { status: 500 },
         )
       }
-      for (const m of (matchRows ?? []) as Array<{ id: string; external_id: string | null; scheduled_at: string | null }>) {
-        const widget = matchIdToWidget.get(m.id)
-        if (widget) {
-          linkedMatchByWidgetId.set(widget, {
-            id: m.id,
-            external_id: m.external_id,
-            scheduled_at: m.scheduled_at,
-          })
+
+      const matchIdToWidget = new Map<string, string>()
+      for (const row of (linkRows ?? []) as Array<{ external_id: string; entity_id: string }>) {
+        // external_id shape: `{tournamentWidgetId}:{matchWidgetId}`
+        const idx = row.external_id.indexOf(':')
+        const widget = idx >= 0 ? row.external_id.slice(idx + 1) : row.external_id
+        matchIdToWidget.set(row.entity_id, widget)
+      }
+
+      // Enrich with padelapi_id + scheduled_at from public.matches. padelapi_id
+      // lets the UI deep-link (it's the legacy mirror of external_id);
+      // scheduled_at lets us derive the REAL calendar date per day_number
+      // further below. widget_id_composite is read but expected to be NULL on
+      // these rows (legacy reconciler doesn't write it) — that's the very
+      // signal the UI uses to render the LEGACY badge.
+      const matchIds = [...matchIdToWidget.keys()]
+      if (matchIds.length > 0) {
+        const { data: matchRows, error: matchErr } = await supabase
+          .from('matches')
+          .select('id, external_id, scheduled_at, widget_id_composite')
+          .in('id', matchIds)
+        if (matchErr) {
+          return Response.json(
+            { error: `matches read failed: ${matchErr.message}` },
+            { status: 500 },
+          )
+        }
+        for (const m of (matchRows ?? []) as Array<{
+          id: string
+          external_id: string | null
+          scheduled_at: string | null
+          widget_id_composite: string | null
+        }>) {
+          const widget = matchIdToWidget.get(m.id)
+          if (widget) {
+            linkedMatchByWidgetId.set(widget, {
+              id: m.id,
+              external_id: m.external_id,
+              scheduled_at: m.scheduled_at,
+              widget_id_composite: m.widget_id_composite,
+            })
+          }
         }
       }
     }
@@ -358,6 +434,7 @@ export async function GET(request: Request) {
       status: res?.status ?? oop?.status ?? null,
       linkedMatchId: linked?.id ?? null,
       linkedMatchExternalId: linked?.external_id ?? null,
+      linkedComposite: linked?.widget_id_composite ?? null,
       capturedAt: res?.captured_at ?? oop?.captured_at ?? null,
     })
   }

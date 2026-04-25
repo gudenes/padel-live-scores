@@ -32,6 +32,10 @@ interface ExplorerMatch {
   status: string | null
   linkedMatchId: string | null
   linkedMatchExternalId: string | null
+  /** `widget_id_composite` from public.matches when linked, else null.
+   *  Set → simplified-pipeline row (fip-draw-populator). Null but
+   *  linked → legacy reconciler row. Drives the NEW / LEGACY badge. */
+  linkedComposite: string | null
   capturedAt: string | null
 }
 
@@ -311,8 +315,15 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
     onCourt: tabFiltered.filter((m) => m.status === 'on_court' || m.status === 'live').length,
     linked: tabFiltered.filter((m) => m.linkedMatchId !== null).length,
     unlinked: tabFiltered.filter((m) => m.linkedMatchId === null).length,
+    // Pipeline source breakdown — count matches whose linked
+    // public.matches row carries a `widget_id_composite`. That's the
+    // "this row was created by the simplified pipeline" signal.
+    // Legacy = linked but no composite. Unlinked rolls into neither.
+    onNewPipeline: tabFiltered.filter((m) => m.linkedComposite !== null).length,
+    onLegacyPipeline: tabFiltered.filter((m) => m.linkedMatchId !== null && m.linkedComposite === null).length,
   }
   const linkedPct = tabStats.total > 0 ? Math.round((tabStats.linked / tabStats.total) * 100) : 0
+  const newPipelinePct = tabStats.linked > 0 ? Math.round((tabStats.onNewPipeline / tabStats.linked) * 100) : 0
 
   return (
     <div>
@@ -371,6 +382,28 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
           label="Unlinked"
           value={tabStats.unlinked}
           color={tabStats.unlinked === 0 ? '#999' : '#991b1b'}
+        />
+        {/* Pipeline source breakdown — visible during the simplified-
+            pipeline soak. % is computed against `linked` (not `total`)
+            because unlinked rows can't be on either pipeline yet, and
+            the operator wants to know "of the rows we're tracking,
+            how many are on the new pipeline." */}
+        <StatTile
+          label="On new pipeline"
+          value={
+            tabStats.linked === 0
+              ? '—'
+              : `${tabStats.onNewPipeline} (${newPipelinePct}%)`
+          }
+          color={
+            tabStats.linked === 0
+              ? '#999'
+              : newPipelinePct === 100
+              ? '#166534'
+              : newPipelinePct > 0
+              ? '#1e40af'
+              : '#999'
+          }
         />
         <div style={{ marginLeft: 'auto', fontSize: 11, color: '#666', textAlign: 'right' }}>
           <div>OOP: {formatAgo(data.capturedAt.oop)}</div>
@@ -472,37 +505,10 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
                     <SourcePill source={m.source} />
                   </td>
                   <td style={td}>
-                    {m.linkedMatchId ? (
-                      <a
-                        href={`/match/${m.linkedMatchId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: '2px 6px',
-                          borderRadius: 3,
-                          background: '#dcfce7',
-                          color: '#166534',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        LINKED →
-                      </a>
-                    ) : (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: '2px 6px',
-                          borderRadius: 3,
-                          background: '#fef3c7',
-                          color: '#92400e',
-                        }}
-                      >
-                        UNLINKED
-                      </span>
-                    )}
+                    <PipelineBadge
+                      linkedMatchId={m.linkedMatchId}
+                      linkedComposite={m.linkedComposite}
+                    />
                   </td>
                 </tr>
               )
@@ -667,6 +673,81 @@ function StatusPill({ status }: { status: string | null }) {
     >
       {status.replace('_', ' ')}
     </span>
+  )
+}
+
+/**
+ * Tri-state badge in the "Link" column. Shows where the match's
+ * `public.matches` row came from:
+ *
+ *   - NEW    (green): linkedComposite is set → fip-draw-populator
+ *                     wrote this row using the canonical
+ *                     `widget_id_composite` key. The simplified
+ *                     pipeline owns it end-to-end (oop-writer,
+ *                     results-writer, winner-propagator).
+ *   - LEGACY (orange): linked but no composite → static-reconciler
+ *                      created this row with a synthetic widget id
+ *                      stored only in entity_external_ids. Will be
+ *                      retired with PR 8.
+ *   - UNLINKED (red): the padelgod snapshot has no public.matches
+ *                     counterpart yet — neither pipeline has touched
+ *                     it. For composite-keyed tournaments this
+ *                     should drop to zero once the populator runs.
+ *
+ * NEW + LEGACY badges link to the match detail page; UNLINKED is a
+ * static label (no public match to navigate to).
+ */
+function PipelineBadge({
+  linkedMatchId,
+  linkedComposite,
+}: {
+  linkedMatchId: string | null
+  linkedComposite: string | null
+}) {
+  // Unlinked — neither pipeline has wired this up.
+  if (!linkedMatchId) {
+    return (
+      <span
+        title="No public.matches row exists for this padelgod snapshot yet"
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          padding: '2px 6px',
+          borderRadius: 3,
+          background: '#fef3c7',
+          color: '#92400e',
+        }}
+      >
+        UNLINKED
+      </span>
+    )
+  }
+
+  const isNew = linkedComposite !== null
+  const style: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 700,
+    padding: '2px 6px',
+    borderRadius: 3,
+    background: isNew ? '#dcfce7' : '#ffedd5',
+    color: isNew ? '#166534' : '#9a3412',
+    textDecoration: 'none',
+  }
+
+  return (
+    <a
+      href={`/match/${linkedMatchId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={
+        isNew
+          ? `Simplified pipeline (composite: ${linkedComposite})`
+          : 'Legacy reconciler row — no widget_id_composite'
+      }
+      style={style}
+    >
+      {isNew ? 'NEW →' : 'LEGACY →'}
+    </a>
   )
 }
 
