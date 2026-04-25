@@ -44,6 +44,11 @@ export interface SchedulerFlags {
   /** Comma-separated tournament UUIDs. Empty → no filter (process
    *  all eligible). See FIP_DRAW_POPULATOR_ONLY_TOURNAMENTS env var. */
   fipDrawPopulatorOnlyTournaments: string;
+  /** Comma-separated `tournaments.level` values. Tournaments at any
+   *  of these levels are skipped before the per-tournament loop runs.
+   *  Composes with the allowlist (allowlist applied first). Empty →
+   *  no level exclusion. See FIP_DRAW_POPULATOR_EXCLUDE_LEVELS env var. */
+  fipDrawPopulatorExcludeLevels: string;
   enableFipOopWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipOopWriterDryRun: boolean;
@@ -217,6 +222,25 @@ function parseTournamentAllowlist(raw: string): Set<string> | undefined {
   return ids.length > 0 ? new Set(ids) : undefined;
 }
 
+/**
+ * Parse the `FIP_DRAW_POPULATOR_EXCLUDE_LEVELS` env string into a set
+ * of `tournaments.level` strings. Empty/whitespace input → undefined
+ * (no exclusion). Levels are normalised to lowercase to match the
+ * `level` column convention (e.g. "p1", "fip_silver"). Validation is
+ * permissive: anything non-empty after trim is accepted, since the
+ * level vocabulary is defined upstream and may evolve. The worker's
+ * skip counter surfaces any typos at runtime.
+ */
+function parseExcludeLevels(raw: string): Set<string> | undefined {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return undefined;
+  const levels = trimmed
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length > 0);
+  return levels.length > 0 ? new Set(levels) : undefined;
+}
+
 export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   const entries: ScheduleEntry[] = [];
   if (flags.enableTournamentDiscovery) {
@@ -297,11 +321,15 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
         const allowlist = parseTournamentAllowlist(
           flags.fipDrawPopulatorOnlyTournaments,
         );
+        const excludeLevels = parseExcludeLevels(
+          flags.fipDrawPopulatorExcludeLevels,
+        );
         return runFipDrawPopulator({
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipDrawPopulatorDryRun,
           onlyTournamentIds: allowlist,
+          excludeLevels,
         });
       },
     });

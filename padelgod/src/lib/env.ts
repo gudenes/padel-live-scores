@@ -66,6 +66,27 @@ const EnvSchema = z.object({
   // Empty string / unset → no filter (process all eligible
   // tournaments, original behavior).
   FIP_DRAW_POPULATOR_ONLY_TOURNAMENTS: z.string().default(''),
+  // Per-level denylist for the populator. Comma-separated
+  // `tournaments.level` values to skip. Complementary to
+  // FIP_DRAW_POPULATOR_ONLY_TOURNAMENTS — both filters compose
+  // (allowlist applied first, then exclude-level on the survivors).
+  //
+  // Migration use case (2026-04-25): once Isla soak passes the user
+  // wants to flip the populator to "all FIP tournaments except
+  // Premier-tier" so every Bronze/Silver/Gold lands on the new
+  // pipeline while Premier (Brussels, Paris, etc.) stays on the
+  // legacy live-poller path. Premier-tier levels in this codebase:
+  //   - Current era: p1, p2, major, finals
+  //   - WPT era (legacy): wpt_1000, wpt_500, wpt_master, wpt_final
+  //
+  // Recommended Railway value for the soak phase:
+  //   FIP_DRAW_POPULATOR_EXCLUDE_LEVELS=p1,p2,major,finals,wpt_1000,wpt_500,wpt_master,wpt_final
+  //
+  // Empty string / unset → no level exclusion (default — same behavior
+  // as before). Belt-and-suspenders even when active: Premier
+  // tournaments don't have FIP draw snapshots, so they wouldn't be
+  // processed anyway. This filter is the explicit safety net.
+  FIP_DRAW_POPULATOR_EXCLUDE_LEVELS: z.string().default(''),
   // fip-oop-writer — simplified-pipeline writer #2. Reads
   // padelgod.oop_snapshots and UPDATEs public.matches.court +
   // court_order on composite-keyed rows (created by fip-draw-populator).

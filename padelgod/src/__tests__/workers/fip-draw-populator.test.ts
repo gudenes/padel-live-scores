@@ -63,6 +63,11 @@ interface Options {
   entryList?: EntryListSeed[];
   players?: PlayerSeed[];
   existingMatches?: ExistingMatchSeed[];
+  /** Map of tournament_id → level. Consulted by the populator's
+   *  level-exclude branch (see runFipDrawPopulator's `excludeLevels`).
+   *  Tournaments not in this map are returned with level=null when
+   *  the populator queries for levels. */
+  tournamentLevels?: Record<string, string | null>;
 }
 
 function fakeSupabase(opts: Options) {
@@ -72,6 +77,7 @@ function fakeSupabase(opts: Options) {
   const entryList = opts.entryList ?? [];
   const players = opts.players ?? [];
   const existingState: ExistingMatchSeed[] = [...(opts.existingMatches ?? [])];
+  const tournamentLevels = opts.tournamentLevels ?? {};
 
   const inserted: any[] = [];
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
@@ -120,6 +126,24 @@ function fakeSupabase(opts: Options) {
         if (col !== 'fip_id')
           throw new Error(`unexpected players filter: ${col}`);
         const data = players.filter((p) => values.includes(p.fip_id));
+        return Promise.resolve({ data, error: null });
+      },
+    }),
+  });
+
+  // Public.tournaments — currently used only by the level-exclude
+  // branch of runFipDrawPopulator (one batched select on `id IN (...)`
+  // returning {id, level}). Kept narrow on purpose to surface any
+  // unexpected new query shape immediately.
+  const tournamentsTable = () => ({
+    select: (_cols: string) => ({
+      in: (col: string, values: string[]) => {
+        if (col !== 'id')
+          throw new Error(`unexpected tournaments filter: ${col}`);
+        const data = values.map((id) => ({
+          id,
+          level: tournamentLevels[id] ?? null,
+        }));
         return Promise.resolve({ data, error: null });
       },
     }),
@@ -184,6 +208,7 @@ function fakeSupabase(opts: Options) {
     from: (t: string) => {
       if (t === 'matches') return matchesTable();
       if (t === 'players') return playersTable();
+      if (t === 'tournaments') return tournamentsTable();
       throw new Error(`unexpected public table: ${t}`);
     },
     rpc: vi.fn(async (name: string) => {
@@ -595,5 +620,168 @@ describe('runFipDrawPopulator', () => {
     });
     expect(resultUndefined.tournamentsSkippedNotInAllowlist).toBe(0);
     expect(resultUndefined.inserted).toBe(1);
+  });
+
+  // ── Exclude-levels (Premier-tier denylist) ───────────────────────────
+  //
+  // Purpose: keep the simplified pipeline OFF Premier-tier tournaments
+  // during the soak phase even if a Premier event somehow ends up with
+  // a FIP draw snapshot (cross-listed events, manual seeds, etc.).
+  // Premier matches go through the live-poller path which already
+  // works; running the populator on them would create composite-keyed
+  // duplicates of rows that already have live state.
+
+  it('excludeLevels: skips tournaments whose level matches the deny set', async () => {
+    const PREMIER_ID = 't-brussels';
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+        { tournament_id: PREMIER_ID, tournament_name: 'Brussels', slug: 'brussels-p2-2026' },
+      ],
+      widgetCodeByTournament: {
+        [TOURNAMENT_ID]: TOURNAMENT_WIDGET,
+        [PREMIER_ID]: 'FIP-2026-1701',
+      },
+      tournamentLevels: {
+        [TOURNAMENT_ID]: 'fip_other',
+        [PREMIER_ID]: 'p2',
+      },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      excludeLevels: new Set(['p1', 'p2', 'major', 'finals']),
+    });
+
+    expect(result.tournamentsSkippedExcludedLevel).toBe(1);
+    // Isla still processed (its level fip_other isn't in the deny set)
+    expect(result.tournamentsProcessed).toBe(1);
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted[0].widget_id_composite).toBe('FIP-2026-1706:MD017');
+  });
+
+  it('excludeLevels: levels are matched case-insensitively', async () => {
+    // The scheduler normalises to lowercase before passing the set in,
+    // but be defensive: even if a future caller passes mixed case, the
+    // lookup against the lowercased level column should still match.
+    const PREMIER_ID = 't-brussels';
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: PREMIER_ID, tournament_name: 'Brussels', slug: 'brussels-p2-2026' },
+      ],
+      widgetCodeByTournament: { [PREMIER_ID]: 'FIP-2026-1701' },
+      tournamentLevels: { [PREMIER_ID]: 'P2' }, // upper-case in fixture
+      draws: [],
+      entryList: [],
+      players: [],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: true,
+      excludeLevels: new Set(['p2']),
+    });
+
+    expect(result.tournamentsSkippedExcludedLevel).toBe(1);
+    expect(result.tournamentsProcessed).toBe(0);
+  });
+
+  it('excludeLevels empty/undefined: no level filtering happens', async () => {
+    // Even Premier-tier tournaments are processed when the filter is
+    // unset. Composite-key gating still protects: the worker will write
+    // for them, but the user can choose not to set the filter when
+    // running unrestricted.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_other' },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    // Empty set
+    const resultEmpty = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: true,
+      excludeLevels: new Set(),
+    });
+    expect(resultEmpty.tournamentsSkippedExcludedLevel).toBe(0);
+    expect(resultEmpty.inserted).toBe(1);
+
+    // Undefined
+    const resultUndefined = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: true,
+    });
+    expect(resultUndefined.tournamentsSkippedExcludedLevel).toBe(0);
+    expect(resultUndefined.inserted).toBe(1);
+  });
+
+  it('excludeLevels composes with onlyTournamentIds — allowlist wins first, then exclude', async () => {
+    // If a tournament is both in the allowlist AND has a deny-listed
+    // level, the result is "excluded by level". The allowlist passes
+    // it through; the level filter then rejects it.
+    const PREMIER_ID = 't-brussels';
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+        { tournament_id: PREMIER_ID, tournament_name: 'Brussels', slug: 'brussels-p2-2026' },
+      ],
+      widgetCodeByTournament: {
+        [TOURNAMENT_ID]: TOURNAMENT_WIDGET,
+        [PREMIER_ID]: 'FIP-2026-1701',
+      },
+      tournamentLevels: {
+        [TOURNAMENT_ID]: 'fip_other',
+        [PREMIER_ID]: 'p2',
+      },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: true,
+      onlyTournamentIds: new Set([TOURNAMENT_ID, PREMIER_ID]), // both allowlisted
+      excludeLevels: new Set(['p2']),                          // but P2 denied
+    });
+
+    expect(result.tournamentsSkippedNotInAllowlist).toBe(0); // both passed allowlist
+    expect(result.tournamentsSkippedExcludedLevel).toBe(1);  // Brussels excluded by level
+    expect(result.inserted).toBe(1);                         // only Isla wrote
+  });
+
+  it('excludeLevels: tournaments without a level (null) are NEVER excluded', async () => {
+    // A null-level tournament shouldn't be silently dropped by the
+    // exclude filter. Operators may legitimately have rows pending
+    // categorisation; those get processed normally, and only the
+    // allowlist or composite-key gate can stop them.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: null },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: true,
+      excludeLevels: new Set(['p1', 'p2']),
+    });
+
+    expect(result.tournamentsSkippedExcludedLevel).toBe(0);
+    expect(result.inserted).toBe(1);
   });
 });

@@ -95,6 +95,26 @@ export interface FipDrawPopulatorDeps {
    * them to target. Only the populator needs the filter.
    */
   onlyTournamentIds?: Set<string>;
+  /**
+   * Optional per-level denylist — when non-empty, tournaments at any
+   * of these `level` values are skipped. Composes with
+   * `onlyTournamentIds`: allowlist applied first, then exclude-level
+   * filter on the survivors. When empty/undefined, no level filtering
+   * happens (default).
+   *
+   * Primary use case (2026-04-25 onwards): keep the simplified
+   * pipeline OFF Premier-tier tournaments during the soak phase.
+   * Premier matches go through the live-poller path which already
+   * works; running the populator on them would create composite-keyed
+   * duplicates of Premier rows that already have live state.
+   *
+   * Belt-and-suspenders even when active: Premier tournaments don't
+   * have FIP draw snapshots in `padelgod.draw_snapshots` to begin
+   * with (Premier draws come from Crionet, not FIP), so they wouldn't
+   * be processed even without this filter. This is the explicit safety
+   * net for any cross-listed event we haven't accounted for.
+   */
+  excludeLevels?: Set<string>;
 }
 
 export interface FipDrawPopulatorResult {
@@ -103,6 +123,9 @@ export interface FipDrawPopulatorResult {
   /** Tournaments skipped because they weren't in the allowlist. When
    *  `onlyTournamentIds` is unset/empty this is always 0. */
   tournamentsSkippedNotInAllowlist: number;
+  /** Tournaments skipped because their `level` was in `excludeLevels`.
+   *  Always 0 when the filter is unset/empty. */
+  tournamentsSkippedExcludedLevel: number;
   drawRowsConsidered: number;
   inserted: number;
   updated: number;
@@ -179,13 +202,15 @@ function isRealFipTeamId(id: string | null): boolean {
 export async function runFipDrawPopulator(
   deps: FipDrawPopulatorDeps
 ): Promise<FipDrawPopulatorResult> {
-  const { supabase, logger, dryRun, onlyTournamentIds } = deps;
+  const { supabase, logger, dryRun, onlyTournamentIds, excludeLevels } = deps;
   const allowlistActive = onlyTournamentIds && onlyTournamentIds.size > 0;
+  const excludeLevelsActive = excludeLevels && excludeLevels.size > 0;
 
   const result: FipDrawPopulatorResult = {
     tournamentsProcessed: 0,
     tournamentsSkippedNoWidget: 0,
     tournamentsSkippedNotInAllowlist: 0,
+    tournamentsSkippedExcludedLevel: 0,
     drawRowsConsidered: 0,
     inserted: 0,
     updated: 0,
@@ -202,6 +227,12 @@ export async function runFipDrawPopulator(
       'fip-draw-populator: tournament allowlist active — processing only listed tournaments'
     );
   }
+  if (excludeLevelsActive) {
+    logger?.info(
+      { excludeLevels: Array.from(excludeLevels) },
+      'fip-draw-populator: level exclusion active — tournaments at these levels will be skipped'
+    );
+  }
 
   // 1. Active tournaments with FIP slug
   const { data: tours, error: toursErr } = await supabase.rpc(
@@ -214,6 +245,31 @@ export async function runFipDrawPopulator(
   }
   const tournaments = (tours ?? []) as TournamentRow[];
 
+  // 1b. Build a level lookup if the level-exclude filter is active. The
+  // RPC doesn't return `level` (it's tightly scoped to the populator's
+  // base requirements), so we do a single follow-up query against
+  // public.tournaments to get levels for the candidates. Cheap: one
+  // round-trip indexed on PK. Skipped entirely when no exclusion set.
+  let levelByTournamentId = new Map<string, string | null>();
+  if (excludeLevelsActive && tournaments.length > 0) {
+    const ids = tournaments.map((t) => t.tournament_id);
+    const { data: levelRows, error: levelErr } = await supabase
+      .from('tournaments')
+      .select('id, level')
+      .in('id', ids);
+    if (levelErr) {
+      throw new Error(
+        `level lookup for fip-draw-populator failed: ${levelErr.message}`
+      );
+    }
+    levelByTournamentId = new Map(
+      (levelRows ?? []).map((r: { id: string; level: string | null }) => [
+        r.id,
+        (r.level ?? null) === null ? null : (r.level as string).toLowerCase(),
+      ])
+    );
+  }
+
   for (const t of tournaments) {
     // Allowlist filter. Evaluated FIRST so we don't waste widget-id
     // lookups on tournaments we won't process. Kept as a counter so
@@ -222,6 +278,18 @@ export async function runFipDrawPopulator(
     if (allowlistActive && !onlyTournamentIds.has(t.tournament_id)) {
       result.tournamentsSkippedNotInAllowlist += 1;
       continue;
+    }
+
+    // Exclude-level filter. Composes with the allowlist (allowlist
+    // first, then this). Tournaments without a level (null) are NEVER
+    // matched by the exclude filter — operators can categorise them
+    // separately if needed.
+    if (excludeLevelsActive) {
+      const level = levelByTournamentId.get(t.tournament_id);
+      if (level && excludeLevels.has(level)) {
+        result.tournamentsSkippedExcludedLevel += 1;
+        continue;
+      }
     }
 
     // 2. Per-tournament: Crionet widget code
