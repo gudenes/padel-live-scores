@@ -1,5 +1,30 @@
 import { z } from 'zod';
 
+/**
+ * Boolean env-var parser. Replaces `z.coerce.boolean()`, which is broken
+ * for strings — `Boolean("false")` is `true` because every non-empty
+ * string is truthy in JS. That meant any default-true flag in this file
+ * could be enabled via Railway but **never disabled**: setting
+ * `FOO_DRY_RUN=false` parsed back to `true`, same as the default.
+ *
+ * Discovered 2026-04-25 when `FIP_DRAW_POPULATOR_DRY_RUN=false` had no
+ * effect — the populator stayed in dry-run for every cron after the
+ * env flip. This helper recognises the common opt-out spellings
+ * explicitly. Unknown values fall back to the supplied default rather
+ * than silently flipping behaviour on a typo.
+ */
+function boolEnv(defaultValue: boolean) {
+  return z.preprocess((v) => {
+    if (typeof v === 'boolean') return v;
+    if (v === undefined || v === null) return defaultValue;
+    if (typeof v !== 'string') return defaultValue;
+    const s = v.trim().toLowerCase();
+    if (s === 'true' || s === '1' || s === 'yes' || s === 'on') return true;
+    if (s === 'false' || s === '0' || s === 'no' || s === 'off' || s === '') return false;
+    return defaultValue;
+  }, z.boolean());
+}
+
 const EnvSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_KEY: z.string().min(1),
@@ -7,26 +32,26 @@ const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3002),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
-  ENABLE_SCHEDULER: z.coerce.boolean().default(true),
-  ENABLE_TOURNAMENT_DISCOVERY: z.coerce.boolean().default(true),
-  ENABLE_WIDGET_CODE_LOOKUP: z.coerce.boolean().default(true),
-  ENABLE_PLAYER_RANKINGS: z.coerce.boolean().default(true),
-  ENABLE_PLAYER_PROFILE: z.coerce.boolean().default(true),
-  ENABLE_ENTRY_LIST_FETCHER: z.coerce.boolean().default(true),
-  ENABLE_DRAW_FETCHER: z.coerce.boolean().default(true),
+  ENABLE_SCHEDULER: boolEnv(true),
+  ENABLE_TOURNAMENT_DISCOVERY: boolEnv(true),
+  ENABLE_WIDGET_CODE_LOOKUP: boolEnv(true),
+  ENABLE_PLAYER_RANKINGS: boolEnv(true),
+  ENABLE_PLAYER_PROFILE: boolEnv(true),
+  ENABLE_ENTRY_LIST_FETCHER: boolEnv(true),
+  ENABLE_DRAW_FETCHER: boolEnv(true),
   // FIP event-page draw fetcher (PR 1 of the draw-linker pipeline). Source =
   // `fip_event_page`; writes to padelgod.draw_snapshots with match_widget_id
   // populated. Default OFF while we verify data quality on Brussels; flip
   // per-deploy via Railway env once confident. No writes to public.matches yet.
-  ENABLE_FIP_DRAW_FETCHER: z.coerce.boolean().default(false),
+  ENABLE_FIP_DRAW_FETCHER: boolEnv(false),
   // fip-draw-populator — simplified-pipeline writer #1. Reads
   // padelgod.draw_snapshots (source='fip_event_page') and creates/updates
   // public.matches keyed by widget_id_composite. Intentionally parallel to
   // the legacy static-reconciler — see
   // docs/superpowers/specs/2026-04-24-simplified-pipeline-architecture.md.
   // Defaults OFF + DRY-RUN so enabling it in Railway is a two-step commit.
-  ENABLE_FIP_DRAW_POPULATOR: z.coerce.boolean().default(false),
-  FIP_DRAW_POPULATOR_DRY_RUN: z.coerce.boolean().default(true),
+  ENABLE_FIP_DRAW_POPULATOR: boolEnv(false),
+  FIP_DRAW_POPULATOR_DRY_RUN: boolEnv(true),
   // Per-tournament allowlist for the populator. Comma-separated
   // tournament UUIDs. When set, the populator processes ONLY those
   // tournaments — everything else is skipped.
@@ -45,38 +70,38 @@ const EnvSchema = z.object({
   // padelgod.oop_snapshots and UPDATEs public.matches.court +
   // court_order on composite-keyed rows (created by fip-draw-populator).
   // Same safety posture as the populator: default OFF + dry-run ON.
-  ENABLE_FIP_OOP_WRITER: z.coerce.boolean().default(false),
-  FIP_OOP_WRITER_DRY_RUN: z.coerce.boolean().default(true),
+  ENABLE_FIP_OOP_WRITER: boolEnv(false),
+  FIP_OOP_WRITER_DRY_RUN: boolEnv(true),
   // fip-results-writer — simplified-pipeline writer #3. Reads
   // padelgod.results_snapshots and UPDATEs matches.status + winner_pair
   // + UPSERTs sets rows for composite-keyed matches. Same safety
   // posture as the other writers.
-  ENABLE_FIP_RESULTS_WRITER: z.coerce.boolean().default(false),
-  FIP_RESULTS_WRITER_DRY_RUN: z.coerce.boolean().default(true),
+  ENABLE_FIP_RESULTS_WRITER: boolEnv(false),
+  FIP_RESULTS_WRITER_DRY_RUN: boolEnv(true),
   // fip-winner-propagator — simplified-pipeline writer #4. When a match
   // is finished with a winner, the propagator copies the winning pair's
   // 2 player UUIDs into the next-round match via bracket math. Pure
   // DB-to-DB (no external calls). Same safety posture: default OFF +
   // dry-run ON.
-  ENABLE_FIP_WINNER_PROPAGATOR: z.coerce.boolean().default(false),
-  FIP_WINNER_PROPAGATOR_DRY_RUN: z.coerce.boolean().default(true),
+  ENABLE_FIP_WINNER_PROPAGATOR: boolEnv(false),
+  FIP_WINNER_PROPAGATOR_DRY_RUN: boolEnv(true),
   // FIP draw linker (PR 2). Reads latest fip_event_page snapshots and
   // writes `entity_external_ids` rows mapping Crionet widget composites
   // to public.matches UUIDs. Default OFF; enables via Railway env.
-  ENABLE_FIP_DRAW_LINKER: z.coerce.boolean().default(false),
+  ENABLE_FIP_DRAW_LINKER: boolEnv(false),
   // Linker dry-run switch. When true (default), the worker logs every
   // proposed linkage but writes nothing — lets operators review the
   // matches on real traffic before any canonical data moves. Flip to
   // `false` after the first dry-run confirms the expected links fire.
-  FIP_DRAW_LINKER_DRY_RUN: z.coerce.boolean().default(true),
-  ENABLE_OOP_FETCHER: z.coerce.boolean().default(true),
-  ENABLE_RESULTS_FETCHER: z.coerce.boolean().default(true),
-  ENABLE_STATIC_RECONCILER: z.coerce.boolean().default(true),
-  ENABLE_MATCH_STATS_FETCHER: z.coerce.boolean().default(true),
-  ENABLE_LIVE_POLLER_MANAGER: z.coerce.boolean().default(true),
-  ENABLE_SHADOW_DIFF_FINALIZER: z.coerce.boolean().default(true),
-  ENABLE_SHADOW_DIFF_LIVE: z.coerce.boolean().default(true),
-  ENABLE_CLOSE_STALE_LIVE_SWEEPER: z.coerce.boolean().default(true),
+  FIP_DRAW_LINKER_DRY_RUN: boolEnv(true),
+  ENABLE_OOP_FETCHER: boolEnv(true),
+  ENABLE_RESULTS_FETCHER: boolEnv(true),
+  ENABLE_STATIC_RECONCILER: boolEnv(true),
+  ENABLE_MATCH_STATS_FETCHER: boolEnv(true),
+  ENABLE_LIVE_POLLER_MANAGER: boolEnv(true),
+  ENABLE_SHADOW_DIFF_FINALIZER: boolEnv(true),
+  ENABLE_SHADOW_DIFF_LIVE: boolEnv(true),
+  ENABLE_CLOSE_STALE_LIVE_SWEEPER: boolEnv(true),
   // Web push notification hook — set to the padelnachos.com origin to fire
   // `/api/push/notify` whenever padelgod flips a match out of `scheduled`.
   // Both vars optional: if either is unset, notify is skipped silently (so
