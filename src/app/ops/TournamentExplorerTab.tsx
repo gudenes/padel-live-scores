@@ -92,10 +92,11 @@ function formatAgo(iso: string | null | undefined): string {
 }
 
 function formatDateShort(iso: string | null): string {
+  // Full YYYY-MM-DD so the year is unambiguous when the filter window
+  // crosses a year boundary. Slicing the ISO string is faster + more
+  // predictable than Intl.DateTimeFormat for this UTC-only display.
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (!Number.isFinite(d.getTime())) return '—'
-  return `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+  return iso.slice(0, 10)
 }
 
 function defaultDateRange(): { from: string; to: string } {
@@ -372,7 +373,7 @@ export default function TournamentExplorerTab() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: '#f9fafb', textAlign: 'left' }}>
-                <th style={thStyle}>Date</th>
+                <th style={thStyle}>Starts</th>
                 <th style={thStyle}>Tournament</th>
                 <th style={thStyle}>Level</th>
                 <th style={thStyle}>Country</th>
