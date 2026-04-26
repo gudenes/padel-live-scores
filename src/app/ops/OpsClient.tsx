@@ -20,6 +20,7 @@ import BrandsTab from './BrandsTab'
 import PadelgodShadowTab from './PadelgodShadowTab'
 import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentExplorerTab from './TournamentExplorerTab'
+import TournamentDedupTab from './TournamentDedupTab'
 import PadelgodHealthTab from './PadelgodHealthTab'
 
 // ── Types ───────────────────────────────────────────────────────
@@ -318,7 +319,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'padelgod-health'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health'>('ongoing')
   // Sidebar collapse — persisted across sessions because operators
   // who like the wider workspace want to keep it that way.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -433,6 +434,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       label: 'Padelgod',
       items: [
         { key: 'tournament-explorer' as const, label: 'Tournament Explorer', badge: null },
+        { key: 'tournament-dedup' as const, label: 'Tournament Dedup', badge: null },
         { key: 'padelgod-health' as const, label: 'Padelgod Health', badge: null },
         { key: 'padelgod-shadow' as const, label: 'Shadow Mode', badge: null },
         { key: 'padelgod-entries' as const, label: 'Entry Lists', badge: null },
@@ -987,6 +989,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       {tab === 'padelgod-entries' && <PadelgodEntryListTab />}
 
       {tab === 'tournament-explorer' && <TournamentExplorerTab />}
+      {tab === 'tournament-dedup' && <TournamentDedupTab />}
 
       {tab === 'padelgod-health' && <PadelgodHealthTab />}
 
