@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { signOut as nextAuthSignOut } from 'next-auth/react'
 import { useRouter, Link } from '@/i18n/navigation'
+import { useViewTransitionRouter } from '@/hooks/useViewTransitionRouter'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import CountryPicker from '@/components/CountryPicker'
@@ -150,6 +151,11 @@ export default function SettingsPage() {
   const tNotifs = useTranslations('notifications')
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  // View-transition router for the back button — pairs with the gear-icon
+  // navigation in profile/page.tsx so the avatar morphs back to its larger
+  // size and the page slides out. See useViewTransitionRouter for the
+  // browser-support gating.
+  const vtRouter = useViewTransitionRouter()
 
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [countryOptions, setCountryOptions] = useState<CountryOption[]>([])
@@ -293,7 +299,7 @@ export default function SettingsPage() {
         height: 62,
       }}>
         <button
-          onClick={() => { if (window.history.length > 1) router.back(); else router.push('/profile') }}
+          onClick={() => { if (window.history.length > 1) vtRouter.back(); else vtRouter.push('/profile') }}
           style={{
             width: 36, height: 36, border: 'none', cursor: 'pointer',
             background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -308,7 +314,39 @@ export default function SettingsPage() {
         <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600 }}>
           {t('title')}
         </div>
-        <div style={{ width: 36 }} />
+        {/* Compact avatar in the settings header — paired with the larger
+            avatar on /profile via shared `viewTransitionName: 'profile-avatar'`.
+            The browser captures pre/post snapshots and animates the morph
+            from 64×64 (profile) to 32×32 (here) on navigation, giving the
+            user the unmistakable cue that the two pages are connected.
+            On browsers without View Transitions support, this is just a
+            small avatar in the header — same UX as today, no broken state. */}
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%',
+          border: `2px solid ${V3.ORANGE}`, overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+          viewTransitionName: 'profile-avatar',
+        }}>
+          {profile?.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.avatar_url}
+              alt=""
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div style={{
+              width: '100%', height: '100%',
+              background: `linear-gradient(135deg, ${V3.GREEN}, ${V3.ORANGE})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#000', fontSize: 13, fontWeight: 700,
+            }}>
+              {(profile?.display_name ?? user.email ?? 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ACCOUNT */}
