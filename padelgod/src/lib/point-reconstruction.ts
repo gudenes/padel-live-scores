@@ -271,7 +271,9 @@ export async function applyDiff(
       await dualWriteShadowToPublic(
         supabase,
         matchId,
+        prev,
         curr,
+        diff,
         currentSetNumber,
         resolvedPlayers,
         logger,
@@ -697,7 +699,9 @@ async function flipShadowPublicStatus(
 async function dualWriteShadowToPublic(
   supabase: SupabaseClient,
   matchId: string,
+  prev: LiveMatchState | null,
   curr: LiveMatchState,
+  diff: LiveStateDiff,
   currentSetNumber: number,
   resolvedPlayers: ResolvedPlayers,
   logger: Logger | undefined,
@@ -806,7 +810,7 @@ async function dualWriteShadowToPublic(
   const { data: shadowPts, error: ptsErr } = await supabase
     .schema('padelgod')
     .from('shadow_match_points')
-    .select('set_number, game_number, point_number, score_after, server_team, winner_pair')
+    .select('set_number, game_number, point_number, score_after, server_team')
     .eq('match_id', matchId)
     .order('set_number')
     .order('game_number')
@@ -820,12 +824,7 @@ async function dualWriteShadowToPublic(
     return;
   }
 
-  // GameAgg.lastWinner — winner of the LAST point in this game. For completed
-  // games this equals the game winner (the game ends on the point that decides
-  // it). For the current/in-progress game it's whoever scored most recently —
-  // we leave games.winner_pair NULL there so the chart's break-detection logic
-  // doesn't claim a winner mid-game.
-  type GameAgg = { points: string[]; lastServer: 1 | 2 | null; lastWinner: 1 | 2 | null };
+  type GameAgg = { points: string[]; lastServer: 1 | 2 | null };
   const byGame = new Map<string, GameAgg>();
   for (const p of (shadowPts ?? []) as Array<{
     set_number: number;
@@ -833,16 +832,12 @@ async function dualWriteShadowToPublic(
     point_number: number;
     score_after: string | null;
     server_team: 1 | 2 | null;
-    winner_pair: 1 | 2 | null;
   }>) {
     const key = `${p.set_number}:${p.game_number}`;
-    const entry = byGame.get(key) ?? { points: [], lastServer: null, lastWinner: null };
+    const entry = byGame.get(key) ?? { points: [], lastServer: null };
     const score = (p.score_after ?? '').replace('-', ':');
     if (score) entry.points.push(score);
     if (p.server_team != null) entry.lastServer = p.server_team;
-    // Query is ordered by point_number ASC, so successive iterations overwrite
-    // with the latest winner — final value is the last point's winner_pair.
-    if (p.winner_pair != null) entry.lastWinner = p.winner_pair;
     byGame.set(key, entry);
   }
 
@@ -891,13 +886,17 @@ async function dualWriteShadowToPublic(
     const lastScore = agg.points[agg.points.length - 1] ?? '0:0';
     const serverId = serverPlayerId(agg.lastServer, resolvedPlayers);
 
-    // winner_pair: only persist for COMPLETED games. The current game's last
-    // point doesn't equal the game winner — the game's last captured point
-    // could be mid-deuce. Once the game closes (next game starts → this row
-    // is upserted with isCurrent=false), agg.lastWinner reflects the truly
-    // final point and gets written. Downstream readers (the Match Journey
-    // chart's break-of-serve detection) trust this column.
-    const winnerPair = isCurrent ? null : agg.lastWinner;
+    // winner_pair is intentionally NOT in this upsert. Two reasons:
+    //   1. The last captured point's winner ≠ the actual game winner when
+    //      live capture is sparse (a poll between game-ending points misses
+    //      the decider). Set 1 of one Brussels match showed 5-3 by point
+    //      inference vs the actual 6-2 — one game silently misclassified.
+    //   2. Postgrest UPSERTs only update columns present in the payload, so
+    //      omitting winner_pair preserves whatever was set on a prior tick.
+    //
+    // Authoritative winner_pair gets written below in a separate UPDATE,
+    // gated on diff.gameChanged + diff.gameWinnerSide — derived from the
+    // observed set-tally jump, which is robust to sparse capture.
 
     const { error: upsertErr } = await supabase.from('games').upsert(
       {
@@ -911,7 +910,6 @@ async function dualWriteShadowToPublic(
         // Completed tiebreak games default to false — acceptable approximation.
         is_tiebreak: isCurrent ? isTiebreakForCurrent : false,
         server_player_id: serverId,
-        winner_pair: winnerPair,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'set_id,game_number' },
@@ -922,6 +920,55 @@ async function dualWriteShadowToPublic(
         { matchId, setNum, gameNum, err: upsertErr.message },
         'applyDiff(shadow dual-write): failed to upsert public.games row',
       );
+    }
+  }
+
+  // ── winner_pair: authoritative write driven by set-tally jump ─────────
+  //
+  // When diff.gameChanged is true, EXACTLY ONE game just ended in this tick
+  // — the game that was in-progress in `prev` is now complete. We know who
+  // won because diff.gameWinnerSide was derived from the set-tally jump
+  // (whichever pair's `games` count went up). This is observably correct
+  // and immune to sparse-point-capture: even if we missed every point of
+  // the deciding game, the post-game set tally is a hard fact.
+  //
+  // Compute the just-ended game's location from `prev`. For the very
+  // first tick (prev=null) gameChanged is necessarily false, so this
+  // branch never fires there. For subsequent ticks, prev's last set
+  // index + game tally tells us exactly which row to update.
+  if (diff.gameChanged && diff.gameWinnerSide && prev) {
+    const prevIdxA = lastSetIndex(prev.team1Sets);
+    const prevIdxB = lastSetIndex(prev.team2Sets);
+    const prevIdxMax = Math.max(prevIdxA, prevIdxB);
+    if (prevIdxMax >= 0) {
+      const prevSetNumber = prevIdxMax + 1;
+      const prevPair1Games = prev.team1Sets[prevIdxMax]?.games ?? 0;
+      const prevPair2Games = prev.team2Sets[prevIdxMax]?.games ?? 0;
+      // Game number that just ended = whatever was in-progress last tick.
+      const prevGameNumber = prevPair1Games + prevPair2Games + 1;
+      const prevSetId = setIdBySetNumber.get(prevSetNumber);
+      if (prevSetId) {
+        const { error: winErr } = await supabase
+          .from('games')
+          .update({
+            winner_pair: diff.gameWinnerSide,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('set_id', prevSetId)
+          .eq('game_number', prevGameNumber);
+        if (winErr) {
+          logger?.warn(
+            {
+              matchId,
+              prevSetNumber,
+              prevGameNumber,
+              winnerSide: diff.gameWinnerSide,
+              err: winErr.message,
+            },
+            'applyDiff(shadow dual-write): failed to set winner_pair on completed game',
+          );
+        }
+      }
     }
   }
 }

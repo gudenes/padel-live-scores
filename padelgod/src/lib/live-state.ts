@@ -90,6 +90,17 @@ export interface LiveStateDiff {
   pointsAdded: Array<{ winnerTeam: 1 | 2 }>;
   /** A game just ended (a team's game count in the current set went up). */
   gameChanged: boolean;
+  /**
+   * Which team won the game that just ended. Authoritative — derived from the
+   * set-tally jump (whichever pair's `games` count incremented in this tick),
+   * not from individual point captures. Only meaningful when `gameChanged` is
+   * true. NULL otherwise.
+   *
+   * This is the right source for `games.winner_pair`: live polling can miss
+   * intermediate points, so the last captured point's winner is unreliable
+   * as a game-result proxy. A set-tally increment is a hard observable.
+   */
+  gameWinnerSide: 1 | 2 | null;
   /** A new set started OR the active set index advanced. */
   setChanged: boolean;
   serverChanged: boolean;
@@ -519,6 +530,7 @@ export function diffLiveState(
   const result: LiveStateDiff = {
     pointsAdded: [],
     gameChanged: false,
+    gameWinnerSide: null,
     setChanged: false,
     serverChanged: false,
     statusChanged: false,
@@ -535,6 +547,7 @@ export function diffLiveState(
 
   const setComp = compareSets(prev, curr);
   result.gameChanged = setComp.gameChanged;
+  result.gameWinnerSide = setComp.gameWinnerSide;
   result.setChanged = setComp.setChanged;
 
   const pointComp = comparePointStates(
