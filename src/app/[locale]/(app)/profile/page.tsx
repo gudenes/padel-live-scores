@@ -147,7 +147,11 @@ export default function ProfilePage() {
   useEffect(() => { void fetchCounts() }, [fetchCounts])
 
   if (authLoading || !user) {
-    return <BrandedLoader hints={[t('loading'), 'Almost ready...']} />
+    return (
+      <div className="page-mount-anim">
+        <BrandedLoader hints={[t('loading'), 'Almost ready...']} />
+      </div>
+    )
   }
 
   const earnedBadgeIds = new Set(earnedBadges.map(b => b.badge_id))

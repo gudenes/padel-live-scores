@@ -272,7 +272,7 @@ export default function SettingsPage() {
 
   if (authLoading || !user || !profile) {
     return (
-      <div style={{ background: V3.BG_BASE, minHeight: '100dvh', color: V3.MUTED,
+      <div className="page-mount-anim" style={{ background: V3.BG_BASE, minHeight: '100dvh', color: V3.MUTED,
         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
         Loading…
       </div>
