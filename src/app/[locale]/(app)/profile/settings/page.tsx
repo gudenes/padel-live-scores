@@ -11,6 +11,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import CountryPicker from '@/components/CountryPicker'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
+import { SkeletonText } from '@/components/SkeletonText'
 import { EditNameSheet } from './EditNameSheet'
 import { DeleteAccountModal } from './DeleteAccountModal'
 
@@ -117,16 +118,6 @@ function Chevron({ destructive }: { destructive?: boolean }) {
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 6l6 6-6 6" />
     </svg>
-  )
-}
-
-function SkeletonText({ width }: { width: number | string }) {
-  // Renders a fixed-width shimmer bar inline. The placeholder text gives
-  // the span a natural baseline; CSS hides it via `color: transparent`.
-  return (
-    <span className="skeleton-line" style={{ width, height: '0.9em' }} aria-hidden="true">
-      &nbsp;
-    </span>
   )
 }
 

@@ -9,7 +9,7 @@ import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { useBadges, type EarnedBadge } from '@/hooks/useBadges'
-import BrandedLoader from '../../../components/BrandedLoader'
+import { SkeletonText } from '@/components/SkeletonText'
 import { BADGE_CATALOG, TIER_META, overallTierFromBadgeCount } from '@/lib/badges'
 import { withTimeout } from '@/lib/with-timeout'
 import { computeXp, formatXp, selectNextAchievement, type Counts } from '@/lib/gamification'
@@ -146,14 +146,10 @@ export default function ProfilePage() {
 
   useEffect(() => { void fetchCounts() }, [fetchCounts])
 
-  if (authLoading || !user) {
-    return (
-      <div className="page-mount-anim">
-        <BrandedLoader hints={[t('loading'), 'Almost ready...']} />
-      </div>
-    )
-  }
-
+  // Render chrome immediately. Data-dependent values fall back to shimmer
+  // bars until each fetch lands. The unauthenticated redirect runs in the
+  // useEffect above — skeleton just shows in the brief window before that.
+  const profileReady = !!user && !authLoading
   const earnedBadgeIds = new Set(earnedBadges.map(b => b.badge_id))
   const earnedBadgeCount = earnedBadgeIds.size
 
@@ -202,12 +198,13 @@ export default function ProfilePage() {
       </div>
 
       <AvatarBlock
-        displayName={profile?.display_name ?? 'User'}
+        displayName={profile?.display_name ?? null}
         avatarUrl={profile?.avatar_url ?? null}
         earnedBadgeCount={earnedBadgeCount}
         loginStreak={counts?.loginStreak ?? 0}
         streakLabel={t('streakDays', { count: counts?.loginStreak ?? 0 })}
         tierPrefixTemplate={(n) => t('tierPrefix', { n })}
+        loading={!profileReady || !profile}
       />
 
       <StatsStrip
@@ -288,12 +285,13 @@ export default function ProfilePage() {
 // ── AvatarBlock ──────────────────────────────────────────────────
 
 interface AvatarBlockProps {
-  displayName: string
+  displayName: string | null
   avatarUrl: string | null
   earnedBadgeCount: number
   loginStreak: number
   streakLabel: string
   tierPrefixTemplate: (n: number) => string
+  loading: boolean
 }
 
 function AvatarBlock({
@@ -303,6 +301,7 @@ function AvatarBlock({
   loginStreak,
   streakLabel,
   tierPrefixTemplate,
+  loading,
 }: AvatarBlockProps) {
   const tier = overallTierFromBadgeCount(earnedBadgeCount)
   const tierMeta = tier ? TIER_META[tier] : null
@@ -319,7 +318,9 @@ function AvatarBlock({
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '16px auto 0',
         }}>
-          {avatarUrl ? (
+          {loading ? (
+            <span className="skeleton-line" style={{ width: '100%', height: '100%', borderRadius: '50%' }} aria-hidden="true" />
+          ) : avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={avatarUrl}
@@ -334,11 +335,11 @@ function AvatarBlock({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: '#000', fontSize: 24, fontWeight: 700,
             }}>
-              {displayName.charAt(0).toUpperCase()}
+              {(displayName ?? 'U').charAt(0).toUpperCase()}
             </div>
           )}
         </div>
-        {tierMeta && tier !== null && (
+        {!loading && tierMeta && tier !== null && (
           <div style={{
             position: 'absolute',
             bottom: 0, left: '50%',
@@ -357,10 +358,10 @@ function AvatarBlock({
       </div>
 
       <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginTop: 10 }}>
-        {displayName}
+        {displayName ?? <SkeletonText width={140} height="1em" />}
       </div>
 
-      {loginStreak >= 1 && (
+      {!loading && loginStreak >= 1 && (
         <div style={{
           marginTop: 8,
           display: 'inline-flex', alignItems: 'center', gap: 10,
@@ -395,7 +396,7 @@ interface StatsStripProps {
 
 function StatsStrip({ xp, badgeCount, followCount, onBadgesClick, labels }: StatsStripProps) {
   const cell = (opts: {
-    number: string
+    number: React.ReactNode
     numberColor: string
     label: string
     onClick?: () => void
@@ -418,6 +419,7 @@ function StatsStrip({ xp, badgeCount, followCount, onBadgesClick, labels }: Stat
       <div style={{
         fontSize: 26, fontWeight: 900, lineHeight: 1,
         color: opts.numberColor,
+        minHeight: 26,
       }}>
         {opts.number}
       </div>
@@ -436,18 +438,18 @@ function StatsStrip({ xp, badgeCount, followCount, onBadgesClick, labels }: Stat
       padding: '0 16px', marginBottom: 18,
     }}>
       {cell({
-        number: xp === null ? '—' : formatXp(xp),
+        number: xp === null ? <SkeletonText width={48} height="0.9em" /> : formatXp(xp),
         numberColor: V3.GREEN,
         label: labels.xp,
       })}
       {cell({
-        number: badgeCount === null ? '—' : String(badgeCount),
+        number: badgeCount === null ? <SkeletonText width={32} height="0.9em" /> : String(badgeCount),
         numberColor: V3.ORANGE,
         label: labels.badges,
         onClick: onBadgesClick,
       })}
       {cell({
-        number: followCount === null ? '—' : String(followCount),
+        number: followCount === null ? <SkeletonText width={32} height="0.9em" /> : String(followCount),
         numberColor: V3.GREEN,
         label: labels.follows,
       })}
@@ -840,8 +842,9 @@ function ActivitySection({ header, rows, onRowClick }: ActivitySectionProps) {
               color: row.isAlert && (row.count ?? 0) > 0
                 ? V3.LIVE_RED
                 : '#fff',
+              minWidth: 18, textAlign: 'center',
             }}>
-              {row.count === null ? '—' : row.count}
+              {row.count === null ? <SkeletonText width={14} height="0.9em" /> : row.count}
             </div>
             <ChevronRightIcon size={16} color={V3.MUTED} />
           </button>
