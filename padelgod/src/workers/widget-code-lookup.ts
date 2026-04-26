@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AxiosInstance } from 'axios';
 import { createHash } from 'node:crypto';
-import { parseCrionetSearchResults } from '../parsers/crionet-search.js';
+import { parseCrionetSearchResults, type ParsedSearchResult } from '../parsers/crionet-search.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { CRIONET_SEARCH_VERSION } from '../lib/parser-versions.js';
 
@@ -34,6 +34,62 @@ function simplifyQuery(name: string): string {
     .replace(/\b20\d{2}\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Normalise a tournament name for equality comparison. Lowercase, strip
+// HTML entities + accent diacritics, collapse whitespace. Used to find
+// the exact match when Crionet returns multiple candidates for a single
+// simplified query.
+function normaliseName(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip accents
+    .toLowerCase()
+    .replace(/&[a-z0-9#]+;/gi, ' ') // strip HTML entities (&#8211; etc.)
+    .replace(/[^a-z0-9 ]+/g, ' ') // collapse punctuation to spaces
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Pick a single candidate from the Crionet search results, or null if
+ * we shouldn't auto-resolve.
+ *
+ * Why not just `length === 1`: matchscorerlive's text search is loose
+ * (matches the simplified query against multiple tournament types). For
+ * cities that host more than one FIP-tier event in a year, a search for
+ * "asuncion" returns ASUNCION P2 *and* FIP PROMISES ASUNCION I. Without
+ * disambiguation, the worker bails forever — the audit on 2026-04-27
+ * found ~100 unresolved tournaments stuck in this state, including
+ * Premier-tour P1/P2 events that absolutely are on Crionet.
+ *
+ * Disambiguation rule: prefer the candidate whose normalised name
+ * EXACTLY matches the tournament's normalised name. The simplifier's
+ * tier/year stripping already proves the original name is unique enough
+ * — what we need here is to filter out the loose-matched siblings.
+ *
+ *   - 0 candidates    → null (skip)
+ *   - 1 candidate     → take it
+ *   - N candidates, exactly 1 with normalised-name === tournament
+ *                     → take it
+ *   - else            → null (skip; truly ambiguous)
+ *
+ * This intentionally does NOT do fuzzy/token-overlap scoring. If the
+ * source-of-truth name and the Crionet name disagree even slightly,
+ * we'd rather skip and surface in the ops "Needs widget" view than
+ * risk linking the wrong tournament. False linkage is much harder to
+ * unwind than a missed resolution.
+ */
+export function chooseCandidate(
+  candidates: ParsedSearchResult[],
+  tournamentName: string,
+): ParsedSearchResult | null {
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0]!;
+  const target = normaliseName(tournamentName);
+  const exact = candidates.filter(c => normaliseName(c.name) === target);
+  if (exact.length === 1) return exact[0]!;
+  return null;
 }
 
 async function fetchTournamentsNeedingResolution(
@@ -85,13 +141,15 @@ export async function runWidgetCodeLookup(
       }
     );
 
-    if (candidates.length !== 1) {
-      // Zero matches OR ambiguous — skip; Playwright fallback comes in a later task.
+    const chosen = chooseCandidate(candidates, t.tournament_name);
+    if (!chosen) {
+      // Zero matches, or ambiguous with no clear exact-name winner.
+      // Playwright fallback comes in a later task.
       skipped++;
       continue;
     }
 
-    const { code } = candidates[0]!;
+    const { code } = chosen;
     const { error: insertErr } = await deps.supabase
       .schema('padelgod')
       .from('widget_id_cache')
