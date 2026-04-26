@@ -57,7 +57,7 @@ interface TournamentWithSources {
   // Derived
   matchCount: number
   finalPlayed: boolean
-  phases: Array<{ round: string; firstStartsAt: string; matchCount: number }>
+  phases: Array<{ round: string; category: string | null; firstStartsAt: string; matchCount: number }>
   entryListCapturedAt: string | null
   oopCapturedAt: string | null
   resultsCapturedAt: string | null
@@ -667,22 +667,47 @@ function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
             gap: 10,
             fontSize: 11,
           }}>
-            {t.phases.map(p => (
-              <div key={p.round} style={{
-                background: '#f9fafb',
-                border: '1px solid #f3f4f6',
-                borderRadius: 4,
-                padding: '8px 10px',
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#111' }}>{p.round}</div>
-                <div style={{ fontSize: 10, color: '#666', marginTop: 2, fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
-                  {p.firstStartsAt.slice(0, 10)} <span style={{ color: '#bbb' }}>·</span> {p.firstStartsAt.slice(11, 16)} UTC
+            {t.phases.map(p => {
+              // Color-tag the category — orange-ish for men, pink for
+              // women, gray fallback when null. Same accent the rest of
+              // the app uses on player chips/avatars.
+              const catColor = p.category === 'men' ? '#5BA8FF'
+                : p.category === 'women' ? '#F472B6'
+                : '#9CA3AF'
+              const catLabel = p.category === 'men' ? 'Men'
+                : p.category === 'women' ? 'Women'
+                : null
+              return (
+                <div
+                  key={`${p.round}|${p.category ?? '_'}`}
+                  style={{
+                    background: '#f9fafb',
+                    border: '1px solid #f3f4f6',
+                    borderLeft: `3px solid ${catColor}`,
+                    borderRadius: 4,
+                    padding: '8px 10px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#111' }}>{p.round}</div>
+                    {catLabel && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 800,
+                        color: catColor,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}>{catLabel}</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#666', marginTop: 2, fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
+                    {p.firstStartsAt.slice(0, 10)} <span style={{ color: '#bbb' }}>·</span> {p.firstStartsAt.slice(11, 16)} UTC
+                  </div>
+                  <div style={{ fontSize: 9, color: '#9ca3af', marginTop: 2 }}>
+                    {p.matchCount} match{p.matchCount === 1 ? '' : 'es'}
+                  </div>
                 </div>
-                <div style={{ fontSize: 9, color: '#9ca3af', marginTop: 2 }}>
-                  {p.matchCount} match{p.matchCount === 1 ? '' : 'es'}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
