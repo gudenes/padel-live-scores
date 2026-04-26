@@ -314,39 +314,7 @@ export default function SettingsPage() {
         <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600 }}>
           {t('title')}
         </div>
-        {/* Compact avatar in the settings header — paired with the larger
-            avatar on /profile via shared `viewTransitionName: 'profile-avatar'`.
-            The browser captures pre/post snapshots and animates the morph
-            from 64×64 (profile) to 32×32 (here) on navigation, giving the
-            user the unmistakable cue that the two pages are connected.
-            On browsers without View Transitions support, this is just a
-            small avatar in the header — same UX as today, no broken state. */}
-        <div style={{
-          width: 32, height: 32, borderRadius: '50%',
-          border: `2px solid ${V3.ORANGE}`, overflow: 'hidden',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-          viewTransitionName: 'profile-avatar',
-        }}>
-          {profile?.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={profile.avatar_url}
-              alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div style={{
-              width: '100%', height: '100%',
-              background: `linear-gradient(135deg, ${V3.GREEN}, ${V3.ORANGE})`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#000', fontSize: 13, fontWeight: 700,
-            }}>
-              {(profile?.display_name ?? user.email ?? 'U').charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
+        <div style={{ width: 36 }} />
       </div>
 
       {/* ACCOUNT */}

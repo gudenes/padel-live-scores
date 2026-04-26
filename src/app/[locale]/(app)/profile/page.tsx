@@ -320,14 +320,6 @@ function AvatarBlock({
           border: `3px solid ${V3.ORANGE}`, overflow: 'hidden',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '16px auto 0',
-          // Browser-native View Transitions API: when navigating between
-          // profile + settings (both pages have an element marked with the
-          // same view-transition-name), the browser captures pre/post
-          // snapshots of this element and animates the morph automatically
-          // — opting it OUT of the page-level slide-fade so it appears to
-          // travel between positions instead. See globals.css for the
-          // page-level animation defaults + reduced-motion handling.
-          viewTransitionName: 'profile-avatar',
         }}>
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
