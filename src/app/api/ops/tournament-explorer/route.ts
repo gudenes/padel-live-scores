@@ -65,6 +65,12 @@ interface TournamentWithSources {
   // surface tournaments that have NO matches yet (zero) versus ones that
   // have matches but no padelgod snapshots (capture gap).
   matchCount: number
+  // True when any match with round='F'/'Final' has a winner_pair set —
+  // i.e. the tournament's final is in the books even if `ends_at` hasn't
+  // arrived yet. Used by the UI to override `tournament.status='live'`
+  // for events that are de-facto finished but not yet reflected in the
+  // status column.
+  finalPlayed: boolean
   // Most-recent captured_at per padelgod source (null = no snapshot yet).
   entryListCapturedAt: string | null
   oopCapturedAt: string | null
@@ -214,13 +220,19 @@ export async function GET(request: Request) {
     (drawRes.data ?? []) as Array<{ tournament_id: string; captured_at: string }>,
   )
 
-  // ── Match counts — single grouped query against public.matches ───────
-  // PostgREST doesn't return GROUP BY directly; we pull (tournament_id) for
-  // every match in the window and count client-side. Cheap because matches
-  // is indexed on tournament_id.
+  // ── Match counts + finals-played flag — single query, two outputs ────
+  // PostgREST doesn't return GROUP BY directly; we pull (tournament_id,
+  // round, winner_pair) for every match in the window and aggregate
+  // client-side. Cheap because matches is indexed on tournament_id.
+  //
+  // `finalPlayed` is the operator-facing "tournament is actually done"
+  // signal — flipped true when ANY match with round='F'/'Final' has a
+  // winner_pair set. Both round-naming conventions are accepted:
+  //   - 'F' / 'Final' / 'Men F' / 'Women Final' …
+  //   - case-insensitive prefix match keeps it forgiving
   const { data: matchRows, error: matchErr } = await supabase
     .from('matches')
-    .select('tournament_id')
+    .select('tournament_id, round, winner_pair')
     .in('tournament_id', ids)
 
   if (matchErr) {
@@ -231,12 +243,38 @@ export async function GET(request: Request) {
   }
 
   const matchCountByTournament = new Map<string, number>()
-  for (const r of (matchRows ?? []) as Array<{ tournament_id: string | null }>) {
+  const finalPlayedByTournament = new Set<string>()
+
+  // Round value is "Final" in F/SF/QF/R16/R32/R64/R128 — but a final match
+  // (round starts with "F" + has winner) signals the tournament is done.
+  // Reject "F" inside "Final" or "Finals" — the lone-letter "F" code is
+  // the only one we treat as final without a longer match. Use a regex.
+  // Round naming convention varies by source. The DB has at least:
+  //   - "Finals" (FIP / padelapi-stored — plural, surprisingly)
+  //   - "Final" (some sources, singular)
+  //   - "F"     (FIP scraper short code)
+  //   - "Men F" / "Women Final" (category-prefixed in some pipelines)
+  // We accept all of them. The category prefix is stripped by taking
+  // the last whitespace-delimited token before the regex test.
+  const isFinalRound = (round: string | null): boolean => {
+    if (!round) return false
+    const r = (round.trim().split(/\s+/).pop() ?? '').toLowerCase()
+    return r === 'f' || r === 'final' || r === 'finals'
+  }
+
+  for (const r of (matchRows ?? []) as Array<{
+    tournament_id: string | null
+    round: string | null
+    winner_pair: number | null
+  }>) {
     if (!r.tournament_id) continue
     matchCountByTournament.set(
       r.tournament_id,
       (matchCountByTournament.get(r.tournament_id) ?? 0) + 1,
     )
+    if (isFinalRound(r.round) && r.winner_pair !== null) {
+      finalPlayedByTournament.add(r.tournament_id)
+    }
   }
 
   // ── Stitch ─────────────────────────────────────────────────────────────
@@ -249,6 +287,7 @@ export async function GET(request: Request) {
     return {
       ...(row as TournamentWithSources),
       matchCount: matchCountByTournament.get(t.id as string) ?? 0,
+      finalPlayed: finalPlayedByTournament.has(t.id as string),
       entryListCapturedAt: entryListMap.get(t.id as string) ?? null,
       oopCapturedAt: oopMap.get(t.id as string) ?? null,
       resultsCapturedAt: resultsMap.get(t.id as string) ?? null,

@@ -33,6 +33,7 @@ interface TournamentLite {
   draw_size_md: number | null
   draw_size_qd: number | null
   matchCount: number
+  finalPlayed: boolean
   entryListCapturedAt: string | null
   oopCapturedAt: string | null
   resultsCapturedAt: string | null
@@ -310,17 +311,21 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
 
           // ── Operator visual signals ────────────────────────────────
           //
-          // 1. PAST events (already finished) get dimmed — they're context,
-          //    not action items. Operators care about what's now/upcoming.
-          // 2. NEEDS ATTENTION — about to start (within 7 days), has fip_id
-          //    so we expect data, but no entry list captured yet. These get
-          //    a red ring so they jump off the page.
-          const isPast = a.endDay < todayDay
+          // 1. PAST events get dimmed — they're context, not action items.
+          //    "Past" = either calendar end is in the past, OR the final
+          //    has been played (the event is de-facto over even if
+          //    `ends_at` hasn't arrived).
+          // 2. NEEDS ATTENTION — about to start (within 7 days), has
+          //    fip_id so we expect data, but no entry list captured yet.
+          //    Skipped when the final is already played — there's no
+          //    operator action to take on a finished event.
+          const isPast = a.endDay < todayDay || a.tournament.finalPlayed
           const needsAttention =
             !!a.tournament.fip_id
             && !a.tournament.entryListCapturedAt
             && a.startDay <= todayDay + 7  // imminent (within 7 days)
-            && a.endDay >= todayDay        // not yet finished
+            && a.endDay >= todayDay        // calendar window still active
+            && !a.tournament.finalPlayed   // and final hasn't dropped
 
           return (
             <button

@@ -56,6 +56,7 @@ interface TournamentWithSources {
   logo_url: string | null
   // Derived
   matchCount: number
+  finalPlayed: boolean
   entryListCapturedAt: string | null
   oopCapturedAt: string | null
   resultsCapturedAt: string | null
@@ -230,16 +231,24 @@ export default function TournamentExplorerTab() {
     for (const t of tournaments) {
       const s = (t.starts_at ?? '').slice(0, 10)
       const e = (t.ends_at ?? t.starts_at ?? '').slice(0, 10)
-      if (s && e && s <= todayISO && todayISO <= e) liveNow++
+      // A tournament is "Live now" only if its date window contains today
+      // AND its final hasn't been played yet. `ends_at` is just the
+      // calendar end — events frequently finish a day or two early when
+      // the final is on the penultimate day, and we don't want those
+      // showing as live until the calendar date catches up.
+      if (s && e && s <= todayISO && todayISO <= e && !t.finalPlayed) liveNow++
       if (s && s > todayISO && s <= in7DaysISO) next7++
       if (s && s > todayISO && s <= in30DaysISO) next30++
       // "Needs attention": starting within 7 days (or already live), has a
       // FIP id (so we expect data), AND no entry list captured yet.
-      // These are the events most likely to cause a bad UX next few days.
+      // Already-finished events don't need attention — operators can't
+      // change a played tournament's missing entry list, and showing them
+      // would inflate the counter with noise.
       if (
         s && s <= in7DaysISO &&
         (!e || e >= todayISO) &&
-        t.fip_id && !t.entryListCapturedAt
+        t.fip_id && !t.entryListCapturedAt &&
+        !t.finalPlayed
       ) {
         needsAttention++
       }
