@@ -149,6 +149,14 @@ function matchPremierMatchToOurs(
 // gettournamentsmatchdetail over a known ID range and bucket each match
 // by its tournaments_id, filtering down to tournaments we've already linked.
 
+interface ScanDiagnostics {
+  scanned: number
+  empty: number
+  out_of_scope: number
+  skipped_quali: number
+  tournaments_seen: Record<number, number>  // premier tournaments_id → count
+}
+
 async function linkMatchesViaIdScan(
   linkedTournamentIds: Array<{ ourId: string; premierId: number; name: string }>,
   result: {
@@ -156,6 +164,7 @@ async function linkMatchesViaIdScan(
     by_reason: { no_candidate: number; multiple_candidates: number; no_player_match: number }
   },
   scanRange: { min: number; max: number },
+  diagnostics: ScanDiagnostics,
 ): Promise<void> {
   // Build lookup: premier tournaments_id → our tournament UUID
   const linkedMap = new Map<number, { ourId: string; name: string }>()
@@ -198,11 +207,6 @@ async function linkMatchesViaIdScan(
 
   console.log(`[premier-discovery] scanning Premier match IDs ${scanRange.min}..${scanRange.max} (concurrency=${SCAN_CONCURRENCY})`)
 
-  let scanned = 0
-  let empty = 0
-  let outOfScope = 0
-  let skippedQuali = 0
-
   // Build the list of IDs we actually need to fetch. Already-linked IDs
   // are skipped at the cost of zero network calls — important because the
   // routine cron will re-scan the full historical range every Monday.
@@ -226,13 +230,18 @@ async function linkMatchesViaIdScan(
     for (let i = 0; i < chunkIds.length; i++) {
       const premierMatchId = chunkIds[i]
       const detail = details[i]
-      scanned++
+      diagnostics.scanned++
 
-      if (!detail) { empty++; continue }
+      if (!detail) { diagnostics.empty++; continue }
+
+      // Track every tournament we encounter, even out-of-scope ones — gives
+      // us visibility into Premier's ID layout when zero matches link.
+      const tournamentsId = detail.match_score.tournaments_id
+      diagnostics.tournaments_seen[tournamentsId] = (diagnostics.tournaments_seen[tournamentsId] ?? 0) + 1
 
       // Is this match's tournament one we've linked?
-      const linkedInfo = linkedMap.get(detail.match_score.tournaments_id)
-      if (!linkedInfo) { outOfScope++; continue }
+      const linkedInfo = linkedMap.get(tournamentsId)
+      if (!linkedInfo) { diagnostics.out_of_scope++; continue }
 
       // Skip byes
       if (detail.match_score.is_bye === 'Yes') {
@@ -243,7 +252,7 @@ async function linkMatchesViaIdScan(
       // Skip qualification rounds (Q1/Q2/Q3) — our DB doesn't track them,
       // so they'd always fail player-matching. Silent skip, no unresolved entry.
       if (SKIP_ROUND_PATTERN.test(detail.match_score.round_name ?? '')) {
-        skippedQuali++
+        diagnostics.skipped_quali++
         continue
       }
 
@@ -302,7 +311,7 @@ async function linkMatchesViaIdScan(
     }
   }
 
-  console.log(`[premier-discovery] scan complete: ${scanned} fetched, ${empty} empty, ${outOfScope} out-of-scope, ${skippedQuali} quali-skipped, ${result.matches.linked} linked, ${result.matches.unresolved} unresolved`)
+  console.log(`[premier-discovery] scan complete: ${diagnostics.scanned} fetched, ${diagnostics.empty} empty, ${diagnostics.out_of_scope} out-of-scope, ${diagnostics.skipped_quali} quali-skipped, ${result.matches.linked} linked, ${result.matches.unresolved} unresolved`)
 }
 
 export async function GET(request: Request) {
@@ -411,11 +420,32 @@ export async function GET(request: Request) {
     min: Number.isFinite(minParam) && minParam > 0 ? minParam : DEFAULT_MIN_MATCH_ID,
     max: Number.isFinite(maxParam) && maxParam > 0 ? maxParam : DEFAULT_MAX_MATCH_ID,
   }
-  await linkMatchesViaIdScan(linkedTournamentIds, result, scanRange)
+  const diagnostics: ScanDiagnostics = {
+    scanned: 0,
+    empty: 0,
+    out_of_scope: 0,
+    skipped_quali: 0,
+    tournaments_seen: {},
+  }
+  await linkMatchesViaIdScan(linkedTournamentIds, result, scanRange, diagnostics)
+
+  // Flatten tournaments_seen so the response is grep-friendly. Trim to
+  // top-N to avoid bloating the JSON when the scan crosses many tournaments.
+  const topTournaments = Object.entries(diagnostics.tournaments_seen)
+    .map(([id, count]) => ({ premier_tournaments_id: Number(id), count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20)
 
   return Response.json({
     ...result,
     scan_range: scanRange,
+    diagnostics: {
+      scanned: diagnostics.scanned,
+      empty: diagnostics.empty,
+      out_of_scope: diagnostics.out_of_scope,
+      skipped_quali: diagnostics.skipped_quali,
+      top_tournaments_seen: topTournaments,
+    },
     elapsed_ms: Date.now() - startedAt,
   })
 }
