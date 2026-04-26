@@ -18,7 +18,7 @@
 // the same week has multiple events with different start days. Absolute
 // positioning gives precise control without a dependency on a calendar lib.
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 interface TournamentLite {
   id: string
@@ -26,7 +26,16 @@ interface TournamentLite {
   starts_at: string | null
   ends_at: string | null
   level: string | null
+  country: string | null
+  prize_money: string | null
+  prize_money_fip: number | null
+  draw_size_md: number | null
+  draw_size_qd: number | null
   matchCount: number
+  entryListCapturedAt: string | null
+  oopCapturedAt: string | null
+  resultsCapturedAt: string | null
+  drawCapturedAt: string | null
 }
 
 interface CalendarViewProps {
@@ -124,12 +133,22 @@ function assignLanes(
 
 // ── Component ───────────────────────────────────────────────────────────
 
-const PIXELS_PER_DAY = 8  // Compact: 12 months ≈ 2900px wide, scrolls horizontally
-const LANE_HEIGHT = 22
-const LANE_GAP = 3
-const HEADER_HEIGHT = 44
+// Bigger cards for readability — the previous 8px/day made tournament
+// names truncate to 2-3 chars on most events. 16px/day fits ~10 chars
+// for a 7-day event, enough to read most tournament names without
+// hovering. Lane height bumped so we can show 2 rows: name + meta.
+const PIXELS_PER_DAY = 16
+const LANE_HEIGHT = 38
+const LANE_GAP = 5
+const HEADER_HEIGHT = 50
 
 export default function CalendarView({ tournaments, fromDate, toDate, onSelect }: CalendarViewProps) {
+  // Hover state for the rich tooltip — { tournament, x, y } or null.
+  // We track viewport coordinates so the tooltip can be positioned in a
+  // fixed overlay instead of inside the scrollable timeline (avoids
+  // clipping at the chart edges).
+  const [hovered, setHovered] = useState<{ t: TournamentLite; x: number; y: number } | null>(null)
+
   const windowStart = parseISODate(fromDate)
   const windowEnd = parseISODate(toDate)
   const totalDays = diffDays(windowEnd, windowStart) + 1
@@ -286,11 +305,16 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
           const top = HEADER_HEIGHT + 6 + a.laneIndex * (LANE_HEIGHT + LANE_GAP)
           const left = a.startDay * PIXELS_PER_DAY
           const width = Math.max(PIXELS_PER_DAY, (a.endDay - a.startDay + 1) * PIXELS_PER_DAY - 1)
+          const isHovered = hovered?.t.id === a.tournament.id
           return (
             <button
               key={a.tournament.id}
               onClick={() => onSelect(a.tournament.id)}
-              title={`${a.tournament.name} · ${a.tournament.starts_at?.slice(0, 10)} → ${a.tournament.ends_at?.slice(0, 10) ?? '—'} · ${a.tournament.matchCount} matches`}
+              onMouseEnter={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect()
+                setHovered({ t: a.tournament, x: rect.left + rect.width / 2, y: rect.top })
+              }}
+              onMouseLeave={() => setHovered(prev => (prev?.t.id === a.tournament.id ? null : prev))}
               style={{
                 position: 'absolute',
                 top,
@@ -299,25 +323,148 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
                 height: LANE_HEIGHT,
                 background: color.bg,
                 border: `1px solid ${color.border}`,
-                borderRadius: 4,
+                borderRadius: 5,
                 color: color.text,
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 600,
-                padding: '0 6px',
+                padding: '5px 8px',
                 textAlign: 'left',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
                 cursor: 'pointer',
-                zIndex: 1,
+                zIndex: isHovered ? 4 : 1,
                 fontFamily: 'inherit',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: 1,
+                overflow: 'hidden',
+                boxShadow: isHovered ? '0 4px 14px rgba(0,0,0,0.18)' : 'none',
+                transform: isHovered ? 'translateY(-1px)' : 'none',
+                transition: 'transform 100ms ease-out, box-shadow 100ms ease-out',
               }}
             >
-              {a.tournament.name}
+              <div style={{
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                lineHeight: 1.1,
+              }}>
+                {a.tournament.name}
+              </div>
+              <div style={{
+                fontSize: 9, opacity: 0.85, fontWeight: 600,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                lineHeight: 1.1,
+              }}>
+                {a.tournament.matchCount > 0 ? `${a.tournament.matchCount} matches` : 'no matches'}
+                {a.tournament.country ? ` · ${a.tournament.country}` : ''}
+              </div>
             </button>
           )
         })}
       </div>
+
+      {/* Rich hover tooltip — renders OUTSIDE the scrollable timeline as a
+          position:fixed overlay so it's never clipped at the chart edges
+          and stays readable while the user moves their pointer along a
+          long event. */}
+      {hovered && <TournamentHoverCard t={hovered.t} x={hovered.x} y={hovered.y} />}
     </div>
+  )
+}
+
+// ── Hover card (exported so list-view rows reuse it) ──────────────────
+
+export function TournamentHoverCard({ t, x, y }: { t: TournamentLite; x: number; y: number }) {
+  const startEnd = [t.starts_at?.slice(0, 10), t.ends_at?.slice(0, 10)]
+    .filter(Boolean).join(' → ')
+  const prize = t.prize_money
+    || (t.prize_money_fip ? `€${t.prize_money_fip.toLocaleString()}` : null)
+  const drawSize = [
+    t.draw_size_md ? `MD ${t.draw_size_md}` : null,
+    t.draw_size_qd ? `QD ${t.draw_size_qd}` : null,
+  ].filter(Boolean).join(' · ')
+  const color = LEVEL_COLOR[t.level ?? ''] ?? DEFAULT_COLOR
+
+  // Card width is fixed; clamp position so it never spills off-screen.
+  const CARD_W = 280
+  const left = Math.max(8, Math.min(window.innerWidth - CARD_W - 8, x - CARD_W / 2))
+  const top = Math.max(8, y - 200)  // float above the bar; 200 covers card height + gap
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left,
+        top,
+        width: CARD_W,
+        background: '#fff',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
+        padding: '12px 14px',
+        fontSize: 11,
+        color: '#333',
+        zIndex: 1000,
+        pointerEvents: 'none',
+      }}
+    >
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        marginBottom: 8, fontSize: 13, fontWeight: 700, color: '#111',
+        lineHeight: 1.2,
+      }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: 2, background: color.bg, border: `1px solid ${color.border}`,
+          flexShrink: 0,
+        }} />
+        {t.name}
+      </div>
+
+      <Row label="Dates" value={startEnd || '—'} />
+      <Row label="Country" value={t.country ?? '—'} />
+      <Row label="Matches" value={t.matchCount > 0 ? String(t.matchCount) : 'none yet'} accent={t.matchCount > 0 ? '#16a34a' : '#dc2626'} />
+      {prize && <Row label="Prize" value={prize} />}
+      {drawSize && <Row label="Draw size" value={drawSize} />}
+
+      {/* Capture-status mini-row */}
+      <div style={{
+        display: 'flex', gap: 10, marginTop: 8, paddingTop: 8,
+        borderTop: '1px solid #f3f4f6',
+        fontSize: 9, color: '#666',
+      }}>
+        <CaptureBadge label="EL" present={Boolean(t.entryListCapturedAt)} />
+        <CaptureBadge label="OOP" present={Boolean(t.oopCapturedAt)} />
+        <CaptureBadge label="DR" present={Boolean(t.drawCapturedAt)} />
+        <CaptureBadge label="RS" present={Boolean(t.resultsCapturedAt)} />
+      </div>
+
+      <div style={{ marginTop: 8, fontSize: 9, color: '#999', textAlign: 'right', fontStyle: 'italic' }}>
+        Click to open
+      </div>
+    </div>
+  )
+}
+
+function Row({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 3 }}>
+      <span style={{ color: '#999', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</span>
+      <span style={{ color: accent ?? '#222', fontWeight: 600 }}>{value}</span>
+    </div>
+  )
+}
+
+function CaptureBadge({ label, present }: { label: string; present: boolean }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      color: present ? '#16a34a' : '#dc2626', fontWeight: 700,
+      fontFamily: 'ui-monospace, SFMono-Regular, monospace',
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: present ? '#16a34a' : 'transparent',
+        border: present ? 'none' : '1.2px solid #dc2626',
+      }} />
+      {label}
+    </span>
   )
 }

@@ -319,6 +319,17 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
   const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'padelgod-health'>('ongoing')
+  // Sidebar collapse — persisted across sessions because operators
+  // who like the wider workspace want to keep it that way.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('ops_sidebar_collapsed') === '1'
+  })
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('ops_sidebar_collapsed', sidebarCollapsed ? '1' : '0')
+    }
+  }, [sidebarCollapsed])
   const [launchMonitors, setLaunchMonitors] = useState<LaunchMonitor[]>([])
   const [recentSignups, setRecentSignups] = useState<RecentSignup[]>([])
   const [forcingSyncId, setForcingSyncId] = useState<string | null>(null)
@@ -441,25 +452,52 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#f8f9fa', color: '#111', display: 'flex' }}>
-      {/* ── Sidebar ── */}
+      {/* ── Sidebar ──
+          Collapsible: 220px expanded, 44px collapsed (icon-strip).
+          Persisted in localStorage so operators who like the wider
+          workspace keep it. The toggle sits at the top so it's
+          discoverable in both states. */}
       <nav style={{
-        width: 220, flexShrink: 0, background: '#fff', borderRight: '1px solid #e5e7eb',
-        display: 'flex', flexDirection: 'column', overflow: 'auto',
+        width: sidebarCollapsed ? 44 : 220,
+        flexShrink: 0,
+        background: '#fff',
+        borderRight: '1px solid #e5e7eb',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'auto',
+        transition: 'width 180ms ease-out',
       }}>
-        {/* Logo / Title */}
-        <div style={{ padding: '20px 16px 12px' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>Padel Nachos Ops</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
-            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e' }} />
-            <span style={{ fontSize: 10, color: '#999' }}>Updated {fetchAgo}</span>
+        {/* Toggle button — keep visible in both states */}
+        <button
+          onClick={() => setSidebarCollapsed(s => !s)}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            padding: sidebarCollapsed ? '14px 12px' : '14px 16px',
+            color: '#999', fontSize: 14, lineHeight: 1, fontWeight: 700,
+            textAlign: sidebarCollapsed ? 'center' : 'right',
+            borderBottom: '1px solid #f3f4f6',
+          }}
+        >
+          {sidebarCollapsed ? '›' : '‹'}
+        </button>
+
+        {/* Logo / Title — hidden when collapsed */}
+        {!sidebarCollapsed && (
+          <div style={{ padding: '14px 16px 12px' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>Padel Nachos Ops</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e' }} />
+              <span style={{ fontSize: 10, color: '#999' }}>Updated {fetchAgo}</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Nav groups */}
         <div style={{ flex: 1, padding: '4px 0' }}>
           {navGroups.map((group, gi) => (
             <div key={gi} style={{ marginBottom: 4 }}>
-              {group.label && (
+              {group.label && !sidebarCollapsed && (
                 <div style={{
                   fontSize: 9, fontWeight: 700, color: '#999', textTransform: 'uppercase',
                   letterSpacing: '0.8px', padding: '12px 16px 4px',
@@ -467,24 +505,45 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
                   {group.label}
                 </div>
               )}
+              {/* In collapsed mode, show a thin separator instead of the
+                  group label so the icon strip still has visual rhythm. */}
+              {group.label && sidebarCollapsed && gi > 0 && (
+                <div style={{ height: 1, background: '#f3f4f6', margin: '8px 8px' }} />
+              )}
               {group.items.map(item => {
                 const active = tab === item.key
+                // Collapsed mode shows the first letter of the item label
+                // (or first letter of each word for short codes like "TE").
+                // Native title attribute provides the full text on hover.
+                const collapsedLabel = item.label
+                  .split(' ')
+                  .map(w => w[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
                 return (
                   <button
                     key={item.key}
                     onClick={() => setTab(item.key)}
+                    title={sidebarCollapsed ? item.label : undefined}
                     style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      width: '100%', padding: '8px 16px', border: 'none', cursor: 'pointer',
-                      fontSize: 13, fontWeight: active ? 600 : 400,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+                      width: '100%',
+                      padding: sidebarCollapsed ? '10px 0' : '8px 16px',
+                      border: 'none', cursor: 'pointer',
+                      fontSize: sidebarCollapsed ? 11 : 13,
+                      fontWeight: active ? 700 : (sidebarCollapsed ? 600 : 400),
                       color: active ? '#111' : '#555',
                       background: active ? '#f3f4f6' : 'transparent',
                       borderLeft: active ? '3px solid #111' : '3px solid transparent',
                       textAlign: 'left',
+                      letterSpacing: sidebarCollapsed ? '0.5px' : '0',
                     }}
                   >
-                    {item.label}
-                    {item.badge && (
+                    {sidebarCollapsed ? collapsedLabel : item.label}
+                    {item.badge && !sidebarCollapsed && (
                       <span style={{
                         fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 8,
                         background: item.badge.includes('live') ? '#dcfce7' : item.badge.includes('urgent') ? '#fee2e2' : '#f3f4f6',

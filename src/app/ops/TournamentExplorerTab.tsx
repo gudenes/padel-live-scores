@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from 'react'
 import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentMatchesSubtab from './tournament/TournamentMatchesSubtab'
 import TournamentDrawSubtab from './tournament/TournamentDrawSubtab'
-import CalendarView from './tournament/CalendarView'
+import CalendarView, { TournamentHoverCard } from './tournament/CalendarView'
 
 // ── Types (mirror /api/ops/tournament-explorer response) ────────────────
 
@@ -165,6 +165,10 @@ export default function TournamentExplorerTab() {
   // Default to list — operators reach for the table first when auditing
   // data quality. Calendar is the "what's coming up?" lens.
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+
+  // Hover card on list-view rows — same component the calendar uses,
+  // so the audit summary feels identical across views.
+  const [hoveredRow, setHoveredRow] = useState<{ t: TournamentWithSources; x: number; y: number } | null>(null)
 
   // Refetch whenever filters change. Builds the query string from current
   // state — falsy/default values get dropped so the URL stays clean.
@@ -422,8 +426,18 @@ export default function TournamentExplorerTab() {
                       cursor: 'pointer',
                       background: '#fff',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = '#f9fafb'
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      // Anchor tooltip to right edge of row, vertically
+                      // centered on the row, so it doesn't overlap the
+                      // row's own content when the table is full-width.
+                      setHoveredRow({ t, x: rect.right + 8, y: rect.top + rect.height / 2 - 100 })
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = '#fff'
+                      setHoveredRow(prev => (prev?.t.id === t.id ? null : prev))
+                    }}
                   >
                     <td style={{ ...tdStyle, color: '#666', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
                       {formatDateShort(t.starts_at)}
@@ -461,6 +475,14 @@ export default function TournamentExplorerTab() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Rich hover card for list-view rows — reuses the calendar's card so
+          the summary feels identical across views. Pointer-events: none on
+          the card itself (handled inside the component) so it doesn't
+          steal focus from the row underneath. */}
+      {viewMode === 'list' && hoveredRow && (
+        <TournamentHoverCard t={hoveredRow.t} x={hoveredRow.x} y={hoveredRow.y} />
       )}
     </div>
   )
