@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Game, Set as MatchSet, parseSetScore } from '@/types/match'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 
@@ -208,6 +209,7 @@ function MiniAvatar({ url, size = 32 }: { url: string | null; size?: number }) {
 // ── Main Component ──────────────────────────────────────────────────────────
 
 export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pair1Avatars, pair2Avatars, pair1PlayerIds, pair2PlayerIds, onGameClick }: MomentumChartProps) {
+  const t = useTranslations('momentum')
   const containerRef = useRef<HTMLDivElement>(null)
   const inView = useInViewOnce(containerRef)
   const sortedSets = useMemo(() => [...sets].sort((a, b) => a.set_number - b.set_number), [sets])
@@ -291,7 +293,7 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-dim)' }}>
-            Match Journey
+            {t('title')}
           </span>
         </div>
       </div>
@@ -490,20 +492,25 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
                       }}
                     />
                   )}
-                  {/* Break badge — sits above the WINNING pair's bar tip. We
-                      draw it after the bars so it always wins the z-order
+                  {/* Break badge — sits above the WINNING pair's bar tip. The
+                      word "BROKE" (translated per locale) replaces the cryptic
+                      "B" so first-time users immediately understand. Drawn
+                      after the bars so the badge always wins the z-order
                       contest at the seam where the bar ends. */}
                   {game.wasBreak && game.winner && (() => {
                     const isP1 = game.winner === 1
-                    // Badge geometry: 20×22 chunky tile centered on the bar.
-                    const badgeW = 20
-                    const badgeH = 22
+                    const breakLabel = t('broke')
+                    // Width sized for the longest plausible localized string
+                    // (Portuguese "QUEBROU" = 7 chars). At fontSize 8 with
+                    // letterSpacing 0.4, "QUEBROU" needs ~30px of glyph width;
+                    // the 36px pill leaves comfortable margins on shorter
+                    // labels like English "BROKE".
+                    const badgeW = 36
+                    const badgeH = 18
                     const badgeX = x + barWidth / 2 - badgeW / 2
-                    // Place it just outside the bar tip with a small gap so
-                    // the bar stroke doesn't kiss the badge edge.
                     const tipY = isP1 ? (centerY - p1H) : (centerY + p2H)
                     const badgeY = isP1 ? tipY - badgeH - 2 : tipY + 2
-                    const textY = badgeY + badgeH / 2 + 5  // +5 = vertical-centering nudge
+                    const textY = badgeY + badgeH / 2 + 3  // +3 = optical centering
                     return (
                       <g
                         style={{
@@ -511,14 +518,15 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
                           transition: `opacity 400ms ease-out ${i * 50 + 350}ms`,
                         }}
                       >
-                        {/* Outer glow halo for legibility against busy bars */}
+                        {/* Halo for legibility against busy bars */}
                         <rect x={badgeX - 1} y={badgeY - 1} width={badgeW + 2} height={badgeH + 2} fill={`${LIVE_RED}30`} clipPath="url(#breakBadgeClip)" />
                         <rect x={badgeX} y={badgeY} width={badgeW} height={badgeH} fill={LIVE_RED} clipPath="url(#breakBadgeClip)" />
                         <text
                           x={x + barWidth / 2} y={textY}
-                          textAnchor="middle" fontSize={13} fontWeight={900}
-                          fontFamily="var(--font-mono), monospace" fill="#fff"
-                        >B</text>
+                          textAnchor="middle" fontSize={8} fontWeight={900}
+                          letterSpacing={0.4}
+                          fontFamily="var(--font-sans)" fill="#fff"
+                        >{breakLabel}</text>
                       </g>
                     )
                   })()}
@@ -585,13 +593,14 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
             <span style={{
               background: LIVE_RED,
               color: '#fff',
-              fontSize: 8,
+              fontSize: 7,
               fontWeight: 900,
-              padding: '1px 4px',
+              padding: '1px 5px',
+              letterSpacing: 0.3,
               clipPath: 'polygon(10% 10%, 90% 0%, 100% 90%, 0% 100%)',
-              fontFamily: 'var(--font-mono), monospace',
-            }}>B</span>
-            <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>BREAK</span>
+              fontFamily: 'var(--font-sans)',
+            }}>{t('broke')}</span>
+            <span style={{ fontSize: 8, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('break')}</span>
           </div>
         )}
       </div>

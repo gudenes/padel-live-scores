@@ -478,13 +478,34 @@
       "groupAchievements": "Badges",
       "groupOther": "Autres",
       "category": {
-        "match_live_follow":    { "label": "Joueur suivi en direct", "sub": "Quand un joueur que vous suivez va jouer" },
-        "match_live_bookmark":  { "label": "Match enregistré en direct", "sub": "Quand un match que vous avez enregistré commence" },
-        "match_finished":       { "label": "Match terminé", "sub": "Résultats des matchs que vous suivez" },
-        "match_upcoming":       { "label": "Match sur le point de commencer", "sub": "30 min avant un match suivi" },
-        "badge_earned":         { "label": "Badge obtenu", "sub": "Quand vous débloquez un nouveau badge" },
-        "streak_milestone":     { "label": "Série atteinte", "sub": "Séries de 3, 7, 30 et 100 jours" },
-        "marketing":            { "label": "Nouveautés produit", "sub": "Nouvelles fonctionnalités, événements, actualités" }
+        "match_live_follow": {
+          "label": "Joueur suivi en direct",
+          "sub": "Quand un joueur que vous suivez va jouer"
+        },
+        "match_live_bookmark": {
+          "label": "Match enregistré en direct",
+          "sub": "Quand un match que vous avez enregistré commence"
+        },
+        "match_finished": {
+          "label": "Match terminé",
+          "sub": "Résultats des matchs que vous suivez"
+        },
+        "match_upcoming": {
+          "label": "Match sur le point de commencer",
+          "sub": "30 min avant un match suivi"
+        },
+        "badge_earned": {
+          "label": "Badge obtenu",
+          "sub": "Quand vous débloquez un nouveau badge"
+        },
+        "streak_milestone": {
+          "label": "Série atteinte",
+          "sub": "Séries de 3, 7, 30 et 100 jours"
+        },
+        "marketing": {
+          "label": "Nouveautés produit",
+          "sub": "Nouvelles fonctionnalités, événements, actualités"
+        }
       },
       "saveError": "Enregistrement impossible — réessayez"
     },
@@ -565,5 +586,10 @@
       "cta": "Ouvrir PadelNachos",
       "footer": "Tu reçois cet e-mail parce que tu viens de t'inscrire sur PadelNachos."
     }
+  },
+  "momentum": {
+    "title": "Parcours du match",
+    "broke": "BREAK",
+    "break": "BREAK"
   }
 }

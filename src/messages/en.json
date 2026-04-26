@@ -565,5 +565,10 @@
       "cta": "Open PadelNachos",
       "footer": "You're getting this because you just signed up for PadelNachos."
     }
+  },
+  "momentum": {
+    "title": "Match Journey",
+    "broke": "BROKE",
+    "break": "BREAK"
   }
 }
