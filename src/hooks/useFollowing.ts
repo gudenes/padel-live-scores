@@ -185,14 +185,29 @@ export function useFollowing() {
 
       // Fire bookmark feedback toast (skip news_source — not a user-facing bookmark)
       if (type !== 'news_source' && typeof window !== 'undefined') {
-        // Attach the enable-push CTA on player-follow-add when:
+        // Attach the enable-push CTA on the first follow/bookmark-ADD when:
         //   (a) the action is a net-new follow (not an unfollow), and
-        //   (b) the browser hasn't been asked about notifications yet
+        //   (b) the type is one the user wants real-time alerts on
+        //       (match, player, tournament), and
+        //   (c) the browser hasn't been asked about notifications yet
         //       (Notification.permission === 'default'), and
-        //   (c) we haven't shown the prompt on this device before.
-        const isPlayerFollowAdd = type === 'player' && !isCurrently
+        //   (d) we haven't shown the prompt on this device before.
+        //
+        // Originally limited to type==='player' (the long-term "I care
+        // about this person" signal) — extended 2026-04-26 to match +
+        // tournament follows as well. Both are high-intent moments where
+        // the natural follow-up question is "tell me when something
+        // happens with this." Tournament-follow → notify on next-round
+        // start; match-bookmark → notify when the match goes live.
+        //
+        // The localStorage `pn_push_prompted` gate is type-agnostic, so
+        // a user who bookmarks a match THEN follows a player won't get
+        // double-prompted — first one wins, then we leave them alone.
+        const isPushOpportunity =
+          !isCurrently &&
+          (type === 'match' || type === 'player' || type === 'tournament')
         let cta: 'enable-push' | undefined
-        if (isPlayerFollowAdd) {
+        if (isPushOpportunity) {
           try {
             const alreadyPrompted = localStorage.getItem('pn_push_prompted') === '1'
             const browserPermission = 'Notification' in window ? Notification.permission : 'denied'
