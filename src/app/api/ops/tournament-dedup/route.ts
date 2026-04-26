@@ -38,7 +38,49 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { checkOpsAuth } from '@/lib/ops-auth'
-import { tokenize, yearOf } from '@/lib/source-matcher'
+import { yearOf, NOISE_TOKENS } from '@/lib/source-matcher'
+
+// Dedup-specific noise filter — narrower than the canonical NOISE_TOKENS.
+//
+// Why a separate list: NOISE_TOKENS includes Premier Padel sponsor
+// prefixes ("lotto", "betclic", "greenweez", "motorola", "razr", etc.)
+// that get stripped during cross-source matching of the SAME Premier
+// event under different sponsor names. That's correct for Premier.
+//
+// But applied to FIP Silver/Bronze events, sponsor stripping causes
+// false collisions: "FIP Silver Betclic" → strips to just "fip silver"
+// → matches every other Betclic-named FIP Silver event in the same year
+// as if they were duplicates. That's how the dedup endpoint flagged
+// "FIP Silver Betclic" rows as needing manual review even though they
+// are different physical events.
+//
+// Solution: for dedup, drop the sponsor names from the noise filter
+// so generic-named events keep their identifying tokens. Keep the
+// truly noise-y tokens (padel/tour/open/championship/etc).
+const SPONSOR_TOKENS = new Set([
+  'lotto', 'belfius', 'betclic', 'bnl', 'gnp', 'greenweez',
+  'ooredoo', 'alpine', 'motorola', 'razr', 'banco', 'chile', 'oysho',
+])
+const DEDUP_NOISE = new Set(
+  Array.from(NOISE_TOKENS).filter(t => !SPONSOR_TOKENS.has(t)),
+)
+
+function tokenizeForDedup(s: string | null | undefined): string[] {
+  if (!s) return []
+  return s
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\b(19|20)\d{2}\b/g, ' ')
+    .split(/[^a-z0-9]+/)
+    .filter(t => t.length > 0 && !DEDUP_NOISE.has(t))
+}
+
+// Minimum token count required to consider a name "specific enough"
+// to dedup against. A name that boils down to fewer than this is
+// suspicious — likely a generic stub or a noise-heavy artifact.
+// Skipping these prevents collisions where the entire identifying
+// portion is sponsor/noise text.
+const MIN_DEDUP_TOKENS = 2
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -99,11 +141,16 @@ interface DedupAction {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function normalizedKey(name: string, startsAt: string | null, level: string | null): string {
+function normalizedKey(name: string, startsAt: string | null, level: string | null): string | null {
   const year = yearOf(startsAt) ?? 0
   const family = levelFamily(level)
-  const tokens = tokenize(name).sort().join(' ')
-  return `${family}|${year}|${tokens}`
+  const tokens = tokenizeForDedup(name)
+  // Refuse to produce a key for too-thin names. These collide with each
+  // other (e.g. "FIP Silver Betclic" + "FIP Silver Lotto" both reduce
+  // to ['fip', 'silver'] under SPONSOR-aware noise stripping). Better to
+  // skip than to risk a false-positive merge.
+  if (tokens.length < MIN_DEDUP_TOKENS) return null
+  return `${family}|${year}|${tokens.sort().join(' ')}`
 }
 
 // Bulk FK ref counts — one query per FK table covering ALL tournament
@@ -200,7 +247,12 @@ function buildUpdates(survivor: TournamentRow, dying: TournamentRow[]): Record<s
 
 // ── Group + plan ────────────────────────────────────────────────────
 
-async function buildPlan(): Promise<DedupAction[]> {
+interface PlanResult {
+  actions: DedupAction[]
+  skippedTooGeneric: number
+}
+
+async function buildPlan(): Promise<PlanResult> {
   const { data, error } = await supabase
     .from('tournaments')
     .select(
@@ -212,11 +264,19 @@ async function buildPlan(): Promise<DedupAction[]> {
     .limit(5000)
   if (error) throw new Error(`tournaments fetch failed: ${error.message}`)
 
-  // Group by normalized key
+  // Group by normalized key. Two skip reasons:
+  //   - normalizedKey returns null when the name reduces to fewer than
+  //     MIN_DEDUP_TOKENS distinct tokens (too generic, e.g. "FIP Silver
+  //     Betclic" → just "fip silver" after sponsor-stripping)
+  //   - level family is "unknown" — too risky to dedup blindly
   const groups = new Map<string, TournamentRow[]>()
+  let skippedTooGeneric = 0
   for (const row of (data ?? []) as TournamentRow[]) {
     const k = normalizedKey(row.name, row.starts_at, row.level)
-    // Skip rows in unknown level family — too risky to dedup blindly
+    if (k === null) {
+      skippedTooGeneric++
+      continue
+    }
     if (k.startsWith('unknown|')) continue
     if (!groups.has(k)) groups.set(k, [])
     groups.get(k)!.push(row)
@@ -276,7 +336,7 @@ async function buildPlan(): Promise<DedupAction[]> {
     })
   }
 
-  return actions
+  return { actions, skippedTooGeneric }
 }
 
 // ── HTTP handlers ────────────────────────────────────────────────────
@@ -285,13 +345,14 @@ export async function GET() {
   const authErr = await checkOpsAuth()
   if (authErr) return authErr
   try {
-    const plan = await buildPlan()
+    const { actions, skippedTooGeneric } = await buildPlan()
     return Response.json({
       ok: true,
-      groupCount: plan.length,
-      autoMergeable: plan.filter(p => p.reason === 'ok').length,
-      manualReview: plan.filter(p => p.reason === 'manual_review').length,
-      groups: plan,
+      groupCount: actions.length,
+      autoMergeable: actions.filter(p => p.reason === 'ok').length,
+      manualReview: actions.filter(p => p.reason === 'manual_review').length,
+      skippedTooGeneric,
+      groups: actions,
     })
   } catch (e) {
     return Response.json(
@@ -307,7 +368,8 @@ export async function POST() {
 
   let plan: DedupAction[]
   try {
-    plan = await buildPlan()
+    const result = await buildPlan()
+    plan = result.actions
   } catch (e) {
     return Response.json(
       { ok: false, error: e instanceof Error ? e.message : String(e) },
