@@ -94,44 +94,42 @@ button:focus { outline: none; }
 *::-webkit-scrollbar { display: none; }
 
 /* ───────────────────────────────────────────────────────────────────
-   View Transitions — page-level animation defaults
+   Page mount animation — `.page-mount-anim` class
 
-   Triggered when navigation is wrapped in document.startViewTransition()
-   (see src/hooks/useViewTransitionRouter.ts). The browser captures a
-   snapshot of the outgoing page + incoming page and exposes them as
-   the ::view-transition-old(*) and ::view-transition-new(*) pseudo-
-   elements. We animate them with a slide-fade so the navigation feels
-   like a stack push instead of an instant cut.
+   Apply to the root wrapper of any page that should "feel connected"
+   to the previous one (eg. profile → settings). The page slides in
+   from the right with a fade, owned by the page itself — runs as
+   soon as the page mounts, no coordination with router timing.
 
-   Elements with `view-transition-name` set on them get their OWN
-   pseudo-element pair and animate independently — that's how the
-   profile→settings avatar morph works (the avatar opts out of the
-   page-level slide and instead morphs between its two positions).
+   Why CSS keyframes instead of the View Transitions API:
+   The browser-native View Transitions API races against Next.js's
+   asynchronous router.push(): the browser snapshots before the new
+   page has rendered, so the "after" snapshot ends up identical to
+   the "before" one and the visible result is a brief flash of the
+   old page followed by an abrupt pop into the new one. Keyframes
+   on page mount sidestep the race entirely — animation timing lives
+   on the page, not on a navigation event.
 
-   Default duration is 300ms; the cubic-bezier mimics iOS's stack
-   push/pop curve. prefers-reduced-motion respects the user's OS-level
-   accessibility preference and disables the animation entirely.
-   ─────────────────────────────────────────────────────────────────── */
+   Lose the exit animation (the OUTGOING page just unmounts), but
+   that matches the iOS UINavigationController pattern where focus
+   shifts to the incoming view. Most users don't notice the missing
+   exit because their attention is on what's coming in.
 
-@keyframes vt-slide-from-right {
-  from { transform: translateX(20px); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
+   prefers-reduced-motion respects the OS-level accessibility setting.
+   ─────────────────────────────────────────────────────────────── */
+
+@keyframes page-mount-slide-fade {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
-@keyframes vt-slide-to-left {
-  from { transform: translateX(0);     opacity: 1; }
-  to   { transform: translateX(-20px); opacity: 0; }
-}
 
-::view-transition-old(root) {
-  animation: vt-slide-to-left 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-::view-transition-new(root) {
-  animation: vt-slide-from-right 280ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+.page-mount-anim {
+  animation: page-mount-slide-fade 260ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  will-change: opacity, transform;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
+  .page-mount-anim {
     animation: none;
   }
 }

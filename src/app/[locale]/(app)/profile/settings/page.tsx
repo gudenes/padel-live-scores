@@ -7,7 +7,6 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { signOut as nextAuthSignOut } from 'next-auth/react'
 import { useRouter, Link } from '@/i18n/navigation'
-import { useViewTransitionRouter } from '@/hooks/useViewTransitionRouter'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import CountryPicker from '@/components/CountryPicker'
@@ -151,11 +150,6 @@ export default function SettingsPage() {
   const tNotifs = useTranslations('notifications')
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  // View-transition router for the back button — pairs with the gear-icon
-  // navigation in profile/page.tsx so the avatar morphs back to its larger
-  // size and the page slides out. See useViewTransitionRouter for the
-  // browser-support gating.
-  const vtRouter = useViewTransitionRouter()
 
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [countryOptions, setCountryOptions] = useState<CountryOption[]>([])
@@ -288,7 +282,7 @@ export default function SettingsPage() {
   const providerTag = user.email?.includes('@gmail.') ? 'Google' : 'Email'
 
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 80, background: V3.BG_BASE, minHeight: '100dvh' }}>
+    <div className="page-mount-anim" style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 80, background: V3.BG_BASE, minHeight: '100dvh' }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
@@ -299,7 +293,7 @@ export default function SettingsPage() {
         height: 62,
       }}>
         <button
-          onClick={() => { if (window.history.length > 1) vtRouter.back(); else vtRouter.push('/profile') }}
+          onClick={() => { if (window.history.length > 1) router.back(); else router.push('/profile') }}
           style={{
             width: 36, height: 36, border: 'none', cursor: 'pointer',
             background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
