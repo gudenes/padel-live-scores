@@ -71,6 +71,12 @@ interface TournamentWithSources {
   // for events that are de-facto finished but not yet reflected in the
   // status column.
   finalPlayed: boolean
+  // Per-phase start dates derived from match.scheduled_at, grouped by
+  // normalized round name. Lets the UI show "Q1 starts Apr 24, MD R32
+  // Apr 26, Final Apr 27" inline without an extra query. Sorted by
+  // start date asc — earliest phase first. Empty array when no
+  // matches have scheduled_at populated.
+  phases: Array<{ round: string; firstStartsAt: string; matchCount: number }>
   // Most-recent captured_at per padelgod source (null = no snapshot yet).
   entryListCapturedAt: string | null
   oopCapturedAt: string | null
@@ -232,7 +238,7 @@ export async function GET(request: Request) {
   //   - case-insensitive prefix match keeps it forgiving
   const { data: matchRows, error: matchErr } = await supabase
     .from('matches')
-    .select('tournament_id, round, winner_pair')
+    .select('tournament_id, round, winner_pair, scheduled_at')
     .in('tournament_id', ids)
 
   if (matchErr) {
@@ -244,6 +250,10 @@ export async function GET(request: Request) {
 
   const matchCountByTournament = new Map<string, number>()
   const finalPlayedByTournament = new Set<string>()
+  // tournamentId → (normalizedRound → { earliestStart, count })
+  // We collect per-round earliest scheduled_at + match count, then flatten
+  // to a sorted array per tournament at stitch time.
+  const phasesByTournament = new Map<string, Map<string, { firstStartsAt: string; matchCount: number }>>()
 
   // Round value is "Final" in F/SF/QF/R16/R32/R64/R128 — but a final match
   // (round starts with "F" + has winner) signals the tournament is done.
@@ -262,10 +272,23 @@ export async function GET(request: Request) {
     return r === 'f' || r === 'final' || r === 'finals'
   }
 
+  // Normalize round labels for phase grouping. Strips category prefix
+  // ("Men F" → "F", "Women Round of 32" → "Round of 32") and normalizes
+  // common short-code variants. Returns null for rounds we don't want
+  // to surface (qualifiers we'd rather collapse, anything unrecognized).
+  const normalizeRoundForPhase = (round: string | null): string | null => {
+    if (!round) return null
+    // Strip category prefix if present (Men/Women/M/W/F category words)
+    const cleaned = round.trim().replace(/^(men|women|m|w)\s+/i, '')
+    if (!cleaned) return null
+    return cleaned
+  }
+
   for (const r of (matchRows ?? []) as Array<{
     tournament_id: string | null
     round: string | null
     winner_pair: number | null
+    scheduled_at: string | null
   }>) {
     if (!r.tournament_id) continue
     matchCountByTournament.set(
@@ -274,6 +297,25 @@ export async function GET(request: Request) {
     )
     if (isFinalRound(r.round) && r.winner_pair !== null) {
       finalPlayedByTournament.add(r.tournament_id)
+    }
+
+    // Phase aggregation — only consider matches with both round and
+    // scheduled_at. Earliest scheduled_at across the round becomes
+    // that phase's start.
+    const roundKey = normalizeRoundForPhase(r.round)
+    if (roundKey && r.scheduled_at) {
+      let perTournament = phasesByTournament.get(r.tournament_id)
+      if (!perTournament) {
+        perTournament = new Map()
+        phasesByTournament.set(r.tournament_id, perTournament)
+      }
+      const existing = perTournament.get(roundKey)
+      if (!existing) {
+        perTournament.set(roundKey, { firstStartsAt: r.scheduled_at, matchCount: 1 })
+      } else {
+        if (r.scheduled_at < existing.firstStartsAt) existing.firstStartsAt = r.scheduled_at
+        existing.matchCount += 1
+      }
     }
   }
 
@@ -288,6 +330,9 @@ export async function GET(request: Request) {
       ...(row as TournamentWithSources),
       matchCount: matchCountByTournament.get(t.id as string) ?? 0,
       finalPlayed: finalPlayedByTournament.has(t.id as string),
+      phases: Array.from(phasesByTournament.get(t.id as string)?.entries() ?? [])
+        .map(([round, info]) => ({ round, firstStartsAt: info.firstStartsAt, matchCount: info.matchCount }))
+        .sort((a, b) => a.firstStartsAt.localeCompare(b.firstStartsAt)),
       entryListCapturedAt: entryListMap.get(t.id as string) ?? null,
       oopCapturedAt: oopMap.get(t.id as string) ?? null,
       resultsCapturedAt: resultsMap.get(t.id as string) ?? null,

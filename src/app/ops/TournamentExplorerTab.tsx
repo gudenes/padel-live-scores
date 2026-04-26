@@ -57,6 +57,7 @@ interface TournamentWithSources {
   // Derived
   matchCount: number
   finalPlayed: boolean
+  phases: Array<{ round: string; firstStartsAt: string; matchCount: number }>
   entryListCapturedAt: string | null
   oopCapturedAt: string | null
   resultsCapturedAt: string | null
@@ -650,6 +651,41 @@ function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
           {t.matchscorer_url && <Field label="Matchscorer" value={t.matchscorer_url} mono />}
         </div>
       </div>
+
+      {/* Tournament phases — each round + earliest scheduled_at across
+          its matches. Tells operators when each phase actually starts
+          on the ground (not just the calendar window). Hidden when the
+          tournament has no scheduled matches yet. */}
+      {t.phases && t.phases.length > 0 && (
+        <div style={{ ...card, marginBottom: 12 }}>
+          <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8 }}>
+            Phases
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: 10,
+            fontSize: 11,
+          }}>
+            {t.phases.map(p => (
+              <div key={p.round} style={{
+                background: '#f9fafb',
+                border: '1px solid #f3f4f6',
+                borderRadius: 4,
+                padding: '8px 10px',
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#111' }}>{p.round}</div>
+                <div style={{ fontSize: 10, color: '#666', marginTop: 2, fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
+                  {p.firstStartsAt.slice(0, 10)} <span style={{ color: '#bbb' }}>·</span> {p.firstStartsAt.slice(11, 16)} UTC
+                </div>
+                <div style={{ fontSize: 9, color: '#9ca3af', marginTop: 2 }}>
+                  {p.matchCount} match{p.matchCount === 1 ? '' : 'es'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Padelgod capture freshness — kept distinct from the metadata grid
           so the "what scrapers have run" question stays visually separate
