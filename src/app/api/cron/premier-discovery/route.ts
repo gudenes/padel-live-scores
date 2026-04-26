@@ -44,12 +44,18 @@ const MIN_YEAR = 2026
 // tournament. This is more reliable than fetchPremierUpcomingMatches which
 // only returns upcoming matches for future tournaments.
 //
-// 5700 is roughly where Riyadh P1 2026 (Feb 7) match IDs start.
-// MAX rolls forward as the season progresses — overridable via ?max= query
-// param so we don't redeploy each time. Brussels P2 (late April) ran around
-// ID 8000, so 9000 has a few weeks of headroom.
+// 5700 is roughly where Riyadh P1 2026 (Feb 7) match IDs start. Premier
+// issues IDs sequentially as matches are created — by late April 2026 the
+// active band is ~6300-6500. Empty fetches above that are fast (Premier
+// returns [] in ~50ms), so we keep MAX generous as headroom for the rest
+// of the season. Override via ?max= for ad-hoc backfills.
+//
+// Why we re-scan the same range daily: matches get created mid-week
+// (e.g. final brackets posted day-of), so an ID that was empty during
+// last scan can hold real data on the next. Skip-fetch on already-linked
+// IDs keeps the cost predictable — only unmapped IDs hit the network.
 const DEFAULT_MIN_MATCH_ID = 5700
-const DEFAULT_MAX_MATCH_ID = 9000
+const DEFAULT_MAX_MATCH_ID = 10000
 
 // Vercel function timeout for this route. The scan is the longest part —
 // each fetch is ~150-300ms + network jitter, so a 5-min budget with chunked
