@@ -107,24 +107,42 @@ export async function GET(request: Request) {
     })
   }
 
-  // Step 3: Load existing match_stats aggregate rows to check freshness
+  // Step 3: Load existing match_stats aggregate rows to check freshness + source
   const { data: existingStats } = await supabase
     .from('match_stats')
-    .select('match_id, computed_at')
+    .select('match_id, computed_at, source')
     .in('match_id', candidateMatchIds)
     .eq('set_number', 0)
 
-  const freshByMatchId = new Map<string, string>()
+  const existingByMatchId = new Map<string, { computedAt: string; source: string | null }>()
   for (const s of existingStats ?? []) {
-    freshByMatchId.set(s.match_id as string, s.computed_at as string)
+    existingByMatchId.set(s.match_id as string, {
+      computedAt: s.computed_at as string,
+      source: (s.source as string | null) ?? null,
+    })
   }
 
-  // Step 4: Filter to matches that need sync (missing or stale)
+  // Step 4: Filter to matches that need sync.
+  //
+  // Premier is the authoritative source for stats on premier-mapped matches.
+  // We re-fetch when:
+  //   (a) no row exists yet, OR
+  //   (b) the existing row was written by a non-Premier source (crionet_widget
+  //       fills only count-native columns and leaves all percentages NULL —
+  //       Premier should always win), OR
+  //   (c) the existing Premier row predates finished_at (stale snapshot).
+  //
+  // Once Premier writes a row, source='premierpadel' AND computed_at >=
+  // finished_at, so subsequent cron runs skip — no re-fetch loop.
   const needsSync: Array<{ matchId: string; premierMatchId: string; finishedAt: string }> = []
   for (const m of matchRows ?? []) {
-    const existing = freshByMatchId.get(m.id as string)
+    const existing = existingByMatchId.get(m.id as string)
     const finishedAt = m.finished_at as string
-    if (!existing || new Date(existing) < new Date(finishedAt)) {
+    const needsRefetch =
+      !existing ||
+      existing.source !== 'premierpadel' ||
+      new Date(existing.computedAt) < new Date(finishedAt)
+    if (needsRefetch) {
       const premierMatchId = premierIdByMatchId.get(m.id as string)
       if (premierMatchId) {
         needsSync.push({
