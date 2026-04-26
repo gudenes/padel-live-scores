@@ -82,6 +82,18 @@ interface TournamentWithSources {
   oopCapturedAt: string | null
   resultsCapturedAt: string | null
   drawCapturedAt: string | null
+  // Crionet widget linkage. `widgetId` is the matchscorerlive code that
+  // gates the entire static-fetcher chain (entry-list, OOP, draws, results)
+  // — without it, padelgod can't pull anything for the tournament.
+  // `widgetLookupAttempts7d` counts how many times widget-code-lookup has
+  // tried to resolve this tournament in the last 7 days, and
+  // `widgetLookupLastAttemptAt` is the most recent of those attempts. The
+  // RPC has a 12-attempt circuit breaker (see migration
+  // 20260427000001_widget_lookup_circuit_breaker.sql), so 12 here means
+  // "padelgod has stopped trying — Crionet probably doesn't host it."
+  widgetId: string | null
+  widgetLookupAttempts7d: number
+  widgetLookupLastAttemptAt: string | null
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -166,7 +178,13 @@ export async function GET(request: Request) {
   // We only need the latest captured_at per tournament_id per table.
   // Pull-everything-then-reduce is fine here: we cap tournaments at 500
   // and snapshots-per-tournament rarely exceeds a few dozen.
-  const [entryListRes, oopRes, resultsRes, drawRes] = await Promise.all([
+  // Widget-lookup history is scoped to the last 7 days, matching the
+  // circuit-breaker window in padelgod_tournaments_needing_widget_code.
+  // Old attempts are uninteresting for ops triage — operators only care
+  // about "is the worker still trying or has it given up?"
+  const widgetLookupSinceISO = new Date(Date.now() - 7 * 86400000).toISOString()
+
+  const [entryListRes, oopRes, resultsRes, drawRes, widgetCacheRes, widgetJobsRes] = await Promise.all([
     supabase.schema('padelgod')
       .from('entry_list_snapshots')
       .select('tournament_id, captured_at')
@@ -187,6 +205,18 @@ export async function GET(request: Request) {
       .select('tournament_id, captured_at')
       .in('tournament_id', ids)
       .order('captured_at', { ascending: false }),
+    supabase.schema('padelgod')
+      .from('widget_id_cache')
+      .select('tournament_id, widget_id, is_active')
+      .in('tournament_id', ids)
+      .eq('is_active', true),
+    supabase.schema('padelgod')
+      .from('scrape_jobs')
+      .select('tournament_id, started_at')
+      .in('tournament_id', ids)
+      .eq('job_type', 'widget_id')
+      .gte('started_at', widgetLookupSinceISO)
+      .order('started_at', { ascending: false }),
   ])
 
   for (const [label, res] of [
@@ -194,6 +224,8 @@ export async function GET(request: Request) {
     ['oop_snapshots', oopRes],
     ['results_snapshots', resultsRes],
     ['draw_snapshots', drawRes],
+    ['widget_id_cache', widgetCacheRes],
+    ['scrape_jobs (widget_id)', widgetJobsRes],
   ] as const) {
     if (res.error) {
       return Response.json(
@@ -225,6 +257,28 @@ export async function GET(request: Request) {
   const drawMap = latestPerTournament(
     (drawRes.data ?? []) as Array<{ tournament_id: string; captured_at: string }>,
   )
+
+  // Widget cache → tournament_id → widget_id (only is_active=true rows
+  // were selected upstream, so any presence here means "resolved").
+  const widgetIdByTournament = new Map<string, string>()
+  for (const r of (widgetCacheRes.data ?? []) as Array<{ tournament_id: string; widget_id: string }>) {
+    widgetIdByTournament.set(r.tournament_id, r.widget_id)
+  }
+
+  // Widget-lookup attempts in the last 7 days. Two derived values per
+  // tournament: count + latest started_at. Order on the source query is
+  // DESC so the first row we see for a given tournament is the latest.
+  const widgetAttemptsByTournament = new Map<string, number>()
+  const widgetLatestAttemptByTournament = new Map<string, string>()
+  for (const r of (widgetJobsRes.data ?? []) as Array<{ tournament_id: string; started_at: string }>) {
+    widgetAttemptsByTournament.set(
+      r.tournament_id,
+      (widgetAttemptsByTournament.get(r.tournament_id) ?? 0) + 1,
+    )
+    if (!widgetLatestAttemptByTournament.has(r.tournament_id)) {
+      widgetLatestAttemptByTournament.set(r.tournament_id, r.started_at)
+    }
+  }
 
   // ── Match counts + finals-played flag — single query, two outputs ────
   // PostgREST doesn't return GROUP BY directly; we pull (tournament_id,
@@ -362,6 +416,9 @@ export async function GET(request: Request) {
       oopCapturedAt: oopMap.get(t.id as string) ?? null,
       resultsCapturedAt: resultsMap.get(t.id as string) ?? null,
       drawCapturedAt: drawMap.get(t.id as string) ?? null,
+      widgetId: widgetIdByTournament.get(t.id as string) ?? null,
+      widgetLookupAttempts7d: widgetAttemptsByTournament.get(t.id as string) ?? 0,
+      widgetLookupLastAttemptAt: widgetLatestAttemptByTournament.get(t.id as string) ?? null,
     }
   })
 

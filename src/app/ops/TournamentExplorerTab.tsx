@@ -62,6 +62,9 @@ interface TournamentWithSources {
   oopCapturedAt: string | null
   resultsCapturedAt: string | null
   drawCapturedAt: string | null
+  widgetId: string | null
+  widgetLookupAttempts7d: number
+  widgetLookupLastAttemptAt: string | null
 }
 
 type SubTab = 'entryList' | 'matches' | 'draw'
@@ -158,6 +161,10 @@ export default function TournamentExplorerTab() {
   // the level chips. Storing as a Set keeps lookups O(1) for the chip
   // active-state check.
   const [selectedLevels, setSelectedLevels] = useState<Set<string>>(new Set())
+  // "Needs widget" toggle — when on, the table is filtered to FIP
+  // tournaments that don't have a Crionet widget_id yet. Independent of
+  // the level chips so the operator can sweep the gap across all tiers.
+  const [needsWidgetFilter, setNeedsWidgetFilter] = useState<boolean>(false)
 
   // ── Data state ──
   const [tournaments, setTournaments] = useState<TournamentWithSources[]>([])
@@ -229,6 +236,11 @@ export default function TournamentExplorerTab() {
     let next7 = 0
     let next30 = 0
     let needsAttention = 0
+    // "Needs widget" — FIP tournaments without a Crionet widget_id that
+    // are either live now or starting within 7 days. These are the ones
+    // where the static-fetcher chain (entry list / OOP / results) can't
+    // run because there's nothing to point matchscorerlive at.
+    let needsWidget = 0
     for (const t of tournaments) {
       const s = (t.starts_at ?? '').slice(0, 10)
       const e = (t.ends_at ?? t.starts_at ?? '').slice(0, 10)
@@ -253,9 +265,31 @@ export default function TournamentExplorerTab() {
       ) {
         needsAttention++
       }
+      // Needs widget: FIP-sourced, no widget_id resolved, currently live
+      // or starting within 7 days, not already played out. The
+      // circuit-breaker keeps these from spinning forever upstream — this
+      // tile makes the resulting backlog visible to the operator.
+      if (
+        s && s <= in7DaysISO &&
+        (!e || e >= todayISO) &&
+        t.fip_id && !t.widgetId &&
+        !t.finalPlayed
+      ) {
+        needsWidget++
+      }
     }
-    return { liveNow, next7, next30, needsAttention }
+    return { liveNow, next7, next30, needsAttention, needsWidget }
   }, [tournaments])
+
+  // Apply client-side "Needs widget" filter on top of the server-fetched
+  // list. Server-side filtering would require a new query param + RPC
+  // change; this is a small enough set that filtering in-memory is fine.
+  const visibleTournaments = useMemo(() => {
+    if (!needsWidgetFilter) return tournaments
+    return tournaments.filter(
+      t => t.fip_id && !t.widgetId && !t.finalPlayed,
+    )
+  }, [tournaments, needsWidgetFilter])
 
   function toggleLevel(code: string) {
     setSelectedLevels(prev => {
@@ -336,11 +370,19 @@ export default function TournamentExplorerTab() {
       {/* Operator stats strip — pre-computed counts above the filter bar.
           Anchored above the filter so the operator sees "what matters
           today" before deciding which slice of the calendar to view. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 14 }}>
         <StatTile label="Live now" value={stats.liveNow} accent="#16a34a" />
         <StatTile label="Next 7 days" value={stats.next7} accent="#0ea5e9" />
         <StatTile label="Next 30 days" value={stats.next30} accent="#6366f1" />
         <StatTile label="Needs attention" value={stats.needsAttention} accent={stats.needsAttention > 0 ? '#dc2626' : '#9ca3af'} subtitle="Imminent without entry list" />
+        <StatTile
+          label="Needs widget"
+          value={stats.needsWidget}
+          accent={stats.needsWidget > 0 ? '#f59e0b' : '#9ca3af'}
+          subtitle="No Crionet widget_id"
+          onClick={() => setNeedsWidgetFilter(v => !v)}
+          active={needsWidgetFilter}
+        />
       </div>
 
       {/* Filter bar */}
@@ -411,7 +453,9 @@ export default function TournamentExplorerTab() {
         <div style={{ marginTop: 10, fontSize: 11, color: '#999' }}>
           {loadingList
             ? 'Loading…'
-            : `${tournaments.length} tournament${tournaments.length === 1 ? '' : 's'} match${tournaments.length === 1 ? 'es' : ''} the filters`}
+            : needsWidgetFilter
+              ? `${visibleTournaments.length} of ${tournaments.length} tournaments need a widget_id`
+              : `${tournaments.length} tournament${tournaments.length === 1 ? '' : 's'} match${tournaments.length === 1 ? 'es' : ''} the filters`}
           {selectedLevels.size > 0 && ` · ${selectedLevels.size} of ${ALL_LEVEL_CODES.length} levels selected`}
         </div>
       </div>
@@ -448,7 +492,7 @@ export default function TournamentExplorerTab() {
         />
       )}
 
-      {viewMode === 'list' && tournaments.length > 0 && (
+      {viewMode === 'list' && visibleTournaments.length > 0 && (
         <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
@@ -462,11 +506,17 @@ export default function TournamentExplorerTab() {
                 <th style={{ ...thStyle, textAlign: 'center' }} title="Order of Play">OOP</th>
                 <th style={{ ...thStyle, textAlign: 'center' }} title="Draw">DR</th>
                 <th style={{ ...thStyle, textAlign: 'center' }} title="Results">RS</th>
+                {needsWidgetFilter && (
+                  <>
+                    <th style={{ ...thStyle, textAlign: 'right' }} title="Widget-lookup attempts in last 7 days">Tries 7d</th>
+                    <th style={thStyle} title="Most recent widget-lookup attempt">Last try</th>
+                  </>
+                )}
                 <th style={thStyle}></th>
               </tr>
             </thead>
             <tbody>
-              {tournaments.map(t => {
+              {visibleTournaments.map(t => {
                 const dataDots = [
                   Boolean(t.entryListCapturedAt),
                   Boolean(t.oopCapturedAt),
@@ -523,6 +573,16 @@ export default function TournamentExplorerTab() {
                     <td style={tdStyleCenter}>
                       <DataDot present={Boolean(t.resultsCapturedAt)} freshAgo={t.resultsCapturedAt} />
                     </td>
+                    {needsWidgetFilter && (
+                      <>
+                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'ui-monospace, SFMono-Regular, monospace', color: t.widgetLookupAttempts7d >= 12 ? '#dc2626' : '#666' }}>
+                          {t.widgetLookupAttempts7d}
+                        </td>
+                        <td style={{ ...tdStyle, color: '#666' }}>
+                          {formatAgo(t.widgetLookupLastAttemptAt)}
+                        </td>
+                      </>
+                    )}
                     <td style={{ ...tdStyle, color: '#bbb', fontSize: 11 }}>
                       {Math.round(completenessPct * 100)}%
                     </td>
@@ -799,21 +859,38 @@ const tdStyleCenter: React.CSSProperties = {
 }
 
 function StatTile({
-  label, value, accent, subtitle,
+  label, value, accent, subtitle, onClick, active,
 }: {
   label: string
   value: number
   accent: string
   subtitle?: string
+  onClick?: () => void
+  active?: boolean
 }) {
+  const clickable = typeof onClick === 'function'
   return (
     <div
+      onClick={onClick}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!() } } : undefined}
       style={{
-        background: '#fff',
-        border: '1px solid #e5e7eb',
+        background: active ? '#fffbeb' : '#fff',
+        borderTopWidth: 1,
+        borderRightWidth: 1,
+        borderBottomWidth: 1,
+        borderLeftWidth: 4,
+        borderStyle: 'solid',
+        borderTopColor: active ? accent : '#e5e7eb',
+        borderRightColor: active ? accent : '#e5e7eb',
+        borderBottomColor: active ? accent : '#e5e7eb',
+        borderLeftColor: accent,
         borderRadius: 8,
-        borderLeft: `4px solid ${accent}`,
         padding: '12px 14px',
+        cursor: clickable ? 'pointer' : 'default',
+        boxShadow: active ? `0 0 0 2px ${accent}33` : 'none',
+        transition: 'box-shadow 120ms ease, background 120ms ease',
       }}
     >
       <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
