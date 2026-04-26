@@ -31,15 +31,36 @@ const supabase = createClient(
 // ── Types ────────────────────────────────────────────────────────────────
 
 interface TournamentWithSources {
+  // Identity
   id: string
   name: string
+  source: string | null
+  padelapi_id: string | null
+  fip_id: string | null
+  matchscorer_url: string | null
+  // Calendar
   starts_at: string | null
   ends_at: string | null
-  source: string | null
-  level: string | null
+  timezone: string | null
+  // Geography
   country: string | null
+  location: string | null
+  venue: string | null
+  venue_address: string | null
+  venue_type: string | null
+  n_courts: number | null
+  surface: string | null
+  // Format
+  level: string | null
+  prize_money: string | null         // padelapi text format ("$525,000")
+  prize_money_fip: number | null     // FIP integer (euros)
+  draw_size_md: number | null
+  draw_size_qd: number | null
+  // Status
+  status: string | null
+  entry_list_status: string | null
+  // Visual
   logo_url: string | null
-  fip_id: string | null
   // Match count from public.matches — not snapshot-derived. Lets the UI
   // surface tournaments that have NO matches yet (zero) versus ones that
   // have matches but no padelgod snapshots (capture gap).
@@ -89,7 +110,16 @@ export async function GET(request: Request) {
   // PostgREST `or()` syntax: comma-separated nested predicates.
   let query = supabase
     .from('tournaments')
-    .select('id, name, starts_at, ends_at, source, level, country, logo_url, fip_id')
+    .select(
+      // fip_slug was deprecated in favor of fip_id (per migration
+      // 20260407_canonical_source_ids — both columns held the same slug,
+      // fip_slug got dropped). Use fip_id alone for URL construction.
+      'id, name, source, padelapi_id, fip_id, matchscorer_url, ' +
+      'starts_at, ends_at, timezone, ' +
+      'country, location, venue, venue_address, venue_type, n_courts, surface, ' +
+      'level, prize_money, prize_money_fip, draw_size_md, draw_size_qd, ' +
+      'status, entry_list_status, logo_url',
+    )
     .or(
       `and(starts_at.gte.${fromDate},starts_at.lte.${toDate}),` +
       `and(ends_at.gte.${fromDate},ends_at.lte.${toDate})`,
@@ -210,22 +240,21 @@ export async function GET(request: Request) {
   }
 
   // ── Stitch ─────────────────────────────────────────────────────────────
-  const enriched: TournamentWithSources[] = (tournaments ?? []).map(t => ({
-    id: t.id as string,
-    name: t.name as string,
-    starts_at: (t.starts_at as string | null) ?? null,
-    ends_at: (t.ends_at as string | null) ?? null,
-    source: (t.source as string | null) ?? null,
-    level: (t.level as string | null) ?? null,
-    country: (t.country as string | null) ?? null,
-    logo_url: (t.logo_url as string | null) ?? null,
-    fip_id: (t.fip_id as string | null) ?? null,
-    matchCount: matchCountByTournament.get(t.id as string) ?? 0,
-    entryListCapturedAt: entryListMap.get(t.id as string) ?? null,
-    oopCapturedAt: oopMap.get(t.id as string) ?? null,
-    resultsCapturedAt: resultsMap.get(t.id as string) ?? null,
-    drawCapturedAt: drawMap.get(t.id as string) ?? null,
-  }))
+  // Spread the row first, then layer the derived fields on top. The DB row
+  // keys already match the TournamentWithSources shape exactly, so no
+  // per-field aliasing is needed — saves us from drift when columns are
+  // added in future migrations.
+  const enriched: TournamentWithSources[] = (tournaments ?? []).map(t => {
+    const row = t as Partial<TournamentWithSources>
+    return {
+      ...(row as TournamentWithSources),
+      matchCount: matchCountByTournament.get(t.id as string) ?? 0,
+      entryListCapturedAt: entryListMap.get(t.id as string) ?? null,
+      oopCapturedAt: oopMap.get(t.id as string) ?? null,
+      resultsCapturedAt: resultsMap.get(t.id as string) ?? null,
+      drawCapturedAt: drawMap.get(t.id as string) ?? null,
+    }
+  })
 
   return Response.json({
     tournaments: enriched,

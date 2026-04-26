@@ -19,19 +19,42 @@ import { useEffect, useMemo, useState } from 'react'
 import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentMatchesSubtab from './tournament/TournamentMatchesSubtab'
 import TournamentDrawSubtab from './tournament/TournamentDrawSubtab'
+import CalendarView from './tournament/CalendarView'
 
 // ── Types (mirror /api/ops/tournament-explorer response) ────────────────
 
 interface TournamentWithSources {
+  // Identity
   id: string
   name: string
+  source: string | null
+  padelapi_id: string | null
+  fip_id: string | null
+  matchscorer_url: string | null
+  // Calendar
   starts_at: string | null
   ends_at: string | null
-  source: string | null
-  level: string | null
+  timezone: string | null
+  // Geography
   country: string | null
+  location: string | null
+  venue: string | null
+  venue_address: string | null
+  venue_type: string | null
+  n_courts: number | null
+  surface: string | null
+  // Format
+  level: string | null
+  prize_money: string | null
+  prize_money_fip: number | null
+  draw_size_md: number | null
+  draw_size_qd: number | null
+  // Status
+  status: string | null
+  entry_list_status: string | null
+  // Visual
   logo_url: string | null
-  fip_id: string | null
+  // Derived
   matchCount: number
   entryListCapturedAt: string | null
   oopCapturedAt: string | null
@@ -40,6 +63,7 @@ interface TournamentWithSources {
 }
 
 type SubTab = 'entryList' | 'matches' | 'draw'
+type ViewMode = 'list' | 'calendar'
 
 // Level groupings for the filter chips. The DB stores raw codes (`p1`,
 // `fip_gold`, etc.) — we render them with friendly labels and group
@@ -137,6 +161,11 @@ export default function TournamentExplorerTab() {
   const [selectedId, setSelectedId] = useState<string>('')
   const [subTab, setSubTab] = useState<SubTab>('entryList')
 
+  // ── View mode (List / Calendar) ──
+  // Default to list — operators reach for the table first when auditing
+  // data quality. Calendar is the "what's coming up?" lens.
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
+
   // Refetch whenever filters change. Builds the query string from current
   // state — falsy/default values get dropped so the URL stays clean.
   useEffect(() => {
@@ -207,35 +236,7 @@ export default function TournamentExplorerTab() {
           ← Back to list
         </button>
 
-        <div style={{ marginBottom: 16 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111' }}>
-            {selected.name}
-          </h2>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>
-            {[
-              levelFriendly(selected.level),
-              selected.country,
-              selected.starts_at?.slice(0, 10),
-            ].filter(Boolean).join(' · ')}
-          </div>
-        </div>
-
-        <div style={{ ...card, marginBottom: 16 }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 12,
-              fontSize: 11,
-              color: '#555',
-            }}
-          >
-            <FreshnessTile label="Entry List" at={selected.entryListCapturedAt} />
-            <FreshnessTile label="OOP" at={selected.oopCapturedAt} />
-            <FreshnessTile label="Results" at={selected.resultsCapturedAt} />
-            <FreshnessTile label="Draw" at={selected.drawCapturedAt} />
-          </div>
-        </div>
+        <TournamentDetailsHeader t={selected} />
 
         <div style={{ display: 'flex', gap: 2, marginBottom: 12, borderBottom: '1px solid #e5e7eb' }}>
           <SubTabButton
@@ -354,6 +355,15 @@ export default function TournamentExplorerTab() {
         </div>
       </div>
 
+      {/* View mode toggle (List / Calendar) — sits just above the result
+          area so the eye picks it up after reading filter state. The two
+          views read the same `tournaments` array, so flipping this is
+          instantaneous (no refetch). */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
+        <ViewModeBtn label="List" active={viewMode === 'list'} onClick={() => setViewMode('list')} />
+        <ViewModeBtn label="Calendar" active={viewMode === 'calendar'} onClick={() => setViewMode('calendar')} />
+      </div>
+
       {listError && (
         <div style={{ ...card, color: '#991b1b', marginBottom: 12 }}>
           ❌ {listError}
@@ -368,7 +378,16 @@ export default function TournamentExplorerTab() {
         </div>
       )}
 
-      {tournaments.length > 0 && (
+      {viewMode === 'calendar' && tournaments.length > 0 && (
+        <CalendarView
+          tournaments={tournaments}
+          fromDate={fromDate}
+          toDate={toDate}
+          onSelect={id => { setSelectedId(id); setSubTab('entryList') }}
+        />
+      )}
+
+      {viewMode === 'list' && tournaments.length > 0 && (
         <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
@@ -447,6 +466,158 @@ export default function TournamentExplorerTab() {
   )
 }
 
+// ── Tournament details header (drill-down view) ─────────────────────────
+
+function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
+  const startEnd = [t.starts_at?.slice(0, 10), t.ends_at?.slice(0, 10)]
+    .filter(Boolean)
+    .join(' → ')
+  // fip_id is the URL slug (e.g. "fip-bronze-singapore-ii-2026"). Migration
+  // 20260407_canonical_source_ids consolidated fip_slug into fip_id.
+  const fipUrl = t.fip_id ? `https://www.padelfip.com/events/${t.fip_id}/` : null
+  const drawSize = [
+    t.draw_size_md ? `MD ${t.draw_size_md}` : null,
+    t.draw_size_qd ? `QD ${t.draw_size_qd}` : null,
+  ].filter(Boolean).join(' · ')
+  const prize = t.prize_money
+    || (t.prize_money_fip ? `€${t.prize_money_fip.toLocaleString()}` : null)
+  const venueLine = [
+    t.venue,
+    t.venue_type,
+    t.n_courts ? `${t.n_courts} courts` : null,
+    t.surface,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {/* Title row with logo, name, and external link */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+        {t.logo_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={t.logo_url}
+            alt=""
+            style={{
+              width: 56, height: 56, objectFit: 'contain',
+              borderRadius: 4, background: '#fff',
+              border: '1px solid #e5e7eb', flexShrink: 0,
+              padding: 4,
+            }}
+          />
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111' }}>
+            {t.name}
+          </h2>
+          <div style={{ fontSize: 12, color: '#666', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            {[
+              levelFriendly(t.level),
+              t.country,
+              t.location,
+              startEnd,
+              t.timezone,
+            ].filter(Boolean).map((v, i) => (
+              <span key={i}>
+                {i > 0 && <span style={{ color: '#ccc', marginRight: 8 }}>·</span>}
+                {v}
+              </span>
+            ))}
+          </div>
+        </div>
+        {fipUrl && (
+          <a
+            href={fipUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              padding: '6px 14px',
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#fff',
+              background: '#111',
+              borderRadius: 4,
+              textDecoration: 'none',
+              flexShrink: 0,
+              letterSpacing: '0.4px',
+              textTransform: 'uppercase',
+            }}
+          >
+            View on FIP →
+          </a>
+        )}
+      </div>
+
+      {/* Metadata grid — every meaningful field rendered as a labeled tile.
+          NULL fields render with em dash so the absence is visible (matters
+          for ops because 'no prize_money_fip yet' is itself a data signal). */}
+      <div style={{ ...card, marginBottom: 12 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 12,
+            fontSize: 11,
+            color: '#555',
+          }}
+        >
+          <Field label="Source" value={t.source} />
+          <Field label="Status" value={t.status} />
+          <Field label="Entry list status" value={t.entry_list_status} />
+          <Field label="Prize money" value={prize} />
+          <Field label="Draw size" value={drawSize || null} />
+          <Field label="Venue" value={venueLine || null} />
+          {t.venue_address && <Field label="Address" value={t.venue_address} />}
+          <Field label="PadelAPI ID" value={t.padelapi_id} mono />
+          <Field label="FIP ID" value={t.fip_id} mono />
+          {t.matchscorer_url && <Field label="Matchscorer" value={t.matchscorer_url} mono />}
+        </div>
+      </div>
+
+      {/* Padelgod capture freshness — kept distinct from the metadata grid
+          so the "what scrapers have run" question stays visually separate
+          from the "what's in the row" question. */}
+      <div style={{ ...card }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 12,
+            fontSize: 11,
+            color: '#555',
+          }}
+        >
+          <FreshnessTile label="Entry List" at={t.entryListCapturedAt} />
+          <FreshnessTile label="OOP" at={t.oopCapturedAt} />
+          <FreshnessTile label="Results" at={t.resultsCapturedAt} />
+          <FreshnessTile label="Draw" at={t.drawCapturedAt} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
+  return (
+    <div>
+      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: value ? '#222' : '#bbb',
+          fontFamily: mono ? 'ui-monospace, SFMono-Regular, monospace' : 'inherit',
+          marginTop: 2,
+          wordBreak: 'break-word',
+        }}
+      >
+        {value || '—'}
+      </div>
+    </div>
+  )
+}
+
 // ── Atoms ───────────────────────────────────────────────────────────────
 
 const filterLabelStyle: React.CSSProperties = {
@@ -486,6 +657,28 @@ const tdStyle: React.CSSProperties = {
 const tdStyleCenter: React.CSSProperties = {
   ...tdStyle,
   textAlign: 'center',
+}
+
+function ViewModeBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '6px 14px',
+        fontSize: 11,
+        fontWeight: 700,
+        background: active ? '#111' : '#fff',
+        color: active ? '#fff' : '#666',
+        border: '1px solid ' + (active ? '#111' : '#d1d5db'),
+        borderRadius: 4,
+        cursor: 'pointer',
+        letterSpacing: '0.5px',
+        textTransform: 'uppercase',
+      }}
+    >
+      {label}
+    </button>
+  )
 }
 
 function LevelChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
