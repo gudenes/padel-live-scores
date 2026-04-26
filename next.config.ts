@@ -40,9 +40,6 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  // PostHog issues redirects on /decide — required so trailing slashes survive
-  // through Next's rewrite layer. Without this the SDK can't fetch flags.
-  skipTrailingSlashRedirect: true,
   images: {
     remotePatterns: [
       {
