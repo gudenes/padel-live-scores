@@ -176,3 +176,102 @@ button:focus { outline: none; }
     background: rgba(255,255,255,0.06);
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────
+   Desktop "phone-frame" device shell
+
+   Mobile-first PWA rendered inside an iPhone-style chrome on desktop —
+   same play as Spotify Web, WhatsApp Web, Telegram Web. The wrapper
+   classes (.app-canvas / .app-frame / .app-screen) live in
+   src/app/layout.tsx and are no-ops below the breakpoint, so phones,
+   tablets, and small laptops keep the existing mobile UI unchanged.
+
+   Activates above 1100px viewport width. Conservative breakpoint: keeps
+   tablets and small laptops in mobile mode where the column-only layout
+   still feels right. Lower if desktop traffic justifies it.
+
+   Implementation notes:
+   - .app-frame fakes the bezel via box-shadow rings instead of real
+     padding+bg, so the existing inline styles on .app-screen don't need
+     to be reorganized.
+   - .app-screen scrolls internally on desktop. We apply transform:
+     translateZ(0) so descendants with position:fixed (the bottom nav)
+     anchor to the screen instead of the viewport — keeps the nav glued
+     to the bottom of the phone, not the bottom of the page.
+   - max-height bounded to 900px so on tall monitors the phone keeps
+     phone-shaped proportions instead of stretching to a giraffe.
+   ─────────────────────────────────────────────────────────────── */
+
+@media (min-width: 1100px) {
+  /* Outer canvas — ambient brand-tinted gradients + faint grid texture.
+     Stronger alphas + positioned at the edges (not behind the phone) so
+     the warm orange + cool blue spills are actually visible.
+     `background-attachment: fixed` keeps the spotlights anchored to the
+     viewport so they don't slide when content above the canvas would
+     otherwise scroll. */
+  .app-canvas {
+    background:
+      radial-gradient(circle at 12% 18%, rgba(255, 107, 43, 0.32), transparent 42%),
+      radial-gradient(circle at 88% 82%, rgba(56, 200, 255, 0.24), transparent 46%),
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.025), transparent 75%),
+      var(--bg-base) !important;
+    background-attachment: fixed, fixed, fixed, fixed !important;
+    min-height: 100dvh;
+    padding: 30px 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow: hidden;
+  }
+
+  .app-canvas::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 64px 64px;
+    z-index: 0;
+    /* Mask the grid behind the phone so it doesn't peek through the bezel */
+    mask-image: radial-gradient(ellipse 70% 70% at center, transparent 18%, black 60%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 70% at center, transparent 18%, black 60%);
+  }
+
+  /* The bezel — black-with-rings via box-shadow */
+  .app-frame {
+    position: relative;
+    z-index: 1;
+    background: #000;
+    padding: 14px;
+    border-radius: 48px;
+    width: fit-content;
+    height: calc(100dvh - 60px);
+    max-height: 900px;
+    box-shadow:
+      0 0 0 1.5px rgba(255, 255, 255, 0.06) inset,
+      0 0 0 8px #1B1B1B,
+      0 0 0 9px rgba(255, 255, 255, 0.04),
+      0 30px 80px -12px rgba(0, 0, 0, 0.7),
+      0 60px 140px -30px rgba(255, 107, 43, 0.15),
+      0 -10px 60px -20px rgba(56, 200, 255, 0.10);
+  }
+
+  /* The screen — rounded inner viewport with its own scroll axis.
+     transform isolates position:fixed children (bottom nav, toasts) so
+     they anchor to the screen rectangle, not the document body. */
+  .app-screen {
+    border-radius: 36px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100%;
+    width: 412px;
+    transform: translateZ(0);
+    /* Override inline styles set in src/app/layout.tsx */
+    border-left: none !important;
+    border-right: none !important;
+    min-height: 0 !important;
+    max-width: 412px !important;
+  }
+}

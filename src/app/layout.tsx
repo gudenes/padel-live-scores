@@ -118,13 +118,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `,
         }}
       />
-      <div style={{ background: 'var(--bg-base)', minHeight: '100dvh' }}>
-        <div style={{ maxWidth: 500, margin: '0 auto', minHeight: '100dvh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
-          <AuthProvider>
-            {children}
-            <PostHogIdentify />
-          </AuthProvider>
-          <GatedAnalytics />
+      {/* Three-tier wrapper — collapses to today's two-div layout on mobile,
+          becomes a phone-frame "device shell" on desktop. The .app-canvas
+          gets ambient brand-tinted background, .app-frame becomes the black
+          bezel, .app-screen becomes the rounded inner screen with internal
+          scroll. All controlled by media queries in globals.css; no JS gate. */}
+      <div className="app-canvas" style={{ background: 'var(--bg-base)', minHeight: '100dvh' }}>
+        <div className="app-frame">
+          <div className="app-screen" style={{ maxWidth: 500, margin: '0 auto', minHeight: '100dvh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
+            <AuthProvider>
+              {children}
+              <PostHogIdentify />
+            </AuthProvider>
+            <GatedAnalytics />
+          </div>
         </div>
       </div>
     </body></html>
