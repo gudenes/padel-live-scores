@@ -10,6 +10,7 @@
 // it to start a transaction so navigation perf is captured cleanly.
 
 import * as Sentry from '@sentry/nextjs'
+import posthog from 'posthog-js'
 
 // Init only when the DSN is set — otherwise this file is a no-op so we
 // can ship the code to all environments (local dev, PR previews, prod)
@@ -54,3 +55,60 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
 // is a safe no-op when init() didn't fire. Wiring this up means
 // client-side route changes get clean transaction boundaries.
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
+
+// ── PostHog ────────────────────────────────────────────────────────
+//
+// Product analytics + session replay + feature flags. EU cloud (Frankfurt)
+// for GDPR. Same gating story as Sentry: env-var presence is the on/off
+// switch so PR previews and local dev stay quiet by default.
+//
+// User-side opt-out: the existing `pn_analytics_opt_out` localStorage flag
+// (toggled in /profile/settings) suppresses init entirely. We don't load
+// the SDK at all when opted out — no events, no replay, no fingerprinting,
+// no cookies dropped.
+//
+// Routing requests through /ingest/* (rewrite in next.config.ts) makes
+// PostHog look like first-party traffic. Without that, ad-blockers
+// shadow-drop posthog.com and ~30% of users vanish from analytics.
+if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+  let optedOut = false
+  try {
+    optedOut = localStorage.getItem('pn_analytics_opt_out') === '1'
+  } catch { /* localStorage blocked → treat as not-opted-out */ }
+
+  if (!optedOut) {
+    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+      api_host: '/ingest',
+      ui_host: 'https://eu.posthog.com',
+      // Treat the SDK's "person profile" creation as opt-in by default.
+      // We promote anonymous → identified inside <PostHogIdentify> when
+      // the user logs in. Avoids creating profiles for bots / drive-bys.
+      person_profiles: 'identified_only',
+      // Capture pageviews automatically (Next.js client routing fires a
+      // popstate that PostHog hooks into). We also capture clicks +
+      // form submits — `autocapture: true` is the default but we set
+      // it explicitly so behavior is locked even if defaults change.
+      autocapture: true,
+      capture_pageview: true,
+      capture_pageleave: true,
+      // Session replay — masks every input by default (so passwords,
+      // emails, search queries never leave the browser). Text content
+      // is captured so we can see what the user saw. Switch any
+      // sensitive node to `data-private="true"` to opt it out further.
+      session_recording: {
+        maskAllInputs: true,
+        maskTextSelector: '[data-private="true"]',
+      },
+      // Disable PostHog's surveys feature for now — we don't use it
+      // and it ships extra JS we'd rather not download.
+      disable_surveys: true,
+      // Defer initialization until the page has settled so we don't
+      // contend with first-paint resources.
+      loaded: (ph) => {
+        if (process.env.NODE_ENV === 'development') {
+          ph.debug(false)  // flip to true if you need to inspect events
+        }
+      },
+    })
+  }
+}

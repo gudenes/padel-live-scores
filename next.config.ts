@@ -22,6 +22,27 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // PostHog reverse proxy — same goal as Sentry's tunnelRoute: send analytics
+  // through our own domain so ad-blockers (uBlock Origin, Brave Shields, etc.)
+  // don't shadow-block direct posthog.com URLs. /ingest/decide is hot path for
+  // feature flags so it gets its own static rewrite for clarity.
+  //
+  // Skipping i18n on /ingest/* is handled in src/proxy.ts.
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://eu-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://eu.i.posthog.com/:path*',
+      },
+    ]
+  },
+  // PostHog issues redirects on /decide — required so trailing slashes survive
+  // through Next's rewrite layer. Without this the SDK can't fetch flags.
+  skipTrailingSlashRedirect: true,
   images: {
     remotePatterns: [
       {

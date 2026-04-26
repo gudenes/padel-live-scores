@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { GatedAnalytics } from "@/components/GatedAnalytics";
 import { AuthProvider } from "@/components/AuthProvider";
+import { PostHogIdentify } from "@/components/PostHogIdentify";
 import { buildAlternates } from "@/lib/seo-helpers";
 import "./globals.css";
 
@@ -121,6 +122,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div style={{ maxWidth: 500, margin: '0 auto', minHeight: '100dvh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
           <AuthProvider>
             {children}
+            <PostHogIdentify />
           </AuthProvider>
           <GatedAnalytics />
         </div>

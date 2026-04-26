@@ -121,6 +121,13 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // 9. PostHog reverse-proxy route — `/ingest/*` rewrites in next.config.ts
+  // proxy to eu.i.posthog.com so the SDK requests look like first-party
+  // traffic to ad-blockers. Same i18n-skip story as Sentry's tunnel above.
+  if (pathname === '/ingest' || pathname.startsWith('/ingest/')) {
+    return NextResponse.next()
+  }
+
   // ── Cookie-wins locale redirect ────────────────────────────────
   //
   // When the user manually picks a language via LocaleSwitcher, we write
