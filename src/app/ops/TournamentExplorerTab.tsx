@@ -124,9 +124,14 @@ function formatDateShort(iso: string | null): string {
 }
 
 function defaultDateRange(): { from: string; to: string } {
+  // Operator-lens default: tight context window centered on "what's
+  // happening now and what's coming next." 7 days of past keeps live
+  // / just-finished events visible for follow-up; 60 days of future
+  // covers most planning horizons without diluting the screen with
+  // distant events. Operators can widen the range manually any time.
   const now = new Date()
-  const from = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
-  const to = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const to = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
   const fmt = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
   return { from: fmt(from), to: fmt(to) }
 }
@@ -210,6 +215,38 @@ export default function TournamentExplorerTab() {
     [tournaments, selectedId],
   )
 
+  // ── Operator stats — counts derived from the loaded tournaments ──
+  // Recomputed whenever the list changes. We want clear, hard numbers
+  // an operator can act on: "what's running now" / "what's imminent" /
+  // "what's missing data right when it matters."
+  const stats = useMemo(() => {
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const in7DaysISO = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+    const in30DaysISO = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+    let liveNow = 0
+    let next7 = 0
+    let next30 = 0
+    let needsAttention = 0
+    for (const t of tournaments) {
+      const s = (t.starts_at ?? '').slice(0, 10)
+      const e = (t.ends_at ?? t.starts_at ?? '').slice(0, 10)
+      if (s && e && s <= todayISO && todayISO <= e) liveNow++
+      if (s && s > todayISO && s <= in7DaysISO) next7++
+      if (s && s > todayISO && s <= in30DaysISO) next30++
+      // "Needs attention": starting within 7 days (or already live), has a
+      // FIP id (so we expect data), AND no entry list captured yet.
+      // These are the events most likely to cause a bad UX next few days.
+      if (
+        s && s <= in7DaysISO &&
+        (!e || e >= todayISO) &&
+        t.fip_id && !t.entryListCapturedAt
+      ) {
+        needsAttention++
+      }
+    }
+    return { liveNow, next7, next30, needsAttention }
+  }, [tournaments])
+
   function toggleLevel(code: string) {
     setSelectedLevels(prev => {
       const next = new Set(prev)
@@ -284,6 +321,16 @@ export default function TournamentExplorerTab() {
           Draw, Results — so you can spot capture gaps at a glance. Click a
           row to drill into the per-tournament audit view.
         </p>
+      </div>
+
+      {/* Operator stats strip — pre-computed counts above the filter bar.
+          Anchored above the filter so the operator sees "what matters
+          today" before deciding which slice of the calendar to view. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
+        <StatTile label="Live now" value={stats.liveNow} accent="#16a34a" />
+        <StatTile label="Next 7 days" value={stats.next7} accent="#0ea5e9" />
+        <StatTile label="Next 30 days" value={stats.next30} accent="#6366f1" />
+        <StatTile label="Needs attention" value={stats.needsAttention} accent={stats.needsAttention > 0 ? '#dc2626' : '#9ca3af'} subtitle="Imminent without entry list" />
       </div>
 
       {/* Filter bar */}
@@ -679,6 +726,39 @@ const tdStyle: React.CSSProperties = {
 const tdStyleCenter: React.CSSProperties = {
   ...tdStyle,
   textAlign: 'center',
+}
+
+function StatTile({
+  label, value, accent, subtitle,
+}: {
+  label: string
+  value: number
+  accent: string
+  subtitle?: string
+}) {
+  return (
+    <div
+      style={{
+        background: '#fff',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        borderLeft: `4px solid ${accent}`,
+        padding: '12px 14px',
+      }}
+    >
+      <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 26, fontWeight: 800, color: accent, lineHeight: 1.05, marginTop: 4 }}>
+        {value}
+      </div>
+      {subtitle && (
+        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 3 }}>
+          {subtitle}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ViewModeBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {

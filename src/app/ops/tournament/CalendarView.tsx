@@ -27,6 +27,7 @@ interface TournamentLite {
   ends_at: string | null
   level: string | null
   country: string | null
+  fip_id: string | null
   prize_money: string | null
   prize_money_fip: number | null
   draw_size_md: number | null
@@ -306,6 +307,21 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
           const left = a.startDay * PIXELS_PER_DAY
           const width = Math.max(PIXELS_PER_DAY, (a.endDay - a.startDay + 1) * PIXELS_PER_DAY - 1)
           const isHovered = hovered?.t.id === a.tournament.id
+
+          // ── Operator visual signals ────────────────────────────────
+          //
+          // 1. PAST events (already finished) get dimmed — they're context,
+          //    not action items. Operators care about what's now/upcoming.
+          // 2. NEEDS ATTENTION — about to start (within 7 days), has fip_id
+          //    so we expect data, but no entry list captured yet. These get
+          //    a red ring so they jump off the page.
+          const isPast = a.endDay < todayDay
+          const needsAttention =
+            !!a.tournament.fip_id
+            && !a.tournament.entryListCapturedAt
+            && a.startDay <= todayDay + 7  // imminent (within 7 days)
+            && a.endDay >= todayDay        // not yet finished
+
           return (
             <button
               key={a.tournament.id}
@@ -322,7 +338,7 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
                 width,
                 height: LANE_HEIGHT,
                 background: color.bg,
-                border: `1px solid ${color.border}`,
+                border: needsAttention ? '2px solid #DC2626' : `1px solid ${color.border}`,
                 borderRadius: 5,
                 color: color.text,
                 fontSize: 11,
@@ -330,14 +346,17 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
                 padding: '5px 8px',
                 textAlign: 'left',
                 cursor: 'pointer',
-                zIndex: isHovered ? 4 : 1,
+                zIndex: isHovered ? 4 : (needsAttention ? 2 : 1),
                 fontFamily: 'inherit',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
                 gap: 1,
                 overflow: 'hidden',
-                boxShadow: isHovered ? '0 4px 14px rgba(0,0,0,0.18)' : 'none',
+                opacity: isPast ? 0.45 : 1,
+                boxShadow: isHovered
+                  ? '0 4px 14px rgba(0,0,0,0.18)'
+                  : (needsAttention ? '0 0 0 2px rgba(220,38,38,0.18)' : 'none'),
                 transform: isHovered ? 'translateY(-1px)' : 'none',
                 transition: 'transform 100ms ease-out, box-shadow 100ms ease-out',
               }}
