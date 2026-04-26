@@ -1309,9 +1309,25 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const now = new Date()
   const daysUntilStart = startsAt ? Math.ceil((startsAt.getTime() - now.getTime()) / 86400000) : null
   const isUpcoming = daysUntilStart != null && daysUntilStart > 0
+  // Has any Final match (men or women) been played out? Same signal the
+  // ops Tournament Explorer uses for the "Live now" tile — events often
+  // finish on the penultimate day of their calendar window, and `ends_at`
+  // doesn't catch up until the next sync. Using only date-range +
+  // liveCount made tournaments show "Ongoing" all day after the final
+  // had already happened (Brussels P2 2026-04-27).
+  const finalPlayed = useMemo(() => {
+    const finishedStatuses = new Set(['finished', 'retired', 'walkover'])
+    return allMatches.some(m => {
+      if (!finishedStatuses.has(m.status as string)) return false
+      if ((m as any).winner_pair == null) return false
+      const r = ((m as any).round as string ?? '').trim().split(/\s+/).pop()?.toLowerCase() ?? ''
+      return r === 'f' || r === 'final' || r === 'finals'
+    })
+  }, [allMatches])
+
   const isInDateRange = !!(startsAt && endsAt && now >= startsAt && now <= endsAt)
-  const isLive = isInDateRange && liveCount > 0
-  const isOngoing = isInDateRange && liveCount === 0
+  const isLive = isInDateRange && liveCount > 0 && !finalPlayed
+  const isOngoing = isInDateRange && liveCount === 0 && !finalPlayed
 
   const formatDate = (d: Date) => format.dateTime(d, DATE_WITH_WEEKDAY)
 
