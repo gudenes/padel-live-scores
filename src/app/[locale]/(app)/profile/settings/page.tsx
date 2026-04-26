@@ -59,7 +59,7 @@ function Row({
   disabled,
 }: {
   label: string
-  hint?: string
+  hint?: React.ReactNode
   control?: React.ReactNode
   onClick?: () => void
   destructive?: boolean
@@ -117,6 +117,16 @@ function Chevron({ destructive }: { destructive?: boolean }) {
       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 6l6 6-6 6" />
     </svg>
+  )
+}
+
+function SkeletonText({ width }: { width: number | string }) {
+  // Renders a fixed-width shimmer bar inline. The placeholder text gives
+  // the span a natural baseline; CSS hides it via `color: transparent`.
+  return (
+    <span className="skeleton-line" style={{ width, height: '0.9em' }} aria-hidden="true">
+      &nbsp;
+    </span>
   )
 }
 
@@ -270,16 +280,12 @@ export default function SettingsPage() {
     router.push('/home')
   }
 
-  if (authLoading || !user || !profile) {
-    return (
-      <div className="page-mount-anim" style={{ background: V3.BG_BASE, minHeight: '100dvh', color: V3.MUTED,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13 }}>
-        Loading…
-      </div>
-    )
-  }
-
-  const providerTag = user.email?.includes('@gmail.') ? 'Google' : 'Email'
+  // Render the page chrome immediately. Data-dependent values fall back
+  // to <SkeletonText> until profile + user are hydrated. The unauthenticated
+  // redirect runs in the effect above; we render the skeleton meanwhile so
+  // the navigation feels instant.
+  const providerTag = user?.email?.includes('@gmail.') ? 'Google' : 'Email'
+  const profileReady = !!profile
 
   return (
     <div className="page-mount-anim" style={{ maxWidth: 500, margin: '0 auto', paddingBottom: 80, background: V3.BG_BASE, minHeight: '100dvh' }}>
@@ -315,13 +321,16 @@ export default function SettingsPage() {
       <SectionHeader label={t('sections.account')} />
       <Row
         label={t('account.displayName')}
-        hint={profile.display_name ?? ''}
+        hint={profileReady ? (profile?.display_name ?? '') : <SkeletonText width={140} />}
         control={<Chevron />}
-        onClick={() => setEditOpen(true)}
+        onClick={profileReady ? () => setEditOpen(true) : undefined}
+        disabled={!profileReady}
       />
       <Row
         label={t('account.email')}
-        hint={`${user.email ?? ''} · ${providerTag}`}
+        hint={user
+          ? `${user.email ?? ''} · ${providerTag}`
+          : <SkeletonText width={200} />}
       />
       <Row
         label={t('account.activeSessions')}
@@ -364,7 +373,7 @@ export default function SettingsPage() {
           value={countryDraft}
           onChange={saveCountry}
           options={countryOptions}
-          disabled={savingCountry}
+          disabled={savingCountry || !profileReady}
         />
       </div>
       {/* Notifications navigation row — replaces the Phase 1 push toggle */}
@@ -391,7 +400,13 @@ export default function SettingsPage() {
       <Row
         label={t('privacy.marketing')}
         hint={t('privacy.marketingHint')}
-        control={<Toggle checked={profile.marketing_opt_in} onChange={toggleMarketing} />}
+        control={
+          <Toggle
+            checked={profile?.marketing_opt_in ?? false}
+            onChange={toggleMarketing}
+            disabled={!profileReady}
+          />
+        }
       />
       <Row
         label={t('privacy.exportData')}
@@ -431,16 +446,18 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* Edit name sheet */}
-      <EditNameSheet
-        open={editOpen}
-        initialName={profile.display_name ?? ''}
-        onClose={() => setEditOpen(false)}
-        onSaved={next => {
-          setProfile(p => (p ? { ...p, display_name: next } : p))
-          setToast(t('account.editName.savedToast'))
-        }}
-      />
+      {/* Edit name sheet — only mounts once profile is hydrated */}
+      {profile && (
+        <EditNameSheet
+          open={editOpen}
+          initialName={profile.display_name ?? ''}
+          onClose={() => setEditOpen(false)}
+          onSaved={next => {
+            setProfile(p => (p ? { ...p, display_name: next } : p))
+            setToast(t('account.editName.savedToast'))
+          }}
+        />
+      )}
 
       {/* Delete account modal */}
       <DeleteAccountModal open={deleteOpen} onClose={() => setDeleteOpen(false)} />

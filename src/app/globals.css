@@ -133,3 +133,46 @@ button:focus { outline: none; }
     animation: none;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────
+   Skeleton shimmer — `.skeleton-line` class
+
+   Render the page chrome immediately with shimmer placeholders where
+   data hasn't arrived yet, instead of gating the whole view behind a
+   spinner. Pattern used by LinkedIn, Revolut, etc.
+
+   Usage: <span className="skeleton-line" style={{ width: 120 }}>placeholder</span>
+   The placeholder text gives the span a natural baseline height; the
+   shimmer hides the actual characters via `color: transparent`.
+
+   Reduced-motion users see a static muted bar (no shimmer animation).
+   ─────────────────────────────────────────────────────────────── */
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-line {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.10) 50%,
+    rgba(255,255,255,0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+  border-radius: 4px;
+  color: transparent !important;
+  user-select: none;
+  pointer-events: none;
+  vertical-align: middle;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line {
+    animation: none;
+    background: rgba(255,255,255,0.06);
+  }
+}
