@@ -259,19 +259,40 @@ button:focus { outline: none; }
   }
 
   /* The screen — rounded inner viewport with its own scroll axis.
-     transform isolates position:fixed children (bottom nav, toasts) so
-     they anchor to the screen rectangle, not the document body. */
+     `contain: paint` is set in case any descendant relies on it for
+     painting boundaries, but it does NOT reliably create a containing
+     block for `position: fixed` in modern Chrome — so we override the
+     bottom nav specifically to use `position: sticky` below. */
   .app-screen {
     border-radius: 36px;
     overflow-y: auto;
     overflow-x: hidden;
     height: 100%;
     width: 412px;
-    transform: translateZ(0);
+    contain: paint;
     /* Override inline styles set in src/app/layout.tsx */
     border-left: none !important;
     border-right: none !important;
     min-height: 0 !important;
     max-width: 412px !important;
+  }
+
+  /* Bottom nav — convert position:fixed (which would anchor to the
+     viewport on Chrome despite contain: paint on the parent) to
+     position: sticky so it pins to the bottom of the scroll container.
+     Inline styles on the nav element use !important here to override.
+     The nav stays the last child of .app-screen on every authenticated
+     page, so sticky bottom: 0 keeps it visible at the screen bottom
+     regardless of scroll position. Selector is intentionally broad
+     (`.app-screen nav`, not `>`) so it catches nav nodes nested inside
+     wrapper components — some pages render the nav inside a fragment
+     plus other elements rather than as a direct child. */
+  .app-screen nav {
+    position: sticky !important;
+    bottom: 0 !important;
+    left: auto !important;
+    transform: none !important;
+    max-width: none !important;
+    width: 100% !important;
   }
 }
