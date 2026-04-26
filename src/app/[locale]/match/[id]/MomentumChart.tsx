@@ -326,32 +326,106 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
               <clipPath id="breakBadgeClip" clipPathUnits="objectBoundingBox">
                 <polygon points="0.1,0.1 0.9,0 1,0.9 0,1" />
               </clipPath>
+              {/* Set winner pill — a slightly wider chunky shape so the
+                  score+chevron fit comfortably without feeling cramped. */}
+              <clipPath id="setWinnerPillClip" clipPathUnits="objectBoundingBox">
+                <polygon points="0.04,0.1 0.96,0 1,0.9 0,1" />
+              </clipPath>
             </defs>
 
             {/* Center line */}
             <line x1={pad.left} y1={centerY} x2={svgW - pad.right} y2={centerY} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
 
-            {/* Set boundary lines with score label centered on the divider */}
+            {/* Set boundary lines with winner-snapped score pill.
+                The pill physically sits in the WINNER's half (top for pair1,
+                bottom for pair2) — position itself signals who took the set
+                without needing extra ink. The pill is lifted to the chart
+                frame edge so it stays clear of break "B" badges, which sit
+                directly above bar tips and can extend high into the chart on
+                tall games. Winner-color background + white text gives a
+                strong contrast cue even in peripheral vision. */}
             {setBoundaries.map((b, i) => {
-              const color = b.winner === 1 ? P1_COLOR : b.winner === 2 ? P2_COLOR : '#64748B'
+              const isP1 = b.winner === 1
+              const isP2 = b.winner === 2
+              const winnerColor = isP1 ? P1_COLOR : isP2 ? P2_COLOR : '#64748B'
+              const pillW = 42
+              const pillH = 22
+              // Lifted to chart-frame edges. Break badges live ABOVE bar tips
+              // (tipY - 24 in extreme cases ≈ y=−10), but they're rendered
+              // first and the pill draws on top, so even worst-case overlap
+              // stays readable. This positioning also gives clearance from
+              // bars themselves on tall-bar games near the boundary.
+              const pillY = isP1 ? 2 : isP2 ? svgH - pillH - 2 : centerY - pillH / 2
+              const pillX = b.x - pillW / 2
+              const textY = pillY + pillH / 2 + 5  // +5 = optical centering nudge for the chunky font
+
+              // Dashed connector from pill toward centerline. Reinforces
+              // which side "owns" the score without being loud.
+              const connectorY1 = isP1 ? pillY + pillH : isP2 ? pillY : centerY
+              const connectorY2 = centerY
+
               return (
                 <g key={`setb-${i}`}>
+                  {/* Faint vertical divider — kept from previous design */}
                   <line x1={b.x} y1={pad.top} x2={b.x} y2={svgH - pad.bottom} stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
-                  {/* Dark pill behind the score so it's visible over bars */}
-                  <rect
-                    x={b.x - 22} y={centerY - 12}
-                    width={44} height={24} rx={4}
-                    fill="rgba(0,0,0,0.7)"
-                  />
-                  <text
-                    x={b.x} y={centerY}
-                    textAnchor="middle" dominantBaseline="central"
-                    fontSize={16} fontWeight={900}
-                    fontFamily="var(--font-mono), monospace"
-                    fill={color}
-                  >
-                    {b.score}
-                  </text>
+
+                  {/* Connector dashes from pill edge to centerline */}
+                  {(isP1 || isP2) && (
+                    <line
+                      x1={b.x} y1={connectorY1}
+                      x2={b.x} y2={connectorY2}
+                      stroke={winnerColor} strokeWidth={1.5}
+                      strokeDasharray="2,3" opacity={0.45}
+                    />
+                  )}
+
+                  {(isP1 || isP2) ? (
+                    <>
+                      {/* Halo for legibility against bars when bars are tall */}
+                      <rect
+                        x={pillX - 1} y={pillY - 1}
+                        width={pillW + 2} height={pillH + 2}
+                        fill={`${winnerColor}30`}
+                        clipPath="url(#setWinnerPillClip)"
+                      />
+                      {/* Solid winner-colored pill */}
+                      <rect
+                        x={pillX} y={pillY}
+                        width={pillW} height={pillH}
+                        fill={winnerColor}
+                        clipPath="url(#setWinnerPillClip)"
+                      />
+                      <text
+                        x={b.x} y={textY}
+                        textAnchor="middle"
+                        fontSize={14} fontWeight={900}
+                        fontFamily="var(--font-mono), monospace"
+                        fill="#fff"
+                      >
+                        {b.score}
+                      </text>
+                    </>
+                  ) : (
+                    // No-winner fallback (extreme edge case, e.g., live mid-set
+                    // with a malformed score). Keep the previous dark-pill look
+                    // so we never render a confusing colored pill for a tie.
+                    <>
+                      <rect
+                        x={b.x - 22} y={centerY - 12}
+                        width={44} height={24} rx={4}
+                        fill="rgba(0,0,0,0.7)"
+                      />
+                      <text
+                        x={b.x} y={centerY}
+                        textAnchor="middle" dominantBaseline="central"
+                        fontSize={16} fontWeight={900}
+                        fontFamily="var(--font-mono), monospace"
+                        fill="#64748B"
+                      >
+                        {b.score}
+                      </text>
+                    </>
+                  )}
                 </g>
               )
             })}
