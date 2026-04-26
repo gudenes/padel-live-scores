@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runWidgetCodeLookup } from '../../workers/widget-code-lookup.js';
+import { runWidgetCodeLookup, chooseCandidate } from '../../workers/widget-code-lookup.js';
 
 function fakeSupabase(needingResolution: any[]) {
   const inserted: any[] = [];
@@ -118,5 +118,93 @@ describe('runWidgetCodeLookup', () => {
     expect(result.resolved).toBe(0);
     expect(result.skipped).toBe(1);
     expect(supabase.inserted).toHaveLength(0);
+  });
+
+  it('resolves to exact-name match when search returns multiple candidates', async () => {
+    // 2026-04-27 audit: Crionet returned 2 candidates for "ASUNCION" —
+    // FIP PROMISES ASUNCION I and ASUNCION P2. The pre-fix worker bailed
+    // on ambiguity; with the disambiguator it should pick the exact name
+    // match (ASUNCION P2) and write its widget_id.
+    const supabase = fakeSupabase([
+      { tournament_id: 'tour-uuid-3', tournament_name: 'ASUNCION P2', year: 2026 },
+    ]);
+    const httpClient = {
+      post: vi.fn(async () => ({
+        data: `
+          <div class="card tournament-card">
+            <div class="tournament-name">FIP PROMISES ASUNCION I</div>
+            <span class="tournament-code">P0209</span>
+          </div>
+          <div class="card tournament-card">
+            <div class="tournament-name">ASUNCION P2</div>
+            <span class="tournament-code">2111</span>
+          </div>
+        `,
+      })),
+    };
+
+    const result = await runWidgetCodeLookup({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(result.resolved).toBe(1);
+    expect(supabase.inserted).toHaveLength(1);
+    expect(supabase.inserted[0]).toMatchObject({
+      tournament_id: 'tour-uuid-3',
+      widget_id: 'FIP-2026-2111', // not P0209 — exact name match wins
+    });
+  });
+});
+
+describe('chooseCandidate', () => {
+  const mk = (name: string, code: string) => ({ code, name, isLive: false });
+
+  it('returns null on empty candidate list', () => {
+    expect(chooseCandidate([], 'Brussels P2')).toBeNull();
+  });
+
+  it('returns the only candidate when length is 1', () => {
+    const c = mk('BRUSSELS P2', 'FIP-2026-1701');
+    expect(chooseCandidate([c], 'Brussels P2')).toBe(c);
+  });
+
+  it('disambiguates by exact-name match (case-insensitive)', () => {
+    const promises = mk('FIP PROMISES ASUNCION I', 'FIP-2026-P0209');
+    const p2 = mk('ASUNCION P2', 'FIP-2026-2111');
+    expect(chooseCandidate([promises, p2], 'Asuncion P2')).toBe(p2);
+  });
+
+  it('strips accents when matching (Sao Paulo vs São Paulo)', () => {
+    const accented = mk('SÃO PAULO P1', 'FIP-2026-AAAA');
+    const other = mk('FIP PROMISES SAO PAULO', 'FIP-2026-BBBB');
+    expect(chooseCandidate([other, accented], 'Sao Paulo P1')).toBe(accented);
+  });
+
+  it('strips HTML entities (&#8211; en-dash) when matching', () => {
+    // Pre-fix audit found names with HTML entities in DB rows that
+    // Crionet returns without them (or vice-versa). Normalise both
+    // sides to plain ASCII before equality test.
+    const withEntity = mk('FIP PROMISES PERUGIA II', 'FIP-2026-AAAA');
+    expect(
+      chooseCandidate(
+        [withEntity, mk('OTHER', 'FIP-2026-BBBB')],
+        'FIP PROMISES SANREMO PADEL EXPERIENCE &#8211; PERUGIA II',
+      ),
+    ).toBeNull(); // No exact match because the prefix differs — caller must skip
+  });
+
+  it('returns null when no exact match is found among many', () => {
+    const a = mk('SOMETHING ELSE', 'FIP-2026-1');
+    const b = mk('ANOTHER THING', 'FIP-2026-2');
+    expect(chooseCandidate([a, b], 'Brussels P2')).toBeNull();
+  });
+
+  it('returns null when multiple candidates have the SAME exact name', () => {
+    // Crionet duplicates do happen — observed in the 2026-04-27 audit.
+    // We can't pick deterministically, so skip and let a human decide.
+    const dup1 = mk('ASUNCION P2', 'FIP-2026-2111');
+    const dup2 = mk('ASUNCION P2', 'FIP-2026-2111');
+    expect(chooseCandidate([dup1, dup2], 'Asuncion P2')).toBeNull();
   });
 });
