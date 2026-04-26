@@ -806,7 +806,7 @@ async function dualWriteShadowToPublic(
   const { data: shadowPts, error: ptsErr } = await supabase
     .schema('padelgod')
     .from('shadow_match_points')
-    .select('set_number, game_number, point_number, score_after, server_team')
+    .select('set_number, game_number, point_number, score_after, server_team, winner_pair')
     .eq('match_id', matchId)
     .order('set_number')
     .order('game_number')
@@ -820,7 +820,12 @@ async function dualWriteShadowToPublic(
     return;
   }
 
-  type GameAgg = { points: string[]; lastServer: 1 | 2 | null };
+  // GameAgg.lastWinner — winner of the LAST point in this game. For completed
+  // games this equals the game winner (the game ends on the point that decides
+  // it). For the current/in-progress game it's whoever scored most recently —
+  // we leave games.winner_pair NULL there so the chart's break-detection logic
+  // doesn't claim a winner mid-game.
+  type GameAgg = { points: string[]; lastServer: 1 | 2 | null; lastWinner: 1 | 2 | null };
   const byGame = new Map<string, GameAgg>();
   for (const p of (shadowPts ?? []) as Array<{
     set_number: number;
@@ -828,12 +833,16 @@ async function dualWriteShadowToPublic(
     point_number: number;
     score_after: string | null;
     server_team: 1 | 2 | null;
+    winner_pair: 1 | 2 | null;
   }>) {
     const key = `${p.set_number}:${p.game_number}`;
-    const entry = byGame.get(key) ?? { points: [], lastServer: null };
+    const entry = byGame.get(key) ?? { points: [], lastServer: null, lastWinner: null };
     const score = (p.score_after ?? '').replace('-', ':');
     if (score) entry.points.push(score);
     if (p.server_team != null) entry.lastServer = p.server_team;
+    // Query is ordered by point_number ASC, so successive iterations overwrite
+    // with the latest winner — final value is the last point's winner_pair.
+    if (p.winner_pair != null) entry.lastWinner = p.winner_pair;
     byGame.set(key, entry);
   }
 
@@ -882,6 +891,14 @@ async function dualWriteShadowToPublic(
     const lastScore = agg.points[agg.points.length - 1] ?? '0:0';
     const serverId = serverPlayerId(agg.lastServer, resolvedPlayers);
 
+    // winner_pair: only persist for COMPLETED games. The current game's last
+    // point doesn't equal the game winner — the game's last captured point
+    // could be mid-deuce. Once the game closes (next game starts → this row
+    // is upserted with isCurrent=false), agg.lastWinner reflects the truly
+    // final point and gets written. Downstream readers (the Match Journey
+    // chart's break-of-serve detection) trust this column.
+    const winnerPair = isCurrent ? null : agg.lastWinner;
+
     const { error: upsertErr } = await supabase.from('games').upsert(
       {
         set_id: setId,
@@ -894,6 +911,7 @@ async function dualWriteShadowToPublic(
         // Completed tiebreak games default to false — acceptable approximation.
         is_tiebreak: isCurrent ? isTiebreakForCurrent : false,
         server_player_id: serverId,
+        winner_pair: winnerPair,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'set_id,game_number' },

@@ -94,10 +94,17 @@ function inferWinnerFromPoints(game: Game): 1 | 2 | null {
 function computeGameWinner(games: Game[], idx: number): 1 | 2 | null {
   const game = games[idx]
 
-  // Primary: infer from the points array — this is ground truth.
-  // game_score is a cumulative "before-this-game" counter and comparing
-  // game[idx] vs game[idx-1] actually yields game idx-1's winner (off-by-one).
-  // Points always reflect what happened IN this specific game.
+  // Primary: trust the persisted winner_pair if padelgod set it.
+  // Padelgod writes this on game completion from match_points (the per-point
+  // winner table) — when present, it's authoritative. Live captures can be
+  // sparse (we don't see every point), so deriving winners from `points`
+  // alone misclassifies games whose last captured frame lands mid-deuce or
+  // before the game-winning point. winner_pair sidesteps that entirely.
+  if (game.winner_pair === 1 || game.winner_pair === 2) return game.winner_pair
+
+  // Fallback 1 — points-array inference. Only used for legacy matches that
+  // ran before padelgod was wired in (no winner_pair on games rows). Less
+  // reliable on incomplete captures but better than nothing.
   const pointsWinner = inferWinnerFromPoints(game)
   if (pointsWinner) return pointsWinner
 
@@ -135,15 +142,24 @@ function buildGameSummaries(
       const winner = computeGameWinner(games, i)
 
       // Server pair derived from the FK game.server_player_id → pair lookup.
-      // A break = the serving pair is NOT the winning pair. NULL server falls
-      // through to wasBreak=false (we never claim a break we can't prove).
       let serverPair: 1 | 2 | null = null
       const sid = game.server_player_id
       if (sid) {
         if (pair1Ids.has(sid)) serverPair = 1
         else if (pair2Ids.has(sid)) serverPair = 2
       }
-      const wasBreak = winner !== null && serverPair !== null && serverPair !== winner
+
+      // Break detection demands definitive winner data — we use the
+      // persisted game.winner_pair only, never the points-array inference
+      // fallback that `winner` may carry. Inferred winners can be wrong
+      // on incomplete captures (deuce games, ad-out games, mid-game live
+      // snapshots), and a wrong break badge erodes trust in the chart.
+      // game.winner_pair is written by padelgod from match_points only when
+      // the game is actually decided, so its presence is the proof we need.
+      const definitiveWinner =
+        game.winner_pair === 1 || game.winner_pair === 2 ? game.winner_pair : null
+      const wasBreak =
+        definitiveWinner !== null && serverPair !== null && serverPair !== definitiveWinner
 
       summaries.push({
         gameNumber: game.game_number,
