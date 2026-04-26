@@ -14,7 +14,6 @@ import { createClient } from '@supabase/supabase-js'
 import {
   fetchPremierTournamentDropdown,
   fetchPremierMatchDetail,
-  withThrottle,
   type PremierMatchDetail,
 } from '@/lib/premier-api'
 import {
@@ -46,9 +45,22 @@ const MIN_YEAR = 2026
 // only returns upcoming matches for future tournaments.
 //
 // 5700 is roughly where Riyadh P1 2026 (Feb 7) match IDs start.
-// 6500 is safe headroom for the next few tournaments.
-const MIN_MATCH_ID = 5700
-const MAX_MATCH_ID = 6500
+// MAX rolls forward as the season progresses — overridable via ?max= query
+// param so we don't redeploy each time. Brussels P2 (late April) ran around
+// ID 8000, so 9000 has a few weeks of headroom.
+const DEFAULT_MIN_MATCH_ID = 5700
+const DEFAULT_MAX_MATCH_ID = 9000
+
+// Vercel function timeout for this route. The scan is the longest part —
+// each fetch is ~150-300ms + network jitter, so a 5-min budget with chunked
+// parallelism handles ~3-4k IDs comfortably.
+export const maxDuration = 300
+
+// Parallel fetch concurrency. Premier's rate limits aren't documented, but
+// 5 concurrent flights with a 150ms gap between chunks has run cleanly
+// in practice. Bump cautiously.
+const SCAN_CONCURRENCY = 5
+const INTER_CHUNK_PAUSE_MS = 150
 
 // Rounds we skip at the source — our DB doesn't store qualification
 // matches, so these would always end up as "no_player_match" unresolved
@@ -143,6 +155,7 @@ async function linkMatchesViaIdScan(
     matches: { linked: number; already: number; unresolved: number; skipped_byes: number }
     by_reason: { no_candidate: number; multiple_candidates: number; no_player_match: number }
   },
+  scanRange: { min: number; max: number },
 ): Promise<void> {
   // Build lookup: premier tournaments_id → our tournament UUID
   const linkedMap = new Map<number, { ourId: string; name: string }>()
@@ -183,89 +196,109 @@ async function linkMatchesViaIdScan(
   )
   console.log(`[premier-discovery] pre-loaded ${alreadyLinkedMatchIds.size} existing match mappings`)
 
-  console.log(`[premier-discovery] scanning Premier match IDs ${MIN_MATCH_ID}..${MAX_MATCH_ID}`)
+  console.log(`[premier-discovery] scanning Premier match IDs ${scanRange.min}..${scanRange.max} (concurrency=${SCAN_CONCURRENCY})`)
 
   let scanned = 0
   let empty = 0
   let outOfScope = 0
   let skippedQuali = 0
 
-  for (let premierMatchId = MIN_MATCH_ID; premierMatchId <= MAX_MATCH_ID; premierMatchId++) {
-    // Fetch with throttle
-    const detail = await withThrottle(() => fetchPremierMatchDetail(premierMatchId))
-    scanned++
-
-    if (!detail) { empty++; continue }
-
-    // Is this match's tournament one we've linked?
-    const linkedInfo = linkedMap.get(detail.match_score.tournaments_id)
-    if (!linkedInfo) { outOfScope++; continue }
-
-    // Skip byes
-    if (detail.match_score.is_bye === 'Yes') {
-      result.matches.skipped_byes++
-      continue
-    }
-
-    // Skip qualification rounds (Q1/Q2/Q3) — our DB doesn't track them,
-    // so they'd always fail player-matching. Silent skip, no unresolved entry.
-    if (SKIP_ROUND_PATTERN.test(detail.match_score.round_name ?? '')) {
-      skippedQuali++
-      continue
-    }
-
-    // Skip if this Premier match ID is already linked (in-memory lookup)
-    if (alreadyLinkedMatchIds.has(String(premierMatchId))) {
+  // Build the list of IDs we actually need to fetch. Already-linked IDs
+  // are skipped at the cost of zero network calls — important because the
+  // routine cron will re-scan the full historical range every Monday.
+  const idsToFetch: number[] = []
+  for (let id = scanRange.min; id <= scanRange.max; id++) {
+    if (alreadyLinkedMatchIds.has(String(id))) {
       result.matches.already++
       continue
     }
+    idsToFetch.push(id)
+  }
+  console.log(`[premier-discovery] ${idsToFetch.length} IDs to fetch (${result.matches.already} already-linked skipped)`)
 
-    // Run player-name matcher
-    const ourMatches = await getOurMatches(linkedInfo.ourId)
-    if (ourMatches.length === 0) {
-      // Tournament is linked but our DB has no matches for it yet
-      // (future tournament). Queue as unresolved for later.
-      await supabase.from('match_stats_unresolved').upsert({
-        source: 'premierpadel',
-        source_kind: 'match',
-        source_id: String(premierMatchId),
-        source_payload: detail.match_score as unknown as Record<string, unknown>,
-        candidate_count: 0,
-        reason: 'no_candidate',
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'source,source_kind,source_id' })
-      result.matches.unresolved++
-      result.by_reason.no_candidate++
-      continue
+  // Chunked parallel fetch — each chunk waits for all flights to settle,
+  // then a small gap before the next chunk so we don't blow up Premier's
+  // rate limits. Process results sequentially so DB writes stay ordered.
+  for (let chunkStart = 0; chunkStart < idsToFetch.length; chunkStart += SCAN_CONCURRENCY) {
+    const chunkIds = idsToFetch.slice(chunkStart, chunkStart + SCAN_CONCURRENCY)
+    const details = await Promise.all(chunkIds.map(id => fetchPremierMatchDetail(id)))
+
+    for (let i = 0; i < chunkIds.length; i++) {
+      const premierMatchId = chunkIds[i]
+      const detail = details[i]
+      scanned++
+
+      if (!detail) { empty++; continue }
+
+      // Is this match's tournament one we've linked?
+      const linkedInfo = linkedMap.get(detail.match_score.tournaments_id)
+      if (!linkedInfo) { outOfScope++; continue }
+
+      // Skip byes
+      if (detail.match_score.is_bye === 'Yes') {
+        result.matches.skipped_byes++
+        continue
+      }
+
+      // Skip qualification rounds (Q1/Q2/Q3) — our DB doesn't track them,
+      // so they'd always fail player-matching. Silent skip, no unresolved entry.
+      if (SKIP_ROUND_PATTERN.test(detail.match_score.round_name ?? '')) {
+        skippedQuali++
+        continue
+      }
+
+      // Run player-name matcher
+      const ourMatches = await getOurMatches(linkedInfo.ourId)
+      if (ourMatches.length === 0) {
+        // Tournament is linked but our DB has no matches for it yet
+        // (future tournament). Queue as unresolved for later.
+        await supabase.from('match_stats_unresolved').upsert({
+          source: 'premierpadel',
+          source_kind: 'match',
+          source_id: String(premierMatchId),
+          source_payload: detail.match_score as unknown as Record<string, unknown>,
+          candidate_count: 0,
+          reason: 'no_candidate',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'source,source_kind,source_id' })
+        result.matches.unresolved++
+        result.by_reason.no_candidate++
+        continue
+      }
+
+      const { matched, score } = matchPremierMatchToOurs(detail, ourMatches)
+
+      if (matched && score >= 3) {
+        await registerSourceId(supabase, {
+          entityType: 'match',
+          entityId: matched.id,
+          source: 'premierpadel',
+          externalId: String(premierMatchId),
+          metadata: {
+            draw_type: detail.match_score.draw_type,
+            round_name: detail.match_score.round_name,
+            matchId: detail.match_score.matchId,
+          },
+        })
+        result.matches.linked++
+      } else {
+        await supabase.from('match_stats_unresolved').upsert({
+          source: 'premierpadel',
+          source_kind: 'match',
+          source_id: String(premierMatchId),
+          source_payload: detail.match_score as unknown as Record<string, unknown>,
+          candidate_count: ourMatches.length,
+          reason: 'no_player_match',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'source,source_kind,source_id' })
+        result.matches.unresolved++
+        result.by_reason.no_player_match++
+      }
     }
 
-    const { matched, score } = matchPremierMatchToOurs(detail, ourMatches)
-
-    if (matched && score >= 3) {
-      await registerSourceId(supabase, {
-        entityType: 'match',
-        entityId: matched.id,
-        source: 'premierpadel',
-        externalId: String(premierMatchId),
-        metadata: {
-          draw_type: detail.match_score.draw_type,
-          round_name: detail.match_score.round_name,
-          matchId: detail.match_score.matchId,
-        },
-      })
-      result.matches.linked++
-    } else {
-      await supabase.from('match_stats_unresolved').upsert({
-        source: 'premierpadel',
-        source_kind: 'match',
-        source_id: String(premierMatchId),
-        source_payload: detail.match_score as unknown as Record<string, unknown>,
-        candidate_count: ourMatches.length,
-        reason: 'no_player_match',
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'source,source_kind,source_id' })
-      result.matches.unresolved++
-      result.by_reason.no_player_match++
+    // Inter-chunk pause to stay under Premier's (undocumented) rate limit.
+    if (chunkStart + SCAN_CONCURRENCY < idsToFetch.length) {
+      await new Promise(r => setTimeout(r, INTER_CHUNK_PAUSE_MS))
     }
   }
 
@@ -370,10 +403,19 @@ export async function GET(request: Request) {
   }
 
   // Step 4: Match linking via ID range scan
-  await linkMatchesViaIdScan(linkedTournamentIds, result)
+  // Range overridable via ?min=&max= for ad-hoc backfill of newer tournaments.
+  const url = new URL(request.url)
+  const minParam = Number(url.searchParams.get('min'))
+  const maxParam = Number(url.searchParams.get('max'))
+  const scanRange = {
+    min: Number.isFinite(minParam) && minParam > 0 ? minParam : DEFAULT_MIN_MATCH_ID,
+    max: Number.isFinite(maxParam) && maxParam > 0 ? maxParam : DEFAULT_MAX_MATCH_ID,
+  }
+  await linkMatchesViaIdScan(linkedTournamentIds, result, scanRange)
 
   return Response.json({
     ...result,
+    scan_range: scanRange,
     elapsed_ms: Date.now() - startedAt,
   })
 }
