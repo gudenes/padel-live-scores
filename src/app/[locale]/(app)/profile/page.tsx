@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { useViewTransitionRouter } from '@/hooks/useViewTransitionRouter'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import { useBadges, type EarnedBadge } from '@/hooks/useBadges'
@@ -46,6 +47,11 @@ export default function ProfilePage() {
   const t = useTranslations('profile')
   const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
+  // View-transition-aware router for navigations where we want the
+  // page-level slide + shared-element morph (currently: profile → settings,
+  // back button on settings, achievements page hop). Falls back to instant
+  // navigation on browsers that don't support View Transitions API.
+  const vtRouter = useViewTransitionRouter()
   const { badges: earnedBadges, loading: badgesLoading } = useBadges()
 
   const [counts, setCounts] = useState<Counts | null>(null)
@@ -185,7 +191,7 @@ export default function ProfilePage() {
         <button
           type="button"
           aria-label={t('settings')}
-          onClick={() => router.push('/profile/settings')}
+          onClick={() => vtRouter.push('/profile/settings')}
           style={{
             width: 36, height: 36, border: 'none', cursor: 'pointer',
             background: 'transparent', display: 'flex',
