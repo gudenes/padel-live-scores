@@ -295,4 +295,41 @@ button:focus { outline: none; }
     max-width: none !important;
     width: 100% !important;
   }
+
+
+  /* ── Ops dashboard escape hatch ────────────────────────────────────
+     /ops needs the full desktop viewport — tables, multi-column data
+     views, schedule editors don't fit in a 412px phone screen. The
+     ops layout marks itself with className="ops-route" and these rules
+     undo every piece of phone-frame chrome whenever that marker is
+     present anywhere inside the canvas. `:has()` does the lookup in
+     pure CSS — no JS gate, no route detection in the root layout.
+     ────────────────────────────────────────────────────────────── */
+  .app-canvas:has(.ops-route) {
+    background: var(--bg-base) !important;
+    background-attachment: initial !important;
+    padding: 0 !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+  .app-canvas:has(.ops-route)::before {
+    display: none !important;
+  }
+  .app-canvas:has(.ops-route) .app-frame {
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+  .app-canvas:has(.ops-route) .app-screen {
+    border-radius: 0 !important;
+    overflow: visible !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    contain: none !important;
+  }
 }

@@ -8,5 +8,10 @@ export const metadata = {
 }
 
 export default function OpsLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  // The `ops-route` class is a marker the desktop phone-frame CSS uses to
+  // deactivate itself for ops pages. Ops needs the full viewport for tables,
+  // multi-column dashboards, and the >1100px-only data tools — squeezing it
+  // into a 412px phone screen makes most of the UI inaccessible. See the
+  // .app-canvas:has(.ops-route) rules in src/app/globals.css.
+  return <div className="ops-route">{children}</div>
 }
