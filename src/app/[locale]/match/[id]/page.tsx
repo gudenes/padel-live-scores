@@ -884,6 +884,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           pair2Color={PAIR2_COLOR}
           pair1Avatars={[match.pair1_player1?.avatar_url ?? null, match.pair1_player2?.avatar_url ?? null]}
           pair2Avatars={[match.pair2_player1?.avatar_url ?? null, match.pair2_player2?.avatar_url ?? null]}
+          pair1PlayerIds={[match.pair1_player1?.id ?? null, match.pair1_player2?.id ?? null]}
+          pair2PlayerIds={[match.pair2_player1?.id ?? null, match.pair2_player2?.id ?? null]}
           onGameClick={(setNum, gameNum) => {
             setSubTab('live')
             setTimeout(() => {

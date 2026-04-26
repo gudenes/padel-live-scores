@@ -30,6 +30,13 @@ export interface Game {
   points: string[]
   is_current: boolean
   winner_pair: number | null
+  /**
+   * Player who served this entire game. Populated by padelgod's live-scoring
+   * pipeline (Crionet widget tracks the ball-icon per row to identify the
+   * server). NULL for games that ran before padelgod was wired in or for
+   * matches without a Crionet mapping.
+   */
+  server_player_id: string | null
 }
 
 export interface Set {

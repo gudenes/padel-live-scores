@@ -14,6 +14,14 @@ interface MomentumChartProps {
   pair2Color: string
   pair1Avatars: (string | null)[]
   pair2Avatars: (string | null)[]
+  /**
+   * Player UUIDs for each pair, used to map `game.server_player_id` → which
+   * pair was serving that game. When the serving pair !== winning pair, the
+   * game was a break of serve and gets a "B" badge in the chart.
+   * Pass empty arrays to disable break detection.
+   */
+  pair1PlayerIds?: (string | null)[]
+  pair2PlayerIds?: (string | null)[]
   onGameClick?: (setNumber: number, gameNumber: number) => void
 }
 
@@ -25,6 +33,8 @@ interface GameSummary {
   winner: 1 | 2 | null
   isCurrent: boolean
   globalIndex: number
+  /** True when the receiving pair won this game. */
+  wasBreak: boolean
 }
 
 // ── Colors — brand identity (orange / yellow) ──────────────────────────────
@@ -109,7 +119,11 @@ function computeGameWinner(games: Game[], idx: number): 1 | 2 | null {
   return null
 }
 
-function buildGameSummaries(sets: MatchSet[]): GameSummary[] {
+function buildGameSummaries(
+  sets: MatchSet[],
+  pair1Ids: Set<string>,
+  pair2Ids: Set<string>,
+): GameSummary[] {
   const summaries: GameSummary[] = []
   let globalIdx = 0
 
@@ -120,6 +134,17 @@ function buildGameSummaries(sets: MatchSet[]): GameSummary[] {
       const points = extractPointScorers(game)
       const winner = computeGameWinner(games, i)
 
+      // Server pair derived from the FK game.server_player_id → pair lookup.
+      // A break = the serving pair is NOT the winning pair. NULL server falls
+      // through to wasBreak=false (we never claim a break we can't prove).
+      let serverPair: 1 | 2 | null = null
+      const sid = game.server_player_id
+      if (sid) {
+        if (pair1Ids.has(sid)) serverPair = 1
+        else if (pair2Ids.has(sid)) serverPair = 2
+      }
+      const wasBreak = winner !== null && serverPair !== null && serverPair !== winner
+
       summaries.push({
         gameNumber: game.game_number,
         setNumber: set.set_number,
@@ -128,6 +153,7 @@ function buildGameSummaries(sets: MatchSet[]): GameSummary[] {
         winner,
         isCurrent: game.is_current,
         globalIndex: globalIdx++,
+        wasBreak,
       })
     }
   }
@@ -165,11 +191,16 @@ function MiniAvatar({ url, size = 32 }: { url: string | null; size?: number }) {
 
 // ── Main Component ──────────────────────────────────────────────────────────
 
-export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pair1Avatars, pair2Avatars, onGameClick }: MomentumChartProps) {
+export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pair1Avatars, pair2Avatars, pair1PlayerIds, pair2PlayerIds, onGameClick }: MomentumChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const inView = useInViewOnce(containerRef)
   const sortedSets = useMemo(() => [...sets].sort((a, b) => a.set_number - b.set_number), [sets])
-  const allGames = useMemo(() => buildGameSummaries(sortedSets), [sortedSets])
+
+  // Memoize the pair-id sets so buildGameSummaries dependencies stay stable.
+  const pair1IdSet = useMemo(() => new Set((pair1PlayerIds ?? []).filter((x): x is string => !!x)), [pair1PlayerIds])
+  const pair2IdSet = useMemo(() => new Set((pair2PlayerIds ?? []).filter((x): x is string => !!x)), [pair2PlayerIds])
+  const allGames = useMemo(() => buildGameSummaries(sortedSets, pair1IdSet, pair2IdSet), [sortedSets, pair1IdSet, pair2IdSet])
+  const hasAnyBreak = allGames.some(g => g.wasBreak)
 
   const hasData = allGames.some(g => g.p1Points > 0 || g.p2Points > 0)
   if (!hasData) return null
@@ -290,6 +321,11 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
               <clipPath id="chunkyBarDown" clipPathUnits="objectBoundingBox">
                 <polygon points="0,0.05 1,0 0.97,0.95 0.03,1" />
               </clipPath>
+              {/* Break badge — same chunky-clip aesthetic as the bars so it
+                  looks like part of the chart's vocabulary, not a UI sticker. */}
+              <clipPath id="breakBadgeClip" clipPathUnits="objectBoundingBox">
+                <polygon points="0.1,0.1 0.9,0 1,0.9 0,1" />
+              </clipPath>
             </defs>
 
             {/* Center line */}
@@ -364,6 +400,38 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
                       }}
                     />
                   )}
+                  {/* Break badge — sits above the WINNING pair's bar tip. We
+                      draw it after the bars so it always wins the z-order
+                      contest at the seam where the bar ends. */}
+                  {game.wasBreak && game.winner && (() => {
+                    const isP1 = game.winner === 1
+                    // Badge geometry: 20×22 chunky tile centered on the bar.
+                    const badgeW = 20
+                    const badgeH = 22
+                    const badgeX = x + barWidth / 2 - badgeW / 2
+                    // Place it just outside the bar tip with a small gap so
+                    // the bar stroke doesn't kiss the badge edge.
+                    const tipY = isP1 ? (centerY - p1H) : (centerY + p2H)
+                    const badgeY = isP1 ? tipY - badgeH - 2 : tipY + 2
+                    const textY = badgeY + badgeH / 2 + 5  // +5 = vertical-centering nudge
+                    return (
+                      <g
+                        style={{
+                          opacity: inView ? 1 : 0,
+                          transition: `opacity 400ms ease-out ${i * 50 + 350}ms`,
+                        }}
+                      >
+                        {/* Outer glow halo for legibility against busy bars */}
+                        <rect x={badgeX - 1} y={badgeY - 1} width={badgeW + 2} height={badgeH + 2} fill={`${LIVE_RED}30`} clipPath="url(#breakBadgeClip)" />
+                        <rect x={badgeX} y={badgeY} width={badgeW} height={badgeH} fill={LIVE_RED} clipPath="url(#breakBadgeClip)" />
+                        <text
+                          x={x + barWidth / 2} y={textY}
+                          textAnchor="middle" fontSize={13} fontWeight={900}
+                          fontFamily="var(--font-mono), monospace" fill="#fff"
+                        >B</text>
+                      </g>
+                    )
+                  })()}
                 </g>
               )
             })}
@@ -422,6 +490,20 @@ export default function MomentumChart({ sets, pair1Label, pair2Label, isLive, pa
           <div style={{ width: 10, height: 6, background: P2_COLOR, clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)', opacity: 0.6 }} />
           <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>{p2Names.join(' / ')}</span>
         </div>
+        {hasAnyBreak && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{
+              background: LIVE_RED,
+              color: '#fff',
+              fontSize: 8,
+              fontWeight: 900,
+              padding: '1px 4px',
+              clipPath: 'polygon(10% 10%, 90% 0%, 100% 90%, 0% 100%)',
+              fontFamily: 'var(--font-mono), monospace',
+            }}>B</span>
+            <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>BREAK</span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -436,7 +518,9 @@ interface CompactMomentumProps {
 
 export function CompactMomentum({ sets, isLive }: CompactMomentumProps) {
   const sortedSets = useMemo(() => [...sets].sort((a, b) => a.set_number - b.set_number), [sets])
-  const allGames = useMemo(() => buildGameSummaries(sortedSets), [sortedSets])
+  // Compact view doesn't render break badges, so empty sets are fine here.
+  const emptySet = useMemo(() => new Set<string>(), [])
+  const allGames = useMemo(() => buildGameSummaries(sortedSets, emptySet, emptySet), [sortedSets, emptySet])
 
   const hasData = allGames.some(g => g.p1Points > 0 || g.p2Points > 0)
   if (!hasData) return null
