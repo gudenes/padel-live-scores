@@ -92,3 +92,46 @@ button:focus { outline: none; }
 }
 * { scrollbar-width: none; -ms-overflow-style: none; }
 *::-webkit-scrollbar { display: none; }
+
+/* ───────────────────────────────────────────────────────────────────
+   View Transitions — page-level animation defaults
+
+   Triggered when navigation is wrapped in document.startViewTransition()
+   (see src/hooks/useViewTransitionRouter.ts). The browser captures a
+   snapshot of the outgoing page + incoming page and exposes them as
+   the ::view-transition-old(*) and ::view-transition-new(*) pseudo-
+   elements. We animate them with a slide-fade so the navigation feels
+   like a stack push instead of an instant cut.
+
+   Elements with `view-transition-name` set on them get their OWN
+   pseudo-element pair and animate independently — that's how the
+   profile→settings avatar morph works (the avatar opts out of the
+   page-level slide and instead morphs between its two positions).
+
+   Default duration is 300ms; the cubic-bezier mimics iOS's stack
+   push/pop curve. prefers-reduced-motion respects the user's OS-level
+   accessibility preference and disables the animation entirely.
+   ─────────────────────────────────────────────────────────────────── */
+
+@keyframes vt-slide-from-right {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes vt-slide-to-left {
+  from { transform: translateX(0);     opacity: 1; }
+  to   { transform: translateX(-20px); opacity: 0; }
+}
+
+::view-transition-old(root) {
+  animation: vt-slide-to-left 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+::view-transition-new(root) {
+  animation: vt-slide-from-right 280ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
