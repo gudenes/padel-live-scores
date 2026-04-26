@@ -280,14 +280,13 @@ button:focus { outline: none; }
   /* Bottom nav — convert position:fixed (which would anchor to the
      viewport on Chrome despite contain: paint on the parent) to
      position: sticky so it pins to the bottom of the scroll container.
-     Inline styles on the nav element use !important here to override.
-     The nav stays the last child of .app-screen on every authenticated
-     page, so sticky bottom: 0 keeps it visible at the screen bottom
-     regardless of scroll position. Selector is intentionally broad
-     (`.app-screen nav`, not `>`) so it catches nav nodes nested inside
-     wrapper components — some pages render the nav inside a fragment
-     plus other elements rather than as a direct child. */
-  .app-screen nav {
+     The nav we care about (BottomNavV3, set globally by the (app) route
+     group) is always a DIRECT child of .app-screen, so we use the
+     child combinator. Anything else inside .app-screen — like the
+     ops dashboard's sidebar nav, nested several layers deep inside
+     .ops-route — would otherwise inherit `width: 100%` and eat the
+     whole viewport. Direct-child scoping prevents that collision. */
+  .app-screen > nav {
     position: sticky !important;
     bottom: 0 !important;
     left: auto !important;
