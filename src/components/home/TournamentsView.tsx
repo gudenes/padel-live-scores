@@ -128,7 +128,7 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
       // Fetch all tournaments for this circuit
       const { data: tournamentsData } = await supabase
         .from('tournaments')
-        .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url')
+        .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url, status')
         .in('level', levels)
         .not('level', 'is', null)
         .order('starts_at', { ascending: false })
@@ -138,8 +138,16 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
 
       const now = new Date()
 
-      // Step 1: Determine truly live tournaments via match status
+      // Step 1: Determine truly live tournaments via match status.
+      // Exclude tournaments already flagged finished/completed in the DB —
+      // those have leftover `scheduled` qualifier rows from before the
+      // event that the match-status sweep below would otherwise misread
+      // as "ongoing." Brussels P2 2026 surfaced this bug: ends_at = Apr 26,
+      // status = 'finished', but a handful of unplayed Q1 matches kept
+      // the tournament in the "Ongoing" tile through Apr 27.
+      const FINISHED_STATUSES = new Set(['finished', 'completed', 'ended'])
       const candidateLive = tournamentsData.filter(t => {
+        if (t.status && FINISHED_STATUSES.has(t.status as string)) return false
         const start = new Date(t.starts_at)
         const end = new Date(t.ends_at); end.setDate(end.getDate() + 3)
         return start <= now && now <= end
