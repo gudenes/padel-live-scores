@@ -32,9 +32,11 @@ export interface MatchesFilterClientProps {
   /** ID of the wrapper div the server renders around all match nodes.
    *  Used as the root for visibility toggling. */
   rootId: string
+  /** Optional left-side slot for the filter bar (e.g. a "Today" shortcut). */
+  leftSlot?: React.ReactNode
 }
 
-export default function MatchesFilterClient({ rootId }: MatchesFilterClientProps) {
+export default function MatchesFilterClient({ rootId, leftSlot }: MatchesFilterClientProps) {
   const { filters, setFilters, reset, hydrated, activeCount } = useMatchesFilters()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [emptyAfterFilter, setEmptyAfterFilter] = useState(false)
@@ -142,6 +144,7 @@ export default function MatchesFilterClient({ rootId }: MatchesFilterClientProps
         filters={filters}
         activeCount={activeCount}
         onOpen={() => setDrawerOpen(true)}
+        leftSlot={leftSlot}
       />
       <MatchesFilterDrawer
         open={drawerOpen}
