@@ -34,10 +34,14 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.json',
   icons: {
+    // Multi-resolution PNG set from the 2026-04-27 favicon refresh
+    // (designer brief: Padel Nachos — Favicon export · Print). Browsers
+    // pick the closest match for retina + tab + bookmark contexts.
     icon: [
-      { url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-64.png', sizes: '64x64', type: 'image/png' },
+      { url: '/favicon-48.png', sizes: '48x48', type: 'image/png' },
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
     ],
     apple: '/apple-touch-icon.png',
   },
@@ -62,8 +66,10 @@ export const metadata: Metadata = {
   },
   other: {
     'mobile-web-app-capable': 'yes',
-    'theme-color': '#020C18',
-    'msapplication-TileColor': '#020C18',
+    // Designer-specified lime to match the 2026-04-27 favicon refresh.
+    // Drives the mobile browser address bar tint + Windows tile color.
+    'theme-color': '#B6E61A',
+    'msapplication-TileColor': '#B6E61A',
   },
 };
 
