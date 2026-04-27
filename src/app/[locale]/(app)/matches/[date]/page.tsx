@@ -25,6 +25,7 @@ import { DailyDatePills } from '@/components/DailyDatePills'
 import { DailyWhereToWatch } from './DailyWhereToWatch'
 import EmptyState from '@/components/EmptyState'
 import MatchesFilterClient from '@/components/MatchesFilterClient'
+import MatchesPageHeader from '@/components/MatchesPageHeader'
 
 export const revalidate = 300 // 5 min
 
@@ -239,58 +240,56 @@ export default async function DailyMatchesPage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd).replace(/</g, '\\u003c') }}
       />
 
-      {/* Back link */}
-      <div style={{ padding: '12px 16px 0' }}>
-        <Link
-          href="/matches"
-          locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
-          style={{ fontSize: 12, color: MUTED, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-        >
-          ← {tDaily('backToMatches')}
-        </Link>
-      </div>
+      {/* Global app header — same logo / search / share / profile pattern
+          as home, feed, following. Sticky at top:0 with z:100, hides on
+          scroll down. */}
+      <MatchesPageHeader />
 
-      {/* Date pills */}
+      {/* Date pills + filter bar — flow normally below the global header.
+          Filter sits IMMEDIATELY below the date pills (no intro between)
+          so the visual hierarchy is "pick day → filter day → see matches".
+          Not sticky on purpose — the AppHeader's scroll-hide behaviour
+          conflicts with a second sticky strip; the user scrolls back to
+          the top to change days, same as the home page's secondary
+          content. */}
       <DailyDatePills selectedIso={iso} locale={locale} />
-
-      {/* Intro */}
-      <header style={{ padding: '8px 16px 16px' }}>
-        <h1 style={{
-          fontSize: 22, fontWeight: 800, color: '#FFF', margin: '0 0 8px',
-          letterSpacing: -0.3, lineHeight: 1.2,
-        }}>
-          {intro.h1}
-        </h1>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, margin: 0 }}>
-          {intro.lead}
-        </p>
-      </header>
-
-      {/* Where to watch — only when the day has a Premier-tier tournament.
-          The Premier API (sync-broadcasters cron) is the only source the
-          broadcasters table is wired up to; rendering this block on an
-          all-FIP day would show Premier broadcasters for matches that
-          won't be on them. */}
-      {hasPremierToday && <DailyWhereToWatch locale={locale} />}
-
-      {/* Filter bar + drawer (client component). Sits between the day
-          pills and the matches list. The filter applies CSS visibility
-          on the data-tagged nodes inside #matches-filter-root below. */}
       {dayMatches.length > 0 && (
         <MatchesFilterClient rootId="matches-filter-root" />
       )}
 
-      {/* Empty state — ZERO matches on this day at all. The filter
-          drawer's "filters hide everything" empty state lives inside
-          MatchesFilterClient and only fires when the user has narrowed
-          a non-empty day into nothing. */}
-      {dayMatches.length === 0 && (
-        <div style={{ padding: '8px 16px 24px' }}>
-          <EmptyState title={tDaily('noMatchesTitle')} subtitle={tDaily('noMatchesSub')} />
-        </div>
-      )}
+      {/* Intro — fades in with the matches list on day change so the
+          whole below-the-header area transitions as one unit. */}
+      <div className="matches-day-fade">
+        <header style={{ padding: '12px 16px 16px' }}>
+          <h1 style={{
+            fontSize: 22, fontWeight: 800, color: '#FFF', margin: '0 0 8px',
+            letterSpacing: -0.3, lineHeight: 1.2,
+          }}>
+            {intro.h1}
+          </h1>
+          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, margin: 0 }}>
+            {intro.lead}
+          </p>
+        </header>
 
-      <div id="matches-filter-root">
+        {/* Where to watch — only when the day has a Premier-tier tournament.
+            The Premier API (sync-broadcasters cron) is the only source the
+            broadcasters table is wired up to; rendering this block on an
+            all-FIP day would show Premier broadcasters for matches that
+            won't be on them. */}
+        {hasPremierToday && <DailyWhereToWatch locale={locale} />}
+
+        {/* Empty state — ZERO matches on this day at all. The filter
+            drawer's "filters hide everything" empty state is rendered by
+            MatchesFilterClient (sits in the sticky header above) and only
+            fires when the user has narrowed a non-empty day to nothing. */}
+        {dayMatches.length === 0 && (
+          <div style={{ padding: '8px 16px 24px' }}>
+            <EmptyState title={tDaily('noMatchesTitle')} subtitle={tDaily('noMatchesSub')} />
+          </div>
+        )}
+
+        <div id="matches-filter-root">
         {/* Live section */}
         {liveMatches.length > 0 && (
           <Section title={tDaily('liveSection')} accent={LIVE_RED} sectionKey="live">
@@ -317,6 +316,7 @@ export default async function DailyMatchesPage({ params }: Props) {
             ))}
           </Section>
         )}
+        </div>
       </div>
 
       {/* FAQ */}

@@ -18,7 +18,7 @@
 //   - focus trapped inside the drawer
 //   - keyboard returns to the trigger button on close
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import {
@@ -76,6 +76,13 @@ export default function MatchesFilterDrawer({
   const t = useTranslations('matches.filters')
   const drawerRef = useRef<HTMLDivElement>(null)
 
+  // Mount gate — the portal renders to document.body which doesn't exist
+  // during SSR. Returning null until after the first client effect avoids
+  // the hydration mismatch we'd otherwise hit when React tries to
+  // reconcile the portaled backdrop against an empty server tree.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   // ── Body scroll lock + ESC handler ────────────────────────────────────
   useEffect(() => {
     if (!open) return
@@ -97,8 +104,8 @@ export default function MatchesFilterDrawer({
     if (open) drawerRef.current?.focus()
   }, [open])
 
-  // SSR guard for createPortal.
-  if (typeof window === 'undefined') return null
+  // Don't render the portal until after hydration — see `mounted` above.
+  if (!mounted) return null
 
   // ── Mutator helpers ───────────────────────────────────────────────────
   const setLeague = (league: LeagueFilter) => onChange({ ...filters, league })
