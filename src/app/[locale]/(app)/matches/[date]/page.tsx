@@ -23,7 +23,6 @@ import {
 } from '@/lib/locale-time'
 import { buildDailyIntro, buildDailyFaq, type DailyMatchSummary } from '@/lib/daily-page-copy'
 import { DailyDatePills } from '@/components/DailyDatePills'
-import { DailyWhereToWatch } from './DailyWhereToWatch'
 import EmptyState from '@/components/EmptyState'
 import MatchesFilterClient from '@/components/MatchesFilterClient'
 import MatchesPageHeader from '@/components/MatchesPageHeader'
@@ -150,9 +149,18 @@ export default async function DailyMatchesPage({ params }: Props) {
       ${playerJoins},
       sets(id, set_number, set_score, pair1_games, pair2_games, is_current)
     `)
+    // Widen the finished_at upper bound by 7 days so we still catch
+    // matches whose `finished_at` got stamped late by a padelgod writer
+    // (the FIP results writer / static-reconciler use the LATEST results
+    // snapshot's captured_at, which advances every hour as the snapshot
+    // worker re-observes the same finished match — so a match played
+    // Apr 24 ends up with finished_at = today). The clamping logic in
+    // `effectiveFinishedAt` below pulls those rows back to their
+    // tournament's `ends_at` so they show up on the correct day instead
+    // of today's page.
     .or(
       `and(scheduled_at.gte.${startIso},scheduled_at.lt.${endIso}),` +
-      `and(finished_at.gte.${startIso},finished_at.lt.${endIso})`,
+      `and(finished_at.gte.${startIso},finished_at.lt.${new Date(endUtc.getTime() + 7 * 86_400_000).toISOString()})`,
     )
     .order('scheduled_at', { ascending: true })
     .limit(400)
@@ -178,6 +186,27 @@ export default async function DailyMatchesPage({ params }: Props) {
     return !Number.isNaN(t) && t >= startUtc.getTime() && t < endUtc.getTime()
   }
 
+  // Clamp `finished_at` to the tournament's `ends_at` when the writer
+  // stamped a sync timestamp days after the actual play. Padelgod's
+  // FIP results writer + static-reconciler currently fall back to the
+  // LATEST results-snapshot captured_at when a match has no
+  // started_at/duration; that captured_at advances every hour, so a
+  // match played on Apr 24 can end up with finished_at = today. Without
+  // clamping, those rows surface on today's page (or the wrong day's
+  // page). 1-day buffer accommodates UTC/local-tz drift on multi-day
+  // tournaments.
+  const ONE_DAY_MS = 86_400_000
+  const effectiveFinishedAt = (m: MatchRow): string | null => {
+    if (!m.finished_at) return null
+    const tournamentEnds = m.tournament?.ends_at
+    if (!tournamentEnds) return m.finished_at
+    const finishedT = Date.parse(m.finished_at)
+    const tournamentEndT = Date.parse(tournamentEnds)
+    if (Number.isNaN(finishedT) || Number.isNaN(tournamentEndT)) return m.finished_at
+    if (finishedT > tournamentEndT + ONE_DAY_MS) return tournamentEnds
+    return m.finished_at
+  }
+
   // ── Bucket by status + the date column that's semantically correct ──
   // `on_court` (warmup phase observed by padelgod's live-poller) belongs
   // in the live bucket — fans want to see those matches in the "Live Now"
@@ -195,7 +224,7 @@ export default async function DailyMatchesPage({ params }: Props) {
     m => m.status === 'scheduled' && inWindow(m.scheduled_at),
   )
   const finishedMatches = matches.filter(
-    m => ['finished', 'retired', 'walkover'].includes(m.status) && inWindow(m.finished_at),
+    m => ['finished', 'retired', 'walkover'].includes(m.status) && inWindow(effectiveFinishedAt(m)),
   )
   // Union — used for the day's intro/FAQ copy and the SEO JSON-LD ItemList.
   // Must stay in sync with the three bucket filters above. A match that
@@ -203,11 +232,6 @@ export default async function DailyMatchesPage({ params }: Props) {
   // (scheduled_at in window but status=finished with finished_at out of
   // window, for example) is intentionally excluded from the day's story.
   const dayMatches = [...liveMatches, ...upcomingMatches, ...finishedMatches]
-
-  // Premier presence drives the Where-to-Watch header (only tier with
-  // broadcaster data). Computed from the day's tournaments, not status —
-  // a page with only upcoming Premier still earns the section.
-  const hasPremierToday = dayMatches.some(m => isPremierLevel(m.tournament?.level ?? null))
 
   // ── Build intro + FAQ copy ────────────────────────────────────
   const tDaily = await getTranslations({ locale, namespace: 'daily' })
@@ -299,13 +323,6 @@ export default async function DailyMatchesPage({ params }: Props) {
         locale={locale}
       >
       <div className="matches-day-fade">
-        {/* Where to watch — only when the day has a Premier-tier tournament.
-            The Premier API (sync-broadcasters cron) is the only source the
-            broadcasters table is wired up to; rendering this block on an
-            all-FIP day would show Premier broadcasters for matches that
-            won't be on them. */}
-        {hasPremierToday && <DailyWhereToWatch locale={locale} />}
-
         {/* Empty state — ZERO matches on this day at all. The filter
             drawer's "filters hide everything" empty state is rendered by
             MatchesFilterClient (sits in the sticky header above) and only
