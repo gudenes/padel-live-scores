@@ -11,6 +11,7 @@ import { Link } from '@/i18n/navigation'
 import { addDaysIso, getLocaleHomeTz, isLocaleToday } from '@/lib/locale-time'
 
 const GREEN = '#7ED321'
+const BG_BASE = '#0A0A0A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
 const CHUNKY_PILL = 'polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%)'
@@ -136,13 +137,28 @@ interface PillLinkProps {
 }
 
 function PillLink(p: PillLinkProps) {
-  const background = p.isSelected ? GREEN : BG_CARD
-  const color = p.isSelected ? '#0A0A0A' : '#FFF'
-  const border = p.isSelected ? GREEN : 'rgba(255,255,255,0.08)'
+  // Active highlight = stacked offset (Option C from
+  // /public/mockup-day-pill-options.html). Two layered chunky pills:
+  // a lime shadow translated 5px down/right, and a dark front pill
+  // with a lime border on top. Reads as a "raised tile" — leans into
+  // the chunky aesthetic instead of softening it via solid fill.
+  // Arrows keep the simple non-stacked treatment because they're
+  // never selected.
+  const isActive = p.isSelected && !p.isArrow
+  const background = p.isSelected
+    ? p.isArrow
+      ? GREEN
+      : BG_BASE
+    : BG_CARD
+  const color = p.isSelected && p.isArrow ? '#0A0A0A' : '#FFF'
+  const border = p.isSelected
+    ? GREEN
+    : 'rgba(255,255,255,0.08)'
+  const borderWidth = isActive ? 1.5 : 1
   const width = p.isArrow ? 32 : 54
   const minWidth = p.isArrow ? 32 : 54
 
-  return (
+  const link = (
     <Link
       href={p.href}
       locale={p.locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
@@ -159,12 +175,14 @@ function PillLink(p: PillLinkProps) {
         height: 44,
         padding: '4px 2px',
         background,
-        border: `1px solid ${border}`,
+        border: `${borderWidth}px solid ${border}`,
         clipPath: CHUNKY_PILL,
         color,
         textDecoration: 'none',
         flexShrink: 0,
         fontFamily: 'inherit',
+        position: 'relative',
+        zIndex: 1,
       }}
     >
       {p.isArrow ? (
@@ -178,16 +196,58 @@ function PillLink(p: PillLinkProps) {
             fontWeight: 600,
             letterSpacing: 0.3,
             textTransform: 'uppercase',
-            opacity: p.isSelected ? 0.9 : 0.7,
+            // Active weekday is lime — pairs with the lime border + shadow
+            // and signals "today" without flooding the pill.
+            color: isActive ? GREEN : MUTED,
+            opacity: isActive ? 0.95 : 0.7,
             lineHeight: 1,
           }}>
             {p.topLabel}
           </span>
-          <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>
+          <span style={{
+            fontSize: 15,
+            fontWeight: 700,
+            lineHeight: 1.1,
+            color: '#FFF',
+          }}>
             {p.bottomLabel}
           </span>
         </>
       )}
     </Link>
+  )
+
+  // Non-active pills (and arrows) render as the bare Link — no wrapper,
+  // no shadow layer.
+  if (!isActive) return link
+
+  // Active pill: wrap in a relative span and render the lime shadow
+  // layer behind the link. The shadow uses translate(5px, 5px) so it
+  // pokes out down-and-right; flexShrink: 0 keeps the wrapper sized to
+  // the inner pill so the row's gap behaves as before.
+  return (
+    <span
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        flexShrink: 0,
+        width,
+        height: 44,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          transform: 'translate(5px, 5px)',
+          background: GREEN,
+          clipPath: CHUNKY_PILL,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      />
+      {link}
+    </span>
   )
 }
