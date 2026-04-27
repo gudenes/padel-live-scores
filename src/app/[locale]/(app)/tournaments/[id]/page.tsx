@@ -43,23 +43,47 @@ const CHUNKY = {
 const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platinum'])
 
 // ── Stage ordering ────────────────────────────────────────────
+// Keys are the canonical labels produced by `normalizeRoundFull`. The
+// sort comparator uses these values: bigger = earlier in the bracket
+// (Round of 32 first, Final last).
 const ROUND_ORDER: Record<string, number> = {
-  'Finals': 1, 'Final': 1, 'F': 1,
-  'Semifinals': 2, 'Semifinal': 2, 'Semi': 2, 'SF': 2,
-  'Quarterfinals': 3, 'Quarter': 3, 'Quarters': 3, 'QF': 3,
-  'Round of 16': 4, 'R16': 4,
-  'Round of 32': 5, 'R32': 5,
-  'Round of 64': 6, 'R64': 6,
+  'Finals': 1,
+  'Semifinals': 2,
+  'Quarterfinals': 3,
+  'Round of 16': 4,
+  'Round of 32': 5,
+  'Round of 64': 6,
 }
 
+// Collapse every alias the upstream feeds throw at us (FIP "SemiFinals",
+// padelapi "R16", widget "Final", "Quarter") into one canonical label
+// that matches a key in ROUND_ORDER. Without canonicalisation the
+// tournament page rendered the same bracket round twice ("R16" + "Round
+// of 16") and the DB's "SemiFinals" (camelCase) fell through unsorted to
+// the bottom because ROUND_ORDER only had "Semifinals" (lowercase F).
 function normalizeRoundFull(r: string): string {
+  const key = r.toLowerCase().replace(/\s+/g, '')
   const map: Record<string, string> = {
-    'Quarter': 'Quarterfinals', 'Quarters': 'Quarterfinals', 'QF': 'Quarterfinals',
-    'Semi': 'Semifinals', 'Semifinal': 'Semifinals', 'SF': 'Semifinals',
-    'Final': 'Finals', 'F': 'Finals',
-    'R16': 'R16', 'R32': 'R32', 'R64': 'R64',
+    'final': 'Finals',
+    'finals': 'Finals',
+    'f': 'Finals',
+    'semi': 'Semifinals',
+    'semifinal': 'Semifinals',
+    'semifinals': 'Semifinals',
+    'sf': 'Semifinals',
+    'quarter': 'Quarterfinals',
+    'quarters': 'Quarterfinals',
+    'quarterfinal': 'Quarterfinals',
+    'quarterfinals': 'Quarterfinals',
+    'qf': 'Quarterfinals',
+    'r16': 'Round of 16',
+    'roundof16': 'Round of 16',
+    'r32': 'Round of 32',
+    'roundof32': 'Round of 32',
+    'r64': 'Round of 64',
+    'roundof64': 'Round of 64',
   }
-  return map[r] ?? r
+  return map[key] ?? r
 }
 
 function localDateKey(d: Date): string {
