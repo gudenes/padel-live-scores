@@ -13,7 +13,6 @@ import {
   Tournament, FlagImg, titleCase, countryName, daysUntil, formatDateRange, levelLabel,
   SectionTitle,
 } from './shared'
-import { levelTierWeight } from '@/lib/tournament-labels'
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -265,20 +264,19 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
     return { live, ongoing, upcoming, currentSeasonCompleted, prevByYear, currentYear }
   }, [tournaments, liveIds, ongoingIds])
 
-  // Hero picks the highest-tier event (lowest tierWeight). Without this,
-  // padelgod's broader FIP ingest would let a Promises event with an
-  // earlier `starts_at` outrank a same-week Platinum/Gold for the
-  // home banner. Tie-break on date so we stay deterministic across
-  // refreshes.
-  const pickByTier = (list: TournamentWithWinners[]) =>
-    [...list].sort((a, b) => {
-      const dt = levelTierWeight(a.level) - levelTierWeight(b.level)
-      if (dt !== 0) return dt
-      return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
-    })[0] ?? null
-  const heroLive = pickByTier(live)
-  const heroOngoing = pickByTier(ongoing)
-  const heroUpcoming = pickByTier(upcoming)
+  // Hero picks the closest-by-date event in each bucket. Matches the
+  // home page's spotlight logic (`tournaments[0]` after sort-by-starts_at).
+  // Without this, an end-of-season "Finals" event 8 months away would
+  // outrank every P1/P2 in the next few weeks just because its tier is
+  // higher (Barcelona Finals 2026 surfaced this on 2026-04-27).
+  const pickByDate = (list: TournamentWithWinners[]) =>
+    [...list].sort(
+      (a, b) =>
+        new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+    )[0] ?? null
+  const heroLive = pickByDate(live)
+  const heroOngoing = pickByDate(ongoing)
+  const heroUpcoming = pickByDate(upcoming)
   const hero = heroLive ?? heroOngoing ?? heroUpcoming
   const heroIsLive = !!heroLive
   const heroIsOngoing = !heroIsLive && !!heroOngoing

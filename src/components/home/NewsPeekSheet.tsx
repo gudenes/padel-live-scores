@@ -111,6 +111,13 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
       // animation kicks in; otherwise the focus ring jumps before the
       // sheet is on-screen.
       setTimeout(() => closeBtnRef.current?.focus(), 50)
+      // Defensive cleanup: if this component unmounts while the sheet
+      // is open (e.g., the user pivots from /home to /home?view=tournaments,
+      // which swaps the whole subtree), the else-branch never fires and
+      // the body stays locked at 'hidden'. Always restore on unmount.
+      return () => {
+        document.body.style.overflow = ''
+      }
     } else if (mounted) {
       document.body.style.overflow = ''
       const t = setTimeout(() => setMounted(false), 280)
