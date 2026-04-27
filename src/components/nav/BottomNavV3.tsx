@@ -2,8 +2,16 @@
 // src/components/nav/BottomNavV3.tsx
 // Redesigned 3-tab bottom nav: Scores / Home (brand icon) / Feed
 // Uses PadelNachos brand language: chunky shapes, green active state.
+//
+// Phase 1 of the bottom-nav speed work (2026-04-27):
+//   - Links use `prefetch={true}` so the RSC payload for every tab is
+//     warmed at first paint. Subsequent taps hit Next.js's client cache
+//     and feel near-instant.
+//   - Per-tab scroll restoration: scroll position is saved to
+//     sessionStorage on tab switch and replayed when the user returns
+//     to a tab. Means swiping back to Feed lands where you left off.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname, Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
@@ -67,20 +75,88 @@ const TABS = [
   { key: 'feed',      labelKey: 'feed' as const,      href: '/feed',       icon: FeedIcon },
 ] as const
 
+// Map a pathname to its top-level tab key. Anything outside the four
+// tabs returns null (no scroll snapshot).
+function tabKeyFromPath(pathname: string): typeof TABS[number]['key'] | null {
+  if (pathname === '/home' || pathname === '/home/') return 'home'
+  if (pathname.startsWith('/matches')) return 'scores'
+  if (pathname.startsWith('/following')) return 'following'
+  if (pathname.startsWith('/feed')) return 'feed'
+  return null
+}
+
+const SCROLL_STORAGE_PREFIX = 'bottomNavScroll:'
+
 export default function BottomNavV3() {
   const pathname = usePathname()
   const t = useTranslations('nav')
   const [liveCount, setLiveCount] = useState(0)
   const [newsCount, setNewsCount] = useState(0)
   const feedLastVisit = useFeedLastVisit()
+  const lastTabRef = useRef<string | null>(null)
 
   // Determine active tab
-  const activeKey =
-    pathname === '/home' || pathname === '/home/' ? 'home' :
-    pathname.startsWith('/matches') ? 'scores' :
-    pathname.startsWith('/following') ? 'following' :
-    pathname.startsWith('/feed') ? 'feed' :
-    'home'
+  const activeKey = tabKeyFromPath(pathname) ?? 'home'
+
+  // Per-tab scroll restoration. The save-side runs on the link's
+  // onClick (BELOW) — we have to capture scrollY *before* Next.js
+  // navigates because by the time the pathname-driven effect runs the
+  // window has already snapped back to 0. The restore-side runs here
+  // on every active-tab change.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const newKey = tabKeyFromPath(pathname)
+    const oldKey = lastTabRef.current
+    if (newKey && newKey !== oldKey) {
+      try {
+        const raw = sessionStorage.getItem(SCROLL_STORAGE_PREFIX + newKey)
+        const y = raw ? Number.parseInt(raw, 10) : 0
+        if (!Number.isNaN(y) && y > 0) {
+          // The new tab is still mounting; its body height may be
+          // shorter than `y` for the first few frames, so a single
+          // scrollTo would be clamped to (whatever's available) and
+          // leave the user at the top. Poll the document height a
+          // handful of times until it can accept the saved scroll, or
+          // give up after ~800ms.
+          let attempts = 0
+          const tryRestore = () => {
+            const max =
+              document.documentElement.scrollHeight - window.innerHeight
+            if (max >= y) {
+              window.scrollTo(0, y)
+              return
+            }
+            attempts += 1
+            if (attempts < 16) {
+              requestAnimationFrame(tryRestore)
+            } else {
+              // Last-resort: scroll as far as we can.
+              window.scrollTo(0, max)
+            }
+          }
+          requestAnimationFrame(tryRestore)
+        }
+      } catch {
+        // sessionStorage may be unavailable in private mode — silent.
+      }
+    }
+    lastTabRef.current = newKey
+  }, [pathname])
+
+  // Save scroll BEFORE navigating away from the current tab.
+  function saveCurrentScroll() {
+    if (typeof window === 'undefined') return
+    const currentKey = tabKeyFromPath(pathname)
+    if (!currentKey) return
+    try {
+      sessionStorage.setItem(
+        SCROLL_STORAGE_PREFIX + currentKey,
+        String(window.scrollY),
+      )
+    } catch {
+      // ignore
+    }
+  }
 
   // Poll badge counts. Re-runs whenever the user's last-visit timestamp
   // changes (e.g. they open the feed and markFeedVisited() fires).
@@ -136,8 +212,10 @@ export default function BottomNavV3() {
             <Link
               key={tab.key}
               href={tab.href}
+              prefetch={true}
               data-coachmark={tab.key === 'following' ? 'following' : undefined}
               onClick={() => {
+                saveCurrentScroll()
                 if (tab.key === 'feed') {
                   setNewsCount(0)
                   markFeedVisited()
