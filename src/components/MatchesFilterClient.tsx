@@ -47,20 +47,40 @@ export default function MatchesFilterClient({ rootId }: MatchesFilterClientProps
 
     let visibleMatches = 0
 
-    // 1. Match-level filters (category, hideQualifiers).
+    // 1. Match-level filters (status, category, hideQualifiers, coverage).
+    //    Status is now per-match (data-status) since the new layout
+    //    interleaves live/upcoming/finished within each tournament group
+    //    rather than splitting them across top-level sections.
     const matchNodes = root.querySelectorAll<HTMLElement>('[data-match]')
     matchNodes.forEach((node) => {
       let hidden = false
       const category = node.getAttribute('data-category')
+      const status = node.getAttribute('data-status') ?? ''
       if (filters.category === 'men' && category !== 'men') hidden = true
       if (filters.category === 'women' && category !== 'women') hidden = true
       if (filters.hideQualifiers && node.getAttribute('data-qualifier') === '1') hidden = true
-      // Coverage filter — only matches with PBP feed (data-coverage="1")
       if (filters.coverageOnly && node.getAttribute('data-coverage') !== '1') hidden = true
+      if (status === 'live' && !filters.status.live) hidden = true
+      if (status === 'upcoming' && !filters.status.upcoming) hidden = true
+      if (status === 'finished' && !filters.status.finished) hidden = true
       node.style.display = hidden ? 'none' : ''
     })
 
-    // 2. Tournament-group-level filters (league, tier).
+    // 2. Sub-section-level (Live Now / Upcoming / Results inside each
+    //    tournament). Hide the sub-section when all matches inside are
+    //    hidden so we don't leave dangling sub-headers.
+    const substatusNodes = root.querySelectorAll<HTMLElement>('[data-substatus]')
+    substatusNodes.forEach((sub) => {
+      const matchesInside = sub.querySelectorAll<HTMLElement>('[data-match]')
+      let anyVisible = false
+      matchesInside.forEach((m) => {
+        if (m.style.display !== 'none') anyVisible = true
+      })
+      sub.style.display = anyVisible ? '' : 'none'
+    })
+
+    // 3. Tournament-group-level (league, tier). If not blocked by those,
+    //    still hide when every match inside ended up hidden.
     const groupNodes = root.querySelectorAll<HTMLElement>('[data-tour-group]')
     groupNodes.forEach((group) => {
       let hidden = false
@@ -71,12 +91,8 @@ export default function MatchesFilterClient({ rootId }: MatchesFilterClientProps
       if (filters.league === 'fip' && league !== 'fip') hidden = true
       if (filters.tiers.size > 0 && !filters.tiers.has(tier)) hidden = true
 
-      // Even if not hidden by league/tier, if every match inside is hidden,
-      // hide the group container so we don't show an empty tournament card.
       if (!hidden) {
-        const visibleInGroup = group.querySelectorAll<HTMLElement>(
-          '[data-match]',
-        )
+        const visibleInGroup = group.querySelectorAll<HTMLElement>('[data-match]')
         let anyVisible = false
         visibleInGroup.forEach((m) => {
           if (m.style.display !== 'none') anyVisible = true
@@ -86,31 +102,8 @@ export default function MatchesFilterClient({ rootId }: MatchesFilterClientProps
       group.style.display = hidden ? 'none' : ''
     })
 
-    // 3. Section-level filters (status). If a section header is shown but
-    // every group inside is hidden, hide the section too.
-    const sectionNodes = root.querySelectorAll<HTMLElement>('[data-section]')
-    sectionNodes.forEach((section) => {
-      const status = section.getAttribute('data-section') ?? ''
-      let hidden = false
-      if (status === 'live' && !filters.status.live) hidden = true
-      if (status === 'upcoming' && !filters.status.upcoming) hidden = true
-      if (status === 'finished' && !filters.status.finished) hidden = true
-
-      if (!hidden) {
-        const groupsInside = section.querySelectorAll<HTMLElement>('[data-tour-group]')
-        let anyVisible = false
-        groupsInside.forEach((g) => {
-          if (g.style.display !== 'none') anyVisible = true
-        })
-        if (!anyVisible) hidden = true
-      }
-      section.style.display = hidden ? 'none' : ''
-    })
-
     // Count what's actually visible after the cascade.
     matchNodes.forEach((node) => {
-      // Walk up — if any ancestor with data-section / data-tour-group is
-      // hidden, the match is effectively hidden too.
       let visible = node.style.display !== 'none'
       if (visible) {
         let cursor: HTMLElement | null = node.parentElement
