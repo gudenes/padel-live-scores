@@ -9,8 +9,20 @@
       "schedule": "0 4 * * 1"
     },
     {
-      "path": "/api/cron/sync-fip-rankings",
+      "path": "/api/cron/sync-fip-rankings?type=official&gender=male",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/sync-fip-rankings?type=official&gender=female",
+      "schedule": "5 5 * * *"
+    },
+    {
+      "path": "/api/cron/sync-fip-rankings?type=race&gender=male",
+      "schedule": "10 5 * * *"
+    },
+    {
+      "path": "/api/cron/sync-fip-rankings?type=race&gender=female",
+      "schedule": "15 5 * * *"
     },
     {
       "path": "/api/cron/sync-highlights",

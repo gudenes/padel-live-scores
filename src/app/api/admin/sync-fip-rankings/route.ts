@@ -161,6 +161,7 @@ async function fetchRaceRankings(gender: 'male' | 'female', top: number): Promis
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const typeFilter = searchParams.get('type') // 'official', 'race', or null (both)
+  const genderFilter = searchParams.get('gender') // 'male', 'female', or null (both)
   const top = parseInt(searchParams.get('top') ?? '1000')
   const now = new Date().toISOString()
 
@@ -169,10 +170,16 @@ export async function GET(req: NextRequest) {
     race:     { updated: 0, created: 0, unmatched: 0 },
   }
 
-  const genders: Array<{ fip: 'male' | 'female'; db: string }> = [
+  // Cron path can split work across 4 invocations (one per gender × type) to
+  // stay under Vercel's 120s maxDuration budget. Per-player resolver round
+  // trips (2-3 each × 4000 players) blow past 120s on the unsplit path.
+  const ALL_GENDERS: Array<{ fip: 'male' | 'female'; db: string }> = [
     { fip: 'male', db: 'men' },
     { fip: 'female', db: 'women' },
   ]
+  const genders = genderFilter
+    ? ALL_GENDERS.filter(g => g.fip === genderFilter)
+    : ALL_GENDERS
 
   const resolver = new PlayerResolver(supabase)
   await resolver.load()
