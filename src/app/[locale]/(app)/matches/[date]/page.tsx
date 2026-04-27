@@ -23,6 +23,7 @@ import {
 import { buildDailyIntro, buildDailyFaq, type DailyMatchSummary } from '@/lib/daily-page-copy'
 import { DailyDatePills } from '@/components/DailyDatePills'
 import { DailyWhereToWatch } from './DailyWhereToWatch'
+import EmptyState from '@/components/EmptyState'
 
 export const revalidate = 300 // 5 min
 
@@ -272,13 +273,8 @@ export default async function DailyMatchesPage({ params }: Props) {
 
       {/* Empty state */}
       {dayMatches.length === 0 && (
-        <div style={{ padding: '40px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#FFF', marginBottom: 8 }}>
-            {tDaily('noMatchesTitle')}
-          </div>
-          <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.5 }}>
-            {tDaily('noMatchesSub')}
-          </div>
+        <div style={{ padding: '8px 16px 24px' }}>
+          <EmptyState title={tDaily('noMatchesTitle')} subtitle={tDaily('noMatchesSub')} />
         </div>
       )}
 
