@@ -33,7 +33,7 @@
 // follow-up if user testing shows people reaching for it.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { GREEN, MUTED, BG_CARD, type NewsItem } from './shared'
+import { GREEN, MUTED, BG_CARD, localizedTitle, type NewsItem } from './shared'
 
 // Brand surfaces for the sheet — slightly darker than BG_CARD so the
 // transition from page background reads as elevated content.
@@ -381,7 +381,11 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
               margin: '0 0 12px',
             }}
           >
-            {article.title}
+            {/* Render in the language the user is currently viewing
+                (toggled via the source-language pill above) — when
+                viewing source we use the original title, otherwise the
+                cached translation. */}
+            {viewLocale === sourceLang ? article.title : localizedTitle(article, viewLocale)}
           </h2>
 
           {/* Translation badge — only when we actually translated */}

@@ -3,7 +3,8 @@
 // V3 Feed — videos + news with chunky brand styling, no border-radius.
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+import NewsPeekSheet from '@/components/home/NewsPeekSheet'
 import { supabase } from '@/lib/supabase'
 import { useHiddenFeedItems } from '@/hooks/useHiddenFeedItems'
 import { useFeedPreferences } from '@/hooks/useFeedPreferences'
@@ -54,6 +55,8 @@ interface Highlight {
 interface NewsItem {
   id: string
   title: string
+  /** Eager translation cache populated on ingest. Falls back to title. */
+  title_translations?: Partial<Record<string, string>> | null
   source_name: string
   source_icon: string | null
   source_key: string
@@ -71,6 +74,13 @@ interface NewsItem {
 type FeedItem =
   | { type: 'video'; data: Highlight }
   | { type: 'news'; data: NewsItem }
+
+/** Pick the localised title for a NewsItem, falling back to source. */
+function localizedNewsTitle(item: { title: string; title_translations?: Partial<Record<string, string>> | null }, userLocale: string): string {
+  const short = (userLocale ?? 'en').slice(0, 2).toLowerCase()
+  const translated = item.title_translations?.[short]
+  return translated && translated.trim().length > 0 ? translated : item.title
+}
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -294,13 +304,18 @@ function VideoCard({ item, onPlay, onBroken, onHide, hero }: {
 
 // ── News Card ──────────────────────────────────────────────────
 
-function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }: {
+function NewsCard({ item, onClickArticle, onPeek, userLocale, bookmarked, onToggleBookmark, onHide }: {
   item: NewsItem; onClickArticle?: (id: string) => void;
+  /** Tap-to-peek: intercept the card click and open the translated peek sheet. */
+  onPeek?: (item: NewsItem) => void;
+  /** Used to render translated title from item.title_translations. */
+  userLocale: string;
   bookmarked?: boolean; onToggleBookmark?: (id: string) => void;
   onHide?: (id: string) => void;
 }) {
   const [copied, setCopied] = useState(false)
   const faviconUrl = getFaviconUrl(item)
+  const displayTitle = localizedNewsTitle(item, userLocale)
 
   const handleShare = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -331,7 +346,22 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={() => onClickArticle ? onClickArticle(item.id) : trackClick(item.id)}
+        onClick={(e) => {
+          // Modifier-clicks preserve open-in-new-tab semantics.
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) {
+            if (onClickArticle) onClickArticle(item.id); else trackClick(item.id)
+            return
+          }
+          // Default: track + open peek sheet (translated). Falls back to
+          // navigation if no onPeek handler is wired.
+          if (onPeek) {
+            e.preventDefault()
+            if (onClickArticle) onClickArticle(item.id); else trackClick(item.id)
+            onPeek(item)
+          } else {
+            if (onClickArticle) onClickArticle(item.id); else trackClick(item.id)
+          }
+        }}
         style={{
           display: 'block', background: BG_CARD,
           border: `1px solid ${BORDER}`, clipPath: CHUNKY.card,
@@ -382,7 +412,7 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
           )}
         </div>
 
-        {/* Title */}
+        {/* Title — uses cached translation when available, falls back to source. */}
         <div style={{ padding: '4px 14px 4px' }}>
           <div style={{
             fontSize: 15, fontWeight: 800, color: '#fff',
@@ -390,7 +420,7 @@ function NewsCard({ item, onClickArticle, bookmarked, onToggleBookmark, onHide }
             WebkitBoxOrient: 'vertical' as any, overflow: 'hidden',
             letterSpacing: '-0.2px',
           }}>
-            {item.title}
+            {displayTitle}
           </div>
           {(() => {
             if (!item.snippet) return null
@@ -618,6 +648,7 @@ export default function V3FeedPageWrapper() {
 function V3FeedPage() {
   const tFeed = useTranslations('feed')
   const tCommon = useTranslations('common')
+  const userLocale = useLocale()
   const { user } = useAuth()
   const [playing, setPlayingRaw] = useState<Highlight | null>(null)
   const [highlights, setHighlights] = useState<Highlight[]>([])
@@ -625,6 +656,9 @@ function V3FeedPage() {
   const [loading, setLoading] = useState(true)
   const [userCountry, setUserCountry] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  // Selected article for the peek sheet. Null = sheet closed. Same
+  // pattern as the home carousel — see <NewsPeekSheet> for behaviour.
+  const [peekArticle, setPeekArticle] = useState<NewsItem | null>(null)
   const { hide: hideFeedItem, isHidden } = useHiddenFeedItems()
 
   // Clear the feed notification badge: record that this user has now visited
@@ -745,7 +779,7 @@ function V3FeedPage() {
           .limit(50),
         supabase
           .from('articles')
-          .select('id, title, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url')
+          .select('id, title, title_translations, source_name, source_icon, source_key, url, image_url, snippet, language, published_at, category, click_count, source_weight, favicon_url')
           .eq('status', 'active')
           .order('published_at', { ascending: false })
           .limit(50),
@@ -934,6 +968,8 @@ function V3FeedPage() {
               >
                 <NewsCard
                   item={a}
+                  userLocale={userLocale}
+                  onPeek={setPeekArticle}
                   onClickArticle={handleArticleClick}
                   bookmarked={bookmarkedArticles.has(a.id)}
                   onToggleBookmark={toggleBookmarkArticle}
@@ -966,6 +1002,27 @@ function V3FeedPage() {
       {playing && (
         <VideoPlayerModal video={playing} onClose={() => setPlaying(null)} onUnavailable={markBroken} />
       )}
+
+      {/* News peek sheet — same component the home carousel uses, so
+          the experience (animation, language toggle, "Read at source"
+          CTA, translated snippet) is identical across surfaces. */}
+      <NewsPeekSheet
+        article={peekArticle ? {
+          id: peekArticle.id,
+          title: peekArticle.title,
+          title_translations: peekArticle.title_translations,
+          source_icon: peekArticle.source_icon,
+          source_name: peekArticle.source_name,
+          url: peekArticle.url,
+          published_at: peekArticle.published_at,
+          language: peekArticle.language,
+          image_url: peekArticle.image_url,
+        } : null}
+        onClose={() => setPeekArticle(null)}
+        userLocale={userLocale}
+        bookmarked={peekArticle ? bookmarkedArticles.has(peekArticle.id) : false}
+        onToggleBookmark={() => peekArticle && toggleBookmarkArticle(peekArticle.id)}
+      />
 
       {/* Spinner keyframe for loading state in modal */}
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
