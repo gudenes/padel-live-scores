@@ -195,7 +195,10 @@ export default function MatchesDayShell({
     // Cap intermediate hops at 6 — far-future / far-past clicks compress
     // into a brief 6-step roll instead of a 14+-frame slog.
     const cappedSteps = Math.min(totalSteps, 6)
-    const STEP_MS = 60
+    // 120ms per hop reads as a real "rolling" motion rather than a flash.
+    // 6 steps × 120ms ≈ 720ms — slow enough to follow, fast enough to
+    // not feel sluggish.
+    const STEP_MS = 120
     for (let i = 1; i <= cappedSteps; i++) {
       const stepIso =
         i === cappedSteps ? todayIso : addDaysIso(activeIso, i * dir, tz)
