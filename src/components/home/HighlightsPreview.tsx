@@ -33,7 +33,11 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
   }
 
   const videos = highlights.slice(0, 7)
-  const articles = news.slice(0, 6)
+  // Up to 20 articles on home — lazy image loading means only the
+  // visible card (+ next on prefetch) actually fetches its image, so
+  // raising the cap from 6 → 20 has no measurable cost. "See all →"
+  // still goes to /feed for the full archive.
+  const articles = news.slice(0, 20)
 
   if (videos.length === 0 && articles.length === 0) return null
 
@@ -134,14 +138,22 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                   // beyond a reasonable reading width on tablets.
                   width: '86%', minWidth: 280, maxWidth: 420,
                   scrollSnapAlign: 'start',
+                  // filter: drop-shadow lets the shadow follow the
+                  // polygon path of the clipped child below. A regular
+                  // box-shadow on the clipPath element would be cropped
+                  // at the polygon edges (CSS spec — clip-path applies
+                  // before paint of decorations including shadows).
+                  filter: 'drop-shadow(0 10px 24px rgba(0,0,0,0.40)) drop-shadow(0 2px 6px rgba(0,0,0,0.18))',
                 }}
               >
                 <div style={{
                   background: BG_CARD,
-                  borderRadius: 14,
+                  // Brand-consistent chunky tilt — matches the card
+                  // style used elsewhere on home (live hero, upcoming
+                  // matches, results). Squarer-than-rounded keeps the
+                  // visual language coherent.
+                  clipPath: CHUNKY.card,
                   overflow: 'hidden',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  boxShadow: '0 12px 28px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
                 }}>
                   {n.image_url && (
                     <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
@@ -152,13 +164,17 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                         loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
-                      {/* Source favicon — same chip the small card had */}
+                      {/* Source favicon — chunky chip to match the
+                          card's polygon edge. Same drop-shadow trick
+                          as the parent so the shadow follows the
+                          clipped polygon outline. */}
                       <div style={{
                         position: 'absolute', top: 12, right: 12,
-                        width: 36, height: 36, borderRadius: 9,
+                        width: 36, height: 36,
+                        clipPath: CHUNKY.badge,
                         background: '#fff',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+                        filter: 'drop-shadow(0 3px 10px rgba(0,0,0,0.45))',
                         zIndex: 2,
                       }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}

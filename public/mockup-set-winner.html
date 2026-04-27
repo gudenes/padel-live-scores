@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Set winner indicator mockup — Match Journey</title>
+<style>
+  :root {
+    --bg-base: #1A1A1A;
+    --bg-card: #1F1F1F;
+    --border-card: #2E2E2E;
+    --text-primary: #EEE4CE;
+    --text-dim: #4A6F8E;
+    --p1: #FF6B2B;
+    --p2: #FFD166;
+    --break: #FF4655;
+    --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    padding: 28px 16px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-dim); margin: 0 0 8px;
+  }
+  .sub {
+    font-size: 12px; color: #6889A5;
+    margin-bottom: 24px; max-width: 520px; line-height: 1.5;
+  }
+  .variant { margin: 0 auto 36px; max-width: 560px; }
+  .variant-label {
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--p1); margin-bottom: 6px; padding: 0 4px;
+  }
+  .variant-desc {
+    font-size: 11px; color: #6889A5;
+    margin-bottom: 10px; padding: 0 4px; line-height: 1.4;
+  }
+  .chart-card {
+    background: var(--bg-card);
+    border-bottom: 0.5px solid var(--border-card);
+    padding: 12px 16px;
+    border-radius: 4px;
+  }
+  .chart-row { display: flex; align-items: stretch; gap: 6px; }
+  .avatars {
+    display: flex; flex-direction: column;
+    justify-content: center; gap: 10px;
+    width: 56px; flex-shrink: 0;
+  }
+  .avatar-pair { display: flex; align-items: center; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .avatar.t1a { background: linear-gradient(135deg, #FF6B2B, #FFD166); }
+  .avatar.t1b { background: linear-gradient(135deg, #F472B6, #FF6B2B); margin-left: -10px; z-index: 1; }
+  .avatar.t2a { background: linear-gradient(135deg, #38C8FF, #5BA8FF); }
+  .avatar.t2b { background: linear-gradient(135deg, #818CF8, #38C8FF); margin-left: -10px; z-index: 1; }
+  .chart-svg { flex: 1; height: 208px; }
+  .pill-label {
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+  .header-pill { display: flex; align-items: center; margin-bottom: 8px; }
+  .picker-prompt {
+    text-align: center;
+    font-size: 11px; color: #6889A5;
+    margin-top: 24px; line-height: 1.6;
+  }
+  .picker-prompt strong { color: var(--p1); }
+  .current {
+    border-left: 2px solid var(--break);
+    padding-left: 8px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Set winner — readability options</h1>
+<div class="sub">
+  Today: set score sits in a dark pill with the winner's color used only on the
+  text. Subtle — easy to miss when both sets go the same way.
+  Five alternatives below, all on Brussels P2 SF (Coello/Tapia 7-5 6-2).
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     CURRENT — for reference
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label" style="color:#6889A5;">Current state · for reference</div>
+  <div class="variant-desc">Just the colored text in a dark pill. Quiet — winner cue is the score color only.</div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="curP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="curP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="curUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="curDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <!-- Set 1 bars (12 games: 7-5) -->
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="38" y="58"  width="14" height="59" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.95"/><rect x="38" y="117" width="14" height="48" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="123" y="80" width="14" height="37" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="123" y="117" width="14" height="59" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.95"/></g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="174" y="58" width="14" height="59" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.95"/><rect x="174" y="117" width="14" height="40" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+
+        <!-- Set 1 boundary score -->
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <rect x="195" y="105" width="44" height="24" rx="4" fill="rgba(0,0,0,0.7)"/>
+        <text x="217" y="117" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="900" font-family="var(--font-mono)" fill="#FF6B2B">7-5</text>
+
+        <!-- Set 2 bars (8 games: 6-2) -->
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="243" y="64" width="14" height="53" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.95"/><rect x="243" y="117" width="14" height="38" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="311" y="58" width="14" height="59" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.95"/><rect x="311" y="117" width="14" height="48" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#curP1)" clip-path="url(#curUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#curP2)" clip-path="url(#curDown)" opacity="0.9"/></g>
+
+        <!-- Set 2 trailing score -->
+        <rect x="345" y="105" width="44" height="24" rx="4" fill="rgba(0,0,0,0.7)"/>
+        <text x="367" y="117" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="900" font-family="var(--font-mono)" fill="#FF6B2B">6-2</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION A — solid winner-colored pill, white text
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option A · Solid winner-colored pill</div>
+  <div class="variant-desc">
+    Pill background takes the winner's color, text goes white. Maximum contrast,
+    impossible to miss who took the set.
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="aP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="aP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="aUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="aDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+          <clipPath id="aPillClip" clipPathUnits="objectBoundingBox"><polygon points="0.04,0.1 0.96,0 1,0.9 0,1"/></clipPath>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <!-- Bars (same as current) -->
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="38" y="58"  width="14" height="59" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.95"/><rect x="38" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="123" y="80" width="14" height="37" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="123" y="117" width="14" height="59" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.95"/></g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="174" y="58" width="14" height="59" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.95"/><rect x="174" y="117" width="14" height="40" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <!-- Solid orange pill, white text -->
+        <rect x="194" y="103" width="46" height="28" fill="#FF6B2B" clip-path="url(#aPillClip)"/>
+        <text x="217" y="117" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="900" font-family="var(--font-mono)" fill="#fff">7-5</text>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="243" y="64" width="14" height="53" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.95"/><rect x="243" y="117" width="14" height="38" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="311" y="58" width="14" height="59" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.95"/><rect x="311" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+
+        <rect x="344" y="103" width="46" height="28" fill="#FF6B2B" clip-path="url(#aPillClip)"/>
+        <text x="367" y="117" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="900" font-family="var(--font-mono)" fill="#fff">6-2</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION B — score with chunky underline in winner color
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option B · Score + chunky underline</div>
+  <div class="variant-desc">
+    Score keeps current colored text; a thick chunky underline sits below it in
+    the winner's color. Reads as "highlighter" — quieter than solid pill but
+    still scannable.
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="bP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="bP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="bUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="bDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="38" y="58"  width="14" height="59" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.95"/><rect x="38" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="123" y="80" width="14" height="37" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="123" y="117" width="14" height="59" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.95"/></g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="174" y="58" width="14" height="59" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.95"/><rect x="174" y="117" width="14" height="40" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <rect x="195" y="105" width="44" height="24" rx="4" fill="rgba(0,0,0,0.85)"/>
+        <text x="217" y="117" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="900" font-family="var(--font-mono)" fill="#FF6B2B">7-5</text>
+        <!-- Chunky underline -->
+        <rect x="200" y="124" width="34" height="3" fill="#FF6B2B"/>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="243" y="64" width="14" height="53" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.95"/><rect x="243" y="117" width="14" height="38" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="311" y="58" width="14" height="59" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.95"/><rect x="311" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+
+        <rect x="345" y="105" width="44" height="24" rx="4" fill="rgba(0,0,0,0.85)"/>
+        <text x="367" y="117" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="900" font-family="var(--font-mono)" fill="#FF6B2B">6-2</text>
+        <rect x="350" y="124" width="34" height="3" fill="#FF6B2B"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION C — winner-side faint background tint per set
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option C · Faint tint behind winner's bars</div>
+  <div class="variant-desc">
+    A subtle vertical gradient on the winner's HALF of the chart for each set —
+    barely visible color wash. The score pill stays current. Reads at a glance:
+    "this whole half belongs to orange".
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="cP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="cP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="cUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="cDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+          <linearGradient id="setWinTint" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#FF6B2B" stop-opacity="0.08"/>
+            <stop offset="100%" stop-color="#FF6B2B" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Set 1 winner tint (orange wins) — TOP HALF only -->
+        <rect x="3" y="14" width="213" height="103" fill="url(#setWinTint)"/>
+        <!-- Set 2 winner tint (orange wins again) — TOP HALF only -->
+        <rect x="219" y="14" width="170" height="103" fill="url(#setWinTint)"/>
+
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="38" y="58"  width="14" height="59" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.95"/><rect x="38" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="123" y="80" width="14" height="37" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="123" y="117" width="14" height="59" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.95"/></g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="174" y="58" width="14" height="59" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.95"/><rect x="174" y="117" width="14" height="40" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <rect x="195" y="105" width="44" height="24" rx="4" fill="rgba(0,0,0,0.7)"/>
+        <text x="217" y="117" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="900" font-family="var(--font-mono)" fill="#FF6B2B">7-5</text>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="243" y="64" width="14" height="53" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.95"/><rect x="243" y="117" width="14" height="38" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="311" y="58" width="14" height="59" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.95"/><rect x="311" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+
+        <rect x="345" y="105" width="44" height="24" rx="4" fill="rgba(0,0,0,0.7)"/>
+        <text x="367" y="117" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="900" font-family="var(--font-mono)" fill="#FF6B2B">6-2</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION D — winner-tagged pill with set label + check
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option D · Tagged pill with set label</div>
+  <div class="variant-desc">
+    Bigger pill with two lines: tiny "SET 1" label on top, score below in winner
+    color, plus a check ✓ next to the score. More information, more contrast,
+    requires more vertical room.
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="dP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="dP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="dUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="dDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+          <clipPath id="dPillClip" clipPathUnits="objectBoundingBox"><polygon points="0.04,0.08 0.96,0 1,0.92 0,1"/></clipPath>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="38" y="58"  width="14" height="59" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.95"/><rect x="38" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="123" y="80" width="14" height="37" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="123" y="117" width="14" height="59" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.95"/></g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="174" y="58" width="14" height="59" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.95"/><rect x="174" y="117" width="14" height="40" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <!-- Tagged pill: SET 1 on top, 7-5 ✓ on bottom -->
+        <rect x="190" y="100" width="54" height="34" fill="rgba(0,0,0,0.85)" stroke="#FF6B2B" stroke-width="1.5" clip-path="url(#dPillClip)"/>
+        <text x="217" y="111" text-anchor="middle" font-size="7" font-weight="800" letter-spacing="1" font-family="var(--font-sans)" fill="#9AAEC4">SET 1</text>
+        <text x="217" y="126" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#FF6B2B">7-5 ✓</text>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="243" y="64" width="14" height="53" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.95"/><rect x="243" y="117" width="14" height="38" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="311" y="58" width="14" height="59" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.95"/><rect x="311" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+
+        <rect x="340" y="100" width="54" height="34" fill="rgba(0,0,0,0.85)" stroke="#FF6B2B" stroke-width="1.5" clip-path="url(#dPillClip)"/>
+        <text x="367" y="111" text-anchor="middle" font-size="7" font-weight="800" letter-spacing="1" font-family="var(--font-sans)" fill="#9AAEC4">SET 2</text>
+        <text x="367" y="126" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#FF6B2B">6-2 ✓</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION E — winner-side pill alignment (vertically off-center)
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option E · Pill snaps to winner's half</div>
+  <div class="variant-desc">
+    The score pill physically moves up or down depending on who won — orange
+    wins, pill sits in the top half; yellow wins, pill drops below center.
+    Spatial cue, no extra ink. Works because position itself becomes the signal.
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="eP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="eP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="eUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="eDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+          <clipPath id="ePillClip" clipPathUnits="objectBoundingBox"><polygon points="0.04,0.1 0.96,0 1,0.9 0,1"/></clipPath>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="38" y="58"  width="14" height="59" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.95"/><rect x="38" y="117" width="14" height="48" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="123" y="80" width="14" height="37" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="123" y="117" width="14" height="59" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.95"/></g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="174" y="58" width="14" height="59" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.95"/><rect x="174" y="117" width="14" height="40" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <!-- Pill snapped to TOP HALF since pair1 won set 1 -->
+        <rect x="194" y="35" width="46" height="28" fill="#FF6B2B" clip-path="url(#ePillClip)"/>
+        <text x="217" y="50" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="900" font-family="var(--font-mono)" fill="#fff">7-5</text>
+        <!-- thin connector line from pill down to centerline -->
+        <line x1="217" y1="63" x2="217" y2="116" stroke="#FF6B2B" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.5"/>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="243" y="64" width="14" height="53" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.95"/><rect x="243" y="117" width="14" height="38" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="311" y="58" width="14" height="59" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.95"/><rect x="311" y="117" width="14" height="48" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#eP1)" clip-path="url(#eUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#eP2)" clip-path="url(#eDown)" opacity="0.9"/></g>
+
+        <rect x="344" y="35" width="46" height="28" fill="#FF6B2B" clip-path="url(#ePillClip)"/>
+        <text x="367" y="50" text-anchor="middle" dominant-baseline="central" font-size="14" font-weight="900" font-family="var(--font-mono)" fill="#fff">6-2</text>
+        <line x1="367" y1="63" x2="367" y2="116" stroke="#FF6B2B" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.5"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="picker-prompt">
+  Brussels P2 SF — both sets won by orange (top pair).<br>
+  Reply with <strong>A</strong>, <strong>B</strong>, <strong>C</strong>, <strong>D</strong>, or <strong>E</strong> — or describe a tweak / combine.
+</div>
+
+</body>
+</html>

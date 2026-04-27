@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Padel Nachos · v2 mockup (light)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ───────────────────────────────────────────────────────────────
+       Light-mode design tokens.
+
+       The lime accent #B8FF3D works perfectly on dark navy but reads
+       too pale on white — so:
+         - accent FILLS (buttons, the lime-edge bar) keep #B8FF3D
+         - accent TEXT switches to a darker, more saturated #4A8E15
+         - accent BACKGROUNDS use rgba(125,195,30,0.12) instead of the
+           dark-mode rgba(184,255,61,0.12) which is invisible on white.
+
+       Borders + shadows replace the dark mode's elevated bg colors as
+       the primary visual separator. Sentry's own light-mode marketing
+       pages use this exact pattern — soft 1px borders + tiny shadows
+       carry the "card feels lifted" cue that dark cards get from
+       lighter-than-canvas fills.
+       ─────────────────────────────────────────────────────────────── */
+    :root {
+      /* Surfaces */
+      --bg-base:        #F5F6F8;
+      --bg-canvas:      #FFFFFF;
+      --bg-card:        #FFFFFF;
+      --bg-elevated:    #F4F4F7;
+      --bg-hover:       #FAFAFC;
+
+      /* Lime accent — adjusted for light surfaces */
+      --accent:         #B8FF3D;          /* fills (buttons, edges) */
+      --accent-bright:  #C8FF55;          /* hover */
+      --accent-text:    #4A8E15;          /* readable on white */
+      --accent-text-strong: #2F5C0D;       /* stronger pairing */
+      --accent-fade:    rgba(125, 195, 30, 0.12);
+      --accent-glow:    rgba(125, 195, 30, 0.18);
+
+      /* Status colors — slightly darkened for AA contrast on white */
+      --live-red:       #DC2626;
+      --live-red-bg:    rgba(220, 38, 38, 0.10);
+      --warm-orange:    #EA580C;
+      --info-blue:      #2563EB;
+      --finished-gray:  #6B7280;
+
+      /* Text */
+      --text-primary:   #0F0F1A;
+      --text-secondary: #4A4A55;
+      --text-tertiary:  #6B6B75;
+      --text-muted:     #A0A0AA;
+
+      /* Borders */
+      --border:         rgba(15, 15, 26, 0.08);
+      --border-strong:  rgba(15, 15, 26, 0.16);
+      --border-accent:  rgba(125, 195, 30, 0.45);
+
+      /* Type */
+      --font-display:   'Rubik', system-ui, sans-serif;
+      --font-mono:      'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+      --font-body:      'Rubik', system-ui, sans-serif;
+
+      /* Radii */
+      --radius-sm:      4px;
+      --radius:         6px;
+      --radius-lg:      10px;
+
+      /* Shadows — on light, shadows do the work that elevated bg
+         tones do on dark. Keep them subtle. */
+      --shadow-card:    0 1px 2px rgba(15, 15, 26, 0.04), 0 1px 3px rgba(15, 15, 26, 0.04);
+      --shadow-hover:   0 2px 4px rgba(15, 15, 26, 0.06), 0 4px 8px rgba(15, 15, 26, 0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+      /* Subtle dot grid on light — the dark version uses 1px lines,
+         dots feel more refined on white and don't clash with text. */
+      background-image: radial-gradient(circle, rgba(15,15,26,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    /* ─────────── Phone-frame container ─────────── */
+    .canvas {
+      max-width: 440px;
+      margin: 24px auto;
+      background: var(--bg-canvas);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      /* The phone-frame "lift" — a slightly stronger shadow than
+         individual cards so hierarchy reads correctly. */
+      box-shadow:
+        0 24px 60px rgba(15, 15, 26, 0.08),
+        0 4px 12px rgba(15, 15, 26, 0.04);
+    }
+
+    /* ─────────── Header ─────────── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg-canvas);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 62px;
+    }
+    .logo-img {
+      height: 38px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .search {
+      flex: 1;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 7px 10px 7px 30px;
+      font-family: var(--font-body);
+      font-size: 12px;
+      color: var(--text-tertiary);
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .search::before {
+      content: '';
+      width: 12px;
+      height: 12px;
+      background: var(--text-tertiary);
+      mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>') center/contain no-repeat;
+      -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>') center/contain no-repeat;
+      position: absolute;
+      left: 10px;
+    }
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7ED321, #B8FF3D);
+      display: grid;
+      place-items: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 12px;
+      color: #0F0F1A;
+      box-shadow: 0 0 0 1px var(--border-accent);
+    }
+
+    /* ─────────── Sections ─────────── */
+    .section {
+      padding: 16px 16px 4px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 0 2px;
+    }
+    .section-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+    .section-count {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 9px;
+      color: var(--accent-text);
+      background: var(--accent-fade);
+      padding: 2px 6px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+    }
+    .section-link {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-tertiary);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .section-link:hover { color: var(--accent-text); }
+
+    /* ─────────── Cards ─────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 8px;
+      position: relative;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+      box-shadow: var(--shadow-card);
+    }
+    .card:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-hover);
+    }
+    /* Sentry's signature left-edge accent bar — same on both themes,
+       since it's a color cue, not a tone cue. */
+    .card[data-accent]::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      border-radius: var(--radius) 0 0 var(--radius);
+    }
+    .card[data-accent="live"]::before { background: var(--live-red); }
+    .card[data-accent="warm"]::before { background: var(--warm-orange); }
+    .card[data-accent="next"]::before { background: var(--accent); }
+    .card[data-accent="done"]::before { background: var(--finished-gray); }
+
+    /* ─────────── Live hero ─────────── */
+    .live-hero {
+      background: var(--bg-card);
+      border: 1px solid var(--border-strong);
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-hover);
+    }
+    .live-hero::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--live-red);
+    }
+    .live-hero::after {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -20%;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, var(--accent-fade) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .live-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--live-red);
+      color: white;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      padding: 4px 8px;
+      border-radius: 3px;
+    }
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.4); }
+    }
+    .live-tournament {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 10px;
+      color: var(--accent-text);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .live-court {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.05em;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px 16px;
+      align-items: center;
+      margin-top: 12px;
+      position: relative;
+    }
+    .team-name {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    .team-name.winner {
+      color: var(--accent-text-strong);
+      font-weight: 700;
+    }
+    .team-flag {
+      display: inline-block;
+      width: 14px;
+      height: 10px;
+      background: var(--text-muted);
+      border-radius: 1px;
+      margin-right: 6px;
+      vertical-align: -1px;
+      box-shadow: 0 0 0 1px var(--border);
+    }
+    .team-flag.es { background: linear-gradient(to bottom, #c60b1e 33%, #ffc400 33% 67%, #c60b1e 67%); }
+    .team-flag.ar { background: linear-gradient(to bottom, #74acdf 33%, white 33% 67%, #74acdf 67%); }
+    .team-flag.dk { background: #c8102e; }
+    .score-cells {
+      display: flex;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 18px;
+      color: var(--text-primary);
+    }
+    .score-cells .cell {
+      min-width: 20px;
+      text-align: center;
+    }
+    .score-cells .cell.live {
+      color: var(--live-red);
+      font-weight: 700;
+    }
+    .score-cells .cell.dim { color: var(--text-tertiary); }
+    .score-cells .cell.tb { font-size: 14px; position: relative; }
+    .score-cells .cell.tb sup {
+      font-size: 9px;
+      vertical-align: super;
+      color: var(--text-tertiary);
+      margin-left: 1px;
+    }
+
+    .live-action {
+      margin-top: 16px;
+      width: 100%;
+      background: var(--accent);
+      color: #0F0F1A;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 12px;
+      border: 1px solid #94CC2E;
+      border-radius: var(--radius);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, transform 0.1s;
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.4) inset,
+        0 0 24px var(--accent-glow);
+      position: relative;
+    }
+    .live-action:hover {
+      background: var(--accent-bright);
+    }
+    .live-action:active {
+      transform: translateY(1px);
+    }
+
+    /* ─────────── Match list rows ─────────── */
+    .match-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .time-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 38px;
+    }
+    .time-value {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    .time-day {
+      font-family: var(--font-display);
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+    .matchup {
+      min-width: 0;
+    }
+    .matchup-team {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-primary);
+    }
+    .matchup-team.dim { color: var(--text-secondary); font-weight: 500; }
+    .matchup-meta {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+      align-items: center;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .pill.tier-p2 {
+      background: var(--accent-fade);
+      color: var(--accent-text);
+      border: 1px solid var(--border-accent);
+    }
+    .pill.tier-fip {
+      background: rgba(234, 88, 12, 0.10);
+      color: var(--warm-orange);
+      border: 1px solid rgba(234, 88, 12, 0.3);
+    }
+    .pill.cat {
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .pill.round {
+      background: rgba(37, 99, 235, 0.10);
+      color: var(--info-blue);
+      border: 1px solid rgba(37, 99, 235, 0.3);
+    }
+    .right-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-tertiary);
+      text-align: right;
+    }
+
+    /* ─────────── Tournament spotlight ─────────── */
+    .spotlight {
+      background:
+        radial-gradient(circle at top right, var(--accent-fade) 0%, transparent 60%),
+        var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+    }
+    .spotlight-tag {
+      display: inline-block;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--accent-text);
+      background: var(--accent-fade);
+      padding: 3px 7px;
+      border-radius: 3px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border-accent);
+    }
+    .spotlight-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      line-height: 1.1;
+      position: relative;
+    }
+    .spotlight-sub {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .spotlight-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 12px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .stat-num {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .stat-label {
+      font-family: var(--font-display);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+    .spotlight-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: white;
+      color: var(--accent-text);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 12px;
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .spotlight-cta:hover {
+      background: var(--accent-fade);
+      color: var(--accent-text-strong);
+    }
+
+    /* ─────────── Highlights row ─────────── */
+    .hi-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 0 16px 8px;
+      margin: 0 -16px;
+    }
+    .hi-row::-webkit-scrollbar { display: none; }
+    .hi-card {
+      flex: 0 0 200px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      box-shadow: var(--shadow-card);
+    }
+    .hi-card:hover {
+      border-color: var(--border-accent);
+      box-shadow: var(--shadow-hover);
+    }
+    .hi-thumb {
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(135deg, #2a2440, #4d3870);
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .hi-thumb svg { width: 32px; height: 32px; color: white; opacity: 0.95; }
+    .hi-thumb.t1 { background: linear-gradient(135deg, #2d4a1c, #5a8334); }
+    .hi-thumb.t2 { background: linear-gradient(135deg, #4a1c30, #834060); }
+    .hi-meta {
+      padding: 10px 12px 12px;
+    }
+    .hi-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 12px;
+      line-height: 1.3;
+      color: var(--text-primary);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .hi-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.03em;
+    }
+
+    /* ─────────── Bottom nav ─────────── */
+    .nav {
+      position: sticky;
+      bottom: 0;
+      background: var(--bg-canvas);
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 0;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+    .nav-item:hover { color: var(--text-secondary); }
+    .nav-item.active { color: var(--accent-text-strong); }
+    .nav-icon {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+    }
+    .nav-icon svg { width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 2; }
+    .nav-label {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .spacer-sm { height: 4px; }
+    .spacer { height: 8px; }
+    .spacer-lg { height: 16px; }
+
+    .lab {
+      max-width: 440px;
+      margin: 0 auto 32px;
+      padding: 0 16px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .lab strong { color: var(--accent-text); font-weight: 700; }
+
+    .toggle {
+      max-width: 440px;
+      margin: 16px auto 0;
+      padding: 0 16px;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.05em;
+    }
+    .toggle a {
+      color: var(--accent-text);
+      text-decoration: none;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 3px;
+      transition: background 0.15s;
+    }
+    .toggle a:hover { background: var(--accent-fade); }
+  </style>
+</head>
+<body>
+
+  <p class="toggle">
+    <a href="/mockup-v2.html">↩ See dark version</a>
+  </p>
+
+  <div class="canvas">
+
+    <!-- ─────────── Header ─────────── -->
+    <header class="header">
+      <img class="logo-img" src="/padelnachos-logo-v2.png" alt="Padel Nachos" />
+      <div class="search">Search players, events…</div>
+      <div class="avatar">G</div>
+    </header>
+
+    <!-- ─────────── Live now hero ─────────── -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Live now</span>
+        <span class="section-count">1</span>
+      </div>
+
+      <div class="live-hero">
+        <div class="live-meta">
+          <span class="live-pill"><span class="live-dot"></span> LIVE</span>
+          <span class="live-tournament">Brussels P2 · Final</span>
+          <span class="live-court">CBC · 1h 12m</span>
+        </div>
+
+        <div class="score-grid">
+          <div class="team-name winner">
+            <span class="team-flag es"></span>Coello / Tapia
+          </div>
+          <div class="score-cells">
+            <span class="cell">7</span>
+            <span class="cell live">4</span>
+            <span class="cell dim">—</span>
+          </div>
+          <div class="team-name">
+            <span class="team-flag ar"></span>Stupaczuk / Yanguas
+          </div>
+          <div class="score-cells">
+            <span class="cell tb">6<sup>5</sup></span>
+            <span class="cell live">5</span>
+            <span class="cell dim">—</span>
+          </div>
+        </div>
+
+        <button class="live-action">
+          Watch live
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M5 12h14M13 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─────────── Coming up ─────────── -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Coming up</span>
+        <span class="section-count">8</span>
+        <a href="#" class="section-link">All →</a>
+      </div>
+
+      <div class="card" data-accent="next">
+        <div class="match-row">
+          <div class="time-block">
+            <div class="time-value">16:00</div>
+            <div class="time-day">Today</div>
+          </div>
+          <div class="matchup">
+            <div class="matchup-team"><span class="team-flag es"></span>Lebron / Augsburger</div>
+            <div class="matchup-team dim"><span class="team-flag ar"></span>Galan / Chingotto</div>
+            <div class="matchup-meta">
+              <span class="pill tier-p2">P2</span>
+              <span class="pill cat">Men</span>
+              <span class="pill round">SF</span>
+            </div>
+          </div>
+          <div class="right-meta">CBC</div>
+        </div>
+      </div>
+
+      <div class="card" data-accent="warm">
+        <div class="match-row">
+          <div class="time-block">
+            <div class="time-value">18:00</div>
+            <div class="time-day">Today</div>
+          </div>
+          <div class="matchup">
+            <div class="matchup-team"><span class="team-flag es"></span>Brea / Triay</div>
+            <div class="matchup-team dim"><span class="team-flag es"></span>Fernandez / Sanchez</div>
+            <div class="matchup-meta">
+              <span class="pill tier-p2">P2</span>
+              <span class="pill cat">Women</span>
+              <span class="pill round">F</span>
+            </div>
+          </div>
+          <div class="right-meta">Court 2</div>
+        </div>
+      </div>
+
+      <div class="card" data-accent="next">
+        <div class="match-row">
+          <div class="time-block">
+            <div class="time-value">10:00</div>
+            <div class="time-day">Apr 26</div>
+          </div>
+          <div class="matchup">
+            <div class="matchup-team">M. Goñi / J. Goñi</div>
+            <div class="matchup-team dim">Sintes / Santigosa</div>
+            <div class="matchup-meta">
+              <span class="pill tier-fip">FIP Bronze</span>
+              <span class="pill cat">Men</span>
+              <span class="pill round">QF</span>
+            </div>
+          </div>
+          <div class="right-meta">Isla</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── Tournament spotlight ─────────── -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Tournament spotlight</span>
+      </div>
+
+      <div class="spotlight">
+        <span class="spotlight-tag">Premier P2 · Live</span>
+        <div class="spotlight-title">Brussels P2 2026</div>
+        <div class="spotlight-sub">Apr 23 – Apr 26 · CD UD Bagatazo</div>
+
+        <div class="spotlight-stats">
+          <div>
+            <div class="stat-num">62</div>
+            <div class="stat-label">Matches</div>
+          </div>
+          <div>
+            <div class="stat-num">€280K</div>
+            <div class="stat-label">Prize</div>
+          </div>
+          <div>
+            <div class="stat-num">2d</div>
+            <div class="stat-label">Left</div>
+          </div>
+        </div>
+
+        <button class="spotlight-cta">
+          View event
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M5 12h14M13 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─────────── Latest results ─────────── -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Latest results</span>
+        <a href="#" class="section-link">All →</a>
+      </div>
+
+      <div class="card" data-accent="done">
+        <div class="match-row">
+          <div class="time-block">
+            <div class="time-value">SF</div>
+            <div class="time-day">Apr 25</div>
+          </div>
+          <div class="matchup">
+            <div class="matchup-team"><span class="team-flag es"></span>Coello / Tapia <strong style="color:var(--accent-text-strong);font-family:var(--font-mono);font-size:11px;margin-left:4px">7-5 6-2</strong></div>
+            <div class="matchup-team dim"><span class="team-flag es"></span>Cabeza / Gonzalez San Martin</div>
+            <div class="matchup-meta">
+              <span class="pill tier-p2">P2</span>
+              <span class="pill cat">Men</span>
+            </div>
+          </div>
+          <div class="right-meta">Final</div>
+        </div>
+      </div>
+
+      <div class="card" data-accent="done">
+        <div class="match-row">
+          <div class="time-block">
+            <div class="time-value">SF</div>
+            <div class="time-day">Apr 25</div>
+          </div>
+          <div class="matchup">
+            <div class="matchup-team">Brea / Triay <strong style="color:var(--accent-text-strong);font-family:var(--font-mono);font-size:11px;margin-left:4px">6-3 5-7 6-1</strong></div>
+            <div class="matchup-team dim">Icardo / Jensen</div>
+            <div class="matchup-meta">
+              <span class="pill tier-p2">P2</span>
+              <span class="pill cat">Women</span>
+            </div>
+          </div>
+          <div class="right-meta">Final</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── Highlights ─────────── -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Highlights</span>
+        <a href="#" class="section-link">All →</a>
+      </div>
+
+      <div class="hi-row">
+        <div class="hi-card">
+          <div class="hi-thumb">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="hi-meta">
+            <div class="hi-title">Coello & Tapia battle through Brussels semifinal</div>
+            <div class="hi-sub">39:32 · 1h ago</div>
+          </div>
+        </div>
+        <div class="hi-card">
+          <div class="hi-thumb t1">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="hi-meta">
+            <div class="hi-title">Lebron's smash of the tournament — slow motion</div>
+            <div class="hi-sub">2:14 · 4h ago</div>
+          </div>
+        </div>
+        <div class="hi-card">
+          <div class="hi-thumb t2">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+          <div class="hi-meta">
+            <div class="hi-title">Brea & Triay dominate women's bracket Day 6</div>
+            <div class="hi-sub">12:08 · 8h ago</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer-lg"></div>
+
+    <!-- ─────────── Bottom nav ─────────── -->
+    <nav class="nav">
+      <div class="nav-item active">
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="nav-label">Home</div>
+      </div>
+      <div class="nav-item">
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M11.5 3a17 17 0 0 0 0 18M12.5 3a17 17 0 0 1 0 18"/></svg>
+        </div>
+        <div class="nav-label">Matches</div>
+      </div>
+      <div class="nav-item">
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+        </div>
+        <div class="nav-label">Feed</div>
+      </div>
+      <div class="nav-item">
+        <div class="nav-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        </div>
+        <div class="nav-label">You</div>
+      </div>
+    </nav>
+
+  </div>
+
+  <p class="lab">v2 mockup · <strong>light</strong> · sentry-inspired</p>
+</body>
+</html>

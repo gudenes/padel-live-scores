@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Desktop frame mockup — PadelNachos</title>
+<style>
+  :root {
+    --bg-base: #0A0A0A;
+    --bg-card: #1F1F1F;
+    --border-card: #2E2E2E;
+    --text-primary: #EEE4CE;
+    --text-dim: #4A6F8E;
+    --p1: #FF6B2B;
+    --p2: #FFD166;
+    --green: #7ED321;
+    --break: #FF4655;
+    --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    /* Layered ambient background — gives the desktop canvas a sense of depth
+       without competing with the phone content. Three pieces:
+       1. Radial spotlights tinted with brand orange + electric blue
+       2. Subtle conic-grain in the corners
+       3. Solid dark base */
+    background:
+      radial-gradient(circle at 18% 22%, rgba(255,107,43,0.18), transparent 38%),
+      radial-gradient(circle at 82% 78%, rgba(56,200,255,0.14), transparent 42%),
+      radial-gradient(circle at 50% 50%, rgba(255,255,255,0.02), transparent 70%),
+      #0A0A0A;
+    background-attachment: fixed;
+    overflow-x: hidden;
+  }
+
+  /* Faint padel-court line pattern, tiled across the canvas */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 64px 64px;
+    z-index: 0;
+  }
+
+  .canvas {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 60px 40px 80px;
+  }
+
+  /* Top brand strip — gives desktop users something contextual at the top */
+  .brand-strip {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 38px;
+  }
+  .brand-mark {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7ED321 0%, #FFD166 60%, #FF6B2B 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: #0A0A0A; font-size: 18px;
+    box-shadow: 0 4px 18px rgba(126,211,33,0.25);
+  }
+  .brand-name {
+    font-size: 14px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--text-primary);
+  }
+  .brand-tagline {
+    font-size: 11px; color: var(--text-dim);
+    letter-spacing: 0.4px;
+  }
+
+  /* ── Phone frame ──────────────────────────────────────────────────── */
+  .phone {
+    position: relative;
+    width: 390px;
+    height: 84vh;
+    max-height: 844px;
+    min-height: 720px;
+    background: #000;
+    border-radius: 48px;
+    padding: 14px;
+    box-shadow:
+      0 0 0 1.5px rgba(255,255,255,0.06) inset,           /* hairline highlight */
+      0 0 0 8px #1B1B1B,                                  /* outer bezel */
+      0 0 0 9px rgba(255,255,255,0.04),                   /* bezel highlight */
+      0 30px 80px -12px rgba(0,0,0,0.7),                  /* main shadow */
+      0 60px 140px -30px rgba(255,107,43,0.15),           /* warm spill */
+      0 -10px 60px -20px rgba(56,200,255,0.10);           /* cool top spill */
+  }
+
+  /* Inner screen */
+  .screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-base);
+    border-radius: 36px;
+    overflow: hidden;
+  }
+
+  /* Dynamic Island */
+  .island {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 32px;
+    background: #000;
+    border-radius: 18px;
+    z-index: 10;
+  }
+
+  /* Status bar inside the screen */
+  .status-bar {
+    height: 56px;
+    padding: 0 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+  }
+  .status-icons {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .signal-bars { display: flex; gap: 2px; align-items: end; height: 11px; }
+  .signal-bars div { width: 3px; background: #fff; border-radius: 0.5px; }
+  .signal-bars div:nth-child(1) { height: 30%; }
+  .signal-bars div:nth-child(2) { height: 55%; }
+  .signal-bars div:nth-child(3) { height: 80%; }
+  .signal-bars div:nth-child(4) { height: 100%; }
+  .battery {
+    width: 24px; height: 12px;
+    border: 1.4px solid #fff;
+    border-radius: 3px;
+    position: relative;
+    display: flex; align-items: center; padding: 1px;
+  }
+  .battery::after {
+    content: '';
+    position: absolute;
+    right: -3px; top: 3px;
+    width: 2px; height: 6px;
+    background: #fff;
+    border-radius: 0 1.5px 1.5px 0;
+  }
+  .battery div {
+    height: 100%; width: 78%;
+    background: #fff;
+    border-radius: 1.5px;
+  }
+
+  /* App content — simplified Home view (live matches) */
+  .app-content {
+    height: calc(100% - 56px);
+    overflow: hidden;
+    padding: 4px 0 0;
+  }
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 18px 14px;
+  }
+  .app-title {
+    font-size: 22px; font-weight: 900;
+    background: linear-gradient(135deg, #FFD166, #FF6B2B);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .app-icon-btn {
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+
+  .pill-row {
+    display: flex; gap: 8px;
+    padding: 0 18px 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .pill {
+    flex: 0 0 auto;
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-dim);
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    clip-path: polygon(8% 8%, 92% 0%, 100% 92%, 0% 100%);
+  }
+  .pill.active {
+    background: var(--green);
+    color: #0A0A0A;
+  }
+
+  .section-label {
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--p1);
+    padding: 0 18px 8px;
+  }
+  .live-dot {
+    display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--break);
+    margin-right: 6px;
+    animation: blink 1.5s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .match-card {
+    margin: 0 18px 10px;
+    background: var(--bg-card);
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    padding: 14px 14px;
+    border-left: 2px solid var(--break);
+  }
+  .match-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 0;
+  }
+  .match-row .flag {
+    width: 18px; height: 12px;
+    background: linear-gradient(180deg, #c60b1e 33%, #ffc400 33%, #ffc400 66%, #c60b1e 66%);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .match-row .flag.ar {
+    background: linear-gradient(180deg, #74acdf 33%, #ffffff 33%, #ffffff 66%, #74acdf 66%);
+  }
+  .match-row .name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .match-row .name.dim { color: var(--text-dim); font-weight: 500; }
+  .match-row .score {
+    font-size: 17px; font-weight: 900;
+    color: #fff;
+    margin-left: 4px;
+    min-width: 18px; text-align: center;
+  }
+  .match-row .score.dim { color: var(--text-dim); }
+  .match-row .score.live {
+    color: var(--break);
+  }
+
+  .match-meta {
+    display: flex; align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding-bottom: 6px;
+  }
+  .live-tag {
+    background: rgba(255,70,85,0.14);
+    color: var(--break);
+    font-weight: 800;
+    padding: 2px 6px;
+    clip-path: polygon(10% 10%, 90% 0%, 100% 90%, 0% 100%);
+  }
+
+  /* Bottom tab nav */
+  .tab-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 72px;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 0 12px 12px;
+  }
+  .tab-bar .tab {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 3px;
+    color: var(--text-dim);
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    flex: 1;
+  }
+  .tab-bar .tab.active {
+    color: var(--green);
+  }
+  .tab-bar .tab .icon {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900;
+    color: currentColor;
+  }
+  .home-indicator {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 110px;
+    height: 4px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 3px;
+  }
+
+  /* Helper labels around the phone for the mockup itself */
+  .anno {
+    position: absolute;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .anno-line {
+    position: absolute;
+    background: rgba(255,255,255,0.12);
+    height: 1px;
+  }
+
+  /* Footer hint */
+  .footer-hint {
+    margin-top: 36px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.6;
+    max-width: 520px;
+  }
+  .footer-hint strong { color: var(--p1); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="canvas">
+
+  <div class="brand-strip">
+    <div class="brand-mark">N</div>
+    <div>
+      <div class="brand-name">PadelNachos</div>
+      <div class="brand-tagline">Live padel scores · Best on mobile</div>
+    </div>
+  </div>
+
+  <div class="phone">
+    <div class="screen">
+      <div class="island"></div>
+
+      <div class="status-bar">
+        <span>14:23</span>
+        <div class="status-icons">
+          <div class="signal-bars"><div></div><div></div><div></div><div></div></div>
+          <span style="font-size:10px; font-weight:700;">5G</span>
+          <div class="battery"><div></div></div>
+        </div>
+      </div>
+
+      <div class="app-content">
+        <!-- App header -->
+        <div class="app-header">
+          <div class="app-title">Live Now</div>
+          <div class="app-icon-btn">★</div>
+        </div>
+
+        <!-- Filter pills -->
+        <div class="pill-row">
+          <div class="pill active">All</div>
+          <div class="pill">Premier</div>
+          <div class="pill">FIP Gold</div>
+          <div class="pill">Following</div>
+        </div>
+
+        <!-- Live section -->
+        <div class="section-label">
+          <span class="live-dot"></span>Brussels P2 — Final
+        </div>
+
+        <div class="match-card">
+          <div class="match-meta">
+            <span class="live-tag">LIVE</span>
+            <span>Court CBC · Set 2 · Game 3</span>
+          </div>
+          <div class="match-row">
+            <div class="flag"></div>
+            <div class="name">A. Coello / A. Tapia</div>
+            <div class="score live">7</div>
+            <div class="score live">2</div>
+          </div>
+          <div class="match-row">
+            <div class="flag ar"></div>
+            <div class="name dim">J. Lebron / G. Augsburger</div>
+            <div class="score dim">5</div>
+            <div class="score dim">3</div>
+          </div>
+        </div>
+
+        <!-- Earlier today -->
+        <div class="section-label" style="color: var(--text-dim); margin-top: 8px;">
+          Earlier today
+        </div>
+
+        <div class="match-card" style="border-left-color: rgba(255,255,255,0.08);">
+          <div class="match-meta">
+            <span style="color: var(--green); font-weight: 800;">FINAL</span>
+            <span>Semifinals · 01:17</span>
+          </div>
+          <div class="match-row">
+            <div class="flag"></div>
+            <div class="name">A. Coello / A. Tapia</div>
+            <div class="score">7</div>
+            <div class="score">6</div>
+          </div>
+          <div class="match-row">
+            <div class="flag ar"></div>
+            <div class="name dim">M. Yanguas / F. Stupaczuk</div>
+            <div class="score dim">5</div>
+            <div class="score dim">2</div>
+          </div>
+        </div>
+
+        <div class="match-card" style="border-left-color: rgba(255,255,255,0.08);">
+          <div class="match-meta">
+            <span style="color: var(--green); font-weight: 800;">FINAL</span>
+            <span>Semifinals · 02:34</span>
+          </div>
+          <div class="match-row">
+            <div class="flag ar"></div>
+            <div class="name">D. Brea / G. Triay</div>
+            <div class="score">6</div>
+            <div class="score">3</div>
+          </div>
+          <div class="match-row">
+            <div class="flag"></div>
+            <div class="name dim">T. Icardo / C. Jensen</div>
+            <div class="score dim">3</div>
+            <div class="score dim">2</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom tab bar -->
+      <div class="tab-bar">
+        <div class="tab active">
+          <div class="icon">⌂</div>
+          <span>Home</span>
+        </div>
+        <div class="tab">
+          <div class="icon">🎾</div>
+          <span>Matches</span>
+        </div>
+        <div class="tab">
+          <div class="icon">★</div>
+          <span>Following</span>
+        </div>
+        <div class="tab">
+          <div class="icon">📰</div>
+          <span>Feed</span>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <div class="footer-hint">
+    <strong>Phone-frame "device shell"</strong> — the existing 500px column gets rendered
+    inside a stylized iPhone frame with ambient brand-tinted background. Same content,
+    no new components. Mobile users see the chrome-less version unchanged below ~960px.
+  </div>
+
+</div>
+
+</body>
+</html>

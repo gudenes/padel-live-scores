@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PadelNachos · Data flow onboarding slide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green: #7ED321;
+      --green-dim: rgba(126,211,33,0.15);
+      --green-glow: rgba(126,211,33,0.35);
+      --bg-base: #0A0A0F;
+      --bg-card: #141420;
+      --bg-elevated: #1A1A28;
+      --text: #fff;
+      --muted: #6B7280;
+      --border: rgba(255,255,255,0.08);
+      --orange: #F5A623;
+      --blue: #4A9EFF;
+      --purple: #B97AFF;
+      --pink: #FF6FAF;
+      --red: #FF4655;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-base);
+      background-image:
+        radial-gradient(circle at 20% 0%, rgba(126,211,33,0.06) 0%, transparent 40%),
+        radial-gradient(circle at 80% 100%, rgba(74,158,255,0.04) 0%, transparent 50%);
+      color: var(--text);
+      font-family: 'Rubik', system-ui, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .slide {
+      max-width: 1480px;
+      margin: 0 auto;
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(180deg, #0F0F1A 0%, #0A0A0F 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 32px 24px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 18px;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 30px 80px rgba(0,0,0,0.4),
+        0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    .slide::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 5px;
+      background: var(--green);
+      box-shadow: 0 0 20px var(--green-glow);
+    }
+
+    /* ── Header ── */
+    .head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .head-left .eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .head-left h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    .head-left h1 .accent {
+      background: var(--green);
+      padding: 0 8px;
+      border-radius: 4px;
+      color: #0a0a0a;
+    }
+    .head-left p {
+      color: rgba(255,255,255,0.62);
+      margin-top: 6px;
+      font-size: 11px;
+      max-width: 640px;
+    }
+
+    .head-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    .slide-nav {
+      display: flex;
+      gap: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .slide-nav a {
+      padding: 5px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.12s, border-color 0.12s;
+    }
+    .slide-nav a:hover {
+      color: var(--green);
+      border-color: rgba(126,211,33,0.35);
+    }
+    .slide-nav .current {
+      background: var(--green);
+      color: #0a0a0a;
+      border-color: var(--green);
+    }
+    .head-stats {
+      display: flex;
+      gap: 14px;
+      align-items: baseline;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .head-stats .num {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: -0.02em;
+    }
+
+    /* ── Body — swimlane diagram ── */
+    .lanes {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      grid-template-rows: repeat(5, 1fr);
+      gap: 4px;
+      min-height: 0;
+    }
+
+    .lane-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .lane-label .ic {
+      width: 24px; height: 24px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .lane-label .meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .lane-label .name {
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .lane-label .kind {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-top: 2px;
+      line-height: 1.1;
+    }
+
+    .ic-user { background: var(--green); color: #0a0a0a; }
+    .ic-app { background: #fff; color: #000; }
+    .ic-db { background: linear-gradient(135deg, #34D399, #059669); color: #fff; }
+    .ic-workers { background: linear-gradient(135deg, #B97AFF, #7C3AED); color: #fff; }
+    .ic-ext { background: linear-gradient(135deg, #FF4655, #DC2626); color: #fff; }
+
+    .lane-track {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    /* Background grid — vertical guides at each step */
+    .lane-track::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(
+        90deg,
+        transparent 0,
+        transparent calc(100% / 7 - 1px),
+        rgba(255,255,255,0.04) calc(100% / 7 - 1px),
+        rgba(255,255,255,0.04) calc(100% / 7)
+      );
+      pointer-events: none;
+    }
+
+    .step {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: calc(100% / 7 - 12px);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 9px;
+      font-size: 10px;
+      line-height: 1.3;
+      transition: border-color 0.15s;
+    }
+    .step:hover {
+      border-color: rgba(126,211,33,0.45);
+    }
+    .step .num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: 0.06em;
+      margin-bottom: 2px;
+      display: block;
+    }
+    .step .what {
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: #fff;
+    }
+    .step .desc {
+      font-size: 9px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+    .step.ext { border-color: rgba(255,70,85,0.35); }
+    .step.workers { border-color: rgba(185,122,255,0.35); }
+    .step.db { border-color: rgba(52,211,153,0.35); }
+    .step.app { border-color: rgba(255,255,255,0.20); }
+    .step.user { border-color: rgba(126,211,33,0.45); background: rgba(126,211,33,0.08); }
+
+    /* Position helpers — N is the column index 0..6, snap to track */
+    .pos-0 { left: 6px; }
+    .pos-1 { left: calc(100% / 7 + 6px); }
+    .pos-2 { left: calc(100% / 7 * 2 + 6px); }
+    .pos-3 { left: calc(100% / 7 * 3 + 6px); }
+    .pos-4 { left: calc(100% / 7 * 4 + 6px); }
+    .pos-5 { left: calc(100% / 7 * 5 + 6px); }
+    .pos-6 { left: calc(100% / 7 * 6 + 6px); }
+
+    /* Inter-lane arrow between two steps */
+    .arrow-line {
+      position: absolute;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── Scenario header above lanes ── */
+    .scenario {
+      grid-column: 2;
+      grid-row: 1 / 6;
+      pointer-events: none;
+      position: relative;
+    }
+    .scenario-bar {
+      position: absolute;
+      top: -28px;
+      left: 0; right: 0;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0;
+      pointer-events: none;
+    }
+    .scenario-bar > div {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      text-transform: uppercase;
+      text-align: center;
+      padding: 4px 0;
+    }
+    .scenario-bar > div.highlight {
+      color: var(--green);
+    }
+
+    /* ── Bottom strip with takeaways ── */
+    .takeaways {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .takeaway {
+      padding: 9px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      border-left: 3px solid var(--green);
+    }
+    .takeaway .t-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }
+    .takeaway .t-num {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .takeaway .t-body {
+      font-size: 10px;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.35;
+    }
+
+    .lab {
+      max-width: 1480px;
+      margin: 16px auto 0;
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .lab strong { color: var(--green); }
+
+    @media print {
+      body { padding: 0; background: #0A0A0F; }
+      .slide { aspect-ratio: 16/9; max-width: 100%; box-shadow: none; }
+      .lab, .slide-nav { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="slide">
+
+    <!-- ── HEADER ── -->
+    <div class="head">
+      <div class="head-left">
+        <div class="eyebrow">PadelNachos · Tech stack & data flow · Onboarding · Slide 2 / 2</div>
+        <h1>What happens when a user opens a <span class="accent">live match page</span></h1>
+        <p>Five systems work together to put a point on the user's screen within ~250ms of it being scored. This is the swimlane view: time flows left to right, each lane is a system, each box is one step in the chain.</p>
+      </div>
+      <div class="head-right">
+        <div class="slide-nav">
+          <a href="/onboarding-tech-stack.html">← 1 · Stack</a>
+          <a class="current" href="/onboarding-data-flow.html">2 · Data flow</a>
+        </div>
+        <div class="head-stats">
+          <span><span class="num">5</span> systems</span>
+          <span><span class="num">~250ms</span> point latency</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BODY: swimlane diagram ── -->
+    <div class="lanes">
+
+      <!-- Scenario header -->
+      <div class="scenario">
+        <div class="scenario-bar">
+          <div>T-0 · Tap</div>
+          <div>~50ms</div>
+          <div>~150ms</div>
+          <div class="highlight">Live · always-on</div>
+          <div class="highlight">Per-point</div>
+          <div>Lazy</div>
+          <div>Background</div>
+        </div>
+      </div>
+
+      <!-- Lane 1: USER -->
+      <div class="lane-label">
+        <div class="ic ic-user">U</div>
+        <div class="meta">
+          <div class="name">User</div>
+          <div class="kind">Mobile · PWA</div>
+        </div>
+      </div>
+      <div class="lane-track">
+        <div class="step user pos-0">
+          <span class="num">1</span>
+          <div class="what">Taps live match</div>
+          <div class="desc">From home page or push notif</div>
+        </div>
+        <div class="step user pos-2">
+          <span class="num">5</span>
+          <div class="what">Sees match page</div>
+          <div class="desc">Score · sets · point-by-point</div>
+        </div>
+        <div class="step user pos-4">
+          <span class="num">9</span>
+          <div class="what">Score updates LIVE</div>
+          <div class="desc">No reload, no polling</div>
+        </div>
+      </div>
+
+      <!-- Lane 2: APP (Vercel) -->
+      <div class="lane-label">
+        <div class="ic ic-app">▲</div>
+        <div class="meta">
+          <div class="name">App</div>
+          <div class="kind">Vercel · Next.js</div>
+        </div>
+      </div>
+      <div class="lane-track">
+        <div class="step app pos-1">
+          <span class="num">2</span>
+          <div class="what">Server renders page</div>
+          <div class="desc">Fetches match + sets + games + players</div>
+        </div>
+        <div class="step app pos-3">
+          <span class="num">6</span>
+          <div class="what">Subscribes to Realtime</div>
+          <div class="desc">Channel: matches.&lt;id&gt;</div>
+        </div>
+        <div class="step app pos-5">
+          <span class="num">10</span>
+          <div class="what">Lazy stats fetch</div>
+          <div class="desc">Cached in match_stats table</div>
+        </div>
+      </div>
+
+      <!-- Lane 3: DATABASE -->
+      <div class="lane-label">
+        <div class="ic ic-db">SB</div>
+        <div class="meta">
+          <div class="name">Database</div>
+          <div class="kind">Supabase · Postgres</div>
+        </div>
+      </div>
+      <div class="lane-track">
+        <div class="step db pos-2">
+          <span class="num">4</span>
+          <div class="what">Returns match snapshot</div>
+          <div class="desc">Single Postgres roundtrip</div>
+        </div>
+        <div class="step db pos-4">
+          <span class="num">8</span>
+          <div class="what">Realtime broadcast</div>
+          <div class="desc">DB row write fans out to subscribers</div>
+        </div>
+        <div class="step db pos-6">
+          <span class="num">12</span>
+          <div class="what">Snapshot persisted</div>
+          <div class="desc">Final score · winner · coverage flag</div>
+        </div>
+      </div>
+
+      <!-- Lane 4: WORKERS (Railway) -->
+      <div class="lane-label">
+        <div class="ic ic-workers">P+</div>
+        <div class="meta">
+          <div class="name">Workers</div>
+          <div class="kind">Railway · padelgod + relay</div>
+        </div>
+      </div>
+      <div class="lane-track">
+        <div class="step workers pos-3">
+          <span class="num">7</span>
+          <div class="what">Relay writes point</div>
+          <div class="desc">Pusher event → DB upsert</div>
+        </div>
+        <div class="step workers pos-6">
+          <span class="num">13</span>
+          <div class="what">Match closed</div>
+          <div class="desc">close-stale-live-sweeper · finalises status</div>
+        </div>
+      </div>
+
+      <!-- Lane 5: EXTERNAL APIs -->
+      <div class="lane-label">
+        <div class="ic ic-ext">EXT</div>
+        <div class="meta">
+          <div class="name">External</div>
+          <div class="kind">padelapi · Premier · FIP</div>
+        </div>
+      </div>
+      <div class="lane-track">
+        <div class="step ext pos-3">
+          <span class="num">3</span>
+          <div class="what">padelapi → Pusher</div>
+          <div class="desc">Live point WebSocket event</div>
+        </div>
+        <div class="step ext pos-5">
+          <span class="num">11</span>
+          <div class="what">Premier Padel API</div>
+          <div class="desc">Per-set serve % · winners · errors</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── BOTTOM: 4 takeaways ── -->
+    <div class="takeaways">
+      <div class="takeaway">
+        <div class="t-label">Latency win #1</div>
+        <div class="t-num">~250ms</div>
+        <div class="t-body">From point scored on court to user's screen — Pusher relay never sleeps, no polling overhead.</div>
+      </div>
+      <div class="takeaway">
+        <div class="t-label">Single source of truth</div>
+        <div class="t-num">1 DB</div>
+        <div class="t-body">Every system writes to the same Supabase Postgres. UI reads from one place — no synchronisation logic to debug.</div>
+      </div>
+      <div class="takeaway">
+        <div class="t-label">Smart fan-out</div>
+        <div class="t-num">N → 1 → all</div>
+        <div class="t-body">Relay subscribes once per match. Realtime fans the update out to every user open on that page.</div>
+      </div>
+      <div class="takeaway">
+        <div class="t-label">Lazy enrichment</div>
+        <div class="t-num">On-demand</div>
+        <div class="t-body">Stats and translation only fetched when actually viewed. Cost stays close to zero, cache shared across users.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="lab">PadelNachos · onboarding slide <strong>2 / 2</strong> · 1480 × 833 (16:9) · print-ready</p>
+
+</body>
+</html>
