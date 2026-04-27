@@ -112,7 +112,17 @@
     "hoursAgo": "há {count}h",
     "daysAgo": "há {count}d",
     "weeksAgo": "há {count}sem",
-    "yesterday": "Ontem"
+    "yesterday": "Ontem",
+    "peek": {
+      "readAt": "Ler no {source}",
+      "readAtSource": "Ler na fonte",
+      "bookmark": "Salvar",
+      "bookmarked": "Salvo",
+      "share": "Compartilhar",
+      "close": "Fechar",
+      "autoTranslated": "Traduzido automaticamente · {from} → {to}",
+      "previewUnavailable": "Pré-visualização indisponível. Toque abaixo para ler na fonte."
+    }
   },
   "home": {
     "liveNow": "Ao Vivo Agora",
