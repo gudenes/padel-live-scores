@@ -64,6 +64,13 @@ export async function persistPipelineResult(
         scrape_job_id: scrapeJobId,
         tournament_id: result.tournamentId,
         category: r.category,
+        // Parser uses 'main' | 'qualifying'; DB enum is 'main_draw' | 'qualifying'.
+        // Map at the write boundary so the rest of the pipeline stays in
+        // parser-namespace (matches the rest of the codebase, see
+        // src/app/ops/EntryListTab.tsx + parse-entry-list/route.ts).
+        // Default to 'main_draw' for legacy callers that don't set drawType
+        // (qualifying is opt-in — only the parser explicitly tags Q players).
+        draw_type: r.drawType === 'qualifying' ? 'qualifying' : 'main_draw',
         fip_id: r.fip_id,
         name: r.name,
         country: normalizeCountry(r.country),

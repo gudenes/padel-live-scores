@@ -8,7 +8,7 @@
 
 import type { PlayerResolver } from './player-resolver'
 import { normalizeCountry } from './player-resolver'
-import { parseEntryListText, type ParsedTeam } from './entry-list-parser'
+import { parseEntryListText, type ParsedTeam, type DrawType } from './entry-list-parser'
 import { searchFipPlayer, type FipPlayerSearchResult } from './fip-player-search'
 // Side-effect import: populates Node-globals (DOMMatrix et al.) that
 // pdfjs-dist references at module-load time. MUST load before pdf-parse.
@@ -26,6 +26,10 @@ export type Category = 'men' | 'women'
 
 export interface PipelineSnapshotRow {
   category: Category
+  // 'main' | 'qualifying' — parser-namespace value. Persist layer maps
+  // 'main' → 'main_draw' to match the DB enum on
+  // padelgod.entry_list_snapshots.draw_type.
+  drawType: DrawType
   fip_id: string | null
   name: string
   country: string | null
@@ -282,6 +286,7 @@ function recordResolution(
   if (resolved.fipId) {
     rows.push({
       category,
+      drawType: team.drawType,
       fip_id: resolved.fipId,
       name: resolved.name,
       country: resolved.country,

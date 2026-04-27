@@ -93,9 +93,9 @@ function makePipelineResult(overrides: Partial<PipelineResult> = {}): PipelineRe
     fipId: 'fip-bronze-ijui-2026',
     pdfUrls: { men: 'https://example.com/m.pdf', women: 'https://example.com/w.pdf' },
     rows: [
-      { category: 'men', fip_id: 'fip-P000005', name: 'Alpha One', country: 'AR',
+      { category: 'men', drawType: 'main', fip_id: 'fip-P000005', name: 'Alpha One', country: 'AR',
         seed: 1, partner_fip_id: 'fip-P000006', partner_name: 'Beta Two' },
-      { category: 'men', fip_id: 'fip-P000006', name: 'Beta Two', country: 'AR',
+      { category: 'men', drawType: 'main', fip_id: 'fip-P000006', name: 'Beta Two', country: 'AR',
         seed: null, partner_fip_id: 'fip-P000005', partner_name: 'Alpha One' },
     ],
     unresolved: [],
@@ -158,6 +158,7 @@ describe('persistPipelineResult', () => {
       tournament_id: 'de01a65b-5cc6-4ca6-a940-57977686eae1',
       fip_id: 'fip-P000005',
       category: 'men',
+      draw_type: 'main_draw',
     })
 
     // scrape_job marked success at the end
