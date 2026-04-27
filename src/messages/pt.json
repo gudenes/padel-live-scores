@@ -17,7 +17,65 @@
     "noResultsSub": "Os resultados recentes aparecem aqui quando os jogos terminam.",
     "filterHint": "Tente mudar o filtro de liga para ver partidas de {league} ou Todas.",
     "loadMore": "Carregar mais ({count} restantes)",
-    "viewPreviousSeasons": "Ver temporadas anteriores"
+    "viewPreviousSeasons": "Ver temporadas anteriores",
+    "filters": {
+      "title": "Filtrar partidas",
+      "open": "Filtros",
+      "close": "Fechar",
+      "summary": {
+        "all": "Todas",
+        "premier": "Premier",
+        "fipTour": "FIP Tour",
+        "menWomen": "M+W",
+        "men": "Masculino",
+        "women": "Feminino",
+        "live": "Ao vivo",
+        "upcoming": "Próximas",
+        "finished": "Finalizadas"
+      },
+      "league": {
+        "label": "Liga",
+        "all": "Todas",
+        "premier": "Premier",
+        "fip": "FIP Tour"
+      },
+      "category": {
+        "label": "Categoria",
+        "both": "Ambas",
+        "men": "Masculino",
+        "women": "Feminino"
+      },
+      "status": {
+        "label": "Status",
+        "live": "Ao vivo",
+        "upcoming": "Próximas",
+        "finished": "Finalizadas"
+      },
+      "tier": {
+        "label": "Nível do torneio",
+        "p1": "P1 / Major",
+        "p2": "P2",
+        "fip_platinum": "FIP Platinum",
+        "fip_gold": "FIP Gold",
+        "fip_silver": "FIP Silver",
+        "fip_bronze": "FIP Bronze",
+        "fip_promises": "Promises",
+        "fip_beyond": "Beyond",
+        "fip_hexagon": "Hexagon",
+        "fip_championship": "Campeonato"
+      },
+      "personalised": {
+        "label": "Personalizado",
+        "followedTitle": "Apenas jogadores seguidos",
+        "followedSub": "Mostrar apenas partidas com jogadores que você segue",
+        "hideQualifiersTitle": "Ocultar qualificatórias",
+        "hideQualifiersSub": "Pular partidas de fase qualificatória",
+        "coverageTitle": "Apenas com cobertura ao vivo",
+        "coverageSub": "Apenas partidas com acompanhamento ponto a ponto"
+      },
+      "reset": "Limpar",
+      "apply": "Aplicar"
+    }
   },
   "matchDetail": {
     "matchDetail": "Detalhe da Partida",

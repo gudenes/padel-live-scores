@@ -17,7 +17,65 @@
     "noResultsSub": "Les résultats récents apparaîtront ici à la fin des matchs.",
     "filterHint": "Essaie de changer le filtre de ligue pour voir {league} ou tous les matchs.",
     "loadMore": "Voir plus ({count} restants)",
-    "viewPreviousSeasons": "Voir les saisons précédentes"
+    "viewPreviousSeasons": "Voir les saisons précédentes",
+    "filters": {
+      "title": "Filtrer les matchs",
+      "open": "Filtres",
+      "close": "Fermer",
+      "summary": {
+        "all": "Tous",
+        "premier": "Premier",
+        "fipTour": "FIP Tour",
+        "menWomen": "M+F",
+        "men": "Hommes",
+        "women": "Femmes",
+        "live": "En direct",
+        "upcoming": "À venir",
+        "finished": "Terminés"
+      },
+      "league": {
+        "label": "Ligue",
+        "all": "Toutes",
+        "premier": "Premier",
+        "fip": "FIP Tour"
+      },
+      "category": {
+        "label": "Catégorie",
+        "both": "Toutes",
+        "men": "Hommes",
+        "women": "Femmes"
+      },
+      "status": {
+        "label": "Statut",
+        "live": "En direct",
+        "upcoming": "À venir",
+        "finished": "Terminés"
+      },
+      "tier": {
+        "label": "Niveau du tournoi",
+        "p1": "P1 / Major",
+        "p2": "P2",
+        "fip_platinum": "FIP Platinum",
+        "fip_gold": "FIP Gold",
+        "fip_silver": "FIP Silver",
+        "fip_bronze": "FIP Bronze",
+        "fip_promises": "Promises",
+        "fip_beyond": "Beyond",
+        "fip_hexagon": "Hexagon",
+        "fip_championship": "Championnat"
+      },
+      "personalised": {
+        "label": "Personnalisé",
+        "followedTitle": "Joueurs suivis uniquement",
+        "followedSub": "N'afficher que les matchs avec des joueurs que tu suis",
+        "hideQualifiersTitle": "Masquer les qualifs",
+        "hideQualifiersSub": "Ignorer les matchs de phase qualificative",
+        "coverageTitle": "Couverture live uniquement",
+        "coverageSub": "Seuls les matchs avec suivi point par point"
+      },
+      "reset": "Réinitialiser",
+      "apply": "Appliquer"
+    }
   },
   "matchDetail": {
     "matchDetail": "Détail du match",

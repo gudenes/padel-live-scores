@@ -24,6 +24,7 @@ import { buildDailyIntro, buildDailyFaq, type DailyMatchSummary } from '@/lib/da
 import { DailyDatePills } from '@/components/DailyDatePills'
 import { DailyWhereToWatch } from './DailyWhereToWatch'
 import EmptyState from '@/components/EmptyState'
+import MatchesFilterClient from '@/components/MatchesFilterClient'
 
 export const revalidate = 300 // 5 min
 
@@ -63,6 +64,7 @@ interface SetRow {
 interface MatchRow {
   id: string
   status: string
+  category: string | null
   scheduled_at: string | null
   finished_at: string | null
   round: string | null
@@ -127,7 +129,7 @@ export default async function DailyMatchesPage({ params }: Props) {
   const { data: rawMatches, error } = await supabase
     .from('matches')
     .select(`
-      id, status, scheduled_at, finished_at, round, court,
+      id, status, category, scheduled_at, finished_at, round, court,
       schedule_label, winner_pair,
       tournament:tournaments(id, name, level),
       ${playerJoins},
@@ -271,39 +273,51 @@ export default async function DailyMatchesPage({ params }: Props) {
           won't be on them. */}
       {hasPremierToday && <DailyWhereToWatch locale={locale} />}
 
-      {/* Empty state */}
+      {/* Filter bar + drawer (client component). Sits between the day
+          pills and the matches list. The filter applies CSS visibility
+          on the data-tagged nodes inside #matches-filter-root below. */}
+      {dayMatches.length > 0 && (
+        <MatchesFilterClient rootId="matches-filter-root" />
+      )}
+
+      {/* Empty state — ZERO matches on this day at all. The filter
+          drawer's "filters hide everything" empty state lives inside
+          MatchesFilterClient and only fires when the user has narrowed
+          a non-empty day into nothing. */}
       {dayMatches.length === 0 && (
         <div style={{ padding: '8px 16px 24px' }}>
           <EmptyState title={tDaily('noMatchesTitle')} subtitle={tDaily('noMatchesSub')} />
         </div>
       )}
 
-      {/* Live section */}
-      {liveMatches.length > 0 && (
-        <Section title={tDaily('liveSection')} accent={LIVE_RED}>
-          {groupByTournament(liveMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-          ))}
-        </Section>
-      )}
+      <div id="matches-filter-root">
+        {/* Live section */}
+        {liveMatches.length > 0 && (
+          <Section title={tDaily('liveSection')} accent={LIVE_RED} sectionKey="live">
+            {groupByTournament(liveMatches).map(g => (
+              <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
+            ))}
+          </Section>
+        )}
 
-      {/* Upcoming section */}
-      {upcomingMatches.length > 0 && (
-        <Section title={tDaily('upcomingSection')} accent={GREEN}>
-          {groupByTournament(upcomingMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-          ))}
-        </Section>
-      )}
+        {/* Upcoming section */}
+        {upcomingMatches.length > 0 && (
+          <Section title={tDaily('upcomingSection')} accent={GREEN} sectionKey="upcoming">
+            {groupByTournament(upcomingMatches).map(g => (
+              <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
+            ))}
+          </Section>
+        )}
 
-      {/* Finished section */}
-      {finishedMatches.length > 0 && (
-        <Section title={tDaily('finishedSection')} accent={MUTED}>
-          {groupByTournament(finishedMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-          ))}
-        </Section>
-      )}
+        {/* Finished section */}
+        {finishedMatches.length > 0 && (
+          <Section title={tDaily('finishedSection')} accent={MUTED} sectionKey="finished">
+            {groupByTournament(finishedMatches).map(g => (
+              <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
+            ))}
+          </Section>
+        )}
+      </div>
 
       {/* FAQ */}
       {faqs.length > 0 && (
@@ -433,9 +447,18 @@ function groupByTournament(ms: MatchRow[]): TournamentGroupShape[] {
   return groups
 }
 
-function Section({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
+function Section({
+  title, accent, children, sectionKey,
+}: {
+  title: string
+  accent: string
+  children: React.ReactNode
+  /** 'live' | 'upcoming' | 'finished' — emitted as data-section so the
+   *  client filter can toggle the whole section's visibility. */
+  sectionKey: 'live' | 'upcoming' | 'finished'
+}) {
   return (
-    <section style={{ padding: '12px 0 4px' }}>
+    <section data-section={sectionKey} style={{ padding: '12px 0 4px' }}>
       <div style={{ padding: '0 16px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{
           width: 3, height: 14, background: accent, flexShrink: 0,
@@ -474,13 +497,22 @@ function TournamentGroup({
   tDaily: TranslatorT
   tCommon: CommonBadgeTranslatorT
 }) {
+  // Data-attributes feed src/components/MatchesFilterClient.tsx — the
+  // client-side filter applies CSS visibility based on what the user
+  // selected in the drawer.
+  const dataLeague = isPremierLevel(group.tournamentLevel) ? 'premier' : 'fip'
   return (
-    <div style={{
-      background: BG_CARD,
-      border: '1px solid rgba(255,255,255,0.06)',
-      clipPath: CHUNKY_CARD,
-      padding: '10px 12px',
-    }}>
+    <div
+      data-tour-group
+      data-league={dataLeague}
+      data-tier={group.tournamentLevel ?? ''}
+      style={{
+        background: BG_CARD,
+        border: '1px solid rgba(255,255,255,0.06)',
+        clipPath: CHUNKY_CARD,
+        padding: '10px 12px',
+      }}
+    >
       <Link
         href={`/tournaments/${group.tournamentId}`}
         locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
@@ -563,8 +595,18 @@ function DailyMatchRow({
     } as const
   }
 
+  // Qualifier rounds typically come through as "Q1", "Q2", etc. (or
+  // the localised equivalent). The hideQualifiers filter checks this
+  // attribute — leave undefined for non-qualifier rounds so the
+  // attribute selector misses them.
+  const isQualifier = match.round
+    ? /^(?:q\d|qual)/i.test(match.round.trim())
+    : false
   return (
     <Link
+      data-match
+      data-category={match.category ?? ''}
+      data-qualifier={isQualifier ? '1' : '0'}
       href={`/match/${match.id}`}
       locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
       style={{
