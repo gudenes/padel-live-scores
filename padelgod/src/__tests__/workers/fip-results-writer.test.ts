@@ -12,6 +12,7 @@ interface ResultsSeed {
   tournament_id: string;
   match_widget_id: string | null;
   category: 'men' | 'women';
+  day_number?: number;
   round_label: string | null;
   court: string | null;
   team1_player1_name: string | null;
@@ -43,6 +44,7 @@ interface Options {
   widgetCodeByTournament?: Record<string, string | null>;
   resultsRows?: ResultsSeed[];
   existingMatches?: ExistingMatchSeed[];
+  tournamentStartsAtById?: Record<string, string | null>;
 }
 
 function fakeSupabase(opts: Options) {
@@ -50,6 +52,7 @@ function fakeSupabase(opts: Options) {
   const widgetCode = opts.widgetCodeByTournament ?? {};
   const resultsRows = opts.resultsRows ?? [];
   const existing: ExistingMatchSeed[] = [...(opts.existingMatches ?? [])];
+  const startsAtById = opts.tournamentStartsAtById ?? {};
 
   const updated: Array<{ id: string; patch: Record<string, unknown>; terminalGuard: string[] }> = [];
   const setsUpserted: any[] = [];
@@ -134,6 +137,19 @@ function fakeSupabase(opts: Options) {
     from: (t: string) => {
       if (t === 'matches') return matchesTable();
       if (t === 'sets') return setsTable();
+      if (t === 'tournaments') {
+        return {
+          select: (_cols: string) => ({
+            in: (_col: string, ids: string[]) => {
+              const data = ids.map((id) => ({
+                id,
+                starts_at: startsAtById[id] ?? null,
+              }));
+              return Promise.resolve({ data, error: null });
+            },
+          }),
+        };
+      }
       throw new Error(`unexpected public table: ${t}`);
     },
     rpc: vi.fn(async (name: string) => {

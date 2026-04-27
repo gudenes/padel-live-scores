@@ -453,6 +453,16 @@ function fakeSupabase(
       if (t === 'entity_external_ids') return entityExternalIdsTable();
       if (t === 'tournament_draws') return tournamentDrawsTable();
       if (t === 'sets') return setsTable();
+      if (t === 'tournaments') {
+        return {
+          select: (_cols: string) => ({
+            in: (_col: string, ids: string[]) => {
+              const data = ids.map((id) => ({ id, starts_at: null }));
+              return Promise.resolve({ data, error: null });
+            },
+          }),
+        };
+      }
       throw new Error(`unexpected public-schema table: ${t}`);
     },
   };
