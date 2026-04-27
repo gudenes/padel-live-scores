@@ -26,12 +26,16 @@ import { DailyWhereToWatch } from './DailyWhereToWatch'
 import EmptyState from '@/components/EmptyState'
 import MatchesFilterClient from '@/components/MatchesFilterClient'
 import MatchesPageHeader from '@/components/MatchesPageHeader'
+import { V3MatchCard } from '@/components/V3MatchCard'
+import type { Match } from '@/types/match'
 
 export const revalidate = 300 // 5 min
 
 // ── Brand tokens ─────────────────────────────────────────────────
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
+const MEN_BLUE = '#4A9EFF'
+const WOMEN_PURPLE = '#D966FF'
 // Used for the "ON COURT" warm-up pill — same hue as the /matches page + home
 // LiveMatchCard so all three surfaces look consistent. See isWarmingUp in
 // src/types/match.ts for the status signal.
@@ -55,6 +59,7 @@ interface PlayerRow {
 }
 
 interface SetRow {
+  id: string
   set_number: number | null
   set_score: string | null
   pair1_games: number | null
@@ -134,7 +139,7 @@ export default async function DailyMatchesPage({ params }: Props) {
       schedule_label, winner_pair,
       tournament:tournaments(id, name, level),
       ${playerJoins},
-      sets(set_number, set_score, pair1_games, pair2_games, is_current)
+      sets(id, set_number, set_score, pair1_games, pair2_games, is_current)
     `)
     .or(
       `and(scheduled_at.gte.${startIso},scheduled_at.lt.${endIso}),` +
@@ -245,33 +250,38 @@ export default async function DailyMatchesPage({ params }: Props) {
           scroll down. */}
       <MatchesPageHeader />
 
-      {/* Date pills + filter bar — flow normally below the global header.
-          Filter sits IMMEDIATELY below the date pills (no intro between)
-          so the visual hierarchy is "pick day → filter day → see matches".
-          Not sticky on purpose — the AppHeader's scroll-hide behaviour
-          conflicts with a second sticky strip; the user scrolls back to
-          the top to change days, same as the home page's secondary
-          content. */}
-      <DailyDatePills selectedIso={iso} locale={locale} />
-      {dayMatches.length > 0 && (
-        <MatchesFilterClient rootId="matches-filter-root" />
-      )}
+      {/* Date pills + filter bar — sticky together at top:0 so the user
+          can flip dates or refine filters from anywhere in the list.
+          Sits at z:50, BELOW the AppHeader's z:100 — when AppHeader
+          slides back into view (on scroll up) it briefly overlaps the
+          pills. That's a deliberate trade-off: the alternative (offset
+          top:62) leaves a 62px empty band when AppHeader hides via
+          transform, which looks worse on a dark canvas than a brief
+          overlap. */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          background: 'rgba(10,10,10,0.94)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}
+      >
+        <DailyDatePills selectedIso={iso} locale={locale} />
+        {dayMatches.length > 0 && (
+          <MatchesFilterClient rootId="matches-filter-root" />
+        )}
+      </div>
 
-      {/* Intro — fades in with the matches list on day change so the
-          whole below-the-header area transitions as one unit. */}
+      {/* Where-to-watch + match list. Wrapped in `.matches-day-fade` so
+          the body lifts in softly when the user navigates between dates
+          while the sticky header above stays put.
+          Intro h1/lead and the FAQ section that used to live here were
+          removed — operators / SEO already get the dated-URL signal, and
+          the page reads cleaner as a pure scoreboard. */}
       <div className="matches-day-fade">
-        <header style={{ padding: '12px 16px 16px' }}>
-          <h1 style={{
-            fontSize: 22, fontWeight: 800, color: '#FFF', margin: '0 0 8px',
-            letterSpacing: -0.3, lineHeight: 1.2,
-          }}>
-            {intro.h1}
-          </h1>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, margin: 0 }}>
-            {intro.lead}
-          </p>
-        </header>
-
         {/* Where to watch — only when the day has a Premier-tier tournament.
             The Premier API (sync-broadcasters cron) is the only source the
             broadcasters table is wired up to; rendering this block on an
@@ -290,69 +300,34 @@ export default async function DailyMatchesPage({ params }: Props) {
         )}
 
         <div id="matches-filter-root">
-        {/* Live section */}
-        {liveMatches.length > 0 && (
-          <Section title={tDaily('liveSection')} accent={LIVE_RED} sectionKey="live">
-            {groupByTournament(liveMatches).map(g => (
-              <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-            ))}
-          </Section>
-        )}
+          {/* Live section */}
+          {liveMatches.length > 0 && (
+            <Section title={tDaily('liveSection')} accent={LIVE_RED} sectionKey="live">
+              {groupByTournament(liveMatches).map(g => (
+                <TournamentGroup key={g.tournamentId} group={g} locale={locale} />
+              ))}
+            </Section>
+          )}
 
-        {/* Upcoming section */}
-        {upcomingMatches.length > 0 && (
-          <Section title={tDaily('upcomingSection')} accent={GREEN} sectionKey="upcoming">
-            {groupByTournament(upcomingMatches).map(g => (
-              <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-            ))}
-          </Section>
-        )}
+          {/* Upcoming section */}
+          {upcomingMatches.length > 0 && (
+            <Section title={tDaily('upcomingSection')} accent={GREEN} sectionKey="upcoming">
+              {groupByTournament(upcomingMatches).map(g => (
+                <TournamentGroup key={g.tournamentId} group={g} locale={locale} />
+              ))}
+            </Section>
+          )}
 
-        {/* Finished section */}
-        {finishedMatches.length > 0 && (
-          <Section title={tDaily('finishedSection')} accent={MUTED} sectionKey="finished">
-            {groupByTournament(finishedMatches).map(g => (
-              <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-            ))}
-          </Section>
-        )}
+          {/* Finished section */}
+          {finishedMatches.length > 0 && (
+            <Section title={tDaily('finishedSection')} accent={MUTED} sectionKey="finished">
+              {groupByTournament(finishedMatches).map(g => (
+                <TournamentGroup key={g.tournamentId} group={g} locale={locale} />
+              ))}
+            </Section>
+          )}
         </div>
       </div>
-
-      {/* FAQ */}
-      {faqs.length > 0 && (
-        <section style={{ padding: '24px 16px 32px' }}>
-          <h2 style={{
-            fontSize: 16, fontWeight: 800, color: '#FFF', margin: '0 0 12px',
-            letterSpacing: -0.2,
-          }}>
-            {tDaily('faqHeading')}
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {faqs.map((f, i) => (
-              <details key={i} style={{
-                background: BG_CARD,
-                border: '1px solid rgba(255,255,255,0.06)',
-                clipPath: CHUNKY_CARD,
-                padding: '10px 14px',
-              }}>
-                <summary style={{
-                  fontSize: 13, fontWeight: 700, color: '#FFF',
-                  cursor: 'pointer', listStyle: 'none',
-                }}>
-                  {f.q}
-                </summary>
-                <p style={{
-                  fontSize: 12, color: 'rgba(255,255,255,0.72)',
-                  lineHeight: 1.5, margin: '8px 0 0',
-                }}>
-                  {f.a}
-                </p>
-              </details>
-            ))}
-          </div>
-        </section>
-      )}
 
       <div style={{ height: 30 }} />
     </div>
@@ -488,14 +463,10 @@ interface CommonBadgeTranslatorT {
 }
 
 function TournamentGroup({
-  group, locale, userTz, isToday, tDaily, tCommon,
+  group, locale,
 }: {
   group: TournamentGroupShape
   locale: string
-  userTz: string
-  isToday: boolean
-  tDaily: TranslatorT
-  tCommon: CommonBadgeTranslatorT
 }) {
   // Data-attributes feed src/components/MatchesFilterClient.tsx — the
   // client-side filter applies CSS visibility based on what the user
@@ -506,28 +477,44 @@ function TournamentGroup({
       data-tour-group
       data-league={dataLeague}
       data-tier={group.tournamentLevel ?? ''}
-      style={{
-        background: BG_CARD,
-        border: '1px solid rgba(255,255,255,0.06)',
-        clipPath: CHUNKY_CARD,
-        padding: '10px 12px',
-      }}
+      style={{ marginBottom: 6 }}
     >
       <Link
         href={`/tournaments/${group.tournamentId}`}
         locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
         style={{
-          fontSize: 11, fontWeight: 700, color: GREEN,
+          fontSize: 11, fontWeight: 800, color: GREEN,
           textTransform: 'uppercase', letterSpacing: 0.5,
-          textDecoration: 'none', display: 'block', marginBottom: 8,
+          textDecoration: 'none', display: 'block',
+          padding: '6px 4px 8px',
         }}
       >
         {group.tournamentName}
       </Link>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {group.matches.map(m => (
-          <DailyMatchRow key={m.id} match={m} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {group.matches.map(m => {
+          // The MatchRow shape returned by the daily-page query is a
+          // narrow projection of the full Match type V3MatchCard expects
+          // (no external_id, coverage, pusher_channel, started_at, etc).
+          // V3MatchCard only reads the fields we DO project (id, status,
+          // round, court, winner_pair, players, sets) and null-checks
+          // every nullable, so the cast is safe at runtime.
+          const matchAsFull = m as unknown as Match
+          const genderColor = m.category === 'women' ? WOMEN_PURPLE : MEN_BLUE
+          const isQualifier = m.round
+            ? /^(?:q\d|qual)/i.test(m.round.trim())
+            : false
+          return (
+            <div
+              key={m.id}
+              data-match
+              data-category={m.category ?? ''}
+              data-qualifier={isQualifier ? '1' : '0'}
+            >
+              <V3MatchCard match={matchAsFull} genderColor={genderColor} />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
