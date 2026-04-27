@@ -24,7 +24,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
-import { V3MatchCard } from '@/components/V3MatchCard'
+import { DailyMatchCard } from '@/components/DailyMatchCard'
 import { levelLabel } from '@/lib/tournament-labels'
 import type { Match } from '@/types/match'
 
@@ -321,7 +321,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
             showSubLabel={hasMultipleBuckets(counts)}
           >
             {live.map(m => (
-              <MatchEntry key={m.id} match={m} status="live" />
+              <MatchEntry key={m.id} match={m} status="live" locale={group.locale} userTz={group.userTz} />
             ))}
           </SubSection>
         )}
@@ -334,7 +334,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
             showSubLabel={hasMultipleBuckets(counts)}
           >
             {upcoming.map(m => (
-              <MatchEntry key={m.id} match={m} status="upcoming" />
+              <MatchEntry key={m.id} match={m} status="upcoming" locale={group.locale} userTz={group.userTz} />
             ))}
           </SubSection>
         )}
@@ -347,7 +347,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
             showSubLabel={hasMultipleBuckets(counts)}
           >
             {finished.map(m => (
-              <MatchEntry key={m.id} match={m} status="finished" />
+              <MatchEntry key={m.id} match={m} status="finished" locale={group.locale} userTz={group.userTz} />
             ))}
           </SubSection>
         )}
@@ -431,9 +431,13 @@ function SubSection({
 function MatchEntry({
   match,
   status,
+  locale,
+  userTz,
 }: {
   match: GroupMatch
   status: 'live' | 'upcoming' | 'finished'
+  locale: string
+  userTz: string
 }) {
   const matchAsFull = match as unknown as Match
   const genderColor = match.category === 'women' ? WOMEN_PURPLE : MEN_BLUE
@@ -446,7 +450,12 @@ function MatchEntry({
       data-status={status}
       style={{ padding: '0 8px' }}
     >
-      <V3MatchCard match={matchAsFull} genderColor={genderColor} />
+      <DailyMatchCard
+        match={matchAsFull}
+        genderColor={genderColor}
+        locale={locale}
+        userTz={userTz}
+      />
     </div>
   )
 }
