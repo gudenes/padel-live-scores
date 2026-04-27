@@ -180,47 +180,56 @@ export default function MatchesDayShell({
   } as const
 
   // Today shortcut — surfaced next to FILTROS when the user is parked on
-  // any day other than today. Tapping it walks the day-pill window back
-  // to today one step at a time so the user sees the days "roll" past
-  // instead of jumping straight there. Capped to 6 hops so a swipe to
-  // today from a week away still feels quick (~360ms total) and doesn't
-  // burn 14 prefetches when 6 will do.
+  // any day other than today. Tapping it lets the matches body snap to
+  // today's content immediately while the day-pill strip glides smoothly
+  // toward the new centre, the way a carousel swipe feels rather than a
+  // discrete state-flicker.
   const todayIso = useMemo(() => getLocaleTodayIso(locale), [locale])
   const isOnToday = isLocaleToday(activeIso, locale)
+
+  // Carousel-style slide on Today click. Driven by the Web Animations
+  // API instead of a React-controlled CSS transition: WAAPI runs on
+  // the compositor thread, immune to React 19's automatic batching
+  // (which kept collapsing our 360→0 state pair into a single render
+  // and skipping the animation entirely). The strip's pillIso is
+  // re-centred on today *immediately*; the wrapper's transform animates
+  // smoothly from the old offset back to 0 over 1.1s.
+  const ROLL_DURATION_MS = 1100
+  const ROLL_EASING = 'cubic-bezier(0.5, 0.0, 0.5, 1.0)'
+  // Each pill is 54px wide with a 6px row gap → 60px stride.
+  const PILL_STRIDE_PX = 60
+  const rollWrapperRef = useRef<HTMLDivElement | null>(null)
 
   const rollToToday = useCallback(() => {
     const fromMs = Date.parse(pillIso + 'T12:00:00Z')
     const toMs = Date.parse(todayIso + 'T12:00:00Z')
     const dayDiff = Math.round((toMs - fromMs) / 86_400_000)
-    const totalSteps = Math.abs(dayDiff)
-    if (totalSteps === 0) return
+    if (dayDiff === 0) return
 
-    // Body jumps to today right away — only the pill window rolls so
-    // the user gets today's matches immediately while the days animate
-    // past in the header.
+    // Body + URL snap to today right away.
     setActiveIso(todayIso)
     const todayEntry = cache.get(todayIso)
     if (!todayEntry || todayEntry.state === 'error') {
       fetchDay(todayIso)
     }
+    setPillIso(todayIso)
 
-    if (totalSteps === 1) {
-      setPillIso(todayIso)
-      return
+    // Animate the rendered (re-centred-on-today) strip from where the
+    // old window visually was to its natural centre. WAAPI bypasses
+    // React; the animation reads "from offset=360 to offset=0" no
+    // matter how many re-renders happen between now and finish.
+    const offset = dayDiff * PILL_STRIDE_PX
+    const node = rollWrapperRef.current
+    if (node && typeof node.animate === 'function') {
+      node.animate(
+        [
+          { transform: `translateX(${offset}px)` },
+          { transform: 'translateX(0px)' },
+        ],
+        { duration: ROLL_DURATION_MS, easing: ROLL_EASING, fill: 'none' },
+      )
     }
-    const dir = dayDiff > 0 ? 1 : -1
-    // Cap intermediate hops at 6 — far-future / far-past clicks compress
-    // into a brief 6-step roll instead of a 14+-frame slog.
-    const cappedSteps = Math.min(totalSteps, 6)
-    // 220ms per hop = 6 × 220 ≈ 1320ms total. Slow enough that the user
-    // visibly sees the day window walking past each intermediate date.
-    const STEP_MS = 220
-    for (let i = 1; i <= cappedSteps; i++) {
-      const stepIso =
-        i === cappedSteps ? todayIso : addDaysIso(pillIso, i * dir, tz)
-      setTimeout(() => setPillIso(stepIso), i * STEP_MS)
-    }
-  }, [pillIso, todayIso, cache, fetchDay, tz])
+  }, [pillIso, todayIso, cache, fetchDay])
 
   return (
     <>
@@ -241,7 +250,9 @@ export default function MatchesDayShell({
         }}
       >
         <div style={swipeStyle}>
-          <DailyDatePills selectedIso={pillIso} locale={locale} onSelect={goTo} />
+          <div ref={rollWrapperRef}>
+            <DailyDatePills selectedIso={pillIso} locale={locale} onSelect={goTo} />
+          </div>
         </div>
         {/* Filter bar is always visible — even on empty days the user
             should be able to flip filters or hop back to today without
