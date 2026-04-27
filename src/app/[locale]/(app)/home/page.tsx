@@ -466,11 +466,15 @@ function V3HomePageInner() {
         </>
       )}
 
-      {/* ── HIGHLIGHTS & NEWS ───────────────────────────────── */}
-      {(highlights.length > 0 || latestNews.length > 0) && (
+      {/* ── LATEST NEWS ──────────────────────────────────────
+          Highlights (videos) intentionally hidden from home — they
+          live on the dedicated /feed page. Home now leads with the
+          peek-style news carousel; users who want videos tap into
+          the Feed bottom-nav tab. */}
+      {latestNews.length > 0 && (
         <>
-          <SectionTitle action={tHome('seeAll')} href="/feed">{tHome('highlightsAndNews')}</SectionTitle>
-          <HighlightsPreview highlights={highlights} news={latestNews} />
+          <SectionTitle action={tHome('seeAll')} href="/feed">{tHome('latestNews')}</SectionTitle>
+          <HighlightsPreview highlights={[]} news={latestNews} />
         </>
       )}
 
