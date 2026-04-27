@@ -33,6 +33,70 @@ export interface StaticReconcilerResult {
 
 const SNAPSHOT_LOOKBACK_DAYS = 14;
 
+/**
+ * Page through a Supabase query in 1000-row chunks until exhausted.
+ *
+ * PostgREST caps a single response at 1000 rows by default. The reconciler's
+ * snapshot reads (entry_list_snapshots, draw_snapshots, oop_snapshots,
+ * results_snapshots) routinely have far more rows than that within the
+ * 14-day window — at the time of this fix, FIP Bronze Aquahobby alone had
+ * 3473 results-snapshot rows, of which only the first 1000 (Day 1 R32)
+ * were ever returned. Day 2/3 captures (R16, QF, SF, Final) silently
+ * disappeared and never reached findOrCreateMatch.
+ *
+ * Each call site supplies a `buildQuery(from, to)` that re-issues the
+ * same select with an updated `.range()` so the pager can stitch every
+ * page back together.
+ */
+/**
+ * Run a `.in(col, values)` query in chunks. Supabase routes through PostgREST
+ * via Cloudflare which caps URLs around 16KB; an IN list of 1000+ fip_ids
+ * (each ~12 chars) easily exceeds that and fails with `TypeError: fetch
+ * failed`. We chunk to a safe size, accumulate, and return everything.
+ *
+ * Uncovered before the snapshot-pagination fix because the upstream snapshot
+ * reads were silently capped at 1000 rows — the dedup downstream produced
+ * a small fipIds list. Now that we paginate, the IN list grows.
+ */
+async function chunkedInFetch<T>(
+  values: string[],
+  chunkSize: number,
+  buildQuery: (chunk: string[]) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  errorContext: string,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let i = 0; i < values.length; i += chunkSize) {
+    const chunk = values.slice(i, i + chunkSize);
+    const { data, error } = await buildQuery(chunk);
+    if (error) throw new Error(`${errorContext}: ${error.message}`);
+    all.push(...((data ?? []) as T[]));
+  }
+  return all;
+}
+
+async function loadAllPaginated<T>(
+  buildQuery: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+  errorContext: string,
+): Promise<T[]> {
+  const PAGE_SIZE = 1000;
+  const all: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(`${errorContext}: ${error.message}`);
+    const page = (data ?? []) as T[];
+    if (page.length === 0) break;
+    all.push(...page);
+    if (page.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
+
 interface EntryListSnapshotRow {
   tournament_id: string;
   category: 'men' | 'women';
@@ -138,17 +202,16 @@ async function reconcileEntryLists(
 }> {
   const { supabase, logger } = deps;
 
-  const { data: snapshotRows, error: snapErr } = await supabase
-    .schema('padelgod')
-    .from('entry_list_snapshots')
-    .select('tournament_id, category, fip_id, name, country, captured_at')
-    .gte('captured_at', cutoff);
-
-  if (snapErr) {
-    throw new Error(`entry_list_snapshots read failed: ${snapErr.message}`);
-  }
-
-  const rows = (snapshotRows ?? []) as EntryListSnapshotRow[];
+  const rows = await loadAllPaginated<EntryListSnapshotRow>(
+    (from, to) =>
+      supabase
+        .schema('padelgod')
+        .from('entry_list_snapshots')
+        .select('tournament_id, category, fip_id, name, country, captured_at')
+        .gte('captured_at', cutoff)
+        .range(from, to),
+    'entry_list_snapshots read failed',
+  );
 
   // Group by (tournament_id, category) and keep only rows from the latest
   // captured_at per group.
@@ -194,17 +257,21 @@ async function reconcileEntryLists(
   const fipIds = Array.from(byFipId.keys());
 
   // Fetch existing player rows so we can decide insert vs update.
-  const { data: existing, error: existErr } = await supabase
-    .from('players')
-    .select('id, fip_id, name, country, category')
-    .in('fip_id', fipIds);
-
-  if (existErr) {
-    throw new Error(`players read failed: ${existErr.message}`);
-  }
+  // Chunked to keep the IN(...) URL under PostgREST/Cloudflare limits —
+  // 1000+ fip_ids would otherwise blow the 16KB cap. See chunkedInFetch.
+  const existing = await chunkedInFetch<ExistingPlayerRow>(
+    fipIds,
+    400,
+    (chunk) =>
+      supabase
+        .from('players')
+        .select('id, fip_id, name, country, category')
+        .in('fip_id', chunk),
+    'players read failed',
+  );
 
   const existingByFipId = new Map<string, ExistingPlayerRow>();
-  for (const row of (existing ?? []) as ExistingPlayerRow[]) {
+  for (const row of existing) {
     if (row.fip_id) existingByFipId.set(row.fip_id, row);
   }
 
@@ -249,11 +316,18 @@ async function reconcileEntryLists(
         continue;
       }
 
+      // `source` was previously written here, but the `public.players`
+      // table has no such column — every INSERT path failed with PGRST204
+      // ("Could not find the 'source' column"). Latent bug: pre-pagination
+      // the upstream snapshot reads were silently capped at 1000 rows, so
+      // every fip_id seen had already been inserted by an earlier sync —
+      // this INSERT branch was never reached. Once we paged the snapshot
+      // reads (this commit) and full sets of fip_ids surfaced, brand-new
+      // players blew up.
       const insert: Record<string, unknown> = {
         fip_id: fipId,
         name: snap.name,
         category: snap.category,
-        source: 'fip',
         last_updated_by: 'padelgod',
         updated_at: now,
       };
@@ -319,21 +393,22 @@ async function reconcileDraws(
   const { supabase, logger } = deps;
 
   // 1. Fetch recent draw snapshots.
-  const { data: drawRows, error: drawErr } = await supabase
-    .schema('padelgod')
-    .from('draw_snapshots')
-    .select(
-      'id, tournament_id, category, draw_type, round_label, draw_position, ' +
-        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
-        'team1_seed, team2_seed, team1_country, team2_country, match_widget_id, captured_at'
-    )
-    .gte('captured_at', cutoff);
+  const drawRows = await loadAllPaginated<DrawSnapshotRow>(
+    (from, to) =>
+      supabase
+        .schema('padelgod')
+        .from('draw_snapshots')
+        .select(
+          'id, tournament_id, category, draw_type, round_label, draw_position, ' +
+            'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
+            'team1_seed, team2_seed, team1_country, team2_country, match_widget_id, captured_at'
+        )
+        .gte('captured_at', cutoff)
+        .range(from, to),
+    'draw_snapshots read failed',
+  );
 
-  if (drawErr) {
-    throw new Error(`draw_snapshots read failed: ${drawErr.message}`);
-  }
-
-  const draws = (drawRows ?? []) as unknown as DrawSnapshotRow[];
+  const draws = drawRows;
   if (draws.length === 0) {
     return { drawMatchesWritten: 0, drawTeamsWritten: 0, drawsUnresolved: 0 };
   }
@@ -370,23 +445,20 @@ async function reconcileDraws(
       'men' | 'women',
     ];
     tournamentIds.add(tournamentId);
-    const { data: elRows, error: elErr } = await supabase
-      .schema('padelgod')
-      .from('entry_list_snapshots')
-      .select(
-        'tournament_id, category, fip_id, name, country, partner_fip_id, partner_name, captured_at'
-      )
-      .eq('tournament_id', tournamentId)
-      .eq('category', category)
-      .gte('captured_at', cutoff);
-
-    if (elErr) {
-      throw new Error(
-        `entry_list_snapshots read failed for dict build (tournament=${tournamentId}, category=${category}): ${elErr.message}`
-      );
-    }
-
-    const rows = (elRows ?? []) as EntryListDictRow[];
+    const rows = await loadAllPaginated<EntryListDictRow>(
+      (from, to) =>
+        supabase
+          .schema('padelgod')
+          .from('entry_list_snapshots')
+          .select(
+            'tournament_id, category, fip_id, name, country, partner_fip_id, partner_name, captured_at'
+          )
+          .eq('tournament_id', tournamentId)
+          .eq('category', category)
+          .gte('captured_at', cutoff)
+          .range(from, to),
+      `entry_list_snapshots read failed for dict build (tournament=${tournamentId}, category=${category})`,
+    );
     if (rows.length === 0) {
       // No entry list for this (tournament, category) — dict is empty.
       // Every draw row for this pair will be flagged unresolved.
@@ -426,16 +498,17 @@ async function reconcileDraws(
   }
   const fipIdToPlayerId = new Map<string, string>();
   if (allFipIds.size > 0) {
-    const { data: playerRows, error: plErr } = await supabase
-      .from('players')
-      .select('id, fip_id')
-      .in('fip_id', Array.from(allFipIds));
-    if (plErr) {
-      throw new Error(
-        `players read for fip_id → UUID map failed: ${plErr.message}`
-      );
-    }
-    for (const row of (playerRows ?? []) as { id: string; fip_id: string }[]) {
+    const playerRows = await chunkedInFetch<{ id: string; fip_id: string }>(
+      Array.from(allFipIds),
+      400,
+      (chunk) =>
+        supabase
+          .from('players')
+          .select('id, fip_id')
+          .in('fip_id', chunk),
+      'players read for fip_id → UUID map failed',
+    );
+    for (const row of playerRows) {
       if (row.fip_id && row.id) fipIdToPlayerId.set(row.fip_id, row.id);
     }
   }
@@ -698,23 +771,20 @@ async function buildDictForTournamentCategory(
   category: 'men' | 'women',
   cutoff: string
 ): Promise<ReturnType<typeof buildTournamentDictionary>> {
-  const { data: elRows, error: elErr } = await supabase
-    .schema('padelgod')
-    .from('entry_list_snapshots')
-    .select(
-      'tournament_id, category, fip_id, name, country, partner_fip_id, partner_name, captured_at'
-    )
-    .eq('tournament_id', tournamentId)
-    .eq('category', category)
-    .gte('captured_at', cutoff);
-
-  if (elErr) {
-    throw new Error(
-      `entry_list_snapshots read failed for dict build (tournament=${tournamentId}, category=${category}): ${elErr.message}`
-    );
-  }
-
-  const rows = (elRows ?? []) as EntryListDictRow[];
+  const rows = await loadAllPaginated<EntryListDictRow>(
+    (from, to) =>
+      supabase
+        .schema('padelgod')
+        .from('entry_list_snapshots')
+        .select(
+          'tournament_id, category, fip_id, name, country, partner_fip_id, partner_name, captured_at'
+        )
+        .eq('tournament_id', tournamentId)
+        .eq('category', category)
+        .gte('captured_at', cutoff)
+        .range(from, to),
+    `entry_list_snapshots read failed for dict build (tournament=${tournamentId}, category=${category})`,
+  );
   if (rows.length === 0) return buildTournamentDictionary([]);
 
   let maxAt = '';
@@ -854,16 +924,17 @@ async function buildFipIdToPlayerIdMap(
   const fipIdToPlayerId = new Map<string, string>();
   if (allFipIds.size === 0) return fipIdToPlayerId;
 
-  const { data: playerRows, error: plErr } = await supabase
-    .from('players')
-    .select('id, fip_id')
-    .in('fip_id', Array.from(allFipIds));
-  if (plErr) {
-    throw new Error(
-      `players read for fip_id → UUID map failed: ${plErr.message}`
-    );
-  }
-  for (const row of (playerRows ?? []) as { id: string; fip_id: string }[]) {
+  const playerRows = await chunkedInFetch<{ id: string; fip_id: string }>(
+    Array.from(allFipIds),
+    400,
+    (chunk) =>
+      supabase
+        .from('players')
+        .select('id, fip_id')
+        .in('fip_id', chunk),
+    'players read for fip_id → UUID map failed',
+  );
+  for (const row of playerRows) {
     if (row.fip_id && row.id) fipIdToPlayerId.set(row.fip_id, row.id);
   }
   return fipIdToPlayerId;
@@ -953,21 +1024,22 @@ async function reconcileOOP(
 ): Promise<{ oopMatchesUpdated: number; oopUnresolved: number }> {
   const { supabase, logger } = deps;
 
-  const { data: oopRows, error: oopErr } = await supabase
-    .schema('padelgod')
-    .from('oop_snapshots')
-    .select(
-      'id, tournament_id, category, day_number, round_label, court, court_position, ' +
-        'scheduled_label, team1_player1_name, team1_player2_name, team2_player1_name, ' +
-        'team2_player2_name, match_widget_id, status, captured_at'
-    )
-    .gte('captured_at', cutoff);
+  const oopRows = await loadAllPaginated<OopSnapshotRow>(
+    (from, to) =>
+      supabase
+        .schema('padelgod')
+        .from('oop_snapshots')
+        .select(
+          'id, tournament_id, category, day_number, round_label, court, court_position, ' +
+            'scheduled_label, team1_player1_name, team1_player2_name, team2_player1_name, ' +
+            'team2_player2_name, match_widget_id, status, captured_at'
+        )
+        .gte('captured_at', cutoff)
+        .range(from, to),
+    'oop_snapshots read failed',
+  );
 
-  if (oopErr) {
-    throw new Error(`oop_snapshots read failed: ${oopErr.message}`);
-  }
-
-  const rows = ((oopRows ?? []) as unknown as OopSnapshotRow[]).filter(
+  const rows = oopRows.filter(
     (r) => r.match_widget_id != null
   );
   if (rows.length === 0) {
@@ -1144,21 +1216,22 @@ async function reconcileResults(
 }> {
   const { supabase, logger } = deps;
 
-  const { data: resultsRows, error: resErr } = await supabase
-    .schema('padelgod')
-    .from('results_snapshots')
-    .select(
-      'id, tournament_id, category, day_number, round_label, court, match_widget_id, ' +
-        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
-        'set_scores, winner_team, status, captured_at'
-    )
-    .gte('captured_at', cutoff);
+  const resultsRows = await loadAllPaginated<ResultsSnapshotRow>(
+    (from, to) =>
+      supabase
+        .schema('padelgod')
+        .from('results_snapshots')
+        .select(
+          'id, tournament_id, category, day_number, round_label, court, match_widget_id, ' +
+            'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
+            'set_scores, winner_team, status, captured_at'
+        )
+        .gte('captured_at', cutoff)
+        .range(from, to),
+    'results_snapshots read failed',
+  );
 
-  if (resErr) {
-    throw new Error(`results_snapshots read failed: ${resErr.message}`);
-  }
-
-  const rows = ((resultsRows ?? []) as unknown as ResultsSnapshotRow[]).filter(
+  const rows = resultsRows.filter(
     (r) => r.match_widget_id != null
   );
   if (rows.length === 0) {

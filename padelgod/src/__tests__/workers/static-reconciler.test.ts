@@ -167,15 +167,24 @@ function fakeSupabase(
     };
   }
 
+  // Helper: produce a `.range(from, to)`-able terminal that returns a
+  // sliced page of the supplied dataset. Mirrors PostgREST's pagination
+  // behaviour now that the reconciler pages through every snapshot read.
+  function paginated<T>(data: T[]) {
+    return {
+      range: (from: number, to: number) =>
+        Promise.resolve({ data: data.slice(from, to + 1), error: null }),
+    };
+  }
+
   function snapshotsTable() {
     return {
       select: (_cols: string) => {
         // Supports two call shapes from the reconciler:
-        //   A. .select().gte('captured_at', cutoff)
-        //   B. .select().eq('tournament_id',…).eq('category',…).gte('captured_at',cutoff)
+        //   A. .select().gte('captured_at', cutoff).range(...)
+        //   B. .select().eq('tournament_id',…).eq('category',…).gte('captured_at',cutoff).range(...)
         return {
-          gte: (_col: string, _value: string) =>
-            Promise.resolve({ data: snapshots, error: null }),
+          gte: (_col: string, _value: string) => paginated(snapshots),
           eq: (col1: string, val1: string) => ({
             eq: (col2: string, val2: string) => ({
               gte: (_col: string, _value: string) => {
@@ -184,7 +193,7 @@ function fakeSupabase(
                     (col1 !== 'tournament_id' || s.tournament_id === val1) &&
                     (col2 !== 'category' || s.category === val2),
                 );
-                return Promise.resolve({ data: filtered, error: null });
+                return paginated(filtered);
               },
             }),
           }),
@@ -196,8 +205,7 @@ function fakeSupabase(
   function drawSnapshotsTable() {
     return {
       select: (_cols: string) => ({
-        gte: (_col: string, _value: string) =>
-          Promise.resolve({ data: draws, error: null }),
+        gte: (_col: string, _value: string) => paginated(draws),
       }),
     };
   }
@@ -326,8 +334,7 @@ function fakeSupabase(
   function oopSnapshotsTable() {
     return {
       select: (_cols: string) => ({
-        gte: (_col: string, _val: string) =>
-          Promise.resolve({ data: oopSnapshots, error: null }),
+        gte: (_col: string, _val: string) => paginated(oopSnapshots),
       }),
     };
   }
@@ -335,8 +342,7 @@ function fakeSupabase(
   function resultsSnapshotsTable() {
     return {
       select: (_cols: string) => ({
-        gte: (_col: string, _val: string) =>
-          Promise.resolve({ data: resultsSnapshots, error: null }),
+        gte: (_col: string, _val: string) => paginated(resultsSnapshots),
       }),
     };
   }
@@ -532,7 +538,9 @@ describe('runStaticReconciler — entry list phase (V1)', () => {
     expect(row.name).toBe('Bea Sanchez');
     expect(row.country).toBe('ESP');
     expect(row.category).toBe('women');
-    expect(row.source).toBe('fip');
+    // `source` was previously stamped here, but `public.players` has no
+    // such column — see static-reconciler insert path. Removed.
+    expect(row.source).toBeUndefined();
     expect(row.last_updated_by).toBe('padelgod');
   });
 
