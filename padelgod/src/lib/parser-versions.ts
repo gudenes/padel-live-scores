@@ -7,7 +7,11 @@ export const CRIONET_SEARCH_VERSION = 'crionet-search-1.0.0';
 export const FIP_RANKINGS_VERSION = 'fip-rankings-1.0.0';
 export const FIP_PLAYER_PROFILE_VERSION = 'fip-player-profile-1.0.0';
 
-export const CRIONET_ENTRY_LIST_VERSION = 'crionet-entry-list-1.0.0';
+// Note: CRIONET_ENTRY_LIST_VERSION used to live here. Removed when the
+// entry-list fetcher was rewired to FIP PDFs (see
+// padelgod/src/workers/entry-list-fetcher.ts). The new parser version
+// 'fip_pdf_entry_list_v1' is recorded inline at the worker's scrape_job
+// call site.
 export const CRIONET_DRAW_VERSION = 'crionet-draw-1.0.0';
 export const CRIONET_OOP_VERSION = 'crionet-oop-1.0.0';
 export const CRIONET_RESULTS_VERSION = 'crionet-results-1.0.0';
