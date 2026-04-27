@@ -1,15 +1,20 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useLocale } from 'next-intl'
 import {
   GREEN, BG_CARD, MUTED, CHUNKY,
   Highlight, NewsItem, formatViews, timeAgo,
 } from './shared'
+import NewsPeekSheet from './NewsPeekSheet'
 
 const BOOKMARKED_ARTICLES_KEY = 'padel-bookmarked-articles'
 
 function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[]; news: NewsItem[] }) {
+  const userLocale = useLocale()
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set())
+  // Selected article for the peek sheet. Null = sheet closed.
+  const [peekArticle, setPeekArticle] = useState<NewsItem | null>(null)
 
   useEffect(() => {
     try {
@@ -120,6 +125,15 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
             href={n.url}
             target="_blank"
             rel="noopener noreferrer"
+            // Tap on the card opens the peek sheet instead of navigating
+            // straight to source. Sheet has the explicit "Read at source"
+            // CTA. Cmd/Ctrl/Shift/middle-click still go through to source
+            // (open-in-new-tab semantics) so power users aren't surprised.
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || (e as React.MouseEvent).button === 1) return
+              e.preventDefault()
+              setPeekArticle(n)
+            }}
             style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0, width: 252, scrollSnapAlign: 'start' }}
           >
             <div style={{
@@ -217,6 +231,16 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
           </a>
         )
       })}
+
+      {/* Peek sheet — controlled by `peekArticle`. Stays mounted across
+          opens so the slide-down close animation has time to play. */}
+      <NewsPeekSheet
+        article={peekArticle}
+        onClose={() => setPeekArticle(null)}
+        userLocale={userLocale}
+        bookmarked={peekArticle ? bookmarked.has(peekArticle.id) : false}
+        onToggleBookmark={() => peekArticle && toggleBookmark(peekArticle.id)}
+      />
     </div>
   )
 }
