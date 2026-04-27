@@ -152,7 +152,7 @@ function ResultsSectionInner({ matches }: { matches: Match[] }) {
                     transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
                     transition: 'transform 0.3s ease',
                   }}>
-                    \u25BC
+                    {'\u25BC'}
                   </span>
                 </div>
               </div>
