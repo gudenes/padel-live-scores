@@ -7,6 +7,7 @@
 // the summary line that used to sit on the left was removed because
 // it read defaults back to the user without adding signal.
 
+import type { ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { type MatchesFilters } from '@/hooks/useMatchesFilters'
 
@@ -19,12 +20,17 @@ export interface MatchesFilterBarProps {
   filters: MatchesFilters
   activeCount: number
   onOpen: () => void
+  /** Optional left-aligned slot. When provided, the bar splits with
+   *  space-between so the slot sits on the left and FILTROS on the right.
+   *  Used for the "Today" shortcut on /matches/[date]. */
+  leftSlot?: ReactNode
 }
 
 export default function MatchesFilterBar({
   filters,
   activeCount,
   onOpen,
+  leftSlot,
 }: MatchesFilterBarProps) {
   const tButton = useTranslations('matches.filters')
   const hasActive = activeCount > 0
@@ -38,10 +44,12 @@ export default function MatchesFilterBar({
       style={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'flex-end',
+        justifyContent: leftSlot ? 'space-between' : 'flex-end',
         padding: '4px 16px 10px',
+        gap: 8,
       }}
     >
+      {leftSlot}
       <button
         type="button"
         onClick={onOpen}

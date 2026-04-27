@@ -24,10 +24,10 @@ import { useTranslations } from 'next-intl'
 import EmptyState from '@/components/EmptyState'
 import MatchesFilterClient from '@/components/MatchesFilterClient'
 import MatchesTournamentGroup from '@/components/MatchesTournamentGroup'
-import MatchesDaySwipe from '@/components/MatchesDaySwipe'
 import MatchesDayShimmer from '@/components/MatchesDayShimmer'
 import { DailyDatePills } from '@/components/DailyDatePills'
-import { addDaysIso, getLocaleHomeTz } from '@/lib/locale-time'
+import { addDaysIso, getLocaleHomeTz, isLocaleToday, getLocaleTodayIso } from '@/lib/locale-time'
+import { useDaySwipe } from '@/hooks/useDaySwipe'
 import type { MatchesDayGroup } from '@/lib/fetch-matches-day'
 
 const CACHE_NEIGHBOUR_RANGE = 3 // prefetch ±3 days around active
@@ -157,10 +157,33 @@ export default function MatchesDayShell({
   const isErrorActive = activeEntry?.state === 'error'
   const groups = activeEntry?.state === 'loaded' ? activeEntry.groups : []
 
+  // Live swipe gesture — translate is shared between the body wrapper
+  // AND the sticky header so the day pills drag with the finger. On
+  // commit (>= 80px), `goTo` swaps the cached day in.
+  const { touchHandlers, translate, active: swipeActive } = useDaySwipe({
+    prevIso,
+    nextIso,
+    onSwipe: goTo,
+  })
+  const swipeStyle = {
+    transform: translate ? `translateX(${translate}px)` : undefined,
+    transition: swipeActive
+      ? 'none'
+      : 'transform 220ms cubic-bezier(0.16, 1, 0.3, 1)',
+  } as const
+
+  // Today shortcut — surfaced next to FILTROS when the user is parked on
+  // any day other than today. Tapping it goes back to today via the same
+  // cached path the pills use.
+  const todayIso = useMemo(() => getLocaleTodayIso(locale), [locale])
+  const isOnToday = isLocaleToday(activeIso, locale)
+
   return (
     <>
       {/* Sticky header strip — pills + filter. Composition matches the
-          server page's layout so the swap doesn't shift anything. */}
+          server page's layout so the swap doesn't shift anything. The
+          inner wrapper carries the same translateX as the body so the
+          pills track the finger during a swipe. */}
       <div
         style={{
           position: 'sticky',
@@ -170,20 +193,46 @@ export default function MatchesDayShell({
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(255,255,255,0.04)',
+          overflow: 'hidden',
         }}
       >
-        <DailyDatePills selectedIso={activeIso} locale={locale} onSelect={goTo} />
-        {!isLoadingActive && !isErrorActive && groups.length > 0 && (
-          <MatchesFilterClient rootId="matches-filter-root" />
-        )}
+        <div style={swipeStyle}>
+          <DailyDatePills selectedIso={activeIso} locale={locale} onSelect={goTo} />
+        </div>
+        {/* Filter bar is always visible — even on empty days the user
+            should be able to flip filters or hop back to today without
+            having to first land on a populated day. */}
+        <MatchesFilterClient
+          rootId="matches-filter-root"
+          leftSlot={
+            !isOnToday ? (
+              <button
+                type="button"
+                onClick={() => goTo(todayIso)}
+                aria-label={tDaily('today')}
+                style={{
+                  background: 'rgba(126,211,33,0.10)',
+                  color: '#7ED321',
+                  border: '1px solid rgba(126,211,33,0.4)',
+                  clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+                  padding: '8px 14px',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: 0.4,
+                  textTransform: 'uppercase',
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                {tDaily('today')}
+              </button>
+            ) : undefined
+          }
+        />
       </div>
 
-      <MatchesDaySwipe
-        prevIso={prevIso}
-        nextIso={nextIso}
-        locale={locale}
-        onSwipe={goTo}
-      >
+      <div {...touchHandlers} style={{ ...swipeStyle, touchAction: 'pan-y' }}>
         {/* `key` swap forces React to remount the body — runs the
             `.matches-day-fade` keyframe + scrolls any sub-state back to
             initial without a jarring page-flash. */}
@@ -229,7 +278,7 @@ export default function MatchesDayShell({
             </div>
           )}
         </div>
-      </MatchesDaySwipe>
+      </div>
     </>
   )
 }
