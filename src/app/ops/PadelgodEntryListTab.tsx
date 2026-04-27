@@ -19,12 +19,14 @@ import { useState, useEffect, useCallback } from 'react'
 // ── Types mirror the GET response from /api/ops/padelgod-entry-list ─────
 
 type ResolutionMethod = 'fip_id' | 'name_exact' | 'none'
+type DrawType = 'main_draw' | 'qualifying'
 
 interface EntryPlayer {
   fipId: string | null
   name: string
   country: string | null
   seed: number | null
+  drawType: DrawType
   partnerFipId: string | null
   partnerName: string | null
   resolvedPlayerId: string | null
@@ -36,6 +38,7 @@ interface EntryTeam {
   player1: EntryPlayer
   player2: EntryPlayer | null
   seed: number | null
+  drawType: DrawType
 }
 
 interface CategoryBlock {
@@ -522,11 +525,23 @@ function CategoryTable({ block }: { block: CategoryBlock }) {
   const resolvedPct = stats.playersTotal > 0 ? Math.round((stats.playersResolved / stats.playersTotal) * 100) : 0
   const fipIdPct = stats.playersTotal > 0 ? Math.round((stats.playersWithFipId / stats.playersTotal) * 100) : 0
 
+  // Split teams by draw_type so MD + Q render under separate headers.
+  // Backend already sorts MD before Q, so we just partition.
+  const mainDrawTeams = teams.filter(t => t.drawType === 'main_draw')
+  const qualifyingTeams = teams.filter(t => t.drawType === 'qualifying')
+
   return (
     <div>
       {/* Stats bar */}
       <div style={{ ...card, display: 'flex', gap: 24, alignItems: 'center', marginBottom: 12 }}>
         <StatTile label="Teams" value={`${stats.teamsTotal}`} color="#111" />
+        {qualifyingTeams.length > 0 && (
+          <StatTile
+            label="MD / Q"
+            value={`${mainDrawTeams.length} / ${qualifyingTeams.length}`}
+            color="#111"
+          />
+        )}
         <StatTile
           label="Fully Resolved"
           value={`${stats.teamsFullyResolved} / ${stats.teamsTotal}`}
@@ -550,7 +565,34 @@ function CategoryTable({ block }: { block: CategoryBlock }) {
         />
       </div>
 
-      {/* Teams table */}
+      {mainDrawTeams.length > 0 && (
+        <DrawSection label="Main Draw" teams={mainDrawTeams} />
+      )}
+      {qualifyingTeams.length > 0 && (
+        <DrawSection label="Qualifying" teams={qualifyingTeams} />
+      )}
+    </div>
+  )
+}
+
+function DrawSection({ label, teams }: { label: string; teams: EntryTeam[] }) {
+  const isMain = label === 'Main Draw'
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{
+        display: 'inline-block',
+        marginBottom: 6,
+        padding: '3px 10px',
+        fontSize: 11,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+        background: isMain ? '#d1fae5' : '#fef3c7',
+        color: isMain ? '#065f46' : '#92400e',
+        borderRadius: 4,
+      }}>
+        {label} · {teams.length} {teams.length === 1 ? 'team' : 'teams'}
+      </div>
       <div style={{ ...card, padding: 0, overflow: 'auto' }}>
         <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
           <thead>
@@ -590,12 +632,6 @@ function CategoryTable({ block }: { block: CategoryBlock }) {
                   {t.player2 ? <PlayerCell p={t.player2} /> : <span style={{ color: '#ccc' }}>—</span>}
                 </td>
                 <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11, color: '#555' }}>
-                  {/* Show both codes always. Previously collapsed to a single
-                      code when player1.country === player2.country, which
-                      made same-country pairs (e.g. Valentin/Bazin → BEL)
-                      look like player2 was missing country data. Verified
-                      data is populated 100% in `entry_list_snapshots`; only
-                      the deduping display was confusing. */}
                   {t.player1.country ?? '—'}
                   {t.player2 ? ` / ${t.player2.country ?? '—'}` : ''}
                 </td>

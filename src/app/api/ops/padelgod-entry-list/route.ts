@@ -36,11 +36,14 @@ type ResolutionMethod =
   | 'name_exact' // normalized name matched a single row
   | 'none' //       no confident match
 
+type DrawType = 'main_draw' | 'qualifying'
+
 interface EntryPlayer {
   fipId: string | null
   name: string
   country: string | null
   seed: number | null
+  drawType: DrawType
   // Partner link — the raw FIP id padelgod captured for the pair-mate.
   // Used for de-dup (same pair appears as two rows, once per member).
   partnerFipId: string | null
@@ -55,6 +58,7 @@ interface EntryTeam {
   player1: EntryPlayer
   player2: EntryPlayer | null // null when padelgod captured only one side
   seed: number | null // team seed = min(player1.seed, player2.seed) when both set
+  drawType: DrawType
 }
 
 interface CategoryBlock {
@@ -157,7 +161,7 @@ export async function GET(request: Request) {
     .schema('padelgod')
     .from('entry_list_snapshots')
     .select(
-      'scrape_job_id, tournament_id, category, fip_id, name, country, seed, partner_fip_id, partner_name, captured_at',
+      'scrape_job_id, tournament_id, category, draw_type, fip_id, name, country, seed, partner_fip_id, partner_name, captured_at',
     )
     .eq('tournament_id', tournamentId)
     .order('captured_at', { ascending: false })
@@ -173,6 +177,7 @@ export async function GET(request: Request) {
     scrape_job_id: string
     tournament_id: string
     category: 'men' | 'women'
+    draw_type: 'main_draw' | 'qualifying'
     fip_id: string | null
     name: string
     country: string | null
@@ -323,6 +328,7 @@ export async function GET(request: Request) {
       name: r.name,
       country: r.country,
       seed: r.seed,
+      drawType: r.draw_type,
       partnerFipId: r.partner_fip_id,
       partnerName: r.partner_name,
       resolvedPlayerId,
@@ -336,16 +342,19 @@ export async function GET(request: Request) {
   // (one per member), each pointing to the other via partner_fip_id. We
   // dedup by the smaller of the two FIP ids. For pairs where one side has
   // no FIP id, fall back to name+partner_name matching.
+  // Partition by draw_type so a player who appears in both MD and Q (rare,
+  // but possible across separate scrapes or mid-tournament reseed) doesn't
+  // get pair-merged across draws.
   const pairKey = (p: EntryPlayer & { _category: 'men' | 'women' }) => {
     if (p.fipId && p.partnerFipId) {
       const [a, b] = [p.fipId, p.partnerFipId].sort()
-      return `${p._category}::fip::${a}::${b}`
+      return `${p._category}::${p.drawType}::fip::${a}::${b}`
     }
     // Fallback — name-based key, lexicographically sorted for stability.
     const me = normalize(p.name)
     const partner = p.partnerName ? normalize(p.partnerName) : ''
     const [a, b] = [me, partner].sort()
-    return `${p._category}::name::${a}::${b}`
+    return `${p._category}::${p.drawType}::name::${a}::${b}`
   }
   const grouped = new Map<string, Array<EntryPlayer & { _category: 'men' | 'women' }>>()
   for (const r of resolved) {
@@ -381,13 +390,17 @@ export async function GET(request: Request) {
       player1: stripCategory(p1),
       player2: p2 ? stripCategory(p2) : null,
       seed: teamSeed,
+      drawType: p1.drawType,
     })
     playersByCategory[cat].push(...members)
   }
 
-  // Sort teams by seed ascending, unseeded last.
+  // Sort: main draw before qualifying, then seed ascending, unseeded last.
   for (const cat of ['men', 'women'] as const) {
     teamsByCategory[cat].sort((a, b) => {
+      const drawOrder = (d: DrawType) => (d === 'main_draw' ? 0 : 1)
+      const dd = drawOrder(a.drawType) - drawOrder(b.drawType)
+      if (dd !== 0) return dd
       const sa = a.seed ?? Number.MAX_SAFE_INTEGER
       const sb = b.seed ?? Number.MAX_SAFE_INTEGER
       if (sa !== sb) return sa - sb
