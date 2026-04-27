@@ -66,10 +66,16 @@ export function parseDurationHHMM(durationHHMM: string | null): number | null {
  *   1. `started_at + duration`  — most accurate (live-poller back-stamped
  *      `started_at` from the widget's elapsed counter + wrote `duration`
  *      every tick). When both are present, this is true wall-clock accuracy.
- *   2. `captured_at`            — the time we scraped the results snapshot.
- *      Can be 30+ minutes late (the worker runs twice-hourly), but strictly
- *      better than leaving `finished_at` NULL — which excludes the match
- *      from the Results tab filter.
+ *   2. `tournament.starts_at + (dayNumber - 1) days` at 12:00 UTC — derives
+ *      the actual play day from the Crionet widget's day cursor. The widget
+ *      groups results by play day (Day 1, Day 2, ...), and `tournament.starts_at`
+ *      is the calendar anchor for Day 1. 12:00 UTC is the timezone-safe
+ *      midpoint that lands on the correct local calendar day worldwide.
+ *      Used when live-poller didn't observe the match (Bronze/Silver/etc
+ *      tournaments scraped via the static results widget only).
+ *   3. `captured_at`            — the time we scraped the results snapshot.
+ *      Last resort; pre-fix this tier mis-stamped every R32/R16/QF as the
+ *      cron's run-day instead of each round's actual play day.
  *
  * Pure function: no I/O, no Date.now. The caller is expected to guard the
  * resulting write with `.is('finished_at', null)` so the live-poller's
@@ -79,12 +85,24 @@ export function computeFinishedAtFallback(
   startedAtIso: string | null,
   durationHHMM: string | null,
   capturedAtIso: string,
+  options?: { dayNumber?: number | null; tournamentStartsAtIso?: string | null },
 ): string {
   const mins = parseDurationHHMM(durationHHMM);
   if (startedAtIso && mins !== null) {
     const startMs = Date.parse(startedAtIso);
     if (!Number.isNaN(startMs)) {
       return new Date(startMs + mins * 60_000).toISOString();
+    }
+  }
+  const dayNumber = options?.dayNumber ?? null;
+  const tStart = options?.tournamentStartsAtIso ?? null;
+  if (dayNumber != null && Number.isFinite(dayNumber) && dayNumber >= 1 && tStart) {
+    const tStartMs = Date.parse(tStart);
+    if (!Number.isNaN(tStartMs)) {
+      const dayDate = new Date(tStartMs);
+      dayDate.setUTCDate(dayDate.getUTCDate() + (Math.trunc(dayNumber) - 1));
+      dayDate.setUTCHours(12, 0, 0, 0);
+      return dayDate.toISOString();
     }
   }
   return capturedAtIso;

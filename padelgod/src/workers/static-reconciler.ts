@@ -894,6 +894,25 @@ async function getActiveWidgetId(
   return (data as { widget_id?: string } | null)?.widget_id ?? null;
 }
 
+async function loadTournamentStartsAtMap(
+  supabase: SupabaseClient,
+  tournamentIds: string[],
+): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  if (tournamentIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select('id, starts_at')
+    .in('id', tournamentIds);
+  if (error) {
+    throw new Error(`tournaments starts_at read failed: ${error.message}`);
+  }
+  for (const row of (data ?? []) as Array<{ id: string; starts_at: string | null }>) {
+    map.set(row.id, row.starts_at ?? null);
+  }
+  return map;
+}
+
 // ─── OOP phase ───────────────────────────────────────────────────────────────
 
 interface OopSnapshotRow {
@@ -1179,6 +1198,11 @@ async function reconcileResults(
     dictionaries.values()
   );
 
+  const tournamentStartsAt = await loadTournamentStartsAtMap(
+    supabase,
+    Array.from(widgetIdByTournament.keys()),
+  );
+
   let resultsMatchesUpdated = 0;
   let setsWritten = 0;
   let resultsUnresolved = 0;
@@ -1292,7 +1316,11 @@ async function reconcileResults(
       const finishedAt = computeFinishedAtFallback(
         (mRow.started_at as string | null) ?? null,
         (mRow.duration as string | null) ?? null,
-        r.captured_at
+        r.captured_at,
+        {
+          dayNumber: r.day_number,
+          tournamentStartsAtIso: tournamentStartsAt.get(r.tournament_id) ?? null,
+        },
       );
       const { error: fUpdErr } = await supabase
         .from('matches')

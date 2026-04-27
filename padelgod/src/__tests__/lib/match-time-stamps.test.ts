@@ -108,4 +108,102 @@ describe('computeFinishedAtFallback', () => {
       capturedAt,
     );
   });
+
+  describe('day-cursor tier (Tier 2)', () => {
+    // Models the FIP Bronze Aquahobby Isla de la Palma 2026 case:
+    // tournament starts 2026-04-23, R32 played Day 1 (Apr 23). Pre-fix the
+    // cron's late captured_at (Apr 27) was being stamped as finished_at.
+    const capturedAt = '2026-04-27T14:55:00Z'; // late cron observation
+    const tournamentStartsAt = '2026-04-23T00:00:00Z';
+
+    it('Day 1 → tournament start day at 12:00 UTC', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: 1,
+          tournamentStartsAtIso: tournamentStartsAt,
+        }),
+      ).toBe('2026-04-23T12:00:00.000Z');
+    });
+
+    it('Day 3 → tournament start + 2 days', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: 3,
+          tournamentStartsAtIso: tournamentStartsAt,
+        }),
+      ).toBe('2026-04-25T12:00:00.000Z');
+    });
+
+    it('handles tournament starts_at with non-midnight time (still uses 12:00 UTC of derived day)', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: 2,
+          tournamentStartsAtIso: '2026-04-23T18:30:00Z',
+        }),
+      ).toBe('2026-04-24T12:00:00.000Z');
+    });
+
+    it('truncates fractional dayNumber', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: 2.7,
+          tournamentStartsAtIso: tournamentStartsAt,
+        }),
+      ).toBe('2026-04-24T12:00:00.000Z');
+    });
+
+    it('Tier 1 still wins over Tier 2 when started_at + duration are present', () => {
+      expect(
+        computeFinishedAtFallback('2026-04-25T15:36:53Z', '01:17', capturedAt, {
+          dayNumber: 1,
+          tournamentStartsAtIso: tournamentStartsAt,
+        }),
+      ).toBe('2026-04-25T16:53:53.000Z');
+    });
+
+    it('falls through to captured_at when dayNumber is null', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: null,
+          tournamentStartsAtIso: tournamentStartsAt,
+        }),
+      ).toBe(capturedAt);
+    });
+
+    it('falls through to captured_at when tournamentStartsAtIso is null', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: 1,
+          tournamentStartsAtIso: null,
+        }),
+      ).toBe(capturedAt);
+    });
+
+    it('falls through to captured_at when dayNumber is 0 or negative', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: 0,
+          tournamentStartsAtIso: tournamentStartsAt,
+        }),
+      ).toBe(capturedAt);
+    });
+
+    it('falls through to captured_at when tournamentStartsAtIso is unparseable', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: 1,
+          tournamentStartsAtIso: 'not-a-date',
+        }),
+      ).toBe(capturedAt);
+    });
+
+    it('day-cursor crosses month boundary correctly', () => {
+      expect(
+        computeFinishedAtFallback(null, null, capturedAt, {
+          dayNumber: 5,
+          tournamentStartsAtIso: '2026-04-29T00:00:00Z',
+        }),
+      ).toBe('2026-05-03T12:00:00.000Z');
+    });
+  });
 });

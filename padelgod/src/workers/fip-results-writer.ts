@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import { parseSetScores } from './static-reconciler.js';
+import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
 
 /**
  * fip-results-writer — simplified-pipeline writer #3.
@@ -75,6 +76,7 @@ interface ResultsRow {
   tournament_id: string;
   match_widget_id: string | null;
   category: 'men' | 'women';
+  day_number: number;
   round_label: string | null;
   court: string | null;
   team1_player1_name: string | null;
@@ -127,6 +129,11 @@ export async function runFipResultsWriter(
   }
   const tournaments = (tours ?? []) as TournamentRow[];
 
+  const tournamentStartsAt = await loadTournamentStartsAt(
+    supabase,
+    tournaments.map((t) => t.tournament_id),
+  );
+
   for (const t of tournaments) {
     const tournamentWidgetId = await getActiveWidgetIdCode(
       supabase,
@@ -144,6 +151,7 @@ export async function runFipResultsWriter(
     if (latestResults.length === 0) continue;
 
     result.tournamentsProcessed += 1;
+    const startsAtIso = tournamentStartsAt.get(t.tournament_id) ?? null;
 
     const compositePrefix = `${tournamentWidgetId}:`;
     const matchByComposite = await loadExistingMatchesByPrefix(
@@ -185,9 +193,13 @@ export async function runFipResultsWriter(
       };
 
       // Backfill finished_at NULL-only. live-poller's precise stamp
-      // wins when present. Fallback: started_at+duration or captured_at.
+      // wins when present. Fallback: started_at+duration → tournament day
+      // cursor → captured_at. See computeFinishedAtFallback docblock.
       if (existing.finished_at === null) {
-        const finishedAt = computeFinishedAt(existing, r.captured_at);
+        const finishedAt = computeFinishedAt(existing, r.captured_at, {
+          dayNumber: r.day_number,
+          tournamentStartsAtIso: startsAtIso,
+        });
         if (finishedAt) {
           matchPatch.finished_at = finishedAt;
           result.finishedAtBackfilled += 1;
@@ -255,28 +267,26 @@ export async function runFipResultsWriter(
  * Resolve the timestamp to stamp as finished_at when live-poller didn't
  * handle this match (the usual case for non-Premier tournaments).
  *
- * Priority:
- *   1. started_at + duration ("hh:mm" format) — gives the actual finish
- *      time, which is what the UI cares about
- *   2. captured_at — the snapshot's fetch time. Close enough when we
- *      have nothing better.
- *
- * Returns null if we can't compute anything (shouldn't happen in
- * practice — captured_at is always present on the row).
+ * Delegates to {@link computeFinishedAtFallback}; see that helper's docblock
+ * for the full priority chain (started_at+duration → tournament day cursor →
+ * captured_at).
  */
 export function computeFinishedAt(
   existing: { started_at: string | null; duration: string | null },
-  capturedAt: string
-): string | null {
-  if (existing.started_at && existing.duration) {
-    const m = existing.duration.match(/^(\d{1,2}):(\d{2})$/);
-    if (m && m[1] != null && m[2] != null) {
-      const mins = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-      const t = new Date(existing.started_at).getTime();
-      if (!Number.isNaN(t)) return new Date(t + mins * 60_000).toISOString();
-    }
-  }
-  return capturedAt;
+  capturedAt: string,
+  dayContext?: { dayNumber: number | null; tournamentStartsAtIso: string | null },
+): string {
+  return computeFinishedAtFallback(
+    existing.started_at,
+    existing.duration,
+    capturedAt,
+    dayContext
+      ? {
+          dayNumber: dayContext.dayNumber,
+          tournamentStartsAtIso: dayContext.tournamentStartsAtIso,
+        }
+      : undefined,
+  );
 }
 
 // ── DB helpers ─────────────────────────────────────────────────────────
@@ -308,7 +318,7 @@ async function loadLatestResultsRows(
     .schema('padelgod')
     .from('results_snapshots')
     .select(
-      'tournament_id, match_widget_id, category, round_label, court, ' +
+      'tournament_id, match_widget_id, category, day_number, round_label, court, ' +
         'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
         'set_scores, winner_team, status, captured_at'
     )
@@ -328,6 +338,25 @@ async function loadLatestResultsRows(
     if (!prev || r.captured_at > prev.captured_at) latest.set(key, r);
   }
   return Array.from(latest.values());
+}
+
+async function loadTournamentStartsAt(
+  supabase: SupabaseClient,
+  tournamentIds: string[],
+): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  if (tournamentIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select('id, starts_at')
+    .in('id', tournamentIds);
+  if (error) {
+    throw new Error(`tournaments starts_at read failed: ${error.message}`);
+  }
+  for (const row of (data ?? []) as Array<{ id: string; starts_at: string | null }>) {
+    map.set(row.id, row.starts_at ?? null);
+  }
+  return map;
 }
 
 async function loadExistingMatchesByPrefix(
