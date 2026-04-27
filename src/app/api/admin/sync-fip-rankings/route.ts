@@ -93,11 +93,12 @@ interface FipRacePlayer {
 
 // Compute the Monday date of a given week (matching currentYearWeek numbering)
 function weekToDate(year: number, week: number): string {
-  // Reverse of currentYearWeek: find the Monday of the given week number
+  // Reverse of currentYearWeek: find the Monday of the given week number.
+  // currentYearWeek uses Sunday-start weeks. The Monday after Sunday-start of
+  // week N is `(N-1)*7 - jan1Day + 1` days after Jan 1 (jan1Day uses 0=Sun..6=Sat).
   const jan1 = new Date(year, 0, 1)
-  const jan1Day = jan1.getDay() // 0=Sun ... 6=Sat
-  // currentYearWeek weeks start on Sunday. Add 1 to land on Monday (FIP publication day).
-  const dayOffset = (week - 1) * 7 - jan1Day + 2 // Monday of that week
+  const jan1Day = jan1.getDay()
+  const dayOffset = (week - 1) * 7 - jan1Day + 1
   const monday = new Date(year, 0, 1 + dayOffset)
   return monday.toISOString().slice(0, 10) + 'T00:00:00Z'
 }
