@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home news redesign</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green: #7ED321;
+      --green-dim: rgba(126,211,33,0.15);
+      --bg-base: #1A1A1A;
+      --bg-card: #141414;
+      --bg-elevated: #1F1F1F;
+      --text: #fff;
+      --muted: #6B7280;
+      --border: rgba(255,255,255,0.06);
+      --orange: #F5A623;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text);
+      font-family: 'Rubik', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 20px 80px;
+    }
+
+    .page-header {
+      max-width: 1280px;
+      margin: 0 auto 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .page-header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .page-header p {
+      max-width: 700px;
+      color: rgba(255,255,255,0.65);
+      margin-top: 6px;
+      font-size: 12px;
+    }
+
+    .columns {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 24px;
+    }
+    .columns > div { min-width: 0; }
+    .phone { min-width: 0; }
+
+    @media (max-width: 1100px) {
+      .columns { grid-template-columns: 1fr; }
+    }
+
+    .col-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .col-label .badge {
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+    }
+    .col-label .badge.now { background: rgba(255,69,85,0.18); color: #FF4655; }
+    .col-label .badge.opt { background: var(--green-dim); color: var(--green); }
+    .col-label .badge.alt { background: rgba(245,166,35,0.18); color: var(--orange); }
+
+    .phone {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      min-height: 700px;
+    }
+
+    .phone-bar {
+      background: linear-gradient(180deg, #0a0a0a 0%, #141414 100%);
+      padding: 10px 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--green);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .phone-body {
+      padding: 16px 12px 20px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0 4px;
+      margin-bottom: 12px;
+    }
+    .section-title h2 {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.015em;
+    }
+    .section-title a {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--green);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+    }
+
+    /* ─────────── CURRENT (carousel with title only) ─────────── */
+
+    .carousel {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      padding-left: 4px;
+    }
+    .carousel::-webkit-scrollbar { display: none; }
+
+    .card-now {
+      flex-shrink: 0;
+      width: 252px;
+      background: var(--bg-card);
+      clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+      overflow: hidden;
+    }
+    .card-now .img-wrap {
+      position: relative;
+      aspect-ratio: 16/9;
+      overflow: hidden;
+    }
+    .card-now .img {
+      width: 100%; height: 100%;
+      background-size: cover;
+      background-position: center;
+    }
+    .card-now .favicon {
+      position: absolute;
+      top: 8px; right: 8px;
+      width: 30px; height: 30px;
+      border-radius: 7px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .card-now .favicon span {
+      font-size: 13px;
+      font-weight: 800;
+      color: #1F40AF;
+    }
+    .card-now .meta { padding: 10px 12px; }
+    .card-now .title {
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-now .src {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* ─────────── OPTION B (vertical stack with snippet) ─────────── */
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card-stack {
+      background: var(--bg-card);
+      clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .card-stack .img-wrap {
+      position: relative;
+      aspect-ratio: 16/9;
+      overflow: hidden;
+    }
+    .card-stack .img {
+      width: 100%; height: 100%;
+      background-size: cover;
+      background-position: center;
+    }
+    .card-stack .favicon {
+      position: absolute;
+      top: 10px; right: 10px;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    .card-stack .favicon span {
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .card-stack .meta {
+      padding: 14px 16px 14px;
+    }
+    .card-stack .title {
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.01em;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-stack .snippet {
+      margin-top: 8px;
+      color: rgba(255,255,255,0.62);
+      font-size: 13px;
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-stack .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+    }
+    .card-stack .row .src {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .card-stack .row .actions {
+      display: flex;
+      gap: 4px;
+    }
+    .card-stack .ic-btn {
+      padding: 6px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .card-stack .ic-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .card-stack .ic-btn:hover { color: var(--green); }
+
+    /* Auto-translate badge */
+    .lang-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+      padding: 2px 7px;
+      background: var(--green-dim);
+      color: var(--green);
+      border-radius: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .lang-tag svg {
+      width: 10px; height: 10px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+    }
+
+    /* ─────────── OPTION C (featured + compact list) ─────────── */
+
+    .hero {
+      background: var(--bg-card);
+      clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .hero .img-wrap {
+      position: relative;
+      aspect-ratio: 16/9;
+      overflow: hidden;
+    }
+    .hero .img {
+      width: 100%; height: 100%;
+      background-size: cover;
+      background-position: center;
+    }
+    .hero .gradient {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(0deg, rgba(20,20,20,0.95) 0%, rgba(20,20,20,0.4) 50%, transparent 100%);
+    }
+    .hero .overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 18px 18px 16px;
+    }
+    .hero .pill {
+      display: inline-block;
+      padding: 3px 9px;
+      background: var(--green);
+      color: #0a0a0a;
+      border-radius: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .hero .title {
+      font-size: 19px;
+      font-weight: 800;
+      line-height: 1.18;
+      letter-spacing: -0.02em;
+      max-width: 90%;
+    }
+    .hero .snippet {
+      margin-top: 8px;
+      color: rgba(255,255,255,0.78);
+      font-size: 13px;
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .hero .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: rgba(255,255,255,0.7);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .hero .src-favicon {
+      width: 22px; height: 22px;
+      border-radius: 5px;
+      background: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .compact {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-card);
+      clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    .compact:hover { background: var(--bg-elevated); }
+    .compact .thumb {
+      width: 88px; height: 88px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      background-size: cover;
+      background-position: center;
+    }
+    .compact .body {
+      flex: 1;
+      min-width: 0;
+    }
+    .compact .title {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .compact .snippet {
+      color: rgba(255,255,255,0.55);
+      font-size: 11px;
+      margin-top: 4px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .compact .src {
+      margin-top: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    /* Mock images via gradient (no fetching external) */
+    .img-1 { background: linear-gradient(135deg, #1F40AF 0%, #6D28D9 60%, #0F172A 100%); }
+    .img-2 { background: linear-gradient(135deg, #DC2626 0%, #EA580C 60%, #1F2937 100%); }
+    .img-3 { background: linear-gradient(135deg, #059669 0%, #0F766E 60%, #064E3B 100%); }
+    .img-4 { background: linear-gradient(135deg, #7C3AED 0%, #DB2777 60%, #1E1B4B 100%); }
+    .img-5 { background: linear-gradient(135deg, #B45309 0%, #92400E 60%, #1C1917 100%); }
+
+    .lab {
+      max-width: 1280px;
+      margin: 50px auto 0;
+      text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .lab strong { color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <div class="eyebrow">PadelNachos · home news section · 2026-04-27</div>
+    <h1>News redesign — three options side-by-side</h1>
+    <p>Each phone shows the news block as it would appear on the home page. Highlights (videos) stay separate. The lime "ES" badge below the snippet shows where an auto-translated snippet would surface — only when the article's source language differs from the user's locale.</p>
+  </div>
+
+  <div class="columns">
+
+    <!-- ═════════ A. CURRENT ═════════ -->
+    <div>
+      <div class="col-label">Current<span class="badge now">Live today</span></div>
+      <div class="phone">
+        <div class="phone-bar">Home · today</div>
+        <div class="phone-body">
+          <div class="section-title">
+            <h2>Latest news</h2>
+            <a>See all →</a>
+          </div>
+          <div class="carousel">
+            <div class="card-now">
+              <div class="img-wrap">
+                <div class="img img-1"></div>
+                <div class="favicon"><span style="color:#DC2626">R</span></div>
+              </div>
+              <div class="meta">
+                <div class="title">Por qué Coello-Tapia parecen imparables en la carrera 2026</div>
+                <div class="src">Relevo · 12h</div>
+              </div>
+            </div>
+            <div class="card-now">
+              <div class="img-wrap">
+                <div class="img img-2"></div>
+                <div class="favicon"><span style="color:#1E40AF">P</span></div>
+              </div>
+              <div class="meta">
+                <div class="title">Lebron's smash of the tournament — frame by frame breakdown</div>
+                <div class="src">Padel TV · 4h</div>
+              </div>
+            </div>
+            <div class="card-now">
+              <div class="img-wrap">
+                <div class="img img-3"></div>
+                <div class="favicon"><span style="color:#059669">W</span></div>
+              </div>
+              <div class="meta">
+                <div class="title">Brea & Triay dominate women's bracket on Day 6 of Brussels</div>
+                <div class="src">WPT Recap · 8h</div>
+              </div>
+            </div>
+            <div class="card-now">
+              <div class="img-wrap">
+                <div class="img img-4"></div>
+                <div class="favicon"><span style="color:#7C3AED">M</span></div>
+              </div>
+              <div class="meta">
+                <div class="title">Galán y Chingotto ya son #1 en la carrera 2026 tras Bruselas</div>
+                <div class="src">Marca · 2h</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;margin-top:18px;padding-left:4px;font-weight:600">Pain points</div>
+          <ul style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:8px;padding-left:22px;line-height:1.6">
+            <li>252px wide cards lose impact</li>
+            <li>No snippet — title alone forces a click to learn anything</li>
+            <li>Mixed with videos in one carousel</li>
+            <li>Spanish article shown to English user — no translation</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════ B. PROPOSED — vertical stack ═════════ -->
+    <div>
+      <div class="col-label">Proposed B — vertical stack<span class="badge opt">Recommended</span></div>
+      <div class="phone">
+        <div class="phone-bar">Home · today</div>
+        <div class="phone-body">
+          <div class="section-title">
+            <h2>Latest news</h2>
+            <a>See all →</a>
+          </div>
+
+          <div class="stack">
+            <div class="card-stack">
+              <div class="img-wrap">
+                <div class="img img-1"></div>
+                <div class="favicon"><span style="color:#DC2626">R</span></div>
+              </div>
+              <div class="meta">
+                <div class="title">Why Coello-Tapia look unstoppable in the 2026 race</div>
+                <div class="snippet">After back-to-back Brussels semifinal wins the Spanish-Argentine pair widen their gap at the top of the official ranking — and quietly position themselves as favorites going into Madrid Major.</div>
+                <div class="lang-tag">
+                  <svg viewBox="0 0 24 24"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>
+                  Auto-translated · ES → EN
+                </div>
+                <div class="row">
+                  <div class="src">Relevo · 12h</div>
+                  <div class="actions">
+                    <button class="ic-btn"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+                    <button class="ic-btn"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-stack">
+              <div class="img-wrap">
+                <div class="img img-4"></div>
+                <div class="favicon"><span style="color:#7C3AED">M</span></div>
+              </div>
+              <div class="meta">
+                <div class="title">Galán & Chingotto rise to #1 in the 2026 race after Brussels</div>
+                <div class="snippet">The duo reached the Brussels P2 final on Saturday, edging Coello and Tapia in the race ranking for the first time this season — 2,890 points to 2,560.</div>
+                <div class="lang-tag">
+                  <svg viewBox="0 0 24 24"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>
+                  Auto-translated · ES → EN
+                </div>
+                <div class="row">
+                  <div class="src">Marca · 2h</div>
+                  <div class="actions">
+                    <button class="ic-btn"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+                    <button class="ic-btn"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-stack">
+              <div class="img-wrap">
+                <div class="img img-3"></div>
+                <div class="favicon"><span style="color:#059669">W</span></div>
+              </div>
+              <div class="meta">
+                <div class="title">Brea & Triay dominate women's bracket on Day 6 of Brussels</div>
+                <div class="snippet">The Argentinian-Spanish pair sailed past Icardo & Jensen 6-3 5-7 6-1 to set up another all-Spanish final — extending their head-to-head dominance to 14 wins.</div>
+                <div class="row">
+                  <div class="src">WPT Recap · 8h</div>
+                  <div class="actions">
+                    <button class="ic-btn"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+                    <button class="ic-btn"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;margin-top:18px;padding-left:4px;font-weight:600">Wins</div>
+          <ul style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:8px;padding-left:22px;line-height:1.6">
+            <li>Full-width cards — much higher visual presence</li>
+            <li>Snippet visible BEFORE click → reader can scan</li>
+            <li>Translation badge surfaces only when needed</li>
+            <li>Same scroll, just vertical (no horizontal swipe needed)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════ C. ALT — featured + compact ═════════ -->
+    <div>
+      <div class="col-label">Proposed C — featured + list<span class="badge alt">Magazine</span></div>
+      <div class="phone">
+        <div class="phone-bar">Home · today</div>
+        <div class="phone-body">
+          <div class="section-title">
+            <h2>Latest news</h2>
+            <a>See all →</a>
+          </div>
+
+          <div class="hero">
+            <div class="img-wrap">
+              <div class="img img-1"></div>
+              <div class="gradient"></div>
+              <div class="overlay">
+                <div class="pill">★ Featured</div>
+                <div class="title">Why Coello-Tapia look unstoppable in the 2026 race</div>
+                <div class="snippet">After back-to-back Brussels semifinal wins, the duo widen their gap at the top of the official ranking — quietly positioning themselves as favorites for Madrid Major.</div>
+                <div class="row">
+                  <span class="src-favicon" style="color:#DC2626">R</span>
+                  <span>Relevo · 12h</span>
+                  <span style="margin-left:auto;background:var(--green-dim);color:var(--green);padding:2px 7px;border-radius:11px;font-size:9px">ES → EN</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="compact">
+            <div class="thumb img-4"></div>
+            <div class="body">
+              <div class="title">Galán & Chingotto rise to #1 in the 2026 race after Brussels</div>
+              <div class="snippet">The duo edged Coello & Tapia in the race ranking for the first time this season.</div>
+              <div class="src">Marca · 2h · ES → EN</div>
+            </div>
+          </div>
+          <div class="compact">
+            <div class="thumb img-3"></div>
+            <div class="body">
+              <div class="title">Brea & Triay dominate women's bracket on Day 6</div>
+              <div class="snippet">Argentinian-Spanish pair extend head-to-head dominance to 14 wins.</div>
+              <div class="src">WPT Recap · 8h</div>
+            </div>
+          </div>
+          <div class="compact">
+            <div class="thumb img-5"></div>
+            <div class="body">
+              <div class="title">Newgiza P2 wraps up with double Spanish triumph</div>
+              <div class="snippet">Tapia and Coello complete back-to-back Egypt run.</div>
+              <div class="src">Premier Padel · 1d · ES → EN</div>
+            </div>
+          </div>
+          <div class="compact">
+            <div class="thumb img-2"></div>
+            <div class="body">
+              <div class="title">Lebron's smash of the tournament — slow motion analysis</div>
+              <div class="snippet">Frame-by-frame breakdown of the Brussels P2 highlight reel.</div>
+              <div class="src">Padel TV · 4h</div>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:0.06em;margin-top:18px;padding-left:4px;font-weight:600">Tradeoff</div>
+          <ul style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:8px;padding-left:22px;line-height:1.6">
+            <li>Editorial feel — one big story per visit</li>
+            <li>4–5 articles fit per scroll vs B's 2–3</li>
+            <li>Featured-pick algorithm needed (which one wins?)</li>
+            <li>Snippet on compact rows is tight (1 line)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="lab">PadelNachos · home news redesign · <strong>option B recommended</strong></p>
+
+</body>
+</html>

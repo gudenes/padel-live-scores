@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Break clarity mockup — Match Journey</title>
+<style>
+  :root {
+    --bg-base: #1A1A1A;
+    --bg-card: #1F1F1F;
+    --border-card: #2E2E2E;
+    --text-primary: #EEE4CE;
+    --text-dim: #4A6F8E;
+    --p1: #FF6B2B;
+    --p2: #FFD166;
+    --break: #FF4655;
+    --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    padding: 28px 16px 60px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-dim); margin: 0 0 8px;
+  }
+  .sub {
+    font-size: 12px; color: #6889A5;
+    margin-bottom: 24px; max-width: 520px; line-height: 1.5;
+  }
+  .variant { margin: 0 auto 36px; max-width: 560px; }
+  .variant-label {
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--p1); margin-bottom: 6px; padding: 0 4px;
+  }
+  .variant-desc {
+    font-size: 11px; color: #6889A5;
+    margin-bottom: 10px; padding: 0 4px; line-height: 1.4;
+  }
+  .chart-card {
+    background: var(--bg-card);
+    border-bottom: 0.5px solid var(--border-card);
+    padding: 12px 16px;
+    border-radius: 4px;
+  }
+  .chart-row { display: flex; align-items: stretch; gap: 6px; }
+  .avatars {
+    display: flex; flex-direction: column;
+    justify-content: center; gap: 10px;
+    width: 56px; flex-shrink: 0;
+  }
+  .avatar-pair { display: flex; align-items: center; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .avatar.t1a { background: linear-gradient(135deg, #FF6B2B, #FFD166); }
+  .avatar.t1b { background: linear-gradient(135deg, #F472B6, #FF6B2B); margin-left: -10px; z-index: 1; }
+  .avatar.t2a { background: linear-gradient(135deg, #38C8FF, #5BA8FF); }
+  .avatar.t2b { background: linear-gradient(135deg, #818CF8, #38C8FF); margin-left: -10px; z-index: 1; }
+  .chart-svg { flex: 1; height: 208px; }
+  .pill-label {
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+  .header-pill { display: flex; align-items: center; margin-bottom: 8px; }
+  .picker-prompt {
+    text-align: center;
+    font-size: 11px; color: #6889A5;
+    margin-top: 24px; line-height: 1.6;
+  }
+  .picker-prompt strong { color: var(--p1); }
+  /* Annotation footer (Option B) */
+  .annotation-row {
+    display: flex; flex-direction: column; gap: 4px;
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid var(--border-card);
+  }
+  .annotation-item {
+    font-size: 10px; color: #9AAEC4;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .annotation-tag {
+    background: rgba(255,70,85,0.18);
+    color: var(--break);
+    font-weight: 800;
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    padding: 1px 5px;
+    clip-path: polygon(10% 10%, 90% 0%, 100% 90%, 0% 100%);
+  }
+  /* Help legend (Option D) */
+  .help-legend {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--border-card);
+    display: flex; flex-direction: column; gap: 6px;
+    font-size: 10px; color: #9AAEC4;
+    line-height: 1.4;
+  }
+  .help-legend strong { color: var(--text-primary); font-weight: 700; }
+  .help-mini-svg {
+    background: rgba(255,255,255,0.03);
+    padding: 4px;
+    border-radius: 3px;
+  }
+  .help-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Break — clarity options</h1>
+<div class="sub">
+  Today: a small red "B" badge sits above the bar of the team that won a game
+  while their opponent was serving. Users have to learn what "B" means.
+  Four ways to make it self-evident, all on the same Brussels P2 SF data.
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION A — replace "B" with the word "BROKE"
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option A · Word "BROKE" instead of letter</div>
+  <div class="variant-desc">
+    The badge becomes a tiny pill that literally reads BROKE — no glossary
+    needed. Slightly wider but unambiguous: a glance tells you what happened.
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="aP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="aP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="aUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="aDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+          <clipPath id="aBadgeClip" clipPathUnits="objectBoundingBox"><polygon points="0.06,0.1 0.94,0 1,0.9 0,1"/></clipPath>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="38" y="58" width="14" height="59" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.95"/>
+          <rect x="38" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/>
+          <!-- BROKE pill -->
+          <rect x="29" y="34" width="32" height="20" fill="#FF4655" clip-path="url(#aBadgeClip)"/>
+          <text x="45" y="48" text-anchor="middle" fill="#fff" font-size="9" font-weight="900" letter-spacing="0.5" font-family="var(--font-sans)">BROKE</text>
+        </g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="123" y="80" width="14" height="37" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/>
+          <rect x="123" y="117" width="14" height="59" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.95"/>
+          <rect x="114" y="178" width="32" height="20" fill="#FF4655" clip-path="url(#aBadgeClip)"/>
+          <text x="130" y="192" text-anchor="middle" fill="#fff" font-size="9" font-weight="900" letter-spacing="0.5" font-family="var(--font-sans)">BROKE</text>
+        </g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="174" y="58" width="14" height="59" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.95"/>
+          <rect x="174" y="117" width="14" height="40" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/>
+          <rect x="165" y="34" width="32" height="20" fill="#FF4655" clip-path="url(#aBadgeClip)"/>
+          <text x="181" y="48" text-anchor="middle" fill="#fff" font-size="9" font-weight="900" letter-spacing="0.5" font-family="var(--font-sans)">BROKE</text>
+        </g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <rect x="194" y="3" width="46" height="22" fill="#FF6B2B" clip-path="url(#aBadgeClip)"/>
+        <text x="217" y="18" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#fff">7-5</text>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="243" y="64" width="14" height="53" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.95"/>
+          <rect x="243" y="117" width="14" height="38" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/>
+          <rect x="234" y="34" width="32" height="20" fill="#FF4655" clip-path="url(#aBadgeClip)"/>
+          <text x="250" y="48" text-anchor="middle" fill="#fff" font-size="9" font-weight="900" letter-spacing="0.5" font-family="var(--font-sans)">BROKE</text>
+        </g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="311" y="58" width="14" height="59" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.95"/>
+          <rect x="311" y="117" width="14" height="48" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/>
+          <rect x="302" y="34" width="32" height="20" fill="#FF4655" clip-path="url(#aBadgeClip)"/>
+          <text x="318" y="48" text-anchor="middle" fill="#fff" font-size="9" font-weight="900" letter-spacing="0.5" font-family="var(--font-sans)">BROKE</text>
+        </g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#aP1)" clip-path="url(#aUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#aP2)" clip-path="url(#aDown)" opacity="0.9"/></g>
+
+        <rect x="344" y="3" width="46" height="22" fill="#FF6B2B" clip-path="url(#aBadgeClip)"/>
+        <text x="367" y="18" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#fff">6-2</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION B — annotation row beneath the chart
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option B · Annotation row with player names</div>
+  <div class="variant-desc">
+    Keep the small "B" badges (compact). Beneath the chart, list each break in
+    plain English with player names: <em>"S1 g3 — Coello/Tapia broke serve"</em>.
+    First-time users learn what B means without leaving the page.
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="bP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="bP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="bUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="bDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+          <clipPath id="bBadgeClip" clipPathUnits="objectBoundingBox"><polygon points="0.1,0.1 0.9,0 1,0.9 0,1"/></clipPath>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="38" y="58" width="14" height="59" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.95"/>
+          <rect x="38" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/>
+          <rect x="35" y="34" width="20" height="22" fill="#FF4655" clip-path="url(#bBadgeClip)"/>
+          <text x="45" y="49" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="123" y="80" width="14" height="37" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/>
+          <rect x="123" y="117" width="14" height="59" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.95"/>
+          <rect x="120" y="178" width="20" height="22" fill="#FF4655" clip-path="url(#bBadgeClip)"/>
+          <text x="130" y="194" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="174" y="58" width="14" height="59" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.95"/>
+          <rect x="174" y="117" width="14" height="40" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/>
+          <rect x="171" y="34" width="20" height="22" fill="#FF4655" clip-path="url(#bBadgeClip)"/>
+          <text x="181" y="49" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <rect x="194" y="3" width="46" height="22" fill="#FF6B2B" clip-path="url(#bBadgeClip)"/>
+        <text x="217" y="18" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#fff">7-5</text>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="243" y="64" width="14" height="53" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.95"/>
+          <rect x="243" y="117" width="14" height="38" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/>
+          <rect x="240" y="34" width="20" height="22" fill="#FF4655" clip-path="url(#bBadgeClip)"/>
+          <text x="250" y="49" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="311" y="58" width="14" height="59" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.95"/>
+          <rect x="311" y="117" width="14" height="48" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/>
+          <rect x="308" y="34" width="20" height="22" fill="#FF4655" clip-path="url(#bBadgeClip)"/>
+          <text x="318" y="49" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#bP1)" clip-path="url(#bUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#bP2)" clip-path="url(#bDown)" opacity="0.9"/></g>
+
+        <rect x="344" y="3" width="46" height="22" fill="#FF6B2B" clip-path="url(#bBadgeClip)"/>
+        <text x="367" y="18" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#fff">6-2</text>
+      </svg>
+    </div>
+    <div class="annotation-row">
+      <div class="annotation-item"><span class="annotation-tag">B</span> S1 g3 · Coello/Tapia broke serve</div>
+      <div class="annotation-item"><span class="annotation-tag">B</span> S1 g8 · Yanguas/Stupaczuk broke serve</div>
+      <div class="annotation-item"><span class="annotation-tag">B</span> S1 g11 · Coello/Tapia broke serve</div>
+      <div class="annotation-item"><span class="annotation-tag">B</span> S2 g2 · Coello/Tapia broke serve</div>
+      <div class="annotation-item"><span class="annotation-tag">B</span> S2 g6 · Coello/Tapia broke serve</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION C — broken-racket icon with directional arrow
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option C · Broken-serve icon (directional)</div>
+  <div class="variant-desc">
+    Replace the "B" with a small icon: a curved arrow pointing TOWARD the
+    winner's bar from the server's side, with a "snap" mark at the breaking
+    point. Pictographic — meaning is visible without reading. Decorative-rich.
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="cP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="cP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="cUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="cDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+          <symbol id="brokenArrowDown" viewBox="0 0 24 24">
+            <!-- Curved arrow from bottom-side breaking and pointing up. Top half = winner color path. -->
+            <path d="M 5 18 Q 8 12 11 11" stroke="#FFD166" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path d="M 13 11 Q 16 12 19 6" stroke="#FF4655" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <polygon points="19,5 22,8 16,8" fill="#FF4655"/>
+            <!-- Snap notch -->
+            <path d="M 10.5 10 L 13.5 12" stroke="#FF4655" stroke-width="2" stroke-linecap="round"/>
+            <path d="M 10.5 12 L 13.5 10" stroke="#FF4655" stroke-width="2" stroke-linecap="round"/>
+          </symbol>
+          <symbol id="brokenArrowUp" viewBox="0 0 24 24">
+            <!-- Mirror: top side serving, bottom side breaks -->
+            <path d="M 5 6 Q 8 12 11 13" stroke="#FF6B2B" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path d="M 13 13 Q 16 12 19 18" stroke="#FF4655" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <polygon points="19,19 22,16 16,16" fill="#FF4655"/>
+            <path d="M 10.5 12 L 13.5 14" stroke="#FF4655" stroke-width="2" stroke-linecap="round"/>
+            <path d="M 10.5 14 L 13.5 12" stroke="#FF4655" stroke-width="2" stroke-linecap="round"/>
+          </symbol>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="38" y="58" width="14" height="59" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.95"/>
+          <rect x="38" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/>
+          <use href="#brokenArrowDown" x="33" y="32" width="24" height="24"/>
+        </g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="123" y="80" width="14" height="37" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/>
+          <rect x="123" y="117" width="14" height="59" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.95"/>
+          <use href="#brokenArrowUp" x="118" y="178" width="24" height="24"/>
+        </g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="174" y="58" width="14" height="59" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.95"/>
+          <rect x="174" y="117" width="14" height="40" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/>
+          <use href="#brokenArrowDown" x="169" y="32" width="24" height="24"/>
+        </g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <rect x="194" y="3" width="46" height="22" fill="#FF6B2B" clip-path="url(#bBadgeClip)"/>
+        <text x="217" y="18" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#fff">7-5</text>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="243" y="64" width="14" height="53" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.95"/>
+          <rect x="243" y="117" width="14" height="38" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/>
+          <use href="#brokenArrowDown" x="238" y="32" width="24" height="24"/>
+        </g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="311" y="58" width="14" height="59" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.95"/>
+          <rect x="311" y="117" width="14" height="48" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/>
+          <use href="#brokenArrowDown" x="306" y="32" width="24" height="24"/>
+        </g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#cP1)" clip-path="url(#cUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#cP2)" clip-path="url(#cDown)" opacity="0.9"/></g>
+
+        <rect x="344" y="3" width="46" height="22" fill="#FF6B2B" clip-path="url(#bBadgeClip)"/>
+        <text x="367" y="18" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#fff">6-2</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────
+     OPTION D — keep "B", educate via expanded legend
+     ───────────────────────────────────────────────────────────── -->
+<div class="variant">
+  <div class="variant-label">Option D · "B" + educational legend</div>
+  <div class="variant-desc">
+    Smallest change: keep the compact B badge, but expand the legend below the
+    chart with one explanatory sentence and a tiny example diagram. Educates
+    once, never again. Doesn't touch the chart density.
+  </div>
+  <div class="chart-card">
+    <div class="header-pill"><span class="pill-label">Match Journey</span></div>
+    <div class="chart-row">
+      <div class="avatars">
+        <div class="avatar-pair"><div class="avatar t1a"></div><div class="avatar t1b"></div></div>
+        <div class="avatar-pair"><div class="avatar t2a"></div><div class="avatar t2b"></div></div>
+      </div>
+      <svg viewBox="0 0 480 234" class="chart-svg" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="dP1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF6B2B" stop-opacity="1"/><stop offset="100%" stop-color="#FF6B2B" stop-opacity="0.7"/></linearGradient>
+          <linearGradient id="dP2" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#FFD166" stop-opacity="1"/><stop offset="100%" stop-color="#FFD166" stop-opacity="0.7"/></linearGradient>
+          <clipPath id="dUp" clipPathUnits="objectBoundingBox"><polygon points="0.03,0.05 0.97,0 1,0.95 0,1"/></clipPath>
+          <clipPath id="dDown" clipPathUnits="objectBoundingBox"><polygon points="0,0.05 1,0 0.97,0.95 0.03,1"/></clipPath>
+          <clipPath id="dBadgeClip" clipPathUnits="objectBoundingBox"><polygon points="0.1,0.1 0.9,0 1,0.9 0,1"/></clipPath>
+        </defs>
+        <line x1="4" y1="117" x2="430" y2="117" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+        <g><rect x="4"  y="63"  width="14" height="54" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="4"  y="117" width="14" height="40" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="21" y="80"  width="14" height="37" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="21" y="117" width="14" height="54" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="38" y="58" width="14" height="59" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.95"/>
+          <rect x="38" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/>
+          <rect x="35" y="34" width="20" height="22" fill="#FF4655" clip-path="url(#dBadgeClip)"/>
+          <text x="45" y="49" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="55" y="74"  width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="55" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="72" y="69"  width="14" height="48" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="72" y="117" width="14" height="43" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="89" y="74"  width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="89" y="117" width="14" height="40" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="106" y="64" width="14" height="53" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="106" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="123" y="80" width="14" height="37" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/>
+          <rect x="123" y="117" width="14" height="59" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.95"/>
+          <rect x="120" y="178" width="20" height="22" fill="#FF4655" clip-path="url(#dBadgeClip)"/>
+          <text x="130" y="194" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="140" y="79" width="14" height="38" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="140" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="157" y="74" width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="157" y="117" width="14" height="43" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="174" y="58" width="14" height="59" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.95"/>
+          <rect x="174" y="117" width="14" height="40" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/>
+          <rect x="171" y="34" width="20" height="22" fill="#FF4655" clip-path="url(#dBadgeClip)"/>
+          <text x="181" y="49" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="191" y="74" width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="191" y="117" width="14" height="43" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+
+        <line x1="217" y1="14" x2="217" y2="230" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+        <rect x="194" y="3" width="46" height="22" fill="#FF6B2B" clip-path="url(#dBadgeClip)"/>
+        <text x="217" y="18" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#fff">7-5</text>
+
+        <g><rect x="226" y="58" width="14" height="59" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="226" y="117" width="14" height="32" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="243" y="64" width="14" height="53" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.95"/>
+          <rect x="243" y="117" width="14" height="38" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/>
+          <rect x="240" y="34" width="20" height="22" fill="#FF4655" clip-path="url(#dBadgeClip)"/>
+          <text x="250" y="49" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="260" y="69" width="14" height="48" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="260" y="117" width="14" height="40" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="277" y="74" width="14" height="43" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="277" y="117" width="14" height="32" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g><rect x="294" y="80" width="14" height="37" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="294" y="117" width="14" height="59" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+        <g>
+          <rect x="311" y="58" width="14" height="59" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.95"/>
+          <rect x="311" y="117" width="14" height="48" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/>
+          <rect x="308" y="34" width="20" height="22" fill="#FF4655" clip-path="url(#dBadgeClip)"/>
+          <text x="318" y="49" text-anchor="middle" fill="#fff" font-size="13" font-weight="900" font-family="var(--font-mono)">B</text>
+        </g>
+        <g><rect x="328" y="69" width="14" height="48" fill="url(#dP1)" clip-path="url(#dUp)" opacity="0.9"/><rect x="328" y="117" width="14" height="32" fill="url(#dP2)" clip-path="url(#dDown)" opacity="0.9"/></g>
+
+        <rect x="344" y="3" width="46" height="22" fill="#FF6B2B" clip-path="url(#dBadgeClip)"/>
+        <text x="367" y="18" text-anchor="middle" font-size="13" font-weight="900" font-family="var(--font-mono)" fill="#fff">6-2</text>
+      </svg>
+    </div>
+    <div class="help-legend">
+      <div class="help-row">
+        <span class="annotation-tag">B</span>
+        <span><strong>BREAK OF SERVE</strong> — the team that wasn't serving won the game.</span>
+      </div>
+      <div style="font-size:9px; color:#6889A5; margin-top:2px; padding-left:2px;">
+        The badge sits on the bar of the team that broke. Each break is a critical turning point in a set.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="picker-prompt">
+  Pick <strong>A</strong>, <strong>B</strong>, <strong>C</strong>, or <strong>D</strong> — or describe a tweak / combine.
+</div>
+
+</body>
+</html>

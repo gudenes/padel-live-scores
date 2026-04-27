@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Desktop full mockup — PadelNachos</title>
+<style>
+  :root {
+    --bg-base: #0A0A0A;
+    --bg-card: #141414;
+    --bg-card-hi: #1F1F1F;
+    --border-card: #2E2E2E;
+    --border-faint: rgba(255,255,255,0.06);
+    --text-primary: #EEE4CE;
+    --text-dim: #6889A5;
+    --text-faint: #4A6F8E;
+    --p1: #FF6B2B;
+    --p2: #FFD166;
+    --green: #7ED321;
+    --break: #FF4655;
+    --accent: #38C8FF;
+    --women: #F472B6;
+    --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    background: #0A0A0A;
+    overflow-x: hidden;
+  }
+
+  /* Top header — global brand bar */
+  .topbar {
+    height: 64px;
+    display: flex; align-items: center;
+    padding: 0 32px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--border-faint);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    width: 100%; margin: 0 auto;
+    display: flex; align-items: center; gap: 28px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 900; font-size: 14px;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  .brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7ED321 0%, #FFD166 60%, #FF6B2B 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #0A0A0A;
+  }
+  .topnav {
+    flex: 1;
+    display: flex; gap: 4px;
+    margin-left: 12px;
+  }
+  .topnav a {
+    padding: 6px 14px;
+    color: var(--text-dim);
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 4px;
+  }
+  .topnav a.active { color: var(--green); }
+  .topnav a:hover { color: var(--text-primary); }
+  .top-actions {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .search-box {
+    width: 220px; height: 34px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-faint);
+    border-radius: 18px;
+    padding: 0 14px;
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-dim); font-size: 12px;
+  }
+  .login-btn {
+    padding: 7px 16px;
+    background: var(--green);
+    color: #0A0A0A;
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  /* Layout grid */
+  .layout {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 28px 32px 60px;
+    display: grid;
+    grid-template-columns: 280px 500px 280px;
+    gap: 32px;
+    justify-content: center;
+  }
+
+  /* Side rail panels */
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-faint);
+    border-radius: 6px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .panel-title {
+    font-size: 10px; font-weight: 800;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--p1);
+  }
+  .panel-title.women { color: var(--women); }
+  .panel-title.live {
+    color: var(--break);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--break);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .panel-link {
+    font-size: 9px; font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .panel-link:hover { color: var(--green); }
+
+  /* Live ticker (left rail) */
+  .ticker-card {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .ticker-card:last-child { border-bottom: none; }
+  .ticker-tour {
+    font-size: 9px; font-weight: 800;
+    color: var(--text-dim);
+    letter-spacing: 0.7px; text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ticker-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 2px 0;
+  }
+  .ticker-row .flag {
+    width: 14px; height: 10px;
+    flex-shrink: 0;
+    border-radius: 2px;
+  }
+  .ticker-row .name {
+    flex: 1;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .ticker-row .name.dim { color: var(--text-dim); font-weight: 500; }
+  .ticker-row .score {
+    font-size: 13px; font-weight: 900;
+    color: #fff;
+    width: 14px; text-align: center;
+  }
+  .ticker-row .score.dim { color: var(--text-dim); }
+  .ticker-row .score.live { color: var(--break); }
+  .flag-es { background: linear-gradient(180deg, #c60b1e 33%, #ffc400 33%, #ffc400 66%, #c60b1e 66%); }
+  .flag-ar { background: linear-gradient(180deg, #74acdf 33%, #fff 33%, #fff 66%, #74acdf 66%); }
+  .flag-it { background: linear-gradient(90deg, #008C45 33%, #fff 33%, #fff 66%, #CD212A 66%); }
+  .flag-fr { background: linear-gradient(90deg, #002395 33%, #fff 33%, #fff 66%, #ED2939 66%); }
+  .flag-be { background: linear-gradient(90deg, #000 33%, #FAE042 33%, #FAE042 66%, #ED2939 66%); }
+  .flag-mx { background: linear-gradient(90deg, #006847 33%, #fff 33%, #fff 66%, #ce1126 66%); }
+
+  /* Today's schedule */
+  .schedule-row {
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border-faint);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .schedule-row:last-child { border-bottom: none; }
+  .schedule-time {
+    font-size: 11px; font-weight: 800;
+    color: var(--green);
+    font-family: var(--font-mono);
+    width: 38px; flex-shrink: 0;
+  }
+  .schedule-info {
+    flex: 1; min-width: 0;
+  }
+  .schedule-title {
+    font-size: 11px; font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .schedule-tour {
+    font-size: 9px; color: var(--text-faint);
+    letter-spacing: 0.5px; text-transform: uppercase;
+    margin-top: 1px;
+  }
+  .schedule-tag {
+    font-size: 8px; font-weight: 800;
+    padding: 2px 5px;
+    color: var(--p1);
+    background: rgba(255,107,43,0.1);
+    border-radius: 2px;
+  }
+
+  /* Center column — phone-style content (the existing mobile UI verbatim) */
+  .center-col {
+    background: var(--bg-card);
+    border: 1px solid var(--border-faint);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .center-header {
+    padding: 18px 20px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .center-title {
+    font-size: 28px; font-weight: 900;
+    background: linear-gradient(135deg, #FFD166, #FF6B2B);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .center-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 34px; height: 34px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-faint);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-primary);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .pill-row {
+    display: flex; gap: 8px;
+    padding: 0 20px 14px;
+  }
+  .pill {
+    padding: 7px 16px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-dim);
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    clip-path: polygon(8% 8%, 92% 0%, 100% 92%, 0% 100%);
+    cursor: pointer;
+  }
+  .pill.active {
+    background: var(--green);
+    color: #0A0A0A;
+  }
+
+  .section-label {
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--p1);
+    padding: 4px 20px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label.dim { color: var(--text-dim); }
+
+  .match-card {
+    margin: 0 20px 12px;
+    background: var(--bg-card-hi);
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    padding: 14px 16px;
+    border-left: 2px solid var(--break);
+    cursor: pointer;
+  }
+  .match-card.finished { border-left-color: rgba(255,255,255,0.08); }
+  .match-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 4px 0;
+  }
+  .match-row .flag {
+    width: 18px; height: 12px; flex-shrink: 0; border-radius: 2px;
+  }
+  .match-row .name {
+    flex: 1;
+    font-size: 13px; font-weight: 600;
+    color: var(--text-primary);
+  }
+  .match-row .name.dim { color: var(--text-dim); font-weight: 500; }
+  .match-row .score {
+    font-size: 17px; font-weight: 900;
+    color: #fff;
+    margin-left: 4px;
+    min-width: 18px; text-align: center;
+  }
+  .match-row .score.dim { color: var(--text-dim); }
+  .match-row .score.live { color: var(--break); }
+
+  .match-meta {
+    display: flex; align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding-bottom: 6px;
+  }
+  .live-tag {
+    background: rgba(255,70,85,0.14);
+    color: var(--break);
+    font-weight: 800;
+    padding: 2px 6px;
+    clip-path: polygon(10% 10%, 90% 0%, 100% 90%, 0% 100%);
+  }
+
+  /* Right rail panels */
+  .ranking-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 16px;
+    border-bottom: 1px solid var(--border-faint);
+  }
+  .ranking-row:last-child { border-bottom: none; }
+  .ranking-pos {
+    width: 22px;
+    font-size: 13px; font-weight: 900;
+    color: var(--accent);
+    font-family: var(--font-mono);
+  }
+  .ranking-pos.gold { color: #FFD166; }
+  .ranking-pos.silver { color: #B8B8B8; }
+  .ranking-pos.bronze { color: #CD7F32; }
+  .ranking-name {
+    flex: 1;
+    font-size: 11px; font-weight: 600;
+  }
+  .ranking-pts {
+    font-size: 10px; color: var(--text-dim);
+    font-weight: 700;
+    font-family: var(--font-mono);
+  }
+
+  .news-card {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-faint);
+    cursor: pointer;
+  }
+  .news-card:last-child { border-bottom: none; }
+  .news-card:hover { background: rgba(255,255,255,0.02); }
+  .news-source {
+    font-size: 9px; color: var(--accent);
+    letter-spacing: 0.5px; text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .news-title {
+    font-size: 12px; font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+  .news-meta {
+    margin-top: 6px;
+    font-size: 9px; color: var(--text-faint);
+  }
+
+  /* Helper note at the bottom */
+  .footer-hint {
+    grid-column: 1 / -1;
+    margin-top: 20px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .footer-hint strong { color: var(--p1); font-weight: 700; }
+
+  /* Watch tonight panel — featured */
+  .watch-card {
+    padding: 12px 16px;
+  }
+  .watch-headline {
+    font-size: 13px; font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .watch-time {
+    font-size: 10px; color: var(--green);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .watch-channels {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .watch-tag {
+    font-size: 9px; font-weight: 800;
+    padding: 3px 7px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-primary);
+    border-radius: 3px;
+  }
+  .watch-tag.country { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- Global header -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <span>PadelNachos</span>
+    </div>
+    <div class="topnav">
+      <a class="active" href="#">Home</a>
+      <a href="#">Matches</a>
+      <a href="#">Ranking</a>
+      <a href="#">Tournaments</a>
+      <a href="#">Feed</a>
+    </div>
+    <div class="top-actions">
+      <div class="search-box">🔍 Search players, tournaments…</div>
+      <div class="login-btn">Sign in</div>
+    </div>
+  </div>
+</div>
+
+<!-- Three-column layout -->
+<div class="layout">
+
+  <!-- ── Left rail ────────────────────────────────────────────── -->
+  <div>
+    <!-- Live ticker -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title live"><span class="live-dot"></span>Live now</div>
+        <a class="panel-link">5 matches →</a>
+      </div>
+
+      <div class="ticker-card">
+        <div class="ticker-tour">Brussels P2 · Final</div>
+        <div class="ticker-row">
+          <div class="flag flag-es"></div>
+          <div class="name">Coello / Tapia</div>
+          <div class="score live">7</div>
+          <div class="score live">2</div>
+        </div>
+        <div class="ticker-row">
+          <div class="flag flag-ar"></div>
+          <div class="name dim">Lebron / Augsburger</div>
+          <div class="score dim">5</div>
+          <div class="score dim">3</div>
+        </div>
+      </div>
+
+      <div class="ticker-card">
+        <div class="ticker-tour">Brussels P2 · 3rd-place</div>
+        <div class="ticker-row">
+          <div class="flag flag-ar"></div>
+          <div class="name">Brea / Triay</div>
+          <div class="score live">6</div>
+          <div class="score live">4</div>
+        </div>
+        <div class="ticker-row">
+          <div class="flag flag-es"></div>
+          <div class="name dim">Yanguas / Stupaczuk</div>
+          <div class="score dim">3</div>
+          <div class="score dim">2</div>
+        </div>
+      </div>
+
+      <div class="ticker-card">
+        <div class="ticker-tour">FIP Bronze Marrakech · QF</div>
+        <div class="ticker-row">
+          <div class="flag flag-fr"></div>
+          <div class="name">Vendrell / Aguirre</div>
+          <div class="score">6</div>
+          <div class="score live">3</div>
+        </div>
+        <div class="ticker-row">
+          <div class="flag flag-es"></div>
+          <div class="name dim">Galvis / Esbrí</div>
+          <div class="score dim">2</div>
+          <div class="score dim">2</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Today's schedule -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Today's schedule</div>
+        <a class="panel-link">All →</a>
+      </div>
+      <div class="schedule-row">
+        <div class="schedule-time">14:00</div>
+        <div class="schedule-info">
+          <div class="schedule-title">Coello/Tapia · Lebron/Aug.</div>
+          <div class="schedule-tour">Brussels P2 · Men F</div>
+        </div>
+        <div class="schedule-tag">★</div>
+      </div>
+      <div class="schedule-row">
+        <div class="schedule-time">15:30</div>
+        <div class="schedule-info">
+          <div class="schedule-title">Sánchez/Josemaría · Triay/Brea</div>
+          <div class="schedule-tour">Brussels P2 · Women F</div>
+        </div>
+      </div>
+      <div class="schedule-row">
+        <div class="schedule-time">17:00</div>
+        <div class="schedule-info">
+          <div class="schedule-title">Galán/Chingotto · Garrido/Tello</div>
+          <div class="schedule-tour">Brussels P2 · 3rd-place M</div>
+        </div>
+      </div>
+      <div class="schedule-row">
+        <div class="schedule-time">19:30</div>
+        <div class="schedule-info">
+          <div class="schedule-title">Awards ceremony</div>
+          <div class="schedule-tour">Court Centrale</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Center column (existing mobile UI) ─────────────────── -->
+  <div class="center-col">
+    <div class="center-header">
+      <div class="center-title">Live Now</div>
+      <div class="center-actions">
+        <div class="icon-btn">★</div>
+        <div class="icon-btn">⚙</div>
+      </div>
+    </div>
+
+    <div class="pill-row">
+      <div class="pill active">All</div>
+      <div class="pill">Premier</div>
+      <div class="pill">FIP Gold</div>
+      <div class="pill">Following</div>
+    </div>
+
+    <div class="section-label">
+      <span class="live-dot"></span>Brussels P2 — Final
+    </div>
+
+    <div class="match-card">
+      <div class="match-meta">
+        <span class="live-tag">LIVE</span>
+        <span>Court CBC · Set 2 · Game 3</span>
+      </div>
+      <div class="match-row">
+        <div class="flag flag-es"></div>
+        <div class="name">A. Coello / A. Tapia</div>
+        <div class="score live">7</div>
+        <div class="score live">2</div>
+      </div>
+      <div class="match-row">
+        <div class="flag flag-ar"></div>
+        <div class="name dim">J. Lebron / G. Augsburger</div>
+        <div class="score dim">5</div>
+        <div class="score dim">3</div>
+      </div>
+    </div>
+
+    <div class="section-label dim">Earlier today</div>
+
+    <div class="match-card finished">
+      <div class="match-meta">
+        <span style="color: var(--green); font-weight: 800;">FINAL</span>
+        <span>Semifinals · 01:17</span>
+      </div>
+      <div class="match-row">
+        <div class="flag flag-es"></div>
+        <div class="name">A. Coello / A. Tapia</div>
+        <div class="score">7</div>
+        <div class="score">6</div>
+      </div>
+      <div class="match-row">
+        <div class="flag flag-ar"></div>
+        <div class="name dim">M. Yanguas / F. Stupaczuk</div>
+        <div class="score dim">5</div>
+        <div class="score dim">2</div>
+      </div>
+    </div>
+
+    <div class="match-card finished">
+      <div class="match-meta">
+        <span style="color: var(--green); font-weight: 800;">FINAL</span>
+        <span>Semifinals · 02:34</span>
+      </div>
+      <div class="match-row">
+        <div class="flag flag-ar"></div>
+        <div class="name">D. Brea / G. Triay</div>
+        <div class="score">6</div>
+        <div class="score">3</div>
+      </div>
+      <div class="match-row">
+        <div class="flag flag-es"></div>
+        <div class="name dim">T. Icardo / C. Jensen</div>
+        <div class="score dim">3</div>
+        <div class="score dim">2</div>
+      </div>
+    </div>
+
+    <div style="padding: 0 0 20px;"></div>
+  </div>
+
+  <!-- ── Right rail ───────────────────────────────────────── -->
+  <div>
+    <!-- Where to watch tonight -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Watch tonight</div>
+      </div>
+      <div class="watch-card">
+        <div class="watch-headline">Coello/Tapia · Lebron/Aug.</div>
+        <div class="watch-time">Brussels P2 Final · 16:00 your time</div>
+        <div class="watch-channels">
+          <span class="watch-tag country">ES</span>
+          <span class="watch-tag">Movistar Plus+</span>
+          <span class="watch-tag country">FR</span>
+          <span class="watch-tag">Canal+</span>
+          <span class="watch-tag country">PT</span>
+          <span class="watch-tag">SportTV</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top 5 men -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">FIP Ranking · Men</div>
+        <a class="panel-link">Full →</a>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos gold">1</div>
+        <div class="ranking-name">A. Tapia</div>
+        <div class="ranking-pts">12,840</div>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos silver">2</div>
+        <div class="ranking-name">A. Coello</div>
+        <div class="ranking-pts">12,840</div>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos bronze">3</div>
+        <div class="ranking-name">F. Stupaczuk</div>
+        <div class="ranking-pts">9,420</div>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos">4</div>
+        <div class="ranking-name">M. Yanguas</div>
+        <div class="ranking-pts">9,420</div>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos">5</div>
+        <div class="ranking-name">A. Galán</div>
+        <div class="ranking-pts">8,260</div>
+      </div>
+    </div>
+
+    <!-- Top 5 women -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title women">FIP Ranking · Women</div>
+        <a class="panel-link">Full →</a>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos gold">1</div>
+        <div class="ranking-name">G. Triay</div>
+        <div class="ranking-pts">11,300</div>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos silver">2</div>
+        <div class="ranking-name">D. Brea</div>
+        <div class="ranking-pts">11,300</div>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos bronze">3</div>
+        <div class="ranking-name">A. Sánchez</div>
+        <div class="ranking-pts">8,940</div>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos">4</div>
+        <div class="ranking-name">P. Josemaría</div>
+        <div class="ranking-pts">8,940</div>
+      </div>
+      <div class="ranking-row">
+        <div class="ranking-pos">5</div>
+        <div class="ranking-name">B. González</div>
+        <div class="ranking-pts">6,720</div>
+      </div>
+    </div>
+
+    <!-- News -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Latest news</div>
+        <a class="panel-link">Feed →</a>
+      </div>
+      <div class="news-card">
+        <div class="news-source">Premier Padel</div>
+        <div class="news-title">Coello/Tapia battle into Brussels P2 final after epic semi vs Yanguas/Stupaczuk</div>
+        <div class="news-meta">2h ago · 4 min read</div>
+      </div>
+      <div class="news-card">
+        <div class="news-source">FIP</div>
+        <div class="news-title">Triay completes return to world #1 with Madrid Open run</div>
+        <div class="news-meta">5h ago</div>
+      </div>
+      <div class="news-card">
+        <div class="news-source">Padel Magazine</div>
+        <div class="news-title">FIP Silver Bari draws set: Galán-Chingotto returns after 6-week injury</div>
+        <div class="news-meta">Yesterday</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-hint">
+    <strong>Three-column desktop layout</strong> — global topbar with search +
+    primary nav, the existing mobile center column unchanged, and side rails
+    with Live ticker, Today's schedule, FIP rankings, "Where to watch tonight",
+    and Latest news. Below ~1100px viewport the rails collapse and the page
+    falls back to the mobile single-column UI.
+  </div>
+
+</div>
+
+</body>
+</html>

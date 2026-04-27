@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home news · pleasant swipe mockups</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green: #B6E61A;
+      --green-soft: rgba(182,230,26,0.18);
+      --bg-base: #1A1A1A;
+      --bg-card: #141414;
+      --bg-elevated: #1F1F1F;
+      --bg-deep: #0A0A0A;
+      --text: #fff;
+      --muted: #6B7280;
+      --border: rgba(255,255,255,0.06);
+      --orange: #F5A623;
+      --red: #FF4655;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-base);
+      color: var(--text);
+      font-family: 'Rubik', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 16px 80px;
+      background-image:
+        radial-gradient(circle at 80% 0%, rgba(182,230,26,0.04) 0%, transparent 40%),
+        radial-gradient(circle at 0% 100%, rgba(74,158,255,0.03) 0%, transparent 50%);
+    }
+    .head {
+      max-width: 1300px;
+      margin: 0 auto 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .eyebrow {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.18em;
+      color: var(--green);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .head h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+    .head h1 .accent { background: var(--green); padding: 0 8px; border-radius: 4px; color: #0a0a0a; }
+    .head p { color: rgba(255,255,255,0.65); margin-top: 6px; font-size: 12px; max-width: 700px; }
+
+    .grid {
+      max-width: 1300px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+    }
+    @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+    .grid > div { min-width: 0; }
+    .label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+      color: var(--muted); text-transform: uppercase;
+      margin-bottom: 12px; display: flex; gap: 8px; align-items: center;
+    }
+    .label .pill {
+      padding: 2px 7px; border-radius: 11px; font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
+    }
+    .label .pill.now { background: rgba(255,69,85,0.18); color: var(--red); }
+    .label .pill.opt { background: var(--green-soft); color: var(--green); }
+    .label .pill.alt { background: rgba(245,166,35,0.18); color: var(--orange); }
+
+    .phone {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      min-height: 720px;
+      min-width: 0;
+    }
+    .topbar {
+      background: linear-gradient(180deg, #0a0a0a 0%, #141414 100%);
+      padding: 10px 14px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+      font-weight: 700; color: var(--green);
+      border-bottom: 1px solid var(--border);
+    }
+    .body { padding: 14px 0 8px; }
+    .section-h {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: 0 16px; margin-bottom: 14px;
+    }
+    .section-h h2 { font-size: 17px; font-weight: 800; letter-spacing: -0.015em; }
+    .section-h a {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; color: var(--green);
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      text-decoration: none;
+    }
+
+    /* ─────────── A. CURRENT (252px mixed carousel) ─────────── */
+    .car-current {
+      display: flex; gap: 12px; padding: 0 16px 6px;
+      overflow-x: auto; scroll-snap-type: x mandatory;
+    }
+    .car-current::-webkit-scrollbar { display: none; }
+    .card-mini {
+      flex-shrink: 0; width: 252px; scroll-snap-align: start;
+      background: var(--bg-card);
+      clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+      overflow: hidden;
+    }
+    .card-mini .img { aspect-ratio: 16/9; background-size: cover; background-position: center; position: relative; }
+    .card-mini .fav {
+      position: absolute; top: 8px; right: 8px;
+      width: 28px; height: 28px; border-radius: 7px;
+      background: #fff; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .card-mini .meta { padding: 10px 12px; }
+    .card-mini .title {
+      font-size: 12px; font-weight: 600; line-height: 1.3;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-mini .src { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* ─────────── B. PEEK CAROUSEL ─────────── */
+    /* 86% wide cards, ~14% peek of next, scroll-snap-center, smooth easing */
+    .car-peek {
+      display: flex; gap: 14px;
+      padding: 0 16px 12px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      scroll-padding: 0 16px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    .car-peek::-webkit-scrollbar { display: none; }
+    .card-peek {
+      flex-shrink: 0;
+      width: 86%; min-width: 280px; max-width: 420px;
+      scroll-snap-align: start;
+      background: var(--bg-card);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+    }
+    .card-peek .img-wrap { position: relative; aspect-ratio: 16/9; overflow: hidden; }
+    .card-peek .img { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.02); transition: transform 0.6s ease; }
+    .card-peek:hover .img { transform: scale(1.06); }
+    .card-peek .fav {
+      position: absolute; top: 12px; right: 12px;
+      width: 36px; height: 36px; border-radius: 9px;
+      background: #fff; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 14px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      z-index: 2;
+    }
+    .card-peek .lang-pip {
+      position: absolute; bottom: 12px; left: 12px;
+      background: rgba(0,0,0,0.7); color: rgba(255,255,255,0.85);
+      padding: 3px 8px; border-radius: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+      backdrop-filter: blur(6px); z-index: 2;
+    }
+    .card-peek .meta { padding: 14px 16px 16px; }
+    .card-peek .src-row {
+      display: flex; align-items: center; gap: 7px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; color: var(--muted);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      font-weight: 600; margin-bottom: 8px;
+    }
+    .card-peek .src-row .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+    .card-peek .title {
+      font-size: 17px; font-weight: 800; line-height: 1.2;
+      letter-spacing: -0.015em;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .card-peek .snippet {
+      font-size: 13px; line-height: 1.5;
+      color: rgba(255,255,255,0.62);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .pager {
+      display: flex; gap: 5px; justify-content: center; padding: 6px 0 0;
+    }
+    .pager .pip {
+      width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.18);
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+    .pager .pip.active { width: 22px; background: var(--green); border-radius: 3px; }
+
+    /* ─────────── C. HERO SWIPE (one at a time, full bleed) ─────────── */
+    .car-hero {
+      display: flex; gap: 12px;
+      padding: 0 12px 14px;
+      overflow-x: auto; scroll-snap-type: x mandatory;
+      scroll-padding: 0 12px; scroll-behavior: smooth;
+    }
+    .car-hero::-webkit-scrollbar { display: none; }
+    .card-hero {
+      flex-shrink: 0;
+      width: calc(100% - 24px);
+      min-width: 280px; max-width: 460px;
+      scroll-snap-align: center;
+      position: relative;
+      background: var(--bg-card);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.2);
+      transition: transform 0.4s ease;
+    }
+    .card-hero .img-wrap {
+      position: relative; aspect-ratio: 4/5;
+      overflow: hidden;
+    }
+    .card-hero .img {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      transform: scale(1.04); transition: transform 0.6s ease;
+    }
+    .card-hero:hover .img { transform: scale(1.08); }
+    .card-hero .gradient {
+      position: absolute; inset: 0;
+      background: linear-gradient(0deg,
+        rgba(15,15,20,0.96) 0%,
+        rgba(15,15,20,0.7) 38%,
+        rgba(15,15,20,0.2) 64%,
+        transparent 100%);
+    }
+    .card-hero .fav {
+      position: absolute; top: 14px; right: 14px;
+      width: 38px; height: 38px; border-radius: 10px;
+      background: #fff; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 15px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.55); z-index: 2;
+    }
+    .card-hero .overlay {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 22px 22px 22px;
+      z-index: 2;
+    }
+    .card-hero .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px; background: var(--green); color: #0a0a0a;
+      border-radius: 12px; font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+    .card-hero .title {
+      font-size: 22px; font-weight: 800; line-height: 1.15;
+      letter-spacing: -0.02em; margin-bottom: 10px;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-hero .snippet {
+      font-size: 13px; line-height: 1.5;
+      color: rgba(255,255,255,0.78); margin-bottom: 12px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-hero .src-row {
+      display: flex; align-items: center; gap: 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; color: rgba(255,255,255,0.7);
+      letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700;
+    }
+    .card-hero .src-row .src-fav {
+      width: 22px; height: 22px; border-radius: 6px; background: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 800;
+    }
+
+    /* Image gradients (no external loads) */
+    .img-1 { background: linear-gradient(135deg, #1F40AF 0%, #6D28D9 60%, #0F172A 100%) !important; }
+    .img-2 { background: linear-gradient(135deg, #DC2626 0%, #EA580C 60%, #1F2937 100%) !important; }
+    .img-3 { background: linear-gradient(135deg, #059669 0%, #0F766E 60%, #064E3B 100%) !important; }
+    .img-4 { background: linear-gradient(135deg, #7C3AED 0%, #DB2777 60%, #1E1B4B 100%) !important; }
+    .img-5 { background: linear-gradient(135deg, #B45309 0%, #92400E 60%, #1C1917 100%) !important; }
+
+    /* Notes block */
+    .notes {
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--green);
+      border-radius: 6px;
+      font-size: 11px; line-height: 1.5;
+      color: rgba(255,255,255,0.7);
+    }
+    .notes strong { color: var(--green); display: block; margin-bottom: 4px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
+
+    .lab {
+      max-width: 1300px; margin: 50px auto 0; text-align: center;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; color: var(--muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .lab strong { color: var(--green); }
+  </style>
+</head>
+<body>
+
+  <div class="head">
+    <div class="eyebrow">PadelNachos · home news · 2026-04-27</div>
+    <h1>Make news <span class="accent">pleasant to swipe</span></h1>
+    <p>Three approaches side-by-side. The current carousel feels cramped because it mixes videos + news at 252px cards with no snippet. The two right-hand options keep the swipe gesture (no layout disruption) but make each card more impactful — bigger image, snippet visible, smooth scroll-snap with one card per swipe.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- ════════ A. CURRENT ════════ -->
+    <div>
+      <div class="label">Current<span class="pill now">Live today</span></div>
+      <div class="phone">
+        <div class="topbar">Home · today</div>
+        <div class="body">
+          <div class="section-h"><h2>Latest news</h2><a>See all →</a></div>
+          <div class="car-current">
+            <div class="card-mini">
+              <div class="img img-1"><div class="fav" style="color:#DC2626">R</div></div>
+              <div class="meta">
+                <div class="title">Por qué Coello-Tapia parecen imparables en la carrera 2026</div>
+                <div class="src">Relevo · 12h</div>
+              </div>
+            </div>
+            <div class="card-mini">
+              <div class="img img-4"><div class="fav" style="color:#7C3AED">M</div></div>
+              <div class="meta">
+                <div class="title">Galán y Chingotto ya son #1 en la carrera 2026 tras Bruselas</div>
+                <div class="src">Marca · 2h</div>
+              </div>
+            </div>
+            <div class="card-mini">
+              <div class="img img-3"><div class="fav" style="color:#059669">W</div></div>
+              <div class="meta">
+                <div class="title">Brea & Triay dominate women's bracket on Day 6 of Brussels</div>
+                <div class="src">WPT · 8h</div>
+              </div>
+            </div>
+            <div class="card-mini">
+              <div class="img img-2"><div class="fav" style="color:#1E40AF">P</div></div>
+              <div class="meta">
+                <div class="title">Lebron's smash of the tournament — frame by frame</div>
+                <div class="src">Padel TV · 4h</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="notes" style="margin: 14px 16px 0">
+          <strong>Pain points</strong>
+          • 252px cards lose impact next to the live-match hero<br>
+          • Title alone — no snippet to decide whether to click<br>
+          • Free-flowing scroll, no snap → fast flicks overshoot<br>
+          • Mixed with videos → no visual rhythm
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ B. PEEK CAROUSEL ════════ -->
+    <div>
+      <div class="label">Peek carousel<span class="pill opt">Recommended</span></div>
+      <div class="phone">
+        <div class="topbar">Home · today</div>
+        <div class="body">
+          <div class="section-h"><h2>Latest news</h2><a>See all →</a></div>
+          <div class="car-peek">
+            <div class="card-peek">
+              <div class="img-wrap">
+                <div class="img img-1"></div>
+                <div class="fav" style="color:#DC2626">R</div>
+                <div class="lang-pip">EN ↻ ES</div>
+              </div>
+              <div class="meta">
+                <div class="src-row"><span class="dot"></span>Relevo · 12h ago</div>
+                <div class="title">Why Coello-Tapia look unstoppable in the 2026 race</div>
+                <div class="snippet">After back-to-back Brussels semifinal wins the duo widen their gap at the top — and quietly position themselves as Madrid Major favorites.</div>
+              </div>
+            </div>
+            <div class="card-peek">
+              <div class="img-wrap">
+                <div class="img img-4"></div>
+                <div class="fav" style="color:#7C3AED">M</div>
+                <div class="lang-pip">EN ↻ ES</div>
+              </div>
+              <div class="meta">
+                <div class="src-row"><span class="dot"></span>Marca · 2h ago</div>
+                <div class="title">Galán & Chingotto rise to #1 in 2026 race after Brussels</div>
+                <div class="snippet">The duo edged Coello and Tapia in the race ranking for the first time this season — 2,890 to 2,560 points.</div>
+              </div>
+            </div>
+            <div class="card-peek">
+              <div class="img-wrap">
+                <div class="img img-3"></div>
+                <div class="fav" style="color:#059669">W</div>
+              </div>
+              <div class="meta">
+                <div class="src-row"><span class="dot"></span>WPT Recap · 8h ago</div>
+                <div class="title">Brea & Triay dominate women's bracket Day 6</div>
+                <div class="snippet">The Argentinian-Spanish pair sailed past Icardo and Jensen 6-3, 5-7, 6-1 to set up another all-Spanish final.</div>
+              </div>
+            </div>
+            <div class="card-peek">
+              <div class="img-wrap">
+                <div class="img img-2"></div>
+                <div class="fav" style="color:#1E40AF">P</div>
+              </div>
+              <div class="meta">
+                <div class="src-row"><span class="dot"></span>Padel TV · 4h ago</div>
+                <div class="title">Lebron's smash of the tournament — frame by frame</div>
+                <div class="snippet">A slow-motion breakdown of the Brussels P2 highlight everyone's been clipping.</div>
+              </div>
+            </div>
+          </div>
+          <div class="pager">
+            <span class="pip active"></span>
+            <span class="pip"></span>
+            <span class="pip"></span>
+            <span class="pip"></span>
+          </div>
+        </div>
+        <div class="notes" style="margin: 14px 16px 0">
+          <strong>Wins</strong>
+          • 86% width — the active card OWNS the screen<br>
+          • ~14% peek of the next card → swipe affordance<br>
+          • One thumb-swipe = one card (snap-center)<br>
+          • Snippet visible, EN↻ES badge for upcoming translation<br>
+          • Drop shadow + soft border give cards real weight
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ C. HERO SWIPE (full-bleed) ════════ -->
+    <div>
+      <div class="label">Hero swipe<span class="pill alt">Bolder option</span></div>
+      <div class="phone">
+        <div class="topbar">Home · today</div>
+        <div class="body">
+          <div class="section-h"><h2>Latest news</h2><a>See all →</a></div>
+          <div class="car-hero">
+            <div class="card-hero">
+              <div class="img-wrap">
+                <div class="img img-1"></div>
+                <div class="gradient"></div>
+                <div class="fav" style="color:#DC2626">R</div>
+                <div class="overlay">
+                  <div class="badge">★ Lead</div>
+                  <div class="title">Why Coello-Tapia look unstoppable in the 2026 race</div>
+                  <div class="snippet">After back-to-back Brussels semifinal wins the duo widen their gap at the top — and quietly position themselves as Madrid Major favorites.</div>
+                  <div class="src-row">
+                    <span class="src-fav" style="color:#DC2626">R</span>
+                    <span>Relevo</span>
+                    <span style="color:rgba(255,255,255,0.4)">·</span>
+                    <span>12h ago</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-hero">
+              <div class="img-wrap">
+                <div class="img img-4"></div>
+                <div class="gradient"></div>
+                <div class="fav" style="color:#7C3AED">M</div>
+                <div class="overlay">
+                  <div class="badge">RACE</div>
+                  <div class="title">Galán & Chingotto rise to #1 in 2026 race after Brussels</div>
+                  <div class="snippet">The duo edged Coello and Tapia in the race ranking for the first time this season — 2,890 to 2,560.</div>
+                  <div class="src-row">
+                    <span class="src-fav" style="color:#7C3AED">M</span>
+                    <span>Marca</span>
+                    <span style="color:rgba(255,255,255,0.4)">·</span>
+                    <span>2h ago</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-hero">
+              <div class="img-wrap">
+                <div class="img img-3"></div>
+                <div class="gradient"></div>
+                <div class="fav" style="color:#059669">W</div>
+                <div class="overlay">
+                  <div class="badge">WOMEN</div>
+                  <div class="title">Brea & Triay dominate the women's bracket on Day 6</div>
+                  <div class="snippet">Sailed past Icardo and Jensen 6-3, 5-7, 6-1 to set up another all-Spanish final.</div>
+                  <div class="src-row">
+                    <span class="src-fav" style="color:#059669">W</span>
+                    <span>WPT</span>
+                    <span style="color:rgba(255,255,255,0.4)">·</span>
+                    <span>8h ago</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pager">
+            <span class="pip active"></span>
+            <span class="pip"></span>
+            <span class="pip"></span>
+          </div>
+        </div>
+        <div class="notes" style="margin: 14px 16px 0">
+          <strong>Tradeoffs</strong>
+          • Full-bleed = magazine cover feel, very tactile<br>
+          • Image as the hero, text overlaid (4:5 portrait crop)<br>
+          • Real estate = 1 card per page → fewer cards visible at glance<br>
+          • Best for "headline of the day" framing<br>
+          • Risks feeling slow if user wants to scan many quickly
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="lab">PadelNachos · home news swipe · <strong>scroll the cards inside any phone</strong> to feel the snap</p>
+
+</body>
+</html>
