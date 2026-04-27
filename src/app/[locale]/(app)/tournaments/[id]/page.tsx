@@ -18,6 +18,7 @@ import { V3MatchCard } from '@/components/V3MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
+import EmptyState from '@/components/EmptyState'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -758,10 +759,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 )}
 
                 {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
-                  <div style={{ textAlign: 'center', paddingTop: 80 }}>
-                    <div style={{ fontSize: 36, marginBottom: 12 }}>&#127934;</div>
-                    <p style={{ color: MUTED, fontWeight: 700, fontSize: 14, margin: 0 }}>{tTournament('noMatchesForStage')}</p>
-                    <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, marginTop: 6 }}>{tTournament('tryDifferentRound')}</p>
+                  <div style={{ paddingTop: 24 }}>
+                    <EmptyState
+                      title={tTournament('noMatchesForStage')}
+                      subtitle={tTournament('tryDifferentRound')}
+                    />
                   </div>
                 )}
               </>

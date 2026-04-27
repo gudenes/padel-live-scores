@@ -19,6 +19,7 @@ import { ResultCard } from '@/components/ResultCard'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { FlagImage } from '@/components/FlagImage'
+import EmptyStateMascot from '@/components/EmptyState'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -697,27 +698,15 @@ const KEYFRAMES = `
 
 function EmptyState({ tab, leagueFilter }: { tab: 'live' | 'upcoming' | 'results'; leagueFilter: string }) {
   const t = useTranslations('matches')
-  return (
-    <div style={{
-      clipPath: CHUNKY.card,
-      background: BG_CARD,
-      border: `1px solid ${BORDER}`,
-      padding: '28px 20px',
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: 32, marginBottom: 10 }}>&#127934;</div>
-      <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', marginBottom: 6 }}>
-        {tab === 'live' ? t('noLive') : tab === 'upcoming' ? t('noUpcoming') : t('noResults')}
-      </div>
-      <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.5 }}>
-        {leagueFilter !== 'all'
-          ? t('filterHint', { league: leagueFilter === 'premier' ? 'FIP Tour' : 'Premier Padel' })
-          : tab === 'live' ? 'Check back during tournament days'
-          : tab === 'upcoming' ? 'Schedules will appear closer to match day'
-          : 'Results will appear after matches finish'}
-      </div>
-    </div>
-  )
+  const titleKey = tab === 'live' ? 'noLive' : tab === 'upcoming' ? 'noUpcoming' : 'noResults'
+  const subKey = tab === 'live' ? 'noLiveSub' : tab === 'upcoming' ? 'noUpcomingSub' : 'noResultsSub'
+  // League filter overrides the default subtitle — when the user has narrowed
+  // to one league, the actionable hint ("switch to All") is more useful than
+  // the playful default copy.
+  const subtitle = leagueFilter !== 'all'
+    ? t('filterHint', { league: leagueFilter === 'premier' ? 'FIP Tour' : 'Premier Padel' })
+    : t(subKey)
+  return <EmptyStateMascot title={t(titleKey)} subtitle={subtitle} />
 }
 
 // ── Main page ─────────────────────────────────────────────────
