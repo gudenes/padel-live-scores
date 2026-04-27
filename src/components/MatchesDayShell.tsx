@@ -173,10 +173,35 @@ export default function MatchesDayShell({
   } as const
 
   // Today shortcut — surfaced next to FILTROS when the user is parked on
-  // any day other than today. Tapping it goes back to today via the same
-  // cached path the pills use.
+  // any day other than today. Tapping it walks the day-pill window back
+  // to today one step at a time so the user sees the days "roll" past
+  // instead of jumping straight there. Capped to 6 hops so a swipe to
+  // today from a week away still feels quick (~360ms total) and doesn't
+  // burn 14 prefetches when 6 will do.
   const todayIso = useMemo(() => getLocaleTodayIso(locale), [locale])
   const isOnToday = isLocaleToday(activeIso, locale)
+
+  const rollToToday = useCallback(() => {
+    const fromMs = Date.parse(activeIso + 'T12:00:00Z')
+    const toMs = Date.parse(todayIso + 'T12:00:00Z')
+    const dayDiff = Math.round((toMs - fromMs) / 86_400_000)
+    const totalSteps = Math.abs(dayDiff)
+    if (totalSteps === 0) return
+    if (totalSteps === 1) {
+      goTo(todayIso)
+      return
+    }
+    const dir = dayDiff > 0 ? 1 : -1
+    // Cap intermediate hops at 6 — far-future / far-past clicks compress
+    // into a brief 6-step roll instead of a 14+-frame slog.
+    const cappedSteps = Math.min(totalSteps, 6)
+    const STEP_MS = 60
+    for (let i = 1; i <= cappedSteps; i++) {
+      const stepIso =
+        i === cappedSteps ? todayIso : addDaysIso(activeIso, i * dir, tz)
+      setTimeout(() => goTo(stepIso), i * STEP_MS)
+    }
+  }, [activeIso, todayIso, goTo, tz])
 
   return (
     <>
@@ -208,10 +233,10 @@ export default function MatchesDayShell({
             !isOnToday ? (
               <button
                 type="button"
-                onClick={() => goTo(todayIso)}
+                onClick={() => rollToToday()}
                 aria-label={tDaily('today')}
                 style={{
-                  background: 'rgba(126,211,33,0.10)',
+                  background: '#0A0A0A',
                   color: '#7ED321',
                   border: '1px solid rgba(126,211,33,0.4)',
                   clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
