@@ -173,7 +173,12 @@ async function bulkFkRefs(tournamentIds: string[]): Promise<Map<string, Record<s
       continue
     }
     const tally = new Map<string, number>()
-    for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+    // PostgREST select(col) returns Array<{ [col]: T }> | null but the
+    // SDK widens to `data: T[] | null` for narrow column selects, which
+    // TS sees as `GenericStringError[]`. Round-trip through unknown to
+    // satisfy the structural-overlap check — the runtime shape is
+    // already what we want.
+    for (const row of (data ?? []) as unknown as Array<Record<string, unknown>>) {
       const tid = row[col] as string | null
       if (!tid) continue
       tally.set(tid, (tally.get(tid) ?? 0) + 1)
@@ -271,7 +276,7 @@ async function buildPlan(): Promise<PlanResult> {
   //   - level family is "unknown" — too risky to dedup blindly
   const groups = new Map<string, TournamentRow[]>()
   let skippedTooGeneric = 0
-  for (const row of (data ?? []) as TournamentRow[]) {
+  for (const row of (data ?? []) as unknown as TournamentRow[]) {
     const k = normalizedKey(row.name, row.starts_at, row.level)
     if (k === null) {
       skippedTooGeneric++
