@@ -65,11 +65,26 @@ interface MatchRow {
   scheduled_at: string | null
   finished_at: string | null
   started_at: string | null
+  /** Authoritative match duration from the upstream feed in HH:MM
+   *  format (e.g. "01:37"). Always prefer this over (finished_at -
+   *  started_at) which includes suspensions and court-change delays. */
+  duration: string | null
   court: string | null
   pair1_player1: PlayerRow | null
   pair1_player2: PlayerRow | null
   pair2_player1: PlayerRow | null
   pair2_player2: PlayerRow | null
+}
+
+/** Parse "HH:MM" → minutes. Returns null on malformed input. */
+function parseHhMm(s: string | null): number | null {
+  if (!s) return null
+  const m = s.match(/^(\d{1,2}):(\d{2})$/)
+  if (!m) return null
+  const h = parseInt(m[1]!, 10)
+  const min = parseInt(m[2]!, 10)
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return null
+  return h * 60 + min
 }
 
 interface SetRow {
@@ -78,6 +93,30 @@ interface SetRow {
   set_score: string | null
   pair1_games: number | null
   pair2_games: number | null
+}
+
+/**
+ * Render the score string from numeric pair1_games / pair2_games values
+ * in WINNER-first orientation. The text `set_score` field stored with each
+ * set is unreliable across data sources (padelapi vs FIP vs Premier each
+ * use different conventions for which team appears first), so always
+ * recompute from the numbers.
+ *
+ * Returns e.g. "7-5 6-2" when winner_pair=1 won 7-5 and 6-2, regardless
+ * of which side was pair1 or pair2.
+ */
+function buildScoreStringFromGames(
+  sets: SetRow[],
+  winnerPair: number,
+): string {
+  const parts: string[] = []
+  for (const s of sets) {
+    if (s.pair1_games == null || s.pair2_games == null) continue
+    const winnerGames = winnerPair === 1 ? s.pair1_games : s.pair2_games
+    const loserGames = winnerPair === 1 ? s.pair2_games : s.pair1_games
+    parts.push(`${winnerGames}-${loserGames}`)
+  }
+  return parts.join(' ')
 }
 
 function shortName(p: PlayerRow | null): string {
@@ -127,7 +166,7 @@ async function main() {
     .from('matches')
     .select(`
       id, round, category, status, winner_pair, scheduled_at, finished_at,
-      started_at, court,
+      started_at, duration, court,
       pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, ranking, country),
       pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, ranking, country),
       pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, ranking, country),
@@ -182,7 +221,7 @@ async function main() {
       loser: pairLabel(loserPair.p1, loserPair.p2),
       loserAvgRanking: Math.round(loseRank),
       rankingGap: Math.round(gap),
-      score: (setsByMatch.get(m.id) ?? []).map(s => s.set_score).filter(Boolean).join(' '),
+      score: buildScoreStringFromGames(setsByMatch.get(m.id) ?? [], m.winner_pair as number),
     }
   }).filter((x): x is NonNullable<typeof x> => x !== null)
    .filter(u => u.rankingGap > 0)
@@ -202,31 +241,30 @@ async function main() {
     const loserPair = m.winner_pair === 1
       ? { p1: m.pair2_player1, p2: m.pair2_player2 }
       : { p1: m.pair1_player1, p2: m.pair1_player2 }
-    const dur = m.started_at && m.finished_at
-      ? Math.round((new Date(m.finished_at).getTime() - new Date(m.started_at).getTime()) / 60000)
-      : null
+    const dur = parseHhMm(m.duration)
     return [{
       matchId: m.id,
       round: readableRound(m.round),
       category: m.category,
       winner: pairLabel(winnerPair.p1, winnerPair.p2),
       loser: pairLabel(loserPair.p1, loserPair.p2),
-      score: sets.map(s => s.set_score).filter(Boolean).join(' '),
+      score: buildScoreStringFromGames(sets, m.winner_pair as number),
       durationMinutes: dur && dur > 10 && dur < 360 ? dur : null,
     }]
   })
 
   // ── Duration extremes ─────────────────────────────────────
-  // Schema doesn't store a precomputed duration — compute it from
-  // (finished_at - started_at) when both are present. Walkovers and
-  // mid-match disconnects can produce wonky values, so we filter
-  // anything outside [10, 360] minutes as "not a real duration."
+  // Use the authoritative `matches.duration` (HH:MM from the upstream
+  // feed) — NOT (finished_at - started_at). The latter includes court
+  // suspensions, weather delays, and scheduling reshuffles, which
+  // wildly distort match length. Brussels P2 R16 women had a match
+  // with a 232-min gap between started/finished but only 95 min of
+  // actual play (7-6, 6-2).
   const withDuration = completed
     .map(m => {
-      if (!m.started_at || !m.finished_at) return null
-      const dur = (new Date(m.finished_at).getTime() - new Date(m.started_at).getTime()) / 60000
-      if (!Number.isFinite(dur) || dur < 10 || dur > 360) return null
-      return { ...m, _durationMinutes: Math.round(dur) }
+      const dur = parseHhMm(m.duration)
+      if (dur == null || dur < 10 || dur > 360) return null
+      return { ...m, _durationMinutes: dur }
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
     .map(m => {
@@ -242,7 +280,7 @@ async function main() {
         category: m.category,
         winner: pairLabel(winnerPair.p1, winnerPair.p2),
         loser: pairLabel(loserPair.p1, loserPair.p2),
-        score: (setsByMatch.get(m.id) ?? []).map(s => s.set_score).filter(Boolean).join(' '),
+        score: buildScoreStringFromGames(setsByMatch.get(m.id) ?? [], m.winner_pair as number),
         durationMinutes: m._durationMinutes,
       }
     })
@@ -262,14 +300,12 @@ async function main() {
     return Math.abs(decider.pair1_games - decider.pair2_games) === 1
       && Math.max(decider.pair1_games, decider.pair2_games) >= 7
   }).map(m => {
-    const dur = m.started_at && m.finished_at
-      ? Math.round((new Date(m.finished_at).getTime() - new Date(m.started_at).getTime()) / 60000)
-      : null
+    const dur = parseHhMm(m.duration)
     return {
       matchId: m.id,
       round: readableRound(m.round),
       category: m.category,
-      score: (setsByMatch.get(m.id) ?? []).map(s => s.set_score).filter(Boolean).join(' '),
+      score: buildScoreStringFromGames(setsByMatch.get(m.id) ?? [], m.winner_pair as number),
       durationMinutes: dur && dur > 10 && dur < 360 ? dur : null,
     }
   })
