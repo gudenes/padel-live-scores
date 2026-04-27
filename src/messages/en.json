@@ -17,7 +17,65 @@
     "noResultsSub": "Recent results will appear once matches wrap.",
     "filterHint": "Try switching the league filter to see {league} or All matches.",
     "loadMore": "Load more ({count} remaining)",
-    "viewPreviousSeasons": "View previous seasons"
+    "viewPreviousSeasons": "View previous seasons",
+    "filters": {
+      "title": "Filter matches",
+      "open": "Filters",
+      "close": "Close",
+      "summary": {
+        "all": "All",
+        "premier": "Premier",
+        "fipTour": "FIP Tour",
+        "menWomen": "M+W",
+        "men": "Men",
+        "women": "Women",
+        "live": "Live",
+        "upcoming": "Upcoming",
+        "finished": "Finished"
+      },
+      "league": {
+        "label": "League",
+        "all": "All",
+        "premier": "Premier",
+        "fip": "FIP Tour"
+      },
+      "category": {
+        "label": "Category",
+        "both": "Both",
+        "men": "Men",
+        "women": "Women"
+      },
+      "status": {
+        "label": "Status",
+        "live": "Live",
+        "upcoming": "Upcoming",
+        "finished": "Finished"
+      },
+      "tier": {
+        "label": "Tournament tier",
+        "p1": "P1 / Major",
+        "p2": "P2",
+        "fip_platinum": "FIP Platinum",
+        "fip_gold": "FIP Gold",
+        "fip_silver": "FIP Silver",
+        "fip_bronze": "FIP Bronze",
+        "fip_promises": "Promises",
+        "fip_beyond": "Beyond",
+        "fip_hexagon": "Hexagon",
+        "fip_championship": "Championship"
+      },
+      "personalised": {
+        "label": "Personalised",
+        "followedTitle": "Followed players only",
+        "followedSub": "Show only matches with players you follow",
+        "hideQualifiersTitle": "Hide qualifiers",
+        "hideQualifiersSub": "Skip qualifying-round matches in the list",
+        "coverageTitle": "Live coverage only",
+        "coverageSub": "Only matches with live point-by-point feed"
+      },
+      "reset": "Reset",
+      "apply": "Apply"
+    }
   },
   "matchDetail": {
     "matchDetail": "Match Detail",

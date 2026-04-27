@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Day pill — chunky highlight options</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --green-dim: rgba(126,211,33,0.15);
+    --bg-base: #0A0A0A;
+    --bg-card: #141414;
+    --bg-elev: #1A1A1A;
+    --muted: #6B7280;
+    --border: rgba(255,255,255,0.06);
+    --chunky-pill: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    --chunky-bar: polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 48px 24px 80px;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(245,166,35,0.06) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 90%, rgba(126,211,33,0.05) 0%, transparent 55%),
+      #1f1f23;
+  }
+  .stage {
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  .stage-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted);
+    text-align: center; margin: 0 0 6px;
+  }
+  .stage-sub {
+    font-size: 13px; color: rgba(255,255,255,0.7); text-align: center;
+    margin: 0 0 36px;
+  }
+
+  .option {
+    margin-bottom: 30px;
+    background: rgba(20,20,20,0.55);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px 24px;
+  }
+  .option .label {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .option .label .tag {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--green);
+    background: rgba(126,211,33,0.10); padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .option .label .name {
+    font-size: 18px; font-weight: 800; letter-spacing: -0.2px;
+    color: #fff;
+  }
+  .option .label .desc {
+    flex: 1;
+    font-size: 12px; color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── Pill row ──────────────────────────────────────────── */
+  .pill-row {
+    display: flex;
+    gap: 8px;
+    overflow: visible;
+    padding: 18px 0 24px;
+  }
+  .pill-arrow {
+    width: 28px; height: 50px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 16px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    clip-path: var(--chunky-pill);
+    flex-shrink: 0;
+  }
+  .pill {
+    flex-shrink: 0;
+    width: 56px; height: 50px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-pill);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 1px;
+    position: relative;
+  }
+  .pill .wd {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--muted);
+    line-height: 1;
+  }
+  .pill .dy {
+    font-size: 16px; font-weight: 800; line-height: 1.05; color: #fff;
+  }
+
+  /* ── Option A — control: current solid lime ───────────── */
+  .opt-control .active {
+    background: var(--green);
+    border-color: var(--green);
+  }
+  .opt-control .active .wd { color: rgba(0,0,0,0.7); }
+  .opt-control .active .dy { color: #0A0A0A; }
+
+  /* ── Option B — Frame & Glow ──────────────────────────── */
+  .opt-frame .active-wrap {
+    filter: drop-shadow(0 0 10px rgba(126,211,33,0.45))
+            drop-shadow(0 0 4px rgba(126,211,33,0.35));
+  }
+  .opt-frame .active {
+    background: rgba(126,211,33,0.06);
+    border: 2px solid var(--green);
+  }
+  .opt-frame .active .wd { color: var(--green); opacity: 0.9; }
+  .opt-frame .active .dy { color: var(--green); }
+
+  /* ── Option C — Stacked offset (3D card) ──────────────── */
+  .opt-stacked .active-wrap {
+    position: relative;
+  }
+  .opt-stacked .active-shadow {
+    position: absolute;
+    inset: 0;
+    transform: translate(5px, 5px);
+    background: var(--green);
+    clip-path: var(--chunky-pill);
+    z-index: 0;
+  }
+  .opt-stacked .active {
+    position: relative;
+    background: var(--bg-base);
+    border: 1.5px solid var(--green);
+    z-index: 1;
+  }
+  .opt-stacked .active .wd { color: var(--green); opacity: 0.9; }
+  .opt-stacked .active .dy { color: #fff; }
+
+  /* ── Option D — Tooth Tab ─────────────────────────────── */
+  .opt-tooth .active-wrap {
+    position: relative;
+    padding-bottom: 8px;
+  }
+  .opt-tooth .active {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+  .opt-tooth .active .wd { color: var(--green); }
+  .opt-tooth .active .dy { color: #fff; }
+  .opt-tooth .active-tooth {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70%;
+    height: 5px;
+    background: var(--green);
+    clip-path: var(--chunky-bar);
+    box-shadow: 0 0 10px rgba(126,211,33,0.5);
+  }
+
+  /* ── Option E — Edge ribbon (extra) ───────────────────── */
+  .opt-ribbon .active {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    overflow: visible;
+    position: relative;
+  }
+  .opt-ribbon .active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--green);
+    z-index: 1;
+  }
+  .opt-ribbon .active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--green);
+    z-index: 1;
+  }
+  .opt-ribbon .active .wd { color: var(--green); }
+  .opt-ribbon .active .dy { color: #fff; }
+
+  /* phone-frame mini context for visual reference */
+  .ctx-row {
+    display: flex; gap: 16px; align-items: center;
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(255,255,255,0.06);
+    font-size: 11px; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+
+  <h2 class="stage-title">Day pill — chunky highlight options</h2>
+  <p class="stage-sub">Today = 27. Same chunky polygon shape on every option; only the highlight treatment changes.</p>
+
+  <!-- Control — current behaviour -->
+  <div class="option opt-control">
+    <div class="label">
+      <span class="tag">Control</span>
+      <span class="name">Solid lime fill</span>
+      <span class="desc">What's shipping today. Boldest, eats the most attention. Day text inverts to dark.</span>
+    </div>
+    <div class="pill-row">
+      <div class="pill-arrow">‹</div>
+      <div class="pill"><span class="wd">Jue</span><span class="dy">23</span></div>
+      <div class="pill"><span class="wd">Vie</span><span class="dy">24</span></div>
+      <div class="pill"><span class="wd">Sáb</span><span class="dy">25</span></div>
+      <div class="pill"><span class="wd">Dom</span><span class="dy">26</span></div>
+      <div class="pill active"><span class="wd">Hoy</span><span class="dy">27</span></div>
+      <div class="pill"><span class="wd">Mar</span><span class="dy">28</span></div>
+      <div class="pill"><span class="wd">Mié</span><span class="dy">29</span></div>
+      <div class="pill-arrow">›</div>
+    </div>
+  </div>
+
+  <!-- Option B — Frame & Glow -->
+  <div class="option opt-frame">
+    <div class="label">
+      <span class="tag">Option B</span>
+      <span class="name">Frame &amp; Glow</span>
+      <span class="desc">Dark fill stays, 2px lime border, soft lime drop-shadow halo. Day text in lime. Editorial / refined.</span>
+    </div>
+    <div class="pill-row">
+      <div class="pill-arrow">‹</div>
+      <div class="pill"><span class="wd">Jue</span><span class="dy">23</span></div>
+      <div class="pill"><span class="wd">Vie</span><span class="dy">24</span></div>
+      <div class="pill"><span class="wd">Sáb</span><span class="dy">25</span></div>
+      <div class="pill"><span class="wd">Dom</span><span class="dy">26</span></div>
+      <div class="active-wrap">
+        <div class="pill active"><span class="wd">Hoy</span><span class="dy">27</span></div>
+      </div>
+      <div class="pill"><span class="wd">Mar</span><span class="dy">28</span></div>
+      <div class="pill"><span class="wd">Mié</span><span class="dy">29</span></div>
+      <div class="pill-arrow">›</div>
+    </div>
+  </div>
+
+  <!-- Option C — Stacked offset -->
+  <div class="option opt-stacked">
+    <div class="label">
+      <span class="tag">Option C</span>
+      <span class="name">Stacked offset (3D)</span>
+      <span class="desc">Two chunky layers — lime sits behind, dark front pill with lime border. Pops off the row, very on-brand for the chunky aesthetic.</span>
+    </div>
+    <div class="pill-row">
+      <div class="pill-arrow">‹</div>
+      <div class="pill"><span class="wd">Jue</span><span class="dy">23</span></div>
+      <div class="pill"><span class="wd">Vie</span><span class="dy">24</span></div>
+      <div class="pill"><span class="wd">Sáb</span><span class="dy">25</span></div>
+      <div class="pill"><span class="wd">Dom</span><span class="dy">26</span></div>
+      <div class="active-wrap" style="position: relative; width: 56px; height: 50px;">
+        <div class="active-shadow"></div>
+        <div class="pill active"><span class="wd">Hoy</span><span class="dy">27</span></div>
+      </div>
+      <div class="pill"><span class="wd">Mar</span><span class="dy">28</span></div>
+      <div class="pill"><span class="wd">Mié</span><span class="dy">29</span></div>
+      <div class="pill-arrow">›</div>
+    </div>
+  </div>
+
+  <!-- Option D — Tooth tab -->
+  <div class="option opt-tooth">
+    <div class="label">
+      <span class="tag">Option D</span>
+      <span class="name">Tooth tab indicator</span>
+      <span class="desc">Pill stays plain dark; a thick chunky lime tab anchors below it, with a soft glow. Reads as "this is the selected tab" — tab-bar metaphor, lightest visual weight.</span>
+    </div>
+    <div class="pill-row">
+      <div class="pill-arrow">‹</div>
+      <div class="pill"><span class="wd">Jue</span><span class="dy">23</span></div>
+      <div class="pill"><span class="wd">Vie</span><span class="dy">24</span></div>
+      <div class="pill"><span class="wd">Sáb</span><span class="dy">25</span></div>
+      <div class="pill"><span class="wd">Dom</span><span class="dy">26</span></div>
+      <div class="active-wrap" style="position: relative; padding-bottom: 8px;">
+        <div class="pill active"><span class="wd">Hoy</span><span class="dy">27</span></div>
+        <div class="active-tooth"></div>
+      </div>
+      <div class="pill"><span class="wd">Mar</span><span class="dy">28</span></div>
+      <div class="pill"><span class="wd">Mié</span><span class="dy">29</span></div>
+      <div class="pill-arrow">›</div>
+    </div>
+  </div>
+
+  <!-- Option E — Edge ribbon (bonus, less recommended but here for completeness) -->
+  <div class="option opt-ribbon">
+    <div class="label">
+      <span class="tag">Bonus</span>
+      <span class="name">Top &amp; bottom edge bars</span>
+      <span class="desc">Plain pill bracketed by two lime edge bars top &amp; bottom. Subtle, but loses the chunky shape clarity at the edges.</span>
+    </div>
+    <div class="pill-row">
+      <div class="pill-arrow">‹</div>
+      <div class="pill"><span class="wd">Jue</span><span class="dy">23</span></div>
+      <div class="pill"><span class="wd">Vie</span><span class="dy">24</span></div>
+      <div class="pill"><span class="wd">Sáb</span><span class="dy">25</span></div>
+      <div class="pill"><span class="wd">Dom</span><span class="dy">26</span></div>
+      <div class="pill active"><span class="wd">Hoy</span><span class="dy">27</span></div>
+      <div class="pill"><span class="wd">Mar</span><span class="dy">28</span></div>
+      <div class="pill"><span class="wd">Mié</span><span class="dy">29</span></div>
+      <div class="pill-arrow">›</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 30px; padding: 18px 22px; background: rgba(20,20,20,0.55); border: 1px solid var(--border); border-radius: 14px;">
+    <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: var(--green); margin-bottom: 10px;">My take</div>
+    <p style="font-size: 13px; line-height: 1.55; color: rgba(255,255,255,0.85); margin: 0 0 8px;">
+      <strong style="color: var(--green);">Option C — Stacked offset</strong> is the most on-brand. It leans into the chunky aesthetic instead of softening it, gives the active pill genuine prominence (more than the current solid fill, IMO), and the layered look reads as a "raised tile" — fits a sport-scoreboard energy.
+    </p>
+    <p style="font-size: 13px; line-height: 1.55; color: rgba(255,255,255,0.85); margin: 0 0 8px;">
+      <strong style="color: var(--green);">Option B — Frame &amp; Glow</strong> is the safest premium-feel option. Calmer than the current solid fill, lets the rest of the page breathe.
+    </p>
+    <p style="font-size: 13px; line-height: 1.55; color: rgba(255,255,255,0.85); margin: 0;">
+      <strong style="color: var(--green);">Option D — Tooth tab</strong> is the most subtle. Best if you want the day pills to feel like a secondary nav rather than a primary control. Probably too quiet for the matches surface.
+    </p>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -135,6 +135,33 @@ button:focus { outline: none; }
 }
 
 /* ───────────────────────────────────────────────────────────────────
+   Daily-page day transition — `.matches-day-fade`
+
+   Used on /matches/[date] so the body below the sticky header (intro,
+   match list, FAQ) eases in as the user clicks between dates. Soft
+   vertical lift + opacity fade — short enough to feel snappy, long
+   enough that consecutive day taps don't strobe. Sticky header
+   (DailyDatePills + filter bar) stays put and isn't part of the
+   animation, which keeps the day pills from "jumping" on every click.
+*/
+
+@keyframes matches-day-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.matches-day-fade {
+  animation: matches-day-fade-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matches-day-fade {
+    animation: none;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────
    Skeleton shimmer — `.skeleton-line` class
 
    Render the page chrome immediately with shimmer placeholders where

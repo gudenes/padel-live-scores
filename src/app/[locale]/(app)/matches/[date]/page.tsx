@@ -19,17 +19,23 @@ import {
   localDayRangeUtc,
   isIsoDate,
   isLocaleToday,
+  addDaysIso,
 } from '@/lib/locale-time'
 import { buildDailyIntro, buildDailyFaq, type DailyMatchSummary } from '@/lib/daily-page-copy'
 import { DailyDatePills } from '@/components/DailyDatePills'
-import { DailyWhereToWatch } from './DailyWhereToWatch'
 import EmptyState from '@/components/EmptyState'
+import MatchesFilterClient from '@/components/MatchesFilterClient'
+import MatchesPageHeader from '@/components/MatchesPageHeader'
+import MatchesTournamentGroup from '@/components/MatchesTournamentGroup'
+import MatchesDaySwipe from '@/components/MatchesDaySwipe'
 
 export const revalidate = 300 // 5 min
 
 // ── Brand tokens ─────────────────────────────────────────────────
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
+const MEN_BLUE = '#4A9EFF'
+const WOMEN_PURPLE = '#D966FF'
 // Used for the "ON COURT" warm-up pill — same hue as the /matches page + home
 // LiveMatchCard so all three surfaces look consistent. See isWarmingUp in
 // src/types/match.ts for the status signal.
@@ -53,6 +59,7 @@ interface PlayerRow {
 }
 
 interface SetRow {
+  id: string
   set_number: number | null
   set_score: string | null
   pair1_games: number | null
@@ -63,6 +70,7 @@ interface SetRow {
 interface MatchRow {
   id: string
   status: string
+  category: string | null
   scheduled_at: string | null
   finished_at: string | null
   round: string | null
@@ -78,7 +86,15 @@ interface MatchRow {
    */
   schedule_label: string | null
   winner_pair: number | null
-  tournament: { id: string; name: string; level: string | null } | null
+  tournament: {
+    id: string
+    name: string
+    level: string | null
+    country: string | null
+    starts_at: string | null
+    ends_at: string | null
+    status: string | null
+  } | null
   pair1_player1: PlayerRow | null
   pair1_player2: PlayerRow | null
   pair2_player1: PlayerRow | null
@@ -127,15 +143,24 @@ export default async function DailyMatchesPage({ params }: Props) {
   const { data: rawMatches, error } = await supabase
     .from('matches')
     .select(`
-      id, status, scheduled_at, finished_at, round, court,
+      id, status, category, scheduled_at, finished_at, round, court,
       schedule_label, winner_pair,
-      tournament:tournaments(id, name, level),
+      tournament:tournaments(id, name, level, country, starts_at, ends_at, status),
       ${playerJoins},
-      sets(set_number, set_score, pair1_games, pair2_games, is_current)
+      sets(id, set_number, set_score, pair1_games, pair2_games, is_current)
     `)
+    // Widen the finished_at upper bound by 7 days so we still catch
+    // matches whose `finished_at` got stamped late by a padelgod writer
+    // (the FIP results writer / static-reconciler use the LATEST results
+    // snapshot's captured_at, which advances every hour as the snapshot
+    // worker re-observes the same finished match — so a match played
+    // Apr 24 ends up with finished_at = today). The clamping logic in
+    // `effectiveFinishedAt` below pulls those rows back to their
+    // tournament's `ends_at` so they show up on the correct day instead
+    // of today's page.
     .or(
       `and(scheduled_at.gte.${startIso},scheduled_at.lt.${endIso}),` +
-      `and(finished_at.gte.${startIso},finished_at.lt.${endIso})`,
+      `and(finished_at.gte.${startIso},finished_at.lt.${new Date(endUtc.getTime() + 7 * 86_400_000).toISOString()})`,
     )
     .order('scheduled_at', { ascending: true })
     .limit(400)
@@ -161,6 +186,27 @@ export default async function DailyMatchesPage({ params }: Props) {
     return !Number.isNaN(t) && t >= startUtc.getTime() && t < endUtc.getTime()
   }
 
+  // Clamp `finished_at` to the tournament's `ends_at` when the writer
+  // stamped a sync timestamp days after the actual play. Padelgod's
+  // FIP results writer + static-reconciler currently fall back to the
+  // LATEST results-snapshot captured_at when a match has no
+  // started_at/duration; that captured_at advances every hour, so a
+  // match played on Apr 24 can end up with finished_at = today. Without
+  // clamping, those rows surface on today's page (or the wrong day's
+  // page). 1-day buffer accommodates UTC/local-tz drift on multi-day
+  // tournaments.
+  const ONE_DAY_MS = 86_400_000
+  const effectiveFinishedAt = (m: MatchRow): string | null => {
+    if (!m.finished_at) return null
+    const tournamentEnds = m.tournament?.ends_at
+    if (!tournamentEnds) return m.finished_at
+    const finishedT = Date.parse(m.finished_at)
+    const tournamentEndT = Date.parse(tournamentEnds)
+    if (Number.isNaN(finishedT) || Number.isNaN(tournamentEndT)) return m.finished_at
+    if (finishedT > tournamentEndT + ONE_DAY_MS) return tournamentEnds
+    return m.finished_at
+  }
+
   // ── Bucket by status + the date column that's semantically correct ──
   // `on_court` (warmup phase observed by padelgod's live-poller) belongs
   // in the live bucket — fans want to see those matches in the "Live Now"
@@ -178,7 +224,7 @@ export default async function DailyMatchesPage({ params }: Props) {
     m => m.status === 'scheduled' && inWindow(m.scheduled_at),
   )
   const finishedMatches = matches.filter(
-    m => ['finished', 'retired', 'walkover'].includes(m.status) && inWindow(m.finished_at),
+    m => ['finished', 'retired', 'walkover'].includes(m.status) && inWindow(effectiveFinishedAt(m)),
   )
   // Union — used for the day's intro/FAQ copy and the SEO JSON-LD ItemList.
   // Must stay in sync with the three bucket filters above. A match that
@@ -186,11 +232,6 @@ export default async function DailyMatchesPage({ params }: Props) {
   // (scheduled_at in window but status=finished with finished_at out of
   // window, for example) is intentionally excluded from the day's story.
   const dayMatches = [...liveMatches, ...upcomingMatches, ...finishedMatches]
-
-  // Premier presence drives the Where-to-Watch header (only tier with
-  // broadcaster data). Computed from the day's tournaments, not status —
-  // a page with only upcoming Premier still earns the section.
-  const hasPremierToday = dayMatches.some(m => isPremierLevel(m.tournament?.level ?? null))
 
   // ── Build intro + FAQ copy ────────────────────────────────────
   const tDaily = await getTranslations({ locale, namespace: 'daily' })
@@ -237,108 +278,94 @@ export default async function DailyMatchesPage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd).replace(/</g, '\\u003c') }}
       />
 
-      {/* Back link */}
-      <div style={{ padding: '12px 16px 0' }}>
-        <Link
-          href="/matches"
-          locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
-          style={{ fontSize: 12, color: MUTED, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-        >
-          ← {tDaily('backToMatches')}
-        </Link>
+      {/* Global app header — same logo / search / share / profile pattern
+          as home, feed, following. Sticky at top:0 with z:100, hides on
+          scroll down. */}
+      <MatchesPageHeader />
+
+      {/* Date pills + filter bar — sticky together at top:0 so the user
+          can flip dates or refine filters from anywhere in the list.
+          Sits at z:50, BELOW the AppHeader's z:100 — when AppHeader
+          slides back into view (on scroll up) it briefly overlaps the
+          pills. That's a deliberate trade-off: the alternative (offset
+          top:62) leaves a 62px empty band when AppHeader hides via
+          transform, which looks worse on a dark canvas than a brief
+          overlap. */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          background: 'rgba(10,10,10,0.94)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}
+      >
+        <DailyDatePills selectedIso={iso} locale={locale} />
+        {dayMatches.length > 0 && (
+          <MatchesFilterClient rootId="matches-filter-root" />
+        )}
       </div>
 
-      {/* Date pills */}
-      <DailyDatePills selectedIso={iso} locale={locale} />
-
-      {/* Intro */}
-      <header style={{ padding: '8px 16px 16px' }}>
-        <h1 style={{
-          fontSize: 22, fontWeight: 800, color: '#FFF', margin: '0 0 8px',
-          letterSpacing: -0.3, lineHeight: 1.2,
-        }}>
-          {intro.h1}
-        </h1>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, margin: 0 }}>
-          {intro.lead}
-        </p>
-      </header>
-
-      {/* Where to watch — only when the day has a Premier-tier tournament.
-          The Premier API (sync-broadcasters cron) is the only source the
-          broadcasters table is wired up to; rendering this block on an
-          all-FIP day would show Premier broadcasters for matches that
-          won't be on them. */}
-      {hasPremierToday && <DailyWhereToWatch locale={locale} />}
-
-      {/* Empty state */}
-      {dayMatches.length === 0 && (
-        <div style={{ padding: '8px 16px 24px' }}>
-          <EmptyState title={tDaily('noMatchesTitle')} subtitle={tDaily('noMatchesSub')} />
-        </div>
-      )}
-
-      {/* Live section */}
-      {liveMatches.length > 0 && (
-        <Section title={tDaily('liveSection')} accent={LIVE_RED}>
-          {groupByTournament(liveMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-          ))}
-        </Section>
-      )}
-
-      {/* Upcoming section */}
-      {upcomingMatches.length > 0 && (
-        <Section title={tDaily('upcomingSection')} accent={GREEN}>
-          {groupByTournament(upcomingMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-          ))}
-        </Section>
-      )}
-
-      {/* Finished section */}
-      {finishedMatches.length > 0 && (
-        <Section title={tDaily('finishedSection')} accent={MUTED}>
-          {groupByTournament(finishedMatches).map(g => (
-            <TournamentGroup key={g.tournamentId} group={g} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-          ))}
-        </Section>
-      )}
-
-      {/* FAQ */}
-      {faqs.length > 0 && (
-        <section style={{ padding: '24px 16px 32px' }}>
-          <h2 style={{
-            fontSize: 16, fontWeight: 800, color: '#FFF', margin: '0 0 12px',
-            letterSpacing: -0.2,
-          }}>
-            {tDaily('faqHeading')}
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {faqs.map((f, i) => (
-              <details key={i} style={{
-                background: BG_CARD,
-                border: '1px solid rgba(255,255,255,0.06)',
-                clipPath: CHUNKY_CARD,
-                padding: '10px 14px',
-              }}>
-                <summary style={{
-                  fontSize: 13, fontWeight: 700, color: '#FFF',
-                  cursor: 'pointer', listStyle: 'none',
-                }}>
-                  {f.q}
-                </summary>
-                <p style={{
-                  fontSize: 12, color: 'rgba(255,255,255,0.72)',
-                  lineHeight: 1.5, margin: '8px 0 0',
-                }}>
-                  {f.a}
-                </p>
-              </details>
-            ))}
+      {/* Where-to-watch + match list. Wrapped in:
+            (a) MatchesDaySwipe — touch swipe left/right on this body
+                navigates to the next / previous day, sticky header stays
+                put. Tactile alternative to tapping the day pills.
+            (b) `.matches-day-fade` — soft 240ms fade + lift on day change
+                so the swap feels less jarring than a page-flash.
+          Intro h1/lead and the FAQ section that used to live here were
+          removed — operators / SEO already get the dated-URL signal, and
+          the page reads cleaner as a pure scoreboard. */}
+      <MatchesDaySwipe
+        prevIso={addDaysIso(iso, -1, getLocaleHomeTz(locale))}
+        nextIso={addDaysIso(iso, 1, getLocaleHomeTz(locale))}
+        locale={locale}
+      >
+      <div className="matches-day-fade">
+        {/* Empty state — ZERO matches on this day at all. The filter
+            drawer's "filters hide everything" empty state is rendered by
+            MatchesFilterClient (sits in the sticky header above) and only
+            fires when the user has narrowed a non-empty day to nothing. */}
+        {dayMatches.length === 0 && (
+          <div style={{ padding: '8px 16px 24px' }}>
+            <EmptyState title={tDaily('noMatchesTitle')} subtitle={tDaily('noMatchesSub')} />
           </div>
-        </section>
-      )}
+        )}
+
+        {/* Matches list — grouped by tournament, with per-tournament
+            sub-sections for Live / Upcoming / Results. The flatter
+            top-level Live/Upcoming/Finished sections used to live here;
+            user feedback was that grouping by tournament reads better
+            because all of a tournament's day-relevant matches sit
+            together. */}
+        <div id="matches-filter-root" style={{ padding: '0 8px' }}>
+          {groupByTournament(dayMatches).map(g => (
+            <MatchesTournamentGroup
+              key={g.tournamentId}
+              group={{
+                tournamentId: g.tournamentId,
+                tournamentName: g.tournamentName,
+                tournamentLevel: g.tournamentLevel,
+                tournamentCountry: g.tournamentCountry,
+                tournamentStartsAt: g.tournamentStartsAt,
+                tournamentEndsAt: g.tournamentEndsAt,
+                tournamentStatus: g.tournamentStatus,
+                matches: g.matches,
+                isPremier: isPremierLevel(g.tournamentLevel),
+                locale,
+                userTz,
+                labels: {
+                  liveNow: tDaily('liveSection'),
+                  upcoming: tDaily('upcomingSection'),
+                  results: tDaily('finishedSection'),
+                },
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      </MatchesDaySwipe>
 
       <div style={{ height: 30 }} />
     </div>
@@ -408,6 +435,10 @@ interface TournamentGroupShape {
   tournamentId: string
   tournamentName: string
   tournamentLevel: string | null
+  tournamentCountry: string | null
+  tournamentStartsAt: string | null
+  tournamentEndsAt: string | null
+  tournamentStatus: string | null
   matches: MatchRow[]
 }
 
@@ -422,6 +453,10 @@ function groupByTournament(ms: MatchRow[]): TournamentGroupShape[] {
       tournamentId: t.id,
       tournamentName: t.name,
       tournamentLevel: t.level,
+      tournamentCountry: t.country,
+      tournamentStartsAt: t.starts_at,
+      tournamentEndsAt: t.ends_at,
+      tournamentStatus: t.status,
       matches: [m],
     })
   }
@@ -431,319 +466,6 @@ function groupByTournament(ms: MatchRow[]): TournamentGroupShape[] {
   const groups = Array.from(map.values())
   groups.sort((a, b) => tournamentTierRank(a.tournamentLevel) - tournamentTierRank(b.tournamentLevel))
   return groups
-}
-
-function Section({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
-  return (
-    <section style={{ padding: '12px 0 4px' }}>
-      <div style={{ padding: '0 16px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{
-          width: 3, height: 14, background: accent, flexShrink: 0,
-        }} />
-        <h2 style={{
-          fontSize: 12, fontWeight: 800, color: '#FFF', margin: 0,
-          textTransform: 'uppercase', letterSpacing: 0.5,
-        }}>
-          {title}
-        </h2>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 16px' }}>
-        {children}
-      </div>
-    </section>
-  )
-}
-
-interface TranslatorT {
-  (key: 'approxTime'): string
-}
-
-// Narrow type for just the badge labels used by DailyMatchRow. Kept tight
-// to avoid over-fetching the entire common namespace into the row component.
-interface CommonBadgeTranslatorT {
-  (key: 'live' | 'onCourt'): string
-}
-
-function TournamentGroup({
-  group, locale, userTz, isToday, tDaily, tCommon,
-}: {
-  group: TournamentGroupShape
-  locale: string
-  userTz: string
-  isToday: boolean
-  tDaily: TranslatorT
-  tCommon: CommonBadgeTranslatorT
-}) {
-  return (
-    <div style={{
-      background: BG_CARD,
-      border: '1px solid rgba(255,255,255,0.06)',
-      clipPath: CHUNKY_CARD,
-      padding: '10px 12px',
-    }}>
-      <Link
-        href={`/tournaments/${group.tournamentId}`}
-        locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
-        style={{
-          fontSize: 11, fontWeight: 700, color: GREEN,
-          textTransform: 'uppercase', letterSpacing: 0.5,
-          textDecoration: 'none', display: 'block', marginBottom: 8,
-        }}
-      >
-        {group.tournamentName}
-      </Link>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {group.matches.map(m => (
-          <DailyMatchRow key={m.id} match={m} locale={locale} userTz={userTz} isToday={isToday} tDaily={tDaily} tCommon={tCommon} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function DailyMatchRow({
-  match, locale, userTz, isToday, tDaily, tCommon,
-}: {
-  match: MatchRow
-  locale: string
-  userTz: string
-  isToday: boolean
-  tDaily: TranslatorT
-  tCommon: CommonBadgeTranslatorT
-}) {
-  const time = match.scheduled_at
-    ? new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: userTz })
-        .format(new Date(match.scheduled_at))
-    : '—'
-  // Derived from the free-text schedule_label: "Not before 4:00 PM" and
-  // "Followed by Court X" both mean the padelapi-published start time is
-  // an approximation, not a commitment. Renders a "*" suffix next to the
-  // time. Matches the logic in src/app/[locale]/(app)/matches/page.tsx.
-  const approx = match.schedule_label
-    ? /not before|followed by/i.test(match.schedule_label)
-    : false
-  const isLive = match.status === 'live'
-  // on_court = padelgod observed the Crionet widget's "On court" / "Warming up"
-  // label. Belongs in the Live section (same filter as live above at line ~140)
-  // but rendered with an orange pill so it's distinguishable from an actively
-  // playing match.
-  const isOnCourt = (match.status as string) === 'on_court'
-  const isActive = isLive || isOnCourt
-  const isRet = match.status === 'retired'
-  const isWalkover = match.status === 'walkover'
-  const isFinished = match.status === 'finished' || isRet || isWalkover
-
-  const p1a = shortName(match.pair1_player1)
-  const p1b = shortName(match.pair1_player2)
-  const p2a = shortName(match.pair2_player1)
-  const p2b = shortName(match.pair2_player2)
-
-  const setsSorted = (match.sets ?? []).slice().sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-  const setDisplays = setsSorted.map(parseSetDisplay)
-  const hasScores = setDisplays.length > 0
-
-  const p1Winner = match.winner_pair === 1
-  const p2Winner = match.winner_pair === 2
-
-  // Row-level styling for the per-team rows (name + score share the same
-  // grid row so they stay aligned). "Active" = live and isn't finished, so
-  // we colour in red; otherwise winners get full white and losers (on a
-  // finished match) fade to muted.
-  const rowStyleFor = (isWinner: boolean) => {
-    const isLoser = isFinished && !isWinner
-    return {
-      color: isLive
-        ? LIVE_RED
-        : isWinner
-        ? '#FFF'
-        : isLoser
-        ? MUTED
-        : '#FFF',
-      fontWeight: isWinner || isLive ? 700 : 500,
-    } as const
-  }
-
-  return (
-    <Link
-      href={`/match/${match.id}`}
-      locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '46px 1fr auto',
-        gridTemplateRows: 'auto auto',
-        columnGap: 10,
-        rowGap: 2,
-        alignItems: 'center',
-        textDecoration: 'none',
-        color: '#FFF',
-        padding: '6px 0',
-      }}
-    >
-      {/* Time / Live / On court badge — spans both rows so it centers
-          vertically against the two-line team+score block. Shows an ORANGE
-          pill for matches padelgod flagged as on_court — same shape as
-          LIVE to anchor them visually, different color + copy so fans can
-          tell the difference. */}
-      <div style={{ gridRow: '1 / span 2', textAlign: 'center', alignSelf: 'center' }}>
-        {isActive ? (
-          <span style={{
-            display: 'inline-block',
-            background: isOnCourt ? ORANGE : LIVE_RED,
-            color: isOnCourt ? '#000' : '#FFF',
-            fontSize: 9,
-            fontWeight: 800,
-            padding: '3px 6px',
-            clipPath: CHUNKY_BADGE,
-            textTransform: 'uppercase',
-            letterSpacing: 0.3,
-            whiteSpace: 'nowrap',
-          }}>{isOnCourt ? tCommon('onCourt') : tCommon('live')}</span>
-        ) : (
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: isFinished ? MUTED : '#FFF' }}>
-              {time}
-            </div>
-            {approx && isToday && !isFinished && (
-              <div style={{ fontSize: 8, color: MUTED, marginTop: 1 }}>
-                *
-                <span style={{ visibility: 'hidden' }}>{tDaily('approxTime')}</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Pair 1 — name + per-set scores on the same grid row */}
-      <div style={{
-        gridColumn: 2, gridRow: 1,
-        fontSize: 12, lineHeight: 1.35, minWidth: 0,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        ...rowStyleFor(p1Winner),
-      }}>
-        {p1a} / {p1b}
-      </div>
-      <TeamScoreCells
-        grid={{ col: 3, row: 1 }}
-        sets={setDisplays}
-        teamIndex={1}
-        rowStyle={rowStyleFor(p1Winner)}
-        placeholder={isWalkover && !hasScores ? 'W/O' : isRet && !hasScores ? 'RET' : null}
-      />
-
-      {/* Pair 2 — name + per-set scores on the same grid row */}
-      <div style={{
-        gridColumn: 2, gridRow: 2,
-        fontSize: 12, lineHeight: 1.35, minWidth: 0,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        ...rowStyleFor(p2Winner),
-      }}>
-        {p2a} / {p2b}
-      </div>
-      <TeamScoreCells
-        grid={{ col: 3, row: 2 }}
-        sets={setDisplays}
-        teamIndex={2}
-        rowStyle={rowStyleFor(p2Winner)}
-        placeholder={null}
-      />
-    </Link>
-  )
-}
-
-/**
- * Parsed per-set display data. pair1_games / pair2_games are the games
- * numbers; the tiebreak "loser score" (bracketed in set_score like
- * "7-6(5)") is attached to whichever pair lost the tiebreak so we can
- * render it as a small superscript next to their games count.
- */
-interface SetDisplay {
-  p1: number
-  p2: number
-  p1Tb: number | null
-  p2Tb: number | null
-}
-
-function parseSetDisplay(s: SetRow): SetDisplay {
-  const p1 = s.pair1_games ?? 0
-  const p2 = s.pair2_games ?? 0
-  const m = s.set_score?.match(/\((\d+)\)/)
-  const tb = m && m[1] != null ? parseInt(m[1], 10) : null
-  if (tb === null) return { p1, p2, p1Tb: null, p2Tb: null }
-  // Tiebreak score always attributed to the LOSER of the tiebreak (lower
-  // games count). This matches the "7-6(5)" convention — the (5) is how
-  // many points the losing pair scored in the tiebreak.
-  return {
-    p1,
-    p2,
-    p1Tb: p1 < p2 ? tb : null,
-    p2Tb: p2 < p1 ? tb : null,
-  }
-}
-
-/**
- * Renders the per-set score cells for a single team as a flex row that
- * sits on grid row 1 or 2 of the DailyMatchRow. Collapses to a single
- * centered placeholder ("W/O" / "RET") when the match ended without
- * scoreline data — pair 2's row renders nothing in that case (the
- * placeholder on pair 1's row visually spans the block).
- */
-function TeamScoreCells({
-  grid, sets, teamIndex, rowStyle, placeholder,
-}: {
-  grid: { col: number; row: number }
-  sets: SetDisplay[]
-  teamIndex: 1 | 2
-  rowStyle: { color: string; fontWeight: number }
-  placeholder: string | null
-}) {
-  if (placeholder !== null) {
-    return (
-      <div style={{
-        gridColumn: grid.col, gridRow: grid.row,
-        fontSize: 11, fontWeight: 700,
-        letterSpacing: 0.3,
-        color: MUTED,
-        textAlign: 'right',
-      }}>
-        {placeholder}
-      </div>
-    )
-  }
-  return (
-    <div style={{
-      gridColumn: grid.col, gridRow: grid.row,
-      display: 'flex',
-      gap: 10,
-      justifyContent: 'flex-end',
-      fontSize: 13,
-      lineHeight: 1.35,
-      fontVariantNumeric: 'tabular-nums',
-      ...rowStyle,
-    }}>
-      {sets.map((d, i) => {
-        const value = teamIndex === 1 ? d.p1 : d.p2
-        const tb = teamIndex === 1 ? d.p1Tb : d.p2Tb
-        return (
-          <span key={i} style={{ minWidth: 10, textAlign: 'right' }}>
-            {value}
-            {tb !== null && (
-              <sup style={{ fontSize: 8, marginLeft: 1, fontWeight: 600, opacity: 0.85 }}>
-                {tb}
-              </sup>
-            )}
-          </span>
-        )
-      })}
-    </div>
-  )
-}
-
-function shortName(p: PlayerRow | null): string {
-  if (!p) return '—'
-  const full = p.display_name || p.name
-  if (!full) return '—'
-  const parts = full.trim().split(' ')
-  return parts[parts.length - 1]
 }
 
 function buildJsonLd({

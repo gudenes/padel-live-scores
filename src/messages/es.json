@@ -17,7 +17,65 @@
     "noResultsSub": "Los resultados recientes aparecerán cuando terminen los partidos.",
     "filterHint": "Prueba a cambiar el filtro de liga para ver {league} o Todos los partidos.",
     "loadMore": "Cargar más ({count} restantes)",
-    "viewPreviousSeasons": "Ver temporadas anteriores"
+    "viewPreviousSeasons": "Ver temporadas anteriores",
+    "filters": {
+      "title": "Filtrar partidos",
+      "open": "Filtros",
+      "close": "Cerrar",
+      "summary": {
+        "all": "Todos",
+        "premier": "Premier",
+        "fipTour": "FIP Tour",
+        "menWomen": "M+W",
+        "men": "Hombres",
+        "women": "Mujeres",
+        "live": "En directo",
+        "upcoming": "Próximos",
+        "finished": "Finalizados"
+      },
+      "league": {
+        "label": "Liga",
+        "all": "Todas",
+        "premier": "Premier",
+        "fip": "FIP Tour"
+      },
+      "category": {
+        "label": "Categoría",
+        "both": "Ambas",
+        "men": "Hombres",
+        "women": "Mujeres"
+      },
+      "status": {
+        "label": "Estado",
+        "live": "En directo",
+        "upcoming": "Próximos",
+        "finished": "Finalizados"
+      },
+      "tier": {
+        "label": "Nivel de torneo",
+        "p1": "P1 / Major",
+        "p2": "P2",
+        "fip_platinum": "FIP Platinum",
+        "fip_gold": "FIP Gold",
+        "fip_silver": "FIP Silver",
+        "fip_bronze": "FIP Bronze",
+        "fip_promises": "Promises",
+        "fip_beyond": "Beyond",
+        "fip_hexagon": "Hexagon",
+        "fip_championship": "Campeonato"
+      },
+      "personalised": {
+        "label": "Personalizado",
+        "followedTitle": "Solo jugadores seguidos",
+        "followedSub": "Mostrar solo partidos con jugadores que sigues",
+        "hideQualifiersTitle": "Ocultar previas",
+        "hideQualifiersSub": "Omitir los partidos de fase previa",
+        "coverageTitle": "Solo con cobertura en directo",
+        "coverageSub": "Solo partidos con seguimiento punto a punto"
+      },
+      "reset": "Restablecer",
+      "apply": "Aplicar"
+    }
   },
   "matchDetail": {
     "matchDetail": "Detalle del partido",

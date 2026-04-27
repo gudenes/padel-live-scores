@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Matches — Day Pills mockup</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --green-dim: rgba(126,211,33,0.15);
+    --live: #FF4655;
+    --live-dim: rgba(255,70,85,0.18);
+    --orange: #F5A623;
+    --bg-base: #0A0A0A;
+    --bg-card: #141414;
+    --bg-elev: #1A1A1A;
+    --muted: #6B7280;
+    --border: rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --men: #4A9EFF;
+    --women: #D966FF;
+    --chunky-card: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --chunky-pill: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    --chunky-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    --chunky-bar: polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%);
+    --chunky-button: polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #1f1f23; }
+  body {
+    margin: 0;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 80px;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(245,166,35,0.06) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 90%, rgba(126,211,33,0.05) 0%, transparent 55%),
+      #1f1f23;
+  }
+  .stage-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 18px;
+  }
+  /* phone frame */
+  .phone {
+    width: 390px;
+    background: var(--bg-base);
+    border-radius: 36px;
+    border: 10px solid #000;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 30px 60px -10px rgba(0,0,0,0.6);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+  }
+  .phone .scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .phone .scroll::-webkit-scrollbar { display: none; }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 14px 10px;
+    background: var(--bg-base);
+  }
+  .logo {
+    font-family: 'Arial Black', system-ui;
+    font-style: italic;
+    font-weight: 900;
+    line-height: 0.92;
+    color: var(--green);
+    text-shadow:
+      -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000,
+      -1.5px 1.5px 0 #000, 1.5px 1.5px 0 #000,
+      0 0 0.5px #000;
+    letter-spacing: -0.5px;
+    flex-shrink: 0;
+    transform: skewX(-6deg);
+  }
+  .logo .pn-top { font-size: 12px; display: block; }
+  .logo .pn-bot { font-size: 12px; display: block; margin-top: -2px; }
+  .search {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .avatar {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, var(--green), #56a015);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0A0A0A;
+    font-weight: 800;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  /* ── Day pills ──────────────────────────────────────────── */
+  .day-pills {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--bg-base);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .day-pills::-webkit-scrollbar { display: none; }
+  .day-pill {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-pill);
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .day-pill:hover { transform: translateY(-1px); }
+  .day-pill .wd {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1;
+  }
+  .day-pill .dy { font-size: 17px; font-weight: 800; line-height: 1.05; }
+  .day-pill.is-today { background: var(--green); border-color: var(--green); }
+  .day-pill.is-today .wd { color: rgba(0,0,0,0.7); }
+  .day-pill.is-today .dy { color: #0A0A0A; }
+  .day-pill.has-live::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--live);
+    box-shadow: 0 0 0 2px var(--bg-card);
+  }
+  .day-pill { position: relative; }
+  .day-pill.has-matches:not(.is-today) .wd { color: rgba(255,255,255,0.7); }
+  .day-pill.no-matches { opacity: 0.45; }
+  .day-pill-arrow {
+    width: 32px;
+    height: 56px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    clip-path: var(--chunky-pill);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+
+  /* ── Filter bar (compact) ──────────────────────────────── */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 14px 10px;
+    background: var(--bg-base);
+    position: sticky;
+    top: 72px;
+    z-index: 10;
+  }
+  .filter-summary {
+    flex: 1;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .filter-summary strong { color: rgba(255,255,255,0.85); font-weight: 700; }
+  .filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    clip-path: var(--chunky-button);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .filter-btn:hover { border-color: var(--green); }
+  .filter-btn.active {
+    background: var(--green);
+    color: #0A0A0A;
+    border-color: var(--green);
+  }
+  .filter-btn .count {
+    background: rgba(0,0,0,0.18);
+    color: inherit;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 8px;
+    min-width: 16px;
+    text-align: center;
+  }
+  .filter-btn:not(.active) .count {
+    background: var(--green);
+    color: #0A0A0A;
+  }
+
+  /* ── Drawer (slide-in from right) ──────────────────────── */
+  .drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    z-index: 50;
+  }
+  .drawer-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 84%;
+    max-width: 340px;
+    background: var(--bg-base);
+    border-left: 1px solid var(--border-strong);
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    z-index: 51;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 14px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .drawer-head .title {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: #fff;
+    flex: 1;
+  }
+  .drawer-head .close {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+  }
+  .drawer-body::-webkit-scrollbar { display: none; }
+  .drawer-section { margin-bottom: 18px; }
+  .drawer-section .label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .seg {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+    padding: 3px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-pill);
+  }
+  .seg-opt {
+    padding: 8px 4px;
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    clip-path: var(--chunky-pill);
+    line-height: 1;
+  }
+  .seg-opt.active {
+    background: var(--green);
+    color: #0A0A0A;
+  }
+  .seg-opt.live-active {
+    background: var(--live);
+    color: #fff;
+  }
+  .check-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .check-chip {
+    padding: 7px 11px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    clip-path: var(--chunky-pill);
+    line-height: 1;
+  }
+  .check-chip.on {
+    background: var(--green-dim);
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-card);
+    margin-bottom: 6px;
+  }
+  .toggle-row .text {
+    flex: 1;
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.3;
+  }
+  .toggle-row .text small {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .toggle {
+    width: 36px;
+    height: 20px;
+    background: rgba(255,255,255,0.10);
+    border-radius: 10px;
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: background 0.18s;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.18s;
+  }
+  .toggle.on { background: var(--green); }
+  .toggle.on::after { transform: translateX(16px); }
+
+  .drawer-foot {
+    padding: 12px 14px 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+  .drawer-foot .reset {
+    flex: 1;
+    padding: 11px 14px;
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    clip-path: var(--chunky-button);
+  }
+  .drawer-foot .apply {
+    flex: 2;
+    padding: 11px 14px;
+    background: var(--green);
+    border: 1px solid var(--green);
+    color: #0A0A0A;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    clip-path: var(--chunky-button);
+  }
+
+  /* ── Section title ─────────────────────────────────────── */
+  .section-head {
+    padding: 18px 16px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-head .accent {
+    width: 4px;
+    height: 16px;
+    background: var(--green);
+    clip-path: var(--chunky-bar);
+  }
+  .section-head .title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.85);
+  }
+  .section-head .count {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    padding: 3px 8px;
+    clip-path: var(--chunky-badge);
+  }
+  .section-head.live .accent { background: var(--live); }
+  .section-head.live .title::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--live);
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+  /* ── Tournament group ──────────────────────────────────── */
+  .tour-group { padding: 0 14px 14px; }
+  .tour-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px 8px;
+  }
+  .tour-flag {
+    width: 18px;
+    height: 14px;
+    flex-shrink: 0;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #ff4 33%, #fff 33% 67%, #f44 67%);
+  }
+  .tour-flag.es { background: linear-gradient(180deg, #aa151b 25%, #f1bf00 25% 75%, #aa151b 75%); }
+  .tour-flag.ar { background: linear-gradient(180deg, #74acdf 33%, #fff 33% 67%, #74acdf 67%); }
+  .tour-flag.it { background: linear-gradient(90deg, #009246 33%, #fff 33% 67%, #ce2b37 67%); }
+  .tour-flag.bo { background: linear-gradient(180deg, #d52b1e 33%, #f4e400 33% 67%, #007934 67%); }
+  .tour-name {
+    font-size: 12px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.2px;
+  }
+  .tour-level {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    padding: 3px 8px;
+    clip-path: var(--chunky-badge);
+  }
+  .tour-link {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* ── Match card ────────────────────────────────────────── */
+  .match {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-card);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+  .match:hover { transform: translateX(2px); }
+  .match.live { border-color: rgba(255,70,85,0.35); }
+  .match-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .match-time {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+  .match-status {
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    clip-path: var(--chunky-badge);
+  }
+  .match-status.live {
+    background: var(--live);
+    color: #fff;
+  }
+  .match-status.live::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #fff;
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: middle;
+    animation: pulse 1.4s infinite;
+  }
+  .match-status.upcoming { background: rgba(126,211,33,0.18); color: var(--green); }
+  .match-status.final { background: rgba(255,255,255,0.06); color: var(--muted); }
+  .match-round {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .match-cat-bar {
+    width: 3px;
+    height: 12px;
+    flex-shrink: 0;
+    clip-path: var(--chunky-bar);
+  }
+  .match-cat-bar.men { background: var(--men); }
+  .match-cat-bar.women { background: var(--women); }
+  .pair-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+  }
+  .pair-row + .pair-row { border-top: 1px dashed rgba(255,255,255,0.05); }
+  .pair-names {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    overflow: hidden;
+  }
+  .pair-row.lost .pair-names { color: rgba(255,255,255,0.55); font-weight: 500; }
+  .pair-names .winner-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+  }
+  .pair-names .text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pair-flags {
+    display: flex;
+    gap: 2px;
+    margin-right: 4px;
+  }
+  .pair-flag {
+    width: 14px;
+    height: 10px;
+    border-radius: 1.5px;
+    background: linear-gradient(180deg, #aa151b 25%, #f1bf00 25% 75%, #aa151b 75%);
+  }
+  .pair-flag.ar { background: linear-gradient(180deg, #74acdf 33%, #fff 33% 67%, #74acdf 67%); }
+  .pair-flag.it { background: linear-gradient(90deg, #009246 33%, #fff 33% 67%, #ce2b37 67%); }
+  .pair-flag.fr { background: linear-gradient(90deg, #002395 33%, #fff 33% 67%, #ed2939 67%); }
+  .pair-flag.br { background: #009c3b; }
+  .pair-flag.bo { background: linear-gradient(180deg, #d52b1e 33%, #f4e400 33% 67%, #007934 67%); }
+  .scores {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .set-score {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.55);
+    min-width: 12px;
+    text-align: center;
+  }
+  .set-score.win { color: #fff; }
+  .set-score.live-set {
+    color: var(--live);
+    text-shadow: 0 0 8px rgba(255,70,85,0.4);
+  }
+  .game-pip {
+    width: 18px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--live-dim);
+    color: var(--live);
+    font-size: 11px;
+    font-weight: 800;
+    clip-path: var(--chunky-pill);
+    margin-left: 4px;
+  }
+
+  /* ── Empty state ───────────────────────────────────────── */
+  .empty {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-card);
+    margin: 14px;
+    padding: 28px 20px;
+    text-align: center;
+  }
+  .empty img { width: 120px; height: 120px; margin-bottom: 12px; }
+  .empty .t { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 6px; }
+  .empty .s { font-size: 11px; color: var(--muted); line-height: 1.5; max-width: 240px; margin: 0 auto; }
+
+  /* ── Bottom nav ────────────────────────────────────────── */
+  .nav {
+    display: flex;
+    background: var(--bg-base);
+    border-top: 1px solid var(--border);
+    padding: 8px 0 12px;
+    flex-shrink: 0;
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    position: relative;
+  }
+  .nav-item.active { color: var(--green); }
+  .nav-item.active::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    width: 28px;
+    height: 2px;
+    background: var(--green);
+    clip-path: var(--chunky-bar);
+  }
+  .nav-item .icon { font-size: 18px; }
+</style>
+</head>
+<body>
+
+<h2 class="stage-title">Matches — Day Pills mockup</h2>
+
+<div class="phone">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <span class="pn-top">PADEL</span>
+      <span class="pn-bot">NACHOS</span>
+    </div>
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+      <span>Search "Arturo Coello"</span>
+    </div>
+    <div class="icon-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+    </div>
+    <div class="avatar">G</div>
+  </div>
+
+  <!-- Scrollable body -->
+  <div class="scroll">
+
+    <!-- Day pills -->
+    <div class="day-pills">
+      <div class="day-pill-arrow">‹</div>
+      <div class="day-pill no-matches"><span class="wd">Mon</span><span class="dy">21</span></div>
+      <div class="day-pill has-matches"><span class="wd">Tue</span><span class="dy">22</span></div>
+      <div class="day-pill has-matches"><span class="wd">Wed</span><span class="dy">23</span></div>
+      <div class="day-pill has-matches"><span class="wd">Thu</span><span class="dy">24</span></div>
+      <div class="day-pill has-matches has-live"><span class="wd">Fri</span><span class="dy">25</span></div>
+      <div class="day-pill has-matches has-live"><span class="wd">Sat</span><span class="dy">26</span></div>
+      <div class="day-pill is-today has-live"><span class="wd">Today</span><span class="dy">27</span></div>
+      <div class="day-pill has-matches"><span class="wd">Tue</span><span class="dy">28</span></div>
+      <div class="day-pill has-matches"><span class="wd">Wed</span><span class="dy">29</span></div>
+      <div class="day-pill no-matches"><span class="wd">Thu</span><span class="dy">30</span></div>
+      <div class="day-pill-arrow">›</div>
+    </div>
+
+    <!-- Filter bar (compact summary + button) -->
+    <div class="filter-bar">
+      <div class="filter-summary">
+        <strong>All matches</strong> · M+W · Live + Upcoming + Finished
+      </div>
+      <button class="filter-btn" id="openFilters">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+        Filters
+        <span class="count">2</span>
+      </button>
+    </div>
+
+    <!-- Live section -->
+    <div class="section-head live">
+      <span class="accent"></span>
+      <span class="title">Live now</span>
+      <span class="count">3</span>
+    </div>
+
+    <div class="tour-group">
+      <div class="tour-head">
+        <div class="tour-flag bo"></div>
+        <div class="tour-name">Tarija B3</div>
+        <div class="tour-level">FIP Beyond</div>
+        <a class="tour-link">View ›</a>
+      </div>
+
+      <!-- Live match -->
+      <div class="match live">
+        <div class="match-head">
+          <span class="match-status live">LIVE</span>
+          <span class="match-time">15:32</span>
+          <span class="match-round">SF</span>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <div class="match-cat-bar men"></div>
+            <div class="pair-flags"><div class="pair-flag ar"></div><div class="pair-flag ar"></div></div>
+            <span class="text">Augsburger / Cardona</span>
+          </div>
+          <div class="scores">
+            <span class="set-score win">6</span>
+            <span class="set-score live-set">3</span>
+            <div class="game-pip">15</div>
+          </div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <div class="match-cat-bar men"></div>
+            <div class="pair-flags"><div class="pair-flag bo"></div><div class="pair-flag bo"></div></div>
+            <span class="text">Vargas / Rodriguez</span>
+          </div>
+          <div class="scores">
+            <span class="set-score">3</span>
+            <span class="set-score live-set">5</span>
+            <div class="game-pip">40</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live match #2 -->
+      <div class="match live">
+        <div class="match-head">
+          <span class="match-status live">LIVE</span>
+          <span class="match-time">15:18</span>
+          <span class="match-round">SF</span>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <div class="match-cat-bar women"></div>
+            <div class="pair-flags"><div class="pair-flag"></div><div class="pair-flag ar"></div></div>
+            <span class="text">Triay / Brea</span>
+          </div>
+          <div class="scores">
+            <span class="set-score live-set">5</span>
+            <span class="set-score">—</span>
+            <div class="game-pip">40</div>
+          </div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <div class="match-cat-bar women"></div>
+            <div class="pair-flags"><div class="pair-flag"></div><div class="pair-flag"></div></div>
+            <span class="text">Caldera / Goenaga</span>
+          </div>
+          <div class="scores">
+            <span class="set-score live-set">3</span>
+            <span class="set-score">—</span>
+            <div class="game-pip">40</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upcoming section -->
+    <div class="section-head">
+      <span class="accent"></span>
+      <span class="title">Upcoming</span>
+      <span class="count">12</span>
+    </div>
+
+    <div class="tour-group">
+      <div class="tour-head">
+        <div class="tour-flag"></div>
+        <div class="tour-name">Asunción P2</div>
+        <div class="tour-level">Premier P2</div>
+        <a class="tour-link">View ›</a>
+      </div>
+
+      <div class="match">
+        <div class="match-head">
+          <span class="match-status upcoming">17:30</span>
+          <span class="match-time">Court 1</span>
+          <span class="match-round">QF</span>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <div class="match-cat-bar men"></div>
+            <div class="pair-flags"><div class="pair-flag"></div><div class="pair-flag ar"></div></div>
+            <span class="text">Coello / Tapia</span>
+          </div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <div class="match-cat-bar men"></div>
+            <div class="pair-flags"><div class="pair-flag ar"></div><div class="pair-flag"></div></div>
+            <span class="text">Chingotto / Galán</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="match">
+        <div class="match-head">
+          <span class="match-status upcoming">19:00</span>
+          <span class="match-time">Court 1</span>
+          <span class="match-round">QF</span>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <div class="match-cat-bar men"></div>
+            <div class="pair-flags"><div class="pair-flag ar"></div><div class="pair-flag"></div></div>
+            <span class="text">Lebrón / Stupaczuk</span>
+          </div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <div class="match-cat-bar men"></div>
+            <div class="pair-flags"><div class="pair-flag"></div><div class="pair-flag"></div></div>
+            <span class="text">Yanguas / Navarro</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Finished section -->
+    <div class="section-head">
+      <span class="accent" style="background: rgba(255,255,255,0.2);"></span>
+      <span class="title" style="color: var(--muted);">Finished</span>
+      <span class="count">6</span>
+    </div>
+
+    <div class="tour-group">
+      <div class="tour-head">
+        <div class="tour-flag"></div>
+        <div class="tour-name">Brussels P2</div>
+        <div class="tour-level">Premier P2</div>
+        <a class="tour-link">View ›</a>
+      </div>
+
+      <div class="match">
+        <div class="match-head">
+          <span class="match-status final">FINAL</span>
+          <span class="match-time">Court CBC</span>
+          <span class="match-round">Final</span>
+        </div>
+        <div class="pair-row lost">
+          <div class="pair-names">
+            <div class="match-cat-bar men"></div>
+            <div class="pair-flags"><div class="pair-flag"></div><div class="pair-flag ar"></div></div>
+            <span class="text">Coello / Tapia</span>
+          </div>
+          <div class="scores">
+            <span class="set-score">6</span>
+            <span class="set-score">3</span>
+            <span class="set-score">3</span>
+          </div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <span class="winner-dot"></span>
+            <div class="match-cat-bar men"></div>
+            <div class="pair-flags"><div class="pair-flag"></div><div class="pair-flag fr"></div></div>
+            <span class="text">Lebrón / Augsburger</span>
+          </div>
+          <div class="scores">
+            <span class="set-score">2</span>
+            <span class="set-score win">6</span>
+            <span class="set-score win">6</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="match">
+        <div class="match-head">
+          <span class="match-status final">FINAL</span>
+          <span class="match-time">Court CBC</span>
+          <span class="match-round">Final</span>
+        </div>
+        <div class="pair-row lost">
+          <div class="pair-names">
+            <div class="match-cat-bar women"></div>
+            <div class="pair-flags"><div class="pair-flag ar"></div><div class="pair-flag ar"></div></div>
+            <span class="text">Brea / Triay</span>
+          </div>
+          <div class="scores">
+            <span class="set-score">5</span>
+            <span class="set-score">2</span>
+          </div>
+        </div>
+        <div class="pair-row">
+          <div class="pair-names">
+            <span class="winner-dot"></span>
+            <div class="match-cat-bar women"></div>
+            <div class="pair-flags"><div class="pair-flag"></div><div class="pair-flag"></div></div>
+            <span class="text">Gonzalez / Josemaria</span>
+          </div>
+          <div class="scores">
+            <span class="set-score win">7</span>
+            <span class="set-score win">6</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height: 24px;"></div>
+  </div>
+
+  <!-- Filter drawer -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <div class="title">Filter matches</div>
+      <button class="close" id="closeDrawer" aria-label="Close">×</button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-section">
+        <div class="label">League</div>
+        <div class="seg">
+          <button class="seg-opt active">All</button>
+          <button class="seg-opt">Premier</button>
+          <button class="seg-opt">FIP Tour</button>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="label">Category</div>
+        <div class="seg">
+          <button class="seg-opt active">Both</button>
+          <button class="seg-opt">Men</button>
+          <button class="seg-opt">Women</button>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="label">Status</div>
+        <div class="check-row">
+          <button class="check-chip on">● Live</button>
+          <button class="check-chip on">Upcoming</button>
+          <button class="check-chip on">Finished</button>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="label">Tournament tier</div>
+        <div class="check-row">
+          <button class="check-chip">P1 / Major</button>
+          <button class="check-chip">P2</button>
+          <button class="check-chip">FIP Platinum</button>
+          <button class="check-chip on">FIP Gold</button>
+          <button class="check-chip on">FIP Silver</button>
+          <button class="check-chip">FIP Bronze</button>
+          <button class="check-chip">Promises</button>
+          <button class="check-chip">Beyond</button>
+          <button class="check-chip">Hexagon</button>
+          <button class="check-chip">Championship</button>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div class="label">Personalised</div>
+        <div class="toggle-row">
+          <div class="text">
+            Followed players only
+            <small>Show only matches with players you follow</small>
+          </div>
+          <div class="toggle"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="text">
+            Hide qualifiers
+            <small>Skip qualifying-round matches in the list</small>
+          </div>
+          <div class="toggle"></div>
+        </div>
+        <div class="toggle-row">
+          <div class="text">
+            Coverage only
+            <small>Only matches with live point-by-point feed</small>
+          </div>
+          <div class="toggle on"></div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="reset">Reset</button>
+      <button class="apply">Apply (24)</button>
+    </div>
+  </aside>
+
+  <!-- Bottom nav -->
+  <div class="nav">
+    <div class="nav-item">
+      <span class="icon">⌂</span>
+      <span>HOME</span>
+    </div>
+    <div class="nav-item active">
+      <span class="icon">●</span>
+      <span>MATCHES</span>
+    </div>
+    <div class="nav-item">
+      <span class="icon">★</span>
+      <span>FOLLOWING</span>
+    </div>
+    <div class="nav-item">
+      <span class="icon">📡</span>
+      <span>NEWS</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    const openBtn = document.getElementById('openFilters');
+    const closeBtn = document.getElementById('closeDrawer');
+    const drawer = document.getElementById('drawer');
+    const backdrop = document.getElementById('drawerBackdrop');
+    function open() {
+      drawer.classList.add('open');
+      backdrop.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+    }
+    function close() {
+      drawer.classList.remove('open');
+      backdrop.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+    }
+    openBtn?.addEventListener('click', open);
+    closeBtn?.addEventListener('click', close);
+    backdrop?.addEventListener('click', close);
+
+    // Toggle interactions inside the drawer (mockup only — no real state)
+    drawer.querySelectorAll('.seg').forEach(group => {
+      group.addEventListener('click', (e) => {
+        const btn = e.target.closest('.seg-opt');
+        if (!btn) return;
+        group.querySelectorAll('.seg-opt').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+    drawer.querySelectorAll('.check-chip').forEach(chip => {
+      chip.addEventListener('click', () => chip.classList.toggle('on'));
+    });
+    drawer.querySelectorAll('.toggle').forEach(t => {
+      t.addEventListener('click', () => t.classList.toggle('on'));
+    });
+  })();
+</script>
+</body>
+</html>

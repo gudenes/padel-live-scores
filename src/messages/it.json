@@ -17,7 +17,65 @@
     "noResultsSub": "I risultati recenti appariranno qui al termine delle partite.",
     "filterHint": "Prova a cambiare il filtro del campionato per vedere {league} o tutte le partite.",
     "loadMore": "Carica altri ({count} rimanenti)",
-    "viewPreviousSeasons": "Vedi stagioni precedenti"
+    "viewPreviousSeasons": "Vedi stagioni precedenti",
+    "filters": {
+      "title": "Filtra partite",
+      "open": "Filtri",
+      "close": "Chiudi",
+      "summary": {
+        "all": "Tutte",
+        "premier": "Premier",
+        "fipTour": "FIP Tour",
+        "menWomen": "M+W",
+        "men": "Uomini",
+        "women": "Donne",
+        "live": "In diretta",
+        "upcoming": "Prossime",
+        "finished": "Concluse"
+      },
+      "league": {
+        "label": "Campionato",
+        "all": "Tutti",
+        "premier": "Premier",
+        "fip": "FIP Tour"
+      },
+      "category": {
+        "label": "Categoria",
+        "both": "Entrambe",
+        "men": "Uomini",
+        "women": "Donne"
+      },
+      "status": {
+        "label": "Stato",
+        "live": "In diretta",
+        "upcoming": "Prossime",
+        "finished": "Concluse"
+      },
+      "tier": {
+        "label": "Livello del torneo",
+        "p1": "P1 / Major",
+        "p2": "P2",
+        "fip_platinum": "FIP Platinum",
+        "fip_gold": "FIP Gold",
+        "fip_silver": "FIP Silver",
+        "fip_bronze": "FIP Bronze",
+        "fip_promises": "Promises",
+        "fip_beyond": "Beyond",
+        "fip_hexagon": "Hexagon",
+        "fip_championship": "Campionato"
+      },
+      "personalised": {
+        "label": "Personalizzato",
+        "followedTitle": "Solo giocatori seguiti",
+        "followedSub": "Mostra solo partite con giocatori che segui",
+        "hideQualifiersTitle": "Nascondi qualificazioni",
+        "hideQualifiersSub": "Salta le partite di qualificazione",
+        "coverageTitle": "Solo con copertura live",
+        "coverageSub": "Solo partite con cronaca punto per punto"
+      },
+      "reset": "Reimposta",
+      "apply": "Applica"
+    }
   },
   "matchDetail": {
     "matchDetail": "Dettaglio Partita",
