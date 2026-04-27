@@ -10,9 +10,51 @@ export function levelLabel(level: string | null): string {
     p2: 'P2',
     fip_platinum: 'FIP Platinum',
     fip_gold: 'FIP Gold',
+    fip_silver: 'FIP Silver',
+    fip_bronze: 'FIP Bronze',
+    fip_star: 'FIP Star',
+    fip_rise: 'FIP Rise',
+    fip_promotion: 'FIP Promotion',
+    fip_finals: 'FIP Finals',
+    fip_promises: 'FIP Promises',
+    fip_beyond: 'FIP Beyond',
+    fip_hexagon: 'Hexagon Cup',
+    fip_championship: 'FIP Championship',
     fip_other: 'FIP Tour',
   }
   return level ? (map[level] ?? level) : ''
+}
+
+// Tier weight for sorting/spotlight selection. Lower number = higher tier.
+// Premier > Platinum > Gold > Hexagon/Championship (one-off marquee events)
+// > Silver > Bronze > Promises > Beyond > everything else.
+//
+// Used by the home Tournaments view + spotlight picker so the surface
+// stays headlined by marquee events even though padelgod now ingests
+// every FIP category (Bronze + Promises alone account for hundreds of
+// events per year).
+export function levelTierWeight(level: string | null): number {
+  if (!level) return 99
+  const map: Record<string, number> = {
+    finals: 0,
+    major: 1,
+    p1: 2,
+    p2: 3,
+    fip_platinum: 4,
+    fip_gold: 5,
+    fip_hexagon: 6,
+    fip_championship: 7,
+    fip_finals: 8,
+    fip_silver: 10,
+    fip_bronze: 12,
+    fip_star: 14,
+    fip_rise: 15,
+    fip_promotion: 16,
+    fip_promises: 20,
+    fip_beyond: 22,
+    fip_other: 25,
+  }
+  return map[level] ?? 50
 }
 
 // Listed most-advanced → least-advanced. Used to find the highest round

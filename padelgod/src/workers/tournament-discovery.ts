@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { parseFipWpEvents } from '../parsers/fip-wp-events.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { FIP_WP_EVENTS_VERSION } from '../lib/parser-versions.js';
+import { resolveFipLevel } from '../lib/fip-categories.js';
 
 export interface TournamentDiscoveryDeps {
   supabase: SupabaseClient;
@@ -58,13 +59,26 @@ export async function runTournamentDiscovery(
     return { discovered: 0, scrapeJobId: jobResult.scrapeJobId };
   }
 
-  // 3. Upsert (conflict on slug, which is the canonical FIP id post-Plan-1 rename)
-  const rows = parsed.map((p) => ({
-    name: p.name,
-    slug: p.slug,
-    source: 'fip',
-    last_updated_by: 'padelgod',
-  }));
+  // 3. Upsert (conflict on slug, which is the canonical FIP id post-Plan-1 rename).
+  //
+  // `level` is derived from the WP `category-event` taxonomy via
+  // resolveFipLevel — that's how Promises/Beyond/Hexagon/Championships
+  // tournaments get a non-null level (the Vercel scraper that previously
+  // owned this only knew about Gold/Silver/Bronze and is now paused).
+  // resolveFipLevel returns null for Premier-tier categories, in which
+  // case we omit `level` from the row so we don't clobber padelapi's
+  // canonical `p1`/`p2`/`major`/`finals` codes.
+  const rows = parsed.map((p) => {
+    const level = resolveFipLevel(p.categoryTermIds, p.slug);
+    const row: Record<string, unknown> = {
+      name: p.name,
+      slug: p.slug,
+      source: 'fip',
+      last_updated_by: 'padelgod',
+    };
+    if (level) row.level = level;
+    return row;
+  });
 
   const { error: upsertErr } = await deps.supabase
     .from('tournaments')
