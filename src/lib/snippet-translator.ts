@@ -114,3 +114,104 @@ function extractText(message: Anthropic.Message): string | null {
   }
   return null
 }
+
+// ────────────────────────────────────────────────────────────────────
+// Bundled title translation
+//
+// Used by sync-articles on ingest: every new article needs a title
+// translation in EACH non-source locale because the home carousel
+// shows titles to every user regardless of whether they expand a card.
+// Doing this with 4 separate Claude calls per article would 4× the
+// cost; bundling into one call is ~70% cheaper per article and
+// completes in one network round-trip.
+//
+// We ask Claude to return strict JSON with one key per target locale.
+// On parse failure we fall back to the source title in all locales —
+// the UI gracefully falls back to article.title when a translation
+// is missing, so a malformed Claude response just means "no
+// translation for this article" not "broken sync."
+
+export interface TitleBundleInput {
+  title: string
+  sourceLocale: string // ISO 2-letter
+}
+
+export interface TitleBundleResult {
+  /** Map of locale → translated title, omitting the source locale. */
+  translations: Partial<Record<SupportedLocale, string>>
+  inputTokens: number
+  outputTokens: number
+}
+
+export async function translateTitleBundle(
+  input: TitleBundleInput,
+  opts: { apiKey?: string } = {},
+): Promise<TitleBundleResult> {
+  const apiKey = opts.apiKey ?? process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    throw new Error('[snippet-translator] ANTHROPIC_API_KEY is not set')
+  }
+
+  // Targets = all supported locales except the source. If the source
+  // isn't recognised (e.g., articles.language is null) we translate
+  // into all 5 to be safe; the UI still falls back to source title for
+  // the unknown source language.
+  const sourceShort = input.sourceLocale.slice(0, 2).toLowerCase()
+  const targets = Object.keys(LOCALE_NAMES).filter(l => l !== sourceShort) as SupportedLocale[]
+
+  const targetList = targets.map(l => `"${l}" (${LOCALE_NAMES[l]})`).join(', ')
+
+  const system = [
+    'You translate professional padel news article titles.',
+    `Return ONLY a strict JSON object with these exact keys: ${targetList}.`,
+    'Each value must be the title translated into that language. Keep player names, tournament names, and scores exactly as in the source.',
+    'No preamble, no commentary, no markdown — just the JSON object.',
+  ].join(' ')
+
+  const anthropic = new Anthropic({ apiKey })
+
+  const message = await anthropic.messages.create({
+    model: TRANSLATION_MODEL,
+    max_tokens: 600,
+    system,
+    messages: [{ role: 'user', content: input.title }],
+  })
+
+  const text = extractText(message)?.trim()
+  if (!text) {
+    throw new Error('[snippet-translator] title bundle: no text block')
+  }
+
+  // Strip markdown fences in case the model wraps the JSON despite
+  // the system prompt asking it not to.
+  const jsonStr = stripCodeFences(text)
+  let parsed: Partial<Record<SupportedLocale, string>>
+  try {
+    parsed = JSON.parse(jsonStr) as Partial<Record<SupportedLocale, string>>
+  } catch {
+    throw new Error(`[snippet-translator] title bundle: malformed JSON — ${jsonStr.slice(0, 120)}`)
+  }
+
+  // Filter to only supported keys with non-empty string values; this
+  // protects against the model adding unexpected keys or returning
+  // null/empty values for some locales.
+  const translations: Partial<Record<SupportedLocale, string>> = {}
+  for (const k of targets) {
+    const v = parsed[k]
+    if (typeof v === 'string' && v.trim().length > 0) {
+      translations[k] = v.trim()
+    }
+  }
+
+  return {
+    translations,
+    inputTokens: message.usage.input_tokens,
+    outputTokens: message.usage.output_tokens,
+  }
+}
+
+function stripCodeFences(s: string): string {
+  // Match ```json … ``` or ``` … ``` and return the inside.
+  const m = s.match(/^```(?:json)?\s*([\s\S]+?)\s*```$/)
+  return m ? m[1]! : s
+}

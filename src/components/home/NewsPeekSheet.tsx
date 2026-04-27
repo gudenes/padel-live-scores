@@ -33,7 +33,8 @@
 // follow-up if user testing shows people reaching for it.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { GREEN, MUTED, BG_CARD, type NewsItem } from './shared'
+import { useTranslations } from 'next-intl'
+import { GREEN, MUTED, BG_CARD, localizedTitle, type NewsItem } from './shared'
 
 // Brand surfaces for the sheet — slightly darker than BG_CARD so the
 // transition from page background reads as elevated content.
@@ -78,6 +79,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
   bookmarked,
   onToggleBookmark,
 }) => {
+  const t = useTranslations('feed.peek')
   // The component stays mounted across opens so the slide-down
   // animation has time to play before unmount. We track whether the
   // sheet should currently be visible (article != null) separately
@@ -381,7 +383,11 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
               margin: '0 0 12px',
             }}
           >
-            {article.title}
+            {/* Render in the language the user is currently viewing
+                (toggled via the source-language pill above) — when
+                viewing source we use the original title, otherwise the
+                cached translation. */}
+            {viewLocale === sourceLang ? article.title : localizedTitle(article, viewLocale)}
           </h2>
 
           {/* Translation badge — only when we actually translated */}
@@ -404,7 +410,10 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/>
               </svg>
-              Auto-translated · {data.sourceLocale.toUpperCase()} → {data.targetLocale.toUpperCase()}
+              {t('autoTranslated', {
+                from: data.sourceLocale.toUpperCase(),
+                to: data.targetLocale.toUpperCase(),
+              })}
             </div>
           )}
 
@@ -419,7 +428,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
             {loading && !data ? <SkeletonLines count={3} /> : null}
             {!loading && error ? (
               <span style={{ color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>
-                Preview unavailable. Tap below to read at the source.
+                {t('previewUnavailable')}
               </span>
             ) : null}
             {data?.snippet}
@@ -452,7 +461,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
               setTimeout(onClose, 50)
             }}
           >
-            Read at {sourceName || 'source'}
+            {sourceName ? t('readAt', { source: sourceName }) : t('readAtSource')}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
               <polyline points="15 3 21 3 21 9"/>
@@ -475,7 +484,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
                 </svg>
               }
               active={bookmarked}
-              label={bookmarked ? 'Bookmarked' : 'Bookmark'}
+              label={bookmarked ? t('bookmarked') : t('bookmark')}
             />
             <SecondaryBtn
               onClick={() => {
@@ -493,7 +502,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
                   <line x1="12" y1="2" x2="12" y2="15"/>
                 </svg>
               }
-              label="Share"
+              label={t('share')}
             />
           </div>
 
@@ -503,7 +512,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
           <button
             ref={closeBtnRef}
             onClick={onClose}
-            aria-label="Close preview"
+            aria-label={t('close')}
             style={{
               display: 'block',
               width: '100%',
@@ -520,7 +529,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
               textTransform: 'uppercase',
             }}
           >
-            Close
+            {t('close')}
           </button>
         </div>
       </div>

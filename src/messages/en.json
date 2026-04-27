@@ -112,7 +112,17 @@
     "hoursAgo": "{count}h ago",
     "daysAgo": "{count}d ago",
     "weeksAgo": "{count}w ago",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "peek": {
+      "readAt": "Read at {source}",
+      "readAtSource": "Read at source",
+      "bookmark": "Bookmark",
+      "bookmarked": "Bookmarked",
+      "share": "Share",
+      "close": "Close",
+      "autoTranslated": "Auto-translated · {from} → {to}",
+      "previewUnavailable": "Preview unavailable. Tap below to read at the source."
+    }
   },
   "home": {
     "liveNow": "Live Now",

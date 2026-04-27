@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useLocale } from 'next-intl'
 import {
   GREEN, BG_CARD, MUTED, CHUNKY,
-  Highlight, NewsItem, formatViews, timeAgo,
+  Highlight, NewsItem, formatViews, timeAgo, localizedTitle,
 } from './shared'
 import NewsPeekSheet from './NewsPeekSheet'
 
@@ -175,7 +175,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                   display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                 }}>
-                  {n.title}
+                  {localizedTitle(n, userLocale)}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
                   <div style={{ fontSize: 10, color: MUTED }}>

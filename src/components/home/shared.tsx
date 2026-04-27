@@ -68,12 +68,23 @@ export interface RankedPlayer {
 export interface NewsItem {
   id: string
   title: string
-  source_icon: string
+  /** Eager translation cache — populated on ingest by sync-articles. */
+  title_translations?: Partial<Record<string, string>> | null
+  /** Icon URL — may be null when source has no favicon configured.
+   *  Renderers use a Google favicon fallback in that case. */
+  source_icon: string | null
   source_name: string
   url: string
   published_at: string
   language: string | null
   image_url: string | null
+}
+
+/** Pick the localised title for a NewsItem, falling back to the source. */
+export function localizedTitle(n: NewsItem, userLocale: string): string {
+  const short = (userLocale ?? 'en').slice(0, 2).toLowerCase()
+  const translated = n.title_translations?.[short]
+  return translated && translated.trim().length > 0 ? translated : n.title
 }
 
 // ── Helpers ────────────────────────────────────────────────────

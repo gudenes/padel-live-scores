@@ -3,12 +3,18 @@
 // Runs every 6 hours via Vercel cron.
 
 import { NextRequest, NextResponse } from 'next/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServerClient } from '@/lib/supabase'
 import Parser from 'rss-parser'
 import GoogleNewsDecoder from 'google-news-decoder'
 import { logOpsEvent } from '@/lib/ops-logger'
+import { translateTitleBundle } from '@/lib/snippet-translator'
 
-export const maxDuration = 60
+// Bumped from 60→120s to absorb title-translation calls. Each new
+// article costs one Claude Haiku call (~2s); typical hourly run has
+// 10-30 new articles, so worst case ~60s of translations on top of
+// the ~20s fetch+enrich path.
+export const maxDuration = 120
 
 // ── Source definitions ──────────────────────────────────────────────────────
 
@@ -420,12 +426,27 @@ export async function GET(req: NextRequest) {
           const { error, data } = await supabase
             .from('articles')
             .upsert(rows, { onConflict: 'url' })
-            .select('id')
+            .select('id, title, language, title_translations')
 
           if (error) {
             results[source.key].error = error.message
           } else {
             totalUpserted += data?.length ?? 0
+            // Eagerly translate titles for any article that doesn't yet
+            // have translations cached. `title_translations` is `{}` by
+            // default, so a row matching that has either just been
+            // inserted OR was inserted before this feature shipped —
+            // both cases get the same treatment. Translate in parallel
+            // with concurrency 5 to stay inside the 120s function budget
+            // even on a 30-article batch.
+            const needsTitleTx = (data ?? []).filter(r => {
+              const tx = (r as any).title_translations
+              return !tx || Object.keys(tx).length === 0
+            })
+            if (needsTitleTx.length > 0) {
+              const txCount = await translateTitlesForArticles(supabase, needsTitleTx as Array<{ id: string; title: string; language: string | null }>)
+              ;(results[source.key] as any).titles_translated = txCount
+            }
           }
         } catch (err) {
           results[source.key] = { fetched: 0, error: String(err) }
@@ -446,4 +467,56 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Title translation helper
+//
+// For each article needing translations, makes ONE Claude Haiku call
+// that returns a JSON object with translations into all 4 non-source
+// app locales. Run with concurrency 5 so a 30-article batch finishes
+// in ~12s instead of 60s (which would fight the 120s function budget
+// against the cron's other work).
+//
+// Failures are isolated per article — one Claude error doesn't
+// poison the whole batch. The article just keeps its empty
+// title_translations and the home page falls back to article.title
+// for that user's locale.
+
+async function translateTitlesForArticles(
+  supabase: SupabaseClient,
+  articles: Array<{ id: string; title: string; language: string | null }>,
+): Promise<number> {
+  const CONCURRENCY = 5
+  let successCount = 0
+
+  const queue = [...articles]
+  async function worker(): Promise<void> {
+    while (queue.length > 0) {
+      const article = queue.shift()
+      if (!article) return
+      try {
+        const result = await translateTitleBundle({
+          title: article.title,
+          sourceLocale: (article.language ?? 'en').slice(0, 2).toLowerCase(),
+        })
+        // Skip the DB write if Claude returned nothing usable — saves
+        // an empty round trip and keeps title_translations as `{}` so
+        // a future sync run will retry.
+        if (Object.keys(result.translations).length === 0) continue
+        const { error } = await supabase
+          .from('articles')
+          .update({ title_translations: result.translations })
+          .eq('id', article.id)
+        if (!error) successCount++
+        else console.warn(`[sync-articles] title write failed ${article.id}: ${error.message}`)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.warn(`[sync-articles] title translate failed ${article.id}: ${msg}`)
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()))
+  return successCount
 }

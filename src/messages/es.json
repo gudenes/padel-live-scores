@@ -112,7 +112,17 @@
     "hoursAgo": "hace {count}h",
     "daysAgo": "hace {count}d",
     "weeksAgo": "hace {count}sem",
-    "yesterday": "Ayer"
+    "yesterday": "Ayer",
+    "peek": {
+      "readAt": "Leer en {source}",
+      "readAtSource": "Leer en la fuente",
+      "bookmark": "Guardar",
+      "bookmarked": "Guardado",
+      "share": "Compartir",
+      "close": "Cerrar",
+      "autoTranslated": "Traducido automáticamente · {from} → {to}",
+      "previewUnavailable": "Vista previa no disponible. Toca abajo para leer en la fuente."
+    }
   },
   "home": {
     "liveNow": "En directo",
