@@ -4,7 +4,7 @@
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
-import { useFormatter, useTranslations } from 'next-intl'
+import { useFormatter, useTranslations, useLocale } from 'next-intl'
 import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
@@ -15,6 +15,7 @@ import BrandedLoader, { LOADER_HINTS } from '../../../../components/BrandedLoade
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { V3MatchCard } from '@/components/V3MatchCard'
+import { DailyMatchCard } from '@/components/DailyMatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
@@ -106,6 +107,13 @@ export default function TournamentDetailWrapper({ params }: { params: Promise<{ 
 function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const format = useFormatter()
   const tTournament = useTranslations('tournament')
+  const locale = useLocale()
+  // User's timezone from the browser. Falls back to UTC when Intl is
+  // unavailable (very old engines). DailyMatchCard formats the date
+  // chip in this tz.
+  const userTz = (typeof Intl !== 'undefined'
+    ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC')
+    : 'UTC')
   const searchParams = useSearchParams()
   const paramRound = searchParams.get('round')
   const paramTab = searchParams.get('tab')
@@ -726,7 +734,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       rightColor={justUpdated ? GREEN : undefined}
                     />
                     {liveMatches.map(m => (
-                      <V3MatchCard key={m.id} match={m} genderColor={genderColor} />
+                      <DailyMatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
                     ))}
                   </div>
                 )}
@@ -735,7 +743,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div style={{ marginBottom: 14 }}>
                     <SectionHeader dot color={ORANGE} label="Warming up" />
                     {warmingUpMatches.map(m => (
-                      <V3MatchCard key={m.id} match={m} genderColor={genderColor} />
+                      <DailyMatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
                     ))}
                   </div>
                 )}
@@ -753,7 +761,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div>
                     <SectionHeader label={`Results \u00B7 ${selectedRound ?? ''}`} />
                     {finishedMatches.map(m => (
-                      <V3MatchCard key={m.id} match={m} genderColor={genderColor} />
+                      <DailyMatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
                     ))}
                   </div>
                 )}
