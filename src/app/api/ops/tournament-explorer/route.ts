@@ -158,7 +158,7 @@ export async function GET(request: Request) {
     query = query.in('source', sourceFilter)
   }
 
-  const { data: tournaments, error: tourErr } = await query
+  const { data, error: tourErr } = await query
   if (tourErr) {
     return Response.json(
       { error: `tournaments read failed: ${tourErr.message}` },
@@ -166,7 +166,13 @@ export async function GET(request: Request) {
     )
   }
 
-  const ids = (tournaments ?? []).map(t => t.id as string)
+  // PostgREST's inferred type for the destructured `data` includes
+  // GenericStringError when the column projection is partial; we already
+  // checked `tourErr` above so a runtime row is guaranteed to be a row.
+  // Round-trip through unknown to peel off the error variant for TS.
+  const tournaments = (data ?? []) as unknown as Array<Record<string, unknown> & { id: string }>
+
+  const ids = tournaments.map(t => t.id)
   if (ids.length === 0) {
     return Response.json({
       tournaments: [] as TournamentWithSources[],
@@ -391,13 +397,13 @@ export async function GET(request: Request) {
   // keys already match the TournamentWithSources shape exactly, so no
   // per-field aliasing is needed — saves us from drift when columns are
   // added in future migrations.
-  const enriched: TournamentWithSources[] = (tournaments ?? []).map(t => {
+  const enriched: TournamentWithSources[] = tournaments.map(t => {
     const row = t as Partial<TournamentWithSources>
     return {
       ...(row as TournamentWithSources),
-      matchCount: matchCountByTournament.get(t.id as string) ?? 0,
-      finalPlayed: finalPlayedByTournament.has(t.id as string),
-      phases: Array.from(phasesByTournament.get(t.id as string)?.values() ?? [])
+      matchCount: matchCountByTournament.get(t.id) ?? 0,
+      finalPlayed: finalPlayedByTournament.has(t.id),
+      phases: Array.from(phasesByTournament.get(t.id)?.values() ?? [])
         .map(p => ({
           round: p.round,
           category: p.category,
@@ -412,13 +418,13 @@ export async function GET(request: Request) {
           if (cmp !== 0) return cmp
           return (a.category ?? '').localeCompare(b.category ?? '')
         }),
-      entryListCapturedAt: entryListMap.get(t.id as string) ?? null,
-      oopCapturedAt: oopMap.get(t.id as string) ?? null,
-      resultsCapturedAt: resultsMap.get(t.id as string) ?? null,
-      drawCapturedAt: drawMap.get(t.id as string) ?? null,
-      widgetId: widgetIdByTournament.get(t.id as string) ?? null,
-      widgetLookupAttempts7d: widgetAttemptsByTournament.get(t.id as string) ?? 0,
-      widgetLookupLastAttemptAt: widgetLatestAttemptByTournament.get(t.id as string) ?? null,
+      entryListCapturedAt: entryListMap.get(t.id) ?? null,
+      oopCapturedAt: oopMap.get(t.id) ?? null,
+      resultsCapturedAt: resultsMap.get(t.id) ?? null,
+      drawCapturedAt: drawMap.get(t.id) ?? null,
+      widgetId: widgetIdByTournament.get(t.id) ?? null,
+      widgetLookupAttempts7d: widgetAttemptsByTournament.get(t.id) ?? 0,
+      widgetLookupLastAttemptAt: widgetLatestAttemptByTournament.get(t.id) ?? null,
     }
   })
 
