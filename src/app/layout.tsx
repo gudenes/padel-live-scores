@@ -66,10 +66,10 @@ export const metadata: Metadata = {
   },
   other: {
     'mobile-web-app-capable': 'yes',
-    // Designer-specified lime to match the 2026-04-27 favicon refresh.
-    // Drives the mobile browser address bar tint + Windows tile color.
-    'theme-color': '#B6E61A',
-    'msapplication-TileColor': '#B6E61A',
+    // Match the app canvas so the mobile browser chrome blends into the UI
+    // instead of pulling the eye to a lime bar above the header.
+    'theme-color': '#0A0A0A',
+    'msapplication-TileColor': '#0A0A0A',
   },
 };
 
