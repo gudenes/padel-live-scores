@@ -62,6 +62,12 @@ export default function MatchesDayShell({
   const tz = useMemo(() => getLocaleHomeTz(locale), [locale])
 
   const [activeIso, setActiveIso] = useState(initialIso)
+  // Pill-window iso. Usually mirrors activeIso 1:1, but the "Today"
+  // shortcut decouples them: the matches body snaps to today
+  // immediately (activeIso) while this state walks through the
+  // intermediate days so the user sees the pill window roll past each
+  // date instead of jumping. See `rollToToday` below.
+  const [pillIso, setPillIso] = useState(initialIso)
   // Map<iso, CacheEntry>. Initial day is seeded synchronously so the
   // first paint after hydration matches what the SSR rendered.
   const [cache, setCache] = useState<Map<string, CacheEntry>>(() => {
@@ -139,6 +145,7 @@ export default function MatchesDayShell({
   const goTo = useCallback(
     (iso: string) => {
       setActiveIso(iso)
+      setPillIso(iso)
       // If the day isn't loaded yet, kick a fetch right away (don't
       // wait for the prefetch effect, which only schedules with delay).
       const entry = cache.get(iso)
@@ -182,13 +189,23 @@ export default function MatchesDayShell({
   const isOnToday = isLocaleToday(activeIso, locale)
 
   const rollToToday = useCallback(() => {
-    const fromMs = Date.parse(activeIso + 'T12:00:00Z')
+    const fromMs = Date.parse(pillIso + 'T12:00:00Z')
     const toMs = Date.parse(todayIso + 'T12:00:00Z')
     const dayDiff = Math.round((toMs - fromMs) / 86_400_000)
     const totalSteps = Math.abs(dayDiff)
     if (totalSteps === 0) return
+
+    // Body jumps to today right away — only the pill window rolls so
+    // the user gets today's matches immediately while the days animate
+    // past in the header.
+    setActiveIso(todayIso)
+    const todayEntry = cache.get(todayIso)
+    if (!todayEntry || todayEntry.state === 'error') {
+      fetchDay(todayIso)
+    }
+
     if (totalSteps === 1) {
-      goTo(todayIso)
+      setPillIso(todayIso)
       return
     }
     const dir = dayDiff > 0 ? 1 : -1
@@ -200,10 +217,10 @@ export default function MatchesDayShell({
     const STEP_MS = 220
     for (let i = 1; i <= cappedSteps; i++) {
       const stepIso =
-        i === cappedSteps ? todayIso : addDaysIso(activeIso, i * dir, tz)
-      setTimeout(() => goTo(stepIso), i * STEP_MS)
+        i === cappedSteps ? todayIso : addDaysIso(pillIso, i * dir, tz)
+      setTimeout(() => setPillIso(stepIso), i * STEP_MS)
     }
-  }, [activeIso, todayIso, goTo, tz])
+  }, [pillIso, todayIso, cache, fetchDay, tz])
 
   return (
     <>
@@ -224,7 +241,7 @@ export default function MatchesDayShell({
         }}
       >
         <div style={swipeStyle}>
-          <DailyDatePills selectedIso={activeIso} locale={locale} onSelect={goTo} />
+          <DailyDatePills selectedIso={pillIso} locale={locale} onSelect={goTo} />
         </div>
         {/* Filter bar is always visible — even on empty days the user
             should be able to flip filters or hop back to today without
