@@ -1,12 +1,21 @@
+'use client'
+
 // src/components/DailyDatePills.tsx
 // Date navigation strip for /matches/[date]. Renders 7 pills (−3..+3 days
-// around the selected date) as crawlable <a> links plus a prev/next arrow
-// that extends the window another day.
+// around the selected date) plus a prev/next arrow that extends the
+// window another day.
 //
-// Server component by design — the pills must be in the HTML Google sees,
-// not hydrated later. All labels are translated via getTranslations().
+// Two modes:
+//   - Link mode (default) — pills render as crawlable <a> links. Used on
+//     SSR / initial paint so Google sees the navigation in HTML.
+//   - Callback mode — when `onSelect` is supplied, pills render as
+//     buttons that call the parent. Used by MatchesDayShell to swap
+//     days client-side from the prefetched cache (no server round-trip).
+//
+// `selectedIso` is reactive — when the parent updates it, the pills
+// shift their −3..+3 window so the active pill is always centered.
 
-import { getTranslations } from 'next-intl/server'
+import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { addDaysIso, getLocaleHomeTz, isLocaleToday } from '@/lib/locale-time'
 
@@ -20,14 +29,16 @@ interface Props {
   /** Currently selected date as YYYY-MM-DD in locale home TZ. */
   selectedIso: string
   locale: string
+  /**
+   * Optional click handler. When provided, pills render as buttons and
+   * call this with the target ISO instead of navigating. Used by the
+   * client-side day-swap shell.
+   */
+  onSelect?: (iso: string) => void
 }
 
-/**
- * Builds a 7-pill window (−3..+3) with labels like "Thu 17", plus left/right
- * arrow links that let the user — and Googlebot — navigate further.
- */
-export async function DailyDatePills({ selectedIso, locale }: Props) {
-  const t = await getTranslations({ locale, namespace: 'daily' })
+export function DailyDatePills({ selectedIso, locale, onSelect }: Props) {
+  const t = useTranslations('daily')
   const tz = getLocaleHomeTz(locale)
 
   const days = [-3, -2, -1, 0, 1, 2, 3].map(offset => {
@@ -62,19 +73,17 @@ export async function DailyDatePills({ selectedIso, locale }: Props) {
       }}
     >
       {/* Prev arrow */}
-      <PillLink
-        href={`/matches/${prevIso}`}
+      <PillButton
+        iso={prevIso}
         locale={locale}
         label="‹"
         ariaLabel={t('yesterday')}
         isSelected={false}
         isArrow
+        onSelect={onSelect}
       />
 
       {days.map(({ iso, offset, isSelected, isToday }) => {
-        // Build the parts: "label\nday"
-        // For offset -1/0/+1 prefer the semantic word ("Yesterday"/"Today"/"Tomorrow")
-        // over the weekday — matches how users actually talk + targets natural search.
         const [wdPart, dayPart] = partsFor(iso, tz, dayFormatter)
         let topLabel = wdPart
         if (isToday && offset === 0) topLabel = t('today')
@@ -82,25 +91,27 @@ export async function DailyDatePills({ selectedIso, locale }: Props) {
         else if (offset === 1 && isLocaleToday(addDaysIso(iso, -1, tz), locale)) topLabel = t('tomorrow')
 
         return (
-          <PillLink
+          <PillButton
             key={iso}
-            href={`/matches/${iso}`}
+            iso={iso}
             locale={locale}
             topLabel={topLabel}
             bottomLabel={dayPart}
             isSelected={isSelected}
+            onSelect={onSelect}
           />
         )
       })}
 
       {/* Next arrow */}
-      <PillLink
-        href={`/matches/${nextIso}`}
+      <PillButton
+        iso={nextIso}
         locale={locale}
         label="›"
         ariaLabel={t('tomorrow')}
         isSelected={false}
         isArrow
+        onSelect={onSelect}
       />
     </nav>
   )
@@ -108,7 +119,6 @@ export async function DailyDatePills({ selectedIso, locale }: Props) {
 
 /** Produces ["Thu", "17"] from a YYYY-MM-DD in a given timezone. */
 function partsFor(iso: string, tz: string, fmt: Intl.DateTimeFormat): [string, string] {
-  // Use a noon UTC anchor to avoid DST edge cases.
   const d = new Date(iso + 'T12:00:00Z')
   const parts = fmt.formatToParts(d)
   let weekday = ''
@@ -117,15 +127,13 @@ function partsFor(iso: string, tz: string, fmt: Intl.DateTimeFormat): [string, s
     if (p.type === 'weekday') weekday = p.value.replace(/\.$/, '')
     if (p.type === 'day') day = p.value
   }
-  // Capitalise weekday consistently (Intl returns lowercase in some locales)
   if (weekday.length > 0) weekday = weekday.charAt(0).toUpperCase() + weekday.slice(1)
-  // Suppress the TZ value since `fmt` doesn't include it — keep the hack simple.
   void tz
   return [weekday, day]
 }
 
-interface PillLinkProps {
-  href: string
+interface PillButtonProps {
+  iso: string
   locale: string
   topLabel?: string
   bottomLabel?: string
@@ -134,16 +142,10 @@ interface PillLinkProps {
   ariaLabel?: string
   isSelected: boolean
   isArrow?: boolean
+  onSelect?: (iso: string) => void
 }
 
-function PillLink(p: PillLinkProps) {
-  // Active highlight = stacked offset (Option C from
-  // /public/mockup-day-pill-options.html). Two layered chunky pills:
-  // a lime shadow translated 5px down/right, and a dark front pill
-  // with a lime border on top. Reads as a "raised tile" — leans into
-  // the chunky aesthetic instead of softening it via solid fill.
-  // Arrows keep the simple non-stacked treatment because they're
-  // never selected.
+function PillButton(p: PillButtonProps) {
   const isActive = p.isSelected && !p.isArrow
   const background = p.isSelected
     ? p.isArrow
@@ -151,80 +153,84 @@ function PillLink(p: PillLinkProps) {
       : BG_BASE
     : BG_CARD
   const color = p.isSelected && p.isArrow ? '#0A0A0A' : '#FFF'
-  const border = p.isSelected
-    ? GREEN
-    : 'rgba(255,255,255,0.08)'
+  const border = p.isSelected ? GREEN : 'rgba(255,255,255,0.08)'
   const borderWidth = isActive ? 1.5 : 1
   const width = p.isArrow ? 32 : 54
   const minWidth = p.isArrow ? 32 : 54
 
-  const link = (
+  const sharedStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 1,
+    width,
+    minWidth,
+    height: 44,
+    padding: '4px 2px',
+    background,
+    border: `${borderWidth}px solid ${border}`,
+    clipPath: CHUNKY_PILL,
+    color,
+    textDecoration: 'none',
+    flexShrink: 0,
+    fontFamily: 'inherit',
+    position: 'relative',
+    zIndex: 1,
+    cursor: 'pointer',
+  }
+
+  const inner = p.isArrow ? (
+    <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1, color: p.isSelected ? '#0A0A0A' : MUTED }}>
+      {p.label}
+    </span>
+  ) : (
+    <>
+      <span style={{
+        fontSize: 9,
+        fontWeight: 600,
+        letterSpacing: 0.3,
+        textTransform: 'uppercase',
+        color: isActive ? GREEN : MUTED,
+        opacity: isActive ? 0.95 : 0.7,
+        lineHeight: 1,
+      }}>
+        {p.topLabel}
+      </span>
+      <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1, color: '#FFF' }}>
+        {p.bottomLabel}
+      </span>
+    </>
+  )
+
+  // Callback mode: render as <button>. Snappier — no Next.js nav, no
+  // server round-trip; the parent shell swaps the cached day.
+  const node = p.onSelect ? (
+    <button
+      type="button"
+      aria-label={p.ariaLabel}
+      aria-current={p.isSelected ? 'page' : undefined}
+      onClick={() => p.onSelect?.(p.iso)}
+      style={{ ...sharedStyle, font: 'inherit', border: `${borderWidth}px solid ${border}` }}
+    >
+      {inner}
+    </button>
+  ) : (
     <Link
-      href={p.href}
+      href={`/matches/${p.iso}`}
       locale={p.locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
       aria-label={p.ariaLabel}
       aria-current={p.isSelected ? 'page' : undefined}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 1,
-        width,
-        minWidth,
-        height: 44,
-        padding: '4px 2px',
-        background,
-        border: `${borderWidth}px solid ${border}`,
-        clipPath: CHUNKY_PILL,
-        color,
-        textDecoration: 'none',
-        flexShrink: 0,
-        fontFamily: 'inherit',
-        position: 'relative',
-        zIndex: 1,
-      }}
+      style={sharedStyle}
     >
-      {p.isArrow ? (
-        <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1, color: p.isSelected ? '#0A0A0A' : MUTED }}>
-          {p.label}
-        </span>
-      ) : (
-        <>
-          <span style={{
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: 0.3,
-            textTransform: 'uppercase',
-            // Active weekday is lime — pairs with the lime border + shadow
-            // and signals "today" without flooding the pill.
-            color: isActive ? GREEN : MUTED,
-            opacity: isActive ? 0.95 : 0.7,
-            lineHeight: 1,
-          }}>
-            {p.topLabel}
-          </span>
-          <span style={{
-            fontSize: 15,
-            fontWeight: 700,
-            lineHeight: 1.1,
-            color: '#FFF',
-          }}>
-            {p.bottomLabel}
-          </span>
-        </>
-      )}
+      {inner}
     </Link>
   )
 
-  // Non-active pills (and arrows) render as the bare Link — no wrapper,
-  // no shadow layer.
-  if (!isActive) return link
+  // Non-active pills (and arrows) render bare — no shadow wrapper.
+  if (!isActive) return node
 
-  // Active pill: wrap in a relative span and render the lime shadow
-  // layer behind the link. The shadow uses translate(5px, 5px) so it
-  // pokes out down-and-right; flexShrink: 0 keeps the wrapper sized to
-  // the inner pill so the row's gap behaves as before.
+  // Active pill: lime shadow layered behind the button/link.
   return (
     <span
       style={{
@@ -247,7 +253,7 @@ function PillLink(p: PillLinkProps) {
           pointerEvents: 'none',
         }}
       />
-      {link}
+      {node}
     </span>
   )
 }

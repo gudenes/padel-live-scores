@@ -36,6 +36,13 @@ export interface MatchesDaySwipeProps {
   nextIso: string
   /** Active locale — preserved across navigation. */
   locale: string
+  /**
+   * Optional swipe handler. When provided, the gesture calls this with
+   * the target ISO instead of triggering router.push. Used by the
+   * client-side day-swap shell so swipes hit the prefetched cache and
+   * feel instant.
+   */
+  onSwipe?: (targetIso: string) => void
   children: ReactNode
 }
 
@@ -43,6 +50,7 @@ export default function MatchesDaySwipe({
   prevIso,
   nextIso,
   locale,
+  onSwipe,
   children,
 }: MatchesDaySwipeProps) {
   const router = useRouter()
@@ -114,7 +122,11 @@ export default function MatchesDaySwipe({
     const horizontalWon = Math.abs(dx) > Math.abs(dy) && Math.abs(dy) <= VERTICAL_TOLERANCE_PX
     if (horizontalWon && Math.abs(dx) >= SWIPE_THRESHOLD_PX) {
       const targetIso = dx < 0 ? nextIso : prevIso
-      router.push(`/matches/${targetIso}`, { locale: locale as 'en' | 'es' | 'pt' | 'it' | 'fr' })
+      if (onSwipe) {
+        onSwipe(targetIso)
+      } else {
+        router.push(`/matches/${targetIso}`, { locale: locale as 'en' | 'es' | 'pt' | 'it' | 'fr' })
+      }
     }
     reset()
   }
