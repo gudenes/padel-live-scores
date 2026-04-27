@@ -70,6 +70,13 @@ export interface NewsItem {
   title: string
   /** Eager translation cache — populated on ingest by sync-articles. */
   title_translations?: Partial<Record<string, string>> | null
+  /** Source-language snippet (~50-150 chars). Renders on the home
+   *  carousel card; the peek sheet shows the translated version. */
+  snippet?: string | null
+  /** Lazy translation cache populated on first peek-sheet open. When
+   *  present in the user's locale, the home card renders that
+   *  instead of the source `snippet` for free. */
+  snippet_translations?: Partial<Record<string, string>> | null
   /** Icon URL — may be null when source has no favicon configured.
    *  Renderers use a Google favicon fallback in that case. */
   source_icon: string | null
@@ -85,6 +92,17 @@ export function localizedTitle(n: NewsItem, userLocale: string): string {
   const short = (userLocale ?? 'en').slice(0, 2).toLowerCase()
   const translated = n.title_translations?.[short]
   return translated && translated.trim().length > 0 ? translated : n.title
+}
+
+/** Pick the localised snippet (or the source snippet) for a NewsItem.
+ *  Returns null when no snippet is available so renderers can choose
+ *  to skip the snippet line entirely instead of showing an empty box. */
+export function localizedSnippet(n: NewsItem, userLocale: string): string | null {
+  const short = (userLocale ?? 'en').slice(0, 2).toLowerCase()
+  const translated = n.snippet_translations?.[short]
+  if (translated && translated.trim().length > 0) return translated
+  const source = n.snippet?.trim()
+  return source && source.length > 0 ? source : null
 }
 
 // ── Helpers ────────────────────────────────────────────────────
