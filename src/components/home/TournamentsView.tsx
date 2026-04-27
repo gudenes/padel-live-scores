@@ -13,13 +13,22 @@ import {
   Tournament, FlagImg, titleCase, countryName, daysUntil, formatDateRange, levelLabel,
   SectionTitle,
 } from './shared'
+import { levelTierWeight } from '@/lib/tournament-labels'
 
 // ── Types ──────────────────────────────────────────────────────
 
 type TournamentTab = 'premier' | 'fip'
 
 const PREMIER_LEVELS = ['finals', 'major', 'p1', 'p2']
-const FIP_LEVELS = ['fip_platinum', 'fip_gold', 'fip_silver', 'fip_bronze', 'fip_other']
+// Includes every FIP-tier code padelgod can stamp (see
+// padelgod/src/lib/fip-categories.ts) plus the legacy 'fip_other' bucket
+// for rows the backfill migration didn't touch.
+const FIP_LEVELS = [
+  'fip_platinum', 'fip_gold', 'fip_silver', 'fip_bronze',
+  'fip_star', 'fip_rise', 'fip_promotion', 'fip_finals',
+  'fip_promises', 'fip_beyond', 'fip_hexagon', 'fip_championship',
+  'fip_other',
+]
 
 interface Winner {
   category: string
@@ -256,11 +265,25 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
     return { live, ongoing, upcoming, currentSeasonCompleted, prevByYear, currentYear }
   }, [tournaments, liveIds, ongoingIds])
 
-  const hero = live[0] ?? ongoing[0] ?? upcoming[0] ?? null
-  const heroIsLive = live.length > 0
-  const heroIsOngoing = !heroIsLive && ongoing.length > 0
-  const restUpcoming = (heroIsLive || heroIsOngoing) ? upcoming : upcoming.slice(1)
-  const restOngoing = heroIsOngoing ? ongoing.slice(1) : ongoing
+  // Hero picks the highest-tier event (lowest tierWeight). Without this,
+  // padelgod's broader FIP ingest would let a Promises event with an
+  // earlier `starts_at` outrank a same-week Platinum/Gold for the
+  // home banner. Tie-break on date so we stay deterministic across
+  // refreshes.
+  const pickByTier = (list: TournamentWithWinners[]) =>
+    [...list].sort((a, b) => {
+      const dt = levelTierWeight(a.level) - levelTierWeight(b.level)
+      if (dt !== 0) return dt
+      return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+    })[0] ?? null
+  const heroLive = pickByTier(live)
+  const heroOngoing = pickByTier(ongoing)
+  const heroUpcoming = pickByTier(upcoming)
+  const hero = heroLive ?? heroOngoing ?? heroUpcoming
+  const heroIsLive = !!heroLive
+  const heroIsOngoing = !heroIsLive && !!heroOngoing
+  const restUpcoming = upcoming.filter(t => t.id !== hero?.id)
+  const restOngoing = ongoing.filter(t => t.id !== hero?.id)
 
   const pillStyle: React.CSSProperties = {
     fontSize: 9, fontWeight: 700, padding: '3px 7px',
