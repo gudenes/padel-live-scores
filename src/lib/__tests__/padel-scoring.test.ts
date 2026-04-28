@@ -529,12 +529,15 @@ describe('stateToRelayPayload', () => {
     expect(payload.action).toBe('simulate')
   })
 
-  it('includes status and sets', () => {
+  it('includes status and sets under data', () => {
+    // The relay payload nests match state under `data` so the relay can
+    // forward the same shape to Pusher subscribers without flattening.
     let state = createInitialState()
     state = addPoint(state, 1)
     const payload = stateToRelayPayload(state, 'match-1', 'ext-1', 'update')
-    expect(payload.status).toBe('live')
-    expect(Array.isArray(payload.sets)).toBe(true)
+    const data = payload.data as { status: string; sets: unknown[] }
+    expect(data.status).toBe('live')
+    expect(Array.isArray(data.sets)).toBe(true)
   })
 })
 

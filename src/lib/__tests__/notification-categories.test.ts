@@ -29,8 +29,14 @@ describe('CATEGORY_DEFAULTS', () => {
     expect(CATEGORY_DEFAULTS.match_live_bookmark).toEqual({ push: true, inApp: true })
   })
 
-  it('match_finished and match_upcoming default push off, inApp on', () => {
-    expect(CATEGORY_DEFAULTS.match_finished).toEqual({ push: false, inApp: true })
+  it('match_finished defaults to push on, inApp on (changed 2026-04-23)', () => {
+    // Bumped from push:false in 2026-04-23 — see notification-categories.ts.
+    // /api/push/notify checks the category-specific flag and now sends a
+    // push when a followed match finishes.
+    expect(CATEGORY_DEFAULTS.match_finished).toEqual({ push: true, inApp: true })
+  })
+
+  it('match_upcoming defaults to push off, inApp on', () => {
     expect(CATEGORY_DEFAULTS.match_upcoming).toEqual({ push: false, inApp: true })
   })
 })
@@ -67,7 +73,7 @@ describe('resolvePrefs', () => {
 
   it('returns defaults when the category key is missing', () => {
     expect(resolvePrefs({ marketing: { push: true, inApp: true } }, 'match_finished'))
-      .toEqual({ push: false, inApp: true })
+      .toEqual({ push: true, inApp: true })
   })
 
   it('uses stored override when both channels set', () => {

@@ -65,7 +65,11 @@ describe('parseWpEvent', () => {
 
     const result = parseWpEvent(event)
 
-    expect(result.level).toBe('Gold')
+    // parseWpEvent returns the DB-shaped enum ('fip_gold' / 'fip_other'),
+    // not the human label. CATEGORY_ID_TO_LEVEL in fip-scraper.ts groups
+    // Silver + Bronze under 'fip_other' to match how the rest of the
+    // codebase treats them.
+    expect(result.level).toBe('fip_gold')
     expect(result.wpId).toBe(1)
     expect(result.name).toBe('FIP Gold Andorra 2025')
     expect(result.slug).toBe('fip-gold-andorra-2025')
@@ -89,10 +93,10 @@ describe('parseWpEvent', () => {
     }
 
     const result = parseWpEvent(event)
-    expect(result.level).toBe('Silver')
+    expect(result.level).toBe('fip_other')
   })
 
-  it('maps category 497 to Bronze', () => {
+  it('maps category 497 to fip_other', () => {
     const event = {
       id: 3,
       title: { rendered: 'FIP Bronze Barcelona' },
@@ -105,7 +109,7 @@ describe('parseWpEvent', () => {
     }
 
     const result = parseWpEvent(event)
-    expect(result.level).toBe('Bronze')
+    expect(result.level).toBe('fip_other')
   })
 
   it('extracts all fields correctly', () => {
@@ -159,7 +163,7 @@ describe('parseWpEvent', () => {
     expect(result.name).toBe('Cup "Gold" 2025')
   })
 
-  it('defaults level to Gold when no recognized category', () => {
+  it('defaults level to fip_gold when no recognized category', () => {
     const event = {
       id: 7,
       title: { rendered: 'Unknown Tournament' },
@@ -172,7 +176,7 @@ describe('parseWpEvent', () => {
     }
 
     const result = parseWpEvent(event)
-    expect(result.level).toBe('Gold')
+    expect(result.level).toBe('fip_gold')
   })
 
   it('handles missing optional fields gracefully', () => {
@@ -188,7 +192,7 @@ describe('parseWpEvent', () => {
     const result = parseWpEvent(event)
     expect(result.countryTermIds).toEqual([])
     expect(result.genderTermIds).toEqual([])
-    expect(result.level).toBe('Silver')
+    expect(result.level).toBe('fip_other')
   })
 
   it('uses FIP_CATEGORY_IDS constants for level mapping', () => {
