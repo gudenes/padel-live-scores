@@ -109,3 +109,180 @@ export function parseMatchscorerIds(html: string): MatchscorerIds | null {
     widget,
   };
 }
+
+export interface DrawSize {
+  mainDraw: number | null;
+  qualifyingDraw: number | null;
+  prizeMoney: number | null; // euros
+}
+
+export interface OverviewFields {
+  registrationStatus: string | null; // 'open' | 'closed' | 'upcoming' | …
+  signupFeeEur: number | null;
+  venue: string | null;
+  venueAddress: string | null;
+  venueType: string | null; // 'covered' | 'outdoor'
+  scheduleNotes: string | null;
+}
+
+export interface PrizeBreakdown {
+  r32?: number;
+  r16?: number;
+  qf?: number;
+  sf?: number;
+  finalist?: number;
+  winner?: number;
+  currency: 'EUR';
+  per: 'player';
+  source: 'scraped' | 'inferred';
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripTags(html: string): string {
+  return html.replace(/<[^>]*>/g, '').trim();
+}
+
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&apos;/g, "'");
+}
+
+export function parseDrawSizes(html: string): DrawSize {
+  const mdMatch = /[Mm]ain\s*[Dd]raw[:\s]*(\d+)/i.exec(html);
+  const mainDraw = mdMatch ? parseInt(mdMatch[1]!, 10) : null;
+
+  const qdMatch = /[Qq]ualif(?:ication|ying)\s*[Dd]raw[:\s]*(\d+)/i.exec(html);
+  const qualifyingDraw = qdMatch ? parseInt(qdMatch[1]!, 10) : null;
+
+  // Labelled "Prize Money" only — both suffix and prefix € formats.
+  // No unlabelled fallback (FIP Beyond pages have a Sign Up Fee that
+  // would otherwise leak through).
+  let prizeMoney: number | null = null;
+  const labeledSuffix = /Prize\s*Money[^\d]*(\d[\d.,]*)\s*€/i;
+  const labeledPrefix = /Prize\s*Money[^€]*€\s*(\d[\d.,]*)/i;
+  const prizeMatch = labeledSuffix.exec(html) ?? labeledPrefix.exec(html);
+  if (prizeMatch) {
+    const cleaned = prizeMatch[1]!.replace(/[.,]/g, '');
+    const val = parseInt(cleaned, 10);
+    if (val > 0 && val < 10_000_000) prizeMoney = val;
+  }
+
+  return { mainDraw, qualifyingDraw, prizeMoney };
+}
+
+function findOverviewValue(html: string, label: string): string | null {
+  const labelEsc = escapeRegex(label);
+  const re = new RegExp(
+    `overview__title[^>]*>\\s*${labelEsc}\\s*:?\\s*<\\/span>[\\s\\S]{0,800}?overview__text[^>]*>([\\s\\S]*?)<\\/(?:p|div)>`,
+    'i',
+  );
+  const m = re.exec(html);
+  if (!m) return null;
+  const text = decodeHtmlEntities(stripTags(m[1]!)).replace(/\s+/g, ' ').trim();
+  return text || null;
+}
+
+export function parseOverviewFields(html: string): OverviewFields {
+  const regRe = /overview__title[^>]*>\s*Registration\s+([A-Za-z]+)\s*<\/span>/i;
+  const regMatch = regRe.exec(html);
+  const registrationStatus = regMatch ? regMatch[1]!.toLowerCase() : null;
+
+  const feeText = findOverviewValue(html, 'Sign Up Fee');
+  let signupFeeEur: number | null = null;
+  if (feeText) {
+    const m = /(\d[\d.,]*)/.exec(feeText);
+    if (m) {
+      const cleaned = m[1]!.replace(/[.,]/g, '');
+      const val = parseInt(cleaned, 10);
+      if (val >= 0 && val < 10_000) signupFeeEur = val;
+    }
+  }
+
+  const courtRaw = findOverviewValue(html, 'Court conditions');
+  const venueType = courtRaw ? courtRaw.toLowerCase() : null;
+  const venue = findOverviewValue(html, 'Venue');
+  const venueAddress = findOverviewValue(html, 'Address');
+
+  const playOrderRe =
+    /overview__title[^>]*>\s*Play\s*Order\s*:?\s*<\/span>[\s\S]{0,400}?overview__listText[^>]*>([\s\S]*?)<\/div>/i;
+  const playMatch = playOrderRe.exec(html);
+  let scheduleNotes: string | null = null;
+  if (playMatch) {
+    const withBreaks = playMatch[1]!.replace(/<br\s*\/?>/gi, '\n');
+    scheduleNotes =
+      decodeHtmlEntities(stripTags(withBreaks))
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .join('\n') || null;
+  }
+
+  return {
+    registrationStatus,
+    signupFeeEur,
+    venue,
+    venueAddress,
+    venueType,
+    scheduleNotes,
+  };
+}
+
+type RoundKey = 'r32' | 'r16' | 'qf' | 'sf' | 'finalist' | 'winner';
+
+function roundLabelToKey(label: string): RoundKey | null {
+  if (label === 'R32' || label === 'ROUND 32') return 'r32';
+  if (label === 'R16' || label === 'ROUND 16') return 'r16';
+  if (
+    label === 'QF' ||
+    label === '1/4 FINAL' ||
+    label === '1/4FINAL' ||
+    label === 'QUARTERFINAL' ||
+    label === 'QUARTER FINAL'
+  )
+    return 'qf';
+  if (
+    label === 'SF' ||
+    label === '1/2 FINAL' ||
+    label === '1/2FINAL' ||
+    label === 'SEMIFINAL' ||
+    label === 'SEMI FINAL'
+  )
+    return 'sf';
+  if (label === 'FINALIST' || label === 'RUNNER UP' || label === 'RUNNER-UP')
+    return 'finalist';
+  if (label === 'WINNER' || label === 'CHAMPION') return 'winner';
+  return null;
+}
+
+export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
+  const rowRe =
+    /<th[^>]*scope="row"[^>]*>\s*([^<]+?)\s*<\/th>\s*<td[^>]*>\s*€?\s*([0-9][\d.,]*)\s*€?\s*<\/td>/gi;
+
+  const rounds: Partial<Record<RoundKey, number>> = {};
+  let hits = 0;
+
+  let m: RegExpExecArray | null;
+  while ((m = rowRe.exec(html)) !== null) {
+    const label = m[1]!.toUpperCase().replace(/\s+/g, ' ').trim();
+    const key = roundLabelToKey(label);
+    if (!key) continue;
+    const raw = m[2]!.replace(/,/g, '');
+    const amount = Number.parseFloat(raw);
+    if (!Number.isFinite(amount) || amount < 0) continue;
+    rounds[key] = Math.round(amount * 100) / 100;
+    hits++;
+  }
+
+  if (hits === 0) return null;
+  return { ...rounds, currency: 'EUR', per: 'player', source: 'scraped' };
+}
