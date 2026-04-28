@@ -454,6 +454,23 @@ describe('parseDrawSizes (prize money — 2026-04-25 fix)', () => {
     expect(result.prizeMoney).toBe(10000)
   })
 
+  it('handles Premier-tier prefix format like "€264.534"', () => {
+    // padelfip.com Premier pages put the € sign BEFORE the number.
+    // NewGiza P2 2026 is the canonical example.
+    const html = `
+      <span class="overview__title">Prize Money</span>
+      <p class="overview__text">€264.534</p>
+    `
+    const result = parseDrawSizes(html)
+    expect(result.prizeMoney).toBe(264534)
+  })
+
+  it('handles Premier prefix with comma thousands like "€10,000"', () => {
+    const html = `<p>Prize Money: €10,000</p>`
+    const result = parseDrawSizes(html)
+    expect(result.prizeMoney).toBe(10000)
+  })
+
   it('falls back to first €-suffixed value when no labeled match (legacy pages)', () => {
     const html = `<p>Total prize: 25,000€</p>`
     const result = parseDrawSizes(html)
