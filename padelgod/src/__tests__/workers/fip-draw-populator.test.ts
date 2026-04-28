@@ -31,6 +31,21 @@ interface DrawSeed {
   captured_at: string;
 }
 
+// OOP snapshot row, narrow to what the populator's amateur fallback
+// reads. Mirrors the shape selected from `padelgod.oop_snapshots` —
+// no FIP IDs, no seeds, no status (those live on draw_snapshots only).
+interface OopSnapshotSeed {
+  tournament_id: string;
+  match_widget_id: string | null;
+  category: 'men' | 'women' | null;
+  round_label: string | null;
+  team1_player1_name: string | null;
+  team1_player2_name: string | null;
+  team2_player1_name: string | null;
+  team2_player2_name: string | null;
+  captured_at: string;
+}
+
 interface EntryListSeed {
   name: string;
   fip_id: string;
@@ -67,6 +82,11 @@ interface Options {
   }>;
   widgetCodeByTournament?: Record<string, string | null>;
   draws?: DrawSeed[];
+  /** OOP snapshot fixtures. Populator reads these only when
+   *  draw_snapshots is empty AND the tournament is amateur-tier
+   *  (Beyond/Promises/Other). Test fixture for B3 Singapore-style
+   *  tournaments where the FIP page never wires an AJAX draw widget. */
+  oopSnapshots?: OopSnapshotSeed[];
   entryList?: EntryListSeed[];
   players?: PlayerSeed[];
   existingMatches?: ExistingMatchSeed[];
@@ -81,6 +101,7 @@ function fakeSupabase(opts: Options) {
   const tournaments = opts.tournaments ?? [];
   const widgetCode = opts.widgetCodeByTournament ?? {};
   const draws = opts.draws ?? [];
+  const oopSnapshots = opts.oopSnapshots ?? [];
   const entryList = opts.entryList ?? [];
   const players = opts.players ?? [];
   // Default name columns to null so the populator's nullness checks
@@ -187,6 +208,19 @@ function fakeSupabase(opts: Options) {
     }),
   });
 
+  // Mirrors the populator's single `.eq('tournament_id', …)` filter
+  // (no `.eq('source', …)` chain — oop_snapshots has only one source).
+  const oopSnapshotsTable = () => ({
+    select: (_cols: string) => ({
+      eq: (col: string, val: string) => {
+        if (col !== 'tournament_id')
+          throw new Error(`unexpected oop_snapshots filter: ${col}`);
+        const data = oopSnapshots.filter((r) => r.tournament_id === val);
+        return Promise.resolve({ data, error: null });
+      },
+    }),
+  });
+
   const entryListSnapshotsTable = () => ({
     select: (_cols: string) => ({
       eq: (col: string, val: string) => {
@@ -223,6 +257,7 @@ function fakeSupabase(opts: Options) {
     schema: (_name: string) => ({
       from: (t: string) => {
         if (t === 'draw_snapshots') return drawSnapshotsTable();
+        if (t === 'oop_snapshots') return oopSnapshotsTable();
         if (t === 'entry_list_snapshots') return entryListSnapshotsTable();
         if (t === 'widget_id_cache') return widgetIdCacheTable();
         throw new Error(`unexpected padelgod table: ${t}`);
@@ -1079,5 +1114,203 @@ describe('runFipDrawPopulator', () => {
 
     expect(result.tournamentsSkippedExcludedLevel).toBe(0);
     expect(result.inserted).toBe(1);
+  });
+
+  // ── OOP-snapshot fallback (amateur tier, no AJAX draw) ────────────────
+  //
+  // Trigger case: FIP Beyond B3 Singapore 2026. The FIP page exposes
+  // the bracket only as a PDF — no AJAX draw widget — so
+  // padelgod.draw_snapshots stays empty for the tournament. Without a
+  // fallback the populator processes nothing and the tournament shows
+  // 0 matches in /tournaments. With the fallback, OOP snapshots
+  // (which carry round + court + 4 player names + match_widget_id)
+  // become the draw source, and thin matches get written.
+
+  const oopRow = {
+    tournament_id: TOURNAMENT_ID,
+    match_widget_id: 'MD050',
+    category: 'men' as const,
+    round_label: 'R32',
+    team1_player1_name: 'Local A',
+    team1_player2_name: 'Local B',
+    team2_player1_name: 'Local C',
+    team2_player2_name: 'Local D',
+    captured_at: '2026-04-28T08:00:00Z',
+  };
+
+  it('amateur tier: falls back to oop_snapshots when draw_snapshots is empty', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 SG', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [], // no draw snapshots
+      oopSnapshots: [oopRow],
+      entryList: [], // empty — players aren't in FIP DB
+      players: [],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.tournamentsProcessed).toBe(1);
+    expect(result.inserted).toBe(1);
+    expect(result.skippedBye).toBe(0); // OOP rows shouldn't trigger bye check
+    expect(result.skippedPlayerUnresolved).toBe(0);
+
+    expect(supabase.inserted).toHaveLength(1);
+    const row = supabase.inserted[0];
+    expect(row.widget_id_composite).toBe('FIP-2026-1706:MD050');
+    expect(row.category).toBe('men');
+    expect(row.round).toBe('R32');
+    // Thin match: no FKs, names preserved
+    expect(row.pair1_player1_id).toBeUndefined();
+    expect(row.pair1_player1_name).toBe('Local A');
+    expect(row.pair2_player2_name).toBe('Local D');
+  });
+
+  it('non-amateur tier: does NOT fall back to oop_snapshots', async () => {
+    // A Bronze tournament with no draw_snapshots is just genuinely not
+    // ready yet — entry list might still arrive. We don't want OOP to
+    // become a phantom data source for tiers where strict-resolve
+    // matters.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Bronze Event', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_bronze' },
+      draws: [],
+      oopSnapshots: [oopRow],
+      entryList: [],
+      players: [],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // No draw rows + no fallback → tournament not "processed"
+    expect(result.tournamentsProcessed).toBe(0);
+    expect(result.inserted).toBe(0);
+    expect(supabase.inserted).toHaveLength(0);
+  });
+
+  it('amateur tier: prefers draw_snapshots when both exist (OOP only fires on empty)', async () => {
+    // Defensive: if a tournament somehow has BOTH draw + oop snapshots,
+    // draw_snapshots is the richer source (seeds, FIP IDs, status) so
+    // it wins. OOP fallback is only for the genuine "no draw widget"
+    // case — kicking in when draws exist would create duplicates.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Mixed', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [realMatchDraw], // draw exists → resolved via entry list
+      oopSnapshots: [{ ...oopRow, match_widget_id: 'MD999' }],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // Only the draw row was processed; OOP-derived MD999 ignored.
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted[0].widget_id_composite).toBe(
+      'FIP-2026-1706:MD017',
+    );
+  });
+
+  it('OOP fallback: dedupes to latest captured_at per match_widget_id', async () => {
+    // OOP gets fetched daily during a tournament, so a single match
+    // accumulates multiple snapshot rows. We want the freshest one,
+    // not stale stuff from earlier in the week.
+    const stale = {
+      ...oopRow,
+      match_widget_id: 'MD060',
+      captured_at: '2026-04-25T08:00:00Z',
+      team1_player1_name: 'Stale Name',
+    };
+    const fresh = {
+      ...oopRow,
+      match_widget_id: 'MD060',
+      captured_at: '2026-04-28T08:00:00Z',
+      team1_player1_name: 'Fresh Name',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 SG', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [],
+      oopSnapshots: [stale, fresh],
+      entryList: [],
+      players: [],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted[0].pair1_player1_name).toBe('Fresh Name');
+  });
+
+  it('OOP fallback: skips rows missing match_widget_id, category, or round_label', async () => {
+    // Defensive: OOP rows can occasionally lack one of these (parser
+    // quirks, mid-edit page captures). We can't construct a composite
+    // without match_widget_id, can't INSERT without category/round, so
+    // skip rather than write garbage rows.
+    const noWidget = {
+      ...oopRow,
+      match_widget_id: null,
+      team1_player1_name: 'no widget',
+    };
+    const noCategory = {
+      ...oopRow,
+      match_widget_id: 'MD061',
+      category: null,
+      team1_player1_name: 'no category',
+    };
+    const noRound = {
+      ...oopRow,
+      match_widget_id: 'MD062',
+      round_label: null,
+      team1_player1_name: 'no round',
+    };
+    const valid = {
+      ...oopRow,
+      match_widget_id: 'MD063',
+      team1_player1_name: 'OK',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 SG', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [],
+      oopSnapshots: [noWidget, noCategory, noRound, valid],
+      entryList: [],
+      players: [],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted[0].pair1_player1_name).toBe('OK');
   });
 });
