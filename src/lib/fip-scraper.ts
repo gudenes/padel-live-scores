@@ -95,6 +95,43 @@ export interface DrawSize {
   prizeMoney: number | null     // e.g. 10000 (in euros)
 }
 
+/**
+ * Per-round prize payout from the overview "Prize Distribution" table.
+ *
+ * Amounts are euros per player (the page footer literally says
+ * "*The shown price is the Price Per Player (PPP)"). A pair's payout =
+ * 2 × the value here.
+ *
+ * Only rounds the page lists are populated; missing rounds stay absent
+ * (NOT zero — that distinguishes "round didn't run" from "0€ prize",
+ * which matters for early-round eliminations where €0 is real).
+ */
+export interface PrizeBreakdown {
+  r32?: number
+  r16?: number
+  qf?: number
+  sf?: number
+  finalist?: number
+  winner?: number
+  currency: 'EUR'
+  per: 'player'
+  source: 'scraped' | 'inferred'
+}
+
+/**
+ * Loose fields scraped from the FIP overview block (the labelled
+ * "overview__title" / "overview__text" pairs at the top of every event
+ * page). Everything is optional — the page omits fields freely.
+ */
+export interface OverviewFields {
+  registrationStatus: string | null   // 'open' | 'closed' | 'upcoming' | …
+  signupFeeEur: number | null
+  venue: string | null
+  venueAddress: string | null
+  venueType: string | null            // 'covered' | 'outdoor' (lowercased)
+  scheduleNotes: string | null        // multiline play-order text
+}
+
 export interface ParsedMatch {
   round: string
   court: string | null
@@ -343,6 +380,174 @@ export function parseDrawSizes(html: string): DrawSize {
   }
 
   return { mainDraw, qualifyingDraw, prizeMoney }
+}
+
+// ---------------------------------------------------------------------------
+// parseOverviewFields — extract the labelled overview__title/text pairs
+// ---------------------------------------------------------------------------
+
+/**
+ * Find the value of a labelled `<span class="overview__title">{LABEL}</span>`
+ * block. Returns the inner text of the next `overview__text` element
+ * (whether it's a `<p>` or a `<div>`), trimmed and entity-decoded.
+ *
+ * Returns `null` if the label isn't on the page.
+ */
+function findOverviewValue(html: string, label: string): string | null {
+  const labelEsc = escapeRegex(label)
+  // Allow optional ":" / whitespace after the label.
+  // Allow any tags between title and the overview__text element.
+  const re = new RegExp(
+    `overview__title[^>]*>\\s*${labelEsc}\\s*:?\\s*<\\/span>[\\s\\S]{0,800}?overview__text[^>]*>([\\s\\S]*?)<\\/(?:p|div)>`,
+    'i',
+  )
+  const m = re.exec(html)
+  if (!m) return null
+  const text = decodeHtmlEntities(stripTags(m[1])).replace(/\s+/g, ' ').trim()
+  return text || null
+}
+
+/**
+ * Parse the overview block on a FIP event page.
+ *
+ * Labels we recognise (consistent across all FIP Bronze/Silver/Gold pages
+ * inspected April 2026):
+ *   - "Registration Closed" / "Registration Open" — the status word lives
+ *     on the title itself, the value is empty. Captured separately.
+ *   - "Sign Up Fee:" → "40 € per player"
+ *   - "Court conditions" → "Covered" / "Outdoor"
+ *   - "Venue" / "Address"
+ *   - "Play Order" → multi-line schedule text (kept as-is, line-broken)
+ */
+export function parseOverviewFields(html: string): OverviewFields {
+  // Registration status — the word IS the label. Match "Registration Open"
+  // or "Registration Closed" (and any other word FIP introduces) on the
+  // title element itself.
+  const regRe = /overview__title[^>]*>\s*Registration\s+([A-Za-z]+)\s*<\/span>/i
+  const regMatch = regRe.exec(html)
+  const registrationStatus = regMatch ? regMatch[1].toLowerCase() : null
+
+  // Sign-up fee — "40 € per player" — pull the leading number.
+  const feeText = findOverviewValue(html, 'Sign Up Fee')
+  let signupFeeEur: number | null = null
+  if (feeText) {
+    const m = /(\d[\d.,]*)/.exec(feeText)
+    if (m) {
+      const cleaned = m[1].replace(/[.,]/g, '')
+      const val = parseInt(cleaned, 10)
+      if (val >= 0 && val < 10_000) signupFeeEur = val
+    }
+  }
+
+  // Court conditions — normalise to lowercase ("covered" / "outdoor").
+  const courtRaw = findOverviewValue(html, 'Court conditions')
+  const venueType = courtRaw ? courtRaw.toLowerCase() : null
+
+  const venue = findOverviewValue(html, 'Venue')
+  const venueAddress = findOverviewValue(html, 'Address')
+
+  // Play Order — keep the line breaks. The HTML uses `<br />` between
+  // days, which stripTags drops. Convert them to "\n" before stripping.
+  const playOrderRe =
+    /overview__title[^>]*>\s*Play\s*Order\s*:?\s*<\/span>[\s\S]{0,400}?overview__listText[^>]*>([\s\S]*?)<\/div>/i
+  const playMatch = playOrderRe.exec(html)
+  let scheduleNotes: string | null = null
+  if (playMatch) {
+    const withBreaks = playMatch[1].replace(/<br\s*\/?>/gi, '\n')
+    scheduleNotes =
+      decodeHtmlEntities(stripTags(withBreaks))
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .join('\n') || null
+  }
+
+  return {
+    registrationStatus,
+    signupFeeEur,
+    venue,
+    venueAddress,
+    venueType,
+    scheduleNotes,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// parsePrizeBreakdown — per-round payout from the prize-distribution table
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse the FIP prize-distribution table:
+ *
+ *   <th scope="row">{ROUND}</th>
+ *   <td>€ {AMOUNT}€</td>
+ *
+ * Round labels we map (case-insensitive):
+ *   R32, R16, 1/4 FINAL (or QF / QUARTERFINAL),
+ *   SEMIFINAL (or 1/2 FINAL / SF), FINALIST, WINNER.
+ *
+ * Amounts can be decimals (€ 111.56€) — kept as floating euros.
+ * Returns null if nothing matched (page omits the breakdown entirely).
+ */
+type RoundKey = 'r32' | 'r16' | 'qf' | 'sf' | 'finalist' | 'winner'
+
+export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
+  // Each row: capture the round label and the euro amount cell.
+  const rowRe =
+    /<th[^>]*scope="row"[^>]*>\s*([^<]+?)\s*<\/th>\s*<td[^>]*>\s*€?\s*([0-9][\d.,]*)\s*€?\s*<\/td>/gi
+
+  const rounds: Partial<Record<RoundKey, number>> = {}
+  let hits = 0
+
+  let m: RegExpExecArray | null
+  while ((m = rowRe.exec(html)) !== null) {
+    const label = m[1].toUpperCase().replace(/\s+/g, ' ').trim()
+    const key = roundLabelToKey(label)
+    if (!key) continue
+
+    const raw = m[2].replace(/,/g, '')
+    const amount = Number.parseFloat(raw)
+    if (!Number.isFinite(amount) || amount < 0) continue
+
+    // Round to 2 decimals to suppress JS float drift.
+    rounds[key] = Math.round(amount * 100) / 100
+    hits++
+  }
+
+  if (hits === 0) return null
+
+  return {
+    ...rounds,
+    currency: 'EUR',
+    per: 'player',
+    source: 'scraped',
+  }
+}
+
+function roundLabelToKey(label: string): RoundKey | null {
+  // label is already upper-case, single-spaced.
+  if (label === 'R32' || label === 'ROUND 32') return 'r32'
+  if (label === 'R16' || label === 'ROUND 16') return 'r16'
+  if (
+    label === 'QF' ||
+    label === '1/4 FINAL' ||
+    label === '1/4FINAL' ||
+    label === 'QUARTERFINAL' ||
+    label === 'QUARTER FINAL'
+  )
+    return 'qf'
+  if (
+    label === 'SF' ||
+    label === '1/2 FINAL' ||
+    label === '1/2FINAL' ||
+    label === 'SEMIFINAL' ||
+    label === 'SEMI FINAL'
+  )
+    return 'sf'
+  if (label === 'FINALIST' || label === 'RUNNER UP' || label === 'RUNNER-UP')
+    return 'finalist'
+  if (label === 'WINNER' || label === 'CHAMPION') return 'winner'
+  return null
 }
 
 // ---------------------------------------------------------------------------
@@ -660,7 +865,13 @@ export async function fetchFipEvents(level?: string): Promise<FipTournament[]> {
  */
 export async function fetchEventPageData(
   slug: string
-): Promise<{ dates: EventDates; matchscorer: MatchscorerIds | null; drawSize: DrawSize }> {
+): Promise<{
+  dates: EventDates
+  matchscorer: MatchscorerIds | null
+  drawSize: DrawSize
+  overview: OverviewFields
+  prizeBreakdown: PrizeBreakdown | null
+}> {
   const url = `${FIP_WP_BASE}/events/${slug}/`
   const resp = await fetch(url, {
     headers: { 'User-Agent': 'PadelNachos/1.0' },
@@ -673,6 +884,8 @@ export async function fetchEventPageData(
     dates: parseEventDates(html),
     matchscorer: parseMatchscorerIds(html),
     drawSize: parseDrawSizes(html),
+    overview: parseOverviewFields(html),
+    prizeBreakdown: parsePrizeBreakdown(html),
   }
 }
 
