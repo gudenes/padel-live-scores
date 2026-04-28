@@ -10,6 +10,7 @@ import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, parseSetFromGames, isWarmingUp, toShortName } from '@/types/match'
+import { hydrateThinPlayers } from '@/lib/thin-match-player'
 import Spinner from '../../../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
@@ -199,7 +200,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         return
       }
 
-      const sorted = (data as any[]).map(m => ({
+      const sorted = (data as any[]).map(m => hydrateThinPlayers({
         ...m,
         sets: (m.sets ?? []).sort((a: any, b: any) => a.set_number - b.set_number),
       }))

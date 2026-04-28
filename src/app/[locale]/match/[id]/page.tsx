@@ -7,6 +7,7 @@ import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, getCurrentScore, pairName, isStarPoint, parseSetScore, parseSetFromGames, toShortName } from '@/types/match'
+import { hydrateThinPlayers } from '@/lib/thin-match-player'
 import MomentumChart from './MomentumChart'
 import BottomNav from '@/components/nav/BottomNavV3'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
@@ -119,7 +120,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
       if (error || !data) return
 
-      const sorted = {
+      const sorted = hydrateThinPlayers({
         ...data,
         sets: (data.sets ?? [])
           .sort((a: any, b: any) => a.set_number - b.set_number)
@@ -127,7 +128,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             ...set,
             games: (set.games ?? []).sort((a: any, b: any) => a.game_number - b.game_number),
           })),
-      }
+      })
       setMatch(sorted as Match)
     } catch (e) {
       console.error('[Match] fetchMatch exception:', e)

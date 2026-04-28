@@ -14,6 +14,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { localDayRangeUtc, isIsoDate } from './locale-time'
+import { hydrateThinPlayers } from './thin-match-player'
 
 const ONE_DAY_MS = 86_400_000
 
@@ -57,6 +58,14 @@ export interface MatchesDayMatch {
   pair1_player2: MatchesDayPlayer | null
   pair2_player1: MatchesDayPlayer | null
   pair2_player2: MatchesDayPlayer | null
+  // Raw name strings written by the populator for amateur-tier
+  // tournaments where FIP-ID resolution failed. The hydrator turns
+  // these into synthetic player objects with id='' before the payload
+  // reaches the UI; consumers should never need to read them directly.
+  pair1_player1_name?: string | null
+  pair1_player2_name?: string | null
+  pair2_player1_name?: string | null
+  pair2_player2_name?: string | null
   sets: MatchesDaySet[] | null
 }
 
@@ -88,6 +97,7 @@ const PLAYER_JOIN_FIELDS = `
 const MATCH_SELECT = `
   id, status, category, scheduled_at, finished_at, round, court,
   schedule_label, winner_pair,
+  pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
   tournament:tournaments(id, name, level, country, starts_at, ends_at, status),
   ${PLAYER_JOIN_FIELDS},
   sets(id, set_number, set_score, pair1_games, pair2_games, is_current)
@@ -162,9 +172,12 @@ export async function fetchMatchesDay(
     return { iso, groups: [], totalMatches: 0 }
   }
 
-  const matches = ((rawMatches ?? []) as unknown as MatchesDayMatch[]).filter(
-    (m) => !!m.tournament,
-  )
+  const matches = ((rawMatches ?? []) as unknown as MatchesDayMatch[])
+    .filter((m) => !!m.tournament)
+    // Synthesize thin Player objects in any pair slot whose FK is null
+    // but `pair*_player*_name` is populated. Amateur-tier tournaments
+    // (FIP Beyond / Promises / Other) rely on this to render at all.
+    .map((m) => hydrateThinPlayers(m))
 
   const inWindow = (s: string | null): boolean => {
     if (!s) return false
