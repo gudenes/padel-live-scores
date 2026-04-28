@@ -584,37 +584,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   }}>
                     {titleCase(activeTournamentObj.name)}
                   </div>
-                  {/* FIP page link — present whenever we know the FIP slug */}
-                  {(() => {
-                    const fipSlug = activeTournamentObj.slug
-                      ?? (activeTournamentObj.fip_id?.startsWith('fip-')
-                            ? activeTournamentObj.fip_id.slice(4)
-                            : null)
-                    if (!fipSlug) return null
-                    return (
-                      <a
-                        href={`https://www.padelfip.com/events/${fipSlug}/`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={tTournament('viewOnFip')}
-                        aria-label={tTournament('viewOnFip')}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          fontSize: 9, fontWeight: 800, color: GREEN,
-                          background: 'rgba(126,211,33,0.10)',
-                          clipPath: CHUNKY.badge,
-                          padding: '3px 7px', letterSpacing: 0.4,
-                          textDecoration: 'none',
-                          flexShrink: 0,
-                        }}
-                      >
-                        FIP
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M7 17L17 7M9 7h8v8" />
-                        </svg>
-                      </a>
-                    )
-                  })()}
                   <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
                 </div>
 
@@ -1489,9 +1458,11 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       </div>
 
       {/* Tournament Info — venue address, court conditions, registration
-          status, sign-up fee. Only renders sections present on the FIP
-          overview page (not all events publish all fields). */}
-      {(tournament?.venue_address || tournament?.venue_type || tournament?.registration_status || tournament?.signup_fee_eur != null) && (
+          status. Only renders sections present on the FIP overview page
+          (not all events publish all fields). Sign-up fee + per-round
+          prize breakdown are scraped into the DB but kept ops-only —
+          we don't want to send the user to padelfip.com to register. */}
+      {(tournament?.venue_address || tournament?.venue_type || tournament?.registration_status) && (
         <>
           <SectionHeader label={tTournament('tournamentInfo')} />
           <div style={{
@@ -1528,80 +1499,9 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
                 valueAccent={tournament.registration_status === 'open' ? GREEN : undefined}
               />
             )}
-            {tournament.signup_fee_eur != null && (
-              <InfoRow
-                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round"><path d="M18 7H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/></svg>}
-                label={tTournament('signupFee')}
-                value={`€${tournament.signup_fee_eur} / ${tTournament('perPlayer')}`}
-              />
-            )}
           </div>
         </>
       )}
-
-      {/* Prize Breakdown — per-round payouts (FIP publishes these for
-          Bronze/Silver/Gold; Premier shows aggregate only). Each row is
-          €/player; pair total = 2x. */}
-      {tournament?.prize_breakdown && (() => {
-        const bd = tournament.prize_breakdown as Record<string, number | string>
-        const ROUND_LABELS: Array<[keyof typeof bd, string]> = [
-          ['winner', 'Winner'],
-          ['finalist', 'Finalist'],
-          ['sf', 'Semifinal'],
-          ['qf', 'Quarterfinal'],
-          ['r16', 'Round of 16'],
-          ['r32', 'Round of 32'],
-        ]
-        const rows = ROUND_LABELS.filter(([k]) => typeof bd[k] === 'number')
-        if (rows.length === 0) return null
-        const fmt = (n: number) => n === 0 ? '€0' : `€${n.toLocaleString()}`
-        return (
-          <>
-            <SectionHeader
-              label={tTournament('prizeBreakdown')}
-              right={tTournament('perPlayer')}
-            />
-            <div style={{
-              background: BG_CARD,
-              clipPath: CHUNKY.card,
-              border: `1px solid ${BORDER}`,
-              padding: '4px 14px',
-              marginBottom: 16,
-            }}>
-              {rows.map(([k, label], i) => {
-                const val = bd[k] as number
-                const isWinner = k === 'winner'
-                return (
-                  <div key={k as string} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '9px 0',
-                    borderBottom: i < rows.length - 1 ? `0.5px solid ${BORDER}` : 'none',
-                  }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: isWinner ? 800 : 600,
-                      color: isWinner ? GREEN : MUTED,
-                      letterSpacing: 0.3,
-                    }}>{label}</span>
-                    <span style={{
-                      fontSize: 12, fontWeight: 800,
-                      color: isWinner ? '#fff' : '#e5e7eb',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}>{fmt(val)}</span>
-                  </div>
-                )
-              })}
-              {bd.source === 'inferred' && (
-                <div style={{
-                  fontSize: 9, color: MUTED, fontStyle: 'italic',
-                  textAlign: 'center', padding: '6px 0 4px', letterSpacing: 0.3,
-                }}>
-                  {tTournament('inferredPrizeNote')}
-                </div>
-              )}
-            </div>
-          </>
-        )
-      })()}
 
       {/* Champion (current tournament, only once the final has been played) */}
       {currentChampion && (
