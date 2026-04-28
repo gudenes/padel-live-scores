@@ -158,6 +158,16 @@ interface DrawRow {
   team2_seed: number | null;
   status: 'scheduled' | 'live' | 'finished' | 'walkover' | 'retired';
   captured_at: string;
+  /**
+   * Where this row came from. `fip_event_page` is the primary path —
+   * structured AJAX draw bracket, includes seeds + FIP team IDs.
+   * `oop_snapshot` is the amateur-tier fallback used when a tournament
+   * has zero draw snapshots (no AJAX widget exposed): we transform the
+   * OOP table into the same shape, with seeds + FIP IDs nulled out.
+   * The bye check (which keys off FIP team IDs) is skipped for
+   * `oop_snapshot` rows — OOP doesn't list byes anyway.
+   */
+  source: 'fip_event_page' | 'oop_snapshot';
 }
 
 interface EntryListRow {
@@ -322,8 +332,35 @@ export async function runFipDrawPopulator(
       continue;
     }
 
-    // 3. Load latest draw snapshot per (tournament, match_widget_id)
-    const latestDraws = await loadLatestFipDrawRows(supabase, t.tournament_id);
+    // 3. Load latest draw snapshot per (tournament, match_widget_id).
+    // For amateur tiers, fall back to OOP snapshots when draw is empty —
+    // some tournaments (B3 Singapore, etc.) only expose the bracket as a
+    // PDF, never wiring an AJAX draw widget. OOP carries everything we
+    // need (round + court + 4 names + match_widget_id) to build a thin
+    // match. fip-results-writer fills in status/winner/sets later via
+    // the composite key.
+    const tournamentLevelForFallback =
+      levelByTournamentId.get(t.tournament_id) ?? null;
+    const isAmateurTournament =
+      tournamentLevelForFallback != null &&
+      AMATEUR_TIER_LEVELS.has(tournamentLevelForFallback);
+    let latestDraws = await loadLatestFipDrawRows(supabase, t.tournament_id);
+    if (latestDraws.length === 0 && isAmateurTournament) {
+      latestDraws = await loadLatestOopRowsAsDrawRows(
+        supabase,
+        t.tournament_id,
+      );
+      if (latestDraws.length > 0) {
+        logger?.info(
+          {
+            tournamentId: t.tournament_id,
+            level: tournamentLevelForFallback,
+            oopRows: latestDraws.length,
+          },
+          'fip-draw-populator: amateur-tier fallback — using oop_snapshots as draw source',
+        );
+      }
+    }
     if (latestDraws.length === 0) continue;
 
     result.tournamentsProcessed += 1;
@@ -363,14 +400,18 @@ export async function runFipDrawPopulator(
         continue;
       }
 
-      // Skip byes and placeholder rows
-      if (
-        !isRealFipTeamId(d.team1_fip_id) ||
-        !isRealFipTeamId(d.team2_fip_id) ||
-        d.status === 'walkover'
-      ) {
-        result.skippedBye += 1;
-        continue;
+      // Skip byes and placeholder rows. The FIP-team-id check only
+      // applies to draw_snapshots — OOP rows don't carry FIP IDs but
+      // also don't include byes (byes never make it onto the OOP page).
+      if (d.source === 'fip_event_page') {
+        if (
+          !isRealFipTeamId(d.team1_fip_id) ||
+          !isRealFipTeamId(d.team2_fip_id) ||
+          d.status === 'walkover'
+        ) {
+          result.skippedBye += 1;
+          continue;
+        }
       }
 
       // Resolve 4 players. Amateur tiers (Beyond / Promises / Other) are
@@ -603,7 +644,9 @@ async function loadLatestFipDrawRows(
       `draw_snapshots read failed (tournament=${tournamentId}): ${error.message}`
     );
   }
-  const rows = (data ?? []) as unknown as DrawRow[];
+  const rows = ((data ?? []) as unknown as Omit<DrawRow, 'source'>[]).map(
+    (r) => ({ ...r, source: 'fip_event_page' as const }),
+  );
 
   // Dedupe: latest captured_at per (tournament_id, match_widget_id)
   const latest = new Map<string, DrawRow>();
@@ -614,6 +657,95 @@ async function loadLatestFipDrawRows(
     if (!prev || r.captured_at > prev.captured_at) latest.set(key, r);
   }
   return Array.from(latest.values());
+}
+
+/**
+ * Amateur-tier fallback: read OOP snapshots and transform them into the
+ * same DrawRow shape the populator's main loop expects. Used when
+ * draw_snapshots is empty for a tournament because the FIP page didn't
+ * expose a structured AJAX draw widget — the OOP page on
+ * matchscorerlive.com still has the round + court + 4 player names per
+ * match, which is everything we need to build a thin match.
+ *
+ * Concretely: B3 Singapore 2026 (FIP Beyond) had 240 OOP snapshots but
+ * zero draw snapshots. Without this fallback, padelgod's populator
+ * couldn't surface any matches even though the data was already
+ * captured one table over.
+ *
+ * Produces rows with `source: 'oop_snapshot'`. Downstream:
+ * - the bye check (which keys off `team*_fip_id`) is skipped — OOP
+ *   doesn't include byes / placeholder rows
+ * - amateur-tier gate then writes thin matches as usual
+ * - FIP results-writer fills status / winner / sets later via composite
+ */
+async function loadLatestOopRowsAsDrawRows(
+  supabase: SupabaseClient,
+  tournamentId: string,
+): Promise<DrawRow[]> {
+  const { data, error } = await supabase
+    .schema('padelgod')
+    .from('oop_snapshots')
+    .select(
+      'tournament_id, match_widget_id, category, round_label, ' +
+        'team1_player1_name, team1_player2_name, ' +
+        'team2_player1_name, team2_player2_name, captured_at',
+    )
+    .eq('tournament_id', tournamentId);
+  if (error) {
+    throw new Error(
+      `oop_snapshots read failed (tournament=${tournamentId}): ${error.message}`,
+    );
+  }
+
+  interface OopRow {
+    tournament_id: string;
+    match_widget_id: string | null;
+    category: 'men' | 'women' | null;
+    round_label: string | null;
+    team1_player1_name: string | null;
+    team1_player2_name: string | null;
+    team2_player1_name: string | null;
+    team2_player2_name: string | null;
+    captured_at: string;
+  }
+
+  const rows = ((data ?? []) as unknown) as OopRow[];
+
+  // Dedupe: latest captured_at per (tournament_id, match_widget_id).
+  // OOP gets re-fetched daily during a tournament — each fetch appends
+  // a new row per match, so we always pick the freshest snapshot.
+  const latest = new Map<string, OopRow>();
+  for (const r of rows) {
+    if (!r.match_widget_id) continue;
+    if (!r.category) continue; // can't write a match without category
+    if (!r.round_label) continue; // round is required to write a match
+    const key = `${r.tournament_id}::${r.match_widget_id}`;
+    const prev = latest.get(key);
+    if (!prev || r.captured_at > prev.captured_at) latest.set(key, r);
+  }
+
+  // Transform OOP shape → DrawRow shape. FIP-specific fields stay null.
+  return Array.from(latest.values()).map((r) => ({
+    tournament_id: r.tournament_id,
+    match_widget_id: r.match_widget_id,
+    category: r.category as 'men' | 'women',
+    round_label: r.round_label as string,
+    draw_position: null,
+    team1_player1_name: r.team1_player1_name,
+    team1_player2_name: r.team1_player2_name,
+    team2_player1_name: r.team2_player1_name,
+    team2_player2_name: r.team2_player2_name,
+    team1_fip_id: null,
+    team2_fip_id: null,
+    team1_seed: null,
+    team2_seed: null,
+    // OOP rows by definition aren't byes — they exist because the
+    // match was scheduled to be played. Default to 'scheduled' here;
+    // fip-results-writer will UPDATE the real status later.
+    status: 'scheduled' as const,
+    captured_at: r.captured_at,
+    source: 'oop_snapshot' as const,
+  }));
 }
 
 async function loadEntryListNameMap(
