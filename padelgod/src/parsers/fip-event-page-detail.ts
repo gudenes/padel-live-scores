@@ -57,3 +57,55 @@ export function parseEventDates(html: string): EventDates {
 
   return { startsAt: null, endsAt: null };
 }
+
+export interface MatchscorerIds {
+  year: string;
+  id: string;
+  totalDays: number;
+  code: string; // e.g. "FIP-2025-3301", "FIP-2026-B0118"
+  /**
+   * Crionet matchscorerlive widget type — drives which `/screen/<widget>/`
+   * URL is used downstream:
+   *   - 'draw'      — Bronze/Silver/Gold/Premier (numeric eventID)
+   *   - 'oopbyday'  — FIP Beyond / Promises (alphanumeric IDs like B0118)
+   * Defaults to 'draw' when the page doesn't declare `const widget`.
+   */
+  widget: string;
+}
+
+/**
+ * Extract matchscorer IDs from inline JS in event page HTML.
+ *
+ * Two formats observed in the wild:
+ *
+ *   Bronze/Silver/Gold/Premier (numeric ID + draw widget):
+ *     const eventYear = "2025"
+ *     const eventID   = "3301"
+ *     const totalday  = 5
+ *
+ *   FIP Beyond / Promises (alphanumeric ID + oopbyday widget):
+ *     const eventYear = "2026"
+ *     const eventID   = "B0118"
+ *     const widget    = 'oopbyday'
+ */
+export function parseMatchscorerIds(html: string): MatchscorerIds | null {
+  const yearMatch = /const\s+eventYear\s*=\s*["'](\d+)["']/.exec(html);
+  const idMatch = /const\s+eventID\s*=\s*["']([A-Za-z0-9]+)["']/.exec(html);
+  const daysMatch = /const\s+totalday\s*=\s*(\d+)/.exec(html);
+  const widgetMatch = /const\s+widget\s*=\s*["']([a-z]+)["']/.exec(html);
+
+  if (!yearMatch || !idMatch) return null;
+
+  const year = yearMatch[1]!;
+  const id = idMatch[1]!;
+  const totalDays = daysMatch ? parseInt(daysMatch[1]!, 10) : 1;
+  const widget = widgetMatch ? widgetMatch[1]! : 'draw';
+
+  return {
+    year,
+    id,
+    totalDays,
+    code: `FIP-${year}-${id}`,
+    widget,
+  };
+}

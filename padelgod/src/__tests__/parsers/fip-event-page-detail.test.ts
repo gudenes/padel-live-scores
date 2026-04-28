@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseEventDates } from '../../parsers/fip-event-page-detail.js';
+import { parseEventDates, parseMatchscorerIds } from '../../parsers/fip-event-page-detail.js';
 
 describe('parseEventDates', () => {
   it('parses DD/MM/YYYY range from header', () => {
@@ -33,5 +33,46 @@ describe('parseEventDates', () => {
       startsAt: '2025-09-05',
       endsAt: null,
     });
+  });
+});
+
+describe('parseMatchscorerIds', () => {
+  it('parses numeric eventID + builds FIP-{year}-{id} code', () => {
+    const html = `
+      const eventYear = "2025";
+      const eventID = "3301";
+      const totalday = 5;
+    `;
+    const result = parseMatchscorerIds(html);
+    expect(result).toEqual({
+      year: '2025',
+      id: '3301',
+      totalDays: 5,
+      code: 'FIP-2025-3301',
+      widget: 'draw',
+    });
+  });
+
+  it('accepts alphanumeric eventID for FIP Beyond / Promises', () => {
+    const html = `
+      const eventYear = "2026";
+      const eventID   = "B0118";
+      const totalday  = 4;
+      const widget    = 'oopbyday';
+    `;
+    const result = parseMatchscorerIds(html);
+    expect(result?.id).toBe('B0118');
+    expect(result?.code).toBe('FIP-2026-B0118');
+    expect(result?.widget).toBe('oopbyday');
+    expect(result?.totalDays).toBe(4);
+  });
+
+  it('returns null when eventID is missing', () => {
+    expect(parseMatchscorerIds('<p>no js block</p>')).toBeNull();
+  });
+
+  it('defaults widget to "draw" when not declared', () => {
+    const html = 'const eventYear="2025";const eventID="42";const totalday=1;';
+    expect(parseMatchscorerIds(html)?.widget).toBe('draw');
   });
 });
