@@ -220,7 +220,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, prize_money, prize_money_fip, draw_size_md, draw_size_qd, entry_list_status, source')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -858,6 +858,41 @@ function SectionHeader({ label, color, dot, right, rightColor }: {
   )
 }
 
+// Single-line label/value row used by the Tournament Info card.
+function InfoRow({
+  icon, label, value, multiline = false, valueAccent,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  multiline?: boolean
+  valueAccent?: string
+}) {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: multiline ? 'flex-start' : 'center',
+      gap: 10,
+      padding: '9px 0',
+      borderBottom: `0.5px solid ${BORDER}`,
+    }}>
+      <span style={{ flexShrink: 0, color: MUTED, paddingTop: multiline ? 2 : 0 }}>{icon}</span>
+      <span style={{ fontSize: 10, fontWeight: 700, color: MUTED, letterSpacing: 0.3, textTransform: 'uppercase', minWidth: 70, flexShrink: 0 }}>{label}</span>
+      <span style={{
+        fontSize: 12, fontWeight: 600,
+        color: valueAccent ?? '#fff',
+        flex: 1, minWidth: 0,
+        wordBreak: multiline ? 'break-word' : 'normal',
+        whiteSpace: multiline ? 'normal' : 'nowrap',
+        overflow: multiline ? 'visible' : 'hidden',
+        textOverflow: multiline ? 'clip' : 'ellipsis',
+      }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
 // ══════════════════════════════════════════════════════════════
 // ── V3 Scheduled Card ───────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
@@ -1421,6 +1456,52 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         <StatCard value={totalCountries || '\u2014'} label={tTournament('countries')} />
         <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label={tTournament('prizeMoney')} />
       </div>
+
+      {/* Tournament Info — venue address, court conditions, registration
+          status. Only renders sections present on the FIP overview page
+          (not all events publish all fields). Sign-up fee + per-round
+          prize breakdown are scraped into the DB but kept ops-only —
+          we don't want to send the user to padelfip.com to register. */}
+      {(tournament?.venue_address || tournament?.venue_type || tournament?.registration_status) && (
+        <>
+          <SectionHeader label={tTournament('tournamentInfo')} />
+          <div style={{
+            background: BG_CARD,
+            clipPath: CHUNKY.card,
+            border: `1px solid ${BORDER}`,
+            padding: '4px 14px',
+            marginBottom: 16,
+          }}>
+            {tournament.venue_address && (
+              <InfoRow
+                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round"><path d="M12 2C7.58 2 4 5.58 4 10c0 6.63 8 16 8 16s8-9.37 8-16c0-4.42-3.58-8-8-8z"/><circle cx="12" cy="10" r="2.5" fill={MUTED} stroke="none"/></svg>}
+                label="Address"
+                value={tournament.venue_address}
+                multiline
+              />
+            )}
+            {tournament.venue_type && (
+              <InfoRow
+                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round"><rect x="3" y="6" width="18" height="12" rx="1"/><line x1="12" y1="6" x2="12" y2="18"/></svg>}
+                label="Court"
+                value={tournament.venue_type[0].toUpperCase() + tournament.venue_type.slice(1)}
+              />
+            )}
+            {tournament.registration_status && (
+              <InfoRow
+                icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}
+                label={tTournament('registrationLabel')}
+                value={tournament.registration_status === 'closed'
+                  ? tTournament('registrationClosed')
+                  : tournament.registration_status === 'open'
+                  ? tTournament('registrationOpen')
+                  : tournament.registration_status[0].toUpperCase() + tournament.registration_status.slice(1)}
+                valueAccent={tournament.registration_status === 'open' ? GREEN : undefined}
+              />
+            )}
+          </div>
+        </>
+      )}
 
       {/* Champion (current tournament, only once the final has been played) */}
       {currentChampion && (
