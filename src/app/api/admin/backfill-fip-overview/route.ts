@@ -293,6 +293,19 @@ export async function GET(req: NextRequest) {
           // updated_at is bookkeeping, always allow it through.
           filtered.updated_at = update.updated_at
 
+          // Gap-fill: for fields where padelapi is the primary owner
+          // but the existing row is null, let FIP write — there's
+          // nothing to clobber and 57 historical rows had null
+          // starts_at because the FIP scraper inserted them before
+          // the date parser could read them and updates got blocked
+          // by the priority filter from then on.
+          const GAP_FIELDS = ['starts_at', 'ends_at'] as const
+          for (const f of GAP_FIELDS) {
+            if (update[f] !== undefined && t[f] == null) {
+              filtered[f] = update[f]
+            }
+          }
+
           const { error } = await supabase
             .from('tournaments')
             .update(filtered)
