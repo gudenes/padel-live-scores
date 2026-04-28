@@ -158,6 +158,32 @@ export async function GET(req: NextRequest) {
       hasRegistrationStatus: t.registration_status != null,
       hasPrizeBreakdown: t.prize_breakdown != null,
     }))
+
+    // Year + level breakdowns over the full FIP set, plus the
+    // subset that still needs backfill. Useful for sizing a run.
+    const yearBuckets: Record<string, { total: number; needsBackfill: number }> = {}
+    const levelBuckets: Record<string, { total: number; needsBackfill: number }> = {}
+    for (const t of tournaments) {
+      const year = t.starts_at ? t.starts_at.slice(0, 4) : 'unknown'
+      const level = t.level ?? 'unknown'
+      const yb = (yearBuckets[year] ??= { total: 0, needsBackfill: 0 })
+      const lb = (levelBuckets[level] ??= { total: 0, needsBackfill: 0 })
+      yb.total++
+      lb.total++
+      if (needsBackfill(t)) {
+        yb.needsBackfill++
+        lb.needsBackfill++
+      }
+    }
+
+    // Sort year keys descending; level keys alphabetically.
+    const byYear = Object.fromEntries(
+      Object.entries(yearBuckets).sort(([a], [b]) => (a < b ? 1 : -1)),
+    )
+    const byLevel = Object.fromEntries(
+      Object.entries(levelBuckets).sort(([a], [b]) => a.localeCompare(b)),
+    )
+
     return NextResponse.json({
       mode: 'dry-run',
       totals: {
@@ -166,6 +192,8 @@ export async function GET(req: NextRequest) {
         needsBackfill: stillMissing,
         targetsThisRun: targets.length,
       },
+      byYear,
+      byLevel,
       throttleMs: THROTTLE_MS,
       etaSeconds: Math.round((targets.length * THROTTLE_MS) / 1000),
       sample,
