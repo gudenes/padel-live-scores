@@ -35,6 +35,12 @@ export interface TournamentRow {
   starts_at: string | null;
   ends_at: string | null;
   venue: string | null;
+  venue_address: string | null;
+  venue_type: string | null;
+  signup_fee_eur: number | null;
+  schedule_notes: string | null;
+  draw_size_md: number | null;
+  draw_size_qd: number | null;
   registration_status: string | null;
   prize_money_fip: number | null;
   prize_breakdown: unknown;
@@ -67,7 +73,14 @@ export function needsEnrichment(row: TournamentRow): boolean {
   if (row.venue == null) return true;
   if (row.registration_status == null) return true;
   if (row.prize_money_fip == null) return true;
-  return false;
+  // Even when fully populated, refresh current/upcoming events so we
+  // pick up the registration_status flip from open → closed during
+  // the tournament life cycle. The actual write is gated below — fields
+  // already populated stay untouched (gap-fill semantics).
+  const endsAtMs = row.ends_at ? Date.parse(row.ends_at) : null;
+  const isCurrentOrFuture =
+    endsAtMs == null || endsAtMs > Date.now() - 24 * 60 * 60 * 1000;
+  return isCurrentOrFuture;
 }
 
 export async function runFipEventPageEnricher(
@@ -80,7 +93,9 @@ export async function runFipEventPageEnricher(
   const { data: rows, error } = await deps.supabase
     .from('tournaments')
     .select(
-      'id, slug, fip_id, matchscorer_url, starts_at, ends_at, venue, ' +
+      'id, slug, fip_id, matchscorer_url, starts_at, ends_at, ' +
+        'venue, venue_address, venue_type, signup_fee_eur, schedule_notes, ' +
+        'draw_size_md, draw_size_qd, ' +
         'registration_status, prize_money_fip, prize_breakdown, level',
     )
     .or(`source.eq.fip,fip_id.not.is.null`)
@@ -128,6 +143,24 @@ export async function runFipEventPageEnricher(
       }
       if (t.prize_money_fip == null && drawSize.prizeMoney) {
         patch.prize_money_fip = drawSize.prizeMoney;
+      }
+      if (t.venue_address == null && overview.venueAddress) {
+        patch.venue_address = overview.venueAddress;
+      }
+      if (t.venue_type == null && overview.venueType) {
+        patch.venue_type = overview.venueType;
+      }
+      if (t.signup_fee_eur == null && overview.signupFeeEur != null) {
+        patch.signup_fee_eur = overview.signupFeeEur;
+      }
+      if (t.schedule_notes == null && overview.scheduleNotes) {
+        patch.schedule_notes = overview.scheduleNotes;
+      }
+      if (t.draw_size_md == null && drawSize.mainDraw != null) {
+        patch.draw_size_md = drawSize.mainDraw;
+      }
+      if (t.draw_size_qd == null && drawSize.qualifyingDraw != null) {
+        patch.draw_size_qd = drawSize.qualifyingDraw;
       }
       if (t.prize_breakdown == null && prizeBreakdown) {
         patch.prize_breakdown = prizeBreakdown;
