@@ -133,7 +133,20 @@ export interface MatchscorerIds {
   year: string
   id: string
   totalDays: number
-  code: string // e.g. "FIP-2025-3301"
+  code: string // e.g. "FIP-2025-3301", "FIP-2026-B0118"
+  /**
+   * Crionet matchscorerlive widget type. Determines which `/screen/<widget>/`
+   * endpoint serves the tournament's match data:
+   *
+   *   - 'draw'      — Bronze/Silver/Gold/Premier (numeric event IDs).
+   *                   Has bracket structure, used by fetchDrawMatches.
+   *   - 'oopbyday'  — FIP Beyond / Promises (alphanumeric event IDs like
+   *                   B0118). Uses the daily order-of-play widget instead.
+   *
+   * Falls back to 'draw' when the page doesn't expose a `const widget`
+   * declaration (legacy event pages).
+   */
+  widget: string
 }
 
 export interface DrawSize {
@@ -358,24 +371,43 @@ export function parseEventDates(html: string): EventDates {
 
 /**
  * Extract matchscorer IDs from inline JS in event page HTML.
- * Looks for: const eventYear = "2025"; const eventID = "3301"; const totalday = 5;
+ *
+ * Two formats observed in the wild:
+ *
+ *   Bronze/Silver/Gold/Premier (numeric ID + draw widget):
+ *     const eventYear = "2025"
+ *     const eventID   = "3301"
+ *     const totalday  = 5
+ *     const widget    = 'draw'        // sometimes absent → defaults to 'draw'
+ *
+ *   FIP Beyond / Promises (alphanumeric ID + oopbyday widget):
+ *     const eventYear = "2026"
+ *     const eventID   = "B0118"
+ *     const widget    = 'oopbyday'
+ *
+ * The eventID regex accepts any [A-Za-z0-9]+ token because new tiers may
+ * keep introducing new ID schemes. The widget value is read separately
+ * and used by fetchDrawMatches to pick the right `/screen/<widget>/` URL.
  */
 export function parseMatchscorerIds(html: string): MatchscorerIds | null {
   const yearMatch = /const\s+eventYear\s*=\s*["'](\d+)["']/.exec(html)
-  const idMatch = /const\s+eventID\s*=\s*["'](\d+)["']/.exec(html)
+  const idMatch = /const\s+eventID\s*=\s*["']([A-Za-z0-9]+)["']/.exec(html)
   const daysMatch = /const\s+totalday\s*=\s*(\d+)/.exec(html)
+  const widgetMatch = /const\s+widget\s*=\s*["']([a-z]+)["']/.exec(html)
 
   if (!yearMatch || !idMatch) return null
 
-  const year = yearMatch[1]
-  const id = idMatch[1]
-  const totalDays = daysMatch ? parseInt(daysMatch[1], 10) : 1
+  const year = yearMatch[1]!
+  const id = idMatch[1]!
+  const totalDays = daysMatch ? parseInt(daysMatch[1]!, 10) : 1
+  const widget = widgetMatch ? widgetMatch[1]! : 'draw'
 
   return {
     year,
     id,
     totalDays,
     code: `FIP-${year}-${id}`,
+    widget,
   }
 }
 
@@ -411,23 +443,23 @@ export function parseDrawSizes(html: string): DrawSize {
   const qdMatch = /[Qq]ualif(?:ication|ying)\s*[Dd]raw[:\s]*(\d+)/i.exec(html)
   const qualifyingDraw = qdMatch ? parseInt(qdMatch[1], 10) : null
 
-  // Prize money — labelled "Prize Money" match first; both suffix and
+  // Prize money — labelled "Prize Money" match only. Both suffix and
   // prefix € formats appear on padelfip.com:
   //   Bronze/Silver/Gold: "Prize Money 18.000€"
   //   Premier-tier:       "Prize Money €264.534"
-  // Falls back to the first €-suffixed number anywhere in the HTML
-  // (legacy pages with non-standard layouts).
+  // The earlier unlabelled fallback (first €-suffixed number anywhere)
+  // got removed 2026-04-28: on FIP Beyond / Promises pages there's no
+  // Prize Money field at all (those tiers don't pay), but there IS a
+  // "Sign Up Fee 60 € per player" line that the fallback would grab
+  // and stamp as the prize. Now we leave prize_money_fip null when
+  // the page doesn't carry an explicit Prize Money label.
   let prizeMoney: number | null = null
   const labeledSuffix = /Prize\s*Money[^\d]*(\d[\d.,]*)\s*€/i
   const labeledPrefix = /Prize\s*Money[^€]*€\s*(\d[\d.,]*)/i
-  const fallbackRe = /(\d[\d.,]*)\s*€/
-  const prizeMatch =
-    labeledSuffix.exec(html) ??
-    labeledPrefix.exec(html) ??
-    fallbackRe.exec(html)
+  const prizeMatch = labeledSuffix.exec(html) ?? labeledPrefix.exec(html)
   if (prizeMatch) {
     // Remove thousand separators (both . and ,) and parse
-    const cleaned = prizeMatch[1].replace(/[.,]/g, '')
+    const cleaned = prizeMatch[1]!.replace(/[.,]/g, '')
     const val = parseInt(cleaned, 10)
     if (val > 0 && val < 10_000_000) prizeMoney = val
   }
@@ -992,6 +1024,12 @@ export async function resolveCountryTerms(
 /**
  * Fetch draw matches from widget.matchscorerlive.com.
  * Fetches main page, discovers MD/WD sub-pages, parses each.
+ *
+ * Returns `[]` (not an error) when matchscorerlive responds with a 405
+ * — that's the signature of an event hosted on the `oopbyday` widget
+ * instead of `draw` (FIP Beyond / Promises tournaments). Match data
+ * for those flows through the separate oop-monitor cron path; this
+ * function is bracket-only.
  */
 export async function fetchDrawMatches(
   matchscorerCode: string
@@ -1005,6 +1043,13 @@ export async function fetchDrawMatches(
 
   const mainUrl = `${MATCHSCORER_WIDGET}/screen/draw/${matchscorerCode}?t=tol`
   const mainResp = await fetch(mainUrl, { headers: matchscorerHeaders })
+  if (mainResp.status === 405 || mainResp.status === 404) {
+    // Draw widget isn't hosted for this event — typically a FIP Beyond
+    // / Promises tournament that uses the oopbyday widget. Caller will
+    // see an empty bracket; oop-monitor cron picks up the OOP data
+    // separately.
+    return []
+  }
   if (!mainResp.ok) {
     throw new Error(`Failed to fetch draw main page: ${mainResp.status}`)
   }

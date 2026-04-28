@@ -1,0 +1,24 @@
+
+<script>
+const eventYear = "2026";
+		const eventID   = "B0118";
+		const day       = 2;
+		const totalday       = 4;
+		const widget       = 'oopbyday';
+		const container = document.getElementById('oop-status');
+		let iframe = null; // Variabile per tenere traccia dell'iframe
+		// URL del tuo endpoint API
+		const apiUrl = `/wp-content/themes/padelfiptheme/template-parts/event/endpoint/get-oop-data.php?year=${eventYear}&id=${eventID}&day=${day}&totalday=${totalday}&widget=${widget}`;
+		function reloadIframe() {
+                    // 1. Controlla se abbiamo un URL e un iframe
+                    if (iframe) {
+                        // 3. Imposta il nuovo URL sull'iframe. Questo lo ricarica.
+                        iframe.src = iframe.src;
+                        console.log('ricaricato');
+                    } else {
+                        console.warn('Impossibile ricaricare l\'iframe. URL o Iframe non trovati.');
+                    }
+                }
+		fetch(apiUrl, { cache: 'no-store' })
+		.then(r => r.jso
+</script>

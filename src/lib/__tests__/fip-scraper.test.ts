@@ -471,10 +471,16 @@ describe('parseDrawSizes (prize money — 2026-04-25 fix)', () => {
     expect(result.prizeMoney).toBe(10000)
   })
 
-  it('falls back to first €-suffixed value when no labeled match (legacy pages)', () => {
-    const html = `<p>Total prize: 25,000€</p>`
+  it('returns null when no labelled "Prize Money" appears on the page', () => {
+    // FIP Beyond / Promises pages don't pay prize money; they only have
+    // a "Sign Up Fee" line. The earlier unlabelled fallback would grab
+    // that fee and stamp it as the prize. Now we leave it null.
+    const html = `
+      <span class="overview__title">Sign Up Fee</span>
+      <p class="overview__text">60 € per player/category</p>
+    `
     const result = parseDrawSizes(html)
-    expect(result.prizeMoney).toBe(25000)
+    expect(result.prizeMoney).toBeNull()
   })
 
   it('returns null when no euro value appears at all', () => {
@@ -573,6 +579,44 @@ describe('parseMatchscorerIds', () => {
     const html = `const eventYear = "2023"; const eventID = "100"; const totalday = 1;`
     const result = parseMatchscorerIds(html)
     expect(result!.code).toBe('FIP-2023-100')
+  })
+
+  it('accepts alphanumeric eventID for FIP Beyond / Promises events', () => {
+    // Real example from FIP Beyond B3 Singapore 2026 page —
+    // eventID is "B0118", widget is "oopbyday".
+    const html = `
+      <script>
+        const eventYear = "2026";
+        const eventID   = "B0118";
+        const totalday  = 4;
+        const widget    = 'oopbyday';
+      </script>
+    `
+    const result = parseMatchscorerIds(html)
+    expect(result).not.toBeNull()
+    expect(result!.year).toBe('2026')
+    expect(result!.id).toBe('B0118')
+    expect(result!.totalDays).toBe(4)
+    expect(result!.code).toBe('FIP-2026-B0118')
+    expect(result!.widget).toBe('oopbyday')
+  })
+
+  it('defaults widget to "draw" when not declared on the page', () => {
+    // Older Bronze/Silver/Gold pages don't always declare `const widget`
+    // — they implicitly use the draw widget.
+    const html = `
+      const eventYear = "2025";
+      const eventID = "3301";
+      const totalday = 5;
+    `
+    const result = parseMatchscorerIds(html)
+    expect(result!.widget).toBe('draw')
+  })
+
+  it('captures the widget value when declared', () => {
+    const html = `const eventYear="2026"; const eventID="42"; const widget = 'oopbyday';`
+    const result = parseMatchscorerIds(html)
+    expect(result!.widget).toBe('oopbyday')
   })
 })
 
