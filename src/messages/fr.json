@@ -645,6 +645,7 @@
     "finishedSection": "Résultats",
     "noMatchesTitle": "Le padel prend sa journée",
     "noMatchesSub": "Essaie un autre jour ou parcours les tournois de la semaine avec le sélecteur ci-dessus.",
+    "jumpToNextMatches": "Prochains matchs : {date}",
     "faqHeading": "Questions fréquentes",
     "approxTime": "horaire approximatif",
     "whereToWatchHeading": "Où regarder",

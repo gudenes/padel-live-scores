@@ -645,6 +645,7 @@
     "finishedSection": "Finished",
     "noMatchesTitle": "Padel's taking the day off",
     "noMatchesSub": "Try another day or browse this week's tournaments using the picker above.",
+    "jumpToNextMatches": "Next matches: {date}",
     "faqHeading": "Frequently asked questions",
     "approxTime": "time is approximate",
     "whereToWatchHeading": "Where to watch",
