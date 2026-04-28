@@ -26,6 +26,16 @@ describe('synthesizeThinPlayer', () => {
   it('trims surrounding whitespace from the name', () => {
     expect(synthesizeThinPlayer('  Carla  ').name).toBe('Carla')
   })
+
+  it('forwards a country code when provided (alpha-3 from OOP widget)', () => {
+    const p = synthesizeThinPlayer('A. Hendrawan', 'INA')
+    expect(p.country).toBe('INA')
+  })
+
+  it('treats whitespace-only country as missing (null)', () => {
+    expect(synthesizeThinPlayer('Player', '   ').country).toBeNull()
+    expect(synthesizeThinPlayer('Player', '').country).toBeNull()
+  })
 })
 
 describe('isThinPlayer', () => {
@@ -136,5 +146,43 @@ describe('hydrateThinPlayers', () => {
     const out = hydrateThinPlayers({ ...row })
     expect(out.pair1_player1?.id).toBe('u-real')
     expect(out.pair1_player1?.name).toBe('Real Name')
+  })
+
+  it('threads pair*_player*_country through to the synthesized Player', () => {
+    // The OOP fallback writes both name + country. Hydrator should
+    // surface country on the synthetic Player so countryFlag() in the
+    // UI gets a real value (instead of null → empty string → no flag).
+    const row: any = {
+      pair1_player1: null,
+      pair1_player2: null,
+      pair2_player1: null,
+      pair2_player2: null,
+      pair1_player1_name: 'A. Hendrawan',
+      pair1_player2_name: 'K. Lim',
+      pair2_player1_name: 'A. Wong',
+      pair2_player2_name: 'T. Chan',
+      pair1_player1_country: 'INA',
+      pair1_player2_country: 'SIN',
+      pair2_player1_country: 'HKG',
+      pair2_player2_country: 'HKG',
+    }
+    const out = hydrateThinPlayers({ ...row })
+    expect(out.pair1_player1?.country).toBe('INA')
+    expect(out.pair1_player2?.country).toBe('SIN')
+    expect(out.pair2_player1?.country).toBe('HKG')
+    expect(out.pair2_player2?.country).toBe('HKG')
+  })
+
+  it('keeps country null when only the name is present (older row)', () => {
+    // Pre-country rows (or cases where the widget hadn't loaded the
+    // flag image yet) — name still synthesizes; country stays null.
+    const row: any = {
+      pair1_player1: null,
+      pair1_player1_name: 'Old Row Player',
+      pair1_player1_country: null,
+    }
+    const out = hydrateThinPlayers({ ...row })
+    expect(out.pair1_player1?.name).toBe('Old Row Player')
+    expect(out.pair1_player1?.country).toBeNull()
   })
 })

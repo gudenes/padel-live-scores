@@ -58,14 +58,20 @@ export interface MatchesDayMatch {
   pair1_player2: MatchesDayPlayer | null
   pair2_player1: MatchesDayPlayer | null
   pair2_player2: MatchesDayPlayer | null
-  // Raw name strings written by the populator for amateur-tier
-  // tournaments where FIP-ID resolution failed. The hydrator turns
-  // these into synthetic player objects with id='' before the payload
-  // reaches the UI; consumers should never need to read them directly.
+  // Raw name + country strings written by the populator for amateur-
+  // tier tournaments where FIP-ID resolution failed. The hydrator
+  // turns these into synthetic Player objects with id='' before the
+  // payload reaches the UI; consumers should never need to read them
+  // directly. Country is the IOC/FIP code (INA, HKG, ESP, …) — same
+  // representation `players.country` uses.
   pair1_player1_name?: string | null
   pair1_player2_name?: string | null
   pair2_player1_name?: string | null
   pair2_player2_name?: string | null
+  pair1_player1_country?: string | null
+  pair1_player2_country?: string | null
+  pair2_player1_country?: string | null
+  pair2_player2_country?: string | null
   sets: MatchesDaySet[] | null
 }
 
@@ -98,6 +104,7 @@ const MATCH_SELECT = `
   id, status, category, scheduled_at, finished_at, round, court,
   schedule_label, winner_pair,
   pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
+  pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country,
   tournament:tournaments(id, name, level, country, starts_at, ends_at, status),
   ${PLAYER_JOIN_FIELDS},
   sets(id, set_number, set_score, pair1_games, pair2_games, is_current)

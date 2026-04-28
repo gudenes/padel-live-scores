@@ -89,6 +89,15 @@ async function fetchOneDay(
     team1_player2_name: m.team1Player2Name,
     team2_player1_name: m.team2Player1Name,
     team2_player2_name: m.team2Player2Name,
+    // 3-letter IOC/FIP country code from the widget's flag image
+    // src. Used by the populator's amateur-tier thin-match path to
+    // populate public.matches.pair*_player*_country so the UI can
+    // render flags. NULL when the widget hadn't loaded the flag image
+    // src yet (rare).
+    team1_player1_country: m.team1Player1Country,
+    team1_player2_country: m.team1Player2Country,
+    team2_player1_country: m.team2Player1Country,
+    team2_player2_country: m.team2Player2Country,
     match_widget_id: m.matchWidgetId,
     status: m.status,
   }));
