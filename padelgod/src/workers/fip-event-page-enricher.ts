@@ -8,6 +8,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AxiosInstance } from 'axios';
+import type { Logger } from 'pino';
 import {
   parseEventDates,
   parseMatchscorerIds,
@@ -19,6 +20,7 @@ import {
 export interface FipEventPageEnricherDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
+  logger?: Logger;
 }
 
 export interface FipEventPageEnricherResult {
@@ -50,6 +52,15 @@ export interface TournamentRow {
 const FIP_BASE = 'https://www.padelfip.com';
 const PAGE_FETCH_HEADERS = { 'User-Agent': 'PadelNachos/1.0 (padelgod)' };
 const ENRICH_BATCH_LIMIT = 200;
+// Polite throttle between FIP page fetches. Right after deploy the
+// worker can burst ~200 sequential page fetches before all rows have
+// their gap-fill done. 250ms keeps us well under what padelfip.com's
+// CDN considers abusive while still completing a full pass in ~50s.
+const FETCH_THROTTLE_MS = 250;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function buildEventPageUrl(slug: string): string {
   return `${FIP_BASE}/events/${slug}/`;
@@ -103,15 +114,24 @@ export async function runFipEventPageEnricher(
     .limit(ENRICH_BATCH_LIMIT);
   if (error) throw new Error(`tournaments read failed: ${error.message}`);
 
-  const candidates = (rows ?? []) as TournamentRow[];
+  // PostgREST's inferred row type widens to GenericStringError when the
+  // select column list is partial (it can't statically know whether the
+  // returned shape is the row or an error). We've already checked
+  // `error` above so a runtime row is guaranteed to be a row — peel
+  // off the error variant via `unknown`.
+  const candidates = ((rows ?? []) as unknown) as TournamentRow[];
   const targets = candidates.filter(needsEnrichment);
 
   let enriched = 0;
   let errors = 0;
 
-  for (const t of targets) {
+  for (let i = 0; i < targets.length; i++) {
+    const t = targets[i]!;
     const slug = t.slug ?? fipIdToSlug(t.fip_id);
     if (!slug) continue;
+
+    // Throttle between fetches — skip the wait on the very first iteration.
+    if (i > 0) await sleep(FETCH_THROTTLE_MS);
 
     try {
       const url = buildEventPageUrl(slug);
@@ -188,8 +208,16 @@ export async function runFipEventPageEnricher(
         .eq('id', t.id);
       if (updErr) throw new Error(`update failed: ${updErr.message}`);
       enriched++;
-    } catch {
+    } catch (err) {
       errors++;
+      const message = err instanceof Error ? err.message : String(err);
+      // Surface in Railway logs so spikes in `errors` aren't silent.
+      // Includes the slug so an operator can replay one tournament
+      // manually if a parse keeps failing.
+      deps.logger?.warn(
+        { slug, tournamentId: t.id, err: message },
+        'fip-event-page-enricher: row failed',
+      );
     }
   }
 

@@ -174,4 +174,70 @@ describe('runFipEventPageEnricher — end to end', () => {
     expect((patch.schedule_notes as string).split('\n').length).toBeGreaterThan(2);
     expect(patch.last_updated_by).toBe('padelgod');
   });
+
+  it('captures and surfaces row-level fetch errors via the optional logger', async () => {
+    const warnings: Array<{ msg: string; ctx: Record<string, unknown> }> = [];
+    const logger = {
+      warn: (ctx: Record<string, unknown>, msg: string) =>
+        warnings.push({ msg, ctx }),
+      // pino's Logger interface has more methods, but we only call `.warn`.
+      // Cast through unknown so the test mock satisfies the interface.
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['logger'];
+
+    const supabase = {
+      from: (table: string) => {
+        if (table !== 'tournaments') throw new Error(`unexpected table: ${table}`);
+        return {
+          select: () => ({
+            or: () => ({
+              or: () => ({
+                limit: async () => ({
+                  data: [
+                    {
+                      id: 'failing-id',
+                      slug: 'fip-bronze-failing-2026',
+                      fip_id: 'fip-bronze-failing-2026',
+                      matchscorer_url: null,
+                      starts_at: null,
+                      ends_at: null,
+                      venue: null,
+                      venue_address: null,
+                      venue_type: null,
+                      signup_fee_eur: null,
+                      schedule_notes: null,
+                      draw_size_md: null,
+                      draw_size_qd: null,
+                      registration_status: null,
+                      prize_money_fip: null,
+                      prize_breakdown: null,
+                      level: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+          update: () => ({ eq: async () => ({ error: null }) }),
+        };
+      },
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['supabase'];
+
+    // Simulate an axios failure on fetch.
+    const httpClient = {
+      get: async () => {
+        throw new Error('ECONNRESET');
+      },
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['httpClient'];
+
+    const result = await runFipEventPageEnricher({ supabase, httpClient, logger });
+
+    expect(result.errors).toBe(1);
+    expect(result.enriched).toBe(0);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.msg).toContain('row failed');
+    expect(warnings[0]!.ctx.slug).toBe('fip-bronze-failing-2026');
+    expect(warnings[0]!.ctx.tournamentId).toBe('failing-id');
+    expect(warnings[0]!.ctx.err).toContain('ECONNRESET');
+  });
 });
