@@ -124,6 +124,7 @@ async function main() {
   if (env.ENABLE_SCHEDULER) {
     const schedule = buildSchedule({
       enableTournamentDiscovery: env.ENABLE_TOURNAMENT_DISCOVERY,
+      enableFipEventPageEnricher: env.ENABLE_FIP_EVENT_PAGE_ENRICHER,
       enableWidgetCodeLookup: env.ENABLE_WIDGET_CODE_LOOKUP,
       enablePlayerRankings: env.ENABLE_PLAYER_RANKINGS,
       enablePlayerProfile: env.ENABLE_PLAYER_PROFILE,

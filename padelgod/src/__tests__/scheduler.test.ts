@@ -8,6 +8,7 @@ const ALL_ENABLED = {
   enablePlayerProfile: true,
   enableEntryListFetcher: true,
   enableDrawFetcher: true,
+  enableFipEventPageEnricher: true,
   enableOopFetcher: true,
   enableResultsFetcher: true,
   enableStaticReconciler: true,
@@ -19,7 +20,7 @@ const ALL_ENABLED = {
 };
 
 describe('buildSchedule', () => {
-  it('includes all 14 workers when fully enabled', () => {
+  it('includes all 15 workers when fully enabled', () => {
     const sched = buildSchedule(ALL_ENABLED);
     const names = sched.map((s) => s.name);
     expect(names).toContain('tournament-discovery');
@@ -28,6 +29,7 @@ describe('buildSchedule', () => {
     expect(names).toContain('player-profile');
     expect(names).toContain('entry-list-fetcher');
     expect(names).toContain('draw-fetcher');
+    expect(names).toContain('fip-event-page-enricher');
     expect(names).toContain('oop-fetcher');
     expect(names).toContain('results-fetcher');
     expect(names).toContain('static-reconciler');
@@ -119,5 +121,20 @@ describe('buildSchedule', () => {
     const entry = sched.find((s) => s.name === 'static-reconciler');
     expect(entry).toBeDefined();
     expect(entry!.cron).toBe('5,35 * * * *');
+  });
+
+  it('schedules fip-event-page-enricher hourly at :12', () => {
+    const sched = buildSchedule(ALL_ENABLED);
+    const entry = sched.find((s) => s.name === 'fip-event-page-enricher');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('12 * * * *');
+  });
+
+  it('respects enableFipEventPageEnricher=false', () => {
+    const sched = buildSchedule({
+      ...ALL_ENABLED,
+      enableFipEventPageEnricher: false,
+    });
+    expect(sched.map((s) => s.name)).not.toContain('fip-event-page-enricher');
   });
 });

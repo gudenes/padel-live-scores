@@ -22,6 +22,7 @@ import { runLivePollerManager } from './workers/live-poller-manager.js';
 import { runShadowDiffFinalizer } from './workers/shadow-diff-finalizer.js';
 import { runShadowDiffLive } from './workers/shadow-diff-live.js';
 import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
+import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -31,6 +32,7 @@ export interface ScheduleEntry {
 
 export interface SchedulerFlags {
   enableTournamentDiscovery: boolean;
+  enableFipEventPageEnricher: boolean;
   enableWidgetCodeLookup: boolean;
   enablePlayerRankings: boolean;
   enablePlayerProfile: boolean;
@@ -100,6 +102,7 @@ export interface SchedulerDeps {
 
 export type WorkerName =
   | 'tournament-discovery'
+  | 'fip-event-page-enricher'
   | 'widget-code-lookup'
   | 'player-rankings'
   | 'player-profile'
@@ -125,6 +128,7 @@ export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
 export const ALL_WORKERS: WorkerName[] = [
   'tournament-discovery',
+  'fip-event-page-enricher',
   'widget-code-lookup',
   'player-rankings',
   'player-profile',
@@ -149,8 +153,9 @@ export const ALL_WORKERS: WorkerName[] = [
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
   switch (name) {
-    case 'tournament-discovery': return (deps) => runTournamentDiscovery(deps);
-    case 'widget-code-lookup':   return (deps) => runWidgetCodeLookup(deps);
+    case 'tournament-discovery':     return (deps) => runTournamentDiscovery(deps);
+    case 'fip-event-page-enricher':  return (deps) => runFipEventPageEnricher(deps);
+    case 'widget-code-lookup':       return (deps) => runWidgetCodeLookup(deps);
     case 'player-rankings':      return (deps) => runPlayerRankings(deps);
     case 'player-profile':       return async (deps) => {
       deps.logger.info('player-profile worker has no batch driver yet (V1.5)');
@@ -261,6 +266,16 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'tournament-discovery',
       cron: '0 * * * *', // hourly at :00
       run: getWorkerRunner('tournament-discovery')!,
+    });
+  }
+  if (flags.enableFipEventPageEnricher) {
+    entries.push({
+      name: 'fip-event-page-enricher',
+      // Hourly at :12 — runs after tournament-discovery (:00) so it sees
+      // freshly-discovered rows in the same cycle. Chosen to avoid overlap
+      // with the cluster of FIP-specific writers (:35, :42, :46, :47, :52, :57).
+      cron: '12 * * * *',
+      run: getWorkerRunner('fip-event-page-enricher')!,
     });
   }
   if (flags.enableWidgetCodeLookup) {
