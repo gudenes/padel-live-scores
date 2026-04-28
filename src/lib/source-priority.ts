@@ -85,8 +85,13 @@ export type FieldKey =
   | 'tournament.logo_url'
   | 'tournament.venue'
   | 'tournament.venue_address'
+  | 'tournament.venue_type'
   | 'tournament.prize_money'
   | 'tournament.prize_money_fip'
+  | 'tournament.prize_breakdown'
+  | 'tournament.registration_status'
+  | 'tournament.signup_fee_eur'
+  | 'tournament.schedule_notes'
   | 'tournament.draw_size_md'
   | 'tournament.draw_size_qd'
   | 'tournament.url'
@@ -139,8 +144,12 @@ export const SOURCE_PRIORITY: Record<FieldKey, PriorityList> = {
   'tournament.starts_at':  ['padelapi', 'fip'],
   'tournament.ends_at':    ['padelapi', 'fip'],
   'tournament.status':     ['padelapi'],  // status transitions are padelapi-driven
-  'tournament.venue':      ['padelapi', 'fip', 'manual'],
-  'tournament.venue_address': ['padelapi', 'fip', 'manual'],
+  // padelapi doesn't actually populate venue — the column was added in
+  // 20260328 specifically for FIP scraping. Promoted to fip-primary
+  // 2026-04-28 so the FIP scraper can write to existing padelapi-source
+  // rows (Premier tournaments) too.
+  'tournament.venue':         ['fip', 'padelapi', 'manual'],
+  'tournament.venue_address': ['fip', 'padelapi', 'manual'],
   'tournament.prize_money': ['padelapi', 'manual'],
   'tournament.prize_money_fip': ['fip', 'manual'],
 
@@ -149,6 +158,16 @@ export const SOURCE_PRIORITY: Record<FieldKey, PriorityList> = {
   'tournament.url':        ['fip', 'padelapi'],
   'tournament.draw_size_md': ['fip', 'padelapi'],
   'tournament.draw_size_qd': ['fip', 'padelapi'],
+
+  // Overview-block fields scraped from padelfip.com event pages
+  // (added 2026-04-28). FIP is the only source that publishes these,
+  // including for Premier-tier events. `venue_type` is the "Court
+  // conditions" label (covered/outdoor); `surface` is unused for now.
+  'tournament.venue_type':         ['fip', 'manual'],
+  'tournament.registration_status': ['fip'],
+  'tournament.signup_fee_eur':     ['fip', 'manual'],
+  'tournament.prize_breakdown':    ['fip', 'manual'],
+  'tournament.schedule_notes':     ['fip', 'manual'],
 
   // ── Matches ──────────────────────────────────────────────────
   // Live match data is padelapi-only. FIP has no live scoring.

@@ -54,6 +54,8 @@ interface FipRow {
   slug: string | null
   name: string | null
   level: string | null
+  source: string | null
+  fip_id: string | null
   starts_at: string | null
   ends_at: string | null
   venue: string | null
@@ -80,17 +82,20 @@ function needsBackfill(row: FipRow): boolean {
 }
 
 async function loadFipTournaments(): Promise<FipRow[]> {
-  // Paginate to dodge PostgREST's 1000-row default cap.
+  // Any tournament we can re-fetch from padelfip.com is a target —
+  // either a FIP-source row (Bronze/Silver/Gold) or a padelapi row that
+  // the cron has linked to a FIP page via `fip_id` (Premier-tier).
+  // PostgREST's `or()` produces an inclusive filter; paginate to dodge
+  // its 1000-row default cap.
   const all: FipRow[] = []
   let offset = 0
   while (true) {
     const { data, error } = await supabase
       .from('tournaments')
       .select(
-        'id, slug, name, level, starts_at, ends_at, venue, registration_status, prize_breakdown',
+        'id, slug, name, level, source, fip_id, starts_at, ends_at, venue, registration_status, prize_breakdown',
       )
-      .eq('source', 'fip')
-      .not('slug', 'is', null)
+      .or('source.eq.fip,fip_id.not.is.null')
       .order('starts_at', { ascending: false, nullsFirst: false })
       .range(offset, offset + 999)
     if (error) throw error
@@ -138,7 +143,9 @@ export async function GET(req: NextRequest) {
   // Filter to the targets we'll work on.
   let targets = tournaments
   if (slugFilter) {
-    targets = targets.filter((t) => t.slug === slugFilter)
+    targets = targets.filter(
+      (t) => t.slug === slugFilter || t.fip_id === `fip-${slugFilter}`,
+    )
   } else if (!force) {
     targets = targets.filter(needsBackfill)
   }
@@ -150,14 +157,25 @@ export async function GET(req: NextRequest) {
     const stillMissing = tournaments.filter(needsBackfill).length
     const populated = totalFip - stillMissing
     const sample = targets.slice(0, 20).map((t) => ({
-      slug: t.slug,
+      slug: t.slug ?? (t.fip_id?.startsWith('fip-') ? t.fip_id.slice(4) : null),
       name: t.name,
       level: t.level,
+      source: t.source,
       starts_at: t.starts_at,
       hasVenue: t.venue != null,
       hasRegistrationStatus: t.registration_status != null,
       hasPrizeBreakdown: t.prize_breakdown != null,
     }))
+
+    // Source breakdown — Premier rows live as source='padelapi' linked
+    // via fip_id, while Bronze/Silver/Gold are source='fip'.
+    const bySource: Record<string, { total: number; needsBackfill: number }> = {}
+    for (const t of tournaments) {
+      const src = t.source ?? 'unknown'
+      const b = (bySource[src] ??= { total: 0, needsBackfill: 0 })
+      b.total++
+      if (needsBackfill(t)) b.needsBackfill++
+    }
 
     // Year + level breakdowns over the full FIP set, plus the
     // subset that still needs backfill. Useful for sizing a run.
@@ -194,6 +212,7 @@ export async function GET(req: NextRequest) {
       },
       byYear,
       byLevel,
+      bySource,
       throttleMs: THROTTLE_MS,
       etaSeconds: Math.round((targets.length * THROTTLE_MS) / 1000),
       sample,
@@ -222,13 +241,18 @@ export async function GET(req: NextRequest) {
 
       for (let i = 0; i < targets.length; i++) {
         const t = targets[i]
-        if (!t.slug) {
+        // For FIP-source rows, slug IS the WP slug. For Premier rows
+        // linked via fip_id, the WP slug is the fip_id minus the
+        // 'fip-' prefix the cron stamps.
+        const wpSlug =
+          t.slug ?? (t.fip_id?.startsWith('fip-') ? t.fip_id.slice(4) : null)
+        if (!wpSlug) {
           counts.skipped++
           continue
         }
 
         try {
-          const pageData = await fetchEventPageData(t.slug)
+          const pageData = await fetchEventPageData(wpSlug)
 
           // Build the update payload. Only include fields the page
           // actually exposed — null values would clobber rows that
@@ -281,8 +305,9 @@ export async function GET(req: NextRequest) {
             type: 'progress',
             index: i + 1,
             total: targets.length,
-            slug: t.slug,
+            slug: wpSlug,
             name: t.name,
+            source: t.source,
             wrote: Object.keys(filtered).filter((k) => k !== 'updated_at'),
             counts,
           })
@@ -292,7 +317,7 @@ export async function GET(req: NextRequest) {
             type: 'error',
             index: i + 1,
             total: targets.length,
-            slug: t.slug,
+            slug: wpSlug,
             error: String(e),
             counts,
           })
