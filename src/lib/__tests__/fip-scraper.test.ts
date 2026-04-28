@@ -13,6 +13,7 @@ import {
   parseDrawHtml,
   parseDrawSizes,
   FIP_CATEGORY_IDS,
+  isPremierTierEvent,
   toIso2,
 } from '../fip-scraper'
 
@@ -199,6 +200,65 @@ describe('parseWpEvent', () => {
     expect(FIP_CATEGORY_IDS.Gold).toBe(19)
     expect(FIP_CATEGORY_IDS.Silver).toBe(496)
     expect(FIP_CATEGORY_IDS.Bronze).toBe(497)
+  })
+
+  it('exposes Premier-tier category IDs (added 2026-04-28)', () => {
+    expect(FIP_CATEGORY_IDS.Platinum).toBe(18)
+    expect(FIP_CATEGORY_IDS.Major).toBe(24)
+    expect(FIP_CATEGORY_IDS.P1).toBe(25)
+    expect(FIP_CATEGORY_IDS.P2).toBe(387)
+    expect(FIP_CATEGORY_IDS.Finals).toBe(306)
+  })
+
+  it('maps Premier categories to padelapi-shaped level values', () => {
+    const p1 = parseWpEvent({
+      id: 100,
+      title: { rendered: 'Greenweez Paris Premier Padel P1' },
+      slug: 'greenweez-paris-p1-2026',
+      'category-event': [25],
+    })
+    expect(p1.level).toBe('p1')
+
+    const p2 = parseWpEvent({
+      id: 101,
+      title: { rendered: 'NewGiza P2' },
+      slug: 'newgiza-p2-2026',
+      'category-event': [387],
+    })
+    expect(p2.level).toBe('p2')
+
+    const major = parseWpEvent({
+      id: 102,
+      title: { rendered: 'Premier Padel Madrid Major' },
+      slug: 'madrid-major-2026',
+      'category-event': [24],
+    })
+    expect(major.level).toBe('major')
+  })
+})
+
+describe('isPremierTierEvent', () => {
+  it('returns true for events tagged with a Premier category', () => {
+    expect(isPremierTierEvent({ categoryIds: [25] })).toBe(true)        // P1
+    expect(isPremierTierEvent({ categoryIds: [387] })).toBe(true)       // P2
+    expect(isPremierTierEvent({ categoryIds: [24] })).toBe(true)        // Major
+    expect(isPremierTierEvent({ categoryIds: [306] })).toBe(true)       // Master Finals
+    expect(isPremierTierEvent({ categoryIds: [18] })).toBe(true)        // Platinum
+  })
+
+  it('returns false for FIP Tour categories', () => {
+    expect(isPremierTierEvent({ categoryIds: [19] })).toBe(false)       // Gold
+    expect(isPremierTierEvent({ categoryIds: [496] })).toBe(false)      // Silver
+    expect(isPremierTierEvent({ categoryIds: [497] })).toBe(false)      // Bronze
+  })
+
+  it('returns true when ANY category is Premier-tier (events can have multiple)', () => {
+    // FIP cross-tags some events with both their tier and a regional category.
+    expect(isPremierTierEvent({ categoryIds: [387, 999] })).toBe(true)
+  })
+
+  it('returns false for empty category lists', () => {
+    expect(isPremierTierEvent({ categoryIds: [] })).toBe(false)
   })
 })
 

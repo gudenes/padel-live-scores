@@ -17,17 +17,58 @@ export const FIP_WP_BASE = 'https://www.padelfip.com'
 export const FIP_WP_API = FIP_WP_BASE + '/wp-json/wp/v2'
 export const MATCHSCORER_WIDGET = 'https://widget.matchscorerlive.com'
 
+/**
+ * FIP WP `category-event` taxonomy IDs. These are the categories we
+ * actively scrape — there are more on padelfip.com (junior, senior
+ * world cup, regional championships, etc.) but they're sparse and
+ * often duplicate the per-region promises tour.
+ *
+ * Premier-tier IDs (Major/P1/P2/Master Finals/Platinum) were added
+ * 2026-04-28 — padelfip.com is the canonical source for Premier
+ * tournament metadata too (venue, prize, surface, registration). The
+ * Premier API only exposes match-level stats.
+ */
 export const FIP_CATEGORY_IDS: Record<string, number> = {
-  Gold: 19,
-  Silver: 496,
-  Bronze: 497,
+  // FIP Tour
+  Gold:     19,   // FIP-TOUR-GOLD
+  Silver:   496,  // FIP-TOUR-SILVER
+  Bronze:   497,  // FIP-TOUR-BRONZE
+  // Premier Padel — same overview structure on padelfip.com
+  Platinum: 18,   // FIP-TOUR-PLATINUM
+  Major:    24,   // FIP-PPT-MAJOR
+  P1:       25,   // FIP-PPT-P1
+  P2:       387,  // FIP-PP-P2
+  Finals:   306,  // FIP-PP-MASTER-FINALS
 }
 
-// Reverse lookup: id → DB level name (matching padelapi convention used in UI)
+// Reverse lookup: id → DB level name. The Premier-tier values match
+// the conventions padelapi uses elsewhere in the codebase ('p1', 'p2',
+// 'major', 'finals', 'fip_platinum') so cross-source rows merge cleanly.
 const CATEGORY_ID_TO_LEVEL: Record<number, string> = {
-  [FIP_CATEGORY_IDS.Gold]: 'fip_gold',
-  [FIP_CATEGORY_IDS.Silver]: 'fip_other',
-  [FIP_CATEGORY_IDS.Bronze]: 'fip_other',
+  [FIP_CATEGORY_IDS.Gold]:     'fip_gold',
+  [FIP_CATEGORY_IDS.Silver]:   'fip_other',
+  [FIP_CATEGORY_IDS.Bronze]:   'fip_other',
+  [FIP_CATEGORY_IDS.Platinum]: 'fip_platinum',
+  [FIP_CATEGORY_IDS.Major]:    'major',
+  [FIP_CATEGORY_IDS.P1]:       'p1',
+  [FIP_CATEGORY_IDS.P2]:       'p2',
+  [FIP_CATEGORY_IDS.Finals]:   'finals',
+}
+
+/** Premier-tier categories: events where the WP slug doesn't have the
+ *  `fip-` prefix and likely already exists in DB under a padelapi row.
+ *  The cron uses this to switch from slug-based to name+year dedup. */
+export const FIP_PREMIER_CATEGORY_IDS: ReadonlySet<number> = new Set([
+  FIP_CATEGORY_IDS.Platinum,
+  FIP_CATEGORY_IDS.Major,
+  FIP_CATEGORY_IDS.P1,
+  FIP_CATEGORY_IDS.P2,
+  FIP_CATEGORY_IDS.Finals,
+])
+
+/** Returns true when a parsed WP event came from a Premier-tier category. */
+export function isPremierTierEvent(event: { categoryIds: number[] }): boolean {
+  return event.categoryIds.some((id) => FIP_PREMIER_CATEGORY_IDS.has(id))
 }
 
 /**
