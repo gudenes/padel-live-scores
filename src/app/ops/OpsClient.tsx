@@ -174,7 +174,7 @@ const TILES: readonly CronTile[] = [
   { key: 'cron:rankings', label: 'Rankings', schedule: 'Daily 5am UTC', description: 'Fetches FIP official and race rankings (top 1000, men & women) from the FIP website' },
   { key: 'cron:articles', label: 'Articles', schedule: 'Hourly :40', description: 'Fetches padel news from Google News RSS feeds and FIP WordPress API, deduplicates and upserts' },
   { key: 'cron:highlights', label: 'Highlights', schedule: 'Hourly :20', description: 'Fetches recent match highlight videos from YouTube padel channels, filters duplicates' },
-  { key: 'cron:fip-tournaments', label: 'FIP Tournaments', schedule: 'Every 12h', description: 'Syncs FIP tournament data including draws, brackets, and scheduling from the FIP API', paused: true, pauseReason: 'Switched to padelapi.org for FIP tournaments — re-enable for FIP-only data' },
+  { key: 'cron:fip-tournaments', label: 'FIP Tournaments', schedule: 'Retired 2026-04-28', description: 'Discovery + event-page enrichment moved to padelgod (Railway) — see tournament-discovery and fip-event-page-enricher workers. The Vercel route returns HTTP 410 Gone.', paused: true, pauseReason: 'Retired 2026-04-28 — moved to padelgod fip-event-page-enricher worker (Railway)' },
   { key: 'cron:fip-scores', label: 'FIP Scores', schedule: 'Every 2h', description: 'Polls FIP API for live match scores in FIP-sourced tournaments, upserts results', paused: true, pauseReason: 'Switched to padelapi.org for FIP tournaments — re-enable for FIP-only data' },
 ] as const
 
