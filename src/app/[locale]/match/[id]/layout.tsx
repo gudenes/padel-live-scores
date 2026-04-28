@@ -30,6 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       status,
       round,
       winner_pair,
+      pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
       pair1_player1:players!matches_pair1_player1_id_fkey(name, display_name),
       pair1_player2:players!matches_pair1_player2_id_fkey(name, display_name),
       pair2_player1:players!matches_pair2_player1_id_fkey(name, display_name),
@@ -45,16 +46,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   type PlayerRef = { name: string } | null
+  // Coalesce join → thin-name fallback so amateur-tier matches still
+  // generate sensible titles instead of "/  / /".
+  const playerName = (
+    joined: unknown,
+    fallback: string | null | undefined,
+  ): string | undefined =>
+    (joined as PlayerRef)?.name ?? (fallback?.trim() || undefined)
+
   const p1 = [
-    lastName((match.pair1_player1 as unknown as PlayerRef)?.name),
-    lastName((match.pair1_player2 as unknown as PlayerRef)?.name),
+    lastName(playerName(match.pair1_player1, match.pair1_player1_name)),
+    lastName(playerName(match.pair1_player2, match.pair1_player2_name)),
   ]
     .filter(Boolean)
     .join('/')
 
   const p2 = [
-    lastName((match.pair2_player1 as unknown as PlayerRef)?.name),
-    lastName((match.pair2_player2 as unknown as PlayerRef)?.name),
+    lastName(playerName(match.pair2_player1, match.pair2_player1_name)),
+    lastName(playerName(match.pair2_player2, match.pair2_player2_name)),
   ]
     .filter(Boolean)
     .join('/')
@@ -126,6 +135,7 @@ export default async function MatchLayout({ params, children }: Props) {
       .select(`
         id,
         status,
+        pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
         pair1_player1:players!matches_pair1_player1_id_fkey(name),
         pair1_player2:players!matches_pair1_player2_id_fkey(name),
         pair2_player1:players!matches_pair2_player1_id_fkey(name),
@@ -139,15 +149,20 @@ export default async function MatchLayout({ params, children }: Props) {
     type TournamentRef = { name: string; starts_at: string | null; ends_at: string | null } | null
 
     const tournament = match?.tournament as unknown as TournamentRef
+    // Same coalescing pattern as generateMetadata: thin-match name
+    // fallback when the player join is null (amateur-tier matches).
+    const playerName = (joined: unknown, fallback: string | null | undefined): string | undefined =>
+      (joined as PlayerRef)?.name ?? (fallback?.trim() || undefined)
+
     const p1 = [
-      (match?.pair1_player1 as unknown as PlayerRef)?.name,
-      (match?.pair1_player2 as unknown as PlayerRef)?.name,
+      playerName(match?.pair1_player1, match?.pair1_player1_name),
+      playerName(match?.pair1_player2, match?.pair1_player2_name),
     ]
       .filter(Boolean)
       .join(' / ')
     const p2 = [
-      (match?.pair2_player1 as unknown as PlayerRef)?.name,
-      (match?.pair2_player2 as unknown as PlayerRef)?.name,
+      playerName(match?.pair2_player1, match?.pair2_player1_name),
+      playerName(match?.pair2_player2, match?.pair2_player2_name),
     ]
       .filter(Boolean)
       .join(' / ')

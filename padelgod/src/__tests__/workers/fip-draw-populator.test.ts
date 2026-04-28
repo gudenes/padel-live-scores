@@ -50,6 +50,13 @@ interface ExistingMatchSeed {
   pair1_player2_id: string | null;
   pair2_player1_id: string | null;
   pair2_player2_id: string | null;
+  // Thin-match (amateur tier) name columns. Default to null in the
+  // helper so the populator's `existing.pair*_name === null` check
+  // behaves like a real Postgres row where the column is unset.
+  pair1_player1_name?: string | null;
+  pair1_player2_name?: string | null;
+  pair2_player1_name?: string | null;
+  pair2_player2_name?: string | null;
 }
 
 interface Options {
@@ -76,7 +83,17 @@ function fakeSupabase(opts: Options) {
   const draws = opts.draws ?? [];
   const entryList = opts.entryList ?? [];
   const players = opts.players ?? [];
-  const existingState: ExistingMatchSeed[] = [...(opts.existingMatches ?? [])];
+  // Default name columns to null so the populator's nullness checks
+  // mirror real DB behaviour (column exists, value is NULL).
+  const existingState: ExistingMatchSeed[] = (opts.existingMatches ?? []).map(
+    (m) => ({
+      pair1_player1_name: null,
+      pair1_player2_name: null,
+      pair2_player1_name: null,
+      pair2_player2_name: null,
+      ...m,
+    }),
+  );
   const tournamentLevels = opts.tournamentLevels ?? {};
 
   const inserted: any[] = [];
@@ -96,7 +113,9 @@ function fakeSupabase(opts: Options) {
     insert: (row: any) => {
       const id = `new-match-${inserted.length + 1}`;
       inserted.push({ id, ...row });
-      // Reflect into state so subsequent UPDATE lookups see it
+      // Reflect into state so subsequent UPDATE lookups see it. Mirror
+      // the FK + thin-name columns (a thin insert sets names + leaves
+      // FKs null; a normal insert is the inverse).
       existingState.push({
         id,
         widget_id_composite: row.widget_id_composite,
@@ -104,6 +123,10 @@ function fakeSupabase(opts: Options) {
         pair1_player2_id: row.pair1_player2_id ?? null,
         pair2_player1_id: row.pair2_player1_id ?? null,
         pair2_player2_id: row.pair2_player2_id ?? null,
+        pair1_player1_name: row.pair1_player1_name ?? null,
+        pair1_player2_name: row.pair1_player2_name ?? null,
+        pair2_player1_name: row.pair2_player1_name ?? null,
+        pair2_player2_name: row.pair2_player2_name ?? null,
       });
       return Promise.resolve({ data: null, error: null });
     },
@@ -757,6 +780,279 @@ describe('runFipDrawPopulator', () => {
     expect(result.tournamentsSkippedNotInAllowlist).toBe(0); // both passed allowlist
     expect(result.tournamentsSkippedExcludedLevel).toBe(1);  // Brussels excluded by level
     expect(result.inserted).toBe(1);                         // only Isla wrote
+  });
+
+  // ── Amateur-tier thin matches ─────────────────────────────────────────
+  //
+  // Beyond / Promises / Other are club-organized: players routinely
+  // aren't in FIP's database, so the entry-list resolver fails. Dropping
+  // those matches makes the tournament look empty in the public app
+  // (zero matches under /tournaments/<slug>). For these tiers we fall
+  // back to "thin matches": same composite + round + category, FK
+  // columns NULL, raw names preserved on pair*_player*_name. Higher
+  // tiers (Bronze/Silver/Gold/Premier) keep strict-resolve behaviour.
+  //
+  // Trigger case from production: FIP Beyond B3 Singapore 2026 — captured
+  // 240 oop_snapshots + 176 results_snapshots but 0 rows in public.matches
+  // because no entry list / draw PDF was parseable for player resolution.
+
+  const amateurDraw: DrawSeed = {
+    ...realMatchDraw,
+    match_widget_id: 'MD003',
+    // Names that are NOT in `entryList` → resolveFourPlayers returns null.
+    team1_player1_name: 'Local ClubPlayer A',
+    team1_player2_name: 'Local ClubPlayer B',
+    team2_player1_name: 'Local ClubPlayer C',
+    team2_player2_name: 'Local ClubPlayer D',
+  };
+
+  it('amateur tier (fip_beyond): INSERTs thin match with names when resolver fails', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 Singapore', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [amateurDraw],
+      entryList, // doesn't include the four "Local ClubPlayer" names
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.tournamentsProcessed).toBe(1);
+    expect(result.inserted).toBe(1);
+    expect(result.skippedPlayerUnresolved).toBe(0);
+
+    expect(supabase.inserted).toHaveLength(1);
+    const row = supabase.inserted[0];
+    expect(row.widget_id_composite).toBe('FIP-2026-1706:MD003');
+    expect(row.tournament_id).toBe(TOURNAMENT_ID);
+    expect(row.category).toBe('men');
+    expect(row.round).toBe('R32');
+
+    // FK columns NOT set on the insert (stay NULL in DB)
+    expect(row.pair1_player1_id).toBeUndefined();
+    expect(row.pair1_player2_id).toBeUndefined();
+    expect(row.pair2_player1_id).toBeUndefined();
+    expect(row.pair2_player2_id).toBeUndefined();
+
+    // Raw names preserved verbatim from the draw snapshot
+    expect(row.pair1_player1_name).toBe('Local ClubPlayer A');
+    expect(row.pair1_player2_name).toBe('Local ClubPlayer B');
+    expect(row.pair2_player1_name).toBe('Local ClubPlayer C');
+    expect(row.pair2_player2_name).toBe('Local ClubPlayer D');
+  });
+
+  it('amateur tier (fip_promises): INSERTs thin match (level allowlist covers all amateur tiers)', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Promises Cup', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_promises' },
+      draws: [amateurDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted[0].pair1_player1_name).toBe('Local ClubPlayer A');
+  });
+
+  it('amateur tier: still resolves to FKs when entry list DOES contain the players', async () => {
+    // A thin-fallback should NEVER fire when the resolver succeeds. We
+    // want amateur-tier matches with resolved players to behave exactly
+    // like normal matches — clickable profile links in the UI.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 Singapore', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [realMatchDraw], // names ARE in entry list
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    const row = supabase.inserted[0];
+    // FKs populated...
+    expect(row.pair1_player1_id).toBe('uuid-P1');
+    expect(row.pair2_player2_id).toBe('uuid-P4');
+    // ...and name columns NOT written (the FKs are the source of truth)
+    expect(row.pair1_player1_name).toBeUndefined();
+    expect(row.pair2_player2_name).toBeUndefined();
+  });
+
+  it('non-amateur tier (fip_bronze): still SKIPS unresolved rows (no thin fallback)', async () => {
+    // Bronze/Silver/Gold/Premier keep the strict-resolve contract. If
+    // entry list lookup fails, we don't want a name-only row showing up
+    // for those tiers — the populator should drop it and try again next
+    // run when the entry list might be richer.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Bronze Event', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_bronze' },
+      draws: [amateurDraw], // names NOT in entry list
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedPlayerUnresolved).toBe(1);
+    expect(result.inserted).toBe(0);
+    expect(supabase.inserted).toHaveLength(0);
+  });
+
+  it('amateur tier: thin UPDATE backfills only NULL name slots (never overwrites)', async () => {
+    // Operator (or earlier run) previously filled team 1's names. The
+    // populator should add team 2 only and leave team 1 alone — exactly
+    // mirroring the FK-side "NULL only" behaviour.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 Singapore', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [amateurDraw],
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-thin-existing',
+          widget_id_composite: 'FIP-2026-1706:MD003',
+          pair1_player1_id: null,
+          pair1_player2_id: null,
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+          // team 1 already filled by an earlier pass
+          pair1_player1_name: 'Already There A',
+          pair1_player2_name: 'Already There B',
+          pair2_player1_name: null,
+          pair2_player2_name: null,
+        },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(0);
+    expect(result.updated).toBe(1);
+    expect(supabase.updated).toHaveLength(1);
+    expect(supabase.updated[0].id).toBe('m-thin-existing');
+    // Only the two NULL slots got names; the populated team-1 names
+    // stay untouched.
+    expect(supabase.updated[0].patch).toEqual({
+      pair2_player1_name: 'Local ClubPlayer C',
+      pair2_player2_name: 'Local ClubPlayer D',
+    });
+    expect(supabase.updated[0].patch).not.toHaveProperty('pair1_player1_name');
+    expect(supabase.updated[0].patch).not.toHaveProperty('pair1_player2_name');
+  });
+
+  it('amateur tier: thin match with all 4 names already filled is a no-op', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 Singapore', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [amateurDraw],
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-thin-complete',
+          widget_id_composite: 'FIP-2026-1706:MD003',
+          pair1_player1_id: null,
+          pair1_player2_id: null,
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+          pair1_player1_name: 'A',
+          pair1_player2_name: 'B',
+          pair2_player1_name: 'C',
+          pair2_player2_name: 'D',
+        },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(0);
+    expect(result.updated).toBe(0);
+    expect(result.skippedAlreadyComplete).toBe(1);
+  });
+
+  it('amateur tier: a thin match GETS UPGRADED to FKs once the entry list catches up', async () => {
+    // This is the recovery path. A tournament might initially have no
+    // resolvable entry list (PDF posted late, players not in FIP DB
+    // yet). The first pass inserts thin rows. A later pass — once the
+    // entry list lands — finds those rows and backfills the FK columns.
+    // Names stay where they are (DB column, ignored by UI when FK set).
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 Singapore', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [realMatchDraw], // these names ARE in entry list (uuid-P1..P4)
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-thin-then-resolved',
+          widget_id_composite: 'FIP-2026-1706:MD017',
+          pair1_player1_id: null,
+          pair1_player2_id: null,
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+          pair1_player1_name: 'Nuno Baptista',
+          pair1_player2_name: 'David Fernandes',
+          pair2_player1_name: 'Jose Montalban Martin',
+          pair2_player2_name: 'German Rodriguez Quesada',
+        },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(0);
+    expect(result.updated).toBe(1);
+    expect(supabase.updated[0].patch).toEqual({
+      pair1_player1_id: 'uuid-P1',
+      pair1_player2_id: 'uuid-P2',
+      pair2_player1_id: 'uuid-P3',
+      pair2_player2_id: 'uuid-P4',
+    });
   });
 
   it('excludeLevels: tournaments without a level (null) are NEVER excluded', async () => {

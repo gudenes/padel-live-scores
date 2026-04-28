@@ -174,7 +174,26 @@ interface ExistingMatch {
   pair1_player2_id: string | null;
   pair2_player1_id: string | null;
   pair2_player2_id: string | null;
+  pair1_player1_name: string | null;
+  pair1_player2_name: string | null;
+  pair2_player1_name: string | null;
+  pair2_player2_name: string | null;
 }
+
+// Amateur-tier levels — tournaments at these tiers are club-organized,
+// the entry-list / FIP-search resolver routinely fails (the players
+// aren't in the FIP database), and dropping the matches on the floor
+// makes the tournament look empty in the public app. For these tiers we
+// fall back to "thin matches": same composite key + round + category,
+// player FK columns stay NULL, and the raw names from the draw snapshot
+// are stored in pair*_player*_name. The UI renders the name strings
+// when the FK is null. Higher tiers (Bronze/Silver/Gold/Premier) keep
+// the strict-resolve behaviour so player profile links stay accurate.
+const AMATEUR_TIER_LEVELS: ReadonlySet<string> = new Set([
+  'fip_beyond',
+  'fip_promises',
+  'fip_other',
+]);
 
 // ── Name normalization ─────────────────────────────────────────────────
 
@@ -245,13 +264,14 @@ export async function runFipDrawPopulator(
   }
   const tournaments = (tours ?? []) as TournamentRow[];
 
-  // 1b. Build a level lookup if the level-exclude filter is active. The
-  // RPC doesn't return `level` (it's tightly scoped to the populator's
+  // 1b. Build a level lookup. Used by two filters:
+  //   - the level-exclude denylist (caller-provided, optional)
+  //   - the amateur-tier gate inside the per-row loop (always on)
+  // The RPC doesn't return `level` (it's tightly scoped to the populator's
   // base requirements), so we do a single follow-up query against
-  // public.tournaments to get levels for the candidates. Cheap: one
-  // round-trip indexed on PK. Skipped entirely when no exclusion set.
+  // public.tournaments. Cheap: one round-trip indexed on PK.
   let levelByTournamentId = new Map<string, string | null>();
-  if (excludeLevelsActive && tournaments.length > 0) {
+  if (tournaments.length > 0) {
     const ids = tournaments.map((t) => t.tournament_id);
     const { data: levelRows, error: levelErr } = await supabase
       .from('tournaments')
@@ -353,9 +373,16 @@ export async function runFipDrawPopulator(
         continue;
       }
 
-      // Resolve 4 players
+      // Resolve 4 players. Amateur tiers (Beyond / Promises / Other) are
+      // allowed to fall back to "thin matches" — same composite + round
+      // + category, FK columns NULL, raw names preserved on
+      // pair*_player*_name. The UI handles the FK-null case by rendering
+      // the name strings without a profile link.
+      const tournamentLevel = levelByTournamentId.get(t.tournament_id) ?? null;
+      const isAmateurTier =
+        tournamentLevel != null && AMATEUR_TIER_LEVELS.has(tournamentLevel);
       const resolved = resolveFourPlayers(d, nameToFipId, fipIdToPlayerId);
-      if (!resolved) {
+      if (!resolved && !isAmateurTier) {
         result.skippedPlayerUnresolved += 1;
         logger?.debug(
           {
@@ -371,23 +398,36 @@ export async function runFipDrawPopulator(
       const existing = existingByComposite.get(composite);
 
       if (!existing) {
-        // INSERT new match
-        const insertRow = {
+        // INSERT new match. When `resolved` is set we write the FKs;
+        // when null (amateur-tier thin match) we write the raw names.
+        // NOTE: deliberately not setting status/court/scheduled_at/
+        // winner_pair/sets — those belong to other writers.
+        const insertRow: Record<string, unknown> = {
           widget_id_composite: composite,
           tournament_id: t.tournament_id,
           category: d.category,
           round: d.round_label,
-          pair1_player1_id: resolved.p1p1,
-          pair1_player2_id: resolved.p1p2,
-          pair2_player1_id: resolved.p2p1,
-          pair2_player2_id: resolved.p2p2,
-          // NOTE: deliberately not setting status/court/scheduled_at/
-          // winner_pair/sets — those belong to other writers.
         };
+        if (resolved) {
+          insertRow.pair1_player1_id = resolved.p1p1;
+          insertRow.pair1_player2_id = resolved.p1p2;
+          insertRow.pair2_player1_id = resolved.p2p1;
+          insertRow.pair2_player2_id = resolved.p2p2;
+        } else {
+          insertRow.pair1_player1_name = d.team1_player1_name;
+          insertRow.pair1_player2_name = d.team1_player2_name;
+          insertRow.pair2_player1_name = d.team2_player1_name;
+          insertRow.pair2_player2_name = d.team2_player2_name;
+        }
 
         if (dryRun) {
           logger?.info(
-            { composite, tournamentId: t.tournament_id, round: d.round_label },
+            {
+              composite,
+              tournamentId: t.tournament_id,
+              round: d.round_label,
+              thin: !resolved,
+            },
             'fip-draw-populator [dry-run]: would INSERT match'
           );
         } else {
@@ -414,28 +454,57 @@ export async function runFipDrawPopulator(
         continue;
       }
 
-      // UPDATE NULL-only for any missing pair FKs
+      // UPDATE NULL-only. Two flavours:
+      //   - resolved: backfill missing FKs (existing behaviour). When a
+      //     thin match later gets its players resolved (entry list lands,
+      //     player gets added to FIP DB), this path upgrades it.
+      //   - thin (amateur, !resolved): backfill missing names so the UI
+      //     can keep showing the team strings.
       const patch: Record<string, string> = {};
-      if (
-        existing.pair1_player1_id === null &&
-        resolved.p1p1 !== null
-      )
-        patch.pair1_player1_id = resolved.p1p1;
-      if (
-        existing.pair1_player2_id === null &&
-        resolved.p1p2 !== null
-      )
-        patch.pair1_player2_id = resolved.p1p2;
-      if (
-        existing.pair2_player1_id === null &&
-        resolved.p2p1 !== null
-      )
-        patch.pair2_player1_id = resolved.p2p1;
-      if (
-        existing.pair2_player2_id === null &&
-        resolved.p2p2 !== null
-      )
-        patch.pair2_player2_id = resolved.p2p2;
+      if (resolved) {
+        if (
+          existing.pair1_player1_id === null &&
+          resolved.p1p1 !== null
+        )
+          patch.pair1_player1_id = resolved.p1p1;
+        if (
+          existing.pair1_player2_id === null &&
+          resolved.p1p2 !== null
+        )
+          patch.pair1_player2_id = resolved.p1p2;
+        if (
+          existing.pair2_player1_id === null &&
+          resolved.p2p1 !== null
+        )
+          patch.pair2_player1_id = resolved.p2p1;
+        if (
+          existing.pair2_player2_id === null &&
+          resolved.p2p2 !== null
+        )
+          patch.pair2_player2_id = resolved.p2p2;
+      } else {
+        // Thin update: only fill names that are still null.
+        if (
+          existing.pair1_player1_name === null &&
+          d.team1_player1_name != null
+        )
+          patch.pair1_player1_name = d.team1_player1_name;
+        if (
+          existing.pair1_player2_name === null &&
+          d.team1_player2_name != null
+        )
+          patch.pair1_player2_name = d.team1_player2_name;
+        if (
+          existing.pair2_player1_name === null &&
+          d.team2_player1_name != null
+        )
+          patch.pair2_player1_name = d.team2_player1_name;
+        if (
+          existing.pair2_player2_name === null &&
+          d.team2_player2_name != null
+        )
+          patch.pair2_player2_name = d.team2_player2_name;
+      }
 
       if (Object.keys(patch).length === 0) {
         result.skippedAlreadyComplete += 1;
@@ -606,7 +675,9 @@ async function loadExistingMatchesByPrefix(
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'id, widget_id_composite, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id'
+      'id, widget_id_composite, ' +
+        'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
+        'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name',
     )
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
@@ -615,7 +686,7 @@ async function loadExistingMatchesByPrefix(
     );
   }
   const map = new Map<string, ExistingMatch>();
-  for (const row of (data ?? []) as ExistingMatch[]) {
+  for (const row of ((data ?? []) as unknown) as ExistingMatch[]) {
     if (row.widget_id_composite) map.set(row.widget_id_composite, row);
   }
   return map;
