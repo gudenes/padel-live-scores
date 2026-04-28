@@ -43,6 +43,13 @@ interface OopSnapshotSeed {
   team1_player2_name: string | null;
   team2_player1_name: string | null;
   team2_player2_name: string | null;
+  // Country codes default to null when omitted by a fixture, matching
+  // the column's default in padelgod.oop_snapshots. The populator's
+  // OOP-fallback path passes them through to public.matches.
+  team1_player1_country?: string | null;
+  team1_player2_country?: string | null;
+  team2_player1_country?: string | null;
+  team2_player2_country?: string | null;
   captured_at: string;
 }
 
@@ -65,13 +72,17 @@ interface ExistingMatchSeed {
   pair1_player2_id: string | null;
   pair2_player1_id: string | null;
   pair2_player2_id: string | null;
-  // Thin-match (amateur tier) name columns. Default to null in the
-  // helper so the populator's `existing.pair*_name === null` check
-  // behaves like a real Postgres row where the column is unset.
+  // Thin-match (amateur tier) name + country columns. Default to null
+  // in the helper so the populator's `existing.pair*_xxx === null`
+  // checks behave like a real Postgres row where the column is unset.
   pair1_player1_name?: string | null;
   pair1_player2_name?: string | null;
   pair2_player1_name?: string | null;
   pair2_player2_name?: string | null;
+  pair1_player1_country?: string | null;
+  pair1_player2_country?: string | null;
+  pair2_player1_country?: string | null;
+  pair2_player2_country?: string | null;
 }
 
 interface Options {
@@ -112,6 +123,10 @@ function fakeSupabase(opts: Options) {
       pair1_player2_name: null,
       pair2_player1_name: null,
       pair2_player2_name: null,
+      pair1_player1_country: null,
+      pair1_player2_country: null,
+      pair2_player1_country: null,
+      pair2_player2_country: null,
       ...m,
     }),
   );
@@ -148,6 +163,10 @@ function fakeSupabase(opts: Options) {
         pair1_player2_name: row.pair1_player2_name ?? null,
         pair2_player1_name: row.pair2_player1_name ?? null,
         pair2_player2_name: row.pair2_player2_name ?? null,
+        pair1_player1_country: row.pair1_player1_country ?? null,
+        pair1_player2_country: row.pair1_player2_country ?? null,
+        pair2_player1_country: row.pair2_player1_country ?? null,
+        pair2_player2_country: row.pair2_player2_country ?? null,
       });
       return Promise.resolve({ data: null, error: null });
     },
@@ -1312,5 +1331,135 @@ describe('runFipDrawPopulator', () => {
 
     expect(result.inserted).toBe(1);
     expect(supabase.inserted[0].pair1_player1_name).toBe('OK');
+  });
+
+  // ── Country code passthrough (OOP-fallback only) ─────────────────────
+  //
+  // The amateur-tier OOP fallback path now also reads country codes
+  // out of oop_snapshots and writes them to public.matches as
+  // pair*_player*_country. The UI hydrator turns those into Player
+  // objects with `country` set, which feeds the existing `countryFlag`
+  // helper — no separate UI code path needed.
+
+  it('OOP fallback: writes pair*_player*_country when present in oop_snapshots', async () => {
+    const oopRowWithCountry = {
+      ...oopRow,
+      match_widget_id: 'MD070',
+      team1_player1_country: 'INA',
+      team1_player2_country: 'SIN',
+      team2_player1_country: 'HKG',
+      team2_player2_country: 'HKG',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 SG', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [],
+      oopSnapshots: [oopRowWithCountry],
+      entryList: [],
+      players: [],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    const row = supabase.inserted[0];
+    expect(row.pair1_player1_country).toBe('INA');
+    expect(row.pair1_player2_country).toBe('SIN');
+    expect(row.pair2_player1_country).toBe('HKG');
+    expect(row.pair2_player2_country).toBe('HKG');
+  });
+
+  it('OOP fallback: omits country fields on INSERT when oop_snapshots has them null', async () => {
+    // Defensive: don't write `pair*_country: null` keys into INSERT
+    // payloads (would clutter the row + show up in audit). The
+    // existing thin-match test already implicitly covers this — names
+    // present, countries absent. Make it explicit here.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 SG', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [],
+      oopSnapshots: [oopRow], // base row has no country fields
+      entryList: [],
+      players: [],
+    });
+
+    await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    const row = supabase.inserted[0];
+    expect(row.pair1_player1_country).toBeUndefined();
+    expect(row.pair2_player2_country).toBeUndefined();
+    // Names still set
+    expect(row.pair1_player1_name).toBe('Local A');
+  });
+
+  it('OOP fallback: backfills NULL country slots without overwriting existing', async () => {
+    // First pass set country only for team 1 (e.g. flag for player 3
+    // hadn't loaded yet). Second pass has all four countries; only
+    // the still-null slots get the patch.
+    const oopRowWithCountry = {
+      ...oopRow,
+      match_widget_id: 'MD080',
+      team1_player1_country: 'NEW1',
+      team1_player2_country: 'NEW2',
+      team2_player1_country: 'NEW3',
+      team2_player2_country: 'NEW4',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'B3 SG', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [],
+      oopSnapshots: [oopRowWithCountry],
+      entryList: [],
+      players: [],
+      existingMatches: [
+        {
+          id: 'm-thin-partial-country',
+          widget_id_composite: 'FIP-2026-1706:MD080',
+          pair1_player1_id: null,
+          pair1_player2_id: null,
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+          pair1_player1_name: 'Local A',
+          pair1_player2_name: 'Local B',
+          pair2_player1_name: 'Local C',
+          pair2_player2_name: 'Local D',
+          // Team 1 countries already set; team 2 still null.
+          pair1_player1_country: 'OLD1',
+          pair1_player2_country: 'OLD2',
+          pair2_player1_country: null,
+          pair2_player2_country: null,
+        },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(0);
+    expect(result.updated).toBe(1);
+    expect(supabase.updated[0].patch).toEqual({
+      pair2_player1_country: 'NEW3',
+      pair2_player2_country: 'NEW4',
+    });
+    // Team 1's existing countries are NOT touched.
+    expect(supabase.updated[0].patch).not.toHaveProperty(
+      'pair1_player1_country',
+    );
+    expect(supabase.updated[0].patch).not.toHaveProperty(
+      'pair1_player2_country',
+    );
   });
 });

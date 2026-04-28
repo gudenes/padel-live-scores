@@ -138,6 +138,98 @@ describe('parseCrionetOop', () => {
     expect(result[0].category).toBe('women');
     expect(result[0].team1Player1Name).toBe('G. Triay');
     expect(result[0].team2Player2Name).toBe('M. Osoro');
+    // Country codes captured from the flag image src — uppercased,
+    // alpha-3, verbatim from the URL filename.
+    expect(result[0].team1Player1Country).toBe('ESP');
+    expect(result[0].team1Player2Country).toBe('ESP');
+    expect(result[0].team2Player1Country).toBe('ARG');
+    expect(result[0].team2Player2Country).toBe('ARG');
+  });
+
+  it('extracts country codes from FIP Beyond live widgets (mixed nationalities)', () => {
+    // Real B3 Singapore-style markup — minified single-line player
+    // blocks, mixed nationalities. The widget renders flag filenames
+    // verbatim, so the parser sees uppercase IOC codes for the easy
+    // ones (ESP) and FIP-specific ones (INA = Indonesia, HKG = Hong
+    // Kong) alike. We store as-is; render-time translation is the
+    // public app's job (countryFlag handles both alpha-3 and alpha-2).
+    const html = `
+<table class="w-100">
+  <tr class="scorebox-header-completed">
+    <th><span class="court-name">Court 1</span></th>
+    <th><div class="round-name"><small><b>Men </b><div>QF</div></small></div></th>
+  </tr>
+  <tr class="scorebox-sep-bottom">
+    <td class="team">
+      <div class="player-names"><div class="double">
+        <div class="d-flex align-items-center">
+          <div><img class="flags" src="/images/flags/INA.jpg"/></div>
+          <div class="ml-2 winner line-thin"><span>A.</span><span>Hendrawan</span></div>
+        </div>
+        <div class="d-flex align-items-center">
+          <div><img class="flags" src="/images/flags/SIN.jpg"/></div>
+          <div class="ml-2 winner line-thin"><span>K.</span><span>Lim</span></div>
+        </div>
+      </div></div>
+    </td>
+  </tr>
+  <tr>
+    <td class="team">
+      <div class="player-names"><div class="double">
+        <div class="d-flex align-items-center">
+          <div><img class="flags" src="/images/flags/HKG.jpg"/></div>
+          <div class="ml-2 line-thin"><span>A.</span><span>Wong</span></div>
+        </div>
+        <div class="d-flex align-items-center">
+          <div><img class="flags" src="/images/flags/HKG.jpg"/></div>
+          <div class="ml-2 line-thin"><span>T.</span><span>Chan</span></div>
+        </div>
+      </div></div>
+    </td>
+  </tr>
+</table>`;
+    const result = parseCrionetOop(html, 1);
+    expect(result).toHaveLength(1);
+    expect(result[0].team1Player1Country).toBe('INA');
+    expect(result[0].team1Player2Country).toBe('SIN');
+    expect(result[0].team2Player1Country).toBe('HKG');
+    expect(result[0].team2Player2Country).toBe('HKG');
+  });
+
+  it('keeps country=null when the flag <img> has no src (legacy/trimmed markup)', () => {
+    // The original Brussels fixture lazy-loads flag images via JS, so
+    // the static HTML carries `<img class="flags"/>` with no src.
+    // Names should still parse; countries should stay null without
+    // dropping the row or polluting other fields.
+    const html = `
+<table class="w-100">
+  <tr class="scorebox-header-scheduled">
+    <th><span class="court-name">Starting at 10:00 AM</span></th>
+    <th><div class="round-name"><small><b>Men </b><div>R32</div></small></div></th>
+  </tr>
+  <tr class="scorebox-sep-bottom"><td class="team">
+    <div class="player-names"><div class="double">
+      <div class="d-flex"><img class="flags"/><div class="ml-2"><span>T.</span><span>Zapata</span></div></div>
+      <div class="d-flex"><img class="flags"/><div class="ml-2"><span>R.</span><span>Coello</span></div></div>
+    </div></div>
+  </td></tr>
+  <tr><td class="team">
+    <div class="player-names"><div class="double">
+      <div class="d-flex"><img class="flags"/><div class="ml-2"><span>I.</span><span>Sager</span></div></div>
+      <div class="d-flex"><img class="flags"/><div class="ml-2"><span>J.</span><span>Belluati</span></div></div>
+    </div></div>
+  </td></tr>
+</table>`;
+    const result = parseCrionetOop(html, 1);
+    expect(result).toHaveLength(1);
+    // Names still extracted as before
+    expect(result[0].team1Player1Name).toBe('T. Zapata')
+    expect(result[0].team2Player2Name).toBe('J. Belluati')
+    // Countries are null because the <img> had no src
+    expect(result[0].team1Player1Country).toBeNull();
+    expect(result[0].team1Player2Country).toBeNull();
+    expect(result[0].team2Player1Country).toBeNull();
+    expect(result[0].team2Player2Country).toBeNull();
   });
 
   it('returns empty array for "No schedule available"', () => {

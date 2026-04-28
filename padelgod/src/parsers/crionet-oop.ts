@@ -55,6 +55,21 @@ export interface ParsedOopMatch {
   team1Player2Name: string | null;
   team2Player1Name: string | null;
   team2Player2Name: string | null;
+  /**
+   * Player country code as it appears in the widget's flag image
+   * filename — typically a 3-letter IOC/FIP code (`INA` Indonesia,
+   * `HKG` Hong Kong, `ESP` Spain, …). Stored verbatim; the public app
+   * normalises to alpha-2 / emoji at render time via the existing
+   * `countryFlag()` helper, which handles both alpha-3 and alpha-2.
+   *
+   * Null when the row's flag image has no resolvable src — happens on
+   * trimmed test fixtures and on the very first widget render before
+   * the static HTML has loaded. Production widgets carry the src.
+   */
+  team1Player1Country: string | null;
+  team1Player2Country: string | null;
+  team2Player1Country: string | null;
+  team2Player2Country: string | null;
   matchWidgetId: string | null;
   status: OopStatus;
 }
@@ -79,11 +94,54 @@ function parseRoundLabel($block: cheerio.Cheerio<any>): string | null {
   return inner || null;
 }
 
+interface ParsedPlayer {
+  name: string;
+  /** 3-letter IOC code as captured from the flag image filename
+   *  (`INA`, `HKG`, `ESP`, …). Null if the row's `<img class="flags">`
+   *  has no `src` — e.g. trimmed test fixtures or pre-hydration HTML. */
+  country: string | null;
+}
+
+/**
+ * Match a country code out of `/images/flags/<CODE>.<ext>`. The widget
+ * always uses this path layout; the only thing that varies is the
+ * 2- to 4-letter IOC/FIP code and the file extension (.jpg / .png).
+ *
+ * Anchored at the `flags/` segment so unrelated `<img>` srcs (logos,
+ * tournament banners) can't leak through.
+ */
+const FLAG_SRC_RE = /\/images\/flags\/([A-Za-z]{2,4})\.[A-Za-z]+/;
+
+function countryFromFlagSrc(src: string | null | undefined): string | null {
+  if (!src) return null;
+  const m = src.match(FLAG_SRC_RE);
+  // m[1] is non-null when m is not null (regex has a capturing group).
+  return m && m[1] ? m[1].toUpperCase() : null;
+}
+
+/**
+ * Pulls each player's name + country code out of one team's `<td>`.
+ * Each player block looks like:
+ *
+ *   <div class="d-flex">
+ *     <img class="flags" src="/images/flags/INA.jpg"/>
+ *     <div class="ml-2">
+ *       <span>A.</span><span>Hendrawan</span>
+ *     </div>
+ *   </div>
+ *
+ * We anchor on the `.ml-2` / `.ms-2` block to find names (matches the
+ * pre-existing logic), then walk back to the wrapping flex row to
+ * find the sibling `img.flags` for the same player. Walking from the
+ * name out (rather than scanning all flag imgs in the td) keeps name
+ * → country alignment intact even when the markup changes whitespace
+ * or wraps the row in extra divs.
+ */
 function parsePlayers(
   $: cheerio.CheerioAPI,
   td: cheerio.Cheerio<any>,
-): { player1: string | null; player2: string | null } {
-  const playerNames: string[] = [];
+): { player1: ParsedPlayer | null; player2: ParsedPlayer | null } {
+  const players: ParsedPlayer[] = [];
   td.find('div').each((_, el) => {
     const $el = $(el);
     const cls = $el.attr('class') ?? '';
@@ -96,11 +154,17 @@ function parsePlayers(
       if (text) parts.push(text);
     });
     if (parts.length === 0) return;
-    playerNames.push(parts.join(' ').trim());
+    const name = parts.join(' ').trim();
+    // Find the closest flex row wrapping this name block, then take
+    // its `img.flags` sibling. Returns null if either the wrapper or
+    // the img is absent — that's fine, country just stays null.
+    const flexRow = $el.closest('.d-flex');
+    const flagSrc = flexRow.find('img.flags').first().attr('src') ?? null;
+    players.push({ name, country: countryFromFlagSrc(flagSrc) });
   });
   return {
-    player1: playerNames[0] ?? null,
-    player2: playerNames[1] ?? null,
+    player1: players[0] ?? null,
+    player2: players[1] ?? null,
   };
 }
 
@@ -148,10 +212,14 @@ function parseMatchTable(
     courtPosition: ctx.courtPosition,
     courtDisplayOrder: ctx.courtDisplayOrder,
     scheduledLabel,
-    team1Player1Name: team1.player1,
-    team1Player2Name: team1.player2,
-    team2Player1Name: team2.player1,
-    team2Player2Name: team2.player2,
+    team1Player1Name: team1.player1?.name ?? null,
+    team1Player2Name: team1.player2?.name ?? null,
+    team2Player1Name: team2.player1?.name ?? null,
+    team2Player2Name: team2.player2?.name ?? null,
+    team1Player1Country: team1.player1?.country ?? null,
+    team1Player2Country: team1.player2?.country ?? null,
+    team2Player1Country: team2.player1?.country ?? null,
+    team2Player2Country: team2.player2?.country ?? null,
     matchWidgetId,
     status,
   };

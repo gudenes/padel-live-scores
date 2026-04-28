@@ -152,6 +152,16 @@ interface DrawRow {
   team1_player2_name: string | null;
   team2_player1_name: string | null;
   team2_player2_name: string | null;
+  // 3-letter IOC/FIP country codes per player. Sourced from
+  // oop_snapshots when this is an OOP-fallback row; null on
+  // fip_event_page rows (the FIP draw bracket exposes seeds + fip_id
+  // but not country flags). Written into public.matches.pair*_country
+  // for the amateur thin-match path so the UI can render flags
+  // without an extra resolver step.
+  team1_player1_country: string | null;
+  team1_player2_country: string | null;
+  team2_player1_country: string | null;
+  team2_player2_country: string | null;
   team1_fip_id: string | null;
   team2_fip_id: string | null;
   team1_seed: number | null;
@@ -188,6 +198,10 @@ interface ExistingMatch {
   pair1_player2_name: string | null;
   pair2_player1_name: string | null;
   pair2_player2_name: string | null;
+  pair1_player1_country: string | null;
+  pair1_player2_country: string | null;
+  pair2_player1_country: string | null;
+  pair2_player2_country: string | null;
 }
 
 // Amateur-tier levels — tournaments at these tiers are club-organized,
@@ -459,6 +473,17 @@ export async function runFipDrawPopulator(
           insertRow.pair1_player2_name = d.team1_player2_name;
           insertRow.pair2_player1_name = d.team2_player1_name;
           insertRow.pair2_player2_name = d.team2_player2_name;
+          // Country codes — non-null only on OOP-fallback rows. The
+          // FIP draw_snapshots path leaves these null because the
+          // bracket markup has no flag images.
+          if (d.team1_player1_country)
+            insertRow.pair1_player1_country = d.team1_player1_country;
+          if (d.team1_player2_country)
+            insertRow.pair1_player2_country = d.team1_player2_country;
+          if (d.team2_player1_country)
+            insertRow.pair2_player1_country = d.team2_player1_country;
+          if (d.team2_player2_country)
+            insertRow.pair2_player2_country = d.team2_player2_country;
         }
 
         if (dryRun) {
@@ -524,7 +549,11 @@ export async function runFipDrawPopulator(
         )
           patch.pair2_player2_id = resolved.p2p2;
       } else {
-        // Thin update: only fill names that are still null.
+        // Thin update: only fill names + countries that are still null.
+        // Country may land on a later run than the name (e.g. earlier
+        // OOP fetch had no flag src; later fetch did) — keep them
+        // independently NULL-only so each field upgrades the moment
+        // its source value appears.
         if (
           existing.pair1_player1_name === null &&
           d.team1_player1_name != null
@@ -545,6 +574,27 @@ export async function runFipDrawPopulator(
           d.team2_player2_name != null
         )
           patch.pair2_player2_name = d.team2_player2_name;
+
+        if (
+          existing.pair1_player1_country === null &&
+          d.team1_player1_country != null
+        )
+          patch.pair1_player1_country = d.team1_player1_country;
+        if (
+          existing.pair1_player2_country === null &&
+          d.team1_player2_country != null
+        )
+          patch.pair1_player2_country = d.team1_player2_country;
+        if (
+          existing.pair2_player1_country === null &&
+          d.team2_player1_country != null
+        )
+          patch.pair2_player1_country = d.team2_player1_country;
+        if (
+          existing.pair2_player2_country === null &&
+          d.team2_player2_country != null
+        )
+          patch.pair2_player2_country = d.team2_player2_country;
       }
 
       if (Object.keys(patch).length === 0) {
@@ -644,9 +694,27 @@ async function loadLatestFipDrawRows(
       `draw_snapshots read failed (tournament=${tournamentId}): ${error.message}`
     );
   }
-  const rows = ((data ?? []) as unknown as Omit<DrawRow, 'source'>[]).map(
-    (r) => ({ ...r, source: 'fip_event_page' as const }),
-  );
+  // FIP draw_snapshots don't carry country data — the bracket exposes
+  // seeds + fip_id but not flag images. Stamp explicit nulls so the
+  // shared DrawRow contract holds; the populator's INSERT path just
+  // emits no country columns when these are null.
+  const rows = (
+    (data ?? []) as unknown as Omit<
+      DrawRow,
+      | 'source'
+      | 'team1_player1_country'
+      | 'team1_player2_country'
+      | 'team2_player1_country'
+      | 'team2_player2_country'
+    >[]
+  ).map((r) => ({
+    ...r,
+    team1_player1_country: null,
+    team1_player2_country: null,
+    team2_player1_country: null,
+    team2_player2_country: null,
+    source: 'fip_event_page' as const,
+  }));
 
   // Dedupe: latest captured_at per (tournament_id, match_widget_id)
   const latest = new Map<string, DrawRow>();
@@ -688,7 +756,10 @@ async function loadLatestOopRowsAsDrawRows(
     .select(
       'tournament_id, match_widget_id, category, round_label, ' +
         'team1_player1_name, team1_player2_name, ' +
-        'team2_player1_name, team2_player2_name, captured_at',
+        'team2_player1_name, team2_player2_name, ' +
+        'team1_player1_country, team1_player2_country, ' +
+        'team2_player1_country, team2_player2_country, ' +
+        'captured_at',
     )
     .eq('tournament_id', tournamentId);
   if (error) {
@@ -706,6 +777,10 @@ async function loadLatestOopRowsAsDrawRows(
     team1_player2_name: string | null;
     team2_player1_name: string | null;
     team2_player2_name: string | null;
+    team1_player1_country: string | null;
+    team1_player2_country: string | null;
+    team2_player1_country: string | null;
+    team2_player2_country: string | null;
     captured_at: string;
   }
 
@@ -735,6 +810,10 @@ async function loadLatestOopRowsAsDrawRows(
     team1_player2_name: r.team1_player2_name,
     team2_player1_name: r.team2_player1_name,
     team2_player2_name: r.team2_player2_name,
+    team1_player1_country: r.team1_player1_country,
+    team1_player2_country: r.team1_player2_country,
+    team2_player1_country: r.team2_player1_country,
+    team2_player2_country: r.team2_player2_country,
     team1_fip_id: null,
     team2_fip_id: null,
     team1_seed: null,
@@ -809,7 +888,8 @@ async function loadExistingMatchesByPrefix(
     .select(
       'id, widget_id_composite, ' +
         'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
-        'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name',
+        'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name, ' +
+        'pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country',
     )
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
