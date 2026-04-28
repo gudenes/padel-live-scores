@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { parseFipWpEvents } from '../parsers/fip-wp-events.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { FIP_WP_EVENTS_VERSION } from '../lib/parser-versions.js';
-import { resolveFipLevel } from '../lib/fip-categories.js';
+import { resolveFipLevel, resolvePremierLevel } from '../lib/fip-categories.js';
 
 export interface TournamentDiscoveryDeps {
   supabase: SupabaseClient;
@@ -66,8 +66,24 @@ export async function runTournamentDiscovery(
   // tournaments get a non-null level (the Vercel scraper that previously
   // owned this only knew about Gold/Silver/Bronze and is now paused).
   // resolveFipLevel returns null for Premier-tier categories, in which
-  // case we omit `level` from the row so we don't clobber padelapi's
-  // canonical `p1`/`p2`/`major`/`finals` codes.
+  // case we fall through to resolvePremierLevel for a gap-fill: write
+  // the WP-derived Premier level only when the existing row has null —
+  // padelapi remains the primary owner when it has already set a value.
+
+  // Pre-fetch existing rows so we can apply the Premier gap-fill: write
+  // `level` only when the existing row has null (padelapi remains the
+  // primary owner — but if padelapi never wrote, our WP-derived level
+  // keeps the row visible in the public app).
+  const slugs = parsed.map((p) => p.slug).filter((s): s is string => !!s);
+  const { data: existing } = slugs.length > 0
+    ? await deps.supabase.from('tournaments').select('slug, level').in('slug', slugs)
+    : { data: [] };
+  const existingLevelBySlug = new Map<string, string | null>(
+    ((existing ?? []) as Array<{ slug: string; level: string | null }>).map(
+      (r) => [r.slug, r.level],
+    ),
+  );
+
   const rows = parsed.map((p) => {
     const level = resolveFipLevel(p.categoryTermIds, p.slug);
     const row: Record<string, unknown> = {
@@ -76,7 +92,17 @@ export async function runTournamentDiscovery(
       source: 'fip',
       last_updated_by: 'padelgod',
     };
-    if (level) row.level = level;
+    if (level) {
+      // Authoritative tier (non-Premier) — always write.
+      row.level = level;
+    } else {
+      // Premier-tier — gap-fill only. Don't clobber padelapi's value.
+      const premierLevel = resolvePremierLevel(p.categoryTermIds, p.slug);
+      const existingLevel = existingLevelBySlug.get(p.slug);
+      if (premierLevel && (existingLevel == null || existingLevel === '')) {
+        row.level = premierLevel;
+      }
+    }
     return row;
   });
 

@@ -34,6 +34,11 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
   ENABLE_SCHEDULER: boolEnv(true),
   ENABLE_TOURNAMENT_DISCOVERY: boolEnv(true),
+  // fip-event-page-enricher — enriches FIP tournament rows with data scraped
+  // from the padelfip.com event page (prize, draws, OOP). Runs at :12 each
+  // hour, right after tournament-discovery (:00). Defaults ON so it starts
+  // running on the next Railway deploy without manual env-var changes.
+  ENABLE_FIP_EVENT_PAGE_ENRICHER: boolEnv(true),
   ENABLE_WIDGET_CODE_LOOKUP: boolEnv(true),
   ENABLE_PLAYER_RANKINGS: boolEnv(true),
   ENABLE_PLAYER_PROFILE: boolEnv(true),

@@ -106,3 +106,29 @@ export function resolveFipLevel(
   }
   return null
 }
+
+/**
+ * Premier-tier WP category IDs and their level codes. Used by
+ * tournament-discovery + fip-event-page-enricher as a gap-fill: when
+ * an existing tournament row has level=null AND the WP event maps to
+ * a Premier-tier category, write the level. Padelapi remains the
+ * primary owner of Premier levels — this only fills nulls.
+ */
+const FIP_PREMIER_CATEGORY_TO_LEVEL: Record<number, string> = {
+  18: 'fip_platinum',  // FIP-TOUR-PLATINUM
+  24: 'major',          // FIP-PPT-MAJOR
+  25: 'p1',             // FIP-PPT-P1
+  306: 'finals',        // FIP-PP-MASTER-FINALS
+  387: 'p2',            // FIP-PP-P2
+};
+
+export function resolvePremierLevel(
+  categoryTermIds: readonly number[],
+  _slug: string,
+): string | null {
+  for (const id of categoryTermIds) {
+    const level = FIP_PREMIER_CATEGORY_TO_LEVEL[id];
+    if (level) return level;
+  }
+  return null;
+}

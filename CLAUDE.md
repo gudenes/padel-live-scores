@@ -191,7 +191,7 @@ Full list in `src/lib/source-priority.ts`. Helpers:
 - `isPrimaryOwner(field, source)` — is this source the top of the list?
 - `filterUpdateByPriority(payload, entityType, source, mode)` — strip fields a source can't own from an update payload
 
-**Sync jobs should use `filterUpdateByPriority` when updating existing rows** so secondary sources can't clobber primary data. See `src/app/api/cron/fip-tournaments/route.ts` for the canonical example.
+**Sync jobs should use `filterUpdateByPriority` when updating existing rows** so secondary sources can't clobber primary data. The padelgod `fip-event-page-enricher` worker is the canonical example (retired Vercel route: `src/app/api/cron/fip-tournaments/route.ts` → 410 Gone since 2026-04-28).
 
 ### Tournament entity resolution (cross-source dedup)
 Same real-world tournament can exist under multiple sources with different IDs + names. Matching rule used by the defending-champion lookup, Phase 2 dedup script, and any future merging tool:
@@ -535,7 +535,7 @@ When set to `'true'` in Vercel env vars, the following cron routes return early 
 
 Use when padelapi's writes are fighting manual SQL patches or padelgod's `closeMatch` logic during an incident (e.g., the 2026-04-22 Brussels P2 debugging session where padelapi's `'live' → 'ended'` transient was stomping our recovery). Toggle via Vercel env vars — no deploy needed (Vercel restarts the function when env vars change).
 
-Not guarded (these don't consume padelapi/Premier): `sync-fip-rankings` (FIP-sourced), `sync-articles`, `sync-highlights`, `social-drafts`, `oop-monitor`, `fip-scores`, `fip-tournaments`, `nacho-health`, `editorial-gen`, `sync-broadcasters`, `quality-scores`.
+Not guarded (these don't consume padelapi/Premier): `sync-fip-rankings` (FIP-sourced), `sync-articles`, `sync-highlights`, `social-drafts`, `oop-monitor`, `fip-scores`, `nacho-health`, `editorial-gen`, `sync-broadcasters`, `quality-scores`. (`fip-tournaments` retired 2026-04-28 — moved to padelgod workers.)
 
 Padelgod workers on Railway are unaffected — they don't read this env var.
 
