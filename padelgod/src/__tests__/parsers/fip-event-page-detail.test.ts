@@ -11,6 +11,14 @@ import {
 
 const fixtureDir = join(__dirname, '..', 'fixtures');
 const klHtml = readFileSync(join(fixtureDir, 'fip-event-kl.html'), 'utf8');
+const cyprusHtml = readFileSync(
+  join(fixtureDir, 'fip-event-cyprus.html'),
+  'utf8',
+);
+const singaporeHtml = readFileSync(
+  join(fixtureDir, 'fip-event-singapore-b3.html'),
+  'utf8',
+);
 
 describe('parseEventDates', () => {
   it('parses DD/MM/YYYY range from header', () => {
@@ -166,5 +174,63 @@ describe('parsePrizeBreakdown', () => {
 
   it('returns null when no prize-distribution table exists', () => {
     expect(parsePrizeBreakdown('<html><body></body></html>')).toBeNull();
+  });
+});
+
+// ── Real FIP page coverage — full-fixture parser smoke tests ───────────
+//
+// Each FIP tier publishes its event page with slightly different layouts
+// + JS bundles. These tests exercise the parsers against three real
+// (trimmed) fixtures captured 2026-04-28: Bronze (KL), Silver (Cyprus),
+// FIP Beyond B3 (Singapore — alphanumeric eventID + oopbyday widget).
+//
+// The KL fixture is already covered by the parser-specific tests above;
+// these add parity for Cyprus + Singapore so a future tier-rollout
+// regression is caught here.
+
+describe('parseOverviewFields — Cyprus fixture (FIP Silver)', () => {
+  const fields = parseOverviewFields(cyprusHtml);
+
+  it('captures venue + address', () => {
+    expect(fields.venue).toBe('Padel Paradise Cyprus Club');
+    expect(fields.venueAddress).toContain('Makronisou');
+  });
+
+  it('captures outdoor court conditions (Silver tier convention)', () => {
+    expect(fields.venueType).toBe('outdoor');
+  });
+
+  it('captures registration status', () => {
+    expect(fields.registrationStatus).toBe('closed');
+  });
+});
+
+describe('parsePrizeBreakdown — Cyprus fixture (FIP Silver)', () => {
+  const breakdown = parsePrizeBreakdown(cyprusHtml);
+
+  it('captures the larger Silver-tier payouts', () => {
+    expect(breakdown).not.toBeNull();
+    expect(breakdown!.r32).toBe(0);
+    expect(breakdown!.r16).toBe(102);
+    expect(breakdown!.qf).toBe(190);
+    expect(breakdown!.sf).toBe(382);
+    expect(breakdown!.finalist).toBe(720);
+    expect(breakdown!.winner).toBe(1440);
+  });
+});
+
+describe('parseMatchscorerIds — Singapore fixture (FIP Beyond B3)', () => {
+  // FIP Beyond pages use alphanumeric eventIDs and the 'oopbyday'
+  // widget. These were the FIP Beyond B3 Singapore 2026 fix earlier
+  // today — keep that bug from regressing.
+
+  it('extracts alphanumeric eventID and oopbyday widget', () => {
+    const result = parseMatchscorerIds(singaporeHtml);
+    expect(result).not.toBeNull();
+    expect(result!.year).toBe('2026');
+    expect(result!.id).toBe('B0118');
+    expect(result!.code).toBe('FIP-2026-B0118');
+    expect(result!.widget).toBe('oopbyday');
+    expect(result!.totalDays).toBe(4);
   });
 });
