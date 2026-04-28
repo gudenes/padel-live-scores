@@ -47,8 +47,13 @@ interface TournamentWithSources {
   level: string | null
   prize_money: string | null
   prize_money_fip: number | null
+  prize_breakdown: Record<string, number | string> | null
+  signup_fee_eur: number | null
+  registration_status: string | null
+  schedule_notes: string | null
   draw_size_md: number | null
   draw_size_qd: number | null
+  slug: string | null
   // Status
   status: string | null
   entry_list_status: string | null
@@ -702,7 +707,9 @@ function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
           <Field label="Source" value={t.source} />
           <Field label="Status" value={t.status} />
           <Field label="Entry list status" value={t.entry_list_status} />
+          <Field label="Registration" value={t.registration_status} />
           <Field label="Prize money" value={prize} />
+          <Field label="Sign-up fee" value={t.signup_fee_eur != null ? `€${t.signup_fee_eur}` : null} />
           <Field label="Draw size" value={drawSize || null} />
           <Field label="Venue" value={venueLine || null} />
           {t.venue_address && <Field label="Address" value={t.venue_address} />}
@@ -711,6 +718,58 @@ function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
           {t.matchscorer_url && <Field label="Matchscorer" value={t.matchscorer_url} mono />}
         </div>
       </div>
+
+      {/* Prize breakdown — per-round payouts when FIP publishes them.
+          Bronze/Silver/Gold tournaments expose this; Premier shows
+          aggregate only. Each row is €/player; pair total = 2x. */}
+      {t.prize_breakdown && (() => {
+        const bd = t.prize_breakdown
+        const ROWS: Array<[string, string]> = [
+          ['winner', 'Winner'],
+          ['finalist', 'Finalist'],
+          ['sf', 'Semifinal'],
+          ['qf', 'Quarterfinal'],
+          ['r16', 'Round of 16'],
+          ['r32', 'Round of 32'],
+        ]
+        const rows = ROWS.filter(([k]) => typeof bd[k] === 'number')
+        if (rows.length === 0) return null
+        return (
+          <div style={{ ...card, marginBottom: 12 }}>
+            <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+              <span>Prize breakdown</span>
+              <span style={{ color: '#bbb', fontWeight: 500, letterSpacing: 0 }}>
+                €/player · source: {String(bd.source ?? 'scraped')}
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, fontSize: 12 }}>
+              {rows.map(([k, label]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+                  <span style={{ color: '#666' }}>{label}</span>
+                  <span style={{ fontWeight: 700, color: k === 'winner' ? '#16a34a' : '#111', fontVariantNumeric: 'tabular-nums' }}>€{(bd[k] as number).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Schedule notes — multi-line "Play Order" text from FIP. */}
+      {t.schedule_notes && (
+        <div style={{ ...card, marginBottom: 12 }}>
+          <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8 }}>
+            Schedule notes
+          </div>
+          <pre style={{
+            margin: 0,
+            fontSize: 11,
+            color: '#444',
+            fontFamily: 'inherit',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}>{t.schedule_notes}</pre>
+        </div>
+      )}
 
       {/* Tournament phases — each round + earliest scheduled_at across
           its matches. Tells operators when each phase actually starts

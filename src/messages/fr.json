@@ -246,7 +246,16 @@
     "womenChampion": "Championne féminine {year}",
     "pairsLabel": "Paires",
     "countriesLabel": "Pays",
-    "matchesLabel": "Matchs"
+    "matchesLabel": "Matchs",
+    "viewOnFip": "Voir sur FIP",
+    "tournamentInfo": "Infos tournoi",
+    "registrationLabel": "Inscriptions",
+    "registrationOpen": "Ouvertes",
+    "registrationClosed": "Fermées",
+    "signupFee": "Inscription",
+    "perPlayer": "par joueur",
+    "prizeBreakdown": "Répartition du prize money",
+    "inferredPrizeNote": "Estimé à partir du prize money total"
   },
   "following": {
     "followPlayersAndTournaments": "Suis des joueurs et des tournois",
