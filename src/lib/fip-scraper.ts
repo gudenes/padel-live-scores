@@ -28,17 +28,23 @@ export const MATCHSCORER_WIDGET = 'https://widget.matchscorerlive.com'
  * tournament metadata too (venue, prize, surface, registration). The
  * Premier API only exposes match-level stats.
  */
+// Order matters: fetchFipEvents iterates Object.values(...) and the
+// fip-tournaments cron has a hard Vercel function timeout. Premier
+// categories sit at the top so the cron finishes the smaller (and
+// higher-value) Premier-tier work before tackling the long Bronze
+// tail; Bronze stays last because the historical backfill endpoint
+// already populates it cheaply via SSE streaming.
 export const FIP_CATEGORY_IDS: Record<string, number> = {
-  // FIP Tour
-  Gold:     19,   // FIP-TOUR-GOLD
-  Silver:   496,  // FIP-TOUR-SILVER
-  Bronze:   497,  // FIP-TOUR-BRONZE
   // Premier Padel — same overview structure on padelfip.com
-  Platinum: 18,   // FIP-TOUR-PLATINUM
-  Major:    24,   // FIP-PPT-MAJOR
-  P1:       25,   // FIP-PPT-P1
-  P2:       387,  // FIP-PP-P2
-  Finals:   306,  // FIP-PP-MASTER-FINALS
+  Finals:   306,  // FIP-PP-MASTER-FINALS (3 events)
+  Major:    24,   // FIP-PPT-MAJOR (18)
+  Platinum: 18,   // FIP-TOUR-PLATINUM (20)
+  P2:       387,  // FIP-PP-P2 (29)
+  P1:       25,   // FIP-PPT-P1 (36)
+  // FIP Tour
+  Gold:     19,   // FIP-TOUR-GOLD (29)
+  Silver:   496,  // FIP-TOUR-SILVER (148)
+  Bronze:   497,  // FIP-TOUR-BRONZE (255)
 }
 
 // Reverse lookup: id → DB level name. The Premier-tier values match
