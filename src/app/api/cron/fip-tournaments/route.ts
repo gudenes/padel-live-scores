@@ -41,7 +41,9 @@ export async function GET(request: Request) {
           // Check if tournament already exists with full data
           const { data: existing } = await supabase
             .from('tournaments')
-            .select('id, starts_at, matchscorer_url, logo_url, draw_size_md, prize_money_fip')
+            .select(
+              'id, starts_at, ends_at, matchscorer_url, logo_url, draw_size_md, prize_money_fip, venue, registration_status, prize_breakdown'
+            )
             .eq('slug', event.slug)
             .single()
 
@@ -59,20 +61,43 @@ export async function GET(request: Request) {
             updated_at: new Date().toISOString(),
           }
 
-          // Fetch event page for dates + matchscorer ID + draw sizes (only if missing).
+          // Fetch event page when ANY tracked field is still missing on the
+          // existing row, OR when the tournament hasn't ended yet (so we
+          // pick up registration-status changes mid-life-cycle).
           //
-          // `prize_money_fip` is part of the trigger so a row that was first
-          // ingested before parseDrawSizes could read the labeled
-          // "Prize Money X€" line will refetch once. Without it, the
-          // cron sees `starts_at` already populated and skips — leaving
-          // prize_money_fip permanently null. See FIP Bronze Isla 2026
+          // `prize_money_fip` is part of the trigger so rows ingested
+          // before parseDrawSizes could read the labelled "Prize Money X€"
+          // line refetch once. Without it, the cron would see `starts_at`
+          // already populated and skip — see FIP Bronze Isla 2026
           // (id eebede66-…) for the canonical example.
+          //
+          // `venue`, `registration_status`, and `prize_breakdown` were
+          // added 2026-04-28; existing rows refetch on the next pass
+          // until they're populated (or the parser confirms they're
+          // genuinely absent on that page).
           const needsDates = !existing?.starts_at
           const needsMatchscorer = !existing?.matchscorer_url
           const needsDrawSize = !existing?.draw_size_md
           const needsPrizeMoney = existing?.prize_money_fip == null
+          const needsOverview = !existing?.venue
+          const needsBreakdown = existing?.prize_breakdown == null
 
-          if (needsDates || needsMatchscorer || needsDrawSize || needsPrizeMoney) {
+          // Registration status changes during a tournament's life
+          // (open → closed). Refresh on every pass while the event is
+          // still upcoming or in progress.
+          const endsAt = existing?.ends_at ? Date.parse(existing.ends_at) : null
+          const isCurrentOrFuture =
+            endsAt == null || endsAt > Date.now() - 24 * 60 * 60 * 1000
+
+          if (
+            needsDates ||
+            needsMatchscorer ||
+            needsDrawSize ||
+            needsPrizeMoney ||
+            needsOverview ||
+            needsBreakdown ||
+            isCurrentOrFuture
+          ) {
             const pageData = await fetchEventPageData(event.slug)
 
             if (pageData.dates.startsAt) {
@@ -92,6 +117,20 @@ export async function GET(request: Request) {
             }
             if (pageData.drawSize.prizeMoney) {
               tournamentData.prize_money_fip = pageData.drawSize.prizeMoney
+            }
+
+            // Overview-block fields. Each is independently nullable so
+            // we only write what the page actually exposes.
+            const ov = pageData.overview
+            if (ov.registrationStatus) tournamentData.registration_status = ov.registrationStatus
+            if (ov.signupFeeEur != null) tournamentData.signup_fee_eur = ov.signupFeeEur
+            if (ov.venue) tournamentData.venue = ov.venue
+            if (ov.venueAddress) tournamentData.venue_address = ov.venueAddress
+            if (ov.venueType) tournamentData.venue_type = ov.venueType
+            if (ov.scheduleNotes) tournamentData.schedule_notes = ov.scheduleNotes
+
+            if (pageData.prizeBreakdown) {
+              tournamentData.prize_breakdown = pageData.prizeBreakdown
             }
 
             enriched++
