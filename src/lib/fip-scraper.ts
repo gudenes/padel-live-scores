@@ -411,14 +411,20 @@ export function parseDrawSizes(html: string): DrawSize {
   const qdMatch = /[Qq]ualif(?:ication|ying)\s*[Dd]raw[:\s]*(\d+)/i.exec(html)
   const qualifyingDraw = qdMatch ? parseInt(qdMatch[1], 10) : null
 
-  // Prize money — labeled match first, € suffix fallback second.
-  // The labeled pattern accepts an optional ":" or whitespace, then any
-  // non-digit chars (whitespace / nbsp / colon / dash), then captures
-  // the number with thousand separators, then required € suffix.
+  // Prize money — labelled "Prize Money" match first; both suffix and
+  // prefix € formats appear on padelfip.com:
+  //   Bronze/Silver/Gold: "Prize Money 18.000€"
+  //   Premier-tier:       "Prize Money €264.534"
+  // Falls back to the first €-suffixed number anywhere in the HTML
+  // (legacy pages with non-standard layouts).
   let prizeMoney: number | null = null
-  const labeledRe = /Prize\s*Money[^\d]*(\d[\d.,]*)\s*€/i
+  const labeledSuffix = /Prize\s*Money[^\d]*(\d[\d.,]*)\s*€/i
+  const labeledPrefix = /Prize\s*Money[^€]*€\s*(\d[\d.,]*)/i
   const fallbackRe = /(\d[\d.,]*)\s*€/
-  const prizeMatch = labeledRe.exec(html) ?? fallbackRe.exec(html)
+  const prizeMatch =
+    labeledSuffix.exec(html) ??
+    labeledPrefix.exec(html) ??
+    fallbackRe.exec(html)
   if (prizeMatch) {
     // Remove thousand separators (both . and ,) and parse
     const cleaned = prizeMatch[1].replace(/[.,]/g, '')
