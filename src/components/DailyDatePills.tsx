@@ -35,21 +35,39 @@ interface Props {
    * client-side day-swap shell.
    */
   onSelect?: (iso: string) => void
+  /**
+   * Optional forward boundary (YYYY-MM-DD). Pills + arrow that target
+   * a date strictly after this iso render as disabled. Lets the shell
+   * cap the day picker at the latest day with actual data, so users
+   * don't endlessly scroll into empty days.
+   *
+   * Computed by the shell as `max(today + 3, maxScheduledIso)` — at
+   * least 3 days forward is always reachable; if matches go further
+   * than that, the cap extends to wherever data ends.
+   */
+  maxIso?: string
 }
 
-export function DailyDatePills({ selectedIso, locale, onSelect }: Props) {
+export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props) {
   const t = useTranslations('daily')
   const tz = getLocaleHomeTz(locale)
+
+  // ISO YYYY-MM-DD strings sort lexically the same as chronologically,
+  // so a plain `>` comparison is enough to test "past the boundary."
+  const isPastBoundary = (iso: string): boolean =>
+    !!maxIso && iso > maxIso
 
   const days = [-3, -2, -1, 0, 1, 2, 3].map(offset => {
     const iso = addDaysIso(selectedIso, offset, tz)
     const isSelected = offset === 0
     const isToday = isLocaleToday(iso, locale)
-    return { iso, offset, isSelected, isToday }
+    const disabled = isPastBoundary(iso)
+    return { iso, offset, isSelected, isToday, disabled }
   })
 
   const prevIso = addDaysIso(selectedIso, -4, tz)
   const nextIso = addDaysIso(selectedIso, 4, tz)
+  const nextDisabled = isPastBoundary(nextIso)
 
   // Short weekday + day of month, e.g. "jue 17", "Thu 17"
   const dayFormatter = new Intl.DateTimeFormat(locale, {
@@ -83,7 +101,7 @@ export function DailyDatePills({ selectedIso, locale, onSelect }: Props) {
         onSelect={onSelect}
       />
 
-      {days.map(({ iso, offset, isSelected, isToday }) => {
+      {days.map(({ iso, offset, isSelected, isToday, disabled }) => {
         const [wdPart, dayPart] = partsFor(iso, tz, dayFormatter)
         let topLabel = wdPart
         if (isToday && offset === 0) topLabel = t('today')
@@ -98,6 +116,7 @@ export function DailyDatePills({ selectedIso, locale, onSelect }: Props) {
             topLabel={topLabel}
             bottomLabel={dayPart}
             isSelected={isSelected}
+            disabled={disabled}
             onSelect={onSelect}
           />
         )
@@ -111,6 +130,7 @@ export function DailyDatePills({ selectedIso, locale, onSelect }: Props) {
         ariaLabel={t('tomorrow')}
         isSelected={false}
         isArrow
+        disabled={nextDisabled}
         onSelect={onSelect}
       />
     </nav>
@@ -142,6 +162,11 @@ interface PillButtonProps {
   ariaLabel?: string
   isSelected: boolean
   isArrow?: boolean
+  /** When true, the pill renders muted with `pointer-events: none` and
+   *  `aria-disabled`. Click handlers are short-circuited; in link mode
+   *  the <Link> degrades to a plain <span> so middle-click + open-in-tab
+   *  also doesn't navigate past the boundary. */
+  disabled?: boolean
   onSelect?: (iso: string) => void
 }
 
@@ -177,7 +202,9 @@ function PillButton(p: PillButtonProps) {
     fontFamily: 'inherit',
     position: 'relative',
     zIndex: 1,
-    cursor: 'pointer',
+    cursor: p.disabled ? 'not-allowed' : 'pointer',
+    opacity: p.disabled ? 0.32 : 1,
+    pointerEvents: p.disabled ? 'none' : 'auto',
   }
 
   const inner = p.isArrow ? (
@@ -205,7 +232,17 @@ function PillButton(p: PillButtonProps) {
 
   // Callback mode: render as <button>. Snappier — no Next.js nav, no
   // server round-trip; the parent shell swaps the cached day.
-  const node = p.onSelect ? (
+  // Disabled pills render as plain <span> in either mode so clicks +
+  // middle-click-open-in-tab both no-op past the boundary.
+  const node = p.disabled ? (
+    <span
+      aria-label={p.ariaLabel}
+      aria-disabled="true"
+      style={{ ...sharedStyle, font: 'inherit' }}
+    >
+      {inner}
+    </span>
+  ) : p.onSelect ? (
     <button
       type="button"
       aria-label={p.ariaLabel}
@@ -230,9 +267,15 @@ function PillButton(p: PillButtonProps) {
   // Non-active pills (and arrows) render bare — no shadow wrapper.
   if (!isActive) return node
 
-  // Active pill: lime shadow layered behind the button/link.
+  // Active pill: lime shadow layered behind the button/link, plus a
+  // brief pulse animation. The `key={p.iso}` forces React to remount
+  // the wrapper on every selection change so the CSS keyframe replays
+  // from frame 0 — that's the "click registered" cue that pairs with
+  // the body's matches-day-fade.
   return (
     <span
+      key={p.iso}
+      className="day-pill-pulse"
       style={{
         position: 'relative',
         display: 'inline-flex',

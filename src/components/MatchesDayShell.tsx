@@ -29,6 +29,7 @@ import { DailyDatePills } from '@/components/DailyDatePills'
 import { addDaysIso, getLocaleHomeTz, isLocaleToday, getLocaleTodayIso } from '@/lib/locale-time'
 import { useDaySwipe } from '@/hooks/useDaySwipe'
 import type { MatchesDayGroup } from '@/lib/fetch-matches-day'
+import { nextDayWithMatches } from '@/lib/fetch-matches-calendar'
 
 const CACHE_NEIGHBOUR_RANGE = 3 // prefetch ±3 days around active
 
@@ -78,6 +79,34 @@ export default function MatchesDayShell({
 
   // Track in-flight requests so a rapid pill flick doesn't duplicate.
   const inFlightRef = useRef<Set<string>>(new Set())
+
+  // Calendar metadata — `maxScheduledIso` caps the forward day picker
+  // and `daysWithMatches` powers the empty-state "Next matches" CTA.
+  // Empty array on the first render so the shell doesn't gate paint on
+  // the calendar fetch; the cap applies once the request resolves.
+  const [daysWithMatches, setDaysWithMatches] = useState<string[]>([])
+  const [maxScheduledIso, setMaxScheduledIso] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/matches/calendar?locale=${encodeURIComponent(locale)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => {
+        if (cancelled || !p) return
+        if (Array.isArray(p.daysWithMatches)) setDaysWithMatches(p.daysWithMatches)
+        if (typeof p.maxScheduledIso === 'string' || p.maxScheduledIso === null) {
+          setMaxScheduledIso(p.maxScheduledIso ?? null)
+        }
+      })
+      .catch((err) => {
+        // Silent: a missing boundary just falls back to "no cap" — the
+        // pre-feature UX, never a hard failure.
+        console.warn('[MatchesDayShell] calendar fetch failed', err)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [locale])
 
   const setEntry = useCallback((iso: string, entry: CacheEntry) => {
     setCache((prev) => {
@@ -142,8 +171,21 @@ export default function MatchesDayShell({
     window.history.replaceState(window.history.state, '', url)
   }, [activeIso, initialIso, locale])
 
+  // Boundary-aware ref so `goTo` (memoised on cache + fetchDay) can
+  // read the current cap without recreating on every cap change. We
+  // re-evaluate inside the callback so a stale closure can't let a
+  // forward-swipe slip past the boundary. The actual `boundaryRef
+  // .current = boundaryIso` sync happens further down once
+  // `boundaryIso` is declared — this just initialises the ref.
+  const boundaryRef = useRef<string | null>(null)
+
   const goTo = useCallback(
     (iso: string) => {
+      // Forward-boundary guard: pills past the cap render disabled, but
+      // the swipe gesture doesn't know about pill state. Drop the
+      // out-of-range target on the floor instead of rendering an empty
+      // future day.
+      if (boundaryRef.current && iso > boundaryRef.current) return
       setActiveIso(iso)
       setPillIso(iso)
       // If the day isn't loaded yet, kick a fetch right away (don't
@@ -158,6 +200,33 @@ export default function MatchesDayShell({
 
   const prevIso = useMemo(() => addDaysIso(activeIso, -1, tz), [activeIso, tz])
   const nextIso = useMemo(() => addDaysIso(activeIso, 1, tz), [activeIso, tz])
+
+  // Forward boundary: at minimum `today + 3` is always reachable so
+  // users can plan the next few days, but if matches go further (a
+  // Premier P1 schedule that publishes a week ahead, say) the cap
+  // extends to wherever data actually lives. Past that point pills +
+  // arrow render as disabled and the swipe gesture is short-circuited.
+  const todayIsoForCap = useMemo(() => getLocaleTodayIso(locale), [locale])
+  const boundaryIso = useMemo(() => {
+    const floor = addDaysIso(todayIsoForCap, 3, tz)
+    if (!maxScheduledIso) return floor
+    return floor >= maxScheduledIso ? floor : maxScheduledIso
+  }, [todayIsoForCap, tz, maxScheduledIso])
+
+  // Keep boundaryRef synced with the latest boundaryIso so goTo can
+  // short-circuit out-of-range swipes without re-creating the callback
+  // on every cap change.
+  useEffect(() => {
+    boundaryRef.current = boundaryIso
+  }, [boundaryIso])
+
+  // Suggested jump target when the active day is empty: soonest day
+  // ≥ activeIso that has matches. Null when nothing's scheduled at
+  // or after the active day in the lookahead window.
+  const suggestedNextIso = useMemo(
+    () => nextDayWithMatches(daysWithMatches, addDaysIso(activeIso, 1, tz)),
+    [daysWithMatches, activeIso, tz],
+  )
 
   const activeEntry = cache.get(activeIso)
   const isLoadingActive = !activeEntry || activeEntry.state === 'loading'
@@ -231,6 +300,19 @@ export default function MatchesDayShell({
     }
   }, [pillIso, todayIso, cache, fetchDay])
 
+  // Format the suggested-next-iso into a short, human-friendly label
+  // for the CTA button. Hoisted out of JSX so the i18n call site stays
+  // readable.
+  function formatJumpDate(iso: string, loc: string, timeZone: string): string {
+    const d = new Date(iso + 'T12:00:00Z')
+    return new Intl.DateTimeFormat(loc, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone,
+    }).format(d)
+  }
+
   return (
     <>
       {/* Sticky header strip — pills + filter. Composition matches the
@@ -251,7 +333,12 @@ export default function MatchesDayShell({
       >
         <div style={swipeStyle}>
           <div ref={rollWrapperRef}>
-            <DailyDatePills selectedIso={pillIso} locale={locale} onSelect={goTo} />
+            <DailyDatePills
+              selectedIso={pillIso}
+              locale={locale}
+              onSelect={goTo}
+              maxIso={boundaryIso}
+            />
           </div>
         </div>
         {/* Filter bar is always visible — even on empty days the user
@@ -303,7 +390,22 @@ export default function MatchesDayShell({
             </div>
           ) : groups.length === 0 ? (
             <div style={{ padding: '8px 16px 24px' }}>
-              <EmptyState title={emptyStateTitle} subtitle={emptyStateSubtitle} />
+              <EmptyState
+                title={emptyStateTitle}
+                subtitle={emptyStateSubtitle}
+                action={
+                  suggestedNextIso ? (
+                    <NextMatchesJumpButton
+                      iso={suggestedNextIso}
+                      locale={locale}
+                      label={tDaily('jumpToNextMatches', {
+                        date: formatJumpDate(suggestedNextIso, locale, tz),
+                      })}
+                      onClick={() => goTo(suggestedNextIso)}
+                    />
+                  ) : undefined
+                }
+              />
             </div>
           ) : (
             <div id="matches-filter-root" style={{ padding: '0 8px' }}>
@@ -335,5 +437,47 @@ export default function MatchesDayShell({
         </div>
       </div>
     </>
+  )
+}
+
+// ── NextMatchesJumpButton ──────────────────────────────────────────
+//
+// CTA inside the empty-state when there are no matches today but the
+// calendar lookahead found data on a later day. One tap routes the
+// user straight to that day instead of forcing them to scroll the day
+// picker forward looking for content.
+//
+// Visual style mirrors the "Hoy" button in the filter bar — chunky
+// brand polygon, lime accent — so the affordance reads as a system
+// jump rather than a normal action button.
+
+interface NextMatchesJumpButtonProps {
+  iso: string
+  locale: string
+  label: string
+  onClick: () => void
+}
+
+function NextMatchesJumpButton({ label, onClick }: NextMatchesJumpButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        background: '#0A0A0A',
+        color: '#7ED321',
+        border: '1px solid rgba(126,211,33,0.4)',
+        clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+        padding: '10px 18px',
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: 0.4,
+        textTransform: 'uppercase',
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+      }}
+    >
+      {label} ›
+    </button>
   )
 }

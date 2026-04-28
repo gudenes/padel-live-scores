@@ -162,6 +162,37 @@ button:focus { outline: none; }
 }
 
 /* ───────────────────────────────────────────────────────────────────
+   Day-pill pulse — `.day-pill-pulse`
+
+   Quick "click registered" cue on the day picker. When the user taps
+   a pill or swipes to a new day, the new active pill briefly grows
+   then settles back. Combined with the body's `.matches-day-fade`,
+   this gives both the picker and the content area a synchronized
+   "things are moving" feel — the user sees TWO points of motion
+   instead of just the body.
+
+   Triggered via React key remount on every selection change in
+   DailyDatePills (so the keyframe always replays from frame 0).
+*/
+
+@keyframes day-pill-pulse {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.day-pill-pulse {
+  animation: day-pill-pulse 280ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-pill-pulse {
+    animation: none;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────
    Skeleton shimmer — `.skeleton-line` class
 
    Render the page chrome immediately with shimmer placeholders where

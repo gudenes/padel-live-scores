@@ -30,6 +30,11 @@ export interface EmptyStateProps {
   imageSrc?: string
   /** Tighten vertical padding on dense surfaces (e.g. modals). */
   compact?: boolean
+  /** Optional call-to-action rendered below the subtitle. Use this when
+   *  there's a sensible "next step" the user can take from the empty
+   *  state — e.g. on /matches/[date] we render a "Next matches: <date>"
+   *  jump button so users don't have to scroll forward to find data. */
+  action?: React.ReactNode
 }
 
 export default function EmptyState({
@@ -37,6 +42,7 @@ export default function EmptyState({
   subtitle,
   imageSrc = '/empty-state-padel.png',
   compact = false,
+  action,
 }: EmptyStateProps) {
   const padding = compact ? '20px 16px' : '32px 20px 28px'
   const imageSize = compact ? 96 : 140
@@ -91,6 +97,7 @@ export default function EmptyState({
           {subtitle}
         </div>
       )}
+      {action && <div style={{ marginTop: 16 }}>{action}</div>}
     </div>
   )
 }
