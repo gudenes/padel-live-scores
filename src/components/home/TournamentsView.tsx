@@ -456,8 +456,11 @@ export default function TournamentsView({
         </div>
       )}
 
-      {/* Tab switcher — left-aligned */}
-      <div style={{ display: 'flex', gap: 8, padding: '0 16px 10px' }}>
+      {/* Tab switcher — left-aligned. Top padding gives the row room to
+          breathe under the GlobalHeader; the legacy back-arrow header
+          (when showInternalHeader=true) supplies its own bottom padding,
+          so no double-spacing in that mode. */}
+      <div style={{ display: 'flex', gap: 8, padding: showInternalHeader ? '0 16px 10px' : '14px 16px 10px' }}>
         {(['premier', 'fip'] as TournamentTab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: tab === t ? GREEN : 'rgba(255,255,255,0.06)',
