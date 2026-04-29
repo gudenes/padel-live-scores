@@ -30,30 +30,65 @@ interface Connection {
   bidirectional?: boolean
 }
 
-// All nodes positioned on a 1200x900 canvas
+// All nodes positioned on a 1160x1080 canvas. Padelgod (Railway long-
+// lived service) lives in its own swim-lane below the Vercel cron-jobs
+// column — both write to Supabase, so the lanes converge there.
 const NODES: DiagramNode[] = [
   // ── External Sources (left column) ──
-  { id: 'padelapi', label: 'PadelAPI', sublabel: 'padelapi.org', x: 20, y: 80, w: 150, h: 60, color: '#dcfce7', textColor: '#166534', icon: '⚡', badge: 'Every 2min',
-    details: ['Live scores', 'Tournaments', 'Players', 'Match metadata'] },
-  { id: 'pusher', label: 'Pusher WebSocket', sublabel: 'Real-time relay', x: 20, y: 170, w: 150, h: 60, color: '#ede9fe', textColor: '#5b21b6', icon: '🔌', badge: 'Always-on',
+  // PadelAPI is the legacy primary source. As of 2026-04 we're
+  // migrating FIP-derived data to padelgod (FIP scrapes + Crionet
+  // widgets); padelapi remains primary only for Premier-tier live
+  // scores. The DEPARTING badge tracks that migration plan.
+  { id: 'padelapi', label: 'PadelAPI', sublabel: 'padelapi.org', x: 20, y: 80, w: 150, h: 60, color: '#dcfce7', textColor: '#166534', icon: '⚡', badge: 'DEPARTING',
+    details: ['Live scores (Premier-only going forward)', 'Tournaments', 'Players', 'Match metadata', 'PADELAPI_PAUSED env kill-switch'] },
+  { id: 'pusher', label: 'Pusher WebSocket', sublabel: 'Real-time relay', x: 20, y: 160, w: 150, h: 60, color: '#ede9fe', textColor: '#5b21b6', icon: '🔌', badge: 'Always-on',
     details: ['Point-by-point updates', 'Railway Node.js service'] },
-  { id: 'fip', label: 'FIP / padelfip.com', sublabel: 'WordPress API + scraping', x: 20, y: 280, w: 150, h: 60, color: '#fef3c7', textColor: '#92400e', icon: '🏆', badge: 'Daily + Weekly',
-    details: ['Rankings (daily)', 'Tournaments (weekly)', 'News (hourly)', 'MatchScorer draws'] },
-  { id: 'premier', label: 'Premier Padel', sublabel: 'premierpadel.com API', x: 20, y: 390, w: 150, h: 60, color: '#dbeafe', textColor: '#1e40af', icon: '📈', badge: 'Hourly',
+  // Split out FIP WordPress from the Crionet matchscorerlive widget —
+  // they're distinct upstream sources with different parsers and
+  // distinct writers. WordPress = tournaments/news/rankings; Crionet
+  // = OOP/draws/results bracket data.
+  { id: 'fip', label: 'FIP / padelfip.com', sublabel: 'WordPress API + scraping', x: 20, y: 240, w: 150, h: 60, color: '#fef3c7', textColor: '#92400e', icon: '🏆', badge: 'Daily + Weekly',
+    details: ['Rankings (daily)', 'Tournament discovery (weekly)', 'Event-page enrichment', 'News (hourly)'] },
+  { id: 'crionet', label: 'Crionet', sublabel: 'matchscorerlive.com widgets', x: 20, y: 320, w: 150, h: 60, color: '#fef3c7', textColor: '#92400e', icon: '🎯', badge: '~80s polling',
+    details: ['Tournament search', 'Draw bracket (MD/WD/MQ/WQ)', 'Order of play (oop)', 'Match results', 'FIP-{year}-{id} widget codes'] },
+  { id: 'premier', label: 'Premier Padel', sublabel: 'premierpadel.com API', x: 20, y: 400, w: 150, h: 60, color: '#dbeafe', textColor: '#1e40af', icon: '📈', badge: 'Hourly',
     details: ['Per-set match stats', 'Tournament calendar', 'Broadcaster info'] },
-  { id: 'youtube', label: 'YouTube', sublabel: 'Data API v3', x: 20, y: 500, w: 150, h: 60, color: '#fee2e2', textColor: '#991b1b', icon: '🎬', badge: 'Hourly :20',
+  { id: 'youtube', label: 'YouTube', sublabel: 'Data API v3', x: 20, y: 480, w: 150, h: 60, color: '#fee2e2', textColor: '#991b1b', icon: '🎬', badge: 'Hourly :20',
     details: ['Highlight videos', 'Channel engagement metrics'] },
-  { id: 'rss', label: 'News RSS Feeds', sublabel: 'Google + Padel magazines', x: 20, y: 610, w: 150, h: 60, color: '#e0e7ff', textColor: '#3730a3', icon: '📰', badge: 'Hourly :40',
+  { id: 'rss', label: 'News RSS Feeds', sublabel: 'Google + Padel magazines', x: 20, y: 560, w: 150, h: 60, color: '#e0e7ff', textColor: '#3730a3', icon: '📰', badge: 'Hourly :40',
     details: ['EN/ES/PT/BR news', 'Padeladdict', 'Padelmagazine', 'FIP WordPress'] },
 
-  // ── Cron Jobs (middle-left column) ──
+  // ── Vercel Cron Jobs (middle-left column) ──
+  // These are the Vercel-hosted scheduled jobs (vercel.json). The
+  // padelapi-derived ones (Score Agent, Sync Cron, Premier Stats)
+  // honour the PADELAPI_PAUSED kill-switch.
   { id: 'cron-scores', label: 'Score Agent', sublabel: '/api/cron/scores', x: 250, y: 80, w: 140, h: 44, color: '#f0fdf4', textColor: '#166534', icon: '🔄' },
-  { id: 'relay', label: 'Relay Service', sublabel: 'relay/index.js', x: 250, y: 170, w: 140, h: 44, color: '#f5f3ff', textColor: '#5b21b6', icon: '📡' },
-  { id: 'cron-sync', label: 'Sync Cron', sublabel: '/api/cron/sync', x: 250, y: 240, w: 140, h: 44, color: '#f0fdf4', textColor: '#166534', icon: '🔄' },
-  { id: 'cron-rankings', label: 'Rankings Sync', sublabel: '/api/cron/sync-fip-rankings', x: 250, y: 300, w: 140, h: 44, color: '#fffbeb', textColor: '#92400e', icon: '🏅' },
-  { id: 'cron-premier', label: 'Premier Stats', sublabel: '/api/cron/premier-stats', x: 250, y: 390, w: 140, h: 44, color: '#eff6ff', textColor: '#1e40af', icon: '📊' },
-  { id: 'cron-highlights', label: 'Highlights Sync', sublabel: '/api/cron/sync-highlights', x: 250, y: 500, w: 140, h: 44, color: '#fef2f2', textColor: '#991b1b', icon: '🎥' },
-  { id: 'cron-articles', label: 'Articles Sync', sublabel: '/api/cron/sync-articles', x: 250, y: 610, w: 140, h: 44, color: '#eef2ff', textColor: '#3730a3', icon: '📝' },
+  { id: 'relay', label: 'Relay Service', sublabel: 'relay/index.js', x: 250, y: 160, w: 140, h: 44, color: '#f5f3ff', textColor: '#5b21b6', icon: '📡' },
+  { id: 'cron-sync', label: 'Sync Cron', sublabel: '/api/cron/sync', x: 250, y: 220, w: 140, h: 44, color: '#f0fdf4', textColor: '#166534', icon: '🔄' },
+  { id: 'cron-rankings', label: 'Rankings Sync', sublabel: '/api/cron/sync-fip-rankings', x: 250, y: 280, w: 140, h: 44, color: '#fffbeb', textColor: '#92400e', icon: '🏅' },
+  { id: 'cron-premier', label: 'Premier Stats', sublabel: '/api/cron/premier-stats', x: 250, y: 400, w: 140, h: 44, color: '#eff6ff', textColor: '#1e40af', icon: '📊' },
+  { id: 'cron-highlights', label: 'Highlights Sync', sublabel: '/api/cron/sync-highlights', x: 250, y: 480, w: 140, h: 44, color: '#fef2f2', textColor: '#991b1b', icon: '🎥' },
+  { id: 'cron-articles', label: 'Articles Sync', sublabel: '/api/cron/sync-articles', x: 250, y: 560, w: 140, h: 44, color: '#eef2ff', textColor: '#3730a3', icon: '📝' },
+
+  // ── Padelgod (Railway long-lived service) — full bottom swim-lane ──
+  // Positioned as a wide container at the bottom of the canvas. All
+  // FIP- and Crionet-derived data flows through padelgod since the
+  // 2026-04-28 migration retired /api/cron/fip-tournaments (now 410
+  // Gone). Workers run as in-process tasks on a long-lived Railway
+  // service rather than as Vercel crons — see padelgod/src/scheduler.ts
+  // for the schedule, padelgod/src/workers/ for each worker.
+  //
+  // The container is rendered via PADELGOD_WORKERS list; this entry
+  // is the box itself (label + bounds).
+  { id: 'padelgod', label: 'Padelgod', sublabel: 'Railway service · canonical FIP pipeline', x: 200, y: 800, w: 700, h: 200, color: '#fff7ed', textColor: '#9a3412', icon: '🛠️',
+    details: [
+      'Scrapes FIP WordPress + Crionet widgets',
+      'Owns padelgod.* schema (snapshots + cache)',
+      'Writes public.matches via composite key',
+      'Replaces /api/cron/fip-tournaments (410 Gone)',
+      'Independent of PADELAPI_PAUSED kill-switch',
+    ],
+  },
 
   // ── Processing Layer (middle column) ──
   { id: 'resolver', label: 'Player Resolver', sublabel: '5-tier matching', x: 460, y: 160, w: 150, h: 55, color: '#fdf4ff', textColor: '#86198f', icon: '🧠',
@@ -85,7 +120,7 @@ const NODES: DiagramNode[] = [
 ]
 
 const CONNECTIONS: Connection[] = [
-  // External → Crons
+  // External → Vercel Crons
   { from: 'padelapi', to: 'cron-scores', label: 'REST API', color: '#22c55e' },
   { from: 'padelapi', to: 'cron-sync', label: 'REST API', color: '#22c55e' },
   { from: 'pusher', to: 'relay', label: 'WebSocket', color: '#8b5cf6' },
@@ -93,6 +128,13 @@ const CONNECTIONS: Connection[] = [
   { from: 'premier', to: 'cron-premier', label: 'beforeauth API', color: '#3b82f6' },
   { from: 'youtube', to: 'cron-highlights', label: 'Data API v3', color: '#ef4444' },
   { from: 'rss', to: 'cron-articles', label: 'RSS / WP API', color: '#6366f1' },
+
+  // External → Padelgod (Railway service). Padelgod consumes BOTH the
+  // FIP WordPress site (event pages, taxonomy) AND the Crionet
+  // matchscorerlive widgets (draws, OOP, results). News + RSS still
+  // flow via Vercel crons; padelgod's scope is tournament/match data.
+  { from: 'fip', to: 'padelgod', label: 'event pages', color: '#f59e0b' },
+  { from: 'crionet', to: 'padelgod', label: 'widget HTML', color: '#f59e0b' },
 
   // Crons → Processing
   { from: 'cron-scores', to: 'resolver', color: '#86198f', dashed: true },
@@ -109,6 +151,12 @@ const CONNECTIONS: Connection[] = [
   { from: 'cron-premier', to: 'supabase', label: 'match_stats', color: '#3b82f6' },
   { from: 'cron-highlights', to: 'supabase', label: 'highlights', color: '#ef4444' },
   { from: 'cron-articles', to: 'supabase', label: 'articles', color: '#6366f1' },
+
+  // Padelgod → DB. The populator/writer workers are the only ones
+  // that touch public.matches/players/tournaments — the snapshot
+  // tables (widget_id_cache, oop_snapshots, draw_snapshots, …) are
+  // padelgod-private and shown in the PADELGOD_TABLES sub-box.
+  { from: 'padelgod', to: 'supabase', label: 'matches (composite key)', color: '#9a3412' },
 
   // Processing → DB
   { from: 'resolver', to: 'supabase', color: '#86198f', dashed: true },
@@ -129,6 +177,11 @@ const CONNECTIONS: Connection[] = [
 ]
 
 // ── DB tables shown inside Supabase node ──
+// Public schema (canonical entities). Mirrors the public.* tables that
+// match the columns shown across the rest of the diagram. Padelgod's
+// scrape-snapshot tables live in a SEPARATE box (PADELGOD_TABLES below)
+// because they're scratch storage owned by padelgod, not part of the
+// public-app data contract.
 const DB_TABLES = [
   { name: 'matches', color: '#22c55e' },
   { name: 'players', color: '#f59e0b' },
@@ -139,6 +192,40 @@ const DB_TABLES = [
   { name: 'articles', color: '#6366f1' },
   { name: 'social_posts', color: '#d97706' },
   { name: 'entity_external_ids', color: '#86198f' },
+  // Newer tables added during 2026-04 work — surface them so operators
+  // know they exist + which writer owns them.
+  { name: 'tournament_courts', color: '#9a3412' },
+  { name: 'tournament_draws', color: '#9a3412' },
+  { name: 'match_stats_unresolved', color: '#3b82f6' },
+  { name: 'profiles', color: '#0f172a' },
+]
+
+// Padelgod schema — staging tables owned by padelgod's scrapers and
+// reconciler. These are append-mostly snapshots of upstream sources;
+// the populator workers consume them and write to public.matches.
+// Visualised as a separate small box anchored to the Padelgod swim-
+// lane to keep the lineage clear.
+const PADELGOD_TABLES = [
+  { name: 'widget_id_cache', color: '#9a3412' },
+  { name: 'oop_snapshots', color: '#9a3412' },
+  { name: 'draw_snapshots', color: '#9a3412' },
+  { name: 'results_snapshots', color: '#9a3412' },
+  { name: 'entry_list_snapshots', color: '#9a3412' },
+  { name: 'scrape_jobs', color: '#9a3412' },
+  { name: 'unresolved_players', color: '#9a3412' },
+]
+
+// Workers shown as chips inside the Padelgod swim-lane. Picks the
+// 6 highest-leverage workers for the diagram — full list in
+// padelgod/src/workers/. The chip layout is computed at render time
+// (3 cols × 2 rows inside the container).
+const PADELGOD_WORKERS = [
+  { name: 'tournament-discovery', sub: 'WP API · weekly' },
+  { name: 'fip-event-page-enricher', sub: 'event page · hourly :12' },
+  { name: 'fip-draw-fetcher', sub: 'Crionet draw · hourly :35' },
+  { name: 'oop-fetcher', sub: 'Crionet OOP · hourly' },
+  { name: 'fip-draw-populator', sub: 'composite write · hourly :47' },
+  { name: 'live-poller-manager', sub: 'live scoring · ~80s' },
 ]
 
 // ── Rendering helpers ───────────────────────────────────────────
@@ -218,9 +305,12 @@ export default function ArchitectureTab() {
         ))}
       </div>
 
-      {/* SVG Diagram */}
+      {/* SVG Diagram. Canvas is taller than the original 780 to
+          accommodate the Padelgod swim-lane at the bottom (added
+          2026-04-29). If you add new rows below it, bump this height
+          and the column-label y-coordinates accordingly. */}
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'auto' }}>
-        <svg viewBox="0 0 1160 780" style={{ width: '100%', minWidth: 900, display: 'block' }}>
+        <svg viewBox="0 0 1160 1080" style={{ width: '100%', minWidth: 900, display: 'block' }}>
           <defs>
             <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="#999" />
@@ -238,10 +328,11 @@ export default function ArchitectureTab() {
 
           {/* Column labels */}
           <text x="95" y="50" textAnchor="middle" fontSize="11" fontWeight="700" fill="#999" letterSpacing="1">EXTERNAL SOURCES</text>
-          <text x="320" y="50" textAnchor="middle" fontSize="11" fontWeight="700" fill="#999" letterSpacing="1">CRON JOBS</text>
+          <text x="320" y="50" textAnchor="middle" fontSize="11" fontWeight="700" fill="#999" letterSpacing="1">VERCEL CRON JOBS</text>
           <text x="535" y="130" textAnchor="middle" fontSize="11" fontWeight="700" fill="#999" letterSpacing="1">PROCESSING</text>
           <text x="780" y="170" textAnchor="middle" fontSize="11" fontWeight="700" fill="#999" letterSpacing="1">DATABASE</text>
           <text x="1030" y="50" textAnchor="middle" fontSize="11" fontWeight="700" fill="#999" letterSpacing="1">FRONTEND</text>
+          <text x="550" y="780" textAnchor="middle" fontSize="11" fontWeight="700" fill="#999" letterSpacing="1">PADELGOD (RAILWAY · LONG-LIVED)</text>
 
           {/* Connections */}
           {CONNECTIONS.map((conn, i) => {
@@ -312,8 +403,84 @@ export default function ArchitectureTab() {
             )
           })()}
 
+          {/* Padelgod swim-lane (large container with worker chips inside).
+              Rendered before "all other nodes" so the chips draw on top of
+              the container rect. The PADELGOD_TABLES sub-box is rendered
+              just to the right of the workers — same rationale as the
+              Supabase table-pill stack: keep the lineage visible. */}
+          {(() => {
+            const pg = nodeMap.get('padelgod')!
+            const isDimmed = hoveredNode && !hoveredIds.has('padelgod')
+            const CHIP_W = 200
+            const CHIP_H = 38
+            const CHIP_GAP_X = 16
+            const CHIP_GAP_Y = 10
+            const COLS = 3
+            return (
+              <g opacity={isDimmed ? 0.3 : 1} style={{ transition: 'opacity 0.2s' }}
+                onMouseEnter={() => setHoveredNode('padelgod')}
+                onMouseLeave={() => setHoveredNode(null)}>
+                <rect x={pg.x} y={pg.y} width={pg.w} height={pg.h} rx={8}
+                  fill={pg.color} stroke="#9a3412" strokeWidth={2} strokeDasharray="6,3"
+                  filter="url(#shadow)" />
+                <text x={pg.x + 14} y={pg.y + 22} fontSize="13" fontWeight="700" fill={pg.textColor}>
+                  {pg.icon} {pg.label}
+                </text>
+                <text x={pg.x + 14} y={pg.y + 36} fontSize="9" fill="#888">{pg.sublabel}</text>
+                {/* Worker chips — 3 cols × 2 rows. */}
+                {PADELGOD_WORKERS.map((w, i) => {
+                  const col = i % COLS
+                  const row = Math.floor(i / COLS)
+                  const x = pg.x + 14 + col * (CHIP_W + CHIP_GAP_X)
+                  const y = pg.y + 50 + row * (CHIP_H + CHIP_GAP_Y)
+                  return (
+                    <g key={w.name}>
+                      <rect x={x} y={y} width={CHIP_W} height={CHIP_H} rx={4}
+                        fill="white" stroke="#9a3412" strokeWidth={1} />
+                      <text x={x + 8} y={y + 14} fontSize="10" fontWeight="700" fill="#9a3412"
+                        fontFamily="monospace">
+                        {w.name}
+                      </text>
+                      <text x={x + 8} y={y + 28} fontSize="8" fill="#888">{w.sub}</text>
+                    </g>
+                  )
+                })}
+              </g>
+            )
+          })()}
+
+          {/* Padelgod schema sub-box. Anchored to the right of the
+              Padelgod swim-lane so the visual association is clear. */}
+          {(() => {
+            const pg = nodeMap.get('padelgod')!
+            const sx = pg.x + pg.w + 24
+            const sy = pg.y
+            const sw = 200
+            const sh = pg.h
+            return (
+              <g>
+                <rect x={sx} y={sy} width={sw} height={sh} rx={8}
+                  fill="#fff7ed" stroke="#9a3412" strokeWidth={2} filter="url(#shadow)" />
+                <text x={sx + 12} y={sy + 22} fontSize="13" fontWeight="700" fill="#9a3412">
+                  🗃️ padelgod.*
+                </text>
+                <text x={sx + 12} y={sy + 36} fontSize="9" fill="#888">staging schema</text>
+                {PADELGOD_TABLES.map((t, i) => (
+                  <g key={t.name}>
+                    <rect x={sx + 8} y={sy + 50 + i * 20} width={sw - 16} height={16} rx={3}
+                      fill="white" stroke={t.color} strokeWidth={1} />
+                    <text x={sx + 16} y={sy + 62 + i * 20} fontSize="9" fontWeight="600" fill="#333"
+                      fontFamily="monospace">
+                      {t.name}
+                    </text>
+                  </g>
+                ))}
+              </g>
+            )
+          })()}
+
           {/* All other nodes */}
-          {NODES.filter(n => n.id !== 'supabase').map(node => {
+          {NODES.filter(n => n.id !== 'supabase' && n.id !== 'padelgod').map(node => {
             const isDimmed = hoveredNode && hoveredNode !== node.id && !hoveredIds.has(node.id)
             return (
               <g key={node.id}
@@ -361,7 +528,9 @@ export default function ArchitectureTab() {
         </svg>
       </div>
 
-      {/* Source Priority footer */}
+      {/* Source Priority + Migration notes footer. Reflects the
+          mid-2026-04 strategy shift: padelapi is moving to Premier-only,
+          FIP-tier data is canonically owned by padelgod. */}
       <div style={{
         marginTop: 12, padding: '10px 14px', background: 'white', border: '1px solid #e5e7eb',
         borderRadius: 8, fontSize: 11, color: '#555', lineHeight: 1.8,
@@ -371,13 +540,34 @@ export default function ArchitectureTab() {
         </div>
         <strong>Rankings:</strong> FIP Official → FIP → PadelAPI
         <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
-        <strong>Match scores:</strong> PadelAPI → Inferred → Live relay
+        <strong>FIP match scores:</strong> Padelgod (results-writer) → Inferred → Live (poller)
+        <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+        <strong>Premier match scores:</strong> PadelAPI → Inferred → Live relay
         <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
         <strong>Player names:</strong> PadelAPI → FIP → Manual
         <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
         <strong>Match stats:</strong> Premier Padel (exclusive)
         <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
         <strong>News:</strong> FIP (1.5×) → Padel RSS (1.2×) → Google News (1.0×)
+      </div>
+
+      {/* Migration notes — documents recent moves so operators don't
+          have to dig through CLAUDE.md to understand the current shape. */}
+      <div style={{
+        marginTop: 8, padding: '10px 14px', background: '#fff7ed', border: '1px solid #fed7aa',
+        borderRadius: 8, fontSize: 11, color: '#7c2d12', lineHeight: 1.7,
+      }}>
+        <div style={{ fontSize: 10, color: '#9a3412', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+          Recent migrations (padelapi departure)
+        </div>
+        <strong>FIP scraper consolidation (2026-04-28):</strong>{' '}
+        <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>/api/cron/fip-tournaments</code>{' '}
+        retired (410 Gone) → <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>tournament-discovery</code> + <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>fip-event-page-enricher</code> (padelgod).
+        <br />
+        <strong>Thin matches (2026-04-28):</strong> amateur-tier rows now write{' '}
+        <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>pair*_player*_name</code>/<code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>_country</code> when player resolution fails (Beyond/Promises/Other).
+        <br />
+        <strong>Kill-switch:</strong> <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>PADELAPI_PAUSED=true</code> on Vercel halts Score Agent / Sync Cron / Premier Stats / Premier Discovery without affecting padelgod.
       </div>
     </div>
   )
