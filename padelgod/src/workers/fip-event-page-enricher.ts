@@ -157,6 +157,53 @@ export async function runFipEventPageEnricher(
       if (t.matchscorer_url == null && matchscorer?.code) {
         patch.matchscorer_url = matchscorer.code;
       }
+
+      // Mirror the matchscorer code into padelgod.widget_id_cache. Two
+      // workers populate that table:
+      //   1. widget-code-lookup — searches Crionet's tournament search
+      //      by name. Brittle: misspelled names, regional events, or
+      //      tournaments crionet doesn't index publicly never get found.
+      //   2. THIS enricher — parses the FIP event page directly. The
+      //      matchscorer code is embedded in the page HTML for every
+      //      tournament Crionet hosts a draw for, so this path is far
+      //      more reliable than the search-based one.
+      //
+      // Without this mirror, downstream workers (oop-fetcher, results-
+      // fetcher, fip-draw-populator) all read widget_id_cache to gate
+      // their work; tournaments visible to padelfip.com but missing
+      // from Crionet's search end up with rich draw_snapshots +
+      // entry_list_snapshots and ZERO matches in public.matches.
+      //
+      // Concrete unblock that motivated this: FIP Silver Leiria (and
+      // every other Silver/Gold tournament where widget-code-lookup
+      // hit the 12-attempt circuit breaker without finding the code).
+      // See `widget-code-lookup` worker + the Tournament Explorer's
+      // `padelgod.widget_id_cache` fallback merged in `ef1c036`.
+      if (matchscorer?.code) {
+        const { error: cacheErr } = await deps.supabase
+          .schema('padelgod')
+          .from('widget_id_cache')
+          .upsert(
+            {
+              tournament_id: t.id,
+              widget_id: matchscorer.code,
+              extracted_at: new Date().toISOString(),
+              last_validated_at: new Date().toISOString(),
+              is_active: true,
+              extraction_method: 'fip_event_page_enricher',
+            },
+            { onConflict: 'tournament_id', ignoreDuplicates: false },
+          );
+        if (cacheErr) {
+          // Don't fail the whole enrichment over a cache mirror —
+          // log + continue. The main `tournaments` UPDATE below is
+          // the authoritative write; the cache is a denormalisation.
+          deps.logger?.warn(
+            { tournamentId: t.id, err: cacheErr.message },
+            'fip-event-page-enricher: widget_id_cache mirror failed',
+          );
+        }
+      }
       if (t.venue == null && overview.venue) patch.venue = overview.venue;
       if (t.registration_status == null && overview.registrationStatus) {
         patch.registration_status = overview.registrationStatus;
