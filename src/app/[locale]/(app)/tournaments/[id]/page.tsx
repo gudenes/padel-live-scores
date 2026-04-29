@@ -21,6 +21,7 @@ import WhereToWatch from '@/components/WhereToWatch'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
+import { levelLabel } from '@/lib/tournament-labels'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -103,14 +104,11 @@ function titleCase(name: string): string {
   }).join(' ')
 }
 
-function levelLabel(level: string | null): string {
-  const map: Record<string, string> = {
-    finals: 'Finals', major: 'Major', p1: 'P1', p2: 'P2',
-    fip_platinum: 'FIP Platinum', fip_gold: 'FIP Gold',
-    fip_silver: 'FIP Silver', fip_bronze: 'FIP Bronze', fip_other: 'FIP Tour',
-  }
-  return level ? (map[level] ?? level) : ''
-}
+// levelLabel is imported at the top from @/lib/tournament-labels —
+// the canonical map there covers all FIP tiers (Beyond, Promises,
+// Hexagon, etc.). The local copy that used to live here only knew
+// about the top few tiers and let newer levels fall through as raw
+// keys, which uppercased to "FIP_BEYOND" etc. inside the level pill.
 
 // ══════════════════════════════════════════════════════════════
 // ── Wrapper (unwraps async params) ───────────────────────────
