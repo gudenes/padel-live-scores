@@ -267,14 +267,16 @@ export default function BottomNavV3() {
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
-              {/* Top bar indicator — inside edge of nav */}
+              {/* Top bar indicator — inside edge of nav. Sized 20%
+                  larger than the original (40×4) for stronger active-
+                  tab signalling at five-tab density. Stays centred. */}
               <div style={{
                 position: 'absolute',
                 top: 0,
                 left: '50%',
                 transform: 'translateX(-50%)',
-                width: 40,
-                height: 4,
+                width: 48,
+                height: 5,
                 background: isActive ? GREEN : 'transparent',
                 clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
                 transition: 'background 0.25s ease',

@@ -8,19 +8,23 @@
 // gives shareable permalinks like padelnachos.com/tournaments.
 //
 // The legacy URL `/home?view=tournaments` redirects here via proxy.ts.
+// Uses the shared GlobalHeader (logo + search + share + profile) so
+// the chrome matches the home page; TournamentsView's internal back-
+// arrow header is hidden via showInternalHeader={false}.
 
-import { useRouter } from '@/i18n/navigation'
 import { BG_BASE, PAGE_STYLES } from '@/components/home/shared'
+import GlobalHeader from '@/components/nav/GlobalHeader'
 import TournamentsView from '@/components/home/TournamentsView'
 
 export default function TournamentsPage() {
-  const router = useRouter()
   return (
     <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
       <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
-      {/* Back-arrow inside TournamentsView still hops to home. Useful
-          when the user lands here via a deep link rather than the tab. */}
-      <TournamentsView onBack={() => router.push('/home')} />
+      <GlobalHeader />
+      {/* `onBack` is now a no-op — the GlobalHeader replaces the
+          back-arrow chrome, so the deep-link "go home" affordance comes
+          from the bottom-tab Home button instead. */}
+      <TournamentsView onBack={() => {}} showInternalHeader={false} />
     </div>
   )
 }

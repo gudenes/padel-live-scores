@@ -9,8 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, isWarmingUp, toShortName } from '@/types/match'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
-import SearchOverlay from '@/components/nav/SearchOverlay'
-import ProfileButton from '@/components/ProfileButton'
+import GlobalHeader from '@/components/nav/GlobalHeader'
 import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
 import { ReferralToast } from '@/components/ReferralToast'
@@ -331,89 +330,9 @@ function V3HomePageInner() {
     <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
       <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
 
-      {/* ── Header ────��─────────────────────────────────────── */}
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        background: '#0A0A0A',
-        borderBottom: 'none',
-        boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 16px',
-        height: 62,
-        transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
-        transition: 'transform 0.3s ease',
-      }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/padelnachos-logo-v2.png"
-          alt="PadelNachos"
-          style={{ height: 52, objectFit: 'contain', flexShrink: 0 }}
-        />
-
-        <div
-          data-coachmark="search"
-          onClick={() => setSearchOpen(true)}
-          style={{
-            flex: 1,
-            height: 34,
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            clipPath: CHUNKY.button,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '0 12px',
-            cursor: 'pointer',
-            marginLeft: 10,
-            marginRight: 6,
-            maxWidth: 260,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-          </svg>
-          <span style={{
-            color: 'rgba(255,255,255,0.7)',
-            fontSize: 11,
-            fontWeight: 500,
-            opacity: hintFading ? 0 : 1,
-            transform: hintFading ? 'translateY(-4px)' : 'translateY(0)',
-            transition: 'opacity 0.3s, transform 0.3s',
-          }}>
-            {SEARCH_HINTS[hintIdx]}
-          </span>
-        </div>
-
-        <button
-          onClick={() => { void shareNow() }}
-          aria-label="Share PadelNachos"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            clipPath: CHUNKY.button,
-            width: 34, height: 34,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
-            marginRight: 8,
-            padding: 0,
-          }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-        </button>
-
-        <ProfileButton />
-      </header>
+      {/* ── Header — extracted to GlobalHeader so Tournaments and
+              Rankings can share the same chrome. */}
+      <GlobalHeader />
 
       <InviteWelcomeBanner />
       <ReferralToast />
@@ -520,8 +439,6 @@ function V3HomePageInner() {
       </div>
 
       <div style={{ height: 30 }} />
-
-      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   )
 }
