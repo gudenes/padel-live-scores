@@ -742,106 +742,153 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
             </>
           )}
 
-          {/* ── Completed (current season) — carousel with winners ── */}
+          {/* ── Completed (current season) — vertical list grouped by month.
+              Replaces the previous horizontal carousel. Now that the
+              filter sheet narrows the dataset (year + país + estado),
+              there's enough vertical headroom to stack one card per row,
+              which scans much faster than horizontal scroll for "what
+              happened in April vs March". */}
           {currentSeasonCompleted.length > 0 && (
             <>
               <SectionTitle>Completed &mdash; {currentYear}</SectionTitle>
-              <div className="v3-scroll-hide" style={{
-                display: 'flex', gap: 12, padding: '0 16px 16px', overflowX: 'auto',
-                WebkitOverflowScrolling: 'touch',
-              }}>
-                {currentSeasonCompleted.map(t => {
-                  const menW = t.winners.find(w => w.category === 'men')
-                  const womenW = t.winners.find(w => w.category === 'women')
-                  return (
-                    <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
-                      <div style={{
-                        minWidth: 270, clipPath: CHUNKY.card,
-                        background: BG_CARD, border: `1px solid ${BORDER}`,
-                        overflow: 'hidden',
-                      }}>
-                        {/* Header */}
-                        <div style={{
-                          padding: '12px 14px', display: 'flex', alignItems: 'center',
-                          justifyContent: 'space-between',
-                          borderBottom: (menW || womenW) ? `1px solid ${BORDER}` : 'none',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <FlagImg country={t.country} size={24} />
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{titleCase(t.name)}</div>
-                              <div style={{ fontSize: 10, color: MUTED }}>
-                                {formatDateRange(format, t.starts_at, t.ends_at)}
-                              </div>
-                            </div>
-                          </div>
-                          {t.level && (
-                            <span style={{ ...pillStyle, background: 'rgba(255,255,255,0.06)', color: MUTED }}>
-                              {levelLabel(t.level)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Champions */}
-                        {(menW || womenW) && (
-                          <div style={{ padding: '10px 14px' }}>
-                            <div style={{
-                              fontSize: 9, fontWeight: 700, textTransform: 'uppercase',
-                              letterSpacing: '0.06em', color: ORANGE, marginBottom: 8,
-                            }}>
-                              Champions
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              {menW && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ width: 3, height: 22, background: MEN_BLUE, flexShrink: 0, clipPath: CHUNKY.bar }} />
-                                  <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
-                                    {menW.player1_avatar && (
-                                      <Avatar src={menW.player1_avatar} alt="" size={22} style={{
-                                        border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
-                                      }} />
-                                    )}
-                                    {menW.player2_avatar && (
-                                      <Avatar src={menW.player2_avatar} alt="" size={22} style={{
-                                        border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
-                                        marginLeft: -6,
-                                      }} />
-                                    )}
-                                  </div>
-                                  <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
-                                    {shortName(menW.player1_name)} / {shortName(menW.player2_name)}
-                                  </span>
-                                </div>
-                              )}
-                              {womenW && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{ width: 3, height: 22, background: WOMEN_PURPLE, flexShrink: 0, clipPath: CHUNKY.bar }} />
-                                  <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
-                                    {womenW.player1_avatar && (
-                                      <Avatar src={womenW.player1_avatar} alt="" size={22} style={{
-                                        border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
-                                      }} />
-                                    )}
-                                    {womenW.player2_avatar && (
-                                      <Avatar src={womenW.player2_avatar} alt="" size={22} style={{
-                                        border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
-                                        marginLeft: -6,
-                                      }} />
-                                    )}
-                                  </div>
-                                  <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
-                                    {shortName(womenW.player1_name)} / {shortName(womenW.player2_name)}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </Link>
+              {(() => {
+                // Group by ends_at month (year-month key for stable sort).
+                // ends_at is the right anchor for "completed" — a tournament
+                // that runs Mar 30 → Apr 5 belongs in April.
+                const byMonth = new Map<string, TournamentWithWinners[]>()
+                for (const t of currentSeasonCompleted) {
+                  const d = new Date(t.ends_at)
+                  const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`
+                  const arr = byMonth.get(key) ?? []
+                  arr.push(t)
+                  byMonth.set(key, arr)
+                }
+                // Most-recent month first. Within month: newest end first.
+                const orderedKeys = [...byMonth.keys()].sort((a, b) => (a < b ? 1 : -1))
+                for (const k of orderedKeys) {
+                  byMonth.get(k)!.sort(
+                    (a, b) =>
+                      new Date(b.ends_at).getTime() - new Date(a.ends_at).getTime(),
                   )
-                })}
-              </div>
+                }
+
+                return orderedKeys.map(key => {
+                  const items = byMonth.get(key)!
+                  // Use the first item's date for the locale-aware month name.
+                  const monthDate = new Date(items[0].ends_at)
+                  return (
+                    <div key={key} style={{ marginBottom: 8 }}>
+                      <div style={{
+                        padding: '14px 16px 8px',
+                        display: 'flex', alignItems: 'center', gap: 8,
+                      }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 800,
+                          letterSpacing: '0.14em', textTransform: 'uppercase',
+                          color: '#fff',
+                        }}>
+                          {format.dateTime(monthDate, { month: 'long' })}
+                        </span>
+                        <span style={{
+                          fontFamily: 'var(--font-mono, "SF Mono", monospace)',
+                          fontSize: 10, color: MUTED, letterSpacing: '0.06em',
+                        }}>
+                          {items.length} {items.length === 1 ? 'evento' : 'eventos'}
+                        </span>
+                      </div>
+
+                      {items.map(t => {
+                        const menW = t.winners.find(w => w.category === 'men')
+                        const womenW = t.winners.find(w => w.category === 'women')
+                        const hasChampions = !!(menW || womenW)
+                        return (
+                          <Link
+                            key={t.id}
+                            href={`/tournaments/${t.id}`}
+                            style={{
+                              textDecoration: 'none', color: 'inherit',
+                              display: 'block',
+                              margin: '0 16px 8px',
+                            }}
+                          >
+                            <div style={{
+                              clipPath: CHUNKY.card,
+                              background: BG_CARD, border: `1px solid ${BORDER}`,
+                              overflow: 'hidden',
+                            }}>
+                              {/* Header row */}
+                              <div style={{
+                                padding: '12px 14px',
+                                display: 'flex', alignItems: 'center',
+                                justifyContent: 'space-between',
+                                borderBottom: hasChampions ? `1px solid ${BORDER}` : 'none',
+                                gap: 10,
+                              }}>
+                                <div style={{
+                                  display: 'flex', alignItems: 'center', gap: 10,
+                                  minWidth: 0, flex: 1,
+                                }}>
+                                  <FlagImg country={t.country} size={22} />
+                                  <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div style={{
+                                      fontSize: 13, fontWeight: 700, color: '#fff',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden', textOverflow: 'ellipsis',
+                                    }}>
+                                      {titleCase(t.name)}
+                                    </div>
+                                    <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
+                                      {formatDateRange(format, t.starts_at, t.ends_at)}
+                                    </div>
+                                  </div>
+                                </div>
+                                {t.level && (
+                                  <span style={{
+                                    ...pillStyle,
+                                    flexShrink: 0,
+                                    background: 'rgba(255,255,255,0.06)',
+                                    color: MUTED,
+                                  }}>
+                                    {levelLabel(t.level)}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Champions row(s) — one line each, side-by-side
+                                  on wide rows since the card is now full-width. */}
+                              {hasChampions && (
+                                <div style={{
+                                  padding: '10px 14px',
+                                  display: 'flex', flexDirection: 'column', gap: 6,
+                                }}>
+                                  {menW && (
+                                    <ChampionLine
+                                      colorBar={MEN_BLUE}
+                                      avatar1={menW.player1_avatar}
+                                      avatar2={menW.player2_avatar}
+                                      name1={menW.player1_name}
+                                      name2={menW.player2_name}
+                                    />
+                                  )}
+                                  {womenW && (
+                                    <ChampionLine
+                                      colorBar={WOMEN_PURPLE}
+                                      avatar1={womenW.player1_avatar}
+                                      avatar2={womenW.player2_avatar}
+                                      name1={womenW.player1_name}
+                                      name2={womenW.player2_name}
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )
+                })
+              })()}
             </>
           )}
 
@@ -875,6 +922,45 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
           setPendingInSheet(DEFAULT_FILTERS)
         }}
       />
+    </div>
+  )
+}
+
+// ── Champion line for the completed-month list. One row = one
+//    gender's pair (men or women). Coloured side-bar + avatars +
+//    short names. Kept tiny — used inside the full-width completed
+//    cards, no border or background of its own.
+function ChampionLine({
+  colorBar, avatar1, avatar2, name1, name2,
+}: {
+  colorBar: string
+  avatar1: string | null
+  avatar2: string | null
+  name1: string | null
+  name2: string | null
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{
+        width: 3, height: 22, background: colorBar,
+        flexShrink: 0, clipPath: CHUNKY.bar,
+      }} />
+      <div style={{ display: 'flex', flexShrink: 0, marginRight: 2 }}>
+        {avatar1 && (
+          <Avatar src={avatar1} alt="" size={22} style={{
+            border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
+          }} />
+        )}
+        {avatar2 && (
+          <Avatar src={avatar2} alt="" size={22} style={{
+            border: `1.5px solid ${BG_BASE}`, background: BG_CARD,
+            marginLeft: -6,
+          }} />
+        )}
+      </div>
+      <span style={{ fontSize: 11, color: '#fff', fontWeight: 600 }}>
+        {shortName(name1)} / {shortName(name2)}
+      </span>
     </div>
   )
 }
