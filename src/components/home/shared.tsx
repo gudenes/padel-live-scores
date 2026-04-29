@@ -149,14 +149,15 @@ export function formatDateRange(format: ReturnType<typeof useFormatter>, start: 
   return `${format.dateTime(s, DATE_SHORT)} - ${format.dateTime(e, DATE_WITH_YEAR)}`
 }
 
-export function levelLabel(level: string | null): string {
-  const map: Record<string, string> = {
-    finals: 'Finals', major: 'Major', p1: 'P1', p2: 'P2',
-    fip_platinum: 'FIP Platinum', fip_gold: 'FIP Gold',
-    fip_silver: 'FIP Silver', fip_bronze: 'FIP Bronze', fip_other: 'FIP Tour',
-  }
-  return level ? (map[level] ?? level) : ''
-}
+// Re-export the canonical levelLabel from tournament-labels.ts.
+// The local copy that previously lived here only knew about the top
+// few tiers (silver / bronze / platinum / gold / other), so newer FIP
+// tiers (Beyond, Promises, Hexagon, Championship, Star, Rise,
+// Promotion, Finals) fell through to the raw level string and
+// rendered as e.g. "FIP_BEYOND" (with underscore) inside an uppercase
+// pill. The canonical version covers all of them — keeping a single
+// source of truth here so we don't drift again.
+export { levelLabel } from '@/lib/tournament-labels'
 
 export function formatViews(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`

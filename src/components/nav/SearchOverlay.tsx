@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 import { Link } from '@/i18n/navigation'
 import { DATE_SHORT } from '@/lib/format-patterns'
 import { FlagImage } from '@/components/FlagImage'
+import { levelLabel } from '@/lib/tournament-labels'
 
 // ── Brand constants ───────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -35,11 +36,10 @@ function formatDateRange(format: ReturnType<typeof useFormatter>, start: string,
   return `${format.dateTime(s, DATE_SHORT)} – ${format.dateTime(e, DATE_SHORT)}`
 }
 
-function levelLabel(level: string | null): string {
-  if (!level) return ''
-  const map: Record<string, string> = { premier: 'Premier Padel', p1: 'P1', p2: 'P2', major: 'Major', fip_rise: 'FIP Rise', fip_star: 'FIP Star' }
-  return map[level] ?? level
-}
+// levelLabel imported at the top from @/lib/tournament-labels (the
+// canonical map). The local copy that used to live here was a tiny
+// subset — Premier / P1 / P2 / Major / FIP Rise / FIP Star — and let
+// every other tier fall through to the raw key.
 
 // ── Types ─────────────────────────────────────────────────────
 

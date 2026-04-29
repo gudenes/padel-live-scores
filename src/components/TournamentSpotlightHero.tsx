@@ -8,6 +8,7 @@ import { Link } from '@/i18n/navigation'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
+import { levelLabel } from '@/lib/tournament-labels'
 
 // ── Per-section scroll trigger ────────────────────────────────────
 // Each section gets its own IntersectionObserver so animations fire
@@ -142,14 +143,8 @@ function titleCase(name: string): string {
   }).join(' ')
 }
 
-function levelLabel(level: string | null): string {
-  const map: Record<string, string> = {
-    finals: 'Finals', major: 'Major', p1: 'P1', p2: 'P2',
-    fip_platinum: 'FIP Platinum', fip_gold: 'FIP Gold',
-    fip_silver: 'FIP Silver', fip_bronze: 'FIP Bronze', fip_other: 'FIP Tour',
-  }
-  return level ? (map[level] ?? level) : ''
-}
+// levelLabel imported at the top from @/lib/tournament-labels — covers
+// all FIP tiers including Beyond / Promises / Hexagon / etc.
 
 const COUNTRY_NAMES: Record<string, string> = {
   ES: 'Spain', AR: 'Argentina', BR: 'Brazil', PT: 'Portugal',
