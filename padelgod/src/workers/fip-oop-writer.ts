@@ -1,38 +1,50 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
+import {
+  parseOopScheduledAtBatch,
+  type OopScheduleRow,
+} from '../lib/oop-schedule-parser.js';
 
 /**
  * fip-oop-writer — simplified-pipeline writer #2.
  *
  * Reads `padelgod.oop_snapshots` (populated by `oop-fetcher` every hour
- * at :50) and UPDATEs the `court`, `court_order`, and (NULL-only) `round`
- * fields on `public.matches` rows that are already keyed by the real
- * widget composite (created by `fip-draw-populator`).
+ * at :50) and UPDATEs `public.matches` rows already keyed by the real
+ * widget composite (created by `fip-draw-populator`). Two independent
+ * passes per tournament:
  *
- * One job only
- * ------------
+ * Pass A — court / round / court_order
+ * ------------------------------------
  * - Looks up matches by `widget_id_composite` via a batched prefix query
  * - If not found → SKIP (never creates matches; that's the populator's job)
  * - UPDATEs court + court_order; UPDATEs round ONLY if currently null
  *   (keeps the populator's canonical "R32" format from being clobbered
  *   with OOP's "Round of 32" during the parallel migration period)
  *
+ * Pass B — scheduled_at / schedule_label (gap-fill)
+ * -------------------------------------------------
+ * - For matches with `scheduled_at IS NULL`, parses the OOP snapshot's
+ *   `scheduled_label` ("Starting at 5:00 PM" / "Not before 7:00 PM" /
+ *   "Followed by") combined with `day_date` and the tournament's
+ *   timezone into a UTC timestamp.
+ * - Source priority `tournament.scheduled_at` is `['padelapi', 'fip']`
+ *   so we only fill when current is NULL — never clobber padelapi.
+ * - For FIP-only tournaments (no padelapi twin) this is the ONLY
+ *   automatic path that populates scheduled_at; before this pass the
+ *   only writer was the manual "Apply N Changes" button on the OOP
+ *   Schedule Review tab in /ops, which is fine for the operator-led
+ *   tournaments but left every fip_beyond / fip_promises tournament
+ *   invisible to the public app's date filter.
+ * - "Followed by" needs court-context, so the parser runs as a single
+ *   per-tournament batch (chained by court_position).
+ *
  * What this writer does NOT touch
  * -------------------------------
  * - `status`, `winner_pair`, `sets` — results-writer owns these
- * - `scheduled_at` — padelapi narrow sync owns it (see design doc §11.1);
- *   OOP Schedule Review panel is the operator override for overrides
+ * - `scheduled_at` when it's already set — gap-fill semantics
  * - `widget_id_composite` — populator sets this on INSERT, immutable
  * - Any row where `widget_id_composite IS NULL` — legacy reconciler rows
  *   are invisible to this writer
- *
- * Parallel-safety during migration
- * --------------------------------
- *   - ENABLE_FIP_OOP_WRITER defaults false
- *   - FIP_OOP_WRITER_DRY_RUN defaults true
- *   - Cron :52 — no overlap with oop-fetcher (:50) or results-fetcher (:55)
- *   - Legacy static-reconciler keeps running on :05/:35 and writing to
- *     legacy synthetic-composite rows (which this writer ignores)
  *
  * Known data issue (out of scope — separate parser PR)
  * ----------------------------------------------------
@@ -60,6 +72,9 @@ export interface FipOopWriterResult {
   skippedNoMatch: number;
   skippedNoWidgetId: number;
   skippedNothingToChange: number;
+  scheduledAtWritten: number;
+  scheduledAtSkippedNoTimezone: number;
+  scheduledAtSkippedUnparsable: number;
   dryRun: boolean;
 }
 
@@ -77,6 +92,11 @@ interface OopRow {
   court: string | null;
   court_position: number | null;
   scheduled_label: string | null;
+  /** Calendar date from the Crionet day-pill (`oop_snapshots.day_date`).
+   *  Required for Pass B (scheduled_at gap-fill) — without it the parsed
+   *  local time has no calendar anchor. NULL on snapshots captured before
+   *  the 2026-04-29 day_date column was introduced. */
+  day_date: string | null;
   captured_at: string;
 }
 
@@ -86,6 +106,9 @@ interface ExistingMatch {
   round: string | null;
   court: string | null;
   court_order: number | null;
+  /** Used by Pass B to enforce gap-fill semantics — only write
+   *  scheduled_at when current is NULL. */
+  scheduled_at: string | null;
 }
 
 // ── Main entry ─────────────────────────────────────────────────────────
@@ -103,6 +126,9 @@ export async function runFipOopWriter(
     skippedNoMatch: 0,
     skippedNoWidgetId: 0,
     skippedNothingToChange: 0,
+    scheduledAtWritten: 0,
+    scheduledAtSkippedNoTimezone: 0,
+    scheduledAtSkippedUnparsable: 0,
     dryRun,
   };
 
@@ -140,7 +166,10 @@ export async function runFipOopWriter(
       compositePrefix
     );
 
-    // 4. Process each OOP row
+    // 4. Pass A — court / round / court_order updates per OOP row.
+    //    Also collects schedule-write candidates (matches whose
+    //    scheduled_at is currently NULL) for Pass B.
+    const scheduleCandidates: Array<{ matchId: string; row: OopRow }> = [];
     for (const r of latestOop) {
       result.oopRowsConsidered += 1;
 
@@ -159,18 +188,16 @@ export async function runFipOopWriter(
         continue;
       }
 
-      // Build the UPDATE patch with only-changed + only-safe fields
+      // Pass A patch
       const patch = buildOopPatch(r, existing);
       if (!patch) {
         result.skippedNothingToChange += 1;
-        continue;
-      }
-
-      if (dryRun) {
+      } else if (dryRun) {
         logger?.info(
           { composite, matchId: existing.id, patch },
           'fip-oop-writer [dry-run]: would UPDATE match'
         );
+        result.updated += 1;
       } else {
         const { error: updErr } = await supabase
           .from('matches')
@@ -181,8 +208,96 @@ export async function runFipOopWriter(
             `matches update failed (id=${existing.id}, composite=${composite}): ${updErr.message}`
           );
         }
+        result.updated += 1;
       }
-      result.updated += 1;
+
+      // Pass B candidate — match exists, scheduled_at currently NULL,
+      // OOP carries enough to compute (day_date + scheduled_label).
+      if (
+        existing.scheduled_at == null &&
+        r.day_date &&
+        r.scheduled_label
+      ) {
+        scheduleCandidates.push({ matchId: existing.id, row: r });
+      }
+    }
+
+    // 5. Pass B — scheduled_at gap-fill from OOP day_date + label.
+    if (scheduleCandidates.length > 0) {
+      const tournamentTimezone = await getTournamentTimezone(
+        supabase,
+        t.tournament_id,
+      );
+      if (!tournamentTimezone) {
+        // No tz on the tournament row + country fallback didn't resolve.
+        // Skip — without tz we can't compute UTC. Operator can set the
+        // tournament's timezone column manually and the next run picks it up.
+        result.scheduledAtSkippedNoTimezone += scheduleCandidates.length;
+        logger?.warn(
+          {
+            tournamentId: t.tournament_id,
+            candidates: scheduleCandidates.length,
+          },
+          'fip-oop-writer: skipping scheduled_at writes — no timezone resolvable',
+        );
+      } else {
+        const oopBatch: OopScheduleRow[] = scheduleCandidates.map(
+          ({ row }) => ({
+            matchWidgetId: row.match_widget_id,
+            court: row.court,
+            courtPosition: row.court_position ?? 0,
+            scheduledLabel: row.scheduled_label,
+            dayDate: row.day_date,
+          }),
+        );
+        const parsed = parseOopScheduledAtBatch(oopBatch, tournamentTimezone);
+        const matchIdByWidget = new Map(
+          scheduleCandidates.map(({ matchId, row }) => [
+            row.match_widget_id!,
+            matchId,
+          ]),
+        );
+
+        result.scheduledAtSkippedUnparsable +=
+          scheduleCandidates.length - parsed.length;
+
+        for (const p of parsed) {
+          const matchId = matchIdByWidget.get(p.matchWidgetId);
+          if (!matchId) continue;
+          if (dryRun) {
+            logger?.info(
+              {
+                matchId,
+                scheduledAt: p.scheduledAt,
+                scheduleLabel: p.scheduleLabel,
+                approximate: p.approximate,
+              },
+              'fip-oop-writer [dry-run]: would WRITE scheduled_at',
+            );
+          } else {
+            // The .is('scheduled_at', null) clause is a defense-in-depth
+            // gap-fill enforcement at the DB level — between the read
+            // above and this write, padelapi sync (or the manual ops UI)
+            // could have set it. Don't clobber.
+            const { error: schedErr } = await supabase
+              .from('matches')
+              .update({
+                scheduled_at: p.scheduledAt,
+                schedule_label: p.scheduleLabel,
+              })
+              .eq('id', matchId)
+              .is('scheduled_at', null);
+            if (schedErr) {
+              logger?.warn(
+                { matchId, err: schedErr.message },
+                'fip-oop-writer: scheduled_at write failed',
+              );
+              continue;
+            }
+          }
+          result.scheduledAtWritten += 1;
+        }
+      }
     }
   }
 
@@ -265,7 +380,7 @@ async function loadLatestOopRows(
     .schema('padelgod')
     .from('oop_snapshots')
     .select(
-      'tournament_id, match_widget_id, category, round_label, court, court_position, scheduled_label, captured_at'
+      'tournament_id, match_widget_id, category, round_label, court, court_position, scheduled_label, day_date, captured_at'
     )
     .eq('tournament_id', tournamentId);
   if (error) {
@@ -291,7 +406,7 @@ async function loadExistingMatchesByPrefix(
 ): Promise<Map<string, ExistingMatch>> {
   const { data, error } = await supabase
     .from('matches')
-    .select('id, widget_id_composite, round, court, court_order')
+    .select('id, widget_id_composite, round, court, court_order, scheduled_at')
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
     throw new Error(
@@ -303,4 +418,86 @@ async function loadExistingMatchesByPrefix(
     if (row.widget_id_composite) map.set(row.widget_id_composite, row);
   }
   return map;
+}
+
+// Country → IANA timezone fallback for tournaments where the timezone
+// column is null. Mirrors the smaller subset of the map used by the
+// Vercel sync's inferTimezone helper. Kept inline to avoid pulling a
+// Next.js-side module into padelgod.
+const COUNTRY_TIMEZONES: Readonly<Record<string, string>> = Object.freeze({
+  ES: 'Europe/Madrid',
+  FR: 'Europe/Paris',
+  IT: 'Europe/Rome',
+  DE: 'Europe/Berlin',
+  PT: 'Europe/Lisbon',
+  GB: 'Europe/London',
+  US: 'America/New_York',
+  MX: 'America/Mexico_City',
+  AR: 'America/Argentina/Buenos_Aires',
+  BR: 'America/Sao_Paulo',
+  SA: 'Asia/Riyadh',
+  AE: 'Asia/Dubai',
+  QA: 'Asia/Qatar',
+  HK: 'Asia/Hong_Kong',
+  SG: 'Asia/Singapore',
+  JP: 'Asia/Tokyo',
+  AU: 'Australia/Sydney',
+  ZA: 'Africa/Johannesburg',
+  MA: 'Africa/Casablanca',
+  EG: 'Africa/Cairo',
+  SE: 'Europe/Stockholm',
+  NL: 'Europe/Amsterdam',
+  BE: 'Europe/Brussels',
+  AT: 'Europe/Vienna',
+  CH: 'Europe/Zurich',
+  PL: 'Europe/Warsaw',
+  CZ: 'Europe/Prague',
+  RO: 'Europe/Bucharest',
+  GR: 'Europe/Athens',
+  TR: 'Europe/Istanbul',
+  IL: 'Asia/Jerusalem',
+  KZ: 'Asia/Almaty',
+  UZ: 'Asia/Tashkent',
+  KG: 'Asia/Bishkek',
+  CL: 'America/Santiago',
+  CO: 'America/Bogota',
+  PY: 'America/Asuncion',
+  PE: 'America/Lima',
+  EC: 'America/Guayaquil',
+  UY: 'America/Montevideo',
+  CN: 'Asia/Shanghai',
+  IN: 'Asia/Kolkata',
+  TH: 'Asia/Bangkok',
+  PH: 'Asia/Manila',
+  MY: 'Asia/Kuala_Lumpur',
+  ID: 'Asia/Jakarta',
+  KW: 'Asia/Kuwait',
+  TN: 'Africa/Tunis',
+  CI: 'Africa/Abidjan',
+  KE: 'Africa/Nairobi',
+  CA: 'America/Toronto',
+  HR: 'Europe/Zagreb',
+  BO: 'America/La_Paz',
+  CY: 'Asia/Nicosia',
+});
+
+async function getTournamentTimezone(
+  supabase: SupabaseClient,
+  tournamentId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select('timezone, country')
+    .eq('id', tournamentId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(
+      `tournaments timezone lookup failed (tournament=${tournamentId}): ${error.message}`,
+    );
+  }
+  const explicit = (data?.timezone as string | null | undefined) ?? null;
+  if (explicit) return explicit;
+  const country = (data?.country as string | null | undefined) ?? null;
+  if (!country) return null;
+  return COUNTRY_TIMEZONES[country.toUpperCase()] ?? null;
 }
