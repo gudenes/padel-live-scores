@@ -100,10 +100,13 @@ describe('runTournamentDiscovery', () => {
     expect(rows[1].level).toBe('fip_hexagon');
   });
 
-  it('omits level for a Premier-tier row when padelapi has already set a value', async () => {
-    // fakeSupabase returns [] from the .in() slug-fetch, so existingLevel is
-    // undefined (row not found). But we want to exercise the "don't clobber"
-    // branch here. Use a custom supabase that returns the row with level='p2'.
+  it('preserves the existing level on upsert when padelapi already set one (no clobber)', async () => {
+    // Supabase `.upsert()` with merge-duplicates resets columns missing
+    // from the payload to their DEFAULT on the UPDATE path — so omitting
+    // `level` was actually nuking the existing value to NULL. The fix:
+    // when neither resolveFipLevel nor resolvePremierLevel applies AND
+    // the existing row has a level, write that existing level back into
+    // the upsert payload so the UPDATE preserves it instead of clearing.
     const upserted: any[] = [];
     const supabase = {
       upserted,
@@ -151,7 +154,10 @@ describe('runTournamentDiscovery', () => {
 
     await runTournamentDiscovery({ supabase: supabase as any, httpClient: httpClient as any });
 
-    expect(supabase.upserted[0].rows[0]).not.toHaveProperty('level');
+    // Existing level is echoed into the payload so the UPDATE path
+    // preserves it. This is the regression-prevention assertion for
+    // the Asuncion P2 disappearance bug (2026-04-28 / 2026-04-29).
+    expect(supabase.upserted[0].rows[0].level).toBe('p2');
   });
 
   it('returns 0 discovered when WP returns empty', async () => {
@@ -250,7 +256,12 @@ describe('runTournamentDiscovery — Premier gap-fill', () => {
     expect(newgiza?.level).toBe('p2');
   });
 
-  it('does NOT include level on the upsert when existing row already has one', async () => {
+  it('preserves the existing Premier level on upsert (writes it back, not undefined)', async () => {
+    // Regression test for the Asuncion P2 disappearance bug (2026-04-28
+    // / 2026-04-29): omitting `level` from a Supabase upsert payload
+    // doesn't preserve it — merge-duplicates resets the column to its
+    // default (NULL). The fix echoes the existing level into the
+    // payload so the UPDATE path actually preserves it.
     const upserted: RecordedRow[] = [];
     const supabase = makeMockSupabase({
       existingRows: [{ slug: 'newgiza-p2-2026', level: 'p2' }],
@@ -264,8 +275,52 @@ describe('runTournamentDiscovery — Premier gap-fill', () => {
     await runTournamentDiscovery({ supabase, httpClient });
 
     const newgiza = upserted.find((r) => r.slug === 'newgiza-p2-2026');
-    // Premier row already has level — leave it alone.
-    expect(newgiza?.level).toBeUndefined();
+    expect(newgiza?.level).toBe('p2');
+  });
+
+  it('preserves the existing level when WP taxonomy carries no resolvable level (Asuncion repro)', async () => {
+    // Concrete repro: WP feed for Asuncion P2 2026 has category-event
+    // term IDs that resolveFipLevel doesn't recognise AND the Premier
+    // gap-fill (resolvePremierLevel) also returns null. With the old
+    // logic the upsert payload omitted `level` and the existing
+    // 'p2' got blanked. With the fix it's echoed back.
+    const upserted: RecordedRow[] = [];
+    const supabase = makeMockSupabase({
+      existingRows: [{ slug: 'asuncion-p2-2026', level: 'p2' }],
+      events: [{ wpId: 1, name: 'Asuncion P2', slug: 'asuncion-p2-2026', categoryIds: [99999] }],
+      onUpsert: (rows) => upserted.push(...rows),
+    });
+    const httpClient = makeMockHttp([
+      // Unknown category id — neither resolveFipLevel nor
+      // resolvePremierLevel will return a value.
+      { wpId: 1, name: 'Asuncion P2', slug: 'asuncion-p2-2026', categoryIds: [99999] },
+    ]);
+
+    await runTournamentDiscovery({ supabase, httpClient });
+
+    const asuncion = upserted.find((r) => r.slug === 'asuncion-p2-2026');
+    expect(asuncion?.level).toBe('p2');
+  });
+
+  it('omits level for a brand-new tournament with no existing row and no resolvable level', async () => {
+    // The "no existing level" case still yields an undefined level on
+    // the upsert payload — so the column's NULL default applies on
+    // the INSERT path. Important so we don't accidentally start
+    // writing empty-string or other sentinel values.
+    const upserted: RecordedRow[] = [];
+    const supabase = makeMockSupabase({
+      existingRows: [], // brand new
+      events: [{ wpId: 1, name: 'New Event', slug: 'new-event-2026', categoryIds: [99999] }],
+      onUpsert: (rows) => upserted.push(...rows),
+    });
+    const httpClient = makeMockHttp([
+      { wpId: 1, name: 'New Event', slug: 'new-event-2026', categoryIds: [99999] },
+    ]);
+
+    await runTournamentDiscovery({ supabase, httpClient });
+
+    const newEvent = upserted.find((r) => r.slug === 'new-event-2026');
+    expect(newEvent?.level).toBeUndefined();
   });
 
   it('writes level normally for non-Premier (resolveFipLevel path)', async () => {

@@ -86,6 +86,7 @@ export async function runTournamentDiscovery(
 
   const rows = parsed.map((p) => {
     const level = resolveFipLevel(p.categoryTermIds, p.slug);
+    const existingLevel = existingLevelBySlug.get(p.slug);
     const row: Record<string, unknown> = {
       name: p.name,
       slug: p.slug,
@@ -96,12 +97,33 @@ export async function runTournamentDiscovery(
       // Authoritative tier (non-Premier) — always write.
       row.level = level;
     } else {
-      // Premier-tier — gap-fill only. Don't clobber padelapi's value.
+      // Premier-tier or unknown taxonomy. Try the gap-fill first; if
+      // it doesn't apply, preserve whatever level the existing row
+      // already has by writing it back explicitly.
+      //
+      // Why explicit-preserve: Supabase `.upsert()` with merge-
+      // duplicates resets columns missing from the payload to their
+      // DEFAULT on the UPDATE path. A partial payload that omits
+      // `level` therefore CLOBBERS existing values to NULL — breaking
+      // any tournament whose level was set via padelapi sync, an ops
+      // manual link/edit, or a previous run of resolveFipLevel that
+      // has since changed (WP taxonomy retagged, slug renamed, …).
+      //
+      // Concrete repro that motivated this fix: Asuncion P2 2026 had
+      // `level='p2'` set via ops manual link; the next discovery run
+      // saw resolveFipLevel=null + resolvePremierLevel=null and the
+      // upsert reset it to NULL. The tournament then disappeared from
+      // the public app's `.in('level', PREMIER_LEVELS)` filter on the
+      // FIP tab. (Same bug fired on 2026-04-28 and again 2026-04-29
+      // — a one-shot SQL patch each day was the symptom.)
       const premierLevel = resolvePremierLevel(p.categoryTermIds, p.slug);
-      const existingLevel = existingLevelBySlug.get(p.slug);
       if (premierLevel && (existingLevel == null || existingLevel === '')) {
         row.level = premierLevel;
+      } else if (existingLevel != null && existingLevel !== '') {
+        row.level = existingLevel;
       }
+      // else: brand-new row with no level signal — leave undefined,
+      // which lets the column's NULL default apply on insert.
     }
     return row;
   });
