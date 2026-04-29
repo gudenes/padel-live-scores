@@ -15,20 +15,25 @@
 // without per-component branches.
 //
 // Country handling: padelgod's OOP fallback writes the IOC/FIP code
-// (INA, HKG, ESP, …) to `pair*_player*_country`. The synthetic player
-// carries that country verbatim → the existing `countryFlag()` helper
-// (which already handles alpha-3 + alpha-2) renders the flag without
-// any extra UI work.
+// (INA, HKG, ESP, …) to `pair*_player*_country`. We normalise to the
+// canonical alpha-2 form at synthesis time via `normalizeCountry`
+// (shared with player-resolver) so synthetic players match the
+// `players.country` convention exactly. That makes `<FlagImage>` —
+// which expects alpha-2 lowercase — render the flag automatically
+// with no extra branching at the consumers.
 //
 // Conventions:
 //   - Synthetic players use `id: ''` so consumers that link to
 //     `/player/<id>` can detect "no profile available" with a
 //     truthiness check.
 //   - `display_name`, `avatar_url`, `ranking` stay null.
-//   - `country` is set when `pair*_player*_country` is present, null
-//     otherwise — UI will skip the flag in that case.
+//   - `country` is normalised to alpha-2 (e.g. SIN → SG, ESP → ES).
+//     Unknown alpha-3 codes resolve to null — same policy as the
+//     normal-player ingestion path.
 //   - We only synthesize when the FK player is null AND a name string
 //     is present; missing both → leave null (TBD slot).
+
+import { normalizeCountry } from './country'
 
 interface MinimalPlayer {
   id: string
@@ -93,9 +98,14 @@ export function hydrateThinPlayers<T extends MatchRowWithThinNames>(row: T): T {
 /**
  * Build a minimal Player-like object from a raw name string + optional
  * country code. The empty `id` is the marker the rest of the UI uses
- * to suppress profile links. `country` is forwarded verbatim — the
- * UI's `countryFlag()` helper handles both alpha-3 ("INA", "HKG") and
- * alpha-2 ("ES") inputs.
+ * to suppress profile links.
+ *
+ * `country` runs through `normalizeCountry` before being stored on the
+ * player so synthetic players match the alpha-2 convention used by
+ * `players.country`. That makes `<FlagImage>` (alpha-2 lowercase →
+ * `/flags/<code>.png`) work without any extra translation step.
+ * Unknown alpha-3 codes resolve to null, same as the normal-player
+ * ingestion path.
  */
 export function synthesizeThinPlayer(
   name: string,
@@ -105,7 +115,7 @@ export function synthesizeThinPlayer(
     id: '',
     name: name.trim(),
     display_name: null,
-    country: country?.trim() ? country.trim() : null,
+    country: normalizeCountry(country),
     ranking: null,
     avatar_url: null,
     external_id: null,
