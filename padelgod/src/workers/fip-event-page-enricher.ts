@@ -32,6 +32,7 @@ export interface FipEventPageEnricherResult {
 export interface TournamentRow {
   id: string;
   slug: string | null;
+  source: string | null;
   fip_id: string | null;
   matchscorer_url: string | null;
   starts_at: string | null;
@@ -74,8 +75,14 @@ function fipIdToSlug(fipId: string | null): string | null {
 
 /**
  * A row needs enrichment if any of the fields the FIP event page
- * exposes is still null. Re-fetching is cheap; the upstream HTML is
- * static for finished events.
+ * exposes is still null, OR if the row's source is FIP and the event
+ * is current/future (so we keep its data fresh as FIP edits the page).
+ *
+ * Re-fetching is cheap; FIP pages are simple HTML and we throttle
+ * politely between requests. For padelapi-survivor rows we only fetch
+ * when there's a gap to fill or the registration_status is still
+ * relevant — padelapi owns most fields there, so re-fetching is
+ * mostly wasted work.
  */
 export function needsEnrichment(row: TournamentRow): boolean {
   if (row.matchscorer_url == null) return true;
@@ -84,13 +91,15 @@ export function needsEnrichment(row: TournamentRow): boolean {
   if (row.venue == null) return true;
   if (row.registration_status == null) return true;
   if (row.prize_money_fip == null) return true;
-  // Even when fully populated, refresh current/upcoming events so we
-  // pick up the registration_status flip from open → closed during
-  // the tournament life cycle. The actual write is gated below — fields
-  // already populated stay untouched (gap-fill semantics).
+
   const endsAtMs = row.ends_at ? Date.parse(row.ends_at) : null;
   const isCurrentOrFuture =
     endsAtMs == null || endsAtMs > Date.now() - 24 * 60 * 60 * 1000;
+
+  // FIP-sourced rows: always re-fetch while the event is in the play
+  // window so any drift (date edits, prize updates, registration
+  // open→closed) lands on the next hourly tick. For padelapi rows we
+  // only refresh registration_status during the life cycle.
   return isCurrentOrFuture;
 }
 
@@ -104,7 +113,7 @@ export async function runFipEventPageEnricher(
   const { data: rows, error } = await deps.supabase
     .from('tournaments')
     .select(
-      'id, slug, fip_id, matchscorer_url, starts_at, ends_at, ' +
+      'id, slug, source, fip_id, matchscorer_url, starts_at, ends_at, ' +
         'venue, venue_address, venue_type, signup_fee_eur, schedule_notes, ' +
         'draw_size_md, draw_size_qd, ' +
         'registration_status, prize_money_fip, prize_breakdown, level',
@@ -149,14 +158,31 @@ export async function runFipEventPageEnricher(
         updated_at: new Date().toISOString(),
       };
 
-      // Gap-fill: only write fields where the existing row is null.
-      // We don't want to overwrite manual operator edits or padelapi-
-      // primary fields like name/level/country.
-      if (t.starts_at == null && dates.startsAt) patch.starts_at = dates.startsAt;
-      if (t.ends_at == null && dates.endsAt) patch.ends_at = dates.endsAt;
-      if (t.matchscorer_url == null && matchscorer?.code) {
-        patch.matchscorer_url = matchscorer.code;
+      // Refresh policy:
+      //   - FIP-sourced rows (source='fip'): the FIP page is the source
+      //     of truth. Every field the page exposes gets OVERWRITTEN on
+      //     each run so any drift on FIP (date changes, prize updates,
+      //     venue moves, registration status flips) lands in our DB the
+      //     next time the worker fires.
+      //   - Padelapi-survivor rows (source='padelapi' with fip_id):
+      //     padelapi is primary per source-priority.ts. Keep gap-fill
+      //     for those — only write FIP values where padelapi has
+      //     nothing.
+      const isFipPrimary = t.source === 'fip'
+      const writeFromFip = (
+        col: string,
+        currentVal: unknown,
+        newVal: unknown,
+      ) => {
+        if (newVal == null) return
+        if (isFipPrimary || currentVal == null) {
+          patch[col] = newVal as unknown
+        }
       }
+
+      writeFromFip('starts_at', t.starts_at, dates.startsAt)
+      writeFromFip('ends_at', t.ends_at, dates.endsAt)
+      writeFromFip('matchscorer_url', t.matchscorer_url, matchscorer?.code ?? null)
 
       // Mirror the matchscorer code into padelgod.widget_id_cache. Two
       // workers populate that table:
@@ -209,43 +235,28 @@ export async function runFipEventPageEnricher(
           );
         }
       }
-      if (t.venue == null && overview.venue) patch.venue = overview.venue;
-      if (t.registration_status == null && overview.registrationStatus) {
-        patch.registration_status = overview.registrationStatus;
-      }
-      if (t.prize_money_fip == null && drawSize.prizeMoney) {
-        patch.prize_money_fip = drawSize.prizeMoney;
-      }
-      if (t.venue_address == null && overview.venueAddress) {
-        patch.venue_address = overview.venueAddress;
-      }
-      if (t.venue_type == null && overview.venueType) {
-        patch.venue_type = overview.venueType;
-      }
-      if (t.signup_fee_eur == null && overview.signupFeeEur != null) {
-        patch.signup_fee_eur = overview.signupFeeEur;
-      }
-      if (t.schedule_notes == null && overview.scheduleNotes) {
-        patch.schedule_notes = overview.scheduleNotes;
-      }
-      if (t.draw_size_md == null && drawSize.mainDraw != null) {
-        patch.draw_size_md = drawSize.mainDraw;
-      }
-      if (t.draw_size_qd == null && drawSize.qualifyingDraw != null) {
-        patch.draw_size_qd = drawSize.qualifyingDraw;
-      }
-      if (t.prize_breakdown == null && prizeBreakdown) {
-        patch.prize_breakdown = prizeBreakdown;
-      }
+      writeFromFip('venue', t.venue, overview.venue)
+      writeFromFip('venue_address', t.venue_address, overview.venueAddress)
+      writeFromFip('venue_type', t.venue_type, overview.venueType)
+      writeFromFip('signup_fee_eur', t.signup_fee_eur, overview.signupFeeEur)
+      writeFromFip('schedule_notes', t.schedule_notes, overview.scheduleNotes)
+      writeFromFip('draw_size_md', t.draw_size_md, drawSize.mainDraw)
+      writeFromFip('draw_size_qd', t.draw_size_qd, drawSize.qualifyingDraw)
+      writeFromFip('prize_money_fip', t.prize_money_fip, drawSize.prizeMoney)
+      writeFromFip('prize_breakdown', t.prize_breakdown, prizeBreakdown)
+      writeFromFip('registration_status', t.registration_status, overview.registrationStatus)
 
-      // Refresh registration_status on every pass for upcoming events
-      // (it changes during life-cycle: open → closed). Override the
-      // gap-fill above when the event hasn't ended yet.
-      const endsAtMs = t.ends_at ? Date.parse(t.ends_at) : null;
-      const isCurrentOrFuture =
-        endsAtMs == null || endsAtMs > Date.now() - 24 * 60 * 60 * 1000;
-      if (isCurrentOrFuture && overview.registrationStatus) {
-        patch.registration_status = overview.registrationStatus;
+      // For padelapi-survivor rows, registration_status still flips
+      // open→closed during the life cycle and padelapi doesn't track
+      // it — write FIP's value even if the existing column is set,
+      // but only while the event is current/future.
+      if (!isFipPrimary && overview.registrationStatus) {
+        const endsAtMs = t.ends_at ? Date.parse(t.ends_at) : null
+        const isCurrentOrFuture =
+          endsAtMs == null || endsAtMs > Date.now() - 24 * 60 * 60 * 1000
+        if (isCurrentOrFuture) {
+          patch.registration_status = overview.registrationStatus
+        }
       }
 
       // Only update if there's something beyond the bookkeeping fields.

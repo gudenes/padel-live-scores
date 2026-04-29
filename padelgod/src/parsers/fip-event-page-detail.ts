@@ -36,16 +36,23 @@ export function parseEventDates(html: string): EventDates {
     ? `${rangeMatch[6]}-${rangeMatch[5]}-${rangeMatch[4]}`
     : null;
 
+  // Prefer the page's prominent date range (the `event__date` block on
+  // the FIP event header AND the meta description). That's the date
+  // users see on FIP and the one they expect us to show in our
+  // listings. The "Main draw" labelled date in the overview block is
+  // a more specific sub-detail (the day the main-draw matches start,
+  // typically one or two days after qualifying ends) — keep it as a
+  // fallback for older page formats that don't expose the header
+  // range cleanly.
+  if (rangeMatch) {
+    return { startsAt: headerStart, endsAt: headerEnd };
+  }
+
   const mainDrawDate =
     findLabeledDate(html, 'Main\\s+draw') ??
     findLabeledDate(html, 'Cuadro\\s+principal');
-
   if (mainDrawDate) {
-    return { startsAt: mainDrawDate, endsAt: headerEnd };
-  }
-
-  if (rangeMatch) {
-    return { startsAt: headerStart, endsAt: headerEnd };
+    return { startsAt: mainDrawDate, endsAt: null };
   }
 
   const singleRe = /(\d{2})\/(\d{2})\/(\d{4})/;

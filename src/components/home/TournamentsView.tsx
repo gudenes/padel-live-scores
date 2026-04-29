@@ -743,6 +743,49 @@ export default function TournamentsView({
                 </div>
               </Link>
 
+              {/* Remaining ongoing — compact horizontal strip. Shown when
+                  more than one tournament is currently ongoing so they
+                  don't get hidden behind the hero card. Same layout as
+                  the upcoming strip below; the badge at the bottom says
+                  "Ongoing" instead of a day-count.
+
+                  Background tint mirrors the hero's ongoing-state
+                  treatment (orange wash) so the cards visibly belong
+                  to the same status group as the hero. */}
+              {restOngoing.length > 0 && (
+                <div className="v3-scroll-hide" style={{
+                  display: 'flex', gap: 8, padding: '0 16px 8px', overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                }}>
+                  {restOngoing.map(t => {
+                    const dateLabel = formatDateRange(format, t.starts_at, t.ends_at).toUpperCase()
+                    return (
+                      <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+                        <div style={{
+                          padding: '10px 14px', clipPath: CHUNKY.card,
+                          background: 'rgba(245,166,35,0.06)',
+                          border: `1px solid rgba(245,166,35,0.2)`,
+                          minWidth: 160,
+                        }}>
+                          <div style={{ fontSize: 9, color: MUTED, fontWeight: 600, marginBottom: 4 }}>
+                            {dateLabel}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <FlagImg country={t.country} size={16} />
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>
+                              {titleCase(t.name)}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 10, color: ORANGE, marginTop: 4, fontWeight: 700 }}>
+                            {tHome('ongoing')}
+                          </div>
+                        </div>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+
               {/* Remaining upcoming — compact horizontal strip */}
               {restUpcoming.length > 0 && (
                 <div className="v3-scroll-hide" style={{
