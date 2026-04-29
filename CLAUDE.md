@@ -559,3 +559,45 @@ Auth signup sends a localized welcome email. All 5 locales covered (en/es/pt/it/
 - **Premier unaffected:** Premier live-poller path doesn't populate pair UUIDs → pair check is skipped → behaves exactly as before.
 - **Monitoring:** `"match-identifier: all padelapi twins on this court rejected by pair mismatch — falling through to pair-based lookup (likely court swap)"` warn log is the signal the fix fired.
 - **Manual hotfix pattern** when a widget mapping is wrong: (1) reset the wrongly-flipped match's `status` back to `scheduled` + delete phantom sets/games, (2) delete the bad `entity_external_ids` mapping, (3) update the right match's `court` to match reality. Padelgod re-links within ~80s via the next live-poll.
+
+## PostgREST 1k cap (2026-04-29)
+
+PostgREST silently caps single-request responses at the project's `db_max_rows` setting. **Our project bumped to 10,000 on 2026-04-29** (Project Settings → API → "Max Rows") after the Leiria FIP Silver incident: 5,369 entry_list_snapshots, women's roster fell past the 1000-row default cap, every women's match silently failed to resolve in the populator. No error was raised — Supabase returns the truncated dataset as if it were complete.
+
+### Project policy
+
+1. **Default cap is 10,000 rows** project-wide (defense-in-depth). Single tournament per-day reads, per-match reads, paged listings — all comfortably under this.
+2. **Reads that can plausibly grow past 10k MUST paginate** via `src/lib/db-paginate.ts` (mirrored to `padelgod/src/lib/db-paginate.ts`). Examples: cross-tournament historical aggregations, multi-tournament snapshot scans, archive backfills.
+3. **Per-tournament reads can stay unpaginated** — they're bounded by tournament size and absorbed by the 10k cap.
+
+### When in doubt, paginate
+
+```ts
+import { paginatedSelect } from '@/lib/db-paginate'
+
+const rows = await paginatedSelect<EntryListRow>(
+  (start, end) =>
+    supabase
+      .schema('padelgod')
+      .from('entry_list_snapshots')
+      .select('name, fip_id, category, captured_at')
+      .eq('tournament_id', tournamentId)
+      .range(start, end),
+  { what: `entry_list_snapshots (tournament=${tournamentId})` },
+)
+```
+
+The helper loops `.range(start, end)` until a partial page comes back. Stops at `maxRows` (default 100k) as a runaway safety. Each call gets a `what` label for debuggable error messages.
+
+### Audit script
+
+`scripts/audit-unranged-selects.ts` flags `.from('TABLE')` chains against watched tables (entry_list_snapshots, draw_snapshots, oop_snapshots, results_snapshots, scrape_jobs, matches, players, tournaments, entity_external_ids, articles) that don't show a bound hint nearby (`.limit`, `.range`, `paginatedSelect`, `.single`, `.maybeSingle`, `.eq('id', …)`, `.eq('*_id', …)`).
+
+Heuristic only — many false positives (e.g. `.in('id', [list])`, `.eq('category', 'men')` for a per-tournament read are bounded in context). Run after touching big-table reads:
+
+```bash
+npx tsx scripts/audit-unranged-selects.ts                        # all tables
+npx tsx scripts/audit-unranged-selects.ts entry_list_snapshots   # one table
+```
+
+Not a CI gate — review tool only.

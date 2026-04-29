@@ -1,5 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
+// Paginated reads against snapshot tables that can exceed PostgREST's
+// 1k response cap. See padelgod/src/lib/db-paginate.ts for the helper
+// (mirror of src/lib/db-paginate.ts) and CLAUDE.md → "PostgREST 1k cap"
+// for the project policy.
+import { paginatedSelect } from '../lib/db-paginate.js';
 
 /**
  * fip-draw-populator — simplified-pipeline writer #1.
@@ -655,45 +660,6 @@ export function resolveFourPlayers(
 }
 
 // ── DB helpers ─────────────────────────────────────────────────────────
-
-/**
- * PostgREST default response cap is 1000 rows. The padelgod snapshot
- * tables routinely exceed that — Leiria has 5,369 entry_list_snapshots
- * across men + women. A single non-paginated fetch returned only the
- * first 1000 rows, deterministically dropping the entire women's
- * roster (Postgres returns rows in insertion order, men's scrape ran
- * first, women's didn't fit in the cap). Result: ALL women's matches
- * for that tournament failed to resolve in the populator, silently.
- *
- * Paginate via `.range(start, end)` until a page returns < pageSize
- * rows. Stops at `maxRows` as a safety cap to avoid runaway loops if
- * a snapshot table somehow ends up with millions of rows.
- *
- * Returns the concatenated rows in their natural fetch order. Callers
- * that need ordering (e.g. dedupe by latest captured_at) should
- * order client-side after this returns.
- */
-async function paginatedSelect<T>(
-  buildQuery: (start: number, end: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
-  opts: { pageSize?: number; maxRows?: number; what: string } = { what: 'rows' },
-): Promise<T[]> {
-  const pageSize = opts.pageSize ?? 1000;
-  const maxRows = opts.maxRows ?? 50_000;
-  const out: T[] = [];
-  let start = 0;
-  while (start < maxRows) {
-    const end = start + pageSize - 1;
-    const { data, error } = await buildQuery(start, end);
-    if (error) {
-      throw new Error(`${opts.what} read failed: ${error.message}`);
-    }
-    const rows = (data ?? []) as T[];
-    out.push(...rows);
-    if (rows.length < pageSize) break; // last page
-    start += pageSize;
-  }
-  return out;
-}
 
 async function getActiveWidgetIdCode(
   supabase: SupabaseClient,
