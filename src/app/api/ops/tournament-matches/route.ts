@@ -148,18 +148,45 @@ export async function GET(request: Request) {
     )
   }
 
-  // Widget id for building the entity_external_ids lookup key
-  // (`{tournamentWidgetId}:{matchWidgetId}`). Without a tournament widget
-  // id we can't resolve the composite — we still return padelgod rows, but
+  // Widget id for building the composite key
+  // (`{tournamentWidgetId}:{matchWidgetId}`). Without it we can't
+  // resolve the composite — we still return padelgod rows, but
   // linkedMatchId will be null for every row.
-  const { data: widgetIdRow } = await supabase
+  //
+  // Two sources, in priority order:
+  //   1. entity_external_ids (legacy reconciler path) — populated by
+  //      the old static-reconciler when it stamped widget IDs.
+  //   2. padelgod.widget_id_cache — canonical source for the new
+  //      pipeline. Populated by widget-code-lookup; the new
+  //      tournament-discovery + fip-draw-populator workers read from
+  //      it. This is where B3 Singapore-style amateur-tier tournaments
+  //      live, since they were discovered after the reconciler retired
+  //      and never got an entity_external_ids row stamped.
+  //
+  // Falling back from #1 to #2 means any tournament with a widget known
+  // to padelgod gets its OOP rows linked, regardless of which writer
+  // discovered it.
+  const { data: legacyWidgetRow } = await supabase
     .from('entity_external_ids')
     .select('external_id')
     .eq('entity_type', 'tournament')
     .eq('entity_id', tournamentId)
     .eq('source', 'crionet_widget')
     .maybeSingle()
-  const tournamentWidgetId = (widgetIdRow?.external_id as string | undefined) ?? null
+  let tournamentWidgetId =
+    (legacyWidgetRow?.external_id as string | undefined) ?? null
+
+  if (!tournamentWidgetId) {
+    const { data: cacheRow } = await supabase
+      .schema('padelgod')
+      .from('widget_id_cache')
+      .select('widget_id')
+      .eq('tournament_id', tournamentId)
+      .eq('is_active', true)
+      .maybeSingle()
+    tournamentWidgetId =
+      (cacheRow?.widget_id as string | undefined) ?? null
+  }
 
   // Fetch OOP and results snapshots in parallel. We want every row — we'll
   // pick the newest scrape_job per (day, court_position) on the client side
