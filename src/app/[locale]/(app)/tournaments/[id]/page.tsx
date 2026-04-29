@@ -47,14 +47,18 @@ const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platin
 // ── Stage ordering ────────────────────────────────────────────
 // Keys are the canonical labels produced by `normalizeRoundFull`. The
 // sort comparator uses these values: bigger = earlier in the bracket
-// (Round of 32 first, Final last).
+// (Q1 first, Final last). Qualifying rounds always come before main
+// draw — they happen first chronologically.
 const ROUND_ORDER: Record<string, number> = {
-  'Finals': 1,
-  'Semifinals': 2,
-  'Quarterfinals': 3,
-  'Round of 16': 4,
-  'Round of 32': 5,
+  'Q1': 9,
+  'Q2': 8,
+  'Q3': 7,
   'Round of 64': 6,
+  'Round of 32': 5,
+  'Round of 16': 4,
+  'Quarterfinals': 3,
+  'Semifinals': 2,
+  'Finals': 1,
 }
 
 // Collapse every alias the upstream feeds throw at us (FIP "SemiFinals",
