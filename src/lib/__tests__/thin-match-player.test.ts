@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   hydrateThinPlayers,
   synthesizeThinPlayer,
@@ -27,9 +27,30 @@ describe('synthesizeThinPlayer', () => {
     expect(synthesizeThinPlayer('  Carla  ').name).toBe('Carla')
   })
 
-  it('forwards a country code when provided (alpha-3 from OOP widget)', () => {
-    const p = synthesizeThinPlayer('A. Hendrawan', 'INA')
-    expect(p.country).toBe('INA')
+  it('normalises a 3-letter IOC code to alpha-2 (matches players.country convention)', () => {
+    // OOP widget writes 'INA' → players.country style is 'ID'. The
+    // hydrator must normalise so <FlagImage>'s alpha-2 lookup hits.
+    expect(synthesizeThinPlayer('A. Hendrawan', 'INA').country).toBe('ID')
+    expect(synthesizeThinPlayer('K. Lim', 'SIN').country).toBe('SG')
+    expect(synthesizeThinPlayer('A. Wong', 'HKG').country).toBe('HK')
+    expect(synthesizeThinPlayer('S. Evers', 'MAS').country).toBe('MY')
+    expect(synthesizeThinPlayer('Spaniard', 'ESP').country).toBe('ES')
+  })
+
+  it('passes through alpha-2 codes unchanged (just uppercased)', () => {
+    expect(synthesizeThinPlayer('Player', 'es').country).toBe('ES')
+    expect(synthesizeThinPlayer('Player', 'NL').country).toBe('NL')
+  })
+
+  it('returns null for unknown country codes', () => {
+    // Defensive: unknown alpha-3 should not pass through and break
+    // the FlagImage lookup. Same policy as normal-player ingestion.
+    const consoleSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {})
+    expect(synthesizeThinPlayer('Player', 'XXX').country).toBeNull()
+    expect(consoleSpy).toHaveBeenCalled()
+    consoleSpy.mockRestore()
   })
 
   it('treats whitespace-only country as missing (null)', () => {
@@ -167,10 +188,13 @@ describe('hydrateThinPlayers', () => {
       pair2_player2_country: 'HKG',
     }
     const out = hydrateThinPlayers({ ...row })
-    expect(out.pair1_player1?.country).toBe('INA')
-    expect(out.pair1_player2?.country).toBe('SIN')
-    expect(out.pair2_player1?.country).toBe('HKG')
-    expect(out.pair2_player2?.country).toBe('HKG')
+    // Normalised at synthesis: INA → ID, SIN → SG, HKG → HK. Match
+    // the alpha-2 convention used by players.country so FlagImage's
+    // /flags/<alpha2>.png lookup hits.
+    expect(out.pair1_player1?.country).toBe('ID')
+    expect(out.pair1_player2?.country).toBe('SG')
+    expect(out.pair2_player1?.country).toBe('HK')
+    expect(out.pair2_player2?.country).toBe('HK')
   })
 
   it('keeps country null when only the name is present (older row)', () => {

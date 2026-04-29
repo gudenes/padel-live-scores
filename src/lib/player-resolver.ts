@@ -120,33 +120,14 @@ export function tokenSimilarity(a: string, b: string): number {
 // data in `public.players.country` / `public.tournaments.country` /
 // `padelgod.entry_list_snapshots.country`.
 //
-// Canonical mapping: `/shared/country-codes-3to2.json` (mirrored into
-// padelgod/src/lib/country-codes-3to2.json for Railway builds). A drift
-// test in `__tests__/country-map-sync.test.ts` enforces the two copies
-// stay in sync.
-//
-// Unknown-code policy: return NULL (not pass-through). DB has a CHECK
-// constraint `country IS NULL OR length(country) = 2`, so pass-through
-// would hard-fail the write. Null is the "unknown country" signal; ops
-// data-quality views surface null-country rows for manual triage.
-//
-// A console.warn also fires so unknown codes show up in Vercel function
-// logs during development.
-import COUNTRY_3TO2_JSON from '../../shared/country-codes-3to2.json'
-const COUNTRY_3TO2: Record<string, string> = COUNTRY_3TO2_JSON
-
-export function normalizeCountry(c: string | null | undefined): string | null {
-  if (!c) return null
-  const trimmed = c.trim()
-  if (trimmed.length === 0) return null
-  const up = trimmed.toUpperCase()
-  if (up.length === 2) return up
-  const mapped = COUNTRY_3TO2[up]
-  if (mapped) return mapped
-  // eslint-disable-next-line no-console
-  console.warn(`[country] unknown code "${up}" → null (add to shared/country-codes-3to2.json)`)
-  return null
-}
+// Implementation lives in `./country.ts` — kept as a leaf module so
+// browser components (FlagImage, thin-match-player) can import it
+// without dragging in this file's Supabase dependency. Re-exported
+// here so the existing call sites (player-resolver consumers) keep
+// working without an import-path churn. Also imported locally for
+// the resolver's own use (a few sites below normalise inputs).
+import { normalizeCountry } from './country'
+export { normalizeCountry }
 
 // ── Subset-tolerant and typo-tolerant similarity ─────────────────────────
 // FIP PDFs use full legal names ("Cristina Cirne Lima De Oliveira") while our
