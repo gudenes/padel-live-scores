@@ -481,7 +481,7 @@ function V3HomePageInner() {
       {/* ── TOURNAMENT SPOTLIGHT HERO ──────────────────────── */}
       {spotlightTournament && (
         <>
-          <SectionTitle action={tHome('fullEvents')} onAction={() => { switchView('tournaments'); window.scrollTo(0, 0) }}>{tHome('tournamentSpotlight')}</SectionTitle>
+          <SectionTitle action={tHome('fullEvents')} href="/tournaments">{tHome('tournamentSpotlight')}</SectionTitle>
           <TournamentSpotlightHero
             tournament={spotlightTournament}
             defendingChampionMen={spotlightChampionMen}

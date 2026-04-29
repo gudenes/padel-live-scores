@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname, Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
-import { useFeedLastVisit, markFeedVisited } from '@/hooks/useFeedLastVisit'
+import { useFeedLastVisit } from '@/hooks/useFeedLastVisit'
 
 // ── Icons ───────────────────────────────────────────────────────
 
@@ -61,6 +61,36 @@ function FollowingIcon({ color }: { color: string }) {
   )
 }
 
+// Trophy icon for the Tournaments tab. Cup with handles + base —
+// universal sport-trophy semantic. Same line-stroke style as the
+// other nav icons.
+function TournamentsIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </svg>
+  )
+}
+
+// Ranking icon — three ascending bars. The cleanest universal "ranking"
+// pictogram; reads as "leaderboard" without the visual weight of a
+// medal/podium. Bars align to a baseline like a chart.
+function RankingIcon({ color }: { color: string }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="6" y1="20" x2="6" y2="14" />
+      <line x1="12" y1="20" x2="12" y2="8" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+      <line x1="3" y1="20" x2="21" y2="20" />
+    </svg>
+  )
+}
+
 // ── Colors ──────────────────────────────────────────────────────
 const GREEN = '#7ED321'
 const GREEN_DIM = 'rgba(126,211,33,0.15)'
@@ -68,20 +98,31 @@ const DIM = '#4B5563'
 const LIVE_RED = '#FF4655'
 
 // ── Tabs ────────────────────────────────────────────────────────
+//
+// Five top-level tabs after the 2026-04-29 reshuffle:
+//   Home  ·  Matches  ·  Following  ·  Tournaments  ·  Ranking
+// Feed is no longer a top-level tab — users reach the news listing
+// via the home page's "Latest news" section. The unread-news badge
+// previously on the Feed tab moved onto Home (same useFeedLastVisit
+// data path, just a different display anchor).
 const TABS = [
-  { key: 'home',      labelKey: 'home' as const,      href: '/home',       icon: null },
-  { key: 'scores',    labelKey: 'matches' as const,   href: '/matches',    icon: ScoresIcon },
-  { key: 'following', labelKey: 'following' as const, href: '/following',  icon: FollowingIcon },
-  { key: 'feed',      labelKey: 'feed' as const,      href: '/feed',       icon: FeedIcon },
+  { key: 'home',        labelKey: 'home' as const,        href: '/home',        icon: null },
+  { key: 'scores',      labelKey: 'matches' as const,     href: '/matches',     icon: ScoresIcon },
+  { key: 'following',   labelKey: 'following' as const,   href: '/following',   icon: FollowingIcon },
+  { key: 'tournaments', labelKey: 'tournaments' as const, href: '/tournaments', icon: TournamentsIcon },
+  { key: 'ranking',     labelKey: 'ranking' as const,     href: '/rankings',    icon: RankingIcon },
 ] as const
 
-// Map a pathname to its top-level tab key. Anything outside the four
-// tabs returns null (no scroll snapshot).
+// Map a pathname to its top-level tab key. Anything outside the five
+// tabs returns null (no scroll snapshot). `/feed` stays here for
+// scroll-restoration even though there's no tab — users coming back
+// from feed via in-page nav still benefit from the saved scroll.
 function tabKeyFromPath(pathname: string): typeof TABS[number]['key'] | null {
   if (pathname === '/home' || pathname === '/home/') return 'home'
   if (pathname.startsWith('/matches')) return 'scores'
   if (pathname.startsWith('/following')) return 'following'
-  if (pathname.startsWith('/feed')) return 'feed'
+  if (pathname.startsWith('/tournaments')) return 'tournaments'
+  if (pathname.startsWith('/rankings')) return 'ranking'
   return null
 }
 
@@ -214,13 +255,7 @@ export default function BottomNavV3() {
               href={tab.href}
               prefetch={true}
               data-coachmark={tab.key === 'following' ? 'following' : undefined}
-              onClick={() => {
-                saveCurrentScroll()
-                if (tab.key === 'feed') {
-                  setNewsCount(0)
-                  markFeedVisited()
-                }
-              }}
+              onClick={saveCurrentScroll}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -259,8 +294,13 @@ export default function BottomNavV3() {
                 {tab.key === 'scores' && liveCount > 0 && (
                   <div className="v3-nav-badge">{liveCount}</div>
                 )}
-                {/* News count badge on feed */}
-                {tab.key === 'feed' && newsCount > 0 && (
+                {/* Unread-news badge on Home — moved from the Feed tab
+                    when Feed was demoted out of the bottom nav. The
+                    underlying data flow is unchanged: useFeedLastVisit
+                    + a count of articles since that timestamp. The
+                    badge clears when the user actually visits /feed
+                    (the feed page calls markFeedVisited on mount). */}
+                {tab.key === 'home' && newsCount > 0 && (
                   <div className="v3-nav-badge">{newsCount > 9 ? '9+' : newsCount}</div>
                 )}
               </div>

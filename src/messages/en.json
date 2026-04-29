@@ -3,7 +3,9 @@
     "home": "Home",
     "matches": "Matches",
     "following": "Following",
-    "feed": "Feed"
+    "feed": "Feed",
+    "tournaments": "Events",
+    "ranking": "Ranking"
   },
   "matches": {
     "live": "Live",

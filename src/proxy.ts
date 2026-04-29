@@ -48,6 +48,24 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(pathname.replace('/v3/tournaments', '/tournaments'), request.url), 308)
   }
 
+  // 2b. Legacy `/home?view=tournaments` → `/tournaments`. Eventos was
+  // a sub-view of /home for a long time; the bottom-nav reshuffle
+  // promoted it to a top-level tab with its own route. Old bookmarks
+  // and shared links land here; forward them so they keep working.
+  // Locale-aware: covers /home, /es/home, /pt/home, etc.
+  const localeStripped = pathname.replace(/^\/(es|pt|it|fr)(?=\/|$)/, '')
+  if (
+    (localeStripped === '/home' || localeStripped === '/home/') &&
+    request.nextUrl.searchParams.get('view') === 'tournaments'
+  ) {
+    const localePrefix = pathname.slice(0, pathname.length - localeStripped.length)
+    const dest = new URL(`${localePrefix}/tournaments`, request.url)
+    request.nextUrl.searchParams.forEach((value, key) => {
+      if (key !== 'view') dest.searchParams.set(key, value)
+    })
+    return NextResponse.redirect(dest, 308)
+  }
+
   // 3. Ops dashboard auth (covers /ops pages and /api/ops routes)
   if (pathname.startsWith('/ops') || pathname.startsWith('/api/ops')) {
     const cronSecret = process.env.CRON_SECRET
