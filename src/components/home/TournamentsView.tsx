@@ -300,6 +300,12 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
     // Year — always applied. Defaults to current year.
     const ty = new Date(t.starts_at).getFullYear()
     if (ty !== f.year) return false
+    // Event-name type-ahead. Case-insensitive substring match on the
+    // tournament's name. Trim avoids one-space false-zero results.
+    const q = f.eventName.trim().toLowerCase()
+    if (q.length > 0) {
+      if (!t.name || !t.name.toLowerCase().includes(q)) return false
+    }
     if (f.countries.size > 0) {
       if (!t.country || !f.countries.has(t.country.toUpperCase())) return false
     }
@@ -561,6 +567,12 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
               onRemove={() => setFilters(prev => ({ ...prev, year: new Date().getFullYear() }))}
             />
           )}
+          {filters.eventName.trim().length > 0 && (
+            <ActiveFilterPill
+              label={`🔎 "${filters.eventName.trim()}"`}
+              onRemove={() => setFilters(prev => ({ ...prev, eventName: '' }))}
+            />
+          )}
           {[...filters.countries].map(code => (
             <ActiveFilterPill
               key={`c-${code}`}
@@ -742,153 +754,16 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
             </>
           )}
 
-          {/* ── Completed (current season) — vertical list grouped by month.
-              Replaces the previous horizontal carousel. Now that the
-              filter sheet narrows the dataset (year + país + estado),
-              there's enough vertical headroom to stack one card per row,
-              which scans much faster than horizontal scroll for "what
-              happened in April vs March". */}
+          {/* ── Completed (current season) — vertical list grouped by
+              month, each month collapsible. The most-recent month is
+              expanded by default; older months collapse to a thin row
+              showing the month name + event count + chevron. Now that
+              there can be 30+ completed events per season, this lets
+              users skim months without scrolling forever. */}
           {currentSeasonCompleted.length > 0 && (
             <>
               <SectionTitle>Completed &mdash; {currentYear}</SectionTitle>
-              {(() => {
-                // Group by ends_at month (year-month key for stable sort).
-                // ends_at is the right anchor for "completed" — a tournament
-                // that runs Mar 30 → Apr 5 belongs in April.
-                const byMonth = new Map<string, TournamentWithWinners[]>()
-                for (const t of currentSeasonCompleted) {
-                  const d = new Date(t.ends_at)
-                  const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`
-                  const arr = byMonth.get(key) ?? []
-                  arr.push(t)
-                  byMonth.set(key, arr)
-                }
-                // Most-recent month first. Within month: newest end first.
-                const orderedKeys = [...byMonth.keys()].sort((a, b) => (a < b ? 1 : -1))
-                for (const k of orderedKeys) {
-                  byMonth.get(k)!.sort(
-                    (a, b) =>
-                      new Date(b.ends_at).getTime() - new Date(a.ends_at).getTime(),
-                  )
-                }
-
-                return orderedKeys.map(key => {
-                  const items = byMonth.get(key)!
-                  // Use the first item's date for the locale-aware month name.
-                  const monthDate = new Date(items[0].ends_at)
-                  return (
-                    <div key={key} style={{ marginBottom: 8 }}>
-                      <div style={{
-                        padding: '14px 16px 8px',
-                        display: 'flex', alignItems: 'center', gap: 8,
-                      }}>
-                        <span style={{
-                          fontSize: 11, fontWeight: 800,
-                          letterSpacing: '0.14em', textTransform: 'uppercase',
-                          color: '#fff',
-                        }}>
-                          {format.dateTime(monthDate, { month: 'long' })}
-                        </span>
-                        <span style={{
-                          fontFamily: 'var(--font-mono, "SF Mono", monospace)',
-                          fontSize: 10, color: MUTED, letterSpacing: '0.06em',
-                        }}>
-                          {items.length} {items.length === 1 ? 'evento' : 'eventos'}
-                        </span>
-                      </div>
-
-                      {items.map(t => {
-                        const menW = t.winners.find(w => w.category === 'men')
-                        const womenW = t.winners.find(w => w.category === 'women')
-                        const hasChampions = !!(menW || womenW)
-                        return (
-                          <Link
-                            key={t.id}
-                            href={`/tournaments/${t.id}`}
-                            style={{
-                              textDecoration: 'none', color: 'inherit',
-                              display: 'block',
-                              margin: '0 16px 8px',
-                            }}
-                          >
-                            <div style={{
-                              clipPath: CHUNKY.card,
-                              background: BG_CARD, border: `1px solid ${BORDER}`,
-                              overflow: 'hidden',
-                            }}>
-                              {/* Header row */}
-                              <div style={{
-                                padding: '12px 14px',
-                                display: 'flex', alignItems: 'center',
-                                justifyContent: 'space-between',
-                                borderBottom: hasChampions ? `1px solid ${BORDER}` : 'none',
-                                gap: 10,
-                              }}>
-                                <div style={{
-                                  display: 'flex', alignItems: 'center', gap: 10,
-                                  minWidth: 0, flex: 1,
-                                }}>
-                                  <FlagImg country={t.country} size={22} />
-                                  <div style={{ minWidth: 0, flex: 1 }}>
-                                    <div style={{
-                                      fontSize: 13, fontWeight: 700, color: '#fff',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden', textOverflow: 'ellipsis',
-                                    }}>
-                                      {titleCase(t.name)}
-                                    </div>
-                                    <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
-                                      {formatDateRange(format, t.starts_at, t.ends_at)}
-                                    </div>
-                                  </div>
-                                </div>
-                                {t.level && (
-                                  <span style={{
-                                    ...pillStyle,
-                                    flexShrink: 0,
-                                    background: 'rgba(255,255,255,0.06)',
-                                    color: MUTED,
-                                  }}>
-                                    {levelLabel(t.level)}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Champions row(s) — one line each, side-by-side
-                                  on wide rows since the card is now full-width. */}
-                              {hasChampions && (
-                                <div style={{
-                                  padding: '10px 14px',
-                                  display: 'flex', flexDirection: 'column', gap: 6,
-                                }}>
-                                  {menW && (
-                                    <ChampionLine
-                                      colorBar={MEN_BLUE}
-                                      avatar1={menW.player1_avatar}
-                                      avatar2={menW.player2_avatar}
-                                      name1={menW.player1_name}
-                                      name2={menW.player2_name}
-                                    />
-                                  )}
-                                  {womenW && (
-                                    <ChampionLine
-                                      colorBar={WOMEN_PURPLE}
-                                      avatar1={womenW.player1_avatar}
-                                      avatar2={womenW.player2_avatar}
-                                      name1={womenW.player1_name}
-                                      name2={womenW.player2_name}
-                                    />
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  )
-                })
-              })()}
+              <CompletedMonthList tournaments={currentSeasonCompleted} format={format} />
             </>
           )}
 
@@ -923,6 +798,210 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
         }}
       />
     </div>
+  )
+}
+
+// ── Completed-tournaments list grouped by month with collapsible
+//    sections. Most-recent month expanded by default; older months
+//    collapse to a thin row showing month name + event count.
+function CompletedMonthList({
+  tournaments,
+  format,
+}: {
+  tournaments: TournamentWithWinners[]
+  format: ReturnType<typeof useFormatter>
+}) {
+  // Group by ends_at month — a tournament running Mar 30 → Apr 5
+  // belongs in April. Memo'd because tournaments + winners are stable
+  // between filter changes; only the open-state needs to re-render.
+  const { orderedKeys, byMonth } = useMemo(() => {
+    const m = new Map<string, TournamentWithWinners[]>()
+    for (const t of tournaments) {
+      const d = new Date(t.ends_at)
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`
+      const arr = m.get(key) ?? []
+      arr.push(t)
+      m.set(key, arr)
+    }
+    // Most-recent month first; within month, newest end first.
+    const keys = [...m.keys()].sort((a, b) => (a < b ? 1 : -1))
+    for (const k of keys) {
+      m.get(k)!.sort(
+        (a, b) => new Date(b.ends_at).getTime() - new Date(a.ends_at).getTime(),
+      )
+    }
+    return { orderedKeys: keys, byMonth: m }
+  }, [tournaments])
+
+  // Default expanded state: only the most-recent month. Persists as the
+  // user toggles. When the list shape changes (filter applied), reset
+  // to the new "most recent" — the previous open key may no longer
+  // exist (e.g., user switched from 2026 to 2025).
+  const firstKey = orderedKeys[0]
+  const [openKeys, setOpenKeys] = useState<Set<string>>(
+    () => new Set(firstKey ? [firstKey] : []),
+  )
+  useEffect(() => {
+    setOpenKeys(prev => {
+      // Drop any open keys that no longer exist in the data, and ensure
+      // the new most-recent month is open if no key is open.
+      const stillValid = [...prev].filter(k => byMonth.has(k))
+      if (stillValid.length === 0 && firstKey) return new Set([firstKey])
+      return new Set(stillValid)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firstKey, orderedKeys.join(',')])
+
+  const toggle = (k: string) =>
+    setOpenKeys(prev => {
+      const next = new Set(prev)
+      if (next.has(k)) next.delete(k)
+      else next.add(k)
+      return next
+    })
+
+  return (
+    <>
+      {orderedKeys.map(key => {
+        const items = byMonth.get(key)!
+        const open = openKeys.has(key)
+        const monthDate = new Date(items[0].ends_at)
+        return (
+          <div key={key} style={{ marginBottom: 8 }}>
+            <button
+              type="button"
+              onClick={() => toggle(key)}
+              style={{
+                width: '100%',
+                padding: '14px 16px 8px',
+                display: 'flex', alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'none', border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit', textAlign: 'left',
+              }}
+              aria-expanded={open}
+            >
+              <span style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 800,
+                  letterSpacing: '0.14em', textTransform: 'uppercase',
+                  color: '#fff',
+                }}>
+                  {format.dateTime(monthDate, { month: 'long' })}
+                </span>
+                <span style={{
+                  fontFamily: 'var(--font-mono, "SF Mono", monospace)',
+                  fontSize: 10, color: MUTED, letterSpacing: '0.06em',
+                }}>
+                  {items.length} {items.length === 1 ? 'evento' : 'eventos'}
+                </span>
+              </span>
+              <span style={{
+                color: MUTED, fontSize: 14,
+                transition: 'transform 0.2s',
+                display: 'inline-flex',
+                transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+              }}>
+                ▸
+              </span>
+            </button>
+
+            {open && items.map(t => {
+              const menW = t.winners.find(w => w.category === 'men')
+              const womenW = t.winners.find(w => w.category === 'women')
+              const hasChampions = !!(menW || womenW)
+              return (
+                <Link
+                  key={t.id}
+                  href={`/tournaments/${t.id}`}
+                  style={{
+                    textDecoration: 'none', color: 'inherit',
+                    display: 'block',
+                    margin: '0 16px 8px',
+                  }}
+                >
+                  <div style={{
+                    clipPath: CHUNKY.card,
+                    background: BG_CARD, border: `1px solid ${BORDER}`,
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      padding: '12px 14px',
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderBottom: hasChampions ? `1px solid ${BORDER}` : 'none',
+                      gap: 10,
+                    }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        minWidth: 0, flex: 1,
+                      }}>
+                        <FlagImg country={t.country} size={22} />
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{
+                            fontSize: 13, fontWeight: 700, color: '#fff',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}>
+                            {titleCase(t.name)}
+                          </div>
+                          <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
+                            {formatDateRange(format, t.starts_at, t.ends_at)}
+                          </div>
+                        </div>
+                      </div>
+                      {t.level && (
+                        <span style={{
+                          fontSize: 9, fontWeight: 700,
+                          padding: '3px 7px',
+                          clipPath: CHUNKY.badge,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.3,
+                          flexShrink: 0,
+                          background: 'rgba(255,255,255,0.06)',
+                          color: MUTED,
+                        }}>
+                          {levelLabel(t.level)}
+                        </span>
+                      )}
+                    </div>
+
+                    {hasChampions && (
+                      <div style={{
+                        padding: '10px 14px',
+                        display: 'flex', flexDirection: 'column', gap: 6,
+                      }}>
+                        {menW && (
+                          <ChampionLine
+                            colorBar={MEN_BLUE}
+                            avatar1={menW.player1_avatar}
+                            avatar2={menW.player2_avatar}
+                            name1={menW.player1_name}
+                            name2={menW.player2_name}
+                          />
+                        )}
+                        {womenW && (
+                          <ChampionLine
+                            colorBar={WOMEN_PURPLE}
+                            avatar1={womenW.player1_avatar}
+                            avatar2={womenW.player2_avatar}
+                            name1={womenW.player1_name}
+                            name2={womenW.player2_name}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )
+      })}
+    </>
   )
 }
 

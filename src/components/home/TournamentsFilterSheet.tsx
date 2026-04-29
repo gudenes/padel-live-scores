@@ -98,6 +98,10 @@ export interface TournamentFilters {
   /** Calendar year of the tournament's `starts_at`. Defaults to current
    *  year so the page opens on "this season" out of the box. */
   year: number
+  /** Free-text substring match on tournament name. Case-insensitive,
+   *  trims to-empty before applying. Lets the user jump to a specific
+   *  event without scrolling — e.g., "brussels" surfaces just Brussels. */
+  eventName: string
   countries: Set<string>
   when: 'all' | 'this_month' | 'next_30' | 'next_90'
   estado: {
@@ -111,6 +115,7 @@ const CURRENT_YEAR = new Date().getFullYear()
 
 export const DEFAULT_FILTERS: TournamentFilters = {
   year: CURRENT_YEAR,
+  eventName: '',
   countries: new Set(),
   when: 'all',
   estado: { live: true, upcoming: true, completed: true },
@@ -121,6 +126,7 @@ export function activeFilterCount(f: TournamentFilters): number {
   // Year only counts when it's not the current year — the default state
   // shouldn't contribute to the badge.
   if (f.year !== CURRENT_YEAR) n += 1
+  if (f.eventName.trim().length > 0) n += 1
   n += f.countries.size
   if (f.when !== 'all') n += 1
   if (!f.estado.live || !f.estado.upcoming || !f.estado.completed) n += 1
@@ -330,6 +336,35 @@ export default function TournamentsFilterSheet({
             </div>
           </Section>
 
+          {/* ── BUSCAR EVENTO (name type-ahead) ───────────────
+              Free-text substring match on tournament.name. Live —
+              the parent's pendingCount updates on every keystroke
+              and the Apply button reflects the narrower count. */}
+          <Section title="Buscar evento">
+            <div style={{ position: 'relative' }}>
+              <span style={{
+                position: 'absolute', left: 12, top: '50%',
+                transform: 'translateY(-50%)', display: 'flex',
+              }}>
+                <MagnifierIcon size={13} color={GREEN} />
+              </span>
+              <input
+                type="text"
+                placeholder="ej. Brussels, Madrid, FIP Silver…"
+                value={pending.eventName}
+                onChange={(e) => setPending(prev => ({ ...prev, eventName: e.target.value }))}
+                style={{
+                  width: '100%', padding: '9px 12px 9px 34px',
+                  background: BG_CARD, border: `1px solid ${BORDER}`,
+                  clipPath: CHUNKY.bar,
+                  color: '#fff', fontSize: 12,
+                  fontFamily: 'inherit',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          </Section>
+
           {/* ── PAÍS ────────────────────────────────────────── */}
           <Section title="País">
             <div style={{ position: 'relative', marginBottom: 12 }}>
@@ -512,6 +547,7 @@ export default function TournamentsFilterSheet({
             onClick={() => {
               setPending({
                 year: CURRENT_YEAR,
+                eventName: '',
                 countries: new Set(),
                 when: 'all',
                 estado: { live: true, upcoming: true, completed: true },
