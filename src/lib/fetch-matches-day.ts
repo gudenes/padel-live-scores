@@ -15,6 +15,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { localDayRangeUtc, isIsoDate } from './locale-time'
 import { hydrateThinPlayers } from './thin-match-player'
+import { isPremierLevel, levelTierWeight } from './tournament-labels'
 
 const ONE_DAY_MS = 86_400_000
 
@@ -110,31 +111,11 @@ const MATCH_SELECT = `
   sets(id, set_number, set_score, pair1_games, pair2_games, is_current)
 `
 
-// Tier priority for tournament groups within a section. Mirrors the
-// page-level constant — kept here so the helper is self-contained.
-const TIER_ORDER: Record<string, number> = {
-  major: 0,
-  finals: 0,
-  p1: 0,
-  p2: 0,
-  wpt_final: 0,
-  wpt_1000: 0,
-  wpt_master: 0,
-  wpt_500: 0,
-  fip_platinum: 1,
-  fip_gold: 2,
-  fip_silver: 3,
-  fip_other: 4,
-}
-
-function tournamentTierRank(level: string | null): number {
-  if (!level) return 99
-  return TIER_ORDER[level] ?? 99
-}
-
-function isPremierLevel(level: string | null): boolean {
-  return tournamentTierRank(level) === 0
-}
+// Tier priority for tournament groups within a section uses the
+// canonical `levelTierWeight()` from tournament-labels — same map
+// the home Tournaments view + spotlight picker use, so the order is
+// consistent across the app: Premier (finals/major/p1/p2) first,
+// then Platinum, Gold, Silver, Bronze, Promises, Beyond.
 
 /**
  * Fetch + bucket + group matches for a single ISO day in the locale's
@@ -243,7 +224,7 @@ export async function fetchMatchesDay(
   const groups = Array.from(groupMap.values())
   groups.sort(
     (a, b) =>
-      tournamentTierRank(a.tournamentLevel) - tournamentTierRank(b.tournamentLevel),
+      levelTierWeight(a.tournamentLevel) - levelTierWeight(b.tournamentLevel),
   )
 
   return { iso, groups, totalMatches: dayMatches.length }

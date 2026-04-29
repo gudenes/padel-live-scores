@@ -21,6 +21,7 @@ import { MatchStatsView } from '@/components/MatchStatsView'
 import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
+import { isPremierLevel } from '@/lib/tournament-labels'
 
 import { WinnerBanner } from './WinnerBanner'
 import { PredictionSection, PredictionResult } from './PredictionSection'
@@ -104,7 +105,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           .from('matches')
           .select(`
             *,
-            tournament:tournaments(id, name, starts_at, ends_at, country, timezone, source),
+            tournament:tournaments(id, name, starts_at, ends_at, country, timezone, source, level),
             pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
             pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
             pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
@@ -252,9 +253,15 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   }, [prediction])
 
   useEffect(() => {
-    if (match?.status === 'finished') setSubTab('recap')
+    // For Premier Padel finished matches, land on Score Recap (the
+    // stats view). Non-Premier finished matches don't have stats —
+    // skip Recap and Live Feed entirely and start on Players.
+    const tournamentLevel = (match as any)?.tournament?.level as string | null | undefined
+    const isPremier = isPremierLevel(tournamentLevel)
+    if (match?.status === 'finished') setSubTab(isPremier ? 'recap' : 'players')
     else if (match?.status === 'scheduled') setSubTab('players')
-  }, [match?.status])
+    else if (match && !isPremier) setSubTab('players') // live + non-Premier
+  }, [match?.status, (match as any)?.tournament?.level])
 
   useEffect(() => {
     if (!match || match.status !== 'scheduled') return
@@ -901,13 +908,29 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         />
       )}
 
-      {/* ── Sub-tabs: scheduled shows Players + H2H, live/finished shows all ── */}
+      {/* ── Sub-tabs: scheduled shows Players + H2H, live/finished shows all ──
+          Score Recap (stats) and Live Feed (point-by-point) only make
+          sense for Premier Padel events — that's where padelapi feeds
+          the data. For non-Premier (FIP) tournaments, hide both tabs
+          and just show Players + H2H. */}
       {(() => {
+        const tournamentLevel = ((match as any).tournament)?.level as string | null | undefined
+        const isPremier = isPremierLevel(tournamentLevel)
+
+        const recapTab = { key: 'recap', label: tMatch('scoreRecap') }
+        const liveTab = { key: 'live', label: tMatch('liveFeed') }
+        const playersTab = { key: 'players', label: tMatch('players') }
+        const h2hTab = { key: 'h2h', label: tMatch('h2h') }
+
         const tabList: { key: string; label: string }[] = isFinished
-          ? [{ key: 'recap', label: tMatch('scoreRecap') }, { key: 'live', label: tMatch('liveFeed') }, { key: 'players', label: tMatch('players') }, { key: 'h2h', label: tMatch('h2h') }]
+          ? isPremier
+            ? [recapTab, liveTab, playersTab, h2hTab]
+            : [playersTab, h2hTab]
           : isScheduled
-            ? [{ key: 'players', label: tMatch('players') }, { key: 'h2h', label: tMatch('h2h') }]
-            : [{ key: 'live', label: tMatch('liveFeed') }, { key: 'players', label: tMatch('players') }, { key: 'h2h', label: tMatch('h2h') }]
+            ? [playersTab, h2hTab]
+            : isPremier
+              ? [liveTab, playersTab, h2hTab]
+              : [playersTab, h2hTab]
 
         const tabKeys = tabList.map(t => t.key)
         const currentIdx = Math.max(0, tabKeys.indexOf(subTab))
