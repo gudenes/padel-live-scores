@@ -93,10 +93,14 @@ interface Options {
   }>;
   widgetCodeByTournament?: Record<string, string | null>;
   draws?: DrawSeed[];
-  /** OOP snapshot fixtures. Populator reads these only when
-   *  draw_snapshots is empty AND the tournament is amateur-tier
-   *  (Beyond/Promises/Other). Test fixture for B3 Singapore-style
-   *  tournaments where the FIP page never wires an AJAX draw widget. */
+  /** OOP snapshot fixtures. Two read paths:
+   *  1. Amateur-tier full-replacement when `draw_snapshots` is empty
+   *     (B3 Singapore-style tournaments where the FIP page never wires
+   *     an AJAX draw widget — OOP is the only structured source).
+   *  2. Qualifying-merge when `draw_snapshots` IS populated — the
+   *     populator pulls OOP rows for any round the bracket doesn't
+   *     cover (Q1/Q2/Q3 — the FIP event-page bracket only goes back
+   *     to R32). Active for ALL tiers, not just amateur. */
   oopSnapshots?: OopSnapshotSeed[];
   entryList?: EntryListSeed[];
   players?: PlayerSeed[];
@@ -1234,11 +1238,12 @@ describe('runFipDrawPopulator', () => {
     expect(supabase.inserted).toHaveLength(0);
   });
 
-  it('amateur tier: prefers draw_snapshots when both exist (OOP only fires on empty)', async () => {
-    // Defensive: if a tournament somehow has BOTH draw + oop snapshots,
-    // draw_snapshots is the richer source (seeds, FIP IDs, status) so
-    // it wins. OOP fallback is only for the genuine "no draw widget"
-    // case — kicking in when draws exist would create duplicates.
+  it('amateur tier: bracket wins over OOP for the same round (no double-insert)', async () => {
+    // Bracket is the richer source (seeds, FIP IDs, status). When
+    // both sources surface the same round, the OOP row is filtered
+    // out by `excludeRoundLabels` so we don't double-insert. The
+    // OOP merge path still runs for OTHER rounds — see the new
+    // "OOP merge (Silver+)" cases below.
     const supabase = fakeSupabase({
       tournaments: [
         { tournament_id: TOURNAMENT_ID, tournament_name: 'Mixed', slug: TOURNAMENT_SLUG },
@@ -1570,5 +1575,172 @@ describe('runFipDrawPopulator', () => {
     expect(row.pair1_player2_id).toBe('uuid-W2');
     expect(row.pair2_player1_id).toBe('uuid-W3');
     expect(row.pair2_player2_id).toBe('uuid-W4');
+  });
+
+  // ── OOP qualifying merge (Silver+) ────────────────────────────────
+  //
+  // The FIP event-page bracket only goes back to R32. Qualifying rounds
+  // (Q1/Q2/Q3) live in the matchscorerlive OOP widget instead. Without
+  // these matches in `public.matches`, the UI shows nothing for tournaments
+  // on day 1 (the qualifying day), even though the OOP is published —
+  // the live-poller eventually creates rows when matches go on court,
+  // but that's hours late. The populator merges OOP rows for any round
+  // the bracket doesn't cover, so qualifiers show up alongside R32 the
+  // moment OOP is captured. Concrete case: FIP Silver Leiria 2026-04-29.
+
+  it('OOP merge (Silver+): inserts Q1 thin matches alongside bracket R32', async () => {
+    // Bracket has R32 (resolves via entry list to FK-linked row). OOP
+    // has Q1 (one match, with names absent from the entry list — these
+    // are qualifier-only players FIP doesn't surface in the bracket).
+    // Both should land in `public.matches`, with the Q1 row as a thin
+    // match keyed by the same widget composite the live-poller will
+    // later use.
+    const oopQ1: OopSnapshotSeed = {
+      tournament_id: TOURNAMENT_ID,
+      match_widget_id: 'MQ013',
+      category: 'men',
+      round_label: 'Q1',
+      team1_player1_name: 'D. Moreira',
+      team1_player2_name: 'B. Monteiro',
+      team2_player1_name: 'P. Parada',
+      team2_player2_name: 'G. Alves',
+      captured_at: '2026-04-29T08:00:00Z',
+    };
+
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Leiria', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_silver' },
+      draws: [realMatchDraw], // R32, resolves via entry list
+      oopSnapshots: [oopQ1],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.tournamentsProcessed).toBe(1);
+    expect(result.inserted).toBe(2);
+    expect(supabase.inserted).toHaveLength(2);
+
+    const r32 = supabase.inserted.find(
+      (r: { widget_id_composite: string }) =>
+        r.widget_id_composite === `${TOURNAMENT_WIDGET}:MD017`,
+    );
+    expect(r32).toBeDefined();
+    expect(r32.round).toBe('R32');
+    // Bracket row: FK-resolved (entry list covers these names).
+    expect(r32.pair1_player1_id).toBe('uuid-P1');
+
+    const q1 = supabase.inserted.find(
+      (r: { widget_id_composite: string }) =>
+        r.widget_id_composite === `${TOURNAMENT_WIDGET}:MQ013`,
+    );
+    expect(q1).toBeDefined();
+    expect(q1.round).toBe('Q1');
+    // Thin match: names preserved on pair*_player*_name, no FKs
+    // (qualifier names aren't in the entry list fixture).
+    expect(q1.pair1_player1_id).toBeUndefined();
+    expect(q1.pair1_player1_name).toBe('D. Moreira');
+    expect(q1.pair2_player2_name).toBe('G. Alves');
+  });
+
+  it('OOP merge: filters out OOP rows whose round the bracket already covers (no double-insert)', async () => {
+    // Defensive: if the bracket and OOP both surface a round (in the
+    // wild this would be unusual — bracket is the bye-aware source
+    // of truth for main-draw rounds), the bracket row wins and the
+    // OOP duplicate is filtered out. `findOrCreateMatch` is the
+    // backstop; this filter is the first line of defense.
+    const oopAlsoR32: OopSnapshotSeed = {
+      tournament_id: TOURNAMENT_ID,
+      match_widget_id: 'MD999', // distinct widget id from MD017
+      category: 'men',
+      round_label: 'R32', // SAME round as bracket → must be dropped
+      team1_player1_name: 'Other A',
+      team1_player2_name: 'Other B',
+      team2_player1_name: 'Other C',
+      team2_player2_name: 'Other D',
+      captured_at: '2026-04-29T08:00:00Z',
+    };
+
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Leiria', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_silver' },
+      draws: [realMatchDraw], // R32
+      oopSnapshots: [oopAlsoR32], // also R32 — gets filtered
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted).toHaveLength(1);
+    expect(supabase.inserted[0].widget_id_composite).toBe(
+      `${TOURNAMENT_WIDGET}:MD017`,
+    );
+  });
+
+  it('OOP merge: Silver+ qualifier with unresolved players still inserts as thin match', async () => {
+    // Pre-fix, Silver+ tournaments hit the strict-resolve gate and
+    // skipped any row whose names didn't land in the entry list. For
+    // OOP-sourced rows we relax that gate: the widget_id_composite is
+    // stable, so a thin row now is just a placeholder the live-poller
+    // upgrades when the match goes on court.
+    const oopQ1Unresolved: OopSnapshotSeed = {
+      tournament_id: TOURNAMENT_ID,
+      match_widget_id: 'MQ020',
+      category: 'men',
+      round_label: 'Q1',
+      // Names that DON'T appear in the entry-list fixture.
+      team1_player1_name: 'L. Wildcard',
+      team1_player2_name: 'M. Latecomer',
+      team2_player1_name: 'N. Diacrítico',
+      team2_player2_name: 'O. Unknown',
+      captured_at: '2026-04-29T08:00:00Z',
+    };
+
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Leiria', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_silver' },
+      draws: [realMatchDraw],
+      oopSnapshots: [oopQ1Unresolved],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // Both inserted — R32 from bracket (resolved) + Q1 thin from OOP.
+    // skippedPlayerUnresolved stays 0 because the OOP-sourced row gets
+    // the relaxed gate (allowThinMatch).
+    expect(result.skippedPlayerUnresolved).toBe(0);
+    expect(result.inserted).toBe(2);
+
+    const q1 = supabase.inserted.find(
+      (r: { widget_id_composite: string }) =>
+        r.widget_id_composite === `${TOURNAMENT_WIDGET}:MQ020`,
+    );
+    expect(q1).toBeDefined();
+    expect(q1.pair1_player1_id).toBeUndefined();
+    expect(q1.pair1_player1_name).toBe('L. Wildcard');
+    expect(q1.pair2_player2_name).toBe('O. Unknown');
   });
 });

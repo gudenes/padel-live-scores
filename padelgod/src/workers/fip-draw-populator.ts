@@ -352,33 +352,70 @@ export async function runFipDrawPopulator(
     }
 
     // 3. Load latest draw snapshot per (tournament, match_widget_id).
-    // For amateur tiers, fall back to OOP snapshots when draw is empty —
-    // some tournaments (B3 Singapore, etc.) only expose the bracket as a
-    // PDF, never wiring an AJAX draw widget. OOP carries everything we
-    // need (round + court + 4 names + match_widget_id) to build a thin
-    // match. fip-results-writer fills in status/winner/sets later via
-    // the composite key.
+    // Source selection:
+    //   - Bracket present (Silver+, most cases): use the bracket AND merge
+    //     OOP rows for any round the bracket doesn't cover. The FIP
+    //     event-page bracket only goes back to R32, so qualifying rounds
+    //     (Q1/Q2/Q3) are invisible to the app until the live-poller fires
+    //     at match-start without this merge — matchscorerlive's OOP
+    //     widget has them hours earlier.
+    //   - Bracket empty + amateur tier: use OOP as the entire draw
+    //     source. Some FIP tournaments (B3 Singapore, etc.) only expose
+    //     the bracket as a PDF, never wiring an AJAX draw widget — OOP
+    //     is the only structured source we have.
+    //   - Bracket empty + Silver+: skip. Silver+ main-draw needs seeds
+    //     and fip_ids from the bracket; OOP alone can't carry those, so
+    //     we wait for the bracket to land.
     const tournamentLevelForFallback =
       levelByTournamentId.get(t.tournament_id) ?? null;
     const isAmateurTournament =
       tournamentLevelForFallback != null &&
       AMATEUR_TIER_LEVELS.has(tournamentLevelForFallback);
     let latestDraws = await loadLatestFipDrawRows(supabase, t.tournament_id);
-    if (latestDraws.length === 0 && isAmateurTournament) {
-      latestDraws = await loadLatestOopRowsAsDrawRows(
+    if (latestDraws.length === 0) {
+      if (isAmateurTournament) {
+        latestDraws = await loadLatestOopRowsAsDrawRows(
+          supabase,
+          t.tournament_id,
+        );
+        if (latestDraws.length > 0) {
+          logger?.info(
+            {
+              tournamentId: t.tournament_id,
+              level: tournamentLevelForFallback,
+              oopRows: latestDraws.length,
+            },
+            'fip-draw-populator: amateur-tier fallback — using oop_snapshots as draw source',
+          );
+        }
+      }
+    } else {
+      // Bracket present — merge OOP rounds the bracket doesn't cover.
+      // Predicate is "round_label not in bracket" rather than a hardcoded
+      // [Q1, Q2, Q3] list so future extra rounds (pre-qualifying, playoffs,
+      // …) get picked up automatically.
+      const drawRoundLabels = new Set(
+        latestDraws.map((d) => d.round_label).filter((r): r is string => !!r),
+      );
+      const oopExtra = await loadLatestOopRowsAsDrawRows(
         supabase,
         t.tournament_id,
+        { excludeRoundLabels: drawRoundLabels },
       );
-      if (latestDraws.length > 0) {
+      if (oopExtra.length > 0) {
         logger?.info(
           {
             tournamentId: t.tournament_id,
             level: tournamentLevelForFallback,
-            oopRows: latestDraws.length,
+            oopExtraCount: oopExtra.length,
+            extraRounds: Array.from(
+              new Set(oopExtra.map((r) => r.round_label)),
+            ),
           },
-          'fip-draw-populator: amateur-tier fallback — using oop_snapshots as draw source',
+          'fip-draw-populator: merging OOP-only rounds into draw set',
         );
       }
+      latestDraws = [...latestDraws, ...oopExtra];
     }
     if (latestDraws.length === 0) continue;
 
@@ -433,16 +470,28 @@ export async function runFipDrawPopulator(
         }
       }
 
-      // Resolve 4 players. Amateur tiers (Beyond / Promises / Other) are
-      // allowed to fall back to "thin matches" — same composite + round
-      // + category, FK columns NULL, raw names preserved on
-      // pair*_player*_name. The UI handles the FK-null case by rendering
-      // the name strings without a profile link.
+      // Resolve 4 players. Two cases allow a "thin match" fallback —
+      // same composite + round + category, FK columns NULL, raw names
+      // preserved on pair*_player*_name (the UI renders the strings
+      // without a profile link):
+      //   1. Amateur tiers (Beyond / Promises / Other) — these don't
+      //      have a strict entry-list discipline, late wildcards are
+      //      common, and the player pool is small enough that profile
+      //      links aren't expected.
+      //   2. OOP-sourced rows — for Silver+ qualifiers, the entry list
+      //      usually has a fip_id, but a single unresolved name (typo,
+      //      late add, unusual diacritic) shouldn't keep the whole
+      //      match invisible. The widget_id_composite is stable, so
+      //      when the live-poller fires `findOrCreateMatch` for the
+      //      same match, it'll land on this row and update the player
+      //      FKs in place.
       const tournamentLevel = levelByTournamentId.get(t.tournament_id) ?? null;
       const isAmateurTier =
         tournamentLevel != null && AMATEUR_TIER_LEVELS.has(tournamentLevel);
+      const isOopSourced = d.source === 'oop_snapshot';
+      const allowThinMatch = isAmateurTier || isOopSourced;
       const resolved = resolveFourPlayers(d, nameToFipId, fipIdToPlayerId);
-      if (!resolved && !isAmateurTier) {
+      if (!resolved && !allowThinMatch) {
         result.skippedPlayerUnresolved += 1;
         logger?.debug(
           {
@@ -738,27 +787,34 @@ async function loadLatestFipDrawRows(
 }
 
 /**
- * Amateur-tier fallback: read OOP snapshots and transform them into the
- * same DrawRow shape the populator's main loop expects. Used when
- * draw_snapshots is empty for a tournament because the FIP page didn't
- * expose a structured AJAX draw widget — the OOP page on
- * matchscorerlive.com still has the round + court + 4 player names per
- * match, which is everything we need to build a thin match.
+ * Read OOP snapshots and transform them into the same DrawRow shape the
+ * populator's main loop expects. Two callers, two modes:
  *
- * Concretely: B3 Singapore 2026 (FIP Beyond) had 240 OOP snapshots but
- * zero draw snapshots. Without this fallback, padelgod's populator
- * couldn't surface any matches even though the data was already
- * captured one table over.
+ * 1. **Full replacement** (no `excludeRoundLabels` arg): used by the
+ *    amateur-tier fallback when `draw_snapshots` is empty. Some FIP
+ *    tournaments (B3 Singapore, etc.) only expose the bracket as a PDF,
+ *    never wiring an AJAX draw widget. OOP carries everything we need
+ *    (round + court + 4 names + match_widget_id) to build a thin match.
+ *
+ * 2. **Qualifying-only merge** (with `excludeRoundLabels` set to the
+ *    rounds already covered by `draw_snapshots`): used by Silver+
+ *    tournaments to surface qualifying matches (Q1/Q2/Q3) that the
+ *    bracket doesn't include. The bracket stays the source of truth for
+ *    main-draw rounds; OOP fills the gap.
  *
  * Produces rows with `source: 'oop_snapshot'`. Downstream:
  * - the bye check (which keys off `team*_fip_id`) is skipped — OOP
  *   doesn't include byes / placeholder rows
- * - amateur-tier gate then writes thin matches as usual
- * - FIP results-writer fills status / winner / sets later via composite
+ * - thin-match gate (`isAmateurTier || isOopSourced`) lets these
+ *   insert with FK-null + raw name strings when entry-list resolution
+ *   doesn't find a fip_id
+ * - FIP results-writer / live-poller fill status / winner / sets later
+ *   via the composite key
  */
 async function loadLatestOopRowsAsDrawRows(
   supabase: SupabaseClient,
   tournamentId: string,
+  opts: { excludeRoundLabels?: ReadonlySet<string> } = {},
 ): Promise<DrawRow[]> {
   interface OopRow {
     tournament_id: string;
@@ -807,6 +863,12 @@ async function loadLatestOopRowsAsDrawRows(
     if (!r.match_widget_id) continue;
     if (!r.category) continue; // can't write a match without category
     if (!r.round_label) continue; // round is required to write a match
+    // Qualifying-only merge mode: drop any round the bracket already
+    // covers so we don't double-insert main-draw matches that exist in
+    // both sources. Done after the per-match key but before dedupe is
+    // resolved — saves a tiny bit of work and matches the "filter then
+    // dedupe" mental model. (`findOrCreateMatch` is also a backstop.)
+    if (opts.excludeRoundLabels?.has(r.round_label)) continue;
     const key = `${r.tournament_id}::${r.match_widget_id}`;
     const prev = latest.get(key);
     if (!prev || r.captured_at > prev.captured_at) latest.set(key, r);
