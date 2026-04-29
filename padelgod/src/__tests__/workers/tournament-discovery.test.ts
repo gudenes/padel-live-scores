@@ -34,11 +34,13 @@ function fakeSupabase(maxModified: string | null) {
   };
 }
 
-const fakeHttp = (events: any[]) => ({
-  get: vi.fn(async (_url: string) => ({
-    data: events,
-    headers: { 'content-type': 'application/json' },
-  })),
+const fakeHttp = (events: any[], countryTerms: any[] = []) => ({
+  get: vi.fn(async (url: string) => {
+    if (url.includes('/wp/v2/country')) {
+      return { data: countryTerms, headers: { 'content-type': 'application/json' } };
+    }
+    return { data: events, headers: { 'content-type': 'application/json' } };
+  }),
 });
 
 describe('runTournamentDiscovery', () => {
@@ -181,9 +183,9 @@ interface RecordedRow {
 
 interface MockOpts {
   /** Existing rows in public.tournaments — keyed by slug. Test sets `level` to either a string or null. */
-  existingRows: Array<{ slug: string; level: string | null }>;
+  existingRows: Array<{ slug: string; level: string | null; country?: string | null }>;
   /** WP events the HTTP client returns (will be transformed into rows passed to .upsert). */
-  events: Array<{ wpId: number; name: string; slug: string; categoryIds: number[] }>;
+  events: Array<{ wpId: number; name: string; slug: string; categoryIds: number[]; countryTermIds?: number[] }>;
   /** Captures the rows the worker upserts. */
   onUpsert: (rows: RecordedRow[]) => void;
 }
@@ -207,7 +209,11 @@ function makeMockSupabase(opts: MockOpts) {
             limit: () => ({ maybeSingle: async () => ({ data: null }) }),
           }),
           in: async (_col: string, _values: string[]) => ({
-            data: opts.existingRows.map((r) => ({ slug: r.slug, level: r.level })),
+            data: opts.existingRows.map((r) => ({
+              slug: r.slug,
+              level: r.level,
+              country: r.country ?? null,
+            })),
             error: null,
           }),
         };
@@ -220,21 +226,26 @@ function makeMockSupabase(opts: MockOpts) {
   } as unknown as Parameters<typeof runTournamentDiscovery>[0]['supabase'];
 }
 
-function makeMockHttp(events: MockOpts['events']) {
+function makeMockHttp(events: MockOpts['events'], countryTerms: any[] = []) {
   return {
-    get: async () => ({
-      data: events.map((e) => ({
-        id: e.wpId,
-        title: { rendered: e.name },
-        slug: e.slug,
-        link: `https://www.padelfip.com/events/${e.slug}/`,
-        featured_media: 0,
-        'category-event': e.categoryIds,
-        country: [],
-        gender: [],
-      })),
-      headers: {},
-    }),
+    get: async (url: string) => {
+      if (url.includes('/wp/v2/country')) {
+        return { data: countryTerms, headers: {} };
+      }
+      return {
+        data: events.map((e) => ({
+          id: e.wpId,
+          title: { rendered: e.name },
+          slug: e.slug,
+          link: `https://www.padelfip.com/events/${e.slug}/`,
+          featured_media: 0,
+          'category-event': e.categoryIds,
+          country: (e as any).countryTermIds ?? [],
+          gender: [],
+        })),
+        headers: {},
+      };
+    },
   } as unknown as Parameters<typeof runTournamentDiscovery>[0]['httpClient'];
 }
 
@@ -338,5 +349,128 @@ describe('runTournamentDiscovery — Premier gap-fill', () => {
 
     const bronze = upserted.find((r) => r.slug === 'fip-bronze-test-2026');
     expect(bronze?.level).toBe('fip_bronze');
+  });
+});
+
+describe('runTournamentDiscovery — country gap-fill', () => {
+  it('writes country resolved from WP taxonomy when existing row has null', async () => {
+    // Concrete repro: FIP Beyond B3 Singapore had country=NULL because
+    // tournament-discovery never resolved the country term ID. The fix
+    // fetches the WP /country taxonomy and maps the first term to alpha-2.
+    const upserted: RecordedRow[] = [];
+    const supabase = makeMockSupabase({
+      existingRows: [{ slug: 'fip-beyond-b3-singapore', level: null, country: null }],
+      events: [{
+        wpId: 1,
+        name: 'FIP Beyond B3 Singapore',
+        slug: 'fip-beyond-b3-singapore',
+        categoryIds: [],
+        countryTermIds: [558],
+      }],
+      onUpsert: (rows) => upserted.push(...rows),
+    });
+    const httpClient = makeMockHttp(
+      [{
+        wpId: 1,
+        name: 'FIP Beyond B3 Singapore',
+        slug: 'fip-beyond-b3-singapore',
+        categoryIds: [],
+        countryTermIds: [558],
+      }],
+      [{ id: 558, name: 'SIN', acf: { standard_cio: 'SGP' } }],
+    );
+
+    await runTournamentDiscovery({ supabase, httpClient });
+
+    const sg = upserted.find((r) => r.slug === 'fip-beyond-b3-singapore');
+    expect(sg?.country).toBe('SG');
+  });
+
+  it('preserves an existing country (padelapi-set) instead of clobbering with WP-derived value', async () => {
+    // Source-priority: `tournament.country` is ['padelapi', 'fip'] —
+    // padelapi is primary. FIP must never overwrite. We echo the
+    // existing country into the payload so Supabase merge-duplicates
+    // doesn't reset it to NULL (same gotcha as the Asuncion `level`
+    // incident).
+    const upserted: RecordedRow[] = [];
+    const supabase = makeMockSupabase({
+      existingRows: [{ slug: 'newgiza-p2-2026', level: 'p2', country: 'EG' }],
+      events: [{
+        wpId: 1,
+        name: 'NewGiza P2',
+        slug: 'newgiza-p2-2026',
+        categoryIds: [387],
+        countryTermIds: [42], // claim a different country than padelapi has
+      }],
+      onUpsert: (rows) => upserted.push(...rows),
+    });
+    const httpClient = makeMockHttp(
+      [{
+        wpId: 1,
+        name: 'NewGiza P2',
+        slug: 'newgiza-p2-2026',
+        categoryIds: [387],
+        countryTermIds: [42],
+      }],
+      [{ id: 42, name: 'ESP' }],
+    );
+
+    await runTournamentDiscovery({ supabase, httpClient });
+
+    const newgiza = upserted.find((r) => r.slug === 'newgiza-p2-2026');
+    expect(newgiza?.country).toBe('EG');
+  });
+
+  it('omits country for a brand-new row when the WP term resolves to null (unknown code)', async () => {
+    const upserted: RecordedRow[] = [];
+    const supabase = makeMockSupabase({
+      existingRows: [], // brand new
+      events: [{
+        wpId: 1,
+        name: 'Mystery Cup',
+        slug: 'mystery-cup-2026',
+        categoryIds: [],
+        countryTermIds: [777],
+      }],
+      onUpsert: (rows) => upserted.push(...rows),
+    });
+    const httpClient = makeMockHttp(
+      [{
+        wpId: 1,
+        name: 'Mystery Cup',
+        slug: 'mystery-cup-2026',
+        categoryIds: [],
+        countryTermIds: [777],
+      }],
+      [{ id: 777, name: 'XYZ' }], // unknown 3-letter code → null
+    );
+
+    await runTournamentDiscovery({ supabase, httpClient });
+
+    const row = upserted.find((r) => r.slug === 'mystery-cup-2026');
+    expect(row?.country).toBeUndefined();
+  });
+
+  it('echoes existing country back when the WP feed has no country terms (no clobber)', async () => {
+    const upserted: RecordedRow[] = [];
+    const supabase = makeMockSupabase({
+      existingRows: [{ slug: 'foo-2026', level: 'p1', country: 'ES' }],
+      events: [{
+        wpId: 1,
+        name: 'Foo 2026',
+        slug: 'foo-2026',
+        categoryIds: [387],
+        countryTermIds: [],
+      }],
+      onUpsert: (rows) => upserted.push(...rows),
+    });
+    const httpClient = makeMockHttp([
+      { wpId: 1, name: 'Foo 2026', slug: 'foo-2026', categoryIds: [387], countryTermIds: [] },
+    ]);
+
+    await runTournamentDiscovery({ supabase, httpClient });
+
+    const foo = upserted.find((r) => r.slug === 'foo-2026');
+    expect(foo?.country).toBe('ES');
   });
 });
