@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseCrionetOop } from '../../parsers/crionet-oop.js';
+import { parseCrionetOop, parseOopDayDate } from '../../parsers/crionet-oop.js';
 
 // Realistic HTML matching production Crionet/matchscorerlive.com structure.
 // Key characteristics:
@@ -358,5 +358,83 @@ describe('parseCrionetOop — Brussels fixture (real court + position)', () => {
     // when we accept a court).
     const orders = [...byCourt.values()].sort((a, b) => a - b);
     expect(orders).toEqual([0, 1, 2]);
+  });
+});
+
+describe('parseOopDayDate', () => {
+  // Day-selector strip mirroring the live FIP-2026-1812 (Calzada) HTML.
+  // The active class on the second pill marks "this is the day we
+  // requested" — that's the one whose date we capture.
+  const dayPicker = (activeIdx: number) => {
+    const days = [
+      { date: 'APR 29', week: 'WED' },
+      { date: 'APR 30', week: 'THU' },
+      { date: 'MAY 1', week: 'FRI' },
+      { date: 'MAY 2', week: 'SAT' },
+      { date: 'MAY 3', week: 'SUN' },
+    ];
+    return `<div class="day-selector"><div class="d-flex w-100">${days
+      .map((d, i) => {
+        const cls = i === activeIdx ? 'play-day-button active mb-3' : 'play-day-button mb-3';
+        return `<a class="text-decoration-none" href="/screen/oopbyday/X/${i + 1}?t=tol"><div class="${cls}"><span class="play-day-date">${d.date}</span><div class="play-day-week">${d.week}</div></div></a>`;
+      })
+      .join('')}</div></div>`;
+  };
+
+  it('returns the active day-pill date with year inferred from `now`', () => {
+    const html = dayPicker(0); // active = APR 29
+    const now = new Date('2026-04-29T08:00:00Z');
+    expect(parseOopDayDate(html, now)).toBe('2026-04-29');
+  });
+
+  it('handles a different active day in the same picker', () => {
+    const html = dayPicker(1); // active = APR 30
+    const now = new Date('2026-04-29T08:00:00Z');
+    expect(parseOopDayDate(html, now)).toBe('2026-04-30');
+  });
+
+  it('snaps to the closest year across boundaries (December tournament fetched in early January)', () => {
+    // December tournament: pill says "DEC 30", but the scrape fires on
+    // Jan 2 of the next year. Year-snap picks now-1 because Dec 30 of
+    // last year is closer to Jan 2 than Dec 30 of this year would be.
+    const html = `<div class="play-day-button active"><span class="play-day-date">DEC 30</span></div>`;
+    const now = new Date('2027-01-02T08:00:00Z');
+    expect(parseOopDayDate(html, now)).toBe('2026-12-30');
+  });
+
+  it('snaps to next year when a January pill is fetched in late December', () => {
+    // Inverse case: pill says JAN 3, scrape fires on Dec 28 — closest
+    // year is now+1 (Jan 3 of next year is 6 days away vs Jan 3 of
+    // current year being ~360 days back).
+    const html = `<div class="play-day-button active"><span class="play-day-date">JAN 3</span></div>`;
+    const now = new Date('2025-12-28T08:00:00Z');
+    expect(parseOopDayDate(html, now)).toBe('2026-01-03');
+  });
+
+  it('returns null when no day pill carries the active class (mid-render edge case)', () => {
+    const html = dayPicker(-1); // no active pill
+    expect(parseOopDayDate(html, new Date('2026-04-29Z'))).toBeNull();
+  });
+
+  it('returns null when the day-selector is missing entirely (legacy / minimal fixture)', () => {
+    expect(parseOopDayDate('<html><body>nothing here</body></html>', new Date('2026-04-29Z'))).toBeNull();
+  });
+
+  it('returns null when the active pill text is malformed', () => {
+    const html = `<div class="play-day-button active"><span class="play-day-date">??</span></div>`;
+    expect(parseOopDayDate(html, new Date('2026-04-29Z'))).toBeNull();
+  });
+
+  it('handles single-digit days ("MAY 1") as well as two-digit ("APR 29")', () => {
+    const single = `<div class="play-day-button active"><span class="play-day-date">MAY 1</span></div>`;
+    const double = `<div class="play-day-button active"><span class="play-day-date">APR 29</span></div>`;
+    const now = new Date('2026-04-29T08:00:00Z');
+    expect(parseOopDayDate(single, now)).toBe('2026-05-01');
+    expect(parseOopDayDate(double, now)).toBe('2026-04-29');
+  });
+
+  it('rejects invalid day-of-month values (e.g. day 32)', () => {
+    const html = `<div class="play-day-button active"><span class="play-day-date">JAN 32</span></div>`;
+    expect(parseOopDayDate(html, new Date('2026-01-15Z'))).toBeNull();
   });
 });

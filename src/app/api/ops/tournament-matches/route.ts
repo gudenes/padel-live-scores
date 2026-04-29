@@ -196,7 +196,7 @@ export async function GET(request: Request) {
       .schema('padelgod')
       .from('oop_snapshots')
       .select(
-        'scrape_job_id, tournament_id, day_number, category, round_label, court, court_position, ' +
+        'scrape_job_id, tournament_id, day_number, day_date, category, round_label, court, court_position, ' +
           'scheduled_label, team1_player1_name, team1_player2_name, team2_player1_name, ' +
           'team2_player2_name, match_widget_id, status, captured_at',
       )
@@ -230,6 +230,12 @@ export async function GET(request: Request) {
   type OopRow = {
     scrape_job_id: string
     day_number: number
+    /** Calendar date parsed from the Crionet day-pill (YYYY-MM-DD).
+     *  Authoritative source for "Day N → date" — supersedes the
+     *  starts_at offset fallback. NULL on rows captured before the
+     *  day_date column was introduced (2026-04-29 migration); UI falls
+     *  back to other dayDates paths in that case. */
+    day_date: string | null
     category: Category
     round_label: string | null
     court: string | null
@@ -491,7 +497,16 @@ export async function GET(request: Request) {
   }
 
   // Build day_number → calendar date map. See DetailResponse.dayDates docs
-  // for the broader rationale. Two paths:
+  // for the broader rationale. Three paths, tried in order:
+  //
+  // 0. OOP day-pill path — `oop_snapshots.day_date`, written from the
+  //    Crionet widget's day-selector strip ("APR 29" → 2026-04-29).
+  //    Authoritative when present: it's literally what the widget itself
+  //    renders. Independent of `tournaments.starts_at`, so it survives
+  //    drift in that field (FIP edits the page mid-tournament, padelapi
+  //    differs, ops manual nudges a duplicate row, …). Populated by
+  //    padelgod's oop-fetcher starting 2026-04-29; older snapshot rows
+  //    have day_date=NULL and fall through to the next paths.
   //
   // 1. Linked path — match has a crionet_widget mapping → public.matches
   //    row → scheduled_at. Cheap and exact. But linking relies on the
@@ -511,10 +526,20 @@ export async function GET(request: Request) {
   //    client.
   const dayDates: Record<number, string> = {}
 
+  // Path 0: OOP day-pill date. Iterate latestOop (already deduped to the
+  // most recent scrape job per day) — every row in a given day's batch
+  // carries the same day_date, but reading from any one is enough.
+  for (const r of latestOop) {
+    if (!r.day_date) continue
+    if (dayDates[r.day_number]) continue
+    dayDates[r.day_number] = r.day_date
+  }
+
   // Path 1: direct from linked matches.
   for (const m of matches) {
     if (m.dayNumber == null) continue
     if (!m.matchWidgetId) continue
+    if (dayDates[m.dayNumber]) continue // path 0 already resolved this day
     const link = linkedMatchByWidgetId.get(m.matchWidgetId)
     if (!link?.scheduled_at) continue
     const datePart = link.scheduled_at.slice(0, 10)

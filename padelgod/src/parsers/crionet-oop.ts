@@ -298,3 +298,85 @@ export function parseCrionetOop(
 
   return out;
 }
+
+// ── Day-pill date extraction ───────────────────────────────────────────
+//
+// Crionet's OOP widget HTML starts with a sticky day-selector strip:
+//
+//   <div class="day-selector">
+//     <a href="/screen/oopbyday/FIP-2026-1812/1?t=tol">
+//       <div class="play-day-button mb-3">
+//         <span class="play-day-date">APR 29</span>
+//         <div class="play-day-week">WED</div>
+//       </div>
+//     </a>
+//     <a href="/screen/oopbyday/FIP-2026-1812/2?t=tol">
+//       <div class="play-day-button active mb-3">     ← active = the day we fetched
+//         <span class="play-day-date">APR 30</span>
+//         ...
+//
+// This is the authoritative source for "Day N → calendar date" — it's
+// what the widget itself renders to fans and operators. Independent of
+// `tournaments.starts_at`, which we've seen drift.
+//
+// The pills carry month + day, never year. For year inference we accept
+// a "now" timestamp from the caller (typically the scrape time) and
+// snap to the closest year — handles year-boundary scrapes (e.g.
+// fetching a December tournament on Jan 2nd) without special-casing.
+
+const MONTH_BY_ABBR: Readonly<Record<string, number>> = Object.freeze({
+  JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6,
+  JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12,
+});
+
+/**
+ * Pull the active day-pill's calendar date from the OOP HTML.
+ *
+ * Returns `YYYY-MM-DD` or null when:
+ * - the day selector isn't in the HTML (legacy / stripped fixtures)
+ * - no pill is marked `active` (HTML mid-update — degrade gracefully)
+ * - the pill text doesn't parse as `MMM D` / `MMM DD`
+ *
+ * `now` is used purely for year inference. Caller passes a Date —
+ * typically the scrape's captured-at — and we snap the parsed (month,
+ * day) onto whichever year (now-1, now, now+1) is closest. This
+ * handles the rare year-boundary case (December tournament fetched in
+ * early January) without forcing the caller to know.
+ */
+export function parseOopDayDate(
+  html: string,
+  now: Date,
+): string | null {
+  const $ = cheerio.load(html);
+  const $active = $('.play-day-button.active').first();
+  if ($active.length === 0) return null;
+  const text = $active.find('.play-day-date').first().text().trim();
+  if (!text) return null;
+
+  const match = /^([A-Z]{3})\s+(\d{1,2})$/i.exec(text);
+  if (!match) return null;
+  const [, monthAbbr, dayStr] = match;
+  const month = MONTH_BY_ABBR[monthAbbr!.toUpperCase()];
+  if (!month) return null;
+  const day = Number(dayStr);
+  if (!Number.isInteger(day) || day < 1 || day > 31) return null;
+
+  // Year snap: pick whichever of {now-1, now, now+1} produces the
+  // smallest absolute distance from `now`. Ties prefer the current
+  // year. Cheap; only 3 candidates to compare.
+  const nowMs = now.getTime();
+  let bestYear = now.getUTCFullYear();
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const candYear of [bestYear - 1, bestYear, bestYear + 1]) {
+    const candMs = Date.UTC(candYear, month - 1, day);
+    const dist = Math.abs(candMs - nowMs);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestYear = candYear;
+    }
+  }
+
+  const mm = String(month).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${bestYear}-${mm}-${dd}`;
+}
