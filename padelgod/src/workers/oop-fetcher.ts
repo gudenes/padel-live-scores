@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AxiosInstance } from 'axios';
 import { createHash } from 'node:crypto';
-import { parseCrionetOop } from '../parsers/crionet-oop.js';
+import { parseCrionetOop, parseOopDayDate } from '../parsers/crionet-oop.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { CRIONET_OOP_VERSION } from '../lib/parser-versions.js';
 import {
@@ -52,6 +52,12 @@ async function fetchOneDay(
 ): Promise<number> {
   const targetUrl = URL_FOR(t.widget_id, day);
   let parsed: ReturnType<typeof parseCrionetOop> = [];
+  // The Crionet day-pill date — same for every row in this fetch since
+  // they all belong to the same play day. Captured once and stamped on
+  // every row below. Null when the widget HTML is malformed / the
+  // day-selector is missing (degrades to legacy starts_at offset on the
+  // UI side).
+  let dayDate: string | null = null;
 
   await runScrapeJob(
     deps.supabase,
@@ -67,6 +73,11 @@ async function fetchOneDay(
       const body = String(response.data);
       const contentHash = `sha256:${createHash('sha256').update(body).digest('hex')}`;
       parsed = parseCrionetOop(body, day);
+      // Year-snap to scrape time. Captured-at year matches the play
+      // year for every realistic scrape window — only the year-boundary
+      // edge (December tournament fetched in early January) needs the
+      // closest-year logic inside parseOopDayDate.
+      dayDate = parseOopDayDate(body, new Date());
       return { body, contentHash };
     }
   );
@@ -80,6 +91,7 @@ async function fetchOneDay(
     scrape_job_id: scrapeJobId,
     tournament_id: t.tournament_id,
     day_number: m.dayNumber,
+    day_date: dayDate,
     category: m.category,
     round_label: m.roundLabel,
     court: m.court,
