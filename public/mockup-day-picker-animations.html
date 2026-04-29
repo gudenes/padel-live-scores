@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Day Picker Animations · 3 Options</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --bg: #0A0A0A;
+    --bg-card: #141414;
+    --muted: #6B7280;
+    --border: rgba(255,255,255,0.08);
+    --text: #fff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { padding: 24px 16px 80px; max-width: 540px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.4px; }
+  .lede { font-size: 13px; color: var(--muted); margin: 0 0 28px; line-height: 1.5; }
+  .lede code { background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+  .demo-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 18px 0 24px;
+    margin-bottom: 22px;
+    overflow: hidden;
+  }
+  .demo-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 0 16px 4px;
+  }
+  .demo-title { font-size: 14px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+  .demo-tag { font-size: 10px; font-weight: 700; color: var(--green); letter-spacing: 0.6px; }
+  .demo-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 16px 16px; }
+
+  /* Strip layout matches production DailyDatePills */
+  .picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    position: relative;
+  }
+  .picker::-webkit-scrollbar { display: none; }
+  .pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    width: 54px;
+    min-width: 54px;
+    height: 44px;
+    padding: 4px 2px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    color: var(--text);
+    text-decoration: none;
+    flex-shrink: 0;
+    font-family: inherit;
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .pill .top {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    line-height: 1;
+    transition: color 0.18s;
+  }
+  .pill .day {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #fff;
+  }
+  .pill.is-active {
+    background: var(--bg);
+    border-color: var(--green);
+    border-width: 1.5px;
+  }
+  .pill.is-active .top {
+    color: var(--green);
+    opacity: 0.95;
+  }
+  .arrow {
+    width: 32px;
+    min-width: 32px;
+    height: 44px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    color: var(--muted);
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* ─── shared character cascade — used by all three options ─── */
+  .ch { display: inline-block; }
+  .pill.is-active .top .ch,
+  .pill.is-active .day .ch {
+    animation: dp-letter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+  @keyframes dp-letter {
+    0%   { transform: translateY(-6px); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* ───── Option α · SLIDING CHUNKY SHADOW ─────
+     The lime offset-shadow that already sits behind the active pill
+     becomes a single shared element that physically slides from the
+     old pill to the new one. Spring kick on the pill itself; previous
+     pill takes a soft fall. Closest port of nav-D to the existing
+     visual language. */
+  .pa-shadow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 54px;
+    height: 44px;
+    background: var(--green);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    transform: translate3d(var(--shadow-x, 0px), var(--shadow-y, 0px), 0) scaleX(1) scaleY(1);
+    transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+  }
+  .pa-shadow.visible { opacity: 1; }
+  .picker-a.sliding .pa-shadow {
+    animation: pa-shadow-slide 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes pa-shadow-slide {
+    0%   { transform: translate3d(var(--shadow-x-from), var(--shadow-y), 0) scaleX(1)   scaleY(1); }
+    60%  { transform: translate3d(var(--shadow-x), var(--shadow-y), 0)      scaleX(1.25) scaleY(0.85); }
+    100% { transform: translate3d(var(--shadow-x), var(--shadow-y), 0)      scaleX(1)    scaleY(1); }
+  }
+  .picker-a .pill.is-active {
+    animation: pa-pill-kick 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .picker-a .pill.was-active {
+    animation: pa-pill-fall 0.22s ease-out;
+  }
+  @keyframes pa-pill-kick {
+    0%   { transform: translateY(3px)  rotate(0deg)   scale(0.94); }
+    35%  { transform: translateY(-5px) rotate(-3deg)  scale(1.1); }
+    65%  { transform: translateY(2px)  rotate(2deg)   scale(0.97); }
+    100% { transform: translateY(0)    rotate(0deg)   scale(1); }
+  }
+  @keyframes pa-pill-fall {
+    0%   { transform: translateY(0)   scale(1); }
+    100% { transform: translateY(2px) scale(0.95); }
+  }
+
+  /* ───── Option β · SLIDING UNDERLINE BAR ─────
+     A thin lime bar tracks the active pill from below — same vibe as
+     nav-D's ink-bar, but applied to the date strip. Active pill stays
+     neutral; the bar carries the active state. Less visual weight,
+     reads more like a tab indicator. */
+  .picker-b { padding-bottom: 14px; }
+  .pb-bar {
+    position: absolute;
+    left: 0;
+    bottom: 4px;
+    width: 54px;
+    height: 4px;
+    background: var(--green);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    transform: translate3d(var(--bar-x, 0px), 0, 0) scaleX(1) scaleY(1);
+    transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+  }
+  .pb-bar.visible { opacity: 1; }
+  .picker-b.sliding .pb-bar {
+    animation: pb-bar-slide 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes pb-bar-slide {
+    0%   { transform: translate3d(var(--bar-x-from), 0, 0) scaleX(1)   scaleY(1); }
+    60%  { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1.4) scaleY(0.55); }
+    100% { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1)   scaleY(1); }
+  }
+  /* In option β the active pill keeps a flat background — bar is the
+     active indicator, not the pill. Override the global is-active. */
+  .picker-b .pill.is-active {
+    background: var(--bg-card);
+    border-color: var(--border);
+    border-width: 1px;
+    animation: pb-pill-kick 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .picker-b .pill.was-active {
+    animation: pb-pill-fall 0.22s ease-out;
+  }
+  @keyframes pb-pill-kick {
+    0%   { transform: translateY(2px)  scale(0.95); }
+    35%  { transform: translateY(-4px) scale(1.08); }
+    100% { transform: translateY(0)    scale(1); }
+  }
+  @keyframes pb-pill-fall {
+    0%   { transform: translateY(0)   scale(1); }
+    100% { transform: translateY(1px) scale(0.96); }
+  }
+
+  /* ───── Option γ · LIFT & FALL ─────
+     No sliding marker — the pill itself is the marker. Active pill
+     lifts and tilts; previous pill falls. The lime shadow fades in
+     locked to the new active (no slide). Most playful, fewest moving
+     elements. */
+  .picker-c .pc-pill-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 54px;
+    height: 44px;
+  }
+  .picker-c .pc-shadow {
+    position: absolute;
+    inset: 0;
+    transform: translate(5px, 5px);
+    background: var(--green);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 0.18s;
+    pointer-events: none;
+  }
+  .picker-c .pc-pill-wrap.is-active .pc-shadow {
+    opacity: 1;
+  }
+  .picker-c .pill.is-active {
+    animation: pc-pill-lift 0.46s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .picker-c .pill.was-active {
+    animation: pc-pill-fall 0.24s ease-out;
+  }
+  @keyframes pc-pill-lift {
+    0%   { transform: translateY(4px)  rotate(0deg)   scale(0.92); }
+    30%  { transform: translateY(-7px) rotate(-3deg)  scale(1.13); }
+    60%  { transform: translateY(2px)  rotate(2deg)   scale(0.95); }
+    100% { transform: translateY(0)    rotate(0deg)   scale(1); }
+  }
+  @keyframes pc-pill-fall {
+    0%   { transform: translateY(0)   scale(1); }
+    100% { transform: translateY(2px) scale(0.94); }
+  }
+
+  /* Reduced motion respected globally */
+  @media (prefers-reduced-motion: reduce) {
+    .pa-shadow, .pb-bar { transition: none; animation: none !important; }
+    .pill, .pc-pill-wrap, .pill.is-active, .pill.was-active { animation: none !important; }
+    .pill.is-active .top .ch, .pill.is-active .day .ch { animation: none !important; }
+  }
+
+  .footer { font-size: 11px; color: var(--muted); margin: 30px 0 0; line-height: 1.6; text-align: center; }
+  .footer code { background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+</style>
+</head>
+<body>
+
+<h1>Day Picker Animations</h1>
+<p class="lede">Three takes on porting <code>Option D</code> (ink-slide + spring) to the matches day-strip. Tap any pill or arrow in each demo. Same sub-500ms budget; same instant color flip on tap.</p>
+
+<!-- ─── α ─── -->
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">Option α — Sliding Chunky Shadow</div>
+    <div class="demo-tag">CLOSEST TO TODAY</div>
+  </div>
+  <p class="demo-desc">
+    The lime offset-shadow that already sits behind the active pill becomes a single
+    shared element that physically slides from the old pill to the new one. Spring
+    kick on the new pill; soft fall on the old. Letter cascade on the weekday + day
+    number. Evolves the existing aesthetic — minimal disruption.
+  </p>
+  <div class="picker picker-a" data-picker="a"></div>
+</section>
+
+<!-- ─── β ─── -->
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">Option β — Sliding Underline Bar</div>
+    <div class="demo-tag">TAB-STYLE</div>
+  </div>
+  <p class="demo-desc">
+    A thin lime bar tracks the active pill from below — exactly the nav-D bar idiom.
+    Pill backgrounds stay flat; the bar IS the active indicator. Lighter visual weight,
+    reads as a tab indicator. Pill still does a small spring kick so the tap feels live.
+  </p>
+  <div class="picker picker-b" data-picker="b"></div>
+</section>
+
+<!-- ─── γ ─── -->
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">Option γ — Lift &amp; Fall</div>
+    <div class="demo-tag">MOST PLAYFUL</div>
+  </div>
+  <p class="demo-desc">
+    No sliding marker — the pill itself is the marker. Active pill lifts and tilts
+    (-3°, translateY -7px, scale 1.13); previous pill falls back. Lime shadow fades
+    in locked to the new active. Fewest moving parts but the most "physical kick"
+    on tap.
+  </p>
+  <div class="picker picker-c" data-picker="c"></div>
+</section>
+
+<p class="footer">
+  All three play under <code>0.5s</code>. The active state's color flip is synchronous with the tap — motion plays on top.
+  Honors <code>prefers-reduced-motion</code>.
+</p>
+
+<script>
+  // ── Sample dates rendered like the real picker ─────────────────
+  const SAMPLE = (() => {
+    const today = new Date();
+    return [-3, -2, -1, 0, 1, 2, 3].map((offset) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offset);
+      const wd = d.toLocaleDateString('en', { weekday: 'short' });
+      const day = String(d.getDate());
+      let top = wd.replace(/\.$/, '');
+      if (offset === 0) top = 'TODAY';
+      else if (offset === -1) top = 'YESTRDY';
+      else if (offset === 1) top = 'TOMRROW';
+      return { offset, top, day, iso: d.toISOString().slice(0, 10) };
+    });
+  })();
+
+  function letters(text) {
+    return text.split('').map((c, i) => {
+      const seed = (c.charCodeAt(0) * 13 + i * 7) % 30;
+      const delay = i * 14 + seed;
+      return `<span class="ch" style="animation-delay:${delay}ms">${c === ' ' ? '&nbsp;' : c}</span>`;
+    }).join('');
+  }
+
+  function buildPill(d, opts = {}) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'pill';
+    el.dataset.iso = d.iso;
+    el.dataset.offset = d.offset;
+    el.innerHTML = `
+      <span class="top">${letters(d.top)}</span>
+      <span class="day">${letters(d.day)}</span>
+    `;
+    if (d.offset === 0) el.classList.add('is-active');
+    return el;
+  }
+
+  function buildArrow(label) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'arrow';
+    el.textContent = label;
+    return el;
+  }
+
+  // Re-render a pill's letters so the cascade animation replays.
+  function refreshLetters(pill) {
+    const top = pill.querySelector('.top');
+    const day = pill.querySelector('.day');
+    if (!top || !day) return;
+    const topText = top.textContent;
+    const dayText = day.textContent;
+    top.innerHTML = letters(topText);
+    day.innerHTML = letters(dayText);
+  }
+
+  function setActive(picker, newPill, options = {}) {
+    const previous = picker.querySelector('.pill.is-active');
+    if (previous === newPill) return null;
+    picker.querySelectorAll('.pill.was-active').forEach(p => p.classList.remove('was-active'));
+    if (previous) {
+      previous.classList.remove('is-active');
+      previous.classList.add('was-active');
+    }
+    newPill.classList.remove('is-active');
+    void newPill.offsetWidth;
+    newPill.classList.add('is-active');
+    refreshLetters(newPill);
+    return previous;
+  }
+
+  // ── Option α: sliding chunky shadow ─────────────────────────────
+  function wirePickerA() {
+    const picker = document.querySelector('.picker-a');
+    const shadow = document.createElement('div');
+    shadow.className = 'pa-shadow';
+    picker.appendChild(shadow);
+
+    let currentX = 0;
+    const SHADOW_OFFSET_Y = 5;
+    const SHADOW_OFFSET_X = 5;
+
+    function positionShadow(pill, animate) {
+      const r = pill.getBoundingClientRect();
+      const pr = picker.getBoundingClientRect();
+      const x = r.left - pr.left + SHADOW_OFFSET_X;
+      const y = r.top - pr.top + SHADOW_OFFSET_Y;
+      picker.style.setProperty('--shadow-y', y + 'px');
+      shadow.classList.add('visible');
+
+      if (animate) {
+        picker.style.setProperty('--shadow-x-from', currentX + 'px');
+        picker.style.setProperty('--shadow-x', x + 'px');
+        picker.classList.remove('sliding');
+        void picker.offsetWidth;
+        picker.classList.add('sliding');
+        setTimeout(() => picker.classList.remove('sliding'), 400);
+      } else {
+        picker.style.setProperty('--shadow-x', x + 'px');
+        picker.style.setProperty('--shadow-x-from', x + 'px');
+      }
+      currentX = x;
+    }
+
+    picker.appendChild(buildArrow('‹'));
+    SAMPLE.forEach(d => picker.appendChild(buildPill(d)));
+    picker.appendChild(buildArrow('›'));
+
+    const arrows = picker.querySelectorAll('.arrow');
+    arrows[0].addEventListener('click', () => shiftActive(picker, -1));
+    arrows[1].addEventListener('click', () => shiftActive(picker, 1));
+    picker.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        setActive(picker, pill);
+        positionShadow(pill, true);
+      });
+    });
+
+    // Initial position
+    requestAnimationFrame(() => {
+      const active = picker.querySelector('.pill.is-active');
+      if (active) positionShadow(active, false);
+    });
+    window.addEventListener('resize', () => {
+      const active = picker.querySelector('.pill.is-active');
+      if (active) positionShadow(active, false);
+    });
+  }
+
+  // ── Option β: sliding underline bar ─────────────────────────────
+  function wirePickerB() {
+    const picker = document.querySelector('.picker-b');
+    const bar = document.createElement('div');
+    bar.className = 'pb-bar';
+    picker.appendChild(bar);
+
+    let currentX = 0;
+
+    function positionBar(pill, animate) {
+      const r = pill.getBoundingClientRect();
+      const pr = picker.getBoundingClientRect();
+      const x = r.left - pr.left;
+      bar.classList.add('visible');
+
+      if (animate) {
+        picker.style.setProperty('--bar-x-from', currentX + 'px');
+        picker.style.setProperty('--bar-x', x + 'px');
+        picker.classList.remove('sliding');
+        void picker.offsetWidth;
+        picker.classList.add('sliding');
+        setTimeout(() => picker.classList.remove('sliding'), 400);
+      } else {
+        picker.style.setProperty('--bar-x', x + 'px');
+        picker.style.setProperty('--bar-x-from', x + 'px');
+      }
+      currentX = x;
+    }
+
+    picker.appendChild(buildArrow('‹'));
+    SAMPLE.forEach(d => picker.appendChild(buildPill(d)));
+    picker.appendChild(buildArrow('›'));
+
+    const arrows = picker.querySelectorAll('.arrow');
+    arrows[0].addEventListener('click', () => shiftActive(picker, -1));
+    arrows[1].addEventListener('click', () => shiftActive(picker, 1));
+    picker.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        setActive(picker, pill);
+        positionBar(pill, true);
+      });
+    });
+
+    requestAnimationFrame(() => {
+      const active = picker.querySelector('.pill.is-active');
+      if (active) positionBar(active, false);
+    });
+    window.addEventListener('resize', () => {
+      const active = picker.querySelector('.pill.is-active');
+      if (active) positionBar(active, false);
+    });
+  }
+
+  // ── Option γ: lift & fall ────────────────────────────────────────
+  function wirePickerC() {
+    const picker = document.querySelector('.picker-c');
+    picker.appendChild(buildArrow('‹'));
+    SAMPLE.forEach(d => {
+      const wrap = document.createElement('span');
+      wrap.className = 'pc-pill-wrap';
+      const shadow = document.createElement('span');
+      shadow.className = 'pc-shadow';
+      wrap.appendChild(shadow);
+      const pill = buildPill(d);
+      wrap.appendChild(pill);
+      if (d.offset === 0) wrap.classList.add('is-active');
+      picker.appendChild(wrap);
+    });
+    picker.appendChild(buildArrow('›'));
+
+    const arrows = picker.querySelectorAll('.arrow');
+    arrows[0].addEventListener('click', () => shiftActive(picker, -1));
+    arrows[1].addEventListener('click', () => shiftActive(picker, 1));
+    picker.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        // Move the is-active class on wrap as well
+        picker.querySelectorAll('.pc-pill-wrap.is-active').forEach(w => w.classList.remove('is-active'));
+        pill.parentElement.classList.add('is-active');
+        setActive(picker, pill);
+      });
+    });
+  }
+
+  // Shared: shift active by ±1 (used by arrows)
+  function shiftActive(picker, dir) {
+    const pills = [...picker.querySelectorAll('.pill')];
+    const active = picker.querySelector('.pill.is-active');
+    const idx = pills.indexOf(active);
+    const next = pills[idx + dir];
+    if (!next) return;
+    next.click();
+  }
+
+  wirePickerA();
+  wirePickerB();
+  wirePickerC();
+</script>
+
+</body>
+</html>
