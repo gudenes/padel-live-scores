@@ -13,6 +13,10 @@ import {
   Tournament, FlagImg, titleCase, countryName, daysUntil, formatDateRange, levelLabel,
   SectionTitle,
 } from './shared'
+import TournamentsFilterSheet, {
+  DEFAULT_FILTERS, activeFilterCount,
+  type TournamentFilters,
+} from './TournamentsFilterSheet'
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -128,10 +132,33 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
   const [ongoingIds, setOngoingIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
+  // ── FIP sub-tier (only meaningful when tab === 'fip')
+  // Lets the user narrow the FIP Tour to a single tier (Platinum / Gold
+  // / Silver / etc.) without leaving the main tab. Lives outside the
+  // Filtros sheet because it's an axis of the tab — picking a sub-tier
+  // changes WHICH levels we query, not what we filter the result set to.
+  // 'all' = every FIP level (legacy behaviour, default).
+  const [fipSubTier, setFipSubTier] = useState<'all' | string>('all')
+
+  // ── Filter state ─────────────────────────────────────────────
+  // Two layers:
+  //   filters       — committed, drives the rendered sections.
+  //   pendingInSheet — what the user is fiddling with inside the open
+  //                    sheet, used to compute the live "Apply (N events)"
+  //                    count without affecting the page yet.
+  const [filters, setFilters] = useState<TournamentFilters>(DEFAULT_FILTERS)
+  const [pendingInSheet, setPendingInSheet] = useState<TournamentFilters>(DEFAULT_FILTERS)
+  const [sheetOpen, setSheetOpen] = useState(false)
+
   useEffect(() => {
     (async () => {
       setLoading(true)
-      const levels = tab === 'premier' ? PREMIER_LEVELS : FIP_LEVELS
+      // Narrow the level set when the user picks a FIP sub-tier. 'all'
+      // keeps the legacy "every FIP level" query.
+      const levels =
+        tab === 'premier'
+          ? PREMIER_LEVELS
+          : fipSubTier === 'all' ? FIP_LEVELS : [fipSubTier]
 
       // Fetch all tournaments for this circuit
       const { data: tournamentsData } = await supabase
@@ -239,30 +266,126 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
       setTournaments(tournamentsData.map(t => ({ ...t, winners: winnersMap[t.id] ?? [] })))
       setLoading(false)
     })()
-  }, [tab])
+  }, [tab, fipSubTier])
+
+  // ── Available countries (drives the sheet's país picker — only
+  //    shows countries with at least one tournament in the loaded set).
+  const availableCountries = useMemo(() => {
+    const s = new Set<string>()
+    for (const t of tournaments) {
+      if (t.country) s.add(t.country.toUpperCase())
+    }
+    return s
+  }, [tournaments])
+
+  // ── Available years for the Temporada section. Always includes the
+  //    current year so the radio set isn't empty in early-season state
+  //    where the DB has no 2026 events yet. Sorted descending so the
+  //    most recent year shows first.
+  const availableYears = useMemo(() => {
+    const ys = new Set<number>([new Date().getFullYear()])
+    for (const t of tournaments) {
+      const y = new Date(t.starts_at).getFullYear()
+      if (Number.isFinite(y)) ys.add(y)
+    }
+    return [...ys].sort((a, b) => b - a)
+  }, [tournaments])
+
+  // ── Filter predicate: applies (year, countries, when) to a tournament.
+  //    Status (live/ongoing/upcoming/completed) is decided elsewhere;
+  //    here we just gate on the dimensions that survive year-narrowing.
+  //    Estado is applied section-by-section below so empty sections
+  //    render gracefully when the user toggles them off.
+  const matchesNonStatus = (t: TournamentWithWinners, f: TournamentFilters): boolean => {
+    // Year — always applied. Defaults to current year.
+    const ty = new Date(t.starts_at).getFullYear()
+    if (ty !== f.year) return false
+    if (f.countries.size > 0) {
+      if (!t.country || !f.countries.has(t.country.toUpperCase())) return false
+    }
+    if (f.when !== 'all') {
+      const start = new Date(t.starts_at).getTime()
+      const now = Date.now()
+      if (f.when === 'this_month') {
+        const d = new Date()
+        const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).getTime()
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime() - 1
+        if (start < monthStart || start > monthEnd) return false
+      } else if (f.when === 'next_30') {
+        const limit = now + 30 * 24 * 60 * 60 * 1000
+        if (start < now || start > limit) return false
+      } else if (f.when === 'next_90') {
+        const limit = now + 90 * 24 * 60 * 60 * 1000
+        if (start < now || start > limit) return false
+      }
+    }
+    return true
+  }
 
   const { live, ongoing, upcoming, currentSeasonCompleted, prevByYear, currentYear } = useMemo(() => {
     const now = new Date()
-    const currentYear = now.getFullYear()
-    const live = tournaments.filter(t => liveIds.has(t.id))
-    const ongoing = tournaments.filter(t => ongoingIds.has(t.id))
-    const upcoming = tournaments.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id) && !ongoingIds.has(t.id))
-      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
-    const completed = tournaments.filter(t => {
-      const end = new Date(t.ends_at); end.setHours(23, 59, 59)
-      return end < now && !liveIds.has(t.id) && !ongoingIds.has(t.id)
-    })
-    const currentSeasonCompleted = completed.filter(t => new Date(t.starts_at).getFullYear() === currentYear)
+    // "currentYear" here means the year *displayed* to the user — driven
+    // by the year filter rather than calendar `now`. The previous logic
+    // hard-coded calendar year, which broke the "view past seasons"
+    // workflow once the year filter shipped (the user would pick 2025
+    // but the page kept the "Completed — 2026" header etc).
+    const currentYear = filters.year
+
+    // Apply year + country + when filters first; then bucket by status.
+    const visible = tournaments.filter(t => matchesNonStatus(t, filters))
+
+    const live = filters.estado.live
+      ? visible.filter(t => liveIds.has(t.id))
+      : []
+    const ongoing = filters.estado.live
+      ? visible.filter(t => ongoingIds.has(t.id))
+      : []
+    const upcoming = filters.estado.upcoming
+      ? visible.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id) && !ongoingIds.has(t.id))
+          .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+      : []
+    const completed = filters.estado.completed
+      ? visible.filter(t => {
+          const end = new Date(t.ends_at); end.setHours(23, 59, 59)
+          return end < now && !liveIds.has(t.id) && !ongoingIds.has(t.id)
+        })
+      : []
+    // With matchesNonStatus already gating by year, every completed item
+    // belongs to the displayed year — currentSeasonCompleted is the full
+    // set, and prevByYear is always empty. The collapsible-past-seasons
+    // UI below renders nothing in this state, which is exactly what we
+    // want: picking 2025 should show the 2025 season, not also collapse
+    // 2024 underneath.
+    const currentSeasonCompleted = completed
     const prevByYear: Record<number, TournamentWithWinners[]> = {}
-    for (const t of completed) {
-      const yr = new Date(t.starts_at).getFullYear()
-      if (yr < currentYear) {
-        if (!prevByYear[yr]) prevByYear[yr] = []
-        prevByYear[yr].push(t)
-      }
-    }
     return { live, ongoing, upcoming, currentSeasonCompleted, prevByYear, currentYear }
-  }, [tournaments, liveIds, ongoingIds])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournaments, liveIds, ongoingIds, filters])
+
+  // ── Pending-state count (for the "Aplicar (N eventos)" button).
+  const pendingCount = useMemo(() => {
+    const visible = tournaments.filter(t => matchesNonStatus(t, pendingInSheet))
+    let n = 0
+    if (pendingInSheet.estado.live) {
+      n += visible.filter(t => liveIds.has(t.id)).length
+      n += visible.filter(t => ongoingIds.has(t.id)).length
+    }
+    if (pendingInSheet.estado.upcoming) {
+      const now = new Date()
+      n += visible.filter(t => new Date(t.starts_at) > now && !liveIds.has(t.id) && !ongoingIds.has(t.id)).length
+    }
+    if (pendingInSheet.estado.completed) {
+      const now = new Date()
+      n += visible.filter(t => {
+        const end = new Date(t.ends_at); end.setHours(23, 59, 59)
+        return end < now && !liveIds.has(t.id) && !ongoingIds.has(t.id)
+      }).length
+    }
+    return n
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournaments, liveIds, ongoingIds, pendingInSheet])
+
+  const filterCount = activeFilterCount(filters)
 
   // Hero picks the closest-by-date event in each bucket. Matches the
   // home page's spotlight logic (`tournaments[0]` after sort-by-starts_at).
@@ -311,8 +434,8 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
         </span>
       </div>
 
-      {/* Tab switcher */}
-      <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px', justifyContent: 'center' }}>
+      {/* Tab switcher — left-aligned */}
+      <div style={{ display: 'flex', gap: 8, padding: '0 16px 10px' }}>
         {(['premier', 'fip'] as TournamentTab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: tab === t ? GREEN : 'rgba(255,255,255,0.06)',
@@ -321,11 +444,169 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
             padding: '8px 24px', fontWeight: 800, fontSize: 12,
             clipPath: CHUNKY.badge, textTransform: 'uppercase',
             letterSpacing: 0.5,
+            fontFamily: 'inherit',
           }}>
             {t === 'premier' ? 'Premier Padel' : 'FIP Tour'}
           </button>
         ))}
       </div>
+
+      {/* FIP sub-tier chips — only when FIP Tour is active.
+          Smaller than the main tabs; chunky for visual consistency.
+          Default chip "Todas" returns to the all-FIP-levels query. */}
+      {tab === 'fip' && (
+        <div
+          className="v3-scroll-hide"
+          style={{
+            display: 'flex', gap: 6, padding: '0 16px 10px',
+            overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {([
+            { value: 'all', label: 'Todas' },
+            { value: 'fip_platinum', label: 'Platinum' },
+            { value: 'fip_gold', label: 'Gold' },
+            { value: 'fip_silver', label: 'Silver' },
+            { value: 'fip_bronze', label: 'Bronze' },
+            { value: 'fip_beyond', label: 'Beyond' },
+            { value: 'fip_promises', label: 'Promises' },
+          ] as Array<{ value: 'all' | string; label: string }>).map(({ value, label }) => {
+            const active = fipSubTier === value
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFipSubTier(value)}
+                style={{
+                  flexShrink: 0,
+                  padding: '5px 12px',
+                  background: active ? GREEN : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${active ? GREEN : BORDER}`,
+                  color: active ? '#0A0A0A' : '#B5B5B5',
+                  fontSize: 10, fontWeight: active ? 800 : 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  clipPath: CHUNKY.badge,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Filtros button + active-filter strip ──────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 16px 6px', gap: 10,
+      }}>
+        <button
+          type="button"
+          onClick={() => { setPendingInSheet(filters); setSheetOpen(true) }}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            padding: '7px 16px',
+            background: filterCount > 0 ? 'rgba(126,211,33,0.08)' : BG_CARD,
+            border: `1px solid ${filterCount > 0 ? GREEN : BORDER}`,
+            color: filterCount > 0 ? GREEN : MUTED,
+            fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.02em',
+            clipPath: CHUNKY.button,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+          </svg>
+          Filtros
+          {filterCount > 0 && (
+            <span style={{
+              background: GREEN, color: '#0A0A0A',
+              fontFamily: 'var(--font-mono, "SF Mono", monospace)',
+              fontSize: 9, fontWeight: 800,
+              padding: '1px 7px',
+              clipPath: CHUNKY.badge,
+              marginLeft: 2,
+            }}>
+              {filterCount}
+            </span>
+          )}
+        </button>
+        <span style={{
+          fontFamily: 'var(--font-mono, "SF Mono", monospace)',
+          fontSize: 10, color: MUTED, letterSpacing: '0.04em',
+        }}>
+          {(() => {
+            const prevTotal = Object.values(prevByYear).reduce((s, arr) => s + arr.length, 0)
+            const total = live.length + ongoing.length + upcoming.length + currentSeasonCompleted.length + prevTotal
+            return `${total} ${total === 1 ? 'evento' : 'eventos'}`
+          })()}
+        </span>
+      </div>
+
+      {/* Active filter pills — only when something is applied */}
+      {filterCount > 0 && (
+        <div style={{
+          display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center',
+          padding: '4px 16px 12px',
+        }}>
+          {filters.year !== new Date().getFullYear() && (
+            <ActiveFilterPill
+              label={`📅 ${filters.year}`}
+              onRemove={() => setFilters(prev => ({ ...prev, year: new Date().getFullYear() }))}
+            />
+          )}
+          {[...filters.countries].map(code => (
+            <ActiveFilterPill
+              key={`c-${code}`}
+              label={`🌍 ${code}`}
+              onRemove={() => setFilters(prev => {
+                const next = new Set(prev.countries); next.delete(code)
+                return { ...prev, countries: next }
+              })}
+            />
+          ))}
+          {filters.when !== 'all' && (
+            <ActiveFilterPill
+              label={
+                filters.when === 'this_month' ? '🗓 Este mes'
+                  : filters.when === 'next_30' ? '🗓 30 días'
+                  : '🗓 90 días'
+              }
+              onRemove={() => setFilters(prev => ({ ...prev, when: 'all' }))}
+            />
+          )}
+          {(!filters.estado.live || !filters.estado.upcoming || !filters.estado.completed) && (
+            <ActiveFilterPill
+              label="🏆 Estado"
+              onRemove={() => setFilters(prev => ({
+                ...prev, estado: { live: true, upcoming: true, completed: true },
+              }))}
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => setFilters(DEFAULT_FILTERS)}
+            style={{
+              fontFamily: 'var(--font-mono, "SF Mono", monospace)',
+              fontSize: 10, fontWeight: 700,
+              letterSpacing: '0.06em',
+              color: MUTED,
+              textTransform: 'uppercase',
+              background: 'none', border: 'none',
+              cursor: 'pointer', padding: '4px 8px',
+              marginLeft: 'auto',
+            }}
+          >
+            Limpiar
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
@@ -576,6 +857,55 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
 
       {/* Bottom spacing */}
       <div style={{ height: 100 }} />
+
+      {/* Filters sheet — rendered last so it overlays everything */}
+      <TournamentsFilterSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        availableCountries={availableCountries}
+        availableYears={availableYears}
+        current={filters}
+        pendingCount={pendingCount}
+        onPendingChange={setPendingInSheet}
+        onApply={(next) => {
+          setFilters({ ...next, countries: new Set(next.countries) })
+          setSheetOpen(false)
+        }}
+        onClear={() => {
+          setPendingInSheet(DEFAULT_FILTERS)
+        }}
+      />
     </div>
+  )
+}
+
+// ── Active-filter pill (small removable chip above the list) ───
+function ActiveFilterPill({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '4px 12px',
+      background: 'rgba(126,211,33,0.08)',
+      border: `1px solid ${GREEN}`,
+      color: GREEN,
+      fontSize: 11, fontWeight: 700,
+      clipPath: CHUNKY.badge,
+    }}>
+      {label}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Quitar ${label}`}
+        style={{
+          background: 'none', border: 'none',
+          color: GREEN, opacity: 0.7,
+          fontWeight: 800, cursor: 'pointer',
+          marginLeft: 2, padding: 0,
+          fontFamily: 'inherit', fontSize: 11,
+        }}
+      >
+        ✕
+      </button>
+    </span>
   )
 }

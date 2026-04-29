@@ -166,7 +166,9 @@ async function main() {
             if (scheduledAt) lastTime = new Date(scheduledAt)
           } else if (/followed by/i.test(row.scheduled_label)) {
             if (lastTime) {
-              const est = new Date(lastTime.getTime() + FOLLOWED_BY_GAP_MINUTES * 60 * 1000)
+              // Annotated explicitly — without it TS gets confused by the
+              // `lastTime = est` reassignment downstream and infers `est: any`.
+              const est: Date = new Date(lastTime.getTime() + FOLLOWED_BY_GAP_MINUTES * 60 * 1000)
               scheduledAt = est.toISOString()
               lastTime = est
             }
