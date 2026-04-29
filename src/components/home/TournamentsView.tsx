@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Avatar from '@/components/Avatar'
 import { Link } from '@/i18n/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -119,6 +119,15 @@ function CollapsibleSeasonV3({ year, tournaments }: { year: number; tournaments:
       )}
     </div>
   )
+}
+
+// Shared chunky-pill style used in BigTournamentCard for the level
+// label. Pulled to module scope so it can be referenced from the
+// extracted card component without re-declaring per render.
+const pillStyle: React.CSSProperties = {
+  fontSize: 9, fontWeight: 700, padding: '3px 7px',
+  clipPath: CHUNKY.badge, textTransform: 'uppercase',
+  letterSpacing: 0.3,
 }
 
 // ── Tournaments View ──────────────────────────────────────────
@@ -433,12 +442,6 @@ export default function TournamentsView({
   const restUpcoming = upcoming.filter(t => t.id !== hero?.id)
   const restOngoing = ongoing.filter(t => t.id !== hero?.id)
 
-  const pillStyle: React.CSSProperties = {
-    fontSize: 9, fontWeight: 700, padding: '3px 7px',
-    clipPath: CHUNKY.badge, textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  }
-
   return (
     <div>
       {/* Back header — only when not wrapped by GlobalHeader. */}
@@ -650,177 +653,66 @@ export default function TournamentsView({
         <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
       ) : (
         <>
-          {/* ── Hero + Upcoming ── */}
-          {hero && (
+          {/* ── Live / Ongoing / Upcoming hero(s) ────────────
+              Layout rules:
+                - When multiple tournaments are concurrently ongoing
+                  AND there's no live hero taking precedence, render
+                  ALL ongoing as full-width cards in a horizontal
+                  scroll-snap carousel that auto-advances every 5s.
+                  Better than the previous "one hero + tiny strip"
+                  layout where the secondary ongoing events got buried.
+                - Otherwise (single ongoing, live hero, or upcoming
+                  hero) keep the single big-card layout. */}
+          {!heroIsLive && ongoing.length >= 2 ? (
+            <>
+              <SectionTitle>{tHome('ongoing')}</SectionTitle>
+              <OngoingCarousel tournaments={ongoing} />
+            </>
+          ) : hero ? (
             <>
               <SectionTitle>{heroIsLive ? tHome('liveNow') : heroIsOngoing ? tHome('ongoing') : tHome('comingUp')}</SectionTitle>
+              <BigTournamentCard
+                tournament={hero}
+                state={heroIsLive ? 'live' : heroIsOngoing ? 'ongoing' : 'upcoming'}
+              />
+            </>
+          ) : null}
 
-              {/* Hero card */}
-              <Link href={`/tournaments/${hero.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                <div style={{
-                  margin: '0 16px 12px', padding: 20, position: 'relative', overflow: 'hidden',
-                  clipPath: CHUNKY.card,
-                  background: `linear-gradient(135deg, ${heroIsLive ? 'rgba(255,69,85,0.10)' : heroIsOngoing ? 'rgba(245,166,35,0.08)' : 'rgba(126,211,33,0.06)'} 0%, ${BG_CARD} 60%)`,
-                  border: `1.5px solid ${heroIsLive ? 'rgba(255,69,85,0.25)' : heroIsOngoing ? 'rgba(245,166,35,0.2)' : 'rgba(126,211,33,0.2)'}`,
-                }}>
-                  {/* Glow */}
-                  <div style={{
-                    position: 'absolute', top: -30, right: -30, width: 100, height: 100,
-                    background: heroIsLive
-                      ? 'radial-gradient(circle, rgba(255,69,85,0.08) 0%, transparent 70%)'
-                      : heroIsOngoing
-                        ? 'radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%)'
-                        : 'radial-gradient(circle, rgba(126,211,33,0.06) 0%, transparent 70%)',
-                  }} />
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
-                    <div>
-                      {/* Badge */}
-                      <div style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        clipPath: CHUNKY.badge, padding: '4px 10px', fontSize: 9, fontWeight: 800,
-                        letterSpacing: '0.08em', marginBottom: 10,
-                        background: heroIsLive ? 'rgba(255,69,85,0.15)' : heroIsOngoing ? 'rgba(245,166,35,0.15)' : GREEN_DIM,
-                        color: heroIsLive ? LIVE_RED : heroIsOngoing ? ORANGE : GREEN,
-                      }}>
-                        {heroIsLive && (
-                          <span style={{
-                            width: 6, height: 6, borderRadius: '50%', background: LIVE_RED,
-                            animation: 'v3-pulse 2s infinite',
-                          }} />
-                        )}
-                        {heroIsLive ? tHome('liveNow') : heroIsOngoing ? tHome('ongoing') : tHome('comingUp')}
+          {/* Remaining upcoming — compact horizontal strip. Rendered
+              after the hero or carousel above. Hidden when nothing
+              upcoming (or when the hero IS the only upcoming). */}
+          {restUpcoming.length > 0 && (
+            <div className="v3-scroll-hide" style={{
+              display: 'flex', gap: 8, padding: '0 16px 8px', overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+            }}>
+              {restUpcoming.map(t => {
+                const d = daysUntil(t.starts_at)
+                const dateLabel = format.dateTime(new Date(t.starts_at), DATE_SHORT).toUpperCase()
+                return (
+                  <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
+                    <div style={{
+                      padding: '10px 14px', clipPath: CHUNKY.card,
+                      background: BG_CARD, border: `1px solid ${BORDER}`,
+                      minWidth: 160,
+                    }}>
+                      <div style={{ fontSize: 9, color: MUTED, fontWeight: 600, marginBottom: 4 }}>
+                        {dateLabel}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <FlagImg country={hero.country} size={24} />
-                        <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
-                          {titleCase(hero.name)}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <FlagImg country={t.country} size={16} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>
+                          {titleCase(t.name)}
                         </span>
                       </div>
-                      <div style={{ fontSize: 11, color: MUTED }}>
-                        {formatDateRange(format, hero.starts_at, hero.ends_at)}
+                      <div style={{ fontSize: 10, color: ORANGE, marginTop: 4, fontWeight: 700 }}>
+                        {tList('daysCount', { count: d })}
                       </div>
-                      {hero.location && (
-                        <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
-                          {hero.location}
-                        </div>
-                      )}
                     </div>
-                    {/* Countdown */}
-                    {!heroIsLive && !heroIsOngoing && (
-                      <div style={{
-                        textAlign: 'center', padding: '8px 12px',
-                        clipPath: CHUNKY.badge, flexShrink: 0,
-                        background: GREEN_DIM,
-                      }}>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: GREEN, fontFamily: 'monospace', lineHeight: 1 }}>
-                          {daysUntil(hero.starts_at)}
-                        </div>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.06em' }}>
-                          {tList('daysLabel')}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Level pill + view button */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, position: 'relative' }}>
-                    <span style={{ ...pillStyle, background: 'rgba(255,255,255,0.06)', color: MUTED }}>
-                      {levelLabel(hero.level)}
-                    </span>
-                    <div style={{ flex: 1 }} />
-                    <div style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '6px 14px', clipPath: CHUNKY.badge,
-                      background: heroIsLive ? 'rgba(255,69,85,0.12)' : GREEN_DIM,
-                      fontSize: 11, fontWeight: 700,
-                      color: heroIsLive ? LIVE_RED : GREEN,
-                    }}>
-                      {heroIsLive ? tList('viewMatches') : tList('viewEvent')}
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-
-              {/* Remaining ongoing — compact horizontal strip. Shown when
-                  more than one tournament is currently ongoing so they
-                  don't get hidden behind the hero card. Same layout as
-                  the upcoming strip below; the badge at the bottom says
-                  "Ongoing" instead of a day-count.
-
-                  Background tint mirrors the hero's ongoing-state
-                  treatment (orange wash) so the cards visibly belong
-                  to the same status group as the hero. */}
-              {restOngoing.length > 0 && (
-                <div className="v3-scroll-hide" style={{
-                  display: 'flex', gap: 8, padding: '0 16px 8px', overflowX: 'auto',
-                  WebkitOverflowScrolling: 'touch',
-                }}>
-                  {restOngoing.map(t => {
-                    const dateLabel = formatDateRange(format, t.starts_at, t.ends_at).toUpperCase()
-                    return (
-                      <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
-                        <div style={{
-                          padding: '10px 14px', clipPath: CHUNKY.card,
-                          background: 'rgba(245,166,35,0.06)',
-                          border: `1px solid rgba(245,166,35,0.2)`,
-                          minWidth: 160,
-                        }}>
-                          <div style={{ fontSize: 9, color: MUTED, fontWeight: 600, marginBottom: 4 }}>
-                            {dateLabel}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <FlagImg country={t.country} size={16} />
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>
-                              {titleCase(t.name)}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 10, color: ORANGE, marginTop: 4, fontWeight: 700 }}>
-                            {tHome('ongoing')}
-                          </div>
-                        </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Remaining upcoming — compact horizontal strip */}
-              {restUpcoming.length > 0 && (
-                <div className="v3-scroll-hide" style={{
-                  display: 'flex', gap: 8, padding: '0 16px 8px', overflowX: 'auto',
-                  WebkitOverflowScrolling: 'touch',
-                }}>
-                  {restUpcoming.map(t => {
-                    const d = daysUntil(t.starts_at)
-                    const dateLabel = format.dateTime(new Date(t.starts_at), DATE_SHORT).toUpperCase()
-                    return (
-                      <Link key={t.id} href={`/tournaments/${t.id}`} style={{ textDecoration: 'none', color: 'inherit', flexShrink: 0 }}>
-                        <div style={{
-                          padding: '10px 14px', clipPath: CHUNKY.card,
-                          background: BG_CARD, border: `1px solid ${BORDER}`,
-                          minWidth: 160,
-                        }}>
-                          <div style={{ fontSize: 9, color: MUTED, fontWeight: 600, marginBottom: 4 }}>
-                            {dateLabel}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <FlagImg country={t.country} size={16} />
-                            <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>
-                              {titleCase(t.name)}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 10, color: ORANGE, marginTop: 4, fontWeight: 700 }}>
-                            {tList('daysCount', { count: d })}
-                          </div>
-                        </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </>
+                  </Link>
+                )
+              })}
+            </div>
           )}
 
           {/* ── Completed (current season) — vertical list grouped by
@@ -1143,5 +1035,259 @@ function ActiveFilterPill({ label, onRemove }: { label: string; onRemove: () => 
         ✕
       </button>
     </span>
+  )
+}
+
+// ── Big tournament hero card ───────────────────────────────────
+//
+// The full-width "marquee" card used at the top of the listing for
+// whichever tournament is currently leading the section (live, ongoing,
+// or upcoming). Lifted out of the inline JSX so the OngoingCarousel
+// below can reuse it for each tournament when there are several
+// concurrent ongoing events.
+//
+// Visual treatment cycles by `state`:
+//   live     → red glow + pulsing dot, "VIEW MATCHES" CTA
+//   ongoing  → orange glow, "VIEW" CTA
+//   upcoming → green glow + days-until countdown, "VIEW" CTA
+function BigTournamentCard({
+  tournament,
+  state,
+}: {
+  tournament: TournamentWithWinners
+  state: 'live' | 'ongoing' | 'upcoming'
+}) {
+  const format = useFormatter()
+  const tHome = useTranslations('home')
+  const tList = useTranslations('home.tournamentList')
+  const isLive = state === 'live'
+  const isOngoing = state === 'ongoing'
+  return (
+    <Link href={`/tournaments/${tournament.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <div style={{
+        margin: '0 16px 12px', padding: 20, position: 'relative', overflow: 'hidden',
+        clipPath: CHUNKY.card,
+        background: `linear-gradient(135deg, ${isLive ? 'rgba(255,69,85,0.10)' : isOngoing ? 'rgba(245,166,35,0.08)' : 'rgba(126,211,33,0.06)'} 0%, ${BG_CARD} 60%)`,
+        border: `1.5px solid ${isLive ? 'rgba(255,69,85,0.25)' : isOngoing ? 'rgba(245,166,35,0.2)' : 'rgba(126,211,33,0.2)'}`,
+      }}>
+        {/* Glow */}
+        <div style={{
+          position: 'absolute', top: -30, right: -30, width: 100, height: 100,
+          background: isLive
+            ? 'radial-gradient(circle, rgba(255,69,85,0.08) 0%, transparent 70%)'
+            : isOngoing
+              ? 'radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(126,211,33,0.06) 0%, transparent 70%)',
+        }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
+          <div>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              clipPath: CHUNKY.badge, padding: '4px 10px', fontSize: 9, fontWeight: 800,
+              letterSpacing: '0.08em', marginBottom: 10,
+              background: isLive ? 'rgba(255,69,85,0.15)' : isOngoing ? 'rgba(245,166,35,0.15)' : GREEN_DIM,
+              color: isLive ? LIVE_RED : isOngoing ? ORANGE : GREEN,
+            }}>
+              {isLive && (
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%', background: LIVE_RED,
+                  animation: 'v3-pulse 2s infinite',
+                }} />
+              )}
+              {isLive ? tHome('liveNow') : isOngoing ? tHome('ongoing') : tHome('comingUp')}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <FlagImg country={tournament.country} size={24} />
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                {titleCase(tournament.name)}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: MUTED }}>
+              {formatDateRange(format, tournament.starts_at, tournament.ends_at)}
+            </div>
+            {tournament.location && (
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
+                {tournament.location}
+              </div>
+            )}
+          </div>
+          {/* Countdown — upcoming only */}
+          {!isLive && !isOngoing && (
+            <div style={{
+              textAlign: 'center', padding: '8px 12px',
+              clipPath: CHUNKY.badge, flexShrink: 0,
+              background: GREEN_DIM,
+            }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: GREEN, fontFamily: 'monospace', lineHeight: 1 }}>
+                {daysUntil(tournament.starts_at)}
+              </div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.06em' }}>
+                {tList('daysLabel')}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Level pill + view CTA */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, position: 'relative' }}>
+          <span style={{ ...pillStyle, background: 'rgba(255,255,255,0.06)', color: MUTED }}>
+            {levelLabel(tournament.level)}
+          </span>
+          <div style={{ flex: 1 }} />
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '6px 14px', clipPath: CHUNKY.badge,
+            background: isLive ? 'rgba(255,69,85,0.12)' : GREEN_DIM,
+            fontSize: 11, fontWeight: 700,
+            color: isLive ? LIVE_RED : GREEN,
+          }}>
+            {isLive ? tList('viewMatches') : tList('viewEvent')}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// ── Ongoing carousel ───────────────────────────────────────────
+//
+// When two or more tournaments are concurrently ongoing, render them
+// all at the same big-card size in a horizontal scroll-snap track
+// instead of buryng the rest behind a single hero plus compact strip.
+// Auto-advances every 5 seconds; pauses for 10 seconds after any user
+// interaction (touch, mousedown, manual scroll) so the carousel
+// doesn't yank the page out from under someone reading a card.
+//
+// Card width is 100% of the carousel viewport so each ongoing card
+// gets full presence; users see the next card by swiping or waiting
+// for the auto-advance to roll forward. Scroll-snap mandatory keeps
+// finger swipes locked to whole-card increments.
+function OngoingCarousel({ tournaments }: { tournaments: TournamentWithWinners[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [activeIdx, setActiveIdx] = useState(0)
+  const pauseUntilRef = useRef(0)
+  // Set when the auto-advance effect calls scrollTo so the resulting
+  // scroll event doesn't bounce back into a "user interacted" pause.
+  const programmaticScrollRef = useRef(false)
+
+  const pause = (ms = 10_000) => {
+    pauseUntilRef.current = Date.now() + ms
+  }
+
+  // Auto-advance every 5s
+  useEffect(() => {
+    if (tournaments.length < 2) return
+    const tick = setInterval(() => {
+      if (Date.now() < pauseUntilRef.current) return
+      setActiveIdx((i) => (i + 1) % tournaments.length)
+    }, 5000)
+    return () => clearInterval(tick)
+  }, [tournaments.length])
+
+  // When activeIdx changes (auto-advance), scroll-snap to that card.
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+    const target = track.children[activeIdx] as HTMLElement | undefined
+    if (!target) return
+    const left = target.offsetLeft - track.offsetLeft
+    programmaticScrollRef.current = true
+    track.scrollTo({ left, behavior: 'smooth' })
+    // Smooth scroll fires multiple scroll events as it animates — drop
+    // the programmatic flag a beat later so a real user scroll right
+    // afterwards still pauses correctly.
+    const t = setTimeout(() => {
+      programmaticScrollRef.current = false
+    }, 600)
+    return () => clearTimeout(t)
+  }, [activeIdx])
+
+  // Track which card is centred when the user scrolls manually so the
+  // dot indicator stays in sync.
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+    let raf = 0
+    const onScroll = () => {
+      // Skip centre-detection while we're driving a programmatic
+      // scroll. Otherwise the smooth-scroll animation fires scroll
+      // events partway through which would reset activeIdx to whatever
+      // card is currently centred (often the previous one), bouncing
+      // the carousel back instead of letting it complete the advance.
+      if (programmaticScrollRef.current) return
+      // User-driven scroll — pause the auto-advance.
+      pause()
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const trackRect = track.getBoundingClientRect()
+        const trackCentre = trackRect.left + trackRect.width / 2
+        let best = 0
+        let bestDist = Infinity
+        for (let i = 0; i < track.children.length; i++) {
+          const c = track.children[i] as HTMLElement
+          const r = c.getBoundingClientRect()
+          const d = Math.abs(r.left + r.width / 2 - trackCentre)
+          if (d < bestDist) { bestDist = d; best = i }
+        }
+        setActiveIdx(best)
+      })
+    }
+    track.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      track.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [tournaments.length])
+
+  return (
+    <div ref={containerRef}>
+      <div
+        ref={trackRef}
+        className="v3-scroll-hide"
+        onTouchStart={() => pause()}
+        onMouseDown={() => pause()}
+        style={{
+          display: 'flex',
+          overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {tournaments.map((t) => (
+          <div
+            key={t.id}
+            style={{
+              flex: '0 0 100%',
+              scrollSnapAlign: 'start',
+              minWidth: 0,
+            }}
+          >
+            <BigTournamentCard tournament={t} state="ongoing" />
+          </div>
+        ))}
+      </div>
+      {/* Dots */}
+      <div style={{
+        display: 'flex', gap: 6, justifyContent: 'center',
+        padding: '2px 0 12px',
+      }}>
+        {tournaments.map((t, i) => (
+          <span
+            key={t.id}
+            aria-hidden
+            style={{
+              width: i === activeIdx ? 18 : 6,
+              height: 6,
+              borderRadius: 3,
+              background: i === activeIdx ? ORANGE : 'rgba(255,255,255,0.18)',
+              transition: 'width 0.25s ease, background 0.25s ease',
+            }}
+          />
+        ))}
+      </div>
+    </div>
   )
 }
