@@ -656,6 +656,45 @@ export function resolveFourPlayers(
 
 // ── DB helpers ─────────────────────────────────────────────────────────
 
+/**
+ * PostgREST default response cap is 1000 rows. The padelgod snapshot
+ * tables routinely exceed that — Leiria has 5,369 entry_list_snapshots
+ * across men + women. A single non-paginated fetch returned only the
+ * first 1000 rows, deterministically dropping the entire women's
+ * roster (Postgres returns rows in insertion order, men's scrape ran
+ * first, women's didn't fit in the cap). Result: ALL women's matches
+ * for that tournament failed to resolve in the populator, silently.
+ *
+ * Paginate via `.range(start, end)` until a page returns < pageSize
+ * rows. Stops at `maxRows` as a safety cap to avoid runaway loops if
+ * a snapshot table somehow ends up with millions of rows.
+ *
+ * Returns the concatenated rows in their natural fetch order. Callers
+ * that need ordering (e.g. dedupe by latest captured_at) should
+ * order client-side after this returns.
+ */
+async function paginatedSelect<T>(
+  buildQuery: (start: number, end: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
+  opts: { pageSize?: number; maxRows?: number; what: string } = { what: 'rows' },
+): Promise<T[]> {
+  const pageSize = opts.pageSize ?? 1000;
+  const maxRows = opts.maxRows ?? 50_000;
+  const out: T[] = [];
+  let start = 0;
+  while (start < maxRows) {
+    const end = start + pageSize - 1;
+    const { data, error } = await buildQuery(start, end);
+    if (error) {
+      throw new Error(`${opts.what} read failed: ${error.message}`);
+    }
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < pageSize) break; // last page
+    start += pageSize;
+  }
+  return out;
+}
+
 async function getActiveWidgetIdCode(
   supabase: SupabaseClient,
   tournamentId: string
@@ -679,35 +718,40 @@ async function loadLatestFipDrawRows(
   supabase: SupabaseClient,
   tournamentId: string
 ): Promise<DrawRow[]> {
-  const { data, error } = await supabase
-    .schema('padelgod')
-    .from('draw_snapshots')
-    .select(
-      'tournament_id, match_widget_id, category, round_label, draw_position, ' +
-        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
-        'team1_fip_id, team2_fip_id, team1_seed, team2_seed, status, captured_at'
-    )
-    .eq('tournament_id', tournamentId)
-    .eq('source', 'fip_event_page');
-  if (error) {
-    throw new Error(
-      `draw_snapshots read failed (tournament=${tournamentId}): ${error.message}`
-    );
-  }
-  // FIP draw_snapshots don't carry country data — the bracket exposes
-  // seeds + fip_id but not flag images. Stamp explicit nulls so the
-  // shared DrawRow contract holds; the populator's INSERT path just
-  // emits no country columns when these are null.
-  const rows = (
-    (data ?? []) as unknown as Omit<
+  // Paginate — large bracket dumps (Premier P1, Major) easily exceed
+  // 1000 snapshot rows after a few days of scrapes. Without pagination
+  // we'd silently miss late-tournament rounds (R16/QF/SF/F) that were
+  // captured AFTER the qualifier rounds.
+  const rawRows = await paginatedSelect<
+    Omit<
       DrawRow,
       | 'source'
       | 'team1_player1_country'
       | 'team1_player2_country'
       | 'team2_player1_country'
       | 'team2_player2_country'
-    >[]
-  ).map((r) => ({
+    >
+  >(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('draw_snapshots')
+        .select(
+          'tournament_id, match_widget_id, category, round_label, draw_position, ' +
+            'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
+            'team1_fip_id, team2_fip_id, team1_seed, team2_seed, status, captured_at',
+        )
+        .eq('tournament_id', tournamentId)
+        .eq('source', 'fip_event_page')
+        .range(start, end),
+    { what: `draw_snapshots (tournament=${tournamentId})` },
+  );
+
+  // FIP draw_snapshots don't carry country data — the bracket exposes
+  // seeds + fip_id but not flag images. Stamp explicit nulls so the
+  // shared DrawRow contract holds; the populator's INSERT path just
+  // emits no country columns when these are null.
+  const rows = rawRows.map((r) => ({
     ...r,
     team1_player1_country: null,
     team1_player2_country: null,
@@ -750,24 +794,6 @@ async function loadLatestOopRowsAsDrawRows(
   supabase: SupabaseClient,
   tournamentId: string,
 ): Promise<DrawRow[]> {
-  const { data, error } = await supabase
-    .schema('padelgod')
-    .from('oop_snapshots')
-    .select(
-      'tournament_id, match_widget_id, category, round_label, ' +
-        'team1_player1_name, team1_player2_name, ' +
-        'team2_player1_name, team2_player2_name, ' +
-        'team1_player1_country, team1_player2_country, ' +
-        'team2_player1_country, team2_player2_country, ' +
-        'captured_at',
-    )
-    .eq('tournament_id', tournamentId);
-  if (error) {
-    throw new Error(
-      `oop_snapshots read failed (tournament=${tournamentId}): ${error.message}`,
-    );
-  }
-
   interface OopRow {
     tournament_id: string;
     match_widget_id: string | null;
@@ -784,7 +810,28 @@ async function loadLatestOopRowsAsDrawRows(
     captured_at: string;
   }
 
-  const rows = ((data ?? []) as unknown) as OopRow[];
+  // Paginate. OOP snapshots accumulate quickly during a tournament —
+  // a 7-day FIP Silver event with 8 days of OOP captured at hourly
+  // resolution easily clears 1000 rows. Without pagination the latest
+  // round (today's matches) might fall past the cap and the populator
+  // would miss every "live" match.
+  const rows = await paginatedSelect<OopRow>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('oop_snapshots')
+        .select(
+          'tournament_id, match_widget_id, category, round_label, ' +
+            'team1_player1_name, team1_player2_name, ' +
+            'team2_player1_name, team2_player2_name, ' +
+            'team1_player1_country, team1_player2_country, ' +
+            'team2_player1_country, team2_player2_country, ' +
+            'captured_at',
+        )
+        .eq('tournament_id', tournamentId)
+        .range(start, end),
+    { what: `oop_snapshots (tournament=${tournamentId})` },
+  );
 
   // Dedupe: latest captured_at per (tournament_id, match_widget_id).
   // OOP gets re-fetched daily during a tournament — each fetch appends
@@ -831,17 +878,22 @@ async function loadEntryListNameMap(
   supabase: SupabaseClient,
   tournamentId: string
 ): Promise<Map<string, string>> {
-  const { data, error } = await supabase
-    .schema('padelgod')
-    .from('entry_list_snapshots')
-    .select('name, fip_id, category, captured_at')
-    .eq('tournament_id', tournamentId);
-  if (error) {
-    throw new Error(
-      `entry_list_snapshots read failed (tournament=${tournamentId}): ${error.message}`
-    );
-  }
-  const rows = (data ?? []) as EntryListRow[];
+  // Paginate. Entry-list snapshots accumulate over time: each scrape
+  // appends a fresh batch of all the players, so a tournament running
+  // for a week with daily refreshes can easily exceed 5,000 rows.
+  // Without pagination the women's roster — which is typically scraped
+  // after the men's — falls past the 1000-row cap and disappears,
+  // breaking match-resolution for every women's match.
+  const rows = await paginatedSelect<EntryListRow>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('entry_list_snapshots')
+        .select('name, fip_id, category, captured_at')
+        .eq('tournament_id', tournamentId)
+        .range(start, end),
+    { what: `entry_list_snapshots (tournament=${tournamentId})` },
+  );
 
   // Latest captured_at per category — entry list may be updated over
   // time and we always want the freshest roster.
