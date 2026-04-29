@@ -190,7 +190,12 @@ export async function runFipEventPageEnricher(
               extracted_at: new Date().toISOString(),
               last_validated_at: new Date().toISOString(),
               is_active: true,
-              extraction_method: 'fip_event_page_enricher',
+              // 'page_regex' is the closest match in the existing
+              // CHECK constraint on extraction_method
+              // ('search', 'iframe', 'page_regex', 'manual'). The
+              // matchscorer code IS extracted by regex from the
+              // event-page HTML so the bucket fits semantically.
+              extraction_method: 'page_regex',
             },
             { onConflict: 'tournament_id', ignoreDuplicates: false },
           );

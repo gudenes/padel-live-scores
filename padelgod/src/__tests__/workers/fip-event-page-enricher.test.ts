@@ -344,7 +344,11 @@ describe('runFipEventPageEnricher — end to end', () => {
     expect(cached.tournament_id).toBe('sg-id');
     expect(cached.widget_id).toBe('FIP-2026-B0118');
     expect(cached.is_active).toBe(true);
-    expect(cached.extraction_method).toBe('fip_event_page_enricher');
+    // The CHECK constraint on widget_id_cache.extraction_method
+    // limits values to ('search', 'iframe', 'page_regex', 'manual').
+    // 'page_regex' is the right bucket — the code IS regex-extracted
+    // from the FIP event page HTML.
+    expect(cached.extraction_method).toBe('page_regex');
   });
 
   it('does NOT call widget_id_cache when the page has no matchscorer code', async () => {
