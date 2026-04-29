@@ -7,6 +7,7 @@ import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
+import GlobalHeader from '@/components/nav/GlobalHeader'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -328,36 +329,16 @@ export default function V3RankingPage() {
   return (
     <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
 
-      {/* ── Sticky header ─────────────────────────────────── */}
+      {/* ── Global header (logo + search + share + profile) ── */}
+      <GlobalHeader />
+
+      {/* ── Page-title row — just the page name + the in-page
+            player-search trigger. No back-arrow, since rankings is a
+            top-level tab now. */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 16px',
-        borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
-        position: 'sticky', top: 0, zIndex: 20,
-        background: '#0A0A0A',
-        height: 62,
+        padding: '14px 16px 8px',
       }}>
-        <button
-          onClick={() => {
-            // Go back to the previous page if there is one in history,
-            // otherwise fall back to the home page (e.g. deep-link opens).
-            if (typeof window !== 'undefined' && window.history.length > 1) {
-              router.back()
-            } else {
-              router.push('/home')
-            }
-          }}
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#E2E8F0', padding: 4, display: 'flex', alignItems: 'center',
-          }}
-          aria-label="Back"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5" /><polyline points="12 19 5 12 12 5" />
-          </svg>
-        </button>
-
         <h1 style={{ fontSize: 17, fontWeight: 800, color: '#E2E8F0', margin: 0, letterSpacing: '-0.01em' }}>
           {t('rankings')}
         </h1>

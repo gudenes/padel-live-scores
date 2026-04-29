@@ -3,7 +3,9 @@
     "home": "Inicio",
     "matches": "Partidos",
     "following": "Siguiendo",
-    "feed": "Noticias"
+    "feed": "Noticias",
+    "tournaments": "Eventos",
+    "ranking": "Ranking"
   },
   "matches": {
     "live": "En directo",

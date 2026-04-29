@@ -123,7 +123,21 @@ function CollapsibleSeasonV3({ year, tournaments }: { year: number; tournaments:
 
 // ── Tournaments View ──────────────────────────────────────────
 
-export default function TournamentsView({ onBack }: { onBack: () => void }) {
+interface TournamentsViewProps {
+  /** Called when the user taps the back-arrow in the internal header.
+   *  Ignored when `showInternalHeader` is false (no back-arrow rendered). */
+  onBack: () => void
+  /** When false, omit the internal back-arrow + "EVENTS" sub-header.
+   *  Use this when the page wraps TournamentsView with the GlobalHeader
+   *  to avoid stacking two headers. Defaults to true to preserve the
+   *  legacy `/home?view=tournaments` callsite behaviour. */
+  showInternalHeader?: boolean
+}
+
+export default function TournamentsView({
+  onBack,
+  showInternalHeader = true,
+}: TournamentsViewProps) {
   const format = useFormatter()
   const tHome = useTranslations('home')
   const [tab, setTab] = useState<TournamentTab>('premier')
@@ -420,28 +434,33 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
 
   return (
     <div>
-      {/* Back header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 12,
-        padding: '16px', position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}>
-        <button onClick={() => { onBack(); window.scrollTo(0, 0) }} style={{
-          background: 'none', border: 'none', cursor: 'pointer', padding: 4,
-          display: 'flex', alignItems: 'center',
+      {/* Back header — only when not wrapped by GlobalHeader. */}
+      {showInternalHeader && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '16px', position: 'sticky', top: 0, zIndex: 100,
+          background: 'rgba(10,10,10,0.95)', backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          Events
-        </span>
-      </div>
+          <button onClick={() => { onBack(); window.scrollTo(0, 0) }} style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+            display: 'flex', alignItems: 'center',
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Events
+          </span>
+        </div>
+      )}
 
-      {/* Tab switcher — left-aligned */}
-      <div style={{ display: 'flex', gap: 8, padding: '0 16px 10px' }}>
+      {/* Tab switcher — left-aligned. Top padding gives the row room to
+          breathe under the GlobalHeader; the legacy back-arrow header
+          (when showInternalHeader=true) supplies its own bottom padding,
+          so no double-spacing in that mode. */}
+      <div style={{ display: 'flex', gap: 8, padding: showInternalHeader ? '0 16px 10px' : '14px 16px 10px' }}>
         {(['premier', 'fip'] as TournamentTab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: tab === t ? GREEN : 'rgba(255,255,255,0.06)',
