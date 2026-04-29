@@ -14,6 +14,7 @@
 // need a separate query path. Punted to a follow-up if there's demand.
 
 import { useState, useEffect, useMemo } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { GREEN, ORANGE, LIVE_RED, BG_CARD, MUTED, BORDER, CHUNKY } from './shared'
 
 // ── Magnifier — same SVG used by the home header's global search box.
@@ -33,56 +34,52 @@ function MagnifierIcon({ size = 12, color = MUTED }: { size?: number; color?: st
 
 // ── Regional country groupings ─────────────────────────────────────
 //
-// Bucketing is opinionated — Turkey lives with Europa (UEFA convention),
-// Israel with Medio Oriente (geographic), México with Latinoamérica
-// (cultural). Anything not in the maps below falls into "Otros".
+// Bucketing is opinionated — Turkey lives with Europe (UEFA convention),
+// Israel with Middle East (geographic), Mexico with Latin America
+// (cultural). Anything not in the maps below falls into "Other".
+//
+// Region labels are translation keys under home.filterSheet.region.*
+// rendered at use site. Country names are resolved per-locale via
+// `Intl.DisplayNames` so we don't ship a 5-locale lookup table.
 
-const REGIONS: Array<{ key: string; label: string; codes: string[] }> = [
+const REGIONS: Array<{ key: string; labelKey: string; codes: string[] }> = [
   {
     key: 'europa',
-    label: 'Europa',
+    labelKey: 'europe',
     codes: ['ES', 'IT', 'PT', 'FR', 'GB', 'DE', 'NL', 'SE', 'FI', 'BE', 'DK', 'CY', 'HR', 'AT', 'CH', 'TR', 'PL', 'CZ', 'RO', 'GR', 'NO', 'IE', 'EE', 'LV', 'LT', 'HU', 'BG', 'SI', 'SK', 'RS', 'AD', 'LU'],
   },
   {
     key: 'latam',
-    label: 'Latinoamérica',
+    labelKey: 'latam',
     codes: ['AR', 'MX', 'CL', 'BR', 'EC', 'BO', 'PY', 'UY', 'CO', 'PE', 'PA', 'DO', 'VE'],
   },
   {
     key: 'middle_east',
-    label: 'Medio Oriente',
+    labelKey: 'middleEast',
     codes: ['AE', 'QA', 'SA', 'KW', 'IL'],
   },
   {
     key: 'asia_oceania',
-    label: 'Asia / Oceanía',
+    labelKey: 'asiaOceania',
     codes: ['SG', 'HK', 'CN', 'IN', 'PH', 'MY', 'JP', 'AU', 'TH', 'ID', 'KZ', 'NZ', 'KR'],
   },
   {
     key: 'africa',
-    label: 'África',
+    labelKey: 'africa',
     codes: ['EG', 'ZA', 'MA', 'TN', 'KE', 'CI', 'NG'],
   },
 ]
 
-// Country code → display name (ES). Spread thinly — only the codes we
-// expect to see. Missing codes render with the raw code (still readable).
-const COUNTRY_NAMES_ES: Record<string, string> = {
-  ES: 'España', IT: 'Italia', PT: 'Portugal', FR: 'Francia', GB: 'Reino Unido',
-  DE: 'Alemania', NL: 'Países Bajos', SE: 'Suecia', FI: 'Finlandia', BE: 'Bélgica',
-  DK: 'Dinamarca', CY: 'Chipre', HR: 'Croacia', AT: 'Austria', CH: 'Suiza',
-  TR: 'Turquía', PL: 'Polonia', CZ: 'Chequia', RO: 'Rumanía', GR: 'Grecia',
-  AR: 'Argentina', MX: 'México', CL: 'Chile', BR: 'Brasil', EC: 'Ecuador',
-  BO: 'Bolivia', PY: 'Paraguay', UY: 'Uruguay', CO: 'Colombia', PE: 'Perú',
-  AE: 'Emiratos Árabes', QA: 'Qatar', SA: 'Arabia Saudí', KW: 'Kuwait', IL: 'Israel',
-  SG: 'Singapur', HK: 'Hong Kong', CN: 'China', IN: 'India', PH: 'Filipinas',
-  MY: 'Malasia', JP: 'Japón', AU: 'Australia', TH: 'Tailandia', ID: 'Indonesia',
-  KZ: 'Kazajistán', EG: 'Egipto', ZA: 'Sudáfrica', MA: 'Marruecos', TN: 'Túnez',
-  KE: 'Kenia', CI: 'Costa de Marfil', NG: 'Nigeria',
-}
-
-function countryDisplayName(code: string): string {
-  return COUNTRY_NAMES_ES[code] ?? code
+/** Localised country name via the platform's CLDR data. Falls back
+ *  to the raw alpha-2 code when the locale doesn't have a name (rare
+ *  for major countries, common for very small ones). */
+function getCountryDisplayName(code: string, locale: string): string {
+  try {
+    const dn = new Intl.DisplayNames(locale, { type: 'region' })
+    return dn.of(code) ?? code
+  } catch {
+    return code
+  }
 }
 
 // Flag emoji from ISO alpha-2 — same trick used elsewhere in the app.
@@ -163,6 +160,11 @@ export default function TournamentsFilterSheet({
   open, onClose, availableCountries, availableYears, current, pendingCount,
   onPendingChange, onApply, onClear,
 }: SheetProps) {
+  const t = useTranslations('home.filterSheet')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
+  const countryDisplayName = (code: string) => getCountryDisplayName(code, locale)
+
   // Local "pending" mirror so the user can fiddle without committing.
   // Re-syncs from `current` whenever the sheet opens.
   const [pending, setPending] = useState<TournamentFilters>(current)
@@ -243,7 +245,7 @@ export default function TournamentsFilterSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Filtros de torneos"
+        aria-label={t('title')}
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
           maxWidth: 500, margin: '0 auto',
@@ -275,12 +277,12 @@ export default function TournamentsFilterSheet({
           borderBottom: `1px solid ${BORDER}`, flexShrink: 0,
         }}>
           <h2 style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.015em', margin: 0, color: '#fff' }}>
-            Filtros
+            {t('title')}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={tCommon('close')}
             style={{
               width: 28, height: 28, background: BG_CARD,
               border: `1px solid ${BORDER}`, borderRadius: '50%',
@@ -297,8 +299,8 @@ export default function TournamentsFilterSheet({
         {/* Body — scrollable */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 14px' }}>
 
-          {/* ── TEMPORADA (year) ─────────────────────────────── */}
-          <Section title="Temporada">
+          {/* ── SEASON (year) ─────────────────────────────── */}
+          <Section title={t('season')}>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {availableYears.map(y => {
                 const selected = pending.year === y
@@ -327,7 +329,7 @@ export default function TournamentsFilterSheet({
                         opacity: selected ? 0.7 : 0.6,
                         fontWeight: 700,
                       }}>
-                        actual
+                        {t('currentBadge')}
                       </span>
                     )}
                   </button>
@@ -336,11 +338,11 @@ export default function TournamentsFilterSheet({
             </div>
           </Section>
 
-          {/* ── BUSCAR EVENTO (name type-ahead) ───────────────
+          {/* ── SEARCH EVENT (name type-ahead) ────────────────
               Free-text substring match on tournament.name. Live —
               the parent's pendingCount updates on every keystroke
               and the Apply button reflects the narrower count. */}
-          <Section title="Buscar evento">
+          <Section title={t('searchEvent')}>
             <div style={{ position: 'relative' }}>
               <span style={{
                 position: 'absolute', left: 12, top: '50%',
@@ -350,7 +352,7 @@ export default function TournamentsFilterSheet({
               </span>
               <input
                 type="text"
-                placeholder="ej. Brussels, Madrid, FIP Silver…"
+                placeholder={t('searchEventPlaceholder')}
                 value={pending.eventName}
                 onChange={(e) => setPending(prev => ({ ...prev, eventName: e.target.value }))}
                 style={{
@@ -365,15 +367,15 @@ export default function TournamentsFilterSheet({
             </div>
           </Section>
 
-          {/* ── PAÍS ────────────────────────────────────────── */}
-          <Section title="País">
+          {/* ── COUNTRY ────────────────────────────────────── */}
+          <Section title={t('country')}>
             <div style={{ position: 'relative', marginBottom: 12 }}>
               <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex' }}>
                 <MagnifierIcon size={13} color={GREEN} />
               </span>
               <input
                 type="text"
-                placeholder="Buscar país…"
+                placeholder={t('searchCountry')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
@@ -389,14 +391,15 @@ export default function TournamentsFilterSheet({
 
             {regionCountries.size === 0 && (
               <div style={{ padding: '8px 0', fontSize: 12, color: MUTED }}>
-                No hay países en este filtro.
+                {t('noCountriesInFilter')}
               </div>
             )}
 
-            {[...REGIONS, { key: 'otros', label: 'Otros', codes: [] }].map(({ key, label }) => {
+            {[...REGIONS, { key: 'otros', labelKey: 'other', codes: [] }].map(({ key, labelKey }) => {
               const codes = regionCountries.get(key)
               if (!codes || codes.length === 0) return null
               const visible = codes.filter(matchesSearch)
+              const label = t(`region.${labelKey}` as 'region.europe' | 'region.latam' | 'region.middleEast' | 'region.asiaOceania' | 'region.africa' | 'region.other')
               const expanded = expandedRegions.has(key) || !!search.trim()
               return (
                 <div key={key} style={{ marginBottom: 10 }}>
@@ -418,7 +421,7 @@ export default function TournamentsFilterSheet({
                       fontFamily: 'var(--font-mono, "SF Mono", monospace)',
                       fontSize: 10, color: MUTED, letterSpacing: '0.04em',
                     }}>
-                      {codes.length} {codes.length === 1 ? 'país' : 'países'}
+                      {t('countriesCount', { count: codes.length })}
                     </span>
                   </button>
                   {expanded && (
@@ -452,7 +455,7 @@ export default function TournamentsFilterSheet({
                       })}
                       {visible.length === 0 && (
                         <div style={{ fontSize: 11, color: MUTED, padding: '4px 0' }}>
-                          Ningún país coincide con la búsqueda.
+                          {t('noCountryMatchSearch')}
                         </div>
                       )}
                     </div>
@@ -462,14 +465,14 @@ export default function TournamentsFilterSheet({
             })}
           </Section>
 
-          {/* ── CUÁNDO ──────────────────────────────────────── */}
-          <Section title="Cuándo">
+          {/* ── WHEN ────────────────────────────────────────── */}
+          <Section title={t('when')}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {([
-                { v: 'all', label: 'Todas las fechas' },
-                { v: 'this_month', label: 'Este mes' },
-                { v: 'next_30', label: 'Próximos 30 días' },
-                { v: 'next_90', label: 'Próximos 90 días' },
+                { v: 'all', label: t('whenAll') },
+                { v: 'this_month', label: t('whenThisMonth') },
+                { v: 'next_30', label: t('whenNext30') },
+                { v: 'next_90', label: t('whenNext90') },
               ] as const).map(opt => {
                 const selected = pending.when === opt.v
                 return (
@@ -508,23 +511,23 @@ export default function TournamentsFilterSheet({
             </div>
           </Section>
 
-          {/* ── ESTADO ──────────────────────────────────────── */}
-          <Section title="Estado">
+          {/* ── STATUS ──────────────────────────────────────── */}
+          <Section title={t('status')}>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <EstadoPill
-                label="En vivo"
+                label={t('statusLive')}
                 color={LIVE_RED}
                 selected={pending.estado.live}
                 onClick={() => toggleEstado('live')}
               />
               <EstadoPill
-                label="Próximas"
+                label={t('statusUpcoming')}
                 color={ORANGE}
                 selected={pending.estado.upcoming}
                 onClick={() => toggleEstado('upcoming')}
               />
               <EstadoPill
-                label="Completadas"
+                label={t('statusCompleted')}
                 color={MUTED}
                 selected={pending.estado.completed}
                 onClick={() => toggleEstado('completed')}
@@ -566,7 +569,7 @@ export default function TournamentsFilterSheet({
               fontFamily: 'inherit',
             }}
           >
-            Limpiar
+            {tCommon('clear')}
           </button>
           <button
             type="button"
@@ -584,7 +587,7 @@ export default function TournamentsFilterSheet({
               fontFamily: 'inherit',
             }}
           >
-            Aplicar ({pendingCount} {pendingCount === 1 ? 'evento' : 'eventos'})
+            {t('applyWithCount', { count: pendingCount })}
           </button>
         </div>
       </div>

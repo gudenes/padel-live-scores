@@ -5,6 +5,7 @@
 // Mobile-first: horizontal scroll, compact team cards, connecting lines.
 
 import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { Match, countryFlag, toShortName } from '@/types/match'
 
@@ -72,6 +73,8 @@ interface Props {
 }
 
 export default function BracketView({ drawEntries, matches, genderFilter }: Props) {
+  const tBracket = useTranslations('tournament.bracket')
+  const tCommon = useTranslations('common')
   const bracket = useMemo(() => {
     const entries = drawEntries.filter(d => d.category === genderFilter)
     if (entries.length === 0) return null
@@ -193,7 +196,7 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
   if (!bracket) {
     return (
       <div style={{ padding: 20, textAlign: 'center', color: MUTED, fontSize: 13 }}>
-        No draw data available for this category.
+        {tBracket('noDrawForCategory')}
       </div>
     )
   }
@@ -323,6 +326,7 @@ export default function BracketView({ drawEntries, matches, genderFilter }: Prop
 
 // ── Match Card (both teams in one container) ────────────────────
 function MatchCard({ match }: { match: MatchNode }) {
+  const tCommon = useTranslations('common')
   const { team1, team2, score, winnerTeam, isLive } = match
   const bothEmpty = (team1.isEmpty || !team1.player1Name) && (team2.isEmpty || !team2.player1Name)
 
@@ -334,7 +338,7 @@ function MatchCard({ match }: { match: MatchNode }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         opacity: 0.3,
       }}>
-        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>TBD</span>
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 600 }}>{tCommon('tbd')}</span>
       </div>
     )
   }
@@ -389,6 +393,7 @@ function MatchCard({ match }: { match: MatchNode }) {
 
 // ── Team Row (single team within a match card) ──────────────────
 function TeamRow({ team, isWinner, isLoser }: { team: TeamSlot; isWinner: boolean; isLoser: boolean }) {
+  const tCommon = useTranslations('common')
   const isEmpty = team.isEmpty || !team.player1Name
   const rowH = (MATCH_CARD_H - 1) / 2 // subtract 1px for divider
 
@@ -396,7 +401,10 @@ function TeamRow({ team, isWinner, isLoser }: { team: TeamSlot; isWinner: boolea
     return (
       <div style={{ height: rowH, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
         <span style={{ fontSize: 8, color: MUTED }}>
-          {team.player1Name === 'TBD' ? 'TBD' : team.marker === 'Q' ? 'Qualifier' : 'TBD'}
+          {/* "Qualifier" stays English — proper noun for a draw slot
+              awarded to a Q-round winner. The TBD label routes through
+              the common namespace. */}
+          {team.marker === 'Q' && team.player1Name !== 'TBD' ? 'Qualifier' : tCommon('tbd')}
         </span>
       </div>
     )

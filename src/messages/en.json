@@ -5,7 +5,16 @@
     "following": "Following",
     "feed": "Feed",
     "tournaments": "Events",
-    "ranking": "Ranking"
+    "ranking": "Ranking",
+    "search": {
+      "placeholder": "Search players, tournaments, matches...",
+      "closeAria": "Close search",
+      "typePlayers": "Players",
+      "typeTournaments": "Tournaments",
+      "typeMatches": "Matches",
+      "categoryMen": "Men",
+      "categoryWomen": "Women"
+    }
   },
   "matches": {
     "live": "Live",
@@ -113,7 +122,33 @@
     "showLess": "Show less",
     "recentForm": "Recent Form",
     "last5Matches": "Last 5 Matches",
-    "noRecentData": "No recent data"
+    "noRecentData": "No recent data",
+    "stats": {
+      "title": "Stats",
+      "_title_context": "Tab/section title — short for \"Statistics\".",
+      "noData": "No data",
+      "matchNotStarted": "Match hasn't started yet",
+      "notAvailable": "Stats not available for this match",
+      "comingSoon": "Stats coming soon — sync runs hourly",
+      "empty": "No stats data",
+      "service": "Service",
+      "_service_context": "Padel/tennis section header — the act of serving the ball, not \"customer service\". ES: \"Saque\". IT: \"Servizio\". PT: \"Serviço\". FR: \"Service\".",
+      "return": "Return",
+      "_return_context": "Padel/tennis section header — returning a serve, not \"go back\". ES: \"Resto\". IT: \"Risposta\". PT: \"Devolução\". FR: \"Retour\".",
+      "points": "Points",
+      "matchTab": "Match",
+      "_matchTab_context": "Tab label inside the Stats view that shows aggregate match stats (vs per-set). Noun, not verb.",
+      "setN": "Set {n}",
+      "firstServeWon": "First serve points won",
+      "secondServeWon": "Second serve points won",
+      "serviceGamesPlayed": "Service games played",
+      "totalServeWon": "Total serve points won",
+      "firstReturnWon": "First return points won",
+      "secondReturnWon": "Second return points won",
+      "returnGamesPlayed": "Return games played",
+      "totalReturnWon": "Total return points won",
+      "longestStreak": "Longest points won streak"
+    }
   },
   "rating": {
     "rateThisMatch": "Rate this match",
@@ -209,7 +244,81 @@
     "hoursAgo": "{count}h ago",
     "daysAgo": "{count}d ago",
     "fullRankings": "Full Rankings",
-    "rankings": "Rankings"
+    "rankings": "Rankings",
+    "filtersButton": "Filters",
+    "eventsCount": "{count, plural, one {# event} other {# events}}",
+    "_eventsCount_context": "Pluralised event counter shown next to the Filters button. Romance languages: feminine plural agreement.",
+    "tournamentTabs": {
+      "premier": "Premier Padel",
+      "fip": "FIP Tour",
+      "_context": "Premier Padel and FIP are organisations — proper nouns. Do NOT translate."
+    },
+    "fipTier": {
+      "all": "All",
+      "_all_context": "Filter chip meaning \"all FIP tiers\". Feminine plural in Spanish (Todas) because it agrees with implied \"tournaments\".",
+      "platinum": "Platinum",
+      "gold": "Gold",
+      "silver": "Silver",
+      "bronze": "Bronze",
+      "beyond": "Beyond",
+      "promises": "Promises",
+      "_tier_context": "Platinum/Gold/Silver/Bronze/Beyond/Promises are FIP tournament tier proper nouns. Do NOT translate."
+    },
+    "tournamentList": {
+      "completedYear": "Completed — {year}",
+      "_completedYear_context": "Section header for past tournaments grouped by calendar year. \"Completed\" is an adjective agreeing with \"tournaments\" — feminine plural in Romance languages.",
+      "viewMatches": "View Matches",
+      "viewEvent": "View",
+      "_viewEvent_context": "Short CTA on a tournament card. Verb meaning \"look at\" / \"see\". ES: \"Ver\".",
+      "daysLabel": "DAYS",
+      "_daysLabel_context": "Standalone uppercase label below a numeric countdown (e.g. \"14 / DAYS\"). Translation may keep all-caps if natural; otherwise short word.",
+      "daysCount": "{count, plural, one {# day} other {# days}}",
+      "removeFilter": "Remove {label}",
+      "_removeFilter_context": "aria-label on the X button of an active-filter chip. {label} is the filter name (e.g. \"2025\", country code)."
+    },
+    "filterSheet": {
+      "title": "Filters",
+      "season": "Season",
+      "currentBadge": "current",
+      "_currentBadge_context": "Tiny inline badge appended to the current-year button — short \"now\"/\"this one\" indicator.",
+      "searchEvent": "Search event",
+      "searchEventPlaceholder": "e.g. Brussels, Madrid, FIP Silver…",
+      "country": "Country",
+      "searchCountry": "Search country…",
+      "noCountriesInFilter": "No countries match this filter.",
+      "noCountryMatchSearch": "No country matches your search.",
+      "countriesCount": "{count, plural, one {# country} other {# countries}}",
+      "region": {
+        "europe": "Europe",
+        "latam": "Latin America",
+        "middleEast": "Middle East",
+        "asiaOceania": "Asia / Oceania",
+        "africa": "Africa",
+        "other": "Other"
+      },
+      "when": "When",
+      "whenAll": "All dates",
+      "whenThisMonth": "This month",
+      "whenNext30": "Next 30 days",
+      "whenNext90": "Next 90 days",
+      "whenChip": {
+        "thisMonth": "This month",
+        "next30": "30 days",
+        "next90": "90 days",
+        "_context": "Compact labels used inside an active-filter chip (the chip is small, so the words drop \"Next\")."
+      },
+      "status": "Status",
+      "_status_context": "Adjectives describing tournament state. Feminine plural in Romance languages because they agree with \"tournaments\".",
+      "statusLive": "Live",
+      "statusUpcoming": "Upcoming",
+      "statusCompleted": "Completed",
+      "statusFilterLabel": "Status",
+      "applyWithCount": "Apply ({count, plural, one {# event} other {# events}})"
+    },
+    "spotlight": {
+      "dayOf": "Day {elapsed} of {total}",
+      "matchesCount": "{count, plural, one {# match} other {# matches}}"
+    }
   },
   "tournament": {
     "overview": "Overview",
@@ -257,7 +366,20 @@
     "signupFee": "Sign-up fee",
     "perPlayer": "per player",
     "prizeBreakdown": "Prize breakdown",
-    "inferredPrizeNote": "Estimated from total prize pool"
+    "inferredPrizeNote": "Estimated from total prize pool",
+    "events": "Events",
+    "_events_context": "Header on the tournaments listing page. Plural noun \"tournaments\". ES: \"Eventos\".",
+    "bracket": {
+      "noDrawForCategory": "No draw data available for this category."
+    },
+    "noPbpCoverage": "Live point-by-point scoring is not available for this event.",
+    "_noPbpCoverage_context": "Disclaimer shown on the tournament detail page when the event level does not include per-point data from padelapi.org (lower-tier events). Sentence case, ends with period. \"Point-by-point\" = the granular per-shot scoring data; not \"match-by-match\".",
+    "predicted": "PREDICTED",
+    "_predicted_context": "Tiny badge indicating that a result was inferred (not from a live feed). Short uppercase word fits the badge.",
+    "finalNotPlayed": "Final not played yet",
+    "checkBackAfterTournament": "Check back after the tournament ends",
+    "liveCountChip": "{count} LIVE",
+    "_liveCountChip_context": "Small live-match counter chip on the tournament header (e.g. \"3 LIVE\"). Pluralisation is implicit; if a target locale needs different plural forms, use ICU here."
   },
   "following": {
     "followPlayersAndTournaments": "Follow players and tournaments",
@@ -486,7 +608,15 @@
     "sec": "SEC",
     "live": "LIVE",
     "onCourt": "ON COURT",
-    "goBack": "Go back"
+    "goBack": "Go back",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "clear": "Clear",
+    "apply": "Apply",
+    "shareApp": "Share PadelNachos",
+    "changeLanguage": "Change language",
+    "tbd": "TBD",
+    "_tbd_context": "Abbreviation for \"To Be Determined\" — used when a player slot in a draw isn't known yet. Keep abbreviation if natural; otherwise translate to a short phrase."
   },
   "about": {
     "title": "About Padel Nachos",
@@ -675,5 +805,12 @@
     "title": "Match Journey",
     "broke": "BROKE",
     "break": "BREAK"
+  },
+  "country": {
+    "useMyLocation": "Use my location (auto)",
+    "searchPlaceholder": "Search country…",
+    "searchAria": "Search country",
+    "clearAria": "Clear search",
+    "noMatch": "No country matches \"{query}\""
   }
 }

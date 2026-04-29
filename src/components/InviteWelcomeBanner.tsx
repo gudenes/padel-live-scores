@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { resolveInviterByCode } from '@/lib/referral'
 import { useAuth } from '@/components/AuthProvider'
 
@@ -23,6 +24,7 @@ const CHUNKY_BUTTON = 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)'
 export function InviteWelcomeBanner() {
   const searchParams = useSearchParams()
   const { user } = useAuth()
+  const tCommon = useTranslations('common')
   const refCode = searchParams.get('ref')
 
   const [inviter, setInviter] = useState<{ id: string; display_name: string | null; avatar_url: string | null } | null>(null)
@@ -131,7 +133,7 @@ export function InviteWelcomeBanner() {
           />
           <button
             onClick={handleDismiss}
-            aria-label="Dismiss"
+            aria-label={tCommon('dismiss')}
             style={{
               position: 'absolute', top: 14, right: 16,
               background: 'none', border: 'none', cursor: 'pointer',

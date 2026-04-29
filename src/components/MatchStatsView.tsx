@@ -14,6 +14,7 @@
 //    always returns 0 for these counts (not tracked by their system)
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { MatchStatsBar } from './MatchStatsBar'
 import { MatchStatsSetTabs, type SetTabItem } from './MatchStatsSetTabs'
 import type { MatchStatsRow } from '@/lib/premier-stats-parser'
@@ -28,6 +29,7 @@ interface ApiResponse {
 }
 
 export function MatchStatsView({ matchId }: { matchId: string }) {
+  const t = useTranslations('matchDetail.stats')
   const [response, setResponse] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,16 +61,16 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
 
   if (loading) return <SkeletonBars />
   if (error) return <ErrorState message={error} />
-  if (!response) return <ErrorState message="No data" />
+  if (!response) return <ErrorState message={t('noData')} />
   if (response.status === 'upcoming')
-    return <EmptyState icon="⏰" text="Match hasn't started yet" />
+    return <EmptyState icon="⏰" text={t('matchNotStarted')} />
   if (response.status === 'no_mapping' || response.status === 'unavailable')
-    return <EmptyState icon="📊" text="Stats not available for this match" />
+    return <EmptyState icon="📊" text={t('notAvailable')} />
   if (response.status === 'pending_sync')
-    return <EmptyState icon="⏳" text="Stats coming soon — sync runs hourly" />
+    return <EmptyState icon="⏳" text={t('comingSoon')} />
 
   const stats = response.stats ?? []
-  if (stats.length === 0) return <EmptyState icon="📊" text="No stats data" />
+  if (stats.length === 0) return <EmptyState icon="📊" text={t('empty')} />
 
   const activeRow = stats.find(s => s.set_number === activeSet) ?? stats[0]
   const availableSetNumbers = new Set(stats.map(s => s.set_number))
@@ -76,10 +78,10 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
   // Build pill tabs: Match (set_number=0) + up to max set number found
   const maxSet = Math.max(...stats.map(s => s.set_number))
   const tabs: SetTabItem[] = [
-    { setNumber: 0, label: 'Match', disabled: false },
+    { setNumber: 0, label: t('matchTab'), disabled: false },
     ...Array.from({ length: Math.max(maxSet, 2) }, (_, i) => ({
       setNumber: i + 1,
-      label: `Set ${i + 1}`,
+      label: t('setN', { n: i + 1 }),
       disabled: !availableSetNumbers.has(i + 1),
     })),
   ]
@@ -91,9 +93,9 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
       <MatchStatsSetTabs tabs={tabs} active={activeSet} onChange={setActiveSet} />
 
       {/* SERVICE section */}
-      <Section title="Service" isFirst>
+      <Section title={t('service')} isFirst>
         <MatchStatsBar
-          label="First serve points won"
+          label={t('firstServeWon')}
           kind="percentage"
           t1Value={activeRow.team1_first_serve_won}
           t1Total={activeRow.team1_first_serve_played}
@@ -102,7 +104,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           rowIndex={0}
         />
         <MatchStatsBar
-          label="Second serve points won"
+          label={t('secondServeWon')}
           kind="percentage"
           t1Value={activeRow.team1_second_serve_won}
           t1Total={activeRow.team1_second_serve_played}
@@ -111,7 +113,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           rowIndex={1}
         />
         <MatchStatsBar
-          label="Service games played"
+          label={t('serviceGamesPlayed')}
           kind="count"
           t1Value={activeRow.team1_service_games}
           t1Total={null}
@@ -122,7 +124,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
         {/* Total serve points won — Match tab only */}
         {isMatchTab && (
           <MatchStatsBar
-            label="Total serve points won"
+            label={t('totalServeWon')}
             kind="percentage"
             t1Value={activeRow.team1_serve_points_won}
             t1Total={activeRow.team1_serve_points_played}
@@ -134,9 +136,9 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
       </Section>
 
       {/* RETURN section */}
-      <Section title="Return">
+      <Section title={t('return')}>
         <MatchStatsBar
-          label="First return points won"
+          label={t('firstReturnWon')}
           kind="percentage"
           t1Value={activeRow.team1_first_return_won}
           t1Total={activeRow.team1_first_return_played}
@@ -145,7 +147,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           rowIndex={4}
         />
         <MatchStatsBar
-          label="Second return points won"
+          label={t('secondReturnWon')}
           kind="percentage"
           t1Value={activeRow.team1_second_return_won}
           t1Total={activeRow.team1_second_return_played}
@@ -154,7 +156,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           rowIndex={5}
         />
         <MatchStatsBar
-          label="Return games played"
+          label={t('returnGamesPlayed')}
           kind="count"
           t1Value={activeRow.team1_return_games}
           t1Total={null}
@@ -165,7 +167,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
         {/* Total return points won — Match tab only */}
         {isMatchTab && (
           <MatchStatsBar
-            label="Total return points won"
+            label={t('totalReturnWon')}
             kind="percentage"
             t1Value={activeRow.team1_return_points_won}
             t1Total={activeRow.team1_return_points_played}
@@ -178,9 +180,9 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
 
       {/* POINTS section — Match tab only */}
       {isMatchTab && (
-        <Section title="Points">
+        <Section title={t('points')}>
           <MatchStatsBar
-            label="Longest points won streak"
+            label={t('longestStreak')}
             kind="count"
             t1Value={activeRow.team1_longest_streak}
             t1Total={null}

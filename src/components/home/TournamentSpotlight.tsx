@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Link } from '@/i18n/navigation'
-import { useFormatter } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import FollowButton from '@/components/FollowButton'
 import {
   GREEN, GREEN_DIM, ORANGE, BG_CARD, MUTED, BORDER, CHUNKY,
@@ -11,6 +11,9 @@ import {
 
 function TournamentSpotlightInner({ tournament, matchCount }: { tournament: Tournament; matchCount: number }) {
   const format = useFormatter()
+  const tList = useTranslations('home.tournamentList')
+  const tSpot = useTranslations('home.spotlight')
+  const tTournament = useTranslations('tournament')
   const isLive = daysUntil(tournament.starts_at) === 0
   const days = daysUntil(tournament.starts_at)
   const level = levelLabel(tournament.level)
@@ -68,7 +71,7 @@ function TournamentSpotlightInner({ tournament, matchCount }: { tournament: Tour
               {days}
             </div>
             <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: 0.5, marginTop: 3 }}>
-              {days === 1 ? 'DAY' : 'DAYS'}
+              {tList('daysLabel')}
             </div>
           </div>
         )}
@@ -79,10 +82,10 @@ function TournamentSpotlightInner({ tournament, matchCount }: { tournament: Tour
         <div style={{ marginTop: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: GREEN }}>
-              {matchCount} matches
+              {tSpot('matchesCount', { count: matchCount })}
             </span>
             <span style={{ fontSize: 10, fontWeight: 600, color: MUTED }}>
-              Day {elapsed} of {totalDays}
+              {tSpot('dayOf', { elapsed, total: totalDays })}
             </span>
           </div>
           <div style={{
@@ -117,7 +120,7 @@ function TournamentSpotlightInner({ tournament, matchCount }: { tournament: Tour
           transition: 'background 0.15s',
         }}
       >
-        View Event Details &rarr;
+        {tTournament('viewEventDetails')} &rarr;
       </Link>
     </div>
   )

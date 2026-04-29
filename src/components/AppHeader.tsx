@@ -17,6 +17,7 @@ const CHUNKY = {
 
 export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void }) {
   const tHome = useTranslations('home')
+  const tCommon = useTranslations('common')
   const { user } = useAuth()
   const { shareNow } = useInvite()
 
@@ -123,7 +124,7 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
       {mounted && (
         <button
           onClick={() => { void shareNow() }}
-          aria-label="Share PadelNachos"
+          aria-label={tCommon('shareApp')}
           style={{
             background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.10)',

@@ -140,6 +140,13 @@ export default function TournamentsView({
 }: TournamentsViewProps) {
   const format = useFormatter()
   const tHome = useTranslations('home')
+  const tTournament = useTranslations('tournament')
+  const tList = useTranslations('home.tournamentList')
+  const tTabs = useTranslations('home.tournamentTabs')
+  const tTier = useTranslations('home.fipTier')
+  const tWhenChip = useTranslations('home.filterSheet.whenChip')
+  const tFilterSheet = useTranslations('home.filterSheet')
+  const tCommon = useTranslations('common')
   const [tab, setTab] = useState<TournamentTab>('premier')
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set())
@@ -451,7 +458,7 @@ export default function TournamentsView({
             </svg>
           </button>
           <span style={{ fontSize: 15, fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Events
+            {tTournament('events')}
           </span>
         </div>
       )}
@@ -471,7 +478,7 @@ export default function TournamentsView({
             letterSpacing: 0.5,
             fontFamily: 'inherit',
           }}>
-            {t === 'premier' ? 'Premier Padel' : 'FIP Tour'}
+            {t === 'premier' ? tTabs('premier') : tTabs('fip')}
           </button>
         ))}
       </div>
@@ -488,13 +495,13 @@ export default function TournamentsView({
           }}
         >
           {([
-            { value: 'all', label: 'Todas' },
-            { value: 'fip_platinum', label: 'Platinum' },
-            { value: 'fip_gold', label: 'Gold' },
-            { value: 'fip_silver', label: 'Silver' },
-            { value: 'fip_bronze', label: 'Bronze' },
-            { value: 'fip_beyond', label: 'Beyond' },
-            { value: 'fip_promises', label: 'Promises' },
+            { value: 'all', label: tTier('all') },
+            { value: 'fip_platinum', label: tTier('platinum') },
+            { value: 'fip_gold', label: tTier('gold') },
+            { value: 'fip_silver', label: tTier('silver') },
+            { value: 'fip_bronze', label: tTier('bronze') },
+            { value: 'fip_beyond', label: tTier('beyond') },
+            { value: 'fip_promises', label: tTier('promises') },
           ] as Array<{ value: 'all' | string; label: string }>).map(({ value, label }) => {
             const active = fipSubTier === value
             return (
@@ -548,7 +555,7 @@ export default function TournamentsView({
             stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
           </svg>
-          Filtros
+          {tHome('filtersButton')}
           {filterCount > 0 && (
             <span style={{
               background: GREEN, color: '#0A0A0A',
@@ -569,7 +576,7 @@ export default function TournamentsView({
           {(() => {
             const prevTotal = Object.values(prevByYear).reduce((s, arr) => s + arr.length, 0)
             const total = live.length + ongoing.length + upcoming.length + currentSeasonCompleted.length + prevTotal
-            return `${total} ${total === 1 ? 'evento' : 'eventos'}`
+            return tHome('eventsCount', { count: total })
           })()}
         </span>
       </div>
@@ -605,16 +612,16 @@ export default function TournamentsView({
           {filters.when !== 'all' && (
             <ActiveFilterPill
               label={
-                filters.when === 'this_month' ? '🗓 Este mes'
-                  : filters.when === 'next_30' ? '🗓 30 días'
-                  : '🗓 90 días'
+                filters.when === 'this_month' ? `🗓 ${tWhenChip('thisMonth')}`
+                  : filters.when === 'next_30' ? `🗓 ${tWhenChip('next30')}`
+                  : `🗓 ${tWhenChip('next90')}`
               }
               onRemove={() => setFilters(prev => ({ ...prev, when: 'all' }))}
             />
           )}
           {(!filters.estado.live || !filters.estado.upcoming || !filters.estado.completed) && (
             <ActiveFilterPill
-              label="🏆 Estado"
+              label={`🏆 ${tFilterSheet('statusFilterLabel')}`}
               onRemove={() => setFilters(prev => ({
                 ...prev, estado: { live: true, upcoming: true, completed: true },
               }))}
@@ -634,7 +641,7 @@ export default function TournamentsView({
               marginLeft: 'auto',
             }}
           >
-            Limpiar
+            {tCommon('clear')}
           </button>
         </div>
       )}
@@ -710,7 +717,7 @@ export default function TournamentsView({
                           {daysUntil(hero.starts_at)}
                         </div>
                         <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.06em' }}>
-                          DAYS
+                          {tList('daysLabel')}
                         </div>
                       </div>
                     )}
@@ -729,7 +736,7 @@ export default function TournamentsView({
                       fontSize: 11, fontWeight: 700,
                       color: heroIsLive ? LIVE_RED : GREEN,
                     }}>
-                      {heroIsLive ? 'View Matches' : 'View'}
+                      {heroIsLive ? tList('viewMatches') : tList('viewEvent')}
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
                     </div>
                   </div>
@@ -762,7 +769,7 @@ export default function TournamentsView({
                             </span>
                           </div>
                           <div style={{ fontSize: 10, color: ORANGE, marginTop: 4, fontWeight: 700 }}>
-                            {d} days
+                            {tList('daysCount', { count: d })}
                           </div>
                         </div>
                       </Link>
@@ -781,7 +788,7 @@ export default function TournamentsView({
               users skim months without scrolling forever. */}
           {currentSeasonCompleted.length > 0 && (
             <>
-              <SectionTitle>Completed &mdash; {currentYear}</SectionTitle>
+              <SectionTitle>{tList('completedYear', { year: currentYear })}</SectionTitle>
               <CompletedMonthList tournaments={currentSeasonCompleted} format={format} />
             </>
           )}
@@ -830,6 +837,7 @@ function CompletedMonthList({
   tournaments: TournamentWithWinners[]
   format: ReturnType<typeof useFormatter>
 }) {
+  const tHome = useTranslations('home')
   // Group by ends_at month — a tournament running Mar 30 → Apr 5
   // belongs in April. Memo'd because tournaments + winners are stable
   // between filter changes; only the open-state needs to re-render.
@@ -915,7 +923,7 @@ function CompletedMonthList({
                   fontFamily: 'var(--font-mono, "SF Mono", monospace)',
                   fontSize: 10, color: MUTED, letterSpacing: '0.06em',
                 }}>
-                  {items.length} {items.length === 1 ? 'evento' : 'eventos'}
+                  {tHome('eventsCount', { count: items.length })}
                 </span>
               </span>
               <span style={{
@@ -1065,6 +1073,7 @@ function ChampionLine({
 
 // ── Active-filter pill (small removable chip above the list) ───
 function ActiveFilterPill({ label, onRemove }: { label: string; onRemove: () => void }) {
+  const tList = useTranslations('home.tournamentList')
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -1079,7 +1088,7 @@ function ActiveFilterPill({ label, onRemove }: { label: string; onRemove: () => 
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`Quitar ${label}`}
+        aria-label={tList('removeFilter', { label })}
         style={{
           background: 'none', border: 'none',
           color: GREEN, opacity: 0.7,
