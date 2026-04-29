@@ -132,6 +132,14 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
   const [ongoingIds, setOngoingIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
+  // ── FIP sub-tier (only meaningful when tab === 'fip')
+  // Lets the user narrow the FIP Tour to a single tier (Platinum / Gold
+  // / Silver / etc.) without leaving the main tab. Lives outside the
+  // Filtros sheet because it's an axis of the tab — picking a sub-tier
+  // changes WHICH levels we query, not what we filter the result set to.
+  // 'all' = every FIP level (legacy behaviour, default).
+  const [fipSubTier, setFipSubTier] = useState<'all' | string>('all')
+
   // ── Filter state ─────────────────────────────────────────────
   // Two layers:
   //   filters       — committed, drives the rendered sections.
@@ -145,7 +153,12 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     (async () => {
       setLoading(true)
-      const levels = tab === 'premier' ? PREMIER_LEVELS : FIP_LEVELS
+      // Narrow the level set when the user picks a FIP sub-tier. 'all'
+      // keeps the legacy "every FIP level" query.
+      const levels =
+        tab === 'premier'
+          ? PREMIER_LEVELS
+          : fipSubTier === 'all' ? FIP_LEVELS : [fipSubTier]
 
       // Fetch all tournaments for this circuit
       const { data: tournamentsData } = await supabase
@@ -253,7 +266,7 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
       setTournaments(tournamentsData.map(t => ({ ...t, winners: winnersMap[t.id] ?? [] })))
       setLoading(false)
     })()
-  }, [tab])
+  }, [tab, fipSubTier])
 
   // ── Available countries (drives the sheet's país picker — only
   //    shows countries with at least one tournament in the loaded set).
@@ -421,8 +434,8 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
         </span>
       </div>
 
-      {/* Tab switcher */}
-      <div style={{ display: 'flex', gap: 8, padding: '0 16px 12px', justifyContent: 'center' }}>
+      {/* Tab switcher — left-aligned */}
+      <div style={{ display: 'flex', gap: 8, padding: '0 16px 10px' }}>
         {(['premier', 'fip'] as TournamentTab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: tab === t ? GREEN : 'rgba(255,255,255,0.06)',
@@ -431,11 +444,59 @@ export default function TournamentsView({ onBack }: { onBack: () => void }) {
             padding: '8px 24px', fontWeight: 800, fontSize: 12,
             clipPath: CHUNKY.badge, textTransform: 'uppercase',
             letterSpacing: 0.5,
+            fontFamily: 'inherit',
           }}>
             {t === 'premier' ? 'Premier Padel' : 'FIP Tour'}
           </button>
         ))}
       </div>
+
+      {/* FIP sub-tier chips — only when FIP Tour is active.
+          Smaller than the main tabs; chunky for visual consistency.
+          Default chip "Todas" returns to the all-FIP-levels query. */}
+      {tab === 'fip' && (
+        <div
+          className="v3-scroll-hide"
+          style={{
+            display: 'flex', gap: 6, padding: '0 16px 10px',
+            overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {([
+            { value: 'all', label: 'Todas' },
+            { value: 'fip_platinum', label: 'Platinum' },
+            { value: 'fip_gold', label: 'Gold' },
+            { value: 'fip_silver', label: 'Silver' },
+            { value: 'fip_bronze', label: 'Bronze' },
+            { value: 'fip_beyond', label: 'Beyond' },
+            { value: 'fip_promises', label: 'Promises' },
+          ] as Array<{ value: 'all' | string; label: string }>).map(({ value, label }) => {
+            const active = fipSubTier === value
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFipSubTier(value)}
+                style={{
+                  flexShrink: 0,
+                  padding: '5px 12px',
+                  background: active ? GREEN : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${active ? GREEN : BORDER}`,
+                  color: active ? '#0A0A0A' : '#B5B5B5',
+                  fontSize: 10, fontWeight: active ? 800 : 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  clipPath: CHUNKY.badge,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Filtros button + active-filter strip ──────────────────── */}
       <div style={{
