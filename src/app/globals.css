@@ -162,33 +162,88 @@ button:focus { outline: none; }
 }
 
 /* ───────────────────────────────────────────────────────────────────
-   Day-pill pulse — `.day-pill-pulse`
+   Day-picker animation — Option α (ink-slide + spring)
 
-   Quick "click registered" cue on the day picker. When the user taps
-   a pill or swipes to a new day, the new active pill briefly grows
-   then settles back. Combined with the body's `.matches-day-fade`,
-   this gives both the picker and the content area a synchronized
-   "things are moving" feel — the user sees TWO points of motion
-   instead of just the body.
+   Same flavor as the bottom-nav (BottomNavV3) animation. The lime
+   chunky offset-shadow that sits behind the active pill is now a
+   single shared element that physically slides between active
+   positions: when the user taps a pill, the shadow slides FROM the
+   tap location TO the (always-centered) new active. Plus a spring
+   kick on the new pill and a letter cascade on its labels.
 
-   Triggered via React key remount on every selection change in
-   DailyDatePills (so the keyframe always replays from frame 0).
+   Position is driven from JS via three CSS vars set on the .day-picker
+   nav: --shadow-x, --shadow-x-from, --shadow-y. The .day-picker--sliding
+   class triggers the keyframe on tab change; the static rule keeps the
+   shadow at --shadow-x for resize / settle.
 */
 
-@keyframes day-pill-pulse {
-  0%   { transform: scale(1); }
-  35%  { transform: scale(1.08); }
-  100% { transform: scale(1); }
+.day-shadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 54px;
+  height: 44px;
+  background: #7ED321;
+  /* Matches CHUNKY_PILL in DailyDatePills.tsx */
+  clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+  /* The +5,+5 chunky offset is baked into --shadow-x/--shadow-y by
+     the JS layout effect. We avoid `calc(var(...) + 5px)` inside
+     `translate3d()` because some engines resolve the calc to its
+     fallback when nested in a transform function. */
+  transform: translate3d(var(--shadow-x, 0px), var(--shadow-y, 0px), 0) scaleX(1) scaleY(1);
+  transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+}
+.day-shadow.day-shadow--visible { opacity: 1; }
+.day-picker.day-picker--sliding .day-shadow {
+  animation: day-shadow-slide 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes day-shadow-slide {
+  0%   { transform: translate3d(var(--shadow-x-from), var(--shadow-y), 0) scaleX(1) scaleY(1); }
+  60%  { transform: translate3d(var(--shadow-x), var(--shadow-y), 0)      scaleX(1.25) scaleY(0.85); }
+  100% { transform: translate3d(var(--shadow-x), var(--shadow-y), 0)      scaleX(1) scaleY(1); }
 }
 
-.day-pill-pulse {
-  animation: day-pill-pulse 280ms cubic-bezier(0.22, 1.2, 0.36, 1) both;
+/* Spring kick on the newly-active pill. Re-fires every render that
+   produces a fresh .day-pill--active element (React keys the pill by
+   iso, so this remounts on every selection change). */
+.day-pill {
+  /* will-change keeps the kick smooth on lower-end devices. */
   will-change: transform;
+}
+.day-pill--active {
+  animation: day-pill-kick 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes day-pill-kick {
+  0%   { transform: translateY(3px)  rotate(0deg)   scale(0.94); }
+  35%  { transform: translateY(-5px) rotate(-3deg)  scale(1.10); }
+  65%  { transform: translateY(2px)  rotate(2deg)   scale(0.97); }
+  100% { transform: translateY(0)    rotate(0deg)   scale(1); }
+}
+
+/* Letter cascade on the active pill's weekday + day-number text.
+   Inline-block so per-character transforms work, and the animation
+   is gated to the .day-pill--active selector so inactive pills
+   render flat. */
+.day-pill-ch {
+  display: inline-block;
+}
+.day-pill--active .day-pill-ch {
+  animation: day-pill-letter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+@keyframes day-pill-letter {
+  0%   { transform: translateY(-6px); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .day-pill-pulse {
-    animation: none;
+  .day-shadow { transition: transform 0s; }
+  .day-picker.day-picker--sliding .day-shadow,
+  .day-pill--active,
+  .day-pill--active .day-pill-ch {
+    animation: none !important;
   }
 }
 
