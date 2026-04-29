@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AxiosInstance } from 'axios';
 import { createHash } from 'node:crypto';
 import { parseFipWpEvents } from '../parsers/fip-wp-events.js';
+import { parseFipWpCountries, type RawCountryTerm } from '../parsers/fip-wp-countries.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { FIP_WP_EVENTS_VERSION } from '../lib/parser-versions.js';
 import { resolveFipLevel, resolvePremierLevel } from '../lib/fip-categories.js';
@@ -17,6 +18,7 @@ export interface TournamentDiscoveryResult {
 }
 
 const WP_API_BASE = 'https://www.padelfip.com/wp-json/wp/v2/events';
+const WP_COUNTRY_BASE = 'https://www.padelfip.com/wp-json/wp/v2/country';
 
 export async function runTournamentDiscovery(
   deps: TournamentDiscoveryDeps
@@ -76,23 +78,57 @@ export async function runTournamentDiscovery(
   // keeps the row visible in the public app).
   const slugs = parsed.map((p) => p.slug).filter((s): s is string => !!s);
   const { data: existing } = slugs.length > 0
-    ? await deps.supabase.from('tournaments').select('slug, level').in('slug', slugs)
+    ? await deps.supabase.from('tournaments').select('slug, level, country').in('slug', slugs)
     : { data: [] };
-  const existingLevelBySlug = new Map<string, string | null>(
-    ((existing ?? []) as Array<{ slug: string; level: string | null }>).map(
-      (r) => [r.slug, r.level],
+  const existingBySlug = new Map<
+    string,
+    { level: string | null; country: string | null }
+  >(
+    ((existing ?? []) as Array<{ slug: string; level: string | null; country: string | null }>).map(
+      (r) => [r.slug, { level: r.level, country: r.country }],
     ),
   );
 
+  // Fetch the WP `country` taxonomy once per run so we can resolve the
+  // `country` term-id arrays on each event into ISO alpha-2 codes. Only
+  // worth doing if at least one parsed event carries a country term —
+  // saves a (cacheable) round-trip on empty/null deltas.
+  const needsCountryMap = parsed.some((p) => p.countryTermIds.length > 0);
+  const countryByTermId = needsCountryMap
+    ? await fetchFipCountryTaxonomy(deps.httpClient)
+    : new Map<number, string | null>();
+
   const rows = parsed.map((p) => {
     const level = resolveFipLevel(p.categoryTermIds, p.slug);
-    const existingLevel = existingLevelBySlug.get(p.slug);
+    const existingLevel = existingBySlug.get(p.slug)?.level;
+    const existingCountry = existingBySlug.get(p.slug)?.country;
     const row: Record<string, unknown> = {
       name: p.name,
       slug: p.slug,
       source: 'fip',
       last_updated_by: 'padelgod',
     };
+
+    // Country gap-fill. Source-priority for `tournament.country` is
+    // ['padelapi', 'fip'] — padelapi is primary, FIP is fallback. So
+    // we only write when the existing row has no country (which is
+    // the case for FIP-only tiers like fip_beyond / fip_promises /
+    // fip_championship that padelapi doesn't carry at all). For rows
+    // padelapi has already populated, we explicitly echo the existing
+    // country back into the payload to defeat Supabase's merge-
+    // duplicates "missing column → reset to default" behaviour
+    // (same gotcha that blanked `level` in the Asuncion P2 incident).
+    const firstCountryTerm = p.countryTermIds[0];
+    if (firstCountryTerm != null) {
+      const resolved = countryByTermId.get(firstCountryTerm) ?? null;
+      if (resolved && (existingCountry == null || existingCountry === '')) {
+        row.country = resolved;
+      } else if (existingCountry != null && existingCountry !== '') {
+        row.country = existingCountry;
+      }
+    } else if (existingCountry != null && existingCountry !== '') {
+      row.country = existingCountry;
+    }
     if (level) {
       // Authoritative tier (non-Premier) — always write.
       row.level = level;
@@ -137,4 +173,27 @@ export async function runTournamentDiscovery(
   }
 
   return { discovered: parsed.length, scrapeJobId: jobResult.scrapeJobId };
+}
+
+// Pulls the full `country` taxonomy from the FIP WP API (≈140 terms,
+// fits in 2 pages of 100). Failures degrade gracefully — discovery
+// still runs, country gap-fill is just a no-op for that pass.
+async function fetchFipCountryTaxonomy(
+  httpClient: AxiosInstance,
+): Promise<Map<number, string | null>> {
+  const all: RawCountryTerm[] = [];
+  try {
+    for (let page = 1; page <= 5; page++) {
+      const url = `${WP_COUNTRY_BASE}?per_page=100&page=${page}`;
+      const response = await httpClient.get(url);
+      const data = response.data;
+      if (!Array.isArray(data) || data.length === 0) break;
+      all.push(...(data as RawCountryTerm[]));
+      if (data.length < 100) break;
+    }
+  } catch {
+    // Best-effort. Returning whatever we have (possibly empty) is
+    // safer than failing discovery over a stale country map.
+  }
+  return parseFipWpCountries(all);
 }
