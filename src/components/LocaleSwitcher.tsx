@@ -5,7 +5,7 @@
 // showing all available languages. Tap a flag to switch.
 
 import { useState, useRef, useEffect } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter, usePathname } from '@/i18n/navigation'
 import { routing } from '@/i18n/routing'
 
@@ -34,6 +34,7 @@ interface LocaleSwitcherProps {
 
 export default function LocaleSwitcher({ size = 28, direction = 'up' }: LocaleSwitcherProps) {
   const locale = useLocale()
+  const tCommon = useTranslations('common')
   const router = useRouter()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -79,7 +80,7 @@ export default function LocaleSwitcher({ size = 28, direction = 'up' }: LocaleSw
       {/* Current flag button */}
       <button
         onClick={() => setOpen(prev => !prev)}
-        aria-label="Change language"
+        aria-label={tCommon('changeLanguage')}
         aria-expanded={open}
         style={{
           width: size,

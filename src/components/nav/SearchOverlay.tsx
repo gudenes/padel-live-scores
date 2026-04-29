@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Avatar from '@/components/Avatar'
-import { useFormatter } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { Link } from '@/i18n/navigation'
 import { DATE_SHORT } from '@/lib/format-patterns'
@@ -79,17 +79,29 @@ function clearRecents() {
 }
 
 // ── Type styling ──────────────────────────────────────────────
+//
+// Type-meta `label` strings are translated at the call site via
+// `tSearch('type<Players|Tournaments|Matches>')` rather than baked
+// into this map (the map can't `useTranslations`). The single-letter
+// glyphs and colours stay here.
 
-const TYPE_META: Record<string, { label: string; letter: string; bg: string; fg: string }> = {
-  player:     { label: 'Players',     letter: 'P', bg: 'rgba(126,211,33,0.12)', fg: GREEN },
-  tournament: { label: 'Tournaments', letter: 'T', bg: 'rgba(245,166,35,0.12)', fg: ORANGE },
-  match:      { label: 'Matches',     letter: 'M', bg: 'rgba(255,70,85,0.12)',  fg: LIVE_RED },
+const TYPE_META: Record<string, { letter: string; bg: string; fg: string }> = {
+  player:     { letter: 'P', bg: 'rgba(126,211,33,0.12)', fg: GREEN },
+  tournament: { letter: 'T', bg: 'rgba(245,166,35,0.12)', fg: ORANGE },
+  match:      { letter: 'M', bg: 'rgba(255,70,85,0.12)',  fg: LIVE_RED },
+}
+
+const TYPE_LABEL_KEYS: Record<string, 'typePlayers' | 'typeTournaments' | 'typeMatches'> = {
+  player: 'typePlayers',
+  tournament: 'typeTournaments',
+  match: 'typeMatches',
 }
 
 // ── Component ─────────────────────────────────────────────────
 
 export default function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const format = useFormatter()
+  const tSearch = useTranslations('nav.search')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [popular, setPopular] = useState<SearchResult[]>([])
@@ -140,7 +152,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         items.push({
           type: 'player', id: p.id,
           title: p.name,
-          subtitle: `#${p.ranking} ${p.category === 'men' ? 'Men' : 'Women'}`,
+          subtitle: `#${p.ranking} ${p.category === 'men' ? tSearch('categoryMen') : tSearch('categoryWomen')}`,
           country: p.country ?? null,
           imageUrl: p.avatar_url ?? null,
           href: `/player/${p.id}`,
@@ -163,7 +175,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         items.push({
           type: 'player', id: p.id,
           title: p.name,
-          subtitle: `#${p.ranking} ${p.category === 'men' ? 'Men' : 'Women'}`,
+          subtitle: `#${p.ranking} ${p.category === 'men' ? tSearch('categoryMen') : tSearch('categoryWomen')}`,
           country: p.country ?? null,
           imageUrl: p.avatar_url ?? null,
           href: `/player/${p.id}`,
@@ -222,7 +234,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         items.push({
           type: 'player', id: p.id,
           title: p.name,
-          subtitle: p.ranking ? `#${p.ranking} ${p.category === 'men' ? 'Men' : 'Women'}` : p.category === 'men' ? 'Men' : 'Women',
+          subtitle: p.ranking ? `#${p.ranking} ${p.category === 'men' ? tSearch('categoryMen') : tSearch('categoryWomen')}` : p.category === 'men' ? tSearch('categoryMen') : tSearch('categoryWomen'),
           country: p.country ?? null,
           imageUrl: p.avatar_url ?? null,
           href: `/player/${p.id}`,
@@ -343,7 +355,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search players, tournaments, matches..."
+            placeholder={tSearch('placeholder')}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
               color: '#fff', fontSize: 15, fontFamily: 'inherit', fontWeight: 500,
@@ -351,7 +363,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           />
           <button
             onClick={onClose}
-            aria-label="Close search"
+            aria-label={tSearch('closeAria')}
             style={{
               background: BG_CARD, border: `1px solid ${BORDER}`,
               clipPath: CLIP.button,
@@ -481,7 +493,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
                     padding: '10px 16px 4px', fontSize: 10, fontWeight: 700,
                     color: meta.fg, textTransform: 'uppercase', letterSpacing: '0.8px',
                   }}>
-                    {meta.label}
+                    {tSearch(TYPE_LABEL_KEYS[type])}
                   </div>
                 )}
                 {items.map(item => (

@@ -5,7 +5,16 @@
     "following": "Siguiendo",
     "feed": "Noticias",
     "tournaments": "Eventos",
-    "ranking": "Ranking"
+    "ranking": "Ranking",
+    "search": {
+      "placeholder": "Buscar jugadores, torneos, partidos...",
+      "closeAria": "Cerrar búsqueda",
+      "typePlayers": "Jugadores",
+      "typeTournaments": "Torneos",
+      "typeMatches": "Partidos",
+      "categoryMen": "Hombres",
+      "categoryWomen": "Mujeres"
+    }
   },
   "matches": {
     "live": "En directo",
@@ -113,7 +122,29 @@
     "showLess": "Ver menos",
     "recentForm": "Forma reciente",
     "last5Matches": "Últimos 5 partidos",
-    "noRecentData": "No hay datos recientes"
+    "noRecentData": "No hay datos recientes",
+    "stats": {
+      "title": "Estadísticas",
+      "noData": "Sin datos",
+      "matchNotStarted": "El partido aún no ha comenzado",
+      "notAvailable": "Estadísticas no disponibles para este partido",
+      "comingSoon": "Estadísticas próximamente — sincronización cada hora",
+      "empty": "Sin estadísticas",
+      "service": "Saque",
+      "return": "Resto",
+      "points": "Puntos",
+      "matchTab": "Partido",
+      "setN": "Set {n}",
+      "firstServeWon": "Puntos ganados con primer saque",
+      "secondServeWon": "Puntos ganados con segundo saque",
+      "serviceGamesPlayed": "Juegos al saque",
+      "totalServeWon": "Puntos ganados al saque",
+      "firstReturnWon": "Puntos ganados al primer resto",
+      "secondReturnWon": "Puntos ganados al segundo resto",
+      "returnGamesPlayed": "Juegos al resto",
+      "totalReturnWon": "Puntos ganados al resto",
+      "longestStreak": "Mayor racha de puntos ganados"
+    }
   },
   "rating": {
     "rateThisMatch": "Valora este partido",
@@ -209,7 +240,70 @@
     "hoursAgo": "hace {count}h",
     "daysAgo": "hace {count}d",
     "fullRankings": "Clasificación completa",
-    "rankings": "Clasificación"
+    "rankings": "Clasificación",
+    "filtersButton": "Filtros",
+    "eventsCount": "{count, plural, one {# evento} other {# eventos}}",
+    "tournamentTabs": {
+      "premier": "Premier Padel",
+      "fip": "FIP Tour"
+    },
+    "fipTier": {
+      "all": "Todas",
+      "platinum": "Platinum",
+      "gold": "Gold",
+      "silver": "Silver",
+      "bronze": "Bronze",
+      "beyond": "Beyond",
+      "promises": "Promises"
+    },
+    "tournamentList": {
+      "completedYear": "Completados — {year}",
+      "viewMatches": "Ver partidos",
+      "viewEvent": "Ver",
+      "daysLabel": "DÍAS",
+      "daysCount": "{count, plural, one {# día} other {# días}}",
+      "removeFilter": "Quitar {label}"
+    },
+    "filterSheet": {
+      "title": "Filtros",
+      "season": "Temporada",
+      "currentBadge": "actual",
+      "searchEvent": "Buscar evento",
+      "searchEventPlaceholder": "ej. Brussels, Madrid, FIP Silver…",
+      "country": "País",
+      "searchCountry": "Buscar país…",
+      "noCountriesInFilter": "No hay países en este filtro.",
+      "noCountryMatchSearch": "Ningún país coincide con la búsqueda.",
+      "countriesCount": "{count, plural, one {# país} other {# países}}",
+      "region": {
+        "europe": "Europa",
+        "latam": "Latinoamérica",
+        "middleEast": "Medio Oriente",
+        "asiaOceania": "Asia / Oceanía",
+        "africa": "África",
+        "other": "Otros"
+      },
+      "when": "Cuándo",
+      "whenAll": "Todas las fechas",
+      "whenThisMonth": "Este mes",
+      "whenNext30": "Próximos 30 días",
+      "whenNext90": "Próximos 90 días",
+      "whenChip": {
+        "thisMonth": "Este mes",
+        "next30": "30 días",
+        "next90": "90 días"
+      },
+      "status": "Estado",
+      "statusLive": "En vivo",
+      "statusUpcoming": "Próximas",
+      "statusCompleted": "Completadas",
+      "statusFilterLabel": "Estado",
+      "applyWithCount": "Aplicar ({count, plural, one {# evento} other {# eventos}})"
+    },
+    "spotlight": {
+      "dayOf": "Día {elapsed} de {total}",
+      "matchesCount": "{count, plural, one {# partido} other {# partidos}}"
+    }
   },
   "tournament": {
     "overview": "Resumen",
@@ -257,7 +351,16 @@
     "signupFee": "Inscripción",
     "perPlayer": "por jugador",
     "prizeBreakdown": "Desglose del premio",
-    "inferredPrizeNote": "Estimado a partir del premio total"
+    "inferredPrizeNote": "Estimado a partir del premio total",
+    "events": "Eventos",
+    "bracket": {
+      "noDrawForCategory": "No hay datos de cuadro para esta categoría."
+    },
+    "noPbpCoverage": "La puntuación punto a punto en directo no está disponible para este evento.",
+    "predicted": "PREVISTO",
+    "finalNotPlayed": "La final aún no se ha jugado",
+    "checkBackAfterTournament": "Vuelve cuando termine el torneo",
+    "liveCountChip": "{count} EN VIVO"
   },
   "following": {
     "followPlayersAndTournaments": "Sigue a jugadores y torneos",
@@ -486,7 +589,14 @@
     "sec": "SEG",
     "live": "EN DIRECTO",
     "onCourt": "EN PISTA",
-    "goBack": "Volver"
+    "goBack": "Volver",
+    "close": "Cerrar",
+    "dismiss": "Descartar",
+    "clear": "Limpiar",
+    "apply": "Aplicar",
+    "shareApp": "Compartir PadelNachos",
+    "changeLanguage": "Cambiar idioma",
+    "tbd": "POR DEFINIR"
   },
   "about": {
     "title": "Sobre Padel Nachos",
@@ -675,5 +785,12 @@
     "title": "Trayectoria del partido",
     "broke": "QUEBRÓ",
     "break": "QUIEBRE"
+  },
+  "country": {
+    "useMyLocation": "Usar mi ubicación (auto)",
+    "searchPlaceholder": "Buscar país…",
+    "searchAria": "Buscar país",
+    "clearAria": "Borrar búsqueda",
+    "noMatch": "Ningún país coincide con \"{query}\""
   }
 }

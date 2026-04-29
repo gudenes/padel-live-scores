@@ -21,6 +21,7 @@
 // whole thing reads as one unit.
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useTranslations } from 'next-intl'
 import { flagcdnWidth } from './FlagImage'
 
 export interface CountryOption {
@@ -51,6 +52,7 @@ function norm(s: string): string {
 }
 
 export default function CountryPicker({ options, value, onChange, disabled }: CountryPickerProps) {
+  const tCountry = useTranslations('country')
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [highlight, setHighlight] = useState(0)
@@ -166,7 +168,7 @@ export default function CountryPicker({ options, value, onChange, disabled }: Co
         ) : (
           <>
             <LocationIcon />
-            <span style={{ color: '#fff', fontSize: 13, flex: 1 }}>Use my location (auto)</span>
+            <span style={{ color: '#fff', fontSize: 13, flex: 1 }}>{tCountry('useMyLocation')}</span>
           </>
         )}
         <Chevron open={open} />
@@ -207,8 +209,8 @@ export default function CountryPicker({ options, value, onChange, disabled }: Co
                 value={query}
                 onChange={e => { setQuery(e.target.value); setHighlight(0) }}
                 onKeyDown={onInputKey}
-                placeholder="Search country…"
-                aria-label="Search country"
+                placeholder={tCountry('searchPlaceholder')}
+                aria-label={tCountry('searchAria')}
                 style={{
                   flex: 1,
                   background: 'transparent',
@@ -224,7 +226,7 @@ export default function CountryPicker({ options, value, onChange, disabled }: Co
                 <button
                   type="button"
                   onClick={() => { setQuery(''); inputRef.current?.focus() }}
-                  aria-label="Clear search"
+                  aria-label={tCountry('clearAria')}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -266,7 +268,7 @@ export default function CountryPicker({ options, value, onChange, disabled }: Co
                 color: MUTED,
                 textAlign: 'center',
               }}>
-                No country matches "{query}"
+                {tCountry('noMatch', { query })}
               </div>
             ) : (
               filtered.map((c, idx) => (
@@ -307,6 +309,7 @@ function Option({
   onClick: () => void
   onMouseEnter?: () => void
 }) {
+  const tCountry = useTranslations('country')
   const bg = isSelected
     ? BG_CARD2
     : isHighlighted
@@ -336,7 +339,7 @@ function Option({
       }}
     >
       {isAuto ? <LocationIcon /> : country && <ChunkyFlag country={country.iso2} size={22} />}
-      <span style={{ flex: 1 }}>{isAuto ? 'Use my location (auto)' : country?.name}</span>
+      <span style={{ flex: 1 }}>{isAuto ? tCountry('useMyLocation') : country?.name}</span>
       {isSelected && <Check />}
     </button>
   )

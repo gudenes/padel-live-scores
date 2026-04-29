@@ -18,6 +18,7 @@ import { useInvite } from '@/hooks/useInvite'
 
 export default function GlobalHeader() {
   const tHome = useTranslations('home')
+  const tCommon = useTranslations('common')
   const { shareNow } = useInvite()
   const [searchOpen, setSearchOpen] = useState(false)
 
@@ -124,7 +125,7 @@ export default function GlobalHeader() {
         {/* Share button */}
         <button
           onClick={() => { void shareNow() }}
-          aria-label="Share PadelNachos"
+          aria-label={tCommon('shareApp')}
           style={{
             background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.10)',

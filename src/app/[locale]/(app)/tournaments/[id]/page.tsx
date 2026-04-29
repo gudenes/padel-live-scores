@@ -132,6 +132,7 @@ export default function TournamentDetailWrapper({ params }: { params: Promise<{ 
 function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const format = useFormatter()
   const tTournament = useTranslations('tournament')
+  const tCommon = useTranslations('common')
   const locale = useLocale()
   // User's timezone from the browser. Falls back to UTC when Intl is
   // unavailable (very old engines). DailyMatchCard formats the date
@@ -513,7 +514,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', flexShrink: 0,
               }}
-              aria-label="Back"
+              aria-label={tCommon('back')}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
@@ -632,7 +633,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       padding: '2px 8px', letterSpacing: 0.5,
                     }}>
                       <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: LIVE_RED, marginRight: 4, verticalAlign: 'middle', animation: 'v3-pulse 2s infinite' }} />
-                      {liveCount} LIVE
+                      {tTournament('liveCountChip', { count: liveCount })}
                     </span>
                   )}
                 </div>
@@ -682,7 +683,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
                 <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
               </svg>
-              <span>Live point-by-point scoring is not available for this event.</span>
+              <span>{tTournament('noPbpCoverage')}</span>
             </div>
           )}
 
@@ -900,6 +901,7 @@ function InfoRow({
 
 function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match; genderColor: string; estimatedLabel?: string }) {
   const format = useFormatter()
+  const tTournament = useTranslations('tournament')
   // Prediction check (hydration-safe)
   const [hasPrediction, setHasPrediction] = useState(false)
   useEffect(() => {
@@ -977,7 +979,7 @@ function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match;
               <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="10" r="8"/><path d="M8 18h8"/><path d="M7 21h10"/>
               </svg>
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#7ED321', letterSpacing: 0.3 }}>PREDICTED</span>
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#7ED321', letterSpacing: 0.3 }}>{tTournament('predicted')}</span>
             </div>
           )}
         </div>
@@ -1615,6 +1617,7 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor }: {
   genderColor: string
 }) {
   const router = useRouter()
+  const tTournament = useTranslations('tournament')
   const genderMatches = allMatches.filter(m => (m as any).category === genderFilter)
   const finishedMatches = genderMatches.filter(m =>
     ['finished', 'retired', 'walkover', 'ended'].includes(m.status as string)
@@ -1810,8 +1813,8 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor }: {
       })() : (
         <div style={{ textAlign: 'center', padding: '40px 0 20px' }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>&#127942;</div>
-          <p style={{ color: MUTED, fontWeight: 600, fontSize: 14, margin: 0 }}>Final not played yet</p>
-          <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, marginTop: 6 }}>Check back after the tournament ends</p>
+          <p style={{ color: MUTED, fontWeight: 600, fontSize: 14, margin: 0 }}>{tTournament('finalNotPlayed')}</p>
+          <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12, marginTop: 6 }}>{tTournament('checkBackAfterTournament')}</p>
         </div>
       )}
 
