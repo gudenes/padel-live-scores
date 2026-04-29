@@ -136,7 +136,9 @@ describe('buildOopPatch', () => {
     court_order: null,
   };
 
-  it('writes court + court_order on a fresh match; leaves round (populator owns)', () => {
+  it('writes court + court_order on a fresh match; leaves round when normalised match', () => {
+    // existing.round = 'R32', snapshot.round_label = 'Round of 32' →
+    // normalised both to 'R32', so no round write.
     const patch = buildOopPatch(baseSnapshot, baseExisting);
     expect(patch).toEqual({
       court: 'CLUB, PISTA OMEYA',
@@ -150,8 +152,29 @@ describe('buildOopPatch', () => {
     expect(patch).toHaveProperty('round', 'Round of 32');
   });
 
-  it('does NOT clobber existing round value (populator canonical form wins)', () => {
+  it('does NOT clobber existing round when normalised forms match (R32 vs "Round of 32")', () => {
     const patch = buildOopPatch(baseSnapshot, { ...baseExisting, round: 'R32' });
+    expect(patch).not.toHaveProperty('round');
+  });
+
+  it('OVERWRITES existing round when OOP says a different round (R32 → Q3 mismatch)', () => {
+    // The Mendoza Apr 2026 case: populator wrote round='R32' from the
+    // main-draw bracket, but the OOP for Apr 29 says the same widget
+    // is actually playing Q3 (qualifier). OOP wins.
+    const patch = buildOopPatch(
+      { ...baseSnapshot, round_label: 'Q3' },
+      { ...baseExisting, round: 'R32' },
+    );
+    expect(patch).toHaveProperty('round', 'Q3');
+  });
+
+  it('skips round write when OOP label is unrecognised (e.g. typo)', () => {
+    // Defensive: bad data on the FIP side shouldn't blank a good
+    // existing label. Unknown input → no write.
+    const patch = buildOopPatch(
+      { ...baseSnapshot, round_label: 'gibberish' },
+      { ...baseExisting, round: 'R32' },
+    );
     expect(patch).not.toHaveProperty('round');
   });
 
@@ -169,7 +192,7 @@ describe('buildOopPatch', () => {
       ...baseExisting,
       court: 'CLUB, PISTA OMEYA',
       court_order: 1,
-      round: 'R32', // anything non-null keeps round out of patch
+      round: 'R32', // normalises to same canonical as snapshot's "Round of 32"
     });
     expect(patch).toBeNull();
   });

@@ -317,11 +317,14 @@ export async function runFipOopWriter(
  *   - court_order: 0-based → 1-based; overwrite only when snapshot has
  *     a non-null court_position (preserve whatever was there on
  *     historical rows without positions).
- *   - round: NULL-only write. Populator sets "R32"; OOP emits
- *     "Round of 32". Leaving the populator's value intact during
- *     migration avoids round-label churn in the UI. Once we're fully
- *     off the legacy reconciler, we can revisit whether OOP's round
- *     should take priority.
+ *   - round: overwrite when the OOP value disagrees with the existing
+ *     row's value AFTER normalising both (so "R32" vs "Round of 32"
+ *     reads as a no-op, but "R32" vs "Q3" triggers a write). The
+ *     OOP is authoritative for what's actually being played: a single
+ *     widget_id_composite can be reused across qualifying and main
+ *     draw, so the populator's draw-bracket label can be stale during
+ *     qualifying. Skipping the write produced "R32 on Apr 29" UI rows
+ *     for matches that were really Q3 qualifiers (Mendoza Apr 2026).
  */
 export function buildOopPatch(
   snapshot: OopRow,
@@ -340,15 +343,60 @@ export function buildOopPatch(
     patch.court_order = snapshot.court_position + 1;
   }
 
-  if (
-    existing.round === null &&
-    snapshot.round_label != null &&
-    snapshot.round_label.length > 0
-  ) {
-    patch.round = snapshot.round_label;
+  if (snapshot.round_label != null && snapshot.round_label.length > 0) {
+    const oopNorm = normalizeRoundShort(snapshot.round_label);
+    const existingNorm = normalizeRoundShort(existing.round);
+    // Only write when OOP gives us a recognised label AND it differs
+    // from what's currently on the row (after normalising both formats).
+    // When existing.round is null, oopNorm always "differs" → write.
+    if (oopNorm != null && oopNorm !== existingNorm) {
+      patch.round = snapshot.round_label;
+    }
   }
 
   return Object.keys(patch).length > 0 ? patch : null;
+}
+
+// Map every round-label format we see in the wild (verbose "Round of 32",
+// short "R32", abbreviations "QF", lowercase variants, qualifier "Q1")
+// to a canonical short code. Returns null for unrecognised input so the
+// caller can choose to skip rather than overwrite with garbage.
+//
+// Kept inline (rather than imported from src/lib/source-matcher) because
+// padelgod runs as a separate Railway service and doesn't share imports
+// with the Next.js app. The mapping is small and the labels are stable —
+// duplication is the cheaper trade-off here.
+function normalizeRoundShort(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const cleaned = raw.trim().toLowerCase();
+  if (cleaned === '') return null;
+  const map: Record<string, string> = {
+    r128: 'R128',
+    'round of 128': 'R128',
+    r64: 'R64',
+    'round of 64': 'R64',
+    r32: 'R32',
+    'round of 32': 'R32',
+    r16: 'R16',
+    'round of 16': 'R16',
+    qf: 'QF',
+    quarter: 'QF',
+    quarters: 'QF',
+    quarterfinals: 'QF',
+    'quarter-finals': 'QF',
+    'quarter finals': 'QF',
+    sf: 'SF',
+    semifinals: 'SF',
+    'semi-finals': 'SF',
+    'semi finals': 'SF',
+    f: 'F',
+    final: 'F',
+    finals: 'F',
+    q1: 'Q1',
+    q2: 'Q2',
+    q3: 'Q3',
+  };
+  return map[cleaned] ?? null;
 }
 
 // ── DB helpers ─────────────────────────────────────────────────────────
