@@ -219,6 +219,59 @@ Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and do
 | `/api/cron/social-drafts` | Mon 8am UTC | Generate social media post drafts via Claude API → `social_posts` table |
 | `/api/cron/oop-monitor` | Every 2h at :30 | Monitor Order of Play changes on matchscorerlive.com for active tournaments |
 
+## Padelgod Workers (Railway)
+
+Padelgod runs on Railway alongside the relay service. The schedule lives
+in [`padelgod/src/scheduler.ts`](padelgod/src/scheduler.ts) — each worker
+gets its own `:MM` slot to avoid contention on the FIP / matchscorerlive
+endpoints. Read that file for the canonical schedule when this table
+goes stale (which it will).
+
+Ordered by `:MM` so the hourly chain is easier to follow:
+
+| Worker | Schedule | Purpose | Writes to |
+|---|---|---|---|
+| tournament-discovery | hourly :00 | Discover FIP tournaments via WP API + resolve country term IDs | `tournaments` |
+| fip-winner-propagator | hourly :02 | Propagate finished-match winners to next-round bracket slots | `matches` |
+| fip-event-page-enricher | hourly :12 | Gap-fill venue / dates / overview / draw size / matchscorer code | `tournaments`, `padelgod.widget_id_cache` |
+| widget-code-lookup | hourly :15 | Resolve Crionet widget IDs by tournament name search | `padelgod.widget_id_cache` |
+| draw-fetcher | every 2h :20 | Crionet bracket scrape | `padelgod.draw_snapshots` |
+| match-stats-fetcher | hourly :25 | Per-match stats from Crionet widget | `match_stats` |
+| player-profile | hourly :30 | Refresh per-player profile metadata | `players` |
+| static-reconciler | :05, :35 | Consume snapshots → `public.matches` / `sets` (twice hourly) | `matches`, `sets` |
+| fip-draw-fetcher | hourly :35 | FIP event-page bracket scrape (Bronze/Silver/Gold/Premier) | `padelgod.draw_snapshots` |
+| shadow-diff-finalizer | :10, :40 | Finalize live-vs-padelapi divergence rows for telemetry | (telemetry tables) |
+| fip-draw-linker | hourly :42 | Link FIP draws to widget IDs (DB-only, no HTTP) | `entity_external_ids` |
+| entry-list-fetcher | hourly :45 | Fetch tournament entry-list PDFs / pages | `padelgod.entry_list_snapshots` |
+| fip-entry-list-populator | hourly :46 | Resolve entry-list rows into `players` (after fetcher) | `players` |
+| fip-draw-populator | hourly :47 | INSERT `public.matches` from draw + OOP qualifying rounds | `matches` |
+| oop-fetcher | hourly :50 | Capture Order of Play snapshots from matchscorerlive | `padelgod.oop_snapshots` |
+| fip-oop-writer | hourly :52 | UPDATE `public.matches` court/round from OOP snapshots | `matches` (UPDATE) |
+| results-fetcher | hourly :55 | Capture match-results snapshots from Crionet widget | `padelgod.results_snapshots` |
+| fip-results-writer | hourly :57 | Write final scores from results snapshots | `matches`, `sets` |
+| player-rankings | daily 05:00 UTC | Sync FIP race + official rankings (top 1000, both genders) | `players` |
+| live-poller-manager | every 1m | Spawn / supervise per-match live-poll loops | (orchestration only) |
+| shadow-diff-live | every 1m | Snapshot live-match latency vs padelapi for telemetry | (telemetry) |
+| close-stale-live-sweeper | every 5m | Close matches stuck at `live`/`ended` when poller can't | `matches` |
+
+### Disambiguating "OOP" — three different things
+
+The OOP (Order of Play) responsibility is split across three crons in
+two different runtimes. The names are similar enough that they get
+confused at a glance — the table below is the canonical mapping:
+
+| Name | Runtime | Schedule | What it does |
+|---|---|---|---|
+| `oop-monitor` | Vercel cron | every 2h :30 | Watches matchscorerlive for OOP page changes, emits notifications |
+| `oop-fetcher` | Padelgod (Railway) | hourly :50 | Fetches OOP HTML, parses it, writes `padelgod.oop_snapshots` |
+| `fip-oop-writer` | Padelgod (Railway) | hourly :52 | Reads snapshots, UPDATEs court / round / court_order on `public.matches` |
+
+The "OOP Schedule Review" tab in the ops dashboard is yet another piece
+of the same puzzle — a human-in-the-loop UI that parses the
+`scheduled_label` strings from `oop_snapshots` ("Starting at 2:30 PM")
+into UTC timestamps on `public.matches.scheduled_at`. Not an automated
+worker; an operator clicks "Apply N Changes" per tournament.
+
 ## Relay Service (Railway)
 
 `relay/index.js` — always-on Node.js/Express service (port 3001):
