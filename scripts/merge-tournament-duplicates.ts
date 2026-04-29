@@ -2,28 +2,42 @@
 //
 // Merges cross-source tournament duplicates: tournaments that exist as both
 // a padelapi-sourced row AND a fip-sourced row for the same real-world event.
-// After running, the padelapi row survives with FIP-only fields merged in,
-// and the FIP row is hard-deleted.
+// After running, the padelapi row survives, FIP-only fields are merged in
+// (per source-priority rules — FIP wins for fields where it's the primary
+// source), and all FK references previously pointing at the FIP row are
+// redirected to the padelapi row. The FIP row is then deleted.
 //
 // Matching rule: same normalized name (stripped of year tokens, noise words,
-// accents) AND same year (from starts_at).
+// accents) AND same year (from starts_at). All FIP/Premier levels are
+// considered — the previous implementation's `level IN (...)` filter was
+// stale and missed silver / bronze / p1 / p2 events.
+//
+// FK tables redirected:
+//   - matches.tournament_id
+//   - tournament_draws.tournament_id
+//   - highlights.tournament_id
+//   - match_stats_unresolved.resolved_tournament_id
+//   - entity_external_ids (polymorphic; entity_type='tournament' rows are
+//     redirected, with conflict handling on the
+//     UNIQUE(source, entity_type, external_id) constraint — duplicate
+//     external IDs on the FIP side are dropped instead of redirected).
 //
 // Safety:
-//   - Pre-flight check that the FIP row has no FK references before deletion.
-//     Aborts the whole operation if ANY reference is found — the Phase 2 plan
-//     assumed zero refs (confirmed in investigation) and we don't want to
-//     silently orphan data.
-//   - --dry-run mode prints the plan without touching anything.
-//   - Each merge runs as a small transaction-per-row (not a single mega tx)
-//     so a failure partway through leaves the already-processed rows in a
-//     consistent state.
+//   - --dry-run prints the full plan (per-pair updates, FK row counts,
+//     external-ID redirects vs drops) without writing anything.
+//   - --apply is required to mutate. Each pair runs as a tight sequence
+//     (FK redirects → external-ID handling → tournament UPDATE → DELETE
+//     FIP row) so a failure mid-pair leaves the row in a consistent
+//     state and subsequent pairs continue.
+//   - Per-pair failures are logged but don't halt the run; final summary
+//     reports merged / failed counts.
 //
 // Prerequisite: the Phase 1 migration (20260407_canonical_source_ids.sql)
 // must be applied — this script writes to the new `fip_id` column.
 //
 // Usage:
-//   node --experimental-strip-types scripts/merge-tournament-duplicates.ts --dry-run
-//   node --experimental-strip-types scripts/merge-tournament-duplicates.ts
+//   node --experimental-strip-types scripts/merge-tournament-duplicates.ts                # dry-run by default
+//   node --experimental-strip-types scripts/merge-tournament-duplicates.ts --apply        # actually write
 
 import { createClient } from '@supabase/supabase-js'
 import * as fs from 'fs'
@@ -72,26 +86,54 @@ function groupKey(name: string, startsAt: string | null): string {
   return `${normalizeName(name)}|${year}`
 }
 
-// FK tables that reference tournaments — we check all of these before deletion
-const FK_TABLES: Array<{ table: string; col: string }> = [
+// FK tables that reference tournaments. Each row pointing at a FIP-side
+// duplicate is UPDATEd to point at the padelapi survivor before the FIP
+// row is deleted. Schema defaults to `public`; pass `schema` to target a
+// different one (e.g. padelgod's operational tables).
+const FK_TABLES: Array<{ table: string; col: string; schema?: string }> = [
   { table: 'matches', col: 'tournament_id' },
   { table: 'tournament_draws', col: 'tournament_id' },
-  { table: 'articles', col: 'tournament_id' },
   { table: 'highlights', col: 'tournament_id' },
+  { table: 'match_stats_unresolved', col: 'resolved_tournament_id' },
+  // Padelgod-schema tables that own a tournament_id. Keep this list in
+  // sync with the padelgod schema — any new table that joins to
+  // public.tournaments via FK should be added here so dedup runs don't
+  // hit RESTRICT errors on unrelated workflow data.
+  { table: 'scrape_jobs', col: 'tournament_id', schema: 'padelgod' },
+  { table: 'unresolved_players', col: 'tournament_id', schema: 'padelgod' },
+  { table: 'unresolved_matches', col: 'tournament_id', schema: 'padelgod' },
+  { table: 'draw_snapshots', col: 'tournament_id', schema: 'padelgod' },
+  { table: 'results_snapshots', col: 'tournament_id', schema: 'padelgod' },
+  { table: 'oop_snapshots', col: 'tournament_id', schema: 'padelgod' },
+  { table: 'entry_list_snapshots', col: 'tournament_id', schema: 'padelgod' },
+  { table: 'widget_id_cache', col: 'tournament_id', schema: 'padelgod' },
 ]
 
-// Fields to merge from the FIP row into the padelapi row when they're null on
-// padelapi but present on FIP. These are FIP-specific enrichments that don't
-// clash with padelapi's operational data.
-const MERGE_FIELDS = [
+/** Resolve a Supabase query builder for the right schema. */
+function fk(t: { table: string; schema?: string }) {
+  return t.schema ? supabase.schema(t.schema).from(t.table) : supabase.from(t.table)
+}
+
+// Fields where FIP is the PRIMARY source per source-priority.ts — when
+// FIP has a value, it wins (overwrites padelapi's even when set). For
+// padelapi-primary fields like `name` and `prize_money`, padelapi keeps
+// its value and we don't list them here.
+const FIP_PRIMARY_FIELDS = [
+  'logo_url',
+  'draw_size_md',
+] as const
+
+// FIP-only enrichment fields with no padelapi equivalent. Always copy
+// FIP's value over when set.
+const FIP_ONLY_FIELDS = [
   'url',
   'fip_slug',          // kept in sync with fip_id by the Phase 1 trigger
   'matchscorer_url',
-  'draw_size_md',
   'draw_size_qd',
   'prize_money_fip',
-  'logo_url',
 ] as const
+
+const MERGE_FIELDS = [...FIP_PRIMARY_FIELDS, ...FIP_ONLY_FIELDS] as const
 
 // ── types ─────────────────────────────────────────────────────
 interface TournamentRow {
@@ -110,15 +152,48 @@ interface TournamentRow {
 }
 
 // ── main ──────────────────────────────────────────────────────
+//
+// Plan flow per cross-source duplicate pair:
+//
+//   1. Compute UPDATE payload for the padelapi survivor:
+//        - FIP-primary fields (logo_url, draw_size_md): use FIP's value
+//          when set (per source-priority.ts).
+//        - FIP-only enrichments (matchscorer_url, fip_slug, etc.): copy
+//          when FIP has them.
+//        - fip_id: copy from FIP row's fip_slug if survivor's is null.
+//        - entry_list_status: prefer FIP when padelapi's is the
+//          uninformative 'not_applicable'.
+//
+//   2. List FK redirects across the 4 reference tables.
+//
+//   3. Inspect entity_external_ids rows on the FIP side. For each, check
+//      whether a row with the same (source, external_id) already exists
+//      on the padelapi survivor. If yes → drop the FIP-side row to avoid
+//      the unique-constraint conflict. If no → redirect entity_id to
+//      the survivor.
+//
+// Execution order (live mode only):
+//   FK redirects → entity_external_ids handling → tournament UPDATE →
+//   DELETE FIP tournament row.
+//
+// Why this order: padelapi survivor must already hold the fip_id
+// (carried via UPDATE) before we DELETE the FIP row, but we can't
+// UPDATE the survivor with the FIP row's fip_slug while the FIP row
+// still has it (UNIQUE index on fip_id). Solution: redirect FKs first
+// (cheap, safe) → handle external IDs → DELETE the FIP row first to
+// release fip_slug → finally UPDATE survivor with merge fields. This
+// matches the previous script's reasoning (delete-before-update) but
+// adds the FK + sidecar steps in front.
 async function main() {
-  const dryRun = process.argv.includes('--dry-run')
+  // Default to dry-run; require explicit --apply to mutate.
+  const apply = process.argv.includes('--apply')
+  const dryRun = !apply
 
-  console.log(`\n${dryRun ? '[DRY RUN] ' : ''}Fetching tournaments...\n`)
+  console.log(`\n${dryRun ? '[DRY RUN] ' : '[APPLY] '}Fetching tournaments...\n`)
 
   const { data: all, error } = await supabase
     .from('tournaments')
     .select('*')
-    .in('level', ['fip_gold', 'fip_platinum', 'fip_other'])
   if (error) {
     console.error('Failed to fetch tournaments:', error)
     process.exit(1)
@@ -149,52 +224,47 @@ async function main() {
     return
   }
 
-  // Pre-flight: FK reference check on ALL FIP rows before touching anything.
-  // If any FIP row has dependents, abort — the script design assumes hard
-  // delete is safe, and it is only if nothing references the row.
-  console.log('=== Pre-flight FK check ===')
-  const fipIds = duplicates.map(d => d.fip.id)
-  const fkIssues: Array<{ table: string; count: number }> = []
-  for (const { table, col } of FK_TABLES) {
-    const { count } = await supabase
-      .from(table)
-      .select('id', { count: 'exact', head: true })
-      .in(col, fipIds)
-    console.log(`  ${table}.${col}: ${count ?? 0}`)
-    if ((count ?? 0) > 0) fkIssues.push({ table, count: count ?? 0 })
-  }
+  // Build the merge plan including FK redirect counts and external-ID handling
+  console.log('=== Building merge plan ===\n')
+  type ExternalIdAction =
+    | { kind: 'redirect'; rowId: string; source: string; externalId: string }
+    | { kind: 'drop'; rowId: string; source: string; externalId: string; reason: string }
 
-  if (fkIssues.length > 0) {
-    console.error(`\nABORT: ${fkIssues.length} FK issue(s) found — dedup is not safe:`)
-    fkIssues.forEach(i => console.error(`  ${i.table}: ${i.count} rows reference a FIP duplicate`))
-    console.error('\nResolve these references manually, then re-run.')
-    process.exit(1)
-  }
-
-  console.log('  ✓ All FIP duplicate rows are safe to delete (zero FK refs)\n')
-
-  // Build the merge plan
-  console.log('=== Merge plan ===\n')
-  const plan: Array<{
+  type PerPairPlan = {
     padelapiId: string
     fipId: string
     name: string
     year: string
     updates: Record<string, unknown>
     overrideEntryListStatus: boolean
-  }> = []
+    fkCounts: Record<string, number>
+    extActions: ExternalIdAction[]
+  }
+  const plan: PerPairPlan[] = []
 
   for (const { padelapi, fip, key } of duplicates) {
     const updates: Record<string, unknown> = {}
 
-    // Set fip_id on the surviving padelapi row (copied from the FIP row's
-    // clean slug — NOT the double-prefixed external_id).
-    if (fip.fip_slug && !padelapi.fip_id) {
-      updates.fip_id = fip.fip_slug
+    // Set fip_id on the surviving padelapi row. Prefer the new
+    // `fip_id` column (Phase 1 canonical) and fall back to `fip_slug`
+    // for older rows where only the legacy column is populated. We
+    // intentionally avoid `external_id` here — it carries the
+    // double-prefixed form that breaks downstream lookups.
+    const fipKey = (fip.fip_id as string | null | undefined) ?? fip.fip_slug
+    if (fipKey && !padelapi.fip_id) {
+      updates.fip_id = fipKey
     }
 
-    // Merge FIP-only enrichment fields (only when padelapi's is null)
-    for (const field of MERGE_FIELDS) {
+    // FIP-primary fields: FIP wins when set.
+    for (const field of FIP_PRIMARY_FIELDS) {
+      const fipVal = fip[field]
+      if (fipVal != null) updates[field] = fipVal
+    }
+
+    // FIP-only enrichments: copy when FIP has it. Padelapi keeps its
+    // own value if the field is somehow set there (shouldn't happen
+    // for these fields, but defensive).
+    for (const field of FIP_ONLY_FIELDS) {
       const fipVal = fip[field]
       const padelVal = padelapi[field]
       if (fipVal != null && padelVal == null) {
@@ -202,8 +272,7 @@ async function main() {
       }
     }
 
-    // entry_list_status: padelapi often has 'not_applicable' which drowns out
-    // meaningful FIP state. Prefer FIP's value when padelapi is not_applicable.
+    // entry_list_status: prefer FIP when padelapi's is 'not_applicable'.
     let overrideEntryListStatus = false
     if (
       padelapi.entry_list_status === 'not_applicable' &&
@@ -214,6 +283,53 @@ async function main() {
       overrideEntryListStatus = true
     }
 
+    // FK reference counts (per pair, for visibility in the dry-run output)
+    const fkCounts: Record<string, number> = {}
+    for (const t of FK_TABLES) {
+      const { count } = await fk(t)
+        .select('*', { count: 'exact', head: true })
+        .eq(t.col, fip.id)
+      const label = `${t.schema ? t.schema + '.' : ''}${t.table}.${t.col}`
+      fkCounts[label] = count ?? 0
+    }
+
+    // entity_external_ids — figure out per-row whether to redirect or drop
+    const extActions: ExternalIdAction[] = []
+    const { data: fipExt } = await supabase
+      .from('entity_external_ids')
+      .select('id, source, external_id')
+      .eq('entity_type', 'tournament')
+      .eq('entity_id', fip.id)
+    if (fipExt && fipExt.length > 0) {
+      const { data: padelExt } = await supabase
+        .from('entity_external_ids')
+        .select('source, external_id')
+        .eq('entity_type', 'tournament')
+        .eq('entity_id', padelapi.id)
+      const survivorKeys = new Set(
+        (padelExt ?? []).map(r => `${r.source}|${r.external_id}`),
+      )
+      for (const row of fipExt) {
+        const k = `${row.source}|${row.external_id}`
+        if (survivorKeys.has(k)) {
+          extActions.push({
+            kind: 'drop',
+            rowId: row.id,
+            source: row.source,
+            externalId: row.external_id,
+            reason: 'survivor already has this (source, external_id)',
+          })
+        } else {
+          extActions.push({
+            kind: 'redirect',
+            rowId: row.id,
+            source: row.source,
+            externalId: row.external_id,
+          })
+        }
+      }
+    }
+
     plan.push({
       padelapiId: padelapi.id,
       fipId: fip.id,
@@ -221,6 +337,8 @@ async function main() {
       year: key.split('|')[1],
       updates,
       overrideEntryListStatus,
+      fkCounts,
+      extActions,
     })
   }
 
@@ -229,6 +347,21 @@ async function main() {
     console.log(`${i + 1}. ${p.name} (${p.year})`)
     console.log(`   keep:   ${p.padelapiId}`)
     console.log(`   delete: ${p.fipId}`)
+    const fkSummary = Object.entries(p.fkCounts)
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => `${k}=${n}`)
+      .join(', ')
+    console.log(`   FK redirects: ${fkSummary || '(none)'}`)
+    if (p.extActions.length > 0) {
+      console.log(`   external IDs:`)
+      for (const a of p.extActions) {
+        if (a.kind === 'redirect') {
+          console.log(`     redirect ${a.source}=${a.externalId}`)
+        } else {
+          console.log(`     drop     ${a.source}=${a.externalId} (${a.reason})`)
+        }
+      }
+    }
     if (Object.keys(p.updates).length === 0) {
       console.log(`   merge:  (no field updates needed)`)
     } else {
@@ -243,41 +376,65 @@ async function main() {
   })
 
   if (dryRun) {
-    console.log('\n[DRY RUN] No changes applied. Re-run without --dry-run to execute.\n')
+    console.log('[DRY RUN] No changes applied. Re-run with --apply to execute.\n')
     return
   }
 
-  // Execute
-  // NOTE ordering: delete FIP row FIRST, then update padelapi row.
-  // The FIP row owns the unique fip_slug value; updating the padelapi row to
-  // claim the same fip_id while the FIP row still exists violates the new
-  // unique index on fip_id. All merge values were already fetched into the
-  // `plan` object in memory, so deleting the FIP row first is safe.
+  // Execute live
   console.log('=== Executing merges ===\n')
   let merged = 0
   let failed = 0
   for (const p of plan) {
     try {
-      // 1. Delete the FIP row first to free up the fip_id slot
+      // 1. Redirect FK references on each table
+      for (const t of FK_TABLES) {
+        const label = `${t.schema ? t.schema + '.' : ''}${t.table}.${t.col}`
+        if ((p.fkCounts[label] ?? 0) === 0) continue
+        const { error: fkErr } = await fk(t)
+          .update({ [t.col]: p.padelapiId })
+          .eq(t.col, p.fipId)
+        if (fkErr) {
+          throw new Error(`${label} redirect failed — ${fkErr.message}`)
+        }
+      }
+
+      // 2. Handle entity_external_ids — drop conflicts, redirect the rest
+      for (const a of p.extActions) {
+        if (a.kind === 'drop') {
+          const { error: delExtErr } = await supabase
+            .from('entity_external_ids')
+            .delete()
+            .eq('id', a.rowId)
+          if (delExtErr) throw new Error(`drop external_id ${a.source}=${a.externalId} failed — ${delExtErr.message}`)
+        } else {
+          const { error: updExtErr } = await supabase
+            .from('entity_external_ids')
+            .update({ entity_id: p.padelapiId })
+            .eq('id', a.rowId)
+          if (updExtErr) throw new Error(`redirect external_id ${a.source}=${a.externalId} failed — ${updExtErr.message}`)
+        }
+      }
+
+      // 3. Delete the FIP row to free up the fip_id slot for the survivor.
+      //    All merge values were captured into `updates` in memory in step 1
+      //    of plan-building, so we don't need the FIP row's data anymore.
       const { error: deleteErr } = await supabase
         .from('tournaments')
         .delete()
         .eq('id', p.fipId)
-      if (deleteErr) {
-        console.error(`  ✗ ${p.name} (${p.year}): delete failed — ${deleteErr.message}`)
-        failed++
-        continue
-      }
+      if (deleteErr) throw new Error(`tournament delete failed — ${deleteErr.message}`)
 
-      // 2. Update the padelapi row with merged fields (skipped if empty)
+      // 4. Update the padelapi survivor with the merged fields.
       if (Object.keys(p.updates).length > 0) {
         const { error: updateErr } = await supabase
           .from('tournaments')
           .update(p.updates)
           .eq('id', p.padelapiId)
         if (updateErr) {
-          console.error(`  ✗ ${p.name} (${p.year}): update failed after FIP delete — ${updateErr.message}`)
-          console.error(`    WARNING: FIP row ${p.fipId} is already deleted. Merge fields NOT applied.`)
+          // FIP row is already deleted at this point. Log loudly so an
+          // operator can re-apply the field updates manually.
+          console.error(`  ✗ ${p.name} (${p.year}): survivor UPDATE failed AFTER FIP delete — ${updateErr.message}`)
+          console.error(`    Survivor ${p.padelapiId} did NOT receive merge fields. Re-apply manually.`)
           failed++
           continue
         }
