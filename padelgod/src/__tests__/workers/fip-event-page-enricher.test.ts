@@ -240,4 +240,183 @@ describe('runFipEventPageEnricher — end to end', () => {
     expect(warnings[0]!.ctx.tournamentId).toBe('failing-id');
     expect(warnings[0]!.ctx.err).toContain('ECONNRESET');
   });
+
+  it('mirrors matchscorer code into padelgod.widget_id_cache when the page parses one', async () => {
+    // Regression test for the Leiria gap (2026-04-29): widget-code-
+    // lookup hit its 12-attempt circuit breaker without finding the
+    // Crionet code, but the FIP event page itself embedded
+    // `FIP-2026-B0118` in the matchscorer JS block. Without this
+    // mirror, downstream workers (oop-fetcher, fip-draw-populator)
+    // saw an empty cache and skipped the tournament — leaving a
+    // tournament with rich draw + entry list snapshots and zero
+    // matches in public.matches.
+    //
+    // The Singapore B3 fixture has the alphanumeric eventID + JS
+    // block that exercises this path.
+    const singaporeHtml = readFileSync(
+      join(__dirname, '..', 'fixtures', 'fip-event-singapore-b3.html'),
+      'utf8',
+    );
+
+    const updates: Array<{ id: string; patch: Record<string, unknown> }> = [];
+    const cacheUpserts: Array<Record<string, unknown>> = [];
+
+    const supabase = {
+      from: (table: string) => {
+        if (table !== 'tournaments') {
+          throw new Error(`unexpected public table: ${table}`);
+        }
+        return {
+          select: () => ({
+            or: () => ({
+              or: () => ({
+                limit: async () => ({
+                  data: [
+                    {
+                      id: 'sg-id',
+                      slug: 'fip-beyond-b3-singapore',
+                      fip_id: 'fip-beyond-b3-singapore',
+                      matchscorer_url: null,
+                      starts_at: null,
+                      ends_at: null,
+                      venue: null,
+                      venue_address: null,
+                      venue_type: null,
+                      signup_fee_eur: null,
+                      schedule_notes: null,
+                      draw_size_md: null,
+                      draw_size_qd: null,
+                      registration_status: null,
+                      prize_money_fip: null,
+                      prize_breakdown: null,
+                      level: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+          update: (patch: Record<string, unknown>) => ({
+            eq: async (_col: string, id: string) => {
+              updates.push({ id, patch });
+              return { error: null };
+            },
+          }),
+        };
+      },
+      schema: (name: string) => {
+        if (name !== 'padelgod') {
+          throw new Error(`unexpected schema: ${name}`);
+        }
+        return {
+          from: (table: string) => {
+            if (table !== 'widget_id_cache') {
+              throw new Error(`unexpected padelgod table: ${table}`);
+            }
+            return {
+              upsert: async (
+                row: Record<string, unknown>,
+                _opts: unknown,
+              ) => {
+                cacheUpserts.push(row);
+                return { error: null };
+              },
+            };
+          },
+        };
+      },
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['supabase'];
+
+    const httpClient = {
+      get: async () => ({ data: singaporeHtml, headers: {} }),
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['httpClient'];
+
+    await runFipEventPageEnricher({ supabase, httpClient });
+
+    // Tournament patch should still write matchscorer_url to public.tournaments
+    expect(updates).toHaveLength(1);
+    expect(updates[0]!.patch.matchscorer_url).toBe('FIP-2026-B0118');
+
+    // AND the cache mirror should fire with the same code
+    expect(cacheUpserts).toHaveLength(1);
+    const cached = cacheUpserts[0]!;
+    expect(cached.tournament_id).toBe('sg-id');
+    expect(cached.widget_id).toBe('FIP-2026-B0118');
+    expect(cached.is_active).toBe(true);
+    expect(cached.extraction_method).toBe('fip_event_page_enricher');
+  });
+
+  it('does NOT call widget_id_cache when the page has no matchscorer code', async () => {
+    // KL fixture has venue + dates + prize money but no inline
+    // matchscorer JS block — `parseMatchscorerIds` returns null. The
+    // cache mirror should be a no-op in that case so we don't write
+    // garbage rows. Verifies the `if (matchscorer?.code)` guard is
+    // doing its job.
+    const updates: Array<{ id: string; patch: Record<string, unknown> }> = [];
+    const cacheUpserts: Array<Record<string, unknown>> = [];
+
+    const supabase = {
+      from: (table: string) => {
+        if (table !== 'tournaments') throw new Error(`unexpected: ${table}`);
+        return {
+          select: () => ({
+            or: () => ({
+              or: () => ({
+                limit: async () => ({
+                  data: [
+                    {
+                      id: 'kl-id',
+                      slug: 'fip-bronze-kuala-lumpur-2026',
+                      fip_id: 'fip-bronze-kuala-lumpur-2026',
+                      matchscorer_url: null,
+                      starts_at: null,
+                      ends_at: null,
+                      venue: null,
+                      venue_address: null,
+                      venue_type: null,
+                      signup_fee_eur: null,
+                      schedule_notes: null,
+                      draw_size_md: null,
+                      draw_size_qd: null,
+                      registration_status: null,
+                      prize_money_fip: null,
+                      prize_breakdown: null,
+                      level: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+          update: (patch: Record<string, unknown>) => ({
+            eq: async (_col: string, id: string) => {
+              updates.push({ id, patch });
+              return { error: null };
+            },
+          }),
+        };
+      },
+      schema: () => ({
+        from: () => ({
+          upsert: async (row: Record<string, unknown>) => {
+            cacheUpserts.push(row);
+            return { error: null };
+          },
+        }),
+      }),
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['supabase'];
+
+    const httpClient = {
+      get: async () => ({ data: klHtml, headers: {} }),
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['httpClient'];
+
+    await runFipEventPageEnricher({ supabase, httpClient });
+
+    expect(updates).toHaveLength(1);
+    // KL fixture has no matchscorer code → no cache write
+    expect(updates[0]!.patch.matchscorer_url).toBeUndefined();
+    expect(cacheUpserts).toHaveLength(0);
+  });
 });
