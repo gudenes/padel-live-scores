@@ -21,15 +21,9 @@ import { Link } from '@/i18n/navigation'
 import { addDaysIso, getLocaleHomeTz, isLocaleToday } from '@/lib/locale-time'
 
 const GREEN = '#7ED321'
-const BG_BASE = '#0A0A0A'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
 const CHUNKY_PILL = 'polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%)'
-
-// Chunky-shadow offset relative to the active pill. Baked into the
-// JS-set CSS variables so the static transform rule can stay simple.
-const SHADOW_OFFSET_X = 5
-const SHADOW_OFFSET_Y = 5
 
 interface Props {
   /** Currently selected date as YYYY-MM-DD in locale home TZ. */
@@ -58,17 +52,13 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
   const t = useTranslations('daily')
   const tz = getLocaleHomeTz(locale)
 
-  // ── Option α animation refs ──────────────────────────────────
-  // Single shared chunky-lime shadow that physically slides between
-  // active pills. Plus a spring kick on the new active pill and a
-  // letter cascade on its labels. See
-  // `mockup-day-picker-animations.html` (Option α).
+  // ── G2 (Slide+Spring → Spring+Cascade) animation refs ──────────
+  // The active pill is filled solid lime — same idiom as primary CTAs
+  // across the site. Spring kick + letter cascade fire on every active
+  // change; no separate sliding marker (the lime fill carries enough
+  // visual weight on its own). See `mockup-day-picker-colors.html`.
   const navRef = useRef<HTMLElement | null>(null)
-  const shadowRef = useRef<HTMLDivElement | null>(null)
   const pillRefs = useRef<Map<string, HTMLElement>>(new Map())
-  // Tracks whether we've positioned the shadow at least once. First
-  // mount snaps the shadow into place without an animation.
-  const isFirstPositionRef = useRef(true)
   // First-mount scroll: position the strip so the active pill is
   // visible. After that, the strip stays put — the user explicitly
   // chooses when to scroll for more dates.
@@ -119,65 +109,32 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
     timeZone: tz,
   })
 
-  // Position the shared shadow under the active pill. Pills are now
-  // anchored — they don't shift on selection — so the slide reads as
-  // a real lateral motion: shadow goes from where it was to wherever
-  // the new active pill sits.
-  //
-  // The +5/+5 chunky-shadow offset is baked into the values we set
-  // (the CSS just does `translate3d(var(--shadow-x), var(--shadow-y))`
-  // — see globals.css for why the calc() wrapper had to go).
+  // First-mount: scroll so the active pill is centred in view. After
+  // that, the strip stays put on every selection change — the active
+  // pill changes class (and the kick + letter cascade fire) but the
+  // scroll position belongs to the user. The exception: tapping
+  // "today" smooth-scrolls the strip back to centre today.
   useLayoutEffect(() => {
     const nav = navRef.current
-    const shadow = shadowRef.current
     const activePill = pillRefs.current.get(selectedIso)
-    if (!nav || !shadow || !activePill) return
+    if (!nav || !activePill) return
 
     const navRect = nav.getBoundingClientRect()
     const pillRect = activePill.getBoundingClientRect()
-    const toX = pillRect.left - navRect.left + nav.scrollLeft + SHADOW_OFFSET_X
-    const toY = pillRect.top - navRect.top + SHADOW_OFFSET_Y
 
-    nav.style.setProperty('--shadow-y', `${toY}px`)
-
-    if (isFirstPositionRef.current) {
-      nav.style.setProperty('--shadow-x', `${toX}px`)
-      nav.style.setProperty('--shadow-x-from', `${toX}px`)
-      shadow.classList.add('day-shadow--visible')
-      isFirstPositionRef.current = false
-
-      // First mount: bring the active pill into view by scrolling
-      // the strip so the pill sits roughly in the middle of the
-      // viewport. We do this once; from then on the strip stays put.
-      if (!hasInitialScrolledRef.current) {
-        hasInitialScrolledRef.current = true
-        const navWidth = nav.clientWidth
-        const pillCenter = pillRect.left - navRect.left + nav.scrollLeft + pillRect.width / 2
-        nav.scrollLeft = Math.max(0, pillCenter - navWidth / 2)
-      }
+    if (!hasInitialScrolledRef.current) {
+      hasInitialScrolledRef.current = true
+      const navWidth = nav.clientWidth
+      const pillCenter =
+        pillRect.left - navRect.left + nav.scrollLeft + pillRect.width / 2
+      nav.scrollLeft = Math.max(0, pillCenter - navWidth / 2)
       return
     }
 
-    // Read the shadow's current position from the inline CSS var so
-    // the slide always starts where the shadow visibly is. (Reading
-    // a var on the parent picks up whatever was last set, even if
-    // the keyframe is mid-flight — but that's fine because the
-    // animation class is toggled below to restart cleanly.)
-    const currentX = parseFloat(nav.style.getPropertyValue('--shadow-x') || `${toX}`)
-    nav.style.setProperty('--shadow-x-from', `${currentX}`)
-    nav.style.setProperty('--shadow-x', `${toX}px`)
-    shadow.classList.add('day-shadow--visible')
-
-    // Force animation restart by toggling the class.
-    nav.classList.remove('day-picker--sliding')
-    void nav.offsetWidth
-    nav.classList.add('day-picker--sliding')
-
     // When the selection becomes "today", smoothly scroll the strip
-    // so today's pill is centred. The shadow slide and the scroll run
-    // in parallel — both end with today visibly under the shadow.
-    // Other selections leave the scroll position alone (the user's
-    // explicit scroll is preserved per the new "stay put" behaviour).
+    // so today's pill is centred. Other selections leave the scroll
+    // position alone (the user's explicit scroll is preserved per
+    // the "stay put" behaviour).
     if (isLocaleToday(selectedIso, locale)) {
       const navWidth = nav.clientWidth
       const pillCenter =
@@ -187,12 +144,6 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
         nav.scrollTo({ left: targetScroll, behavior: 'smooth' })
       }
     }
-
-    const ANIM_MS = 360
-    const cleanup = window.setTimeout(() => {
-      nav.classList.remove('day-picker--sliding')
-    }, ANIM_MS + 40)
-    return () => window.clearTimeout(cleanup)
   }, [selectedIso, locale])
 
   return (
@@ -212,10 +163,6 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
         position: 'relative',
       }}
     >
-      {/* Shared lime offset-shadow that slides between active pills.
-          Owned by the nav via CSS vars set in the layout effect. */}
-      <div ref={shadowRef} className="day-shadow" aria-hidden />
-
       {/* Prev arrow */}
       <PillButton
         iso={prevIso}
@@ -316,13 +263,11 @@ interface PillButtonProps {
 
 function PillButton(p: PillButtonProps) {
   const isActive = p.isSelected && !p.isArrow
-  const background = p.isSelected
-    ? p.isArrow
-      ? GREEN
-      : BG_BASE
-    : BG_CARD
-  const color = p.isSelected && p.isArrow ? '#0A0A0A' : '#FFF'
-  const border = p.isSelected ? GREEN : 'rgba(255,255,255,0.08)'
+  // G2: active pills are SOLID LIME — same idiom as the site's primary
+  // CTAs (login/follow/active nav). Dark text on lime bg.
+  const background = isActive ? GREEN : BG_CARD
+  const color = isActive ? '#0A0A0A' : '#FFF'
+  const border = isActive ? GREEN : 'rgba(255,255,255,0.08)'
   const borderWidth = isActive ? 1.5 : 1
   const width = p.isArrow ? 32 : 54
   const minWidth = p.isArrow ? 32 : 54
@@ -365,15 +310,21 @@ function PillButton(p: PillButtonProps) {
           fontWeight: 600,
           letterSpacing: 0.3,
           textTransform: 'uppercase',
-          color: isActive ? GREEN : MUTED,
-          opacity: isActive ? 0.95 : 0.7,
+          // G2: dark text on lime fill when active; muted otherwise.
+          color: isActive ? 'rgba(10,10,10,0.85)' : MUTED,
+          opacity: isActive ? 1 : 0.7,
           lineHeight: 1,
         }}
       />
       <CascadeText
         text={p.bottomLabel ?? ''}
         active={isActive}
-        style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1, color: '#FFF' }}
+        style={{
+          fontSize: 15,
+          fontWeight: 700,
+          lineHeight: 1.1,
+          color: isActive ? '#0A0A0A' : '#FFF',
+        }}
       />
     </>
   )

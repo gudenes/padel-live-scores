@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Day Picker Colors</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --green-tint: rgba(126, 211, 33, 0.15);
+    --orange: #F5A623;
+    --orange-tint: rgba(245, 166, 35, 0.15);
+    --red: #FF4655;
+    --bg: #0A0A0A;
+    --bg-card: #141414;
+    --muted: #6B7280;
+    --border: rgba(255,255,255,0.08);
+    --text: #fff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { padding: 24px 16px 80px; max-width: 540px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.4px; }
+  .lede { font-size: 13px; color: var(--muted); margin: 0 0 24px; line-height: 1.5; }
+
+  h2.section-h {
+    font-size: 11px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+    margin: 22px 0 10px;
+  }
+
+  .demo-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 14px 0 16px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .demo-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 0 14px 8px;
+  }
+  .demo-title {
+    font-size: 13px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .demo-tag {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
+    color: var(--muted);
+  }
+  .demo-tag.green { color: var(--green); }
+  .demo-tag.orange { color: var(--orange); }
+  .demo-desc { font-size: 11px; color: var(--muted); line-height: 1.5; margin: 0 14px 12px; }
+
+  /* Strip layout matches production DailyDatePills */
+  .picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 14px 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    position: relative;
+  }
+  .picker::-webkit-scrollbar { display: none; }
+  .pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    width: 54px;
+    min-width: 54px;
+    height: 44px;
+    padding: 4px 2px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    color: var(--text);
+    flex-shrink: 0;
+    font-family: inherit;
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+    transition: background 0.18s, border-color 0.18s, color 0.18s;
+  }
+  .pill .top {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--muted); line-height: 1;
+    transition: color 0.18s;
+  }
+  .pill .day {
+    font-size: 15px; font-weight: 700; line-height: 1.1; color: #fff;
+    transition: color 0.18s;
+  }
+  .arrow {
+    width: 32px; min-width: 32px; height: 44px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    color: var(--muted);
+    font-size: 18px; font-weight: 700; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; cursor: pointer; user-select: none;
+  }
+
+  /* Shared: spring kick + letter cascade fire on every active pill */
+  .ch { display: inline-block; }
+  .pill.is-active .top .ch,
+  .pill.is-active .day .ch {
+    animation: dp-letter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+  @keyframes dp-letter {
+    0%   { transform: translateY(-6px); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* Shared sliding marker — each picker variant uses its own */
+  .marker {
+    position: absolute;
+    top: 0; left: 0;
+    width: 54px; height: 44px;
+    transform: translate3d(var(--m-x, 0px), var(--m-y, 0px), 0) scaleX(1) scaleY(1);
+    transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    opacity: 0;
+  }
+  .marker.visible { opacity: 1; }
+  .picker.sliding .marker {
+    animation: m-slide 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes m-slide {
+    0%   { transform: translate3d(var(--m-x-from), var(--m-y), 0) scaleX(1)   scaleY(1); }
+    60%  { transform: translate3d(var(--m-x), var(--m-y), 0)      scaleX(1.25) scaleY(0.85); }
+    100% { transform: translate3d(var(--m-x), var(--m-y), 0)      scaleX(1)    scaleY(1); }
+  }
+
+  .pill.is-active {
+    animation: pill-kick 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes pill-kick {
+    0%   { transform: translateY(3px)  rotate(0deg)   scale(0.94); }
+    35%  { transform: translateY(-5px) rotate(-3deg)  scale(1.10); }
+    65%  { transform: translateY(2px)  rotate(2deg)   scale(0.97); }
+    100% { transform: translateY(0)    rotate(0deg)   scale(1); }
+  }
+
+  /* ──────────────────────────────────────────────────────────
+     PER-VARIANT STYLES
+     ────────────────────────────────────────────────────────── */
+
+  /* G1 — Current production: dark bg + lime offset shadow */
+  .v-g1 .marker {
+    background: var(--green);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    z-index: 1;
+  }
+  .v-g1 .pill.is-active {
+    background: var(--bg);
+    border-color: var(--green);
+    border-width: 1.5px;
+  }
+  .v-g1 .pill.is-active .top { color: var(--green); }
+
+  /* G2 — Solid lime fill (most consistent with site CTAs) */
+  .v-g2 .marker { display: none; } /* no offset shadow */
+  .v-g2 .pill.is-active {
+    background: var(--green);
+    border-color: var(--green);
+    border-width: 1.5px;
+  }
+  .v-g2 .pill.is-active .top { color: rgba(10,10,10,0.85); }
+  .v-g2 .pill.is-active .day { color: #0A0A0A; }
+
+  /* G3 — Lime tint (semi-transparent green wash) */
+  .v-g3 .marker { display: none; }
+  .v-g3 .pill.is-active {
+    background: var(--green-tint);
+    border-color: var(--green);
+    border-width: 1.5px;
+  }
+  .v-g3 .pill.is-active .top { color: var(--green); }
+
+  /* G4 — Lime top-stripe (subtle "tab" indicator) */
+  .v-g4 .marker {
+    background: var(--green);
+    height: 4px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    transform: translate3d(var(--m-x, 0px), calc(var(--m-y, 0px) - 6px), 0) scaleX(1) scaleY(1);
+  }
+  .v-g4 .picker.sliding .marker {
+    animation: m-slide-bar 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes m-slide-bar {
+    0%   { transform: translate3d(var(--m-x-from), calc(var(--m-y) - 6px), 0) scaleX(1)    scaleY(1); }
+    60%  { transform: translate3d(var(--m-x),      calc(var(--m-y) - 6px), 0) scaleX(1.4)  scaleY(0.55); }
+    100% { transform: translate3d(var(--m-x),      calc(var(--m-y) - 6px), 0) scaleX(1)    scaleY(1); }
+  }
+  .v-g4 .pill.is-active {
+    background: var(--bg-card);
+    border-color: var(--green);
+    border-width: 1.5px;
+  }
+  .v-g4 .pill.is-active .top { color: var(--green); }
+
+  /* G5 — Lime ring glow (no chunky shadow, no fill — just a soft ring) */
+  .v-g5 .marker { display: none; }
+  .v-g5 .pill.is-active {
+    background: var(--bg-card);
+    border-color: var(--green);
+    border-width: 1.5px;
+    box-shadow: 0 0 0 3px rgba(126,211,33,0.18);
+  }
+  .v-g5 .pill.is-active .top { color: var(--green); }
+
+  /* O1 — Brand orange offset shadow */
+  .v-o1 .marker {
+    background: var(--orange);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    z-index: 1;
+  }
+  .v-o1 .pill.is-active {
+    background: var(--bg);
+    border-color: var(--orange);
+    border-width: 1.5px;
+  }
+  .v-o1 .pill.is-active .top { color: var(--orange); }
+
+  /* O2 — Solid orange fill */
+  .v-o2 .marker { display: none; }
+  .v-o2 .pill.is-active {
+    background: var(--orange);
+    border-color: var(--orange);
+    border-width: 1.5px;
+  }
+  .v-o2 .pill.is-active .top { color: rgba(10,10,10,0.85); }
+  .v-o2 .pill.is-active .day { color: #0A0A0A; }
+
+  /* W1 — White outline (monochrome) */
+  .v-w1 .marker { display: none; }
+  .v-w1 .pill.is-active {
+    background: rgba(255,255,255,0.05);
+    border-color: #fff;
+    border-width: 1.5px;
+  }
+  .v-w1 .pill.is-active .top { color: #fff; opacity: 1; }
+
+  .footer { font-size: 10px; color: var(--muted); margin-top: 22px; line-height: 1.6; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Day Picker Colors</h1>
+<p class="lede">Same animation flavor (Option α — sliding marker + spring kick + letter cascade) — only the active-state color treatment changes. Tap any pill to feel the motion in each palette.</p>
+
+<h2 class="section-h">Lime green variations</h2>
+
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">G1 — Lime offset shadow <span style="color:var(--muted);font-weight:600">(current)</span></div>
+    <div class="demo-tag green">CHUNKY</div>
+  </div>
+  <p class="demo-desc">Active pill drops to the page-bg and shows a chunky lime offset shadow. Distinctive but feels different from the rest of the app.</p>
+  <div class="picker v-g1" data-v="g1"></div>
+</section>
+
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">G2 — Solid lime fill</div>
+    <div class="demo-tag green">CTA-STYLE</div>
+  </div>
+  <p class="demo-desc">Active pill is fully lime, dark text — the same treatment as primary CTAs across the app (login, follow, etc). Most consistent with site language.</p>
+  <div class="picker v-g2" data-v="g2"></div>
+</section>
+
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">G3 — Lime tint</div>
+    <div class="demo-tag green">SOFT</div>
+  </div>
+  <p class="demo-desc">Semi-transparent lime wash + lime border + lime top label. Lighter weight than full fill, still clearly active.</p>
+  <div class="picker v-g3" data-v="g3"></div>
+</section>
+
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">G4 — Lime top stripe</div>
+    <div class="demo-tag green">TAB-INDICATOR</div>
+  </div>
+  <p class="demo-desc">Pill stays neutral; a thin lime bar above the pill carries the active state — same idiom as the bottom-nav active indicator.</p>
+  <div class="picker v-g4" data-v="g4"></div>
+</section>
+
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">G5 — Lime ring glow</div>
+    <div class="demo-tag green">FOCUS-RING</div>
+  </div>
+  <p class="demo-desc">Lime border + soft outer glow (3px box-shadow at 18% opacity). Reads as "focused" rather than "filled".</p>
+  <div class="picker v-g5" data-v="g5"></div>
+</section>
+
+<h2 class="section-h">Alternative palettes</h2>
+
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">O1 — Orange offset shadow</div>
+    <div class="demo-tag orange">WARM</div>
+  </div>
+  <p class="demo-desc">Same as G1 but in brand orange (the PadelNachos logo orange). Warmer, more energetic. Reads less "this is selected" and more "this is happening today".</p>
+  <div class="picker v-o1" data-v="o1"></div>
+</section>
+
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">O2 — Solid orange fill</div>
+    <div class="demo-tag orange">WARM CTA</div>
+  </div>
+  <p class="demo-desc">Brand orange, fully filled. High visual weight; could feel too dominant for a daily-use control.</p>
+  <div class="picker v-o2" data-v="o2"></div>
+</section>
+
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">W1 — White outline (monochrome)</div>
+    <div class="demo-tag">MINIMAL</div>
+  </div>
+  <p class="demo-desc">Color-neutral active state. Premium / understated. Lets tournament cards below carry the brand color load.</p>
+  <div class="picker v-w1" data-v="w1"></div>
+</section>
+
+<p class="footer">All variants use identical animation timing & easing — only the at-rest color treatment differs.</p>
+
+<script>
+  const SAMPLE = (() => {
+    const today = new Date();
+    return [-3, -2, -1, 0, 1, 2, 3].map(offset => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + offset);
+      const wd = d.toLocaleDateString('en', { weekday: 'short' });
+      const day = String(d.getDate());
+      let top = wd.replace(/\.$/, '');
+      if (offset === 0) top = 'TODAY';
+      else if (offset === -1) top = 'YESTRDY';
+      else if (offset === 1) top = 'TOMRROW';
+      return { offset, top, day };
+    });
+  })();
+
+  function letters(text) {
+    return text.split('').map((c, i) => {
+      const seed = (c.charCodeAt(0) * 13 + i * 7) % 30;
+      const delay = i * 14 + seed;
+      return `<span class="ch" style="animation-delay:${delay}ms">${c === ' ' ? '&nbsp;' : c}</span>`;
+    }).join('');
+  }
+
+  function buildPill(d) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'pill';
+    el.dataset.offset = d.offset;
+    el.innerHTML = `
+      <span class="top">${letters(d.top)}</span>
+      <span class="day">${letters(d.day)}</span>
+    `;
+    if (d.offset === 0) el.classList.add('is-active');
+    return el;
+  }
+
+  function buildArrow(label) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'arrow';
+    el.textContent = label;
+    return el;
+  }
+
+  function refreshLetters(pill) {
+    const top = pill.querySelector('.top');
+    const day = pill.querySelector('.day');
+    top.innerHTML = letters(top.textContent);
+    day.innerHTML = letters(day.textContent);
+  }
+
+  function setupPicker(picker) {
+    const variant = picker.dataset.v;
+    const usesMarker = !['g2', 'g3', 'g5', 'o2', 'w1'].includes(variant);
+
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    picker.appendChild(marker);
+
+    const arrowL = buildArrow('‹');
+    picker.appendChild(arrowL);
+    SAMPLE.forEach(d => picker.appendChild(buildPill(d)));
+    picker.appendChild(buildArrow('›'));
+
+    let currentX = 0;
+
+    function positionMarker(pill, animate) {
+      const r = pill.getBoundingClientRect();
+      const pr = picker.getBoundingClientRect();
+      const x = r.left - pr.left + 5; // +5 for chunky offset feel
+      const y = r.top - pr.top + 5;
+      picker.style.setProperty('--m-y', y + 'px');
+      marker.classList.add('visible');
+      if (animate) {
+        picker.style.setProperty('--m-x-from', currentX + 'px');
+        picker.style.setProperty('--m-x', x + 'px');
+        picker.classList.remove('sliding');
+        void picker.offsetWidth;
+        picker.classList.add('sliding');
+        setTimeout(() => picker.classList.remove('sliding'), 400);
+      } else {
+        picker.style.setProperty('--m-x', x + 'px');
+        picker.style.setProperty('--m-x-from', x + 'px');
+      }
+      currentX = x;
+    }
+
+    picker.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const previous = picker.querySelector('.pill.is-active');
+        if (previous === pill) return;
+        previous?.classList.remove('is-active');
+        pill.classList.remove('is-active');
+        void pill.offsetWidth;
+        pill.classList.add('is-active');
+        refreshLetters(pill);
+        if (usesMarker) positionMarker(pill, true);
+      });
+    });
+
+    requestAnimationFrame(() => {
+      const active = picker.querySelector('.pill.is-active');
+      if (active && usesMarker) positionMarker(active, false);
+    });
+  }
+
+  document.querySelectorAll('.picker').forEach(setupPicker);
+</script>
+
+</body>
+</html>
