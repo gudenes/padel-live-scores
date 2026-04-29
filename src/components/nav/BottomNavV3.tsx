@@ -11,7 +11,7 @@
 //     sessionStorage on tab switch and replayed when the user returns
 //     to a tab. Means swiping back to Feed lands where you left off.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
@@ -97,6 +97,10 @@ const GREEN_DIM = 'rgba(126,211,33,0.15)'
 const DIM = '#4B5563'
 const LIVE_RED = '#FF4655'
 
+// Width of the shared ink-bar — must match the CSS rule below so
+// the measurement code can centre it under the active tab.
+const INK_BAR_WIDTH = 48
+
 // ── Tabs ────────────────────────────────────────────────────────
 //
 // Five top-level tabs after the 2026-04-29 reshuffle:
@@ -138,6 +142,79 @@ export default function BottomNavV3() {
 
   // Determine active tab
   const activeKey = tabKeyFromPath(pathname) ?? 'home'
+
+  // ── Option D animation refs ──────────────────────────────────
+  // Single ink-bar that slides between tabs (the "C" half of A×C),
+  // layered with a spring icon kick + letter cascade on the newly
+  // active tab (the "A" half). See `mockup-bottom-nav-animations.html`.
+  const navRef = useRef<HTMLElement | null>(null)
+  const inkBarRef = useRef<HTMLDivElement | null>(null)
+  const tabRefs = useRef<Map<string, HTMLAnchorElement>>(new Map())
+  const previousActiveKeyRef = useRef<string>(activeKey)
+  const isFirstPositionRef = useRef(true)
+  const [previousActiveKey, setPreviousActiveKey] = useState<string | null>(null)
+
+  // Measure the active tab and animate the ink bar to it.
+  // useLayoutEffect avoids the visible "snap from 0px" frame that
+  // useEffect would produce on first mount.
+  useLayoutEffect(() => {
+    const nav = navRef.current
+    const activeTab = tabRefs.current.get(activeKey)
+    if (!nav || !activeTab) return
+
+    const navRect = nav.getBoundingClientRect()
+    const tabRect = activeTab.getBoundingClientRect()
+    const x = tabRect.left - navRect.left + (tabRect.width - INK_BAR_WIDTH) / 2
+
+    const previousX = parseFloat(nav.style.getPropertyValue('--bar-x') || '0') || 0
+
+    if (isFirstPositionRef.current) {
+      // First paint — position bar without any animation.
+      nav.style.setProperty('--bar-x', `${x}px`)
+      nav.style.setProperty('--bar-x-from', `${x}px`)
+      isFirstPositionRef.current = false
+      previousActiveKeyRef.current = activeKey
+      return
+    }
+
+    if (previousActiveKeyRef.current === activeKey) return
+
+    // Trigger the slide: set from/to vars, force reflow, toggle the
+    // animation class. Removing the class after the keyframe duration
+    // restores the bar to a clean transition-only state for resize.
+    nav.style.setProperty('--bar-x-from', `${previousX}px`)
+    nav.style.setProperty('--bar-x', `${x}px`)
+    nav.classList.remove('v3-nav-animating')
+    void nav.offsetWidth
+    nav.classList.add('v3-nav-animating')
+
+    setPreviousActiveKey(previousActiveKeyRef.current)
+    previousActiveKeyRef.current = activeKey
+
+    const ANIM_MS = 360
+    const cleanupTimer = window.setTimeout(() => {
+      nav.classList.remove('v3-nav-animating')
+      setPreviousActiveKey(null)
+    }, ANIM_MS + 40)
+    return () => window.clearTimeout(cleanupTimer)
+  }, [activeKey])
+
+  // Reposition the ink bar on viewport resize (e.g. orientation flip).
+  // Reads the active tab's current rect — no animation, just a snap.
+  useEffect(() => {
+    function handleResize() {
+      const nav = navRef.current
+      const activeTab = tabRefs.current.get(activeKey)
+      if (!nav || !activeTab) return
+      const navRect = nav.getBoundingClientRect()
+      const tabRect = activeTab.getBoundingClientRect()
+      const x = tabRect.left - navRect.left + (tabRect.width - INK_BAR_WIDTH) / 2
+      nav.style.setProperty('--bar-x', `${x}px`)
+      nav.style.setProperty('--bar-x-from', `${x}px`)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [activeKey])
 
   // Per-tab scroll restoration. The save-side runs on the link's
   // onClick (BELOW) — we have to capture scrollY *before* Next.js
@@ -227,35 +304,52 @@ export default function BottomNavV3() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: NAV_STYLES }} />
-      <nav style={{
-        position: 'fixed',
-        bottom: 0,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '100%',
-        maxWidth: 500,
-        background: 'rgba(10,10,10,0.92)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255,255,255,0.04)',
-        display: 'flex',
-        justifyContent: 'space-around',
-        alignItems: 'flex-end',
-        paddingTop: 4,
-        paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)',
-        zIndex: 200,
-      }}>
+      <nav
+        ref={navRef}
+        className="v3-nav"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '100%',
+          maxWidth: 500,
+          background: 'rgba(10,10,10,0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderTop: '1px solid rgba(255,255,255,0.04)',
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'flex-end',
+          paddingTop: 4,
+          paddingBottom: 'max(env(safe-area-inset-bottom, 16px), 16px)',
+          zIndex: 200,
+        }}
+      >
+        {/* Shared ink-bar that slides between tabs. Position controlled
+            via --bar-x / --bar-x-from CSS vars set from the layout
+            effect. transition handles resize/idle moves; the
+            v3-nav-animating class triggers the keyframe slide+stretch
+            for tab-to-tab transitions. */}
+        <div ref={inkBarRef} className="v3-ink-bar" aria-hidden />
+
         {TABS.map((tab) => {
           const isActive = activeKey === tab.key
+          const wasActive = previousActiveKey === tab.key
           const color = isActive ? GREEN : DIM
 
           return (
             <Link
               key={tab.key}
+              ref={(el) => {
+                if (el) tabRefs.current.set(tab.key, el)
+                else tabRefs.current.delete(tab.key)
+              }}
               href={tab.href}
               prefetch={true}
               data-coachmark={tab.key === 'following' ? 'following' : undefined}
               onClick={saveCurrentScroll}
+              className={`v3-nav-tab${isActive ? ' v3-tab-active' : ''}${wasActive ? ' v3-tab-was-active' : ''}`}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -267,23 +361,8 @@ export default function BottomNavV3() {
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
-              {/* Top bar indicator — inside edge of nav. Sized 20%
-                  larger than the original (40×4) for stronger active-
-                  tab signalling at five-tab density. Stays centred. */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: 48,
-                height: 5,
-                background: isActive ? GREEN : 'transparent',
-                clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-                transition: 'background 0.25s ease',
-              }} />
-
               {/* Icon wrapper */}
-              <div style={{ position: 'relative', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+              <div className="v3-nav-icon" style={{ position: 'relative', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
                 <div style={{ position: 'relative', zIndex: 2 }}>
                   {tab.key === 'home' ? (
                     <HomeIcon color={color} />
@@ -307,23 +386,73 @@ export default function BottomNavV3() {
                 )}
               </div>
 
-              {/* Label */}
-              <span style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: 0.3,
-                  color: isActive ? GREEN : DIM,
-                  textTransform: 'uppercase',
-                  position: 'relative',
-                  zIndex: 1,
-                }}>
-                  {t(tab.labelKey)}
-                </span>
+              {/* Label — split into per-character spans so the active
+                  tab can cascade its letters in. aria-label keeps it
+                  one word for screen readers. */}
+              <NavLabel
+                text={t(tab.labelKey)}
+                isActive={isActive}
+                color={isActive ? GREEN : DIM}
+              />
             </Link>
           )
         })}
       </nav>
     </>
+  )
+}
+
+// ── Label letter-cascade helper ─────────────────────────────────
+// Renders each letter as an inline-block span so the active-tab CSS
+// can stagger them in. Delays are stable per text/active pair so
+// React doesn't re-randomize across unrelated re-renders.
+function NavLabel({
+  text,
+  isActive,
+  color,
+}: {
+  text: string
+  isActive: boolean
+  color: string
+}) {
+  // Deterministic per-letter jitter so the cascade feels playful but
+  // stays identical between SSR and client render (Math.random() here
+  // would trigger a hydration mismatch).
+  const delays = useMemo(() => {
+    return text.split('').map((ch, i) => {
+      const seed = (ch.charCodeAt(0) * 13 + i * 7) % 30
+      return i * 14 + seed
+    })
+  }, [text])
+  // isActive is read by the CSS animation selector, not by JS — keeping
+  // it in the signature to make the contract explicit.
+  void isActive
+
+  return (
+    <span
+      aria-label={text}
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: 0.3,
+        color,
+        textTransform: 'uppercase',
+        position: 'relative',
+        zIndex: 1,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {text.split('').map((ch, i) => (
+        <span
+          key={i}
+          aria-hidden
+          className="v3-nav-ch"
+          style={{ animationDelay: `${delays[i] ?? 0}ms` }}
+        >
+          {ch === ' ' ? ' ' : ch}
+        </span>
+      ))}
+    </span>
   )
 }
 
@@ -351,5 +480,74 @@ const NAV_STYLES = `
     0% { transform: scale(0); }
     70% { transform: scale(1.2); }
     100% { transform: scale(1); }
+  }
+
+  /* ── Option D · Ink Slide + Spring ───────────────────────────
+     Single shared ink-bar that physically slides between tabs
+     (smooth single-arc translate, scale stretches during slide).
+     New active icon does a spring kick + rotate; old icon falls
+     softly; label letters cascade in. */
+  .v3-ink-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: ${INK_BAR_WIDTH}px;
+    height: 5px;
+    background: ${GREEN};
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    transform: translate3d(var(--bar-x, 0px), 0, 0) scaleX(1) scaleY(1);
+    transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .v3-nav.v3-nav-animating .v3-ink-bar {
+    animation: v3-bar-slide 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes v3-bar-slide {
+    0%   { transform: translate3d(var(--bar-x-from), 0, 0) scaleX(1) scaleY(1); }
+    60%  { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1.5) scaleY(0.6); }
+    100% { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1) scaleY(1); }
+  }
+
+  .v3-nav-tab.v3-tab-active .v3-nav-icon {
+    animation: v3-icon-kick 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .v3-nav-tab.v3-tab-was-active .v3-nav-icon {
+    animation: v3-icon-fall 0.22s ease-out;
+  }
+  @keyframes v3-icon-kick {
+    0%   { transform: translateY(4px)  rotate(0deg)   scale(0.9); }
+    35%  { transform: translateY(-7px) rotate(-9deg)  scale(1.22); }
+    65%  { transform: translateY(2px)  rotate(5deg)   scale(0.94); }
+    100% { transform: translateY(0)    rotate(0deg)   scale(1); }
+  }
+  @keyframes v3-icon-fall {
+    0%   { transform: translateY(0)   scale(1); }
+    100% { transform: translateY(2px) scale(0.94); }
+  }
+
+  .v3-nav-ch {
+    display: inline-block;
+  }
+  .v3-nav-tab.v3-tab-active .v3-nav-ch {
+    animation: v3-letter-drop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+  @keyframes v3-letter-drop {
+    0%   { transform: translateY(-8px); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* Respect users who prefer no motion — keep instant color change,
+     drop the springs. The ink-bar still slides via transition (which
+     prefers-reduced-motion doesn't suppress at the OS level by
+     default), but no overshoot animation. */
+  @media (prefers-reduced-motion: reduce) {
+    .v3-ink-bar { transition: transform 0s; }
+    .v3-nav.v3-nav-animating .v3-ink-bar { animation: none; }
+    .v3-nav-tab.v3-tab-active .v3-nav-icon,
+    .v3-nav-tab.v3-tab-was-active .v3-nav-icon,
+    .v3-nav-tab.v3-tab-active .v3-nav-ch {
+      animation: none;
+    }
   }
 `

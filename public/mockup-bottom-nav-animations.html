@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Bottom Nav Animations · 3 Options</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --dim: #4B5563;
+    --bg: #0a0a0a;
+    --bg-card: #141414;
+    --text: #fff;
+    --muted: #9ca3af;
+    --red: #FF4655;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { padding: 24px 16px 80px; max-width: 540px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.4px; }
+  .lede { font-size: 13px; color: var(--muted); margin: 0 0 28px; line-height: 1.5; }
+
+  .demo-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 18px 16px 0;
+    margin-bottom: 22px;
+    overflow: hidden;
+  }
+  .demo-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .demo-title { font-size: 14px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+  .demo-tag { font-size: 10px; font-weight: 700; color: var(--green); letter-spacing: 0.6px; }
+  .demo-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 0 16px; }
+
+  /* Phone-frame the nav */
+  .frame {
+    background: #050505;
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 18px;
+    height: 200px;
+    position: relative;
+    overflow: hidden;
+    margin: 0 -16px;
+  }
+  .frame-screen {
+    position: absolute;
+    inset: 0 0 60px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.18);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    user-select: none;
+  }
+
+  /* Common nav layout */
+  .nav {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: rgba(10,10,10,0.92);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    padding-top: 4px;
+  }
+  .tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px 12px;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+  }
+  .tab .bar {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    transform-origin: center;
+    width: 48px; height: 5px;
+    background: var(--green);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    opacity: 0;
+  }
+  .tab .icon-wrap {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .tab svg { width: 22px; height: 22px; display: block; }
+  .tab svg path,
+  .tab svg circle,
+  .tab svg line,
+  .tab svg polyline { stroke: var(--dim); transition: stroke 0.18s; }
+  .tab .label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    color: var(--dim);
+    text-transform: uppercase;
+    transition: color 0.18s;
+    white-space: nowrap;
+  }
+  .tab { padding-left: 2px; padding-right: 2px; }
+  .tab.active svg path,
+  .tab.active svg circle,
+  .tab.active svg line,
+  .tab.active svg polyline { stroke: var(--green); }
+  .tab.active .label { color: var(--green); }
+
+  /* ───── OPTION A · POP & SETTLE ───── */
+  /* Bar fades+pops in with overshoot. Icon kicks up & spring-settles. Label letters cascade. */
+  .nav-a .tab.active .bar {
+    animation: a-bar-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .nav-a .tab.active .icon-wrap {
+    animation: a-icon-kick 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .nav-a .tab.active .label .ch {
+    animation: a-letter-drop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+  @keyframes a-bar-pop {
+    0%   { transform: translateX(-50%) scaleX(0); opacity: 0; }
+    60%  { transform: translateX(-50%) scaleX(1.15); opacity: 1; }
+    100% { transform: translateX(-50%) scaleX(1); opacity: 1; }
+  }
+  @keyframes a-icon-kick {
+    0%   { transform: translateY(0)    rotate(0deg)   scale(1); }
+    35%  { transform: translateY(-6px) rotate(-8deg)  scale(1.2); }
+    65%  { transform: translateY(2px)  rotate(4deg)   scale(0.92); }
+    100% { transform: translateY(0)    rotate(0deg)   scale(1); }
+  }
+  @keyframes a-letter-drop {
+    0%   { transform: translateY(-8px); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* ───── OPTION B · SCATTER & SETTLE (most disorganized) ───── */
+  /* Bar slams down from above. Icon does a wobbly shake + bursts a few particles.
+     Label slides in with letters arriving at jittered times. */
+  .nav-b .tab.active .bar {
+    animation: b-bar-slam 0.28s cubic-bezier(0.5, 1.4, 0.5, 1) forwards;
+  }
+  .nav-b .tab.active .icon-wrap {
+    animation: b-icon-shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  }
+  .nav-b .tab.active .label .ch {
+    animation: b-letter-jitter 0.45s ease-out backwards;
+  }
+  .particle {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 4px; height: 4px;
+    background: var(--green);
+    border-radius: 1px;
+    pointer-events: none;
+    opacity: 0;
+  }
+  .nav-b .tab.active .particle {
+    animation: b-particle-burst 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+  .nav-b .tab.active .particle:nth-child(1) { --dx:  18px; --dy: -22px; --rot: -45deg; animation-delay: 0.02s; }
+  .nav-b .tab.active .particle:nth-child(2) { --dx: -22px; --dy: -14px; --rot:  30deg; animation-delay: 0.05s; }
+  .nav-b .tab.active .particle:nth-child(3) { --dx:   2px; --dy: -28px; --rot: -90deg; animation-delay: 0.03s; }
+  .nav-b .tab.active .particle:nth-child(4) { --dx:  24px; --dy:  -2px; --rot:  90deg; animation-delay: 0.07s; }
+  .nav-b .tab.active .particle:nth-child(5) { --dx: -16px; --dy: -24px; --rot: 110deg; animation-delay: 0.04s; }
+  @keyframes b-bar-slam {
+    0%   { transform: translateX(-50%) translateY(-12px) scaleX(1.4); opacity: 0; }
+    60%  { transform: translateX(-50%) translateY(2px)   scaleX(0.85); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(0)     scaleX(1); opacity: 1; }
+  }
+  @keyframes b-icon-shake {
+    0%   { transform: translate(0, 0)    rotate(0deg); }
+    15%  { transform: translate(-2px, -1px) rotate(-7deg); }
+    30%  { transform: translate(3px, 2px)   rotate(6deg) scale(1.15); }
+    45%  { transform: translate(-2px, -2px) rotate(-4deg); }
+    60%  { transform: translate(2px, 1px)   rotate(3deg); }
+    75%  { transform: translate(-1px, 0)    rotate(-1deg); }
+    100% { transform: translate(0, 0)       rotate(0deg) scale(1); }
+  }
+  @keyframes b-letter-jitter {
+    0%   { transform: translateY(-10px) rotate(-15deg); opacity: 0; }
+    60%  { transform: translateY(2px)   rotate(4deg);   opacity: 1; }
+    100% { transform: translateY(0)     rotate(0deg);   opacity: 1; }
+  }
+  @keyframes b-particle-burst {
+    0%   { transform: translate(-50%, -50%) scale(0.5);                   opacity: 0; }
+    20%  { transform: translate(-50%, -50%) scale(1);                     opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.4) rotate(var(--rot)); opacity: 0; }
+  }
+
+  /* ───── OPTION C · INK SLIDE ───── */
+  /* The green bar physically slides from the previous tab to the new one,
+     squashing on impact. The newly-active icon kicks up; the previous icon
+     fades down. Feels physical / pinball. */
+  .nav-c {
+    --bar-x: 0px; /* set by JS */
+  }
+  .nav-c .ink-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 48px; height: 5px;
+    background: var(--green);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    transform: translate3d(var(--bar-x), 0, 0) scaleX(1);
+    transition:
+      transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .nav-c.bar-squash .ink-bar {
+    animation: c-bar-squash 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes c-bar-squash {
+    0%   { transform: translate3d(var(--bar-x-from), 0, 0) scaleX(1); }
+    60%  { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1.5) scaleY(0.6); }
+    100% { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1) scaleY(1); }
+  }
+  .nav-c .tab .bar { display: none; } /* using shared ink-bar instead */
+  .nav-c .tab.active .icon-wrap { animation: c-icon-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .nav-c .tab.was-active .icon-wrap { animation: c-icon-fall 0.22s ease-out; }
+  .nav-c .tab.active .label { animation: c-label-rise 0.3s ease-out; }
+  @keyframes c-icon-pop {
+    0%   { transform: translateY(8px) scale(0.85); }
+    60%  { transform: translateY(-3px) scale(1.12); }
+    100% { transform: translateY(0)    scale(1); }
+  }
+  @keyframes c-icon-fall {
+    0%   { transform: translateY(0)   scale(1); }
+    100% { transform: translateY(2px) scale(0.95); }
+  }
+  @keyframes c-label-rise {
+    0%   { transform: translateY(6px); opacity: 0.4; }
+    100% { transform: translateY(0);   opacity: 1; }
+  }
+
+  /* ───── OPTION D · INK SLIDE + SPRING (A × C) ───── */
+  /* Ink bar slides between tabs (C) — gives a clear directional sense of
+     "I came from there, I'm here now". Layered on top: the new icon does
+     A's spring kick + rotate, and the label letters cascade. The old
+     icon takes a soft fall. Keeps C's spatial clarity, adds A's
+     personality. Best of both. */
+  .nav-d {
+    --bar-x: 0px;
+  }
+  .nav-d .ink-bar {
+    position: absolute;
+    top: 0; left: 0;
+    width: 48px; height: 5px;
+    background: var(--green);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    transform: translate3d(var(--bar-x), 0, 0) scaleX(1);
+    transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 2;
+  }
+  .nav-d.bar-squash .ink-bar {
+    animation: d-bar-slide 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  /* Single clean arc — translate completes at 60% with scale stretching
+     during the slide, then unsquash. No midpoint waypoint, so the eye
+     never sees a "pause". Mirrors Option C's smoothness. */
+  @keyframes d-bar-slide {
+    0%   { transform: translate3d(var(--bar-x-from), 0, 0) scaleX(1) scaleY(1); }
+    60%  { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1.5) scaleY(0.6); }
+    100% { transform: translate3d(var(--bar-x), 0, 0)      scaleX(1) scaleY(1); }
+  }
+  .nav-d .tab .bar { display: none; }
+  .nav-d .tab.active .icon-wrap {
+    animation: d-icon-kick 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .nav-d .tab.was-active .icon-wrap {
+    animation: d-icon-fall 0.22s ease-out;
+  }
+  .nav-d .tab.active .label .ch {
+    animation: d-letter-drop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+  @keyframes d-icon-kick {
+    0%   { transform: translateY(4px)  rotate(0deg)   scale(0.9); }
+    35%  { transform: translateY(-7px) rotate(-9deg)  scale(1.22); }
+    65%  { transform: translateY(2px)  rotate(5deg)   scale(0.94); }
+    100% { transform: translateY(0)    rotate(0deg)   scale(1); }
+  }
+  @keyframes d-icon-fall {
+    0%   { transform: translateY(0)   scale(1); }
+    100% { transform: translateY(2px) scale(0.94); }
+  }
+  @keyframes d-letter-drop {
+    0%   { transform: translateY(-8px); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* Misc */
+  .footer { font-size: 11px; color: var(--muted); margin-top: 30px; line-height: 1.6; text-align: center; }
+  .footer code { background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; font-size: 10px; }
+  .label .ch { display: inline-block; }
+</style>
+</head>
+<body>
+
+<h1>Bottom Nav Animations</h1>
+<p class="lede">Four takes on playful & fast. Tap any tab in each demo to feel it. Goal: instant feedback, a hint of disorder, never sluggish.</p>
+
+<!-- ─── OPTION A ─── -->
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">Option A — Pop &amp; Settle</div>
+    <div class="demo-tag">SPRING</div>
+  </div>
+  <p class="demo-desc">
+    Bar pops in with a 15% overshoot. Icon kicks up, rotates, and spring-settles.
+    Label letters cascade down 1 by 1. Confident & bouncy without feeling chaotic.
+  </p>
+  <div class="frame">
+    <div class="frame-screen">PAGE CONTENT</div>
+    <nav class="nav nav-a" id="nav-a"></nav>
+  </div>
+</section>
+
+<!-- ─── OPTION B ─── -->
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">Option B — Scatter &amp; Settle</div>
+    <div class="demo-tag">DISORGANIZED</div>
+  </div>
+  <p class="demo-desc">
+    Bar slams down from above squashing. Icon wobbles like it got tackled. Five tiny
+    confetti particles burst out at staggered times. Letters arrive jittered &amp;
+    rotated. Most playful — borderline rowdy.
+  </p>
+  <div class="frame">
+    <div class="frame-screen">PAGE CONTENT</div>
+    <nav class="nav nav-b" id="nav-b"></nav>
+  </div>
+</section>
+
+<!-- ─── OPTION C ─── -->
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">Option C — Ink Slide</div>
+    <div class="demo-tag">PHYSICAL</div>
+  </div>
+  <p class="demo-desc">
+    A single green bar physically slides from the old tab to the new one, squashing on
+    impact. New icon kicks up; old icon falls down. Feels like a pinball — directional,
+    spatially tied to where you came from.
+  </p>
+  <div class="frame">
+    <div class="frame-screen">PAGE CONTENT</div>
+    <nav class="nav nav-c" id="nav-c">
+      <div class="ink-bar"></div>
+    </nav>
+  </div>
+</section>
+
+<!-- ─── OPTION D · A × C ─── -->
+<section class="demo-card">
+  <div class="demo-head">
+    <div class="demo-title">Option D — Ink Slide + Spring</div>
+    <div class="demo-tag">A × C</div>
+  </div>
+  <p class="demo-desc">
+    The ink bar slides between tabs (C's directional clarity) with a stretchy
+    overshoot landing. Layered on top: the new icon does A's spring kick + rotate
+    and the label cascades letter-by-letter. Old icon takes a soft fall. Spatial
+    story + personality.
+  </p>
+  <div class="frame">
+    <div class="frame-screen">PAGE CONTENT</div>
+    <nav class="nav nav-d" id="nav-d">
+      <div class="ink-bar"></div>
+    </nav>
+  </div>
+</section>
+
+<p class="footer">
+  All animations stay under <code>0.5s</code>. Active state changes color instantly on tap so the user
+  never doubts the input registered. Motion plays on top of the synchronous state flip.
+</p>
+
+<script>
+  // ─── Icons (matching the production BottomNavV3 set) ───────────
+  const ICONS = {
+    home:        '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+    matches:     '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M4.5 7.5C7 7 9.5 9 10 12c0.3 2-0.5 4.5-1.5 6.5"/><path d="M19.5 16.5C17 17 14.5 15 14 12c-0.3-2 0.5-4.5 1.5-6.5"/></svg>',
+    following:   '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
+    tournaments: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>',
+    ranking:     '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="3" y1="20" x2="21" y2="20"/></svg>',
+  };
+  const TABS = [
+    { key: 'home',        label: 'Home' },
+    { key: 'matches',     label: 'Matches' },
+    { key: 'following',   label: 'Following' },
+    { key: 'tournaments', label: 'Events' },
+    { key: 'ranking',     label: 'Ranking' },
+  ];
+
+  function splitLabel(text) {
+    return text.split('').map((c) => `<span class="ch" style="animation-delay:${Math.random()*0.06}s">${c}</span>`).join('');
+  }
+
+  function buildTab(tab, opts = {}) {
+    const el = document.createElement('div');
+    el.className = 'tab';
+    el.dataset.key = tab.key;
+    el.innerHTML = `
+      <div class="bar"></div>
+      <div class="icon-wrap">
+        ${ICONS[tab.key]}
+        ${opts.particles ? '<span class="particle"></span><span class="particle"></span><span class="particle"></span><span class="particle"></span><span class="particle"></span>' : ''}
+      </div>
+      <span class="label">${opts.splitLetters ? splitLabel(tab.label) : tab.label}</span>
+    `;
+    return el;
+  }
+
+  function setActive(nav, key, { onSwitch } = {}) {
+    const previous = nav.querySelector('.tab.active');
+    const next = nav.querySelector(`.tab[data-key="${key}"]`);
+    if (!next || next === previous) return;
+
+    // Mark prior so option C can play "fall" on it
+    nav.querySelectorAll('.was-active').forEach(el => el.classList.remove('was-active'));
+    if (previous) previous.classList.add('was-active');
+
+    // Swap classes — force animation restart by toggling off then on
+    if (previous) previous.classList.remove('active');
+    next.classList.remove('active');
+    void next.offsetWidth; // reflow
+    next.classList.add('active');
+
+    if (onSwitch) onSwitch(previous, next);
+  }
+
+  // ─── Wire up Option A ─────────────────────────────────────────
+  (function () {
+    const nav = document.getElementById('nav-a');
+    TABS.forEach((t, i) => {
+      const tab = buildTab(t, { splitLetters: true });
+      if (i === 0) tab.classList.add('active');
+      tab.addEventListener('click', () => {
+        // Re-split letters so each click randomizes the cascade timing
+        const label = tab.querySelector('.label');
+        label.innerHTML = splitLabel(t.label);
+        setActive(nav, t.key);
+      });
+      nav.appendChild(tab);
+    });
+  })();
+
+  // ─── Wire up Option B ─────────────────────────────────────────
+  (function () {
+    const nav = document.getElementById('nav-b');
+    TABS.forEach((t, i) => {
+      const tab = buildTab(t, { particles: true, splitLetters: true });
+      if (i === 0) tab.classList.add('active');
+      tab.addEventListener('click', () => {
+        const label = tab.querySelector('.label');
+        label.innerHTML = splitLabel(t.label);
+        setActive(nav, t.key);
+      });
+      nav.appendChild(tab);
+    });
+  })();
+
+  // ─── Wire up Option C ─────────────────────────────────────────
+  (function () {
+    const nav = document.getElementById('nav-c');
+    const inkBar = nav.querySelector('.ink-bar');
+    let currentX = 0;
+
+    function positionBar(tab, animate) {
+      const rect = tab.getBoundingClientRect();
+      const navRect = nav.getBoundingClientRect();
+      const x = rect.left - navRect.left + (rect.width - 48) / 2;
+
+      if (animate) {
+        nav.style.setProperty('--bar-x-from', currentX + 'px');
+        nav.style.setProperty('--bar-x', x + 'px');
+        nav.classList.remove('bar-squash');
+        void nav.offsetWidth;
+        nav.classList.add('bar-squash');
+      } else {
+        nav.style.setProperty('--bar-x', x + 'px');
+        nav.style.setProperty('--bar-x-from', x + 'px');
+      }
+      currentX = x;
+    }
+
+    TABS.forEach((t, i) => {
+      const tab = buildTab(t);
+      if (i === 0) tab.classList.add('active');
+      tab.addEventListener('click', () => {
+        setActive(nav, t.key, {
+          onSwitch: (_prev, next) => positionBar(next, true),
+        });
+      });
+      nav.appendChild(tab);
+    });
+
+    // Initial bar position once layout settles
+    requestAnimationFrame(() => {
+      const first = nav.querySelector('.tab.active');
+      if (first) positionBar(first, false);
+    });
+
+    // Reposition on resize
+    window.addEventListener('resize', () => {
+      const active = nav.querySelector('.tab.active');
+      if (active) positionBar(active, false);
+    });
+  })();
+
+  // ─── Wire up Option D (A × C) ─────────────────────────────────
+  (function () {
+    const nav = document.getElementById('nav-d');
+    let currentX = 0;
+
+    function positionBar(tab, animate) {
+      const rect = tab.getBoundingClientRect();
+      const navRect = nav.getBoundingClientRect();
+      const x = rect.left - navRect.left + (rect.width - 48) / 2;
+      if (animate) {
+        nav.style.setProperty('--bar-x-from', currentX + 'px');
+        nav.style.setProperty('--bar-x', x + 'px');
+        nav.classList.remove('bar-squash');
+        void nav.offsetWidth;
+        nav.classList.add('bar-squash');
+      } else {
+        nav.style.setProperty('--bar-x', x + 'px');
+        nav.style.setProperty('--bar-x-from', x + 'px');
+      }
+      currentX = x;
+    }
+
+    TABS.forEach((t, i) => {
+      const tab = buildTab(t, { splitLetters: true });
+      if (i === 0) tab.classList.add('active');
+      tab.addEventListener('click', () => {
+        // Re-split letters for fresh randomized cascade timing
+        const label = tab.querySelector('.label');
+        label.innerHTML = splitLabel(t.label);
+        setActive(nav, t.key, {
+          onSwitch: (_prev, next) => positionBar(next, true),
+        });
+      });
+      nav.appendChild(tab);
+    });
+
+    requestAnimationFrame(() => {
+      const first = nav.querySelector('.tab.active');
+      if (first) positionBar(first, false);
+    });
+    window.addEventListener('resize', () => {
+      const active = nav.querySelector('.tab.active');
+      if (active) positionBar(active, false);
+    });
+  })();
+</script>
+
+</body>
+</html>
