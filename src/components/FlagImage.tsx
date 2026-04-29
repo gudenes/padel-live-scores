@@ -12,11 +12,26 @@
 //
 // This replaces ten near-identical inline `FlagImg` functions previously
 // scattered across match, player, tournament, ranking, home, etc.
+//
+// Country-code policy (defence in depth): the prop accepts alpha-2
+// ("ES", "JP") OR alpha-3 IOC/ISO ("ESP", "JPN", "INA", "HKG"). The
+// component runs every input through `normalizeCountry()` before the
+// lookup. That means callers can pass whatever the upstream source
+// gave them — the FIP draw bracket carries alpha-3, padelapi carries
+// alpha-2, players.country is alpha-2, and `pair*_player*_country`
+// thin-match rows are alpha-3 — and a flag still resolves regardless.
+// Unknown codes resolve to null → empty placeholder span (no broken
+// image glyph), same fallback as null input.
 
 import type { CSSProperties } from 'react'
+import { normalizeCountry } from '@/lib/country'
 
 interface Props {
-  /** ISO 3166-1 alpha-2 country code (case-insensitive). null renders a placeholder. */
+  /**
+   * Country code, alpha-2 OR alpha-3 IOC/ISO (case-insensitive).
+   * `null` renders an empty placeholder. Unknown codes also render the
+   * placeholder rather than a broken-image glyph.
+   */
   country: string | null | undefined
   /** Rendered width in px. Height derives as size × 0.75 (4:3 flag aspect). */
   size?: number
@@ -38,11 +53,17 @@ export function flagcdnWidth(size: number): number {
 }
 
 export function FlagImage({ country, size = 16, rounded = false, style }: Props) {
-  if (!country) {
+  // Normalise alpha-3 IOC/ISO ("ESP", "INA", "HKG") down to the alpha-2
+  // form `/flags/<code>.png` is keyed on. `normalizeCountry` returns
+  // null for empty/unknown input, so a passed alpha-3 we don't have a
+  // mapping for falls back to the placeholder instead of a broken
+  // <img>. See `src/lib/country.ts` for the canonical map.
+  const alpha2 = normalizeCountry(country)
+  if (!alpha2) {
     return <span style={{ width: size, height: size * 0.75, display: 'inline-block' }} />
   }
 
-  const code = country.toLowerCase()
+  const code = alpha2.toLowerCase()
   // flagcdn.com serves only a fixed set of widths — arbitrary values 404.
   // Pick the smallest supported size that gives ≥ 2x the rendered width
   // (retina-quality without over-fetching).
@@ -52,7 +73,7 @@ export function FlagImage({ country, size = 16, rounded = false, style }: Props)
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={`/flags/${code}.png`}
-      alt={country}
+      alt={alpha2}
       width={size}
       height={size * 0.75}
       loading="lazy"
