@@ -212,6 +212,21 @@ function fakeSupabase(opts: Options) {
     }),
   });
 
+  // Returns a builder that resolves to the given `data` either when
+  // awaited directly OR when `.range(start, end)` is chained. Mirrors
+  // the production populator: it now uses .range() for pagination on
+  // the snapshot tables, but tests don't need the multi-page loop —
+  // we just slice the data the same way Postgres would. The default
+  // (no .range) keeps backward compat with any tests that resolve
+  // the builder directly.
+  function paginatedResult(data: unknown[]): PromiseLike<{ data: unknown[]; error: null }> & { range: (start: number, end: number) => Promise<{ data: unknown[]; error: null }> } {
+    const promise = Promise.resolve({ data, error: null });
+    return Object.assign(promise, {
+      range: (start: number, end: number) =>
+        Promise.resolve({ data: data.slice(start, end + 1), error: null }),
+    });
+  }
+
   const drawSnapshotsTable = () => ({
     select: (_cols: string) => ({
       eq: (col1: string, val1: string) => ({
@@ -221,7 +236,7 @@ function fakeSupabase(opts: Options) {
               (col1 !== 'tournament_id' || d.tournament_id === val1) &&
               (col2 !== 'source' || 'fip_event_page' === val2),
           );
-          return Promise.resolve({ data, error: null });
+          return paginatedResult(data);
         },
       }),
     }),
@@ -235,7 +250,7 @@ function fakeSupabase(opts: Options) {
         if (col !== 'tournament_id')
           throw new Error(`unexpected oop_snapshots filter: ${col}`);
         const data = oopSnapshots.filter((r) => r.tournament_id === val);
-        return Promise.resolve({ data, error: null });
+        return paginatedResult(data);
       },
     }),
   });
@@ -246,7 +261,7 @@ function fakeSupabase(opts: Options) {
         const data = entryList.filter(
           (e) => col !== 'tournament_id' || val === TOURNAMENT_ID,
         );
-        return Promise.resolve({ data, error: null });
+        return paginatedResult(data);
       },
     }),
   });
@@ -1461,5 +1476,99 @@ describe('runFipDrawPopulator', () => {
     expect(supabase.updated[0].patch).not.toHaveProperty(
       'pair1_player2_country',
     );
+  });
+
+  // ── Pagination (snapshot-table loaders) ───────────────────────────────
+  //
+  // PostgREST caps single-request responses at 1000 rows by default.
+  // The populator's snapshot-table loaders (entry_list, draw, oop) used
+  // to issue an unranged select that silently dropped any rows past
+  // the cap. For Leiria 2026-04 (5,369 entry_list_snapshots) this
+  // deterministically dropped the entire women's roster — every
+  // women's match failed to resolve.
+  //
+  // Now they paginate via .range(start, end) until a partial page
+  // comes back. This regression test simulates that exact gap:
+  // 1100 entry list rows where the women's entries sit ABOVE row 1000.
+  // Without pagination the women's matches would skip; with it they
+  // resolve and write to public.matches.
+
+  it('entry_list pagination: women past row 1000 still resolve', async () => {
+    // Use the singleton TOURNAMENT_ID/SLUG/WIDGET so the test fake's
+    // entry-list filter (which short-circuits on the singleton) returns
+    // the rows back. The test is about *what the populator passes to
+    // Supabase*, not about multi-tournament fixtures.
+
+    // 1000 dummy men entries first — these would fill the legacy
+    // 1000-row response cap, hiding everyone after.
+    const entryListPaginate: EntryListSeed[] = Array.from(
+      { length: 1000 },
+      (_, i) => ({
+        name: `Filler Man ${i}`,
+        fip_id: `fip-PMEN${i}`,
+        category: 'men' as const,
+        captured_at: '2026-04-29T00:00:00Z',
+      }),
+    );
+    // Then the 4 women whose match we need to resolve. They live AT
+    // INDICES 1000..1003 — past the legacy cap.
+    entryListPaginate.push(
+      { name: 'Maria Garin', fip_id: 'fip-WP1', category: 'women', captured_at: '2026-04-29T00:00:00Z' },
+      { name: 'Margarida Fernandes', fip_id: 'fip-WP2', category: 'women', captured_at: '2026-04-29T00:00:00Z' },
+      { name: 'Carina Filipa Costa', fip_id: 'fip-WP3', category: 'women', captured_at: '2026-04-29T00:00:00Z' },
+      { name: 'Daniela Catarino', fip_id: 'fip-WP4', category: 'women', captured_at: '2026-04-29T00:00:00Z' },
+    );
+
+    const womensDraw: DrawSeed = {
+      tournament_id: TOURNAMENT_ID,
+      match_widget_id: 'WD017',
+      category: 'women',
+      round_label: 'R32',
+      draw_position: 1,
+      team1_player1_name: 'Maria Garin',
+      team1_player2_name: 'Margarida Fernandes',
+      team2_player1_name: 'Carina Filipa Costa',
+      team2_player2_name: 'Daniela Catarino',
+      team1_fip_id: 'P000001',
+      team2_fip_id: 'P000002',
+      team1_seed: null,
+      team2_seed: null,
+      status: 'scheduled',
+      captured_at: '2026-04-29T00:00:00Z',
+    };
+
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Leiria', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      // Women players need rows in public.players too. The entry_list
+      // resolves name → fip_id; the players table maps fip_id → uuid.
+      players: [
+        { id: 'uuid-W1', fip_id: 'fip-WP1' },
+        { id: 'uuid-W2', fip_id: 'fip-WP2' },
+        { id: 'uuid-W3', fip_id: 'fip-WP3' },
+        { id: 'uuid-W4', fip_id: 'fip-WP4' },
+      ],
+      draws: [womensDraw],
+      entryList: entryListPaginate,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // Without pagination this would skip with skippedPlayerUnresolved += 1.
+    // With pagination the women resolve from rows 1000..1003.
+    expect(result.skippedPlayerUnresolved).toBe(0);
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted).toHaveLength(1);
+    const row = supabase.inserted[0];
+    expect(row.widget_id_composite).toBe(`${TOURNAMENT_WIDGET}:WD017`);
+    expect(row.pair1_player1_id).toBe('uuid-W1');
+    expect(row.pair1_player2_id).toBe('uuid-W2');
+    expect(row.pair2_player1_id).toBe('uuid-W3');
+    expect(row.pair2_player2_id).toBe('uuid-W4');
   });
 });
