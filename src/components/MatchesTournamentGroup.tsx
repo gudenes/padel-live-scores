@@ -119,22 +119,38 @@ function formatDateRange(
   return `${start} \u2013 ${end}`
 }
 
+// Orange — used for "tournament is in its calendar window but no match is
+// being played right now". Same hue as the home page's "Ongoing" state so
+// the two surfaces stay in sync. Imported lazily to avoid a top-level
+// constants reshuffle.
+const ONGOING_ORANGE = '#F5A623'
+
 function tournamentStatusBadge(
   groupBucketCounts: { live: number; upcoming: number; finished: number },
   tournamentStatus: string | null,
 ): { label: string; bg: string; color: string } | null {
-  // Live trumps everything — if the tournament has live matches today,
-  // that's the headline. Otherwise fall back to the tournament's stored
-  // status, then to the bucket-derived state.
+  // The red LIVE pill is reserved for actual live matches. `tournaments.
+  // status` from padelapi is too coarse — it reports 'live' for any
+  // event in its calendar window, regardless of whether play is ongoing
+  // right this second. Pre-fix that fallback fired all night for any
+  // currently-running tournament, so the pill was a noisy alarm.
+  //
+  // Trust order:
+  //   1. matches.status='live' on at least one of today's matches → LIVE
+  //   2. tournament.status='finished'/'completed'/'ended' → FINAL
+  //   3. tournament.status='live'/'ongoing' (in calendar window) → ONGOING
+  //   4. only upcoming today → UPCOMING
+  //   5. only finished today → FINAL
+  //   6. mixed today, no tournament-level signal → no pill
   if (groupBucketCounts.live > 0) {
     return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
   }
   const ts = (tournamentStatus ?? '').toLowerCase()
-  if (ts === 'live' || ts === 'ongoing') {
-    return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
-  }
   if (ts === 'finished' || ts === 'completed' || ts === 'ended') {
     return { label: 'FINAL', bg: 'rgba(255,255,255,0.06)', color: MUTED }
+  }
+  if (ts === 'live' || ts === 'ongoing') {
+    return { label: 'ONGOING', bg: 'rgba(245,166,35,0.15)', color: ONGOING_ORANGE }
   }
   if (groupBucketCounts.live === 0 && groupBucketCounts.upcoming > 0 && groupBucketCounts.finished === 0) {
     return { label: 'UPCOMING', bg: 'rgba(126,211,33,0.12)', color: GREEN }
