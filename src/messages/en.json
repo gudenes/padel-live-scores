@@ -88,6 +88,34 @@
       "apply": "Apply"
     }
   },
+  "match": {
+    "stream": {
+      "live": {
+        "eyebrow": "Watch live",
+        "cta": "Watch live on YouTube",
+        "footer": "Streaming free on the FIP YouTube channel"
+      },
+      "archived": {
+        "eyebrow": "Watch replay",
+        "cta": "Watch replay on YouTube",
+        "footer": "Match was on {court} · scrub the stream to find the start"
+      },
+      "upcoming": {
+        "eyebrow": "Tune in",
+        "cta": "Open YouTube stream",
+        "footer": "Court livestream goes live ~10 min before first match"
+      },
+      "channel": {
+        "eyebrow": "Watch on FIP YouTube",
+        "cta": "Open FIP channel",
+        "footer": "We couldn't pin down this match's stream — the FIP channel has all matches",
+        "title": "FIP International Padel Federation",
+        "meta": "Browse live and recent streams"
+      },
+      "metaLive": "Live now · {viewers} watching",
+      "metaScheduled": "Scheduled · starts at {time}"
+    }
+  },
   "matchDetail": {
     "matchDetail": "Match Detail",
     "round": "Round",
