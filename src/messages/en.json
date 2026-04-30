@@ -840,5 +840,68 @@
     "searchAria": "Search country",
     "clearAria": "Clear search",
     "noMatch": "No country matches \"{query}\""
+  },
+  "prediction": {
+    "cta": {
+      "pick": "PICK",
+      "yourPick": "YOUR PICK",
+      "locked": "PICKS LOCKED"
+    },
+    "makeYourPick": "Make your pick",
+    "rewardShown": "Reward shown",
+    "favored": "{pct}% favored",
+    "underdog": "{pct}% underdog",
+    "tossUp": "{pct}% toss-up",
+    "unrankedTossUp": "Unranked — toss-up",
+    "upsetFlag": "UPSET",
+    "ifRight": "guacas if right",
+    "marginBonus": "+0.50× bonus if you nail the margin",
+    "youArePicking": "You're picking",
+    "change": "Change",
+    "lockedIn": "Locked in",
+    "tapToClose": "Tap to close",
+    "closingSoon": "Closing in a moment…",
+    "stayOpen": "Stay open",
+    "straightSets": "Straight sets",
+    "threeSets": "Three sets",
+    "result": {
+      "perfect": "Perfect call",
+      "right": "Right · margin off",
+      "wrong": "Wrong",
+      "heavyUpset": "Heavy upset called",
+      "perfectBadge": "PERFECT",
+      "rightBadge": "RIGHT",
+      "wrongBadge": "WRONG",
+      "upsetBadge": "UPSET"
+    },
+    "live": {
+      "tracking": "Tracking your pick",
+      "yourPickHeader": "Your pick"
+    },
+    "community": {
+      "pick": "Community pick",
+      "picks": "{n, plural, one {# pick} other {# picks}}",
+      "noPicksYet": "Be the first to pick"
+    },
+    "stats": {
+      "avgRanking": "avg ranking",
+      "lastFive": "last 5",
+      "h2h": "h2h"
+    },
+    "sponsor": "Predictions · presented by {brand}",
+    "myPicks": {
+      "title": "My picks",
+      "totalGuacas": "total guacas",
+      "accuracy": "accuracy",
+      "currentStreak": "streak",
+      "bestStreak": "best streak",
+      "rank": "RANK #{rank} · GLOBAL",
+      "filterAll": "All",
+      "filterPending": "Pending",
+      "filterWon": "Won",
+      "filterLost": "Lost",
+      "noPicks": "You haven't picked any matches yet",
+      "noPicksSub": "Tap PICK on any scheduled match to play."
+    }
   }
 }

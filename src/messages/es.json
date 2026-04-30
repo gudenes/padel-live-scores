@@ -820,5 +820,57 @@
     "searchAria": "Buscar país",
     "clearAria": "Borrar búsqueda",
     "noMatch": "Ningún país coincide con \"{query}\""
+  },
+  "prediction": {
+    "cta": { "pick": "ELIGE", "yourPick": "TU ELECCIÓN", "locked": "BLOQUEADO" },
+    "makeYourPick": "Haz tu elección",
+    "rewardShown": "Recompensa mostrada",
+    "favored": "{pct}% favorito",
+    "underdog": "{pct}% no favorito",
+    "tossUp": "{pct}% incierto",
+    "unrankedTossUp": "Sin ranking — incierto",
+    "upsetFlag": "SORPRESA",
+    "ifRight": "guacas si aciertas",
+    "marginBonus": "+0,50× extra si aciertas el marcador",
+    "youArePicking": "Estás eligiendo",
+    "change": "Cambiar",
+    "lockedIn": "Confirmado",
+    "tapToClose": "Toca para cerrar",
+    "closingSoon": "Cerrando en un momento…",
+    "stayOpen": "Mantener abierto",
+    "straightSets": "Sets directos",
+    "threeSets": "Tres sets",
+    "result": {
+      "perfect": "Predicción perfecta",
+      "right": "Acertado · marcador no",
+      "wrong": "Fallaste",
+      "heavyUpset": "Gran sorpresa acertada",
+      "perfectBadge": "PERFECTO",
+      "rightBadge": "ACIERTO",
+      "wrongBadge": "FALLO",
+      "upsetBadge": "SORPRESA"
+    },
+    "live": { "tracking": "Siguiendo tu elección", "yourPickHeader": "Tu elección" },
+    "community": {
+      "pick": "Elección de la comunidad",
+      "picks": "{n, plural, one {# elección} other {# elecciones}}",
+      "noPicksYet": "Sé el primero en elegir"
+    },
+    "stats": { "avgRanking": "ranking medio", "lastFive": "últimos 5", "h2h": "h2h" },
+    "sponsor": "Predicciones · presentado por {brand}",
+    "myPicks": {
+      "title": "Mis elecciones",
+      "totalGuacas": "guacas totales",
+      "accuracy": "precisión",
+      "currentStreak": "racha",
+      "bestStreak": "mejor racha",
+      "rank": "PUESTO #{rank} · GLOBAL",
+      "filterAll": "Todas",
+      "filterPending": "Pendientes",
+      "filterWon": "Ganadas",
+      "filterLost": "Perdidas",
+      "noPicks": "Aún no has elegido ningún partido",
+      "noPicksSub": "Toca ELIGE en cualquier partido programado para jugar."
+    }
   }
 }

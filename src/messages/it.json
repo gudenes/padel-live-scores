@@ -820,5 +820,57 @@
     "searchAria": "Cerca paese",
     "clearAria": "Cancella ricerca",
     "noMatch": "Nessun paese corrisponde a \"{query}\""
+  },
+  "prediction": {
+    "cta": { "pick": "SCEGLI", "yourPick": "LA TUA SCELTA", "locked": "BLOCCATO" },
+    "makeYourPick": "Fai la tua scelta",
+    "rewardShown": "Premio mostrato",
+    "favored": "{pct}% favorito",
+    "underdog": "{pct}% sfavorito",
+    "tossUp": "{pct}% incerto",
+    "unrankedTossUp": "Senza ranking — incerto",
+    "upsetFlag": "SORPRESA",
+    "ifRight": "guacas se indovini",
+    "marginBonus": "+0,50× bonus se indovini il risultato",
+    "youArePicking": "Stai scegliendo",
+    "change": "Cambia",
+    "lockedIn": "Confermato",
+    "tapToClose": "Tocca per chiudere",
+    "closingSoon": "Chiudo tra un attimo…",
+    "stayOpen": "Tieni aperto",
+    "straightSets": "Set diretti",
+    "threeSets": "Tre set",
+    "result": {
+      "perfect": "Pronostico perfetto",
+      "right": "Giusto · risultato no",
+      "wrong": "Sbagliato",
+      "heavyUpset": "Grande sorpresa azzeccata",
+      "perfectBadge": "PERFETTO",
+      "rightBadge": "GIUSTO",
+      "wrongBadge": "SBAGLIATO",
+      "upsetBadge": "SORPRESA"
+    },
+    "live": { "tracking": "Seguendo la tua scelta", "yourPickHeader": "La tua scelta" },
+    "community": {
+      "pick": "Scelta della community",
+      "picks": "{n, plural, one {# scelta} other {# scelte}}",
+      "noPicksYet": "Sii il primo a scegliere"
+    },
+    "stats": { "avgRanking": "ranking medio", "lastFive": "ultime 5", "h2h": "h2h" },
+    "sponsor": "Pronostici · presentato da {brand}",
+    "myPicks": {
+      "title": "Le mie scelte",
+      "totalGuacas": "guacas totali",
+      "accuracy": "precisione",
+      "currentStreak": "serie",
+      "bestStreak": "miglior serie",
+      "rank": "POSIZIONE #{rank} · GLOBALE",
+      "filterAll": "Tutte",
+      "filterPending": "In sospeso",
+      "filterWon": "Vinte",
+      "filterLost": "Perse",
+      "noPicks": "Non hai ancora scelto nessuna partita",
+      "noPicksSub": "Tocca SCEGLI su qualsiasi partita programmata per giocare."
+    }
   }
 }
