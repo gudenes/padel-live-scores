@@ -698,6 +698,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
               <PlayerNameLink player={match.pair1_player2} dim={!!p2Won} muted={!!p2Leading} bold={!!p1Won} router={router} />
               {isRetired && p2Won && <span style={{ fontSize: 8, fontWeight: 700, color: '#F5A623', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 6px', flexShrink: 0 }}>RET</span>}
+              {isWalkover && p2Won && <span style={{ fontSize: 8, fontWeight: 700, color: '#F5A623', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 6px', flexShrink: 0 }}>W/O</span>}
             </div>
           </div>
           {!isScheduled && (
@@ -779,6 +780,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
               <PlayerNameLink player={match.pair2_player2} dim={!!p1Won} muted={!!p1Leading} bold={!!p2Won} router={router} />
               {isRetired && p1Won && <span style={{ fontSize: 8, fontWeight: 700, color: '#F5A623', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 6px', flexShrink: 0 }}>RET</span>}
+              {isWalkover && p1Won && <span style={{ fontSize: 8, fontWeight: 700, color: '#F5A623', background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.25)', clipPath: CHUNKY.badge, padding: '1px 6px', flexShrink: 0 }}>W/O</span>}
             </div>
           </div>
           {!isScheduled && (

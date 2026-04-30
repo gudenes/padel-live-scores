@@ -43,7 +43,7 @@ function parseRoundLabel($block: cheerio.Cheerio<any>): string | null {
 }
 
 /**
- * Extract player names and winner status from a team <td>.
+ * Extract player names, winner flag, and any terminal-status badge from a team <td>.
  *
  * Real HTML structure (from Crionet/matchscorerlive.com):
  *   Each player line is a div.d-flex.align-items-center containing:
@@ -52,15 +52,27 @@ function parseRoundLabel($block: cheerio.Cheerio<any>): string | null {
  *       containing TWO spans: initial (e.g. "F.") + surname (e.g. "Chingotto")
  *
  * Winner indicated by "winner" class on the name div OR fa-check icon in the td.
+ *
+ * Terminal-status badge: walkovers and retirements show a `<small class='badge ...'>`
+ * next to the winner's fa-check, with text like "WO" or "RET". When present we
+ * emit a special match status so the row is preserved even when set cells are
+ * all "-" (the walkover signature). See parseCrionetResults below.
  */
 function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
   player1: string | null;
   player2: string | null;
   hasWinner: boolean;
+  badgeText: string | null;
 } {
   // Winner check: fa-check icon or "winner" class anywhere in the td
   const hasWinner = td.html()?.includes('fa-check') === true ||
     td.find('[class*="winner"]').length > 0;
+
+  // Terminal-status badge — text content of any small.badge inside this td.
+  // Crionet puts it in a small.badge.badge-primary, but be loose about extra
+  // classes in case they vary the variant.
+  const badge = td.find('small.badge').first();
+  const badgeText = badge.length > 0 ? badge.text().trim().toUpperCase() : null;
 
   const playerNames: string[] = [];
 
@@ -88,7 +100,16 @@ function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
     player1: playerNames[0] ?? null,
     player2: playerNames[1] ?? null,
     hasWinner,
+    badgeText,
   };
+}
+
+/** Map a Crionet status badge ("WO", "RET", etc.) to our ResultsStatus. */
+function badgeToStatus(badgeText: string | null): ResultsStatus | null {
+  if (!badgeText) return null;
+  if (/^W[\/\s]?O$/i.test(badgeText)) return 'walkover';
+  if (/^RET$/i.test(badgeText)) return 'retired';
+  return null;
 }
 
 /**
@@ -142,8 +163,17 @@ export function parseCrionetResults(html: string, dayNumber: number): ParsedResu
       const tbSuffix = a.tb !== null ? `(${a.tb})` : b.tb !== null ? `(${b.tb})` : '';
       sets.push(`${a.games}-${b.games}${tbSuffix}`);
     }
-    if (sets.length === 0) return;
     const setScores = sets.join(' ');
+
+    // Terminal-status badge — winner team carries it (e.g. WO when the
+    // opponent didn't show, RET when the opponent retired mid-match).
+    const badgeStatus = badgeToStatus(team1.badgeText) ?? badgeToStatus(team2.badgeText);
+
+    // Drop ordinary results rows that have no scores. Walkovers are the
+    // legitimate exception — they have empty set cells but a WO badge,
+    // and we still want to record them so the UI can show "W/O" instead
+    // of leaving the match stuck on `scheduled`.
+    if (sets.length === 0 && !badgeStatus) return;
 
     const winnerTeam: 1 | 2 = team1.hasWinner ? 1 : 2;
     const button = $t.find(STATS_BUTTON_SELECTOR).first();
@@ -161,7 +191,7 @@ export function parseCrionetResults(html: string, dayNumber: number): ParsedResu
       team2Player2Name: team2.player2,
       setScores,
       winnerTeam,
-      status: 'finished',
+      status: badgeStatus ?? 'finished',
     });
   });
 
