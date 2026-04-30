@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useLocale } from 'next-intl'
 import { readAllPredictions } from '@/hooks/useMatchPrediction'
 import type { Prediction } from '@/lib/predictions/types'
 import type { Match } from '@/types/match'
@@ -9,6 +10,7 @@ import { StatsHeader } from './StatsHeader'
 import { PicksList } from './PicksList'
 
 export function ClientPicks({ displayName }: { displayName: string }) {
+  const locale = useLocale()
   const [picks, setPicks] = useState<Array<{ prediction: Prediction; match: Match }>>([])
   const [loading, setLoading] = useState(true)
 
@@ -80,7 +82,7 @@ export function ClientPicks({ displayName }: { displayName: string }) {
         currentStreak={currentStreak}
         bestStreak={bestStreak}
       />
-      <PicksList picks={picks} />
+      <PicksList picks={picks} locale={locale} />
     </>
   )
 }
