@@ -856,6 +856,7 @@
     "upsetFlag": "UPSET",
     "ifRight": "guacas if right",
     "marginBonus": "+0.50× bonus if you nail the margin",
+    "marginBonusShort": "+0.50× bonus",
     "youArePicking": "You're picking",
     "change": "Change",
     "lockedIn": "Locked in",

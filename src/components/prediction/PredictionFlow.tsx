@@ -114,7 +114,9 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
             </div>
           </div>
           <button
+            type="button"
             onClick={handleChange}
+            aria-label={`${t('change')} prediction`}
             style={{
               marginLeft: 'auto', background: 'transparent', border: 0,
               fontSize: 10, fontWeight: 700, color: MUTED,
@@ -143,7 +145,9 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
             {chosenReward} <GuacaIcon size={10} />
           </span>
           <button
+            type="button"
             onClick={handleChange}
+            aria-label={`${t('change')} prediction`}
             style={{ background: 'transparent', border: 0, fontSize: 10, color: MUTED, textDecoration: 'underline', cursor: 'pointer', marginLeft: 8 }}
           >{t('change')}</button>
         </div>
@@ -151,7 +155,9 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
           {(['2-0', '2-1'] as const).map(margin => (
             <button
               key={margin}
+              type="button"
               onClick={() => handlePickMargin(margin)}
+              aria-label={`Pick ${margin.replace('-', '–')} (${margin === '2-0' ? t('straightSets') : t('threeSets')})`}
               style={{
                 flex: 1, background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.08)',
@@ -164,7 +170,7 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
                 {margin === '2-0' ? t('straightSets') : t('threeSets')}
               </div>
               <div style={{ fontSize: 9, fontWeight: 800, color: '#FFD166', marginTop: 4 }}>
-                +0.50× bonus
+                {t('marginBonusShort')}
               </div>
             </button>
           ))}
@@ -186,7 +192,9 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
     return (
       <button
         key={pair}
+        type="button"
         onClick={() => handlePickPair(pair)}
+        aria-label={`Pick ${name}`}
         style={{
           flex: 1, minWidth: 0, position: 'relative',
           background: 'rgba(255,255,255,0.03)',

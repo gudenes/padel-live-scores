@@ -832,6 +832,7 @@
     "upsetFlag": "SURPRESA",
     "ifRight": "guacas se acertares",
     "marginBonus": "+0,50× extra se acertares o resultado",
+    "marginBonusShort": "+0,50× extra",
     "youArePicking": "Estás a escolher",
     "change": "Mudar",
     "lockedIn": "Confirmado",

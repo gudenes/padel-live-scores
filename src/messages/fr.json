@@ -832,6 +832,7 @@
     "upsetFlag": "SURPRISE",
     "ifRight": "guacas si tu gagnes",
     "marginBonus": "+0,50× bonus si tu trouves le score",
+    "marginBonusShort": "+0,50× bonus",
     "youArePicking": "Tu choisis",
     "change": "Changer",
     "lockedIn": "Validé",
