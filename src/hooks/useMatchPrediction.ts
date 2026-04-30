@@ -11,6 +11,9 @@ const STORAGE_KEY = 'pn_match_predictions'
 type LegacyPrediction = { pair: Pair; margin: Margin }
 
 function readAll(): Record<string, Prediction> {
+  // Next.js 16 pre-renders client components on the server, where
+  // `localStorage` is undefined. Bail early so we don't rely on the catch.
+  if (typeof window === 'undefined') return {}
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return {}
