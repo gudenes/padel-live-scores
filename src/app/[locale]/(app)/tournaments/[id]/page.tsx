@@ -829,6 +829,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             allMatches={allMatches}
             genderFilter={genderFilter}
             genderColor={genderColor}
+            locale={locale}
+            userTz={userTz}
           />
         </div>
       </main>
@@ -1460,11 +1462,13 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
 // gracefully when no final has been played yet.
 // ══════════════════════════════════════════════════════════════
 
-function V3Story({ tournament, allMatches, genderFilter, genderColor }: {
+function V3Story({ tournament, allMatches, genderFilter, genderColor, locale, userTz }: {
   tournament: any
   allMatches: Match[]
   genderFilter: 'men' | 'women'
   genderColor: string
+  locale: string
+  userTz: string
 }) {
   const router = useRouter()
   const tTournament = useTranslations('tournament')
