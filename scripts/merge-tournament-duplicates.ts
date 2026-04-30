@@ -207,12 +207,18 @@ async function main() {
     groups.get(k)!.push(t)
   }
 
-  // Find cross-source duplicates: groups with both padelapi and fip rows
+  // Find cross-source duplicates: groups with both a padelapi-linked row
+  // (`padelapi_id` populated) and a FIP-only row (only `fip_id` populated).
+  // The `source` column is unreliable for this — old padelapi-imported
+  // tournaments still report source='fip' after the discovery flow change.
   const duplicates: Array<{ padelapi: TournamentRow; fip: TournamentRow; key: string }> = []
   for (const [key, rows] of groups) {
     if (rows.length < 2) continue
-    const padelapi = rows.find(r => r.source === 'padelapi')
-    const fip = rows.find(r => r.source === 'fip')
+    // Prefer the row that has a padelapi_id as the survivor — it's the
+    // canonical id for live-scoring writes and the relay path. The FIP
+    // row gets folded into it.
+    const padelapi = rows.find(r => r.padelapi_id != null)
+    const fip = rows.find(r => r !== padelapi && r.padelapi_id == null && r.fip_id != null)
     if (padelapi && fip) {
       duplicates.push({ padelapi, fip, key })
     }
