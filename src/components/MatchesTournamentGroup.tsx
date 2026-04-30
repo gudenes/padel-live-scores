@@ -24,7 +24,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
-import { DailyMatchCard } from '@/components/DailyMatchCard'
+import { MatchCard } from '@/components/MatchCard'
 import { levelLabel } from '@/lib/tournament-labels'
 import type { Match } from '@/types/match'
 
@@ -43,7 +43,7 @@ const CHUNKY = {
 // ── Types ────────────────────────────────────────────────────────────────
 
 /** Narrow shape used by the daily-page query — much smaller than the full
- *  Match type. V3MatchCard reads selectively and null-checks every
+ *  Match type. MatchCard reads selectively and null-checks every
  *  nullable field, so the cast through `unknown as Match` inside is safe. */
 export interface GroupMatch {
   id: string
@@ -450,7 +450,7 @@ function MatchEntry({
       data-status={status}
       style={{ padding: '0 8px' }}
     >
-      <DailyMatchCard
+      <MatchCard
         match={matchAsFull}
         genderColor={genderColor}
         locale={locale}

@@ -2,7 +2,7 @@
 // src/components/ResultCard.tsx
 //
 // Shared match-result card used by the home page's "Latest Results"
-// section and the matches page's Results tab. Denser than V3MatchCard:
+// section and the matches page's Results tab. Denser than MatchCard:
 // tighter padding, multi-pill header (round / court / status / date),
 // a bright W badge next to the winning pair, and loser rows dimmed
 // to ~45% opacity with muted text.

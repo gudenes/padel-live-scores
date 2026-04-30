@@ -15,8 +15,7 @@ import Spinner from '../../../../components/Spinner'
 import BrandedLoader, { LOADER_HINTS } from '../../../../components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
-import { V3MatchCard } from '@/components/V3MatchCard'
-import { DailyMatchCard } from '@/components/DailyMatchCard'
+import { MatchCard } from '@/components/MatchCard'
 import WhereToWatch from '@/components/WhereToWatch'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
@@ -137,7 +136,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const tCommon = useTranslations('common')
   const locale = useLocale()
   // User's timezone from the browser. Falls back to UTC when Intl is
-  // unavailable (very old engines). DailyMatchCard formats the date
+  // unavailable (very old engines). MatchCard formats the date
   // chip in this tz.
   const userTz = (typeof Intl !== 'undefined'
     ? (Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC')
@@ -762,7 +761,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       rightColor={justUpdated ? GREEN : undefined}
                     />
                     {liveMatches.map(m => (
-                      <DailyMatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
+                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
                     ))}
                   </div>
                 )}
@@ -771,7 +770,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div style={{ marginBottom: 14 }}>
                     <SectionHeader dot color={ORANGE} label="Warming up" />
                     {warmingUpMatches.map(m => (
-                      <DailyMatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
+                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
                     ))}
                   </div>
                 )}
@@ -780,7 +779,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div style={{ marginBottom: 14 }}>
                     <SectionHeader label="Up next" />
                     {scheduledMatches.map(m => (
-                      <V3ScheduledCard key={m.id} match={m} genderColor={genderColor} estimatedLabel={estimatedLabels[m.id]} />
+                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} estimatedLabel={estimatedLabels[m.id]} />
                     ))}
                   </div>
                 )}
@@ -789,7 +788,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div>
                     <SectionHeader label={`Results \u00B7 ${selectedRound ?? ''}`} />
                     {finishedMatches.map(m => (
-                      <DailyMatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
+                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
                     ))}
                   </div>
                 )}
@@ -897,157 +896,6 @@ function InfoRow({
   )
 }
 
-// ══════════════════════════════════════════════════════════════
-// ── V3 Scheduled Card ───────────────────────────────────────
-// ══════════════════════════════════════════════════════════════
-
-function V3ScheduledCard({ match, genderColor, estimatedLabel }: { match: Match; genderColor: string; estimatedLabel?: string }) {
-  const format = useFormatter()
-  const tTournament = useTranslations('tournament')
-  // Prediction check (hydration-safe)
-  const [hasPrediction, setHasPrediction] = useState(false)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('pn_match_predictions')
-      if (raw) setHasPrediction(!!JSON.parse(raw)[match.id])
-    } catch {}
-  }, [match.id])
-
-  const scheduleLabel = (match as any).schedule_label as string | null
-  const scheduleDisplay = (() => {
-    if (!match.scheduled_at) return { time: '', date: '', approximate: false }
-    const d = new Date(match.scheduled_at)
-    const hasTime = d.getUTCHours() !== 0 || d.getUTCMinutes() !== 0
-    const time = hasTime
-      ? format.dateTime(d, TIME_24H)
-      : ''
-    const date = format.dateTime(d, DATE_SHORT)
-    const approximate = /not before|followed by/i.test(scheduleLabel ?? '')
-    return { time, date, approximate }
-  })()
-
-  const pair1 = pairName(match.pair1_player1, match.pair1_player2)
-  const pair2 = pairName(match.pair2_player1, match.pair2_player2)
-
-  return (
-    <Link href={`/match/${match.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-      <div style={{
-        position: 'relative',
-        padding: '12px 14px 12px 17px',
-        borderBottom: `1px solid ${BORDER}`,
-        overflow: 'hidden',
-      }}>
-        {/* Gender accent bar (left) — same as matches page */}
-        <div style={{
-          position: 'absolute', top: 4, left: 0, bottom: 4,
-          width: 3, background: genderColor,
-        }} />
-
-        {/* Top row: round + court */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          {match.round && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, color: MUTED,
-              padding: '2px 7px',
-              background: 'rgba(255,255,255,0.04)',
-              clipPath: CHUNKY.badge,
-              textTransform: 'uppercase',
-              letterSpacing: 0.3,
-            }}>
-              {match.round}
-            </span>
-          )}
-          {match.court && (
-            <span style={{
-              fontSize: 9, fontWeight: 700, color: MUTED,
-              padding: '2px 7px',
-              background: 'rgba(255,255,255,0.04)',
-              clipPath: CHUNKY.badge,
-              textTransform: 'uppercase',
-              letterSpacing: 0.3,
-            }}>
-              {match.court}
-            </span>
-          )}
-          {hasPrediction && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 3,
-              background: 'rgba(126,211,33,0.06)',
-              padding: '2px 8px',
-              clipPath: CHUNKY.badge,
-              border: '0.5px solid rgba(126,211,33,0.15)',
-              marginLeft: 'auto',
-            }}>
-              <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="10" r="8"/><path d="M8 18h8"/><path d="M7 21h10"/>
-              </svg>
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#7ED321', letterSpacing: 0.3 }}>{tTournament('predicted')}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Pair rows + schedule — same layout as matches page */}
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {[
-              { p1: match.pair1_player1, p2: match.pair1_player2, name: pair1 },
-              { p1: match.pair2_player1, p2: match.pair2_player2, name: pair2 },
-            ].map(({ p1, p2, name }, idx) => (
-              <div key={idx} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '4px 0',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                  {/* Stacked dual flags */}
-                  <div style={{ position: 'relative', width: 24, height: 18, flexShrink: 0 }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                      <FlagImage country={p1?.country ?? null} size={14} />
-                    </div>
-                    <div style={{ position: 'absolute', top: 5, left: 7, zIndex: 1 }}>
-                      <FlagImage country={p2?.country ?? null} size={14} />
-                    </div>
-                  </div>
-                  <span style={{
-                    fontSize: 13, fontWeight: 700, color: '#e0e0e0',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {name}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Date + time — right side, aligned with players */}
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'flex-end',
-            justifyContent: 'center', flexShrink: 0, marginLeft: 8, marginRight: 4,
-            minWidth: 42,
-          }}>
-            {scheduleDisplay.date && (
-              <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, lineHeight: 1.2 }}>
-                {scheduleDisplay.date}
-              </span>
-            )}
-            {scheduleDisplay.time ? (
-              <span style={{ fontSize: 13, fontWeight: 800, color: GREEN, lineHeight: 1.2 }}>
-                {scheduleDisplay.time}{scheduleDisplay.approximate ? '*' : ''}
-              </span>
-            ) : estimatedLabel ? (
-              <span style={{ fontSize: 9, fontWeight: 600, color: ORANGE, lineHeight: 1.2, textTransform: 'uppercase' }}>
-                {estimatedLabel}
-              </span>
-            ) : (
-              <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, lineHeight: 1.2, opacity: 0.5 }}>
-                TBD
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </Link>
-  )
-}
 
 // ══════════════════════════════════════════════════════════════
 // ── Overview Tab ────────────────────────────────────────────
@@ -1844,7 +1692,7 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor }: {
               </div>
               {topUpsets.map((upset, i) => (
                 <div key={i} style={{ marginBottom: 4 }}>
-                  <V3MatchCard match={upset.match} genderColor={genderColor} />
+                  <MatchCard match={upset.match} genderColor={genderColor} locale={locale} userTz={userTz} />
                 </div>
               ))}
             </>
