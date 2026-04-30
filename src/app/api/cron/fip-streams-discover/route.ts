@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
   try {
     const meta = await logOpsEvent('cron:fip-streams-discover', async () => {
       const supabase = createServerClient()
+      const dryRun = process.env.FIP_STREAMS_DRY_RUN === 'true'
 
       // Tournament-aware short-circuit: only run if at least one FIP-tier
       // tournament is currently active or ended in the last 7 days.
@@ -151,65 +152,70 @@ export async function GET(request: NextRequest) {
         const wasSeenAnywhere = seenUnresolvedIds.has(d.videoId) || seenStreamIds.has(d.videoId)
 
         if (!parsed.tier || parsed.tournamentTokens.length === 0) {
-          await upsertUnresolved(supabase, d, parsed, 'parser_failed')
+          await upsertUnresolved(supabase, d, parsed, 'parser_failed', dryRun)
           if (!wasSeenAnywhere) stats.newly_unresolved++
           continue
         }
 
         const tourn = matchTournament(parsed, tournaments)
         if (!tourn) {
-          await upsertUnresolved(supabase, d, parsed, 'no_tournament_match')
+          await upsertUnresolved(supabase, d, parsed, 'no_tournament_match', dryRun)
           if (!wasSeenAnywhere) stats.newly_unresolved++
           continue
         }
 
         if (!parsed.court) {
-          await upsertUnresolved(supabase, d, parsed, 'no_court')
+          await upsertUnresolved(supabase, d, parsed, 'no_court', dryRun)
           if (!wasSeenAnywhere) stats.newly_unresolved++
           continue
         }
 
         const dayIso = d.actualStartTime ?? d.scheduledStartTime ?? null
         if (!dayIso) {
-          await upsertUnresolved(supabase, d, parsed, 'parser_failed')
+          await upsertUnresolved(supabase, d, parsed, 'parser_failed', dryRun)
           if (!wasSeenAnywhere) stats.newly_unresolved++
           continue
         }
         const dayDate = dayIso.slice(0, 10)
 
         const wasSeenAsStream = seenStreamIds.has(d.videoId)
-        const { error: upsertErr } = await supabase
-          .from('fip_court_streams')
-          .upsert({
-            youtube_video_id: d.videoId,
-            tournament_id: tourn.id,
-            court: parsed.court,
-            day_date: dayDate,
-            title: d.title,
-            thumbnail_url: d.thumbnailUrl,
-            state: newState,
-            scheduled_start_at: d.scheduledStartTime,
-            actual_start_at: d.actualStartTime,
-            actual_end_at: d.actualEndTime,
-            view_count: d.viewCount,
-            concurrent_viewers: d.concurrentViewers,
-            link_method: 'auto',
-            last_synced_at: new Date().toISOString(),
-          }, { onConflict: 'youtube_video_id' })
-
-        if (!upsertErr) {
-          if (seenUnresolvedIds.has(d.videoId)) {
-            await supabase
-              .from('fip_streams_unresolved')
-              .update({
-                resolved_at: new Date().toISOString(),
-                resolved_tournament_id: tourn.id,
-                resolved_court: parsed.court,
-                resolved_day_date: dayDate,
-              })
-              .eq('youtube_video_id', d.videoId)
-          }
+        if (dryRun) {
+          console.log('[fip-streams DRY_RUN] would upsert fip_court_streams:', { videoId: d.videoId, tournamentId: tourn.id, court: parsed.court, dayDate, state: newState })
           if (!wasSeenAsStream) stats.newly_matched++
+        } else {
+          const { error: upsertErr } = await supabase
+            .from('fip_court_streams')
+            .upsert({
+              youtube_video_id: d.videoId,
+              tournament_id: tourn.id,
+              court: parsed.court,
+              day_date: dayDate,
+              title: d.title,
+              thumbnail_url: d.thumbnailUrl,
+              state: newState,
+              scheduled_start_at: d.scheduledStartTime,
+              actual_start_at: d.actualStartTime,
+              actual_end_at: d.actualEndTime,
+              view_count: d.viewCount,
+              concurrent_viewers: d.concurrentViewers,
+              link_method: 'auto',
+              last_synced_at: new Date().toISOString(),
+            }, { onConflict: 'youtube_video_id' })
+
+          if (!upsertErr) {
+            if (seenUnresolvedIds.has(d.videoId)) {
+              await supabase
+                .from('fip_streams_unresolved')
+                .update({
+                  resolved_at: new Date().toISOString(),
+                  resolved_tournament_id: tourn.id,
+                  resolved_court: parsed.court,
+                  resolved_day_date: dayDate,
+                })
+                .eq('youtube_video_id', d.videoId)
+            }
+            if (!wasSeenAsStream) stats.newly_matched++
+          }
         }
       }
 
@@ -239,7 +245,12 @@ async function upsertUnresolved(
   d: VideoDetails,
   parsed: ParsedFipTitle,
   reason: 'parser_failed' | 'no_tournament_match' | 'no_court',
+  dryRun: boolean,
 ) {
+  if (dryRun) {
+    console.log('[fip-streams DRY_RUN] would upsert fip_streams_unresolved:', { videoId: d.videoId, reason, parsedTokens: parsed.tournamentTokens })
+    return
+  }
   await supabase.from('fip_streams_unresolved').upsert(
     {
       youtube_video_id: d.videoId,

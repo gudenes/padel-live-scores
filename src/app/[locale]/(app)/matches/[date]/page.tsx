@@ -70,18 +70,20 @@ export default async function DailyMatchesPage({ params }: Props) {
   }
 
   // Resolve YouTube stream tiers for all matches on this day.
-  const streamTiers = await resolveStreamsForMatches(
-    supabase,
-    rawMatches.map(m => ({
-      id: m.id,
-      tournament_id: m.tournament?.id ?? '',
-      tournament_level: m.tournament?.level ?? null,
-      court: m.court,
-      scheduled_at: m.scheduled_at,
-      played_at: null,
-    })),
-    tournamentNamesForStreams,
-  )
+  const streamTiers = process.env.NEXT_PUBLIC_FIP_STREAMS_ENABLED === 'true'
+    ? await resolveStreamsForMatches(
+        supabase,
+        rawMatches.map(m => ({
+          id: m.id,
+          tournament_id: m.tournament?.id ?? '',
+          tournament_level: m.tournament?.level ?? null,
+          court: m.court,
+          scheduled_at: m.scheduled_at,
+          played_at: null,
+        })),
+        tournamentNamesForStreams,
+      )
+    : new Map<string, null>()
 
   // Decorate each match with its resolved streamTier, then re-bucket into groups.
   const matchStreamMap = new Map(rawMatches.map(m => [

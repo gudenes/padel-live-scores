@@ -331,7 +331,7 @@ export function MatchCard({
             </div>
 
             {/* Stream button — circular YouTube affordance (Task 11) */}
-            {match.streamTier && (
+            {process.env.NEXT_PUBLIC_FIP_STREAMS_ENABLED === 'true' && match.streamTier && (
               <a
                 href={match.streamTier.url}
                 target="_blank"

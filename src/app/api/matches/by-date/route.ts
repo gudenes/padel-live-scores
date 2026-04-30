@@ -40,7 +40,7 @@ export async function GET(req: Request) {
     // Decorate each match with its FIP-stream tier (mirror of the page-level wiring).
     const { groups } = payload
     const allMatches = groups.flatMap((g) => g.matches)
-    if (allMatches.length > 0) {
+    if (process.env.NEXT_PUBLIC_FIP_STREAMS_ENABLED === 'true' && allMatches.length > 0) {
       const tournamentNames: Record<string, string> = {}
       for (const g of groups) {
         tournamentNames[g.tournamentId] = g.tournamentName

@@ -889,7 +889,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       )}
 
       {/* ── Stream card (FIP-tier matches only) ──────────────────── */}
-      {streamTier && (
+      {process.env.NEXT_PUBLIC_FIP_STREAMS_ENABLED === 'true' && streamTier && (
         <div style={{ padding: '0 16px', marginTop: 8 }}>
           <MatchStreamCard
             streamTier={streamTier}
