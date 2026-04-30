@@ -114,6 +114,48 @@ describe('parseOopScheduledAtBatch', () => {
     expect(byId.C2B!.scheduledAt).toBe('2026-04-30T08:30:00.000Z');
   });
 
+  it('chains independently per (court, dayDate) — never bleeds across days', () => {
+    // Regression for the Mendoza Q2 MQ008 bug: when one court has rows
+    // from two different day_dates, the parser used to chain Apr 30's
+    // "Followed by" off Apr 29's last absolute time. Now each (court,
+    // dayDate) pair has its own chain.
+    //
+    // Apr 29 chain on Pista Central:
+    //   pos 0: "Starting at 5:30 PM" → 17:30 ARG
+    //   pos 1: "Not before 7:00 PM"  → 19:00 ARG
+    //   pos 2: "Not before 8:45 PM"  → 20:45 ARG  (chain end for Apr 29)
+    //
+    // Apr 30 chain on Pista Central:
+    //   pos 0: "Starting at 12:00 PM"  → 12:00 ARG
+    //   pos 1: "Followed by"            → 13:30 ARG
+    //   pos 2: "Not before 3:00 PM"     → 15:00 ARG
+    //   pos 3: "Followed by"            → 16:30 ARG  (this is MQ008)
+    //
+    // The bug stored MQ008 at 22:15 ARG (= 20:45 + 90), inheriting the
+    // Apr 29 chain. With the fix MQ008 lands at 16:30 ARG.
+    const rows: OopScheduleRow[] = [
+      // Apr 29 rows
+      { matchWidgetId: 'D29-0', court: 'Pista Central', courtPosition: 0, scheduledLabel: 'Starting at 5:30 PM', dayDate: '2026-04-29' },
+      { matchWidgetId: 'D29-1', court: 'Pista Central', courtPosition: 1, scheduledLabel: 'Not before 7:00 PM',  dayDate: '2026-04-29' },
+      { matchWidgetId: 'D29-2', court: 'Pista Central', courtPosition: 2, scheduledLabel: 'Not before 8:45 PM',  dayDate: '2026-04-29' },
+      // Apr 30 rows — same court, positions reset to 0..3
+      { matchWidgetId: 'D30-0', court: 'Pista Central', courtPosition: 0, scheduledLabel: 'Starting at 12:00 PM', dayDate: '2026-04-30' },
+      { matchWidgetId: 'D30-1', court: 'Pista Central', courtPosition: 1, scheduledLabel: 'Followed by',          dayDate: '2026-04-30' },
+      { matchWidgetId: 'D30-2', court: 'Pista Central', courtPosition: 2, scheduledLabel: 'Not before 3:00 PM',   dayDate: '2026-04-30' },
+      { matchWidgetId: 'MQ008', court: 'Pista Central', courtPosition: 3, scheduledLabel: 'Followed by',          dayDate: '2026-04-30' },
+    ];
+    const out = parseOopScheduledAtBatch(rows, 'America/Argentina/Buenos_Aires');
+    const byId = Object.fromEntries(out.map((r) => [r.matchWidgetId, r]));
+    // ARG = UTC-3, no DST.
+    expect(byId['D29-0']!.scheduledAt).toBe('2026-04-29T20:30:00.000Z'); // 17:30 ARG
+    expect(byId['D29-2']!.scheduledAt).toBe('2026-04-29T23:45:00.000Z'); // 20:45 ARG
+    expect(byId['D30-0']!.scheduledAt).toBe('2026-04-30T15:00:00.000Z'); // 12:00 ARG (resets chain — does NOT chain off Apr 29 20:45)
+    expect(byId['D30-1']!.scheduledAt).toBe('2026-04-30T16:30:00.000Z'); // 13:30 ARG = 12:00 + 90
+    expect(byId['D30-2']!.scheduledAt).toBe('2026-04-30T18:00:00.000Z'); // 15:00 ARG (absolute, not 13:30 + 90)
+    // The critical regression assertion — MQ008 lands at 16:30 ARG, not 22:15.
+    expect(byId.MQ008!.scheduledAt).toBe('2026-04-30T19:30:00.000Z'); // 16:30 ARG = 21:30 Madrid CEST
+  });
+
   it('skips rows without a match widget id (cannot link to public.matches)', () => {
     const rows: OopScheduleRow[] = [
       {

@@ -11,8 +11,16 @@
 // captured from the OOP day-pill (e.g. "2026-04-30").
 //
 // "Followed by" requires court-context — we chain off the previous parsed
-// time on the same court. Courts are processed in `court_position` order
-// (the OOP widget's row order on the page) so chaining matches reality.
+// time on the same (court, day_date). Courts are processed in
+// `court_position` order (the OOP widget's row order on the page) so
+// chaining matches reality.
+//
+// IMPORTANT: the chain key includes `dayDate`, not just `court`. Crionet
+// OOP snapshots cover multiple days at once, and `court_position` resets
+// per day. Without per-day isolation, Apr 30's "Followed by" rows latch
+// onto Apr 29's last absolute time and produce timestamps a full day
+// off (Mendoza Q2 MQ008 — stored as 22:15 ARG Apr 29, real time was
+// 16:30 ARG Apr 30).
 //
 // Mirrors the parser used in src/app/api/ops/schedule-review/route.ts; that
 // path is the human-in-the-loop preview UI. This module is the automated
@@ -121,16 +129,20 @@ export function parseOopScheduledAtBatch(
   rows: OopScheduleRow[],
   timezone: string,
 ): OopScheduleResult[] {
-  // Sort by (court, courtPosition) for deterministic chaining. Stable enough
-  // since courtPosition is unique within a court per the OOP widget's DOM
-  // order.
+  // Sort by (court, dayDate, courtPosition) for deterministic chaining.
+  // dayDate must be in the sort key so each day's chain is processed
+  // contiguously — see the IMPORTANT note at the top of this file.
   const sorted = [...rows].sort((a, b) => {
     const ac = a.court ?? '';
     const bc = b.court ?? '';
     if (ac !== bc) return ac < bc ? -1 : 1;
+    const ad = a.dayDate ?? '';
+    const bd = b.dayDate ?? '';
+    if (ad !== bd) return ad < bd ? -1 : 1;
     return a.courtPosition - b.courtPosition;
   });
 
+  // Keyed by `${court}::${dayDate}` — never bleed the chain across days.
   const lastTimePerCourt = new Map<string, Date>();
   const out: OopScheduleResult[] = [];
 
@@ -138,7 +150,7 @@ export function parseOopScheduledAtBatch(
     if (!row.matchWidgetId) continue;
     if (!row.dayDate) continue;
     if (!row.scheduledLabel) continue;
-    const courtKey = row.court ?? '__none__';
+    const courtKey = `${row.court ?? '__none__'}::${row.dayDate}`;
 
     let scheduledAt: string | null = null;
     let approximate = false;
