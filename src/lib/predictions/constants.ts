@@ -8,8 +8,7 @@
  *  unit the multiplier scales. */
 export const STAKE_GUACAS = 100
 
-/** Base multiplier cap. A 20% underdog (the floor of PROB_CLAMP_MAX_INV)
- *  hits exactly 5.00x. */
+/** Base multiplier cap. At PROB_CLAMP_MIN (0.20), 1/p hits exactly 5.00x. */
 export const MULTIPLIER_CAP = 5.00
 
 /** Floor — a coin-flip is the minimum. Never less than 1.00x. */
