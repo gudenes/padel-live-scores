@@ -214,6 +214,7 @@ Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and do
 | `/api/cron/sync-fip-rankings` | Daily 5am UTC | FIP official + race rankings (top 1000, both genders) |
 | `/api/cron/sync-articles` | Hourly at :40 | News from RSS feeds + FIP WordPress API |
 | `/api/cron/sync-highlights` | Hourly at :20 | YouTube highlights from padel channels |
+| `/api/cron/fip-streams-discover` | Every 15 min | Discover FIP YouTube livestreams, write to `fip_court_streams` or queue in `fip_streams_unresolved` |
 | `/api/cron/premier-discovery` | Mon 4am UTC | Link Premier tournaments + matches to our DB |
 | `/api/cron/premier-stats` | Hourly at :13 | Sync per-set stats from Premier Padel API |
 | `/api/cron/social-drafts` | Mon 8am UTC | Generate social media post drafts via Claude API → `social_posts` table |
@@ -731,3 +732,11 @@ Padelapi-imported tournament rows have `slug = null`. Padelgod's `tournament-dis
 **Cleanup script gotcha:** [`scripts/merge-tournament-duplicates.ts`](scripts/merge-tournament-duplicates.ts) was filtering on `source === 'padelapi'` to identify the survivor row, but every row in production has `source = 'fip'` post-discovery-flow change. Switched the discriminator to `padelapi_id != null` vs `fip_id`-only. The script silently said "0 duplicates" for months because of this — that's why the Marmotor / Cyprus / Dubai dupes accumulated.
 
 **Match dedup:** for orphans that survive across pipelines, [`scripts/dedup-pattern-b-multi-pipeline.mjs`](scripts/dedup-pattern-b-multi-pipeline.mjs) clusters by name-token signature OR ≥3 player UUID overlap. Clusters where the widget-linked twin has no player FKs (different ingest path) won't unite — those need a manual delete (cluster-by-court+round+time would catch them but adds risk of false matches).
+
+## FIP YouTube streams (2026-04-30)
+
+`fip_court_streams` + `fip_streams_unresolved` power the "Where to watch" affordance on FIP-tier match rows (circular YouTube button between names and scores) and on the match detail page (chunky card). Discovery cron `/api/cron/fip-streams-discover` runs every 15 min via the FIP channel's `uploads` playlist (cheap endpoint, ~200 quota units/day). Title parser maps streams to (tournament, court, day); unmatched videos go to the ops queue. Tier fallback: court stream → tournament-scoped channel search → generic FIP channel URL (always works).
+
+Feature flagged behind `NEXT_PUBLIC_FIP_STREAMS_ENABLED`. Cron supports `FIP_STREAMS_DRY_RUN=true` for scan-only mode during initial rollout. Premier Padel matches are unaffected — they still use the existing `WhereToWatch` component.
+
+Spec: [docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md](docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md). Plan: [docs/superpowers/plans/2026-04-30-fip-youtube-streams.md](docs/superpowers/plans/2026-04-30-fip-youtube-streams.md). Mockup: [public/mockup-fip-stream.html](public/mockup-fip-stream.html).
