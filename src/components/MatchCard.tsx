@@ -279,140 +279,122 @@ export function MatchCard({
           )}
         </div>
 
-        {/* Pair rows + right-aligned date/time (matches tournament detail) */}
+        {/* Pair rows: [names col | optional stream button (Task 11) | scores col] + right-aligned date/time */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-        {[1, 2].map(pairNum => {
-          const p1 = pairNum === 1 ? match.pair1_player1 : match.pair2_player1
-          const p2 = pairNum === 1 ? match.pair1_player2 : match.pair2_player2
-          const pair = pairName(p1, p2)
-          const isWinner = winner === pairNum
-          const isLoser = winner !== 0 && winner !== pairNum
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, flex: 1, minWidth: 0 }}>
 
-          return (
-            <div
-              key={pairNum}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '5px 0',
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  flex: 1,
-                  minWidth: 0,
-                  opacity: isLoser ? 0.65 : 1,
-                }}
-              >
-                {/* Stacked dual flags */}
-                <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                    <FlagImage country={p1?.country ?? null} size={16} />
+            {/* Names column — both pair-lefts stacked */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              {[1, 2].map(pairNum => {
+                const p1 = pairNum === 1 ? match.pair1_player1 : match.pair2_player1
+                const p2 = pairNum === 1 ? match.pair1_player2 : match.pair2_player2
+                const pair = pairName(p1, p2)
+                const isWinner = winner === pairNum
+                const isLoser = winner !== 0 && winner !== pairNum
+                return (
+                  <div key={pairNum} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
+                    opacity: isLoser ? 0.65 : 1,
+                  }}>
+                    {/* Stacked dual flags */}
+                    <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                        <FlagImage country={p1?.country ?? null} size={16} />
+                      </div>
+                      <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
+                        <FlagImage country={p2?.country ?? null} size={16} />
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 12, fontWeight: isWinner ? 800 : 600,
+                      color: isLoser ? '#B0B5BE' : '#fff',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{pair}</span>
+                    {isWinner && isFinished && (
+                      <span style={{
+                        flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+                        color: '#0A0A0A', background: GREEN, padding: '2px 6px',
+                        clipPath: CHUNKY.badge, lineHeight: 1.1,
+                      }}>W</span>
+                    )}
                   </div>
-                  <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
-                    <FlagImage country={p2?.country ?? null} size={16} />
-                  </div>
-                </div>
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: isWinner ? 800 : 600,
-                    color: isLoser ? '#B0B5BE' : '#fff',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {pair}
-                </span>
-                {isWinner && isFinished && (
-                  <span
-                    style={{
-                      flexShrink: 0,
-                      fontSize: 9,
-                      fontWeight: 800,
-                      letterSpacing: 0.5,
-                      color: '#0A0A0A',
-                      background: GREEN,
-                      padding: '2px 6px',
-                      clipPath: CHUNKY.badge,
-                      lineHeight: 1.1,
-                    }}
-                  >
-                    W
-                  </span>
-                )}
-              </div>
+                )
+              })}
+            </div>
 
-              {/* Per-set scores */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                {sets.map(s => {
-                  const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
-                  const p1g = parsed?.p1 ?? s.pair1_games ?? 0
-                  const p2g = parsed?.p2 ?? s.pair2_games ?? 0
-                  const games = pairNum === 1 ? p1g : p2g
-                  const tb = parsed?.tb ?? null
-                  const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
-                  const isCurrent = s.is_current && isLive
-                  return (
-                    <span
-                      key={s.id}
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 700,
-                        fontFamily: 'monospace',
-                        color: isCurrent
-                          ? GREEN
-                          : wonThisSet
-                          ? '#fff'
-                          : '#B0B5BE',
-                        minWidth: 16,
-                        textAlign: 'center',
-                        position: 'relative',
-                      }}
-                    >
-                      {games}
-                      {tb != null && !wonThisSet && (
-                        <sup
+            {/* Stream button slot — Task 11 plugs in here */}
+
+            {/* Scores column — both score rows stacked */}
+            <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+              {[1, 2].map(pairNum => {
+                const isLoser = winner !== 0 && winner !== pairNum
+                return (
+                  <div key={pairNum} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+                    gap: 8, padding: '5px 0', opacity: isLoser ? 0.65 : 1,
+                  }}>
+                    {sets.map(s => {
+                      const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
+                      const p1g = parsed?.p1 ?? s.pair1_games ?? 0
+                      const p2g = parsed?.p2 ?? s.pair2_games ?? 0
+                      const games = pairNum === 1 ? p1g : p2g
+                      const tb = parsed?.tb ?? null
+                      const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
+                      const isCurrent = s.is_current && isLive
+                      return (
+                        <span
+                          key={s.id}
                           style={{
-                            fontSize: 8,
-                            color: '#B0B5BE',
-                            position: 'absolute',
-                            top: -3,
-                            right: -5,
+                            fontSize: 15,
+                            fontWeight: 700,
+                            fontFamily: 'monospace',
+                            color: isCurrent
+                              ? GREEN
+                              : wonThisSet
+                              ? '#fff'
+                              : '#B0B5BE',
+                            minWidth: 16,
+                            textAlign: 'center',
+                            position: 'relative',
                           }}
                         >
-                          {tb}
-                        </sup>
-                      )}
-                    </span>
-                  )
-                })}
-                {isLive && gamePoints && (
-                  <span
-                    style={{
-                      fontSize: 17,
-                      fontWeight: 800,
-                      fontFamily: 'monospace',
-                      color: LIVE_RED,
-                      minWidth: 20,
-                      textAlign: 'center',
-                      marginLeft: 4,
-                    }}
-                  >
-                    {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
-                  </span>
-                )}
-              </div>
+                          {games}
+                          {tb != null && !wonThisSet && (
+                            <sup
+                              style={{
+                                fontSize: 8,
+                                color: '#B0B5BE',
+                                position: 'absolute',
+                                top: -3,
+                                right: -5,
+                              }}
+                            >
+                              {tb}
+                            </sup>
+                          )}
+                        </span>
+                      )
+                    })}
+                    {isLive && gamePoints && (
+                      <span
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 800,
+                          fontFamily: 'monospace',
+                          color: LIVE_RED,
+                          minWidth: 20,
+                          textAlign: 'center',
+                          marginLeft: 4,
+                        }}
+                      >
+                        {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          )
-        })}
+
           </div>
 
           {/* Right-aligned schedule stack — scheduled matches only (live/finished
