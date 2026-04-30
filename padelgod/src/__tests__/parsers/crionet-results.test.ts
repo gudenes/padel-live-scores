@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { parseCrionetResults } from '../../parsers/crionet-results.js';
 
 // Realistic HTML matching production Crionet/matchscorerlive.com structure.
@@ -296,5 +298,59 @@ describe('parseCrionetResults', () => {
     expect(result[0].setScores).toBe('6-1 1-6 1-6');
     expect(result[0].category).toBe('men');
     expect(result[0].roundLabel).toBe('Q3');
+  });
+
+  it('captures walkovers (WO badge + empty set cells) instead of dropping them', async () => {
+    // Live HTML pulled from https://widget.matchscorerlive.com/screen/resultsbyday/FIP-2026-1811/1?t=tol
+    // Leiria Q1 — Pereira/Morbey Basso received a walkover from Rodriguez Quesada/Danuzzo.
+    // The widget shows the WO badge + fa-check on the winner row, with set cells all "-".
+    // Pre-fix the parser dropped the row because sets.length === 0; post-fix it emits
+    // status='walkover' with an empty setScores string.
+    const html = await fs.readFile(
+      path.resolve(__dirname, '../fixtures/crionet-results-leiria-walkover.html'),
+      'utf8',
+    );
+    const result = parseCrionetResults(html, 1);
+    const walkover = result.find(
+      (r) => r.matchWidgetId === 'MQ011' || (r.team1Player1Name === 'G. Morbey Basso' && r.team2Player1Name === 'L. Danuzzo'),
+    );
+    expect(walkover).toBeDefined();
+    expect(walkover!.status).toBe('walkover');
+    expect(walkover!.setScores).toBe('');
+    expect(walkover!.winnerTeam).toBe(1); // team1 = Morbey Basso / Pereira got the W/O
+    expect(walkover!.team1Player1Name).toBe('G. Morbey Basso');
+    expect(walkover!.team2Player1Name).toBe('L. Danuzzo');
+  });
+
+  it('still drops empty-score rows that have no terminal-status badge', () => {
+    // Defensive: a malformed snapshot with empty score cells but no WO/RET badge
+    // (would be a Crionet rendering glitch) should still be dropped — we don't
+    // want to manufacture a `finished` row from nothing.
+    const html = `
+      <table class="w-100">
+        <tr class="scorebox-header-completed">
+          <th><span class="court-name">Court 1</span></th>
+          <th><div class="round-name"><small><b>Men </b><div>Q1</div></small></div></th>
+        </tr>
+        <tr class="scorebox-sep-bottom">
+          <td class="team">
+            <div class="ml-2"><span>A.</span><span>Smith</span></div>
+            <div class="ml-2"><span>B.</span><span>Jones</span></div>
+          </td>
+          <td></td>
+          <td class="set">-</td><td class="set">-</td><td class="set">-</td>
+        </tr>
+        <tr>
+          <td class="team">
+            <div class="ml-2"><span>C.</span><span>Lopez</span></div>
+            <div class="ml-2"><span>D.</span><span>Pena</span></div>
+          </td>
+          <td></td>
+          <td class="set">-</td><td class="set">-</td><td class="set">-</td>
+        </tr>
+      </table>
+    `;
+    const result = parseCrionetResults(html, 1);
+    expect(result).toHaveLength(0);
   });
 });
