@@ -38,7 +38,7 @@ describe('parseFipStreamTitle', () => {
   it('returns null tier for non-FIP titles', () => {
     const r = parseFipStreamTitle('Mendoza Padel Cup - Live')
     expect(r.tier).toBeNull()
-    expect(r.tournamentTokens).toEqual(['mendoza', 'cup'])
+    expect(r.tournamentTokens).toEqual(['mendoza'])
   })
 
   it('returns null day when missing', () => {

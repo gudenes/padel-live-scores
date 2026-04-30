@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         .from('tournaments')
         .select('id')
         .in('level', ['fip_bronze', 'fip_silver', 'fip_gold', 'fip_platinum', 'fip_promises', 'fip_other'])
-        .lte('starts_at', new Date().toISOString())
+        .lte('starts_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
         .gte('ends_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .limit(1)
         .maybeSingle()
@@ -197,7 +197,20 @@ export async function GET(request: NextRequest) {
             last_synced_at: new Date().toISOString(),
           }, { onConflict: 'youtube_video_id' })
 
-        if (!upsertErr && !wasSeenAsStream) stats.newly_matched++
+        if (!upsertErr) {
+          if (seenUnresolvedIds.has(d.videoId)) {
+            await supabase
+              .from('fip_streams_unresolved')
+              .update({
+                resolved_at: new Date().toISOString(),
+                resolved_tournament_id: tourn.id,
+                resolved_court: parsed.court,
+                resolved_day_date: dayDate,
+              })
+              .eq('youtube_video_id', d.videoId)
+          }
+          if (!wasSeenAsStream) stats.newly_matched++
+        }
       }
 
       // 7. Final unresolved count.

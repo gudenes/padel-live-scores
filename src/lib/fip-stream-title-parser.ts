@@ -25,7 +25,7 @@ const DAY_RE = /\b(?:DAY|D[ÍI]A|D)[\s_-]*(\d+)\b/i
 const COURT_RE = /\b((?:CENTRE|CENTRAL|CENTER|COURT|PISTA)[\w\s\d]{0,30}?)(?=[|\-–]|$)/i
 
 const NOISE_TOKENS = new Set([
-  'fip', 'premier', 'padel', 'tour', 'open',
+  'fip', 'premier', 'padel', 'tour', 'open', 'cup',
   'live', 'highlights', 'recap', 'stream', 'streaming',
   'official', 'tv', 'youtube',
 ])
