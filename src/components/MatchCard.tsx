@@ -164,7 +164,7 @@ export function MatchCard({
       if (raw) {
         const all = JSON.parse(raw)
         const p = all[match.id]
-        if (p && 'multiplier' in p) setPredictionLocal(p as Prediction)
+        if (p && 'multiplier' in p && 'probability' in p) setPredictionLocal(p as Prediction)
         else if (p) setPredictionLocal({
           matchId: match.id, pair: p.pair, margin: p.margin,
           probability: 0.5, multiplier: 2.0, isFallback: true,
