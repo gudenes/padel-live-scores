@@ -392,9 +392,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const matchDate = match.started_at ? format.dateTime(new Date(match.started_at), DATE_WITH_WEEKDAY) : null
 
   const tz = ((match as any).tournament)?.timezone ?? 'UTC'
-  const scheduledAt = (match as any).starts_at as string | null
-  const scheduledTimeStr = scheduledAt ? new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(new Date(scheduledAt)) : null
-  const scheduledDateStr = scheduledAt ? new Intl.DateTimeFormat('en', { weekday: 'short', day: 'numeric', month: 'short', timeZone: tz }).format(new Date(scheduledAt)) : matchDate
 
   // ── Shared styles ──────────────────────────────────────────────────────────
   const scoreNumStyle = (won: boolean, dim: boolean): React.CSSProperties => ({
@@ -661,15 +658,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <FollowButton type="match" targetId={match.id} variant="star" size={20} />
         </div>
 
-        {/* Scheduled: big time display */}
-        {isScheduled && scheduledTimeStr && (
-          <div style={{ textAlign: 'center', padding: '10px 0 16px', background: 'linear-gradient(180deg, rgba(126,211,33,0.04) 0%, transparent 100%)' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: GREEN, marginBottom: 6 }}>Match starts at</div>
-            <div style={{ fontSize: 52, fontWeight: 900, letterSpacing: '-2px', color: '#fff', fontFamily: 'monospace', lineHeight: 1 }}>{scheduledTimeStr}</div>
-            <div style={{ fontSize: 11, color: MUTED, marginTop: 5 }}>{scheduledDateStr} · {tz.replace('_', ' ')}</div>
-            {match.court && <div style={{ fontSize: 10, color: GREEN, fontWeight: 600, marginTop: 6 }}>{match.court}</div>}
-          </div>
-        )}
 
         {/* Set column labels (live/finished only) */}
         {!isScheduled && (

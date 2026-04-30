@@ -1,29 +1,34 @@
 'use client'
 
-// src/components/DailyMatchCard.tsx
+// src/components/MatchCard.tsx
 //
-// Match card for the /matches/[date] tournament-grouped layout. Lives
-// alongside V3MatchCard rather than replacing it because the daily
-// page wants extra metadata in a chip row (ROUND · COURT · STATUS ·
-// DATE) and a green "W" badge next to the winning pair — the screenshot
-// the user picked as the visual target.
+// Single shared match card. Renders one of three states based on
+// `match.status`:
 //
-// Differences vs V3MatchCard:
-//   - Chip row above the score grid instead of an inline LIVE/FINAL pill
-//   - "W" badge on the winning pair (helps when set scores are dense)
-//   - Date chip (useful when one tournament spans several days)
-//   - Slightly tighter padding so multiple cards stack densely
+//   • scheduled  → chip row + pair rows + right-aligned date/time stack
+//                  (TBD or `estimatedLabel` when no real time set)
+//   • live       → chip row + pair rows + per-set scores + live point
+//   • finished   → chip row (with W/O · RETIRED · FINISHED) + pair rows
+//                  + per-set scores + green "W" badge on winning pair
 //
-// Same brand language: chunky polygon clipPath, left gender accent bar,
-// dual stacked country flags, monospace per-set scores, muted loser
+// Used everywhere we render a match list row: matches-by-date page,
+// tournament-detail page (live + scheduled + finished + upsets). Replaces
+// the old per-context cards (DailyMatchCard, V3MatchCard, V3ScheduledCard)
+// — see git history if you need the original variants.
+//
+// Brand language: chunky polygon clipPath, left gender accent bar,
+// stacked dual country flags, monospace per-set scores, muted loser
 // styling.
 
+import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
 import { pairName, parseSetScore, parseSetFromGames, type Match } from '@/types/match'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
+const ORANGE = '#F5A623'
 const BG_CARD = '#141414'
 const BG_ELEV = '#1A1A1A'
 const MUTED = '#6B7280'
@@ -98,26 +103,67 @@ function formatShortDate(
   }).format(d)
 }
 
+// Time chip for scheduled matches. Skips date-only padelapi values
+// (those land on midnight UTC and don't carry a real start time).
+function formatScheduledTime(
+  match: Match,
+  locale: string,
+  tz: string,
+): string | null {
+  if (match.status !== 'scheduled') return null
+  const iso = match.scheduled_at
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null
+  return new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: tz,
+  }).format(d)
+}
+
 // ── Component ───────────────────────────────────────────────────────────
 
-export interface DailyMatchCardProps {
+export interface MatchCardProps {
   match: Match
   genderColor: string
   locale: string
   userTz: string
+  /** Optional. Tournament-detail scheduled tab supplies a "~10:30" estimate
+   *  built from the OOP "Followed by" chain. Shown in orange when no real
+   *  scheduled time is available. */
+  estimatedLabel?: string
 }
 
-export function DailyMatchCard({
+export function MatchCard({
   match,
   genderColor,
   locale,
   userTz,
-}: DailyMatchCardProps) {
+  estimatedLabel,
+}: MatchCardProps) {
+  const tTournament = useTranslations('tournament')
+
+  // Hydration-safe localStorage prediction lookup (was only on
+  // V3ScheduledCard; surfaced here so the matches list shows it too).
+  const [hasPrediction, setHasPrediction] = useState(false)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pn_match_predictions')
+      if (raw) setHasPrediction(!!JSON.parse(raw)[match.id])
+    } catch {}
+  }, [match.id])
+
   const sets = (match.sets ?? []).slice().sort((a, b) => a.set_number - b.set_number)
   const isLive = match.status === 'live'
+  const isScheduled = match.status === 'scheduled'
   const isFinished = ['finished', 'retired', 'walkover', 'ended'].includes(match.status as string)
+  const scheduleLabel = (match as any).schedule_label as string | null
+  const isApproximateTime = isScheduled && /not before|followed by/i.test(scheduleLabel ?? '')
 
-  // Resolve winner (mirrors V3MatchCard's logic for parity).
+  // Resolve winner from sets when winner_pair isn't stamped on the row.
   const winner: 0 | 1 | 2 = (() => {
     if (match.winner_pair === 1) return 1
     if (match.winner_pair === 2) return 2
@@ -147,6 +193,7 @@ export function DailyMatchCard({
   const courtRaw = match.court ? match.court.trim() : null
   const status = statusChip(match)
   const dateStr = formatShortDate(match, locale, userTz)
+  const timeStr = formatScheduledTime(match, locale, userTz)
 
   const borderColor = isLive ? 'rgba(255,70,85,0.22)' : BORDER
 
@@ -215,10 +262,26 @@ export function DailyMatchCard({
               {status.label}
             </Chip>
           )}
-          {dateStr && <Chip muted>{dateStr}</Chip>}
+          {hasPrediction && isScheduled && (
+            <span style={{
+              display: 'flex', alignItems: 'center', gap: 3,
+              background: 'rgba(126,211,33,0.06)',
+              padding: '2px 8px',
+              clipPath: CHUNKY.badge,
+              border: '0.5px solid rgba(126,211,33,0.15)',
+              marginLeft: 'auto',
+            }}>
+              <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="10" r="8"/><path d="M8 18h8"/><path d="M7 21h10"/>
+              </svg>
+              <span style={{ fontSize: 7, fontWeight: 700, color: '#7ED321', letterSpacing: 0.3 }}>{tTournament('predicted')}</span>
+            </span>
+          )}
         </div>
 
-        {/* Pair rows */}
+        {/* Pair rows + right-aligned date/time (matches tournament detail) */}
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
         {[1, 2].map(pairNum => {
           const p1 = pairNum === 1 ? match.pair1_player1 : match.pair2_player1
           const p2 = pairNum === 1 ? match.pair1_player2 : match.pair2_player2
@@ -247,7 +310,7 @@ export function DailyMatchCard({
                   opacity: isLoser ? 0.65 : 1,
                 }}
               >
-                {/* Stacked dual flags — same pattern as V3MatchCard */}
+                {/* Stacked dual flags */}
                 <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
                     <FlagImage country={p1?.country ?? null} size={16} />
@@ -350,6 +413,37 @@ export function DailyMatchCard({
             </div>
           )
         })}
+          </div>
+
+          {/* Right-aligned schedule stack — scheduled matches only (live/finished
+              show per-set scores in each pair row instead). Mirrors V3ScheduledCard. */}
+          {isScheduled && (
+            <div style={{
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'flex-end', justifyContent: 'center',
+              flexShrink: 0, minWidth: 42, marginLeft: 4,
+            }}>
+              {dateStr && (
+                <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, lineHeight: 1.2 }}>
+                  {dateStr}
+                </span>
+              )}
+              {timeStr ? (
+                <span style={{ fontSize: 13, fontWeight: 800, color: GREEN, lineHeight: 1.2 }}>
+                  {timeStr}{isApproximateTime ? '*' : ''}
+                </span>
+              ) : estimatedLabel ? (
+                <span style={{ fontSize: 9, fontWeight: 600, color: ORANGE, lineHeight: 1.2, textTransform: 'uppercase' }}>
+                  {estimatedLabel}
+                </span>
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, lineHeight: 1.2, opacity: 0.5 }}>
+                  TBD
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </Link>
   )
