@@ -474,7 +474,7 @@ Eliminates TBD player names on FIP tournament matches. Two subsystems:
 
 ## Important Notes
 
-- Tournament status (live/finished/upcoming) is **derived** from match statuses — no DB column exists
+- Tournament `status` column DOES exist (populated by Vercel sync from padelapi: `'pending'`, `'live'`, `'finished'`). It's a coarse calendar-window signal, NOT a "matches are being played right now" signal — see "Tournament-pill / live-state policy (2026-04-30)" below for the trust hierarchy.
 - `category` field on matches distinguishes `'men'` vs `'women'`
 - Middleware injects `geo-country` cookie from Vercel's `x-vercel-ip-country` header
 - `next.config.ts` allows remote images from `storage.googleapis.com` and `jwqaesjjoghzobngxejn.supabase.co`
@@ -654,3 +654,80 @@ npx tsx scripts/audit-unranged-selects.ts entry_list_snapshots   # one table
 ```
 
 Not a CI gate — review tool only.
+
+## Unified `MatchCard` (2026-04-30)
+
+[`src/components/MatchCard.tsx`](src/components/MatchCard.tsx) is the single shared match-row component used by every list surface (matches-by-date page, tournament detail's Matches tab, upset highlights). It switches between three states based on `match.status`:
+
+- **scheduled** → chip row + pair rows + right-aligned date/time stack with `*` suffix on approximate (`"Followed by"` / `"Not before"`), orange `estimatedLabel` fallback, then `TBD`
+- **live** → chip row + pair rows + per-set scores + live point indicator
+- **finished** / `retired` / `walkover` / `ended` → chip row + per-set scores + green "W" badge on winning pair
+
+Replaces `DailyMatchCard`, `V3MatchCard`, and the inline `V3ScheduledCard` that was defined inside the tournament-detail page. If you need the per-state styling history, check the git log on those names.
+
+The `<PredictionSection>` pill (green eye icon + "PREDICTED") surfaces here too, hydration-safe via `useEffect` reading `localStorage['pn_match_predictions']`.
+
+## Tournament-pill / live-state policy (2026-04-30)
+
+`tournaments.status` from padelapi reports `'live'` for any event in its calendar window — it's NOT a "matches are being played right this second" signal. Trusting it as one made the matches-list LIVE pill flash red all night for any in-progress tournament.
+
+**Trust hierarchy (matches-list group header — [MatchesTournamentGroup.tsx:122](src/components/MatchesTournamentGroup.tsx:122)):**
+
+1. `matches.status='live'` on at least one of today's matches → red **LIVE**
+2. `tournaments.status` finished/completed/ended → muted **FINAL**
+3. mixed bucket today (some finished + some upcoming, no live) → orange **ONGOING** *(stronger ongoing signal than `tournaments.status` because the day's matches prove play has happened)*
+4. `tournaments.status='live'/'ongoing'` → orange **ONGOING** *(fallback for in-window tournaments with no matches today, e.g. rest day)*
+5. only upcoming today → green **UPCOMING**
+6. only finished today → muted **FINAL**
+7. otherwise → no pill
+
+Other surfaces follow the same red-pill-only-when-live discipline:
+
+- **Home page** ([TournamentsView.tsx:237](src/components/home/TournamentsView.tsx:237)) — fetches actual matches per candidate tournament, distinguishes `'live'` (red) / `'ongoing'` (orange, "between sessions") / `'completed'`.
+- **Tournament detail** ([tournaments/[id]/page.tsx:1251](src/app/[locale]/(app)/tournaments/[id]/page.tsx:1251)) — `isLive = isInDateRange && liveCount > 0 && !finalPlayed` where `liveCount` excludes warming-up matches.
+- **TournamentSpotlightHero** — gated on `hasLiveMatches` boolean derived from match statuses.
+
+The `tournament.status='live'` fallback only fires inside #4 and only renders ONGOING (orange), never LIVE (red).
+
+## Crionet results parser — walkover capture (2026-04-30)
+
+`padelgod/src/parsers/crionet-results.ts` previously dropped any row whose set cells were all `-` (`if (sets.length === 0) return`) and hardcoded `status: 'finished'`. Walkovers stayed invisible, so matches stuck on `scheduled` after the actual fixture was decided.
+
+Three terminal-status patterns the parser now handles:
+
+| Pattern | Loser side | Winner side | Set cells |
+|---|---|---|---|
+| **Normal finished** | Player names + scores | Player names + `fa-check` | `6-2 6-3` |
+| **WO badge** | Player names | Player names + `fa-check` + `<small class="badge">WO</small>` | all `-` |
+| **Missing team** | `<span class="missingteam">Alternate</span>` placeholder | Player names + `fa-check`, no badge | all `-` |
+
+Detection: `WO` / `RET` / `W/O` text in `small.badge`, OR `.missingteam` class on a team row. Either signal preserves the row + emits `status: 'walkover'` (or `'retired'`). The `Alternate` placeholder is excluded from name extraction so it never leaks in as a player name.
+
+Backfill: [`scripts/reconcile-results-walkovers.mjs`](scripts/reconcile-results-walkovers.mjs) replays the corrected parser against currently-active tournament widgets. Sources the tournament list from `widget_id_cache` (small table) intersected with active tournaments by date — NOT from `oop_snapshots` directly, which can hit the PostgREST 10k row cap and silently truncate at 399+ widgets. Chunked `.in()` queries (100 IDs per chunk) avoid the URL-length limit.
+
+## OOP "Followed by" cross-day chain isolation (2026-04-30)
+
+Bug in `padelgod/src/lib/oop-schedule-parser.ts` — sort key was `(court, courtPosition)` and `lastTimePerCourt` was keyed by court alone. Crionet OOP snapshots cover multiple days at once with `court_position` resetting per day, so Apr 30's "Followed by" rows would chain off Apr 29's last absolute time and produce timestamps a full day off.
+
+**Reproducer:** FIP Silver Mendoza Q2 MQ008. Pista Central, court_position 3, day_date 2026-04-30, label "Followed by". Stored as 22:15 ARG Apr 29 (= 03:15 Madrid Apr 30) instead of 16:30 ARG Apr 30 (= 21:30 Madrid).
+
+**Fix:**
+- Sort by `(court, dayDate, courtPosition)`.
+- Key the chain map by `${court}::${dayDate}` so each day's chain is independent.
+
+Backfill: [`scripts/reconcile-oop-scheduled-at.mjs`](scripts/reconcile-oop-scheduled-at.mjs).
+
+## Cross-source tournament prevention (2026-04-30)
+
+Padelapi-imported tournament rows have `slug = null`. Padelgod's `tournament-discovery` upserts FIP events with `onConflict: 'slug'`. The two pipelines never collide → every tournament that has both a padelapi entry AND a FIP page got TWO rows. Downstream writers split work between them: `fip-event-page-enricher` enriched one, `fip-draw-populator` created matches on whichever, OOP writer wrote to a third. Public app showed duplicate tournaments + orphan UPCOMING matches stuck on the row that lacked `widget_id_composite`.
+
+**Prevention:** [`padelgod/src/workers/tournament-discovery.ts`](padelgod/src/workers/tournament-discovery.ts) now does a name-token + year lookup against existing rows where `padelapi_id IS NOT NULL AND fip_id IS NULL` before each upsert.
+
+- **Match found** → upsert with `onConflict: 'id'` to UPDATE the existing row in place. Slug, country, level land on the canonical padelapi row.
+- **No match** → existing `onConflict: 'slug'` path (insert).
+- Slug year extracted from FIP slug pattern (`fip-silver-club-la-calzada-2026` → `2026`) with `publishedGmt` fallback.
+- New return field `twinMerges` counts absorbed duplicates per run — should be 0 in steady state.
+
+**Cleanup script gotcha:** [`scripts/merge-tournament-duplicates.ts`](scripts/merge-tournament-duplicates.ts) was filtering on `source === 'padelapi'` to identify the survivor row, but every row in production has `source = 'fip'` post-discovery-flow change. Switched the discriminator to `padelapi_id != null` vs `fip_id`-only. The script silently said "0 duplicates" for months because of this — that's why the Marmotor / Cyprus / Dubai dupes accumulated.
+
+**Match dedup:** for orphans that survive across pipelines, [`scripts/dedup-pattern-b-multi-pipeline.mjs`](scripts/dedup-pattern-b-multi-pipeline.mjs) clusters by name-token signature OR ≥3 player UUID overlap. Clusters where the widget-linked twin has no player FKs (different ingest path) won't unite — those need a manual delete (cluster-by-court+round+time would catch them but adds risk of false matches).
