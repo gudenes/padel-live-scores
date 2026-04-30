@@ -39,6 +39,13 @@ const CHUNKY = {
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
 }
 
+const PULSE_KEYFRAMES = `
+@keyframes fipStreamPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.18); }
+}
+`
+
 // ── Round normalisation ─────────────────────────────────────────────────
 //
 // Round labels coming out of the DB vary by source (padelapi: "Final",
@@ -208,6 +215,7 @@ export function MatchCard({
         marginBottom: 8,
       }}
     >
+      <style>{PULSE_KEYFRAMES}</style>
       <div
         style={{
           background: BG_CARD,
@@ -322,7 +330,48 @@ export function MatchCard({
               })}
             </div>
 
-            {/* Stream button slot — Task 11 plugs in here */}
+            {/* Stream button — circular YouTube affordance (Task 11) */}
+            {match.streamTier && (
+              <a
+                href={match.streamTier.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                aria-label={
+                  match.streamTier.state === 'live' ? 'Watch live on YouTube'
+                  : match.streamTier.state === 'upcoming' ? 'Tune in on YouTube'
+                  : match.streamTier.state === 'archived' ? 'Watch replay on YouTube'
+                  : 'Open FIP YouTube channel'
+                }
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, width: 36, height: 36, alignSelf: 'center',
+                  borderRadius: '50%', textDecoration: 'none',
+                  background:
+                    match.streamTier.state === 'live' ? '#FF4655'
+                    : match.streamTier.state === 'archived' ? 'rgba(126,211,33,0.16)'
+                    : 'rgba(255,255,255,0.08)',
+                  border:
+                    match.streamTier.state === 'archived' ? '1px solid rgba(126,211,33,0.4)'
+                    : 'none',
+                  color:
+                    match.streamTier.state === 'live' ? '#fff'
+                    : match.streamTier.state === 'archived' ? '#7ED321'
+                    : '#B0B5BE',
+                  animation: match.streamTier.state === 'live' ? 'fipStreamPulse 1.6s ease-in-out infinite' : undefined,
+                }}
+              >
+                {match.streamTier.state === 'archived' ? (
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                  </svg>
+                ) : (
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                )}
+              </a>
+            )}
 
             {/* Scores column — both score rows stacked */}
             <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
