@@ -56,8 +56,11 @@ export function computeMatchProbability(match: Match): ProbabilityResult {
   const strength2 = Math.log(1 / avg2)
   const diff = strength1 - strength2
 
-  // Scale factor — tuned so a 10-rank gap (1 vs 11) gives ~0.65 favored,
-  // a 50-rank gap (1 vs 51) gives ~0.78. Conservative on purpose.
+  // Scale factor on the log-strength diff. Top-of-rankings gaps saturate
+  // the [0.20, 0.80] clamp (e.g. #1-2 vs #10-11 → 0.95 raw → 0.80 clamped),
+  // which is intended — a #1 vs #11 IS a heavy favorite. SCALE primarily
+  // affects mid-table matchups: at SCALE=1.5, #100 vs #120 → ~0.57,
+  // #50 vs #60 → ~0.57. Lower SCALE = flatter mid-table; higher = sharper.
   const SCALE = 1.5
 
   const p1Raw = sigmoid(diff * SCALE)

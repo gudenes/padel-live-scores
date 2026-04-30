@@ -37,6 +37,17 @@ describe('computeMatchProbability', () => {
     expect(r.isFallback).toBe(false)
   })
 
+  it('produces a non-saturated p1 for mid-table matchups (catches SCALE regressions)', () => {
+    // Mid-table gap that should land strictly between 0.50 and the 0.80 clamp.
+    // If SCALE drifts (or the formula changes), this is the test that fails first
+    // — the [1,2] vs [50,60] case above always saturates to 0.80 and won't catch
+    // tuning regressions.
+    const r = computeMatchProbability(mockMatch([100, 110], [120, 130]))
+    expect(r.p1).toBeGreaterThan(0.50)
+    expect(r.p1).toBeLessThan(0.80)
+    expect(r.isFallback).toBe(false)
+  })
+
   it('clamps probability to [0.20, 0.80]', () => {
     // extreme mismatch — top 2 vs unranked-tail
     const r = computeMatchProbability(mockMatch([1, 2], [900, 950]))
