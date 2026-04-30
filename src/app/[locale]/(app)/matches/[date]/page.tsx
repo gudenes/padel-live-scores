@@ -79,7 +79,7 @@ export default async function DailyMatchesPage({ params }: Props) {
           tournament_level: m.tournament?.level ?? null,
           court: m.court,
           scheduled_at: m.scheduled_at,
-          played_at: null,
+          played_at: (m as any).finished_at ?? null,
         })),
         tournamentNamesForStreams,
       )

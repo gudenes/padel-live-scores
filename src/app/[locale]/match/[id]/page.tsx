@@ -253,6 +253,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   }, [match, fetchNextMatch])
 
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_FIP_STREAMS_ENABLED !== 'true') return
     if (!match) return
     const m = match as any
     resolveStreamForMatch(supabase, {

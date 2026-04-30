@@ -42,8 +42,8 @@ export function MatchStreamCard({ streamTier, matchCourt, matchScheduledAt }: Pr
   const cta = t(`${variant}.cta` as never)
 
   const footer =
-    variant === 'archived' && matchCourt
-      ? t('archived.footer', { court: matchCourt })
+    variant === 'archived'
+      ? t('archived.footer', { court: matchCourt ?? '—' })
       : t(`${variant}.footer` as never)
 
   const ctaBg =
