@@ -120,13 +120,86 @@ export async function resolveStreamsForMatches(
   matches: MatchForStream[],
   tournamentNames: Record<string, string>,
 ): Promise<Map<string, StreamTier | null>> {
-  // Naive batch: per-match query. Acceptable for v1 (10–60 matches per
-  // page typical). Optimize with a single IN-clause query in v2 if it
-  // shows up in profiling.
   const results = new Map<string, StreamTier | null>()
-  for (const m of matches) {
-    const tier = await resolveStreamForMatch(supabase, m, tournamentNames[m.tournament_id])
-    results.set(m.id, tier)
+
+  // Filter to FIP-tier matches up front; the rest are guaranteed null.
+  const fipMatches = matches.filter((m) => isFipTier(m.tournament_level))
+  for (const m of matches) if (!isFipTier(m.tournament_level)) results.set(m.id, null)
+  if (fipMatches.length === 0) return results
+
+  // Single batched fetch: every fip_court_streams row for the tournaments
+  // referenced by today's matches. Then resolve the cascade in memory.
+  // One round-trip regardless of match count — replaces the per-match query
+  // pattern that pegged TTFB at ~134ms × N before this rewrite.
+  const tournamentIds = Array.from(new Set(fipMatches.map((m) => m.tournament_id).filter(Boolean)))
+  if (tournamentIds.length === 0) {
+    for (const m of fipMatches) results.set(m.id, null)
+    return results
   }
+
+  const { data: streamRows, error } = await supabase
+    .from('fip_court_streams')
+    .select('tournament_id, court, day_date, youtube_video_id, title, thumbnail_url, state, manual_offset_seconds, actual_start_at')
+    .in('tournament_id', tournamentIds)
+    .order('actual_start_at', { ascending: false, nullsFirst: false })
+
+  if (error) {
+    console.error('[resolveStreamsForMatches] fetch failed:', error.message)
+    for (const m of fipMatches) results.set(m.id, null)
+    return results
+  }
+
+  // Index rows by composite key for Tier 1/2 lookup, and track per-tournament
+  // existence for Tier 3. The .order() above means the first row we see for
+  // a given (tournament, court, day) is the most recent — keep that one.
+  const byCourtDay = new Map<string, CourtStreamRow>()
+  const tournamentsWithAnyStream = new Set<string>()
+  for (const row of (streamRows ?? []) as Array<CourtStreamRow & { tournament_id: string; court: string; day_date: string }>) {
+    tournamentsWithAnyStream.add(row.tournament_id)
+    const key = `${row.tournament_id}|${row.court}|${row.day_date}`
+    if (!byCourtDay.has(key)) byCourtDay.set(key, row)
+  }
+
+  for (const m of fipMatches) {
+    const dayDate = dayDateFromMatch(m)
+    let resolved: StreamTier | null = null
+
+    if (m.court && dayDate) {
+      const courtRow = byCourtDay.get(`${m.tournament_id}|${m.court.toLowerCase()}|${dayDate}`)
+      if (courtRow) {
+        const baseUrl = `https://www.youtube.com/watch?v=${courtRow.youtube_video_id}`
+        const url = courtRow.manual_offset_seconds != null
+          ? `${baseUrl}&t=${courtRow.manual_offset_seconds}s`
+          : baseUrl
+        resolved = {
+          tier: courtRow.manual_offset_seconds != null ? 1 : 2,
+          url,
+          state: courtRow.state,
+          videoId: courtRow.youtube_video_id,
+          title: courtRow.title,
+          thumbnailUrl: courtRow.thumbnail_url,
+          manualOffsetSeconds: courtRow.manual_offset_seconds,
+        }
+      }
+    }
+
+    if (!resolved && tournamentsWithAnyStream.has(m.tournament_id)) {
+      const name = tournamentNames[m.tournament_id]
+      if (name) {
+        resolved = {
+          tier: 3,
+          url: tournamentSearchUrl(name),
+          state: 'channel',
+          videoId: null,
+          title: null,
+          thumbnailUrl: null,
+          manualOffsetSeconds: null,
+        }
+      }
+    }
+
+    results.set(m.id, resolved)
+  }
+
   return results
 }
