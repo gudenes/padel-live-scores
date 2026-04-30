@@ -15,10 +15,68 @@ export interface TournamentDiscoveryDeps {
 export interface TournamentDiscoveryResult {
   discovered: number;
   scrapeJobId: string;
+  /** Count of FIP events that matched an existing padelapi twin and
+   *  were merged into the existing row instead of inserted as a
+   *  duplicate. Should be 0 in steady state — non-zero values flag
+   *  data we'd otherwise have had to clean up retroactively. */
+  twinMerges: number;
 }
 
 const WP_API_BASE = 'https://www.padelfip.com/wp-json/wp/v2/events';
 const WP_COUNTRY_BASE = 'https://www.padelfip.com/wp-json/wp/v2/country';
+
+// ── Cross-source twin detection ────────────────────────────────────────
+//
+// Mirrors `tokenize()` and `groupKey()` from src/lib/source-matcher.ts +
+// scripts/merge-tournament-duplicates.ts. Inlined because padelgod runs
+// as a separate Railway service and doesn't share imports with the
+// Next.js app — same trade-off used by `normalizeRoundShort` in
+// fip-oop-writer.ts. The token list and rules must stay in lock-step
+// with that file; if you tweak one, mirror the other.
+//
+// Why this exists: padelapi-imported tournament rows have `slug = null`,
+// while padelgod's tournament-discovery upserts on `onConflict: 'slug'`.
+// Result: every padelapi-sourced tournament that also has a FIP page
+// gets a SECOND row inserted instead of being enriched in place. Cross-
+// source duplicates accumulate, downstream writers (fip-event-page-
+// enricher, fip-draw-populator, OOP writer) split work between the two
+// rows, and the public app shows duplicates / orphan UPCOMING matches.
+//
+// Detection: name-token subset match + same year against the existing
+// padelapi-linked rows. Match → write FIP fields onto that row instead
+// of inserting a new one.
+const TOURNAMENT_NOISE_TOKENS: ReadonlySet<string> = new Set([
+  'premier', 'padel', 'tour', 'open', 'season', 'championship', 'championships',
+  'master', 'masters', 'cup', 'club', 'aniversario', 'edition',
+]);
+
+function tournamentTokenize(s: string | null | undefined): string[] {
+  if (!s) return [];
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\b(19|20)\d{2}\b/g, ' ')
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 0 && !TOURNAMENT_NOISE_TOKENS.has(t));
+}
+
+function tournamentGroupKey(name: string | null, startsAt: string | null): string | null {
+  if (!name) return null;
+  const tokens = tournamentTokenize(name);
+  if (tokens.length === 0) return null;
+  const year = startsAt?.slice(0, 4) ?? '0000';
+  return `${tokens.sort().join(' ')}|${year}`;
+}
+
+interface TwinCandidate {
+  id: string;
+  slug: string | null;
+  fip_id: string | null;
+  padelapi_id: string | null;
+  level: string | null;
+  country: string | null;
+}
 
 export async function runTournamentDiscovery(
   deps: TournamentDiscoveryDeps
@@ -89,6 +147,38 @@ export async function runTournamentDiscovery(
     ),
   );
 
+  // Twin detection: pull every padelapi-linked tournament that doesn't
+  // already carry a FIP slug/id. Any of these is a candidate to absorb
+  // a parsed FIP event whose name+year matches. Bounded by year-of-the-
+  // parsed-events so we don't drag the whole archive into memory.
+  // FIP slugs follow `fip-{level}-{location}-{year}` (e.g.
+  // `fip-silver-club-la-calzada-2026`). Pull the year from the slug
+  // when present — that gives us a tighter twin search window than
+  // falling back to publishedGmt (which often lags actual event year).
+  const parsedYears = new Set<string>();
+  for (const p of parsed) {
+    const slugYear = p.slug.match(/-(\d{4})(?:-|$)/)?.[1];
+    const pubYear = p.publishedGmt?.slice(0, 4);
+    const y = slugYear ?? pubYear;
+    if (y && /^(19|20)\d{2}$/.test(y)) parsedYears.add(y);
+  }
+  const twinByGroupKey = new Map<string, TwinCandidate>();
+  if (parsedYears.size > 0) {
+    const yearStart = `${[...parsedYears].sort()[0]}-01-01`;
+    const yearEnd = `${[...parsedYears].sort().pop()}-12-31`;
+    const { data: cand } = await deps.supabase
+      .from('tournaments')
+      .select('id, slug, fip_id, padelapi_id, level, country, name, starts_at')
+      .not('padelapi_id', 'is', null)
+      .is('fip_id', null)
+      .gte('starts_at', yearStart)
+      .lte('starts_at', yearEnd);
+    for (const c of (cand ?? []) as Array<TwinCandidate & { name: string; starts_at: string | null }>) {
+      const key = tournamentGroupKey(c.name, c.starts_at);
+      if (key) twinByGroupKey.set(key, c);
+    }
+  }
+
   // Fetch the WP `country` taxonomy once per run so we can resolve the
   // `country` term-id arrays on each event into ISO alpha-2 codes. Only
   // worth doing if at least one parsed event carries a country term —
@@ -98,16 +188,43 @@ export async function runTournamentDiscovery(
     ? await fetchFipCountryTaxonomy(deps.httpClient)
     : new Map<number, string | null>();
 
+  // Track twin redirects for telemetry — every match here is one
+  // duplicate row that would have been created pre-fix.
+  const twinMerges: Array<{ twinId: string; slug: string; name: string }> = [];
+
   const rows = parsed.map((p) => {
     const level = resolveFipLevel(p.categoryTermIds, p.slug);
-    const existingLevel = existingBySlug.get(p.slug)?.level;
-    const existingCountry = existingBySlug.get(p.slug)?.country;
+
+    // Twin lookup: if a padelapi-imported row exists with the same
+    // name+year and no FIP slug yet, route this event INTO that row.
+    // The slug lands on the existing row, so subsequent runs hit the
+    // normal `onConflict: 'slug'` path and update in place.
+    //
+    // Source priority is preserved: we don't overwrite name (padelapi
+    // is primary), and country/level gap-fills check the existing
+    // values just like the standard branch below.
+    const slugYear = p.slug.match(/-(\d{4})(?:-|$)/)?.[1];
+    const groupKey = tournamentGroupKey(
+      p.name,
+      slugYear ? `${slugYear}-01-01` : (p.publishedGmt ?? null),
+    );
+    const twin = groupKey ? twinByGroupKey.get(groupKey) : null;
+
+    const existingLevel = twin?.level ?? existingBySlug.get(p.slug)?.level;
+    const existingCountry = twin?.country ?? existingBySlug.get(p.slug)?.country;
     const row: Record<string, unknown> = {
+      ...(twin ? { id: twin.id } : {}),
       name: p.name,
       slug: p.slug,
       source: 'fip',
       last_updated_by: 'padelgod',
     };
+    if (twin) {
+      // Mark the lookup so the future `onConflict: 'id'` path updates
+      // the existing row, and remove from the slug map so we don't
+      // double-count it in the upsert telemetry.
+      twinMerges.push({ twinId: twin.id, slug: p.slug, name: p.name });
+    }
 
     // Country gap-fill. Source-priority for `tournament.country` is
     // ['padelapi', 'fip'] — padelapi is primary, FIP is fallback. So
@@ -164,15 +281,39 @@ export async function runTournamentDiscovery(
     return row;
   });
 
-  const { error: upsertErr } = await deps.supabase
-    .from('tournaments')
-    .upsert(rows, { onConflict: 'slug', ignoreDuplicates: false });
+  // Split into two upsert batches: rows targeting an existing padelapi
+  // twin go through `onConflict: 'id'` (update by primary key — the
+  // safe, normal way to mutate a known row). The rest go through the
+  // historical `onConflict: 'slug'` path (insert when new, update on
+  // slug match). Doing both in one batch with `onConflict: 'slug'`
+  // would fail for twins because they don't yet have a slug to match.
+  const twinIds = new Set(twinMerges.map((t) => t.twinId));
+  const twinRows = rows.filter((r) => typeof r.id === 'string' && twinIds.has(r.id));
+  const newRows = rows.filter((r) => !twinRows.includes(r));
 
-  if (upsertErr) {
-    throw new Error(`Tournament upsert failed: ${upsertErr.message}`);
+  if (twinRows.length > 0) {
+    const { error: twinErr } = await deps.supabase
+      .from('tournaments')
+      .upsert(twinRows, { onConflict: 'id', ignoreDuplicates: false });
+    if (twinErr) {
+      throw new Error(`Tournament twin-merge upsert failed: ${twinErr.message}`);
+    }
   }
 
-  return { discovered: parsed.length, scrapeJobId: jobResult.scrapeJobId };
+  if (newRows.length > 0) {
+    const { error: upsertErr } = await deps.supabase
+      .from('tournaments')
+      .upsert(newRows, { onConflict: 'slug', ignoreDuplicates: false });
+    if (upsertErr) {
+      throw new Error(`Tournament upsert failed: ${upsertErr.message}`);
+    }
+  }
+
+  return {
+    discovered: parsed.length,
+    scrapeJobId: jobResult.scrapeJobId,
+    twinMerges: twinMerges.length,
+  };
 }
 
 // Pulls the full `country` taxonomy from the FIP WP API (≈140 terms,
