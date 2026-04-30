@@ -22,6 +22,7 @@ import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentExplorerTab from './TournamentExplorerTab'
 import TournamentDedupTab from './TournamentDedupTab'
 import PadelgodHealthTab from './PadelgodHealthTab'
+import FipStreamsTab from './FipStreamsTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -319,7 +320,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'fip-streams'>('ongoing')
   // Sidebar collapse — persisted across sessions because operators
   // who like the wider workspace want to keep it that way.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -445,6 +446,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       items: [
         { key: 'players' as const, label: 'Players', badge: null },
         { key: 'brands' as const, label: 'Brands & Equipment', badge: null },
+        { key: 'fip-streams' as const, label: 'FIP Streams', badge: null },
         // Schedule tab retired — apply flow now inline in Tournament
         // Explorer → Matches → OOP subtab (see ScheduleReviewPanel).
         { key: 'architecture' as const, label: 'Architecture', badge: null },
@@ -971,6 +973,11 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       {tab === 'brands' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Brands &amp; Equipment</div>
         <BrandsTab />
+      </>}
+
+      {tab === 'fip-streams' && <>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>FIP Streams</div>
+        <FipStreamsTab />
       </>}
 
       {/* 'schedule' tab branch removed 2026-04-24 — see note near the

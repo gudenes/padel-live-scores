@@ -88,6 +88,34 @@
       "apply": "Appliquer"
     }
   },
+  "match": {
+    "stream": {
+      "live": {
+        "eyebrow": "Regarder en direct",
+        "cta": "Regarder en direct sur YouTube",
+        "footer": "Diffusion gratuite sur la chaîne YouTube FIP"
+      },
+      "archived": {
+        "eyebrow": "Regarder le replay",
+        "cta": "Regarder le replay sur YouTube",
+        "footer": "Le match était sur {court} · cherchez le début dans la diffusion"
+      },
+      "upcoming": {
+        "eyebrow": "Connectez-vous",
+        "cta": "Ouvrir la diffusion YouTube",
+        "footer": "La diffusion commence ~10 min avant le premier match"
+      },
+      "channel": {
+        "eyebrow": "Regarder sur FIP YouTube",
+        "cta": "Ouvrir la chaîne FIP",
+        "footer": "Nous n'avons pas pu identifier la diffusion spécifique — la chaîne FIP a tous les matchs",
+        "title": "FIP Fédération Internationale de Padel",
+        "meta": "Parcourez les diffusions en direct et récentes"
+      },
+      "metaLive": "En direct · {viewers} regardent",
+      "metaScheduled": "Prévu · commence à {time}"
+    }
+  },
   "matchDetail": {
     "matchDetail": "Détail du match",
     "round": "Tour",

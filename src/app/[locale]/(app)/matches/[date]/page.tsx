@@ -22,6 +22,7 @@ import {
 } from '@/lib/locale-time'
 import { buildDailyIntro, buildDailyFaq, type DailyMatchSummary } from '@/lib/daily-page-copy'
 import { fetchMatchesDay, type MatchesDayMatch } from '@/lib/fetch-matches-day'
+import { resolveStreamsForMatches } from '@/lib/fip-stream-resolver'
 import MatchesPageHeader from '@/components/MatchesPageHeader'
 import MatchesDayShell from '@/components/MatchesDayShell'
 
@@ -55,7 +56,44 @@ export default async function DailyMatchesPage({ params }: Props) {
   // Fetch via shared helper — same shape the API route returns, so the
   // client cache hydrates without reprocessing.
   const supabase = createServerClient()
-  const { groups } = await fetchMatchesDay(supabase, iso, tz)
+  const { groups: rawGroups } = await fetchMatchesDay(supabase, iso, tz)
+
+  // Flatten raw matches for stream resolution.
+  const rawMatches: MatchesDayMatch[] = rawGroups.flatMap((g) => g.matches)
+
+  // Build tournament name lookup for tier 3 fallback URL.
+  const tournamentNamesForStreams: Record<string, string> = {}
+  for (const m of rawMatches) {
+    const name = m.tournament?.name
+    const tid = m.tournament?.id
+    if (name && tid) tournamentNamesForStreams[tid] = name
+  }
+
+  // Resolve YouTube stream tiers for all matches on this day.
+  const streamTiers = process.env.NEXT_PUBLIC_FIP_STREAMS_ENABLED === 'true'
+    ? await resolveStreamsForMatches(
+        supabase,
+        rawMatches.map(m => ({
+          id: m.id,
+          tournament_id: m.tournament?.id ?? '',
+          tournament_level: m.tournament?.level ?? null,
+          court: m.court,
+          scheduled_at: m.scheduled_at,
+          played_at: (m as any).finished_at ?? null,
+        })),
+        tournamentNamesForStreams,
+      )
+    : new Map<string, null>()
+
+  // Decorate each match with its resolved streamTier, then re-bucket into groups.
+  const matchStreamMap = new Map(rawMatches.map(m => [
+    m.id,
+    { ...m, streamTier: streamTiers.get(m.id) ?? null },
+  ]))
+  const groups = rawGroups.map(g => ({
+    ...g,
+    matches: g.matches.map(m => matchStreamMap.get(m.id) ?? m),
+  }))
 
   // Flatten for SEO copy + JSON-LD.
   const dayMatches: MatchesDayMatch[] = groups.flatMap((g) => g.matches)

@@ -39,6 +39,13 @@ const CHUNKY = {
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
 }
 
+const PULSE_KEYFRAMES = `
+@keyframes fipStreamPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.18); }
+}
+`
+
 // ── Round normalisation ─────────────────────────────────────────────────
 //
 // Round labels coming out of the DB vary by source (padelapi: "Final",
@@ -208,6 +215,7 @@ export function MatchCard({
         marginBottom: 8,
       }}
     >
+      <style>{PULSE_KEYFRAMES}</style>
       <div
         style={{
           background: BG_CARD,
@@ -279,140 +287,163 @@ export function MatchCard({
           )}
         </div>
 
-        {/* Pair rows + right-aligned date/time (matches tournament detail) */}
+        {/* Pair rows: [names col | optional stream button (Task 11) | scores col] + right-aligned date/time */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-        {[1, 2].map(pairNum => {
-          const p1 = pairNum === 1 ? match.pair1_player1 : match.pair2_player1
-          const p2 = pairNum === 1 ? match.pair1_player2 : match.pair2_player2
-          const pair = pairName(p1, p2)
-          const isWinner = winner === pairNum
-          const isLoser = winner !== 0 && winner !== pairNum
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, flex: 1, minWidth: 0 }}>
 
-          return (
-            <div
-              key={pairNum}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '5px 0',
-                gap: 8,
-              }}
-            >
-              <div
+            {/* Names column — both pair-lefts stacked */}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+              {[1, 2].map(pairNum => {
+                const p1 = pairNum === 1 ? match.pair1_player1 : match.pair2_player1
+                const p2 = pairNum === 1 ? match.pair1_player2 : match.pair2_player2
+                const pair = pairName(p1, p2)
+                const isWinner = winner === pairNum
+                const isLoser = winner !== 0 && winner !== pairNum
+                return (
+                  <div key={pairNum} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
+                    opacity: isLoser ? 0.65 : 1,
+                  }}>
+                    {/* Stacked dual flags */}
+                    <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
+                        <FlagImage country={p1?.country ?? null} size={16} />
+                      </div>
+                      <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
+                        <FlagImage country={p2?.country ?? null} size={16} />
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 12, fontWeight: isWinner ? 800 : 600,
+                      color: isLoser ? '#B0B5BE' : '#fff',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{pair}</span>
+                    {isWinner && isFinished && (
+                      <span style={{
+                        flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+                        color: '#0A0A0A', background: GREEN, padding: '2px 6px',
+                        clipPath: CHUNKY.badge, lineHeight: 1.1,
+                      }}>W</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Stream button — circular YouTube affordance (Task 11) */}
+            {process.env.NEXT_PUBLIC_FIP_STREAMS_ENABLED === 'true' && match.streamTier && (
+              <a
+                href={match.streamTier.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                aria-label={
+                  match.streamTier.state === 'live' ? 'Watch live on YouTube'
+                  : match.streamTier.state === 'upcoming' ? 'Tune in on YouTube'
+                  : match.streamTier.state === 'archived' ? 'Watch replay on YouTube'
+                  : 'Open FIP YouTube channel'
+                }
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  flex: 1,
-                  minWidth: 0,
-                  opacity: isLoser ? 0.65 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, width: 36, height: 36, alignSelf: 'center',
+                  borderRadius: '50%', textDecoration: 'none',
+                  background:
+                    match.streamTier.state === 'live' ? '#FF4655'
+                    : match.streamTier.state === 'archived' ? 'rgba(126,211,33,0.16)'
+                    : 'rgba(255,255,255,0.08)',
+                  border:
+                    match.streamTier.state === 'archived' ? '1px solid rgba(126,211,33,0.4)'
+                    : 'none',
+                  color:
+                    match.streamTier.state === 'live' ? '#fff'
+                    : match.streamTier.state === 'archived' ? '#7ED321'
+                    : '#B0B5BE',
+                  animation: match.streamTier.state === 'live' ? 'fipStreamPulse 1.6s ease-in-out infinite' : undefined,
                 }}
               >
-                {/* Stacked dual flags */}
-                <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                    <FlagImage country={p1?.country ?? null} size={16} />
-                  </div>
-                  <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
-                    <FlagImage country={p2?.country ?? null} size={16} />
-                  </div>
-                </div>
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: isWinner ? 800 : 600,
-                    color: isLoser ? '#B0B5BE' : '#fff',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {pair}
-                </span>
-                {isWinner && isFinished && (
-                  <span
-                    style={{
-                      flexShrink: 0,
-                      fontSize: 9,
-                      fontWeight: 800,
-                      letterSpacing: 0.5,
-                      color: '#0A0A0A',
-                      background: GREEN,
-                      padding: '2px 6px',
-                      clipPath: CHUNKY.badge,
-                      lineHeight: 1.1,
-                    }}
-                  >
-                    W
-                  </span>
+                {match.streamTier.state === 'archived' ? (
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                  </svg>
+                ) : (
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
                 )}
-              </div>
+              </a>
+            )}
 
-              {/* Per-set scores */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                {sets.map(s => {
-                  const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
-                  const p1g = parsed?.p1 ?? s.pair1_games ?? 0
-                  const p2g = parsed?.p2 ?? s.pair2_games ?? 0
-                  const games = pairNum === 1 ? p1g : p2g
-                  const tb = parsed?.tb ?? null
-                  const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
-                  const isCurrent = s.is_current && isLive
-                  return (
-                    <span
-                      key={s.id}
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 700,
-                        fontFamily: 'monospace',
-                        color: isCurrent
-                          ? GREEN
-                          : wonThisSet
-                          ? '#fff'
-                          : '#B0B5BE',
-                        minWidth: 16,
-                        textAlign: 'center',
-                        position: 'relative',
-                      }}
-                    >
-                      {games}
-                      {tb != null && !wonThisSet && (
-                        <sup
+            {/* Scores column — both score rows stacked */}
+            <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+              {[1, 2].map(pairNum => {
+                const isLoser = winner !== 0 && winner !== pairNum
+                return (
+                  <div key={pairNum} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+                    gap: 8, padding: '5px 0', opacity: isLoser ? 0.65 : 1,
+                  }}>
+                    {sets.map(s => {
+                      const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
+                      const p1g = parsed?.p1 ?? s.pair1_games ?? 0
+                      const p2g = parsed?.p2 ?? s.pair2_games ?? 0
+                      const games = pairNum === 1 ? p1g : p2g
+                      const tb = parsed?.tb ?? null
+                      const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
+                      const isCurrent = s.is_current && isLive
+                      return (
+                        <span
+                          key={s.id}
                           style={{
-                            fontSize: 8,
-                            color: '#B0B5BE',
-                            position: 'absolute',
-                            top: -3,
-                            right: -5,
+                            fontSize: 15,
+                            fontWeight: 700,
+                            fontFamily: 'monospace',
+                            color: isCurrent
+                              ? GREEN
+                              : wonThisSet
+                              ? '#fff'
+                              : '#B0B5BE',
+                            minWidth: 16,
+                            textAlign: 'center',
+                            position: 'relative',
                           }}
                         >
-                          {tb}
-                        </sup>
-                      )}
-                    </span>
-                  )
-                })}
-                {isLive && gamePoints && (
-                  <span
-                    style={{
-                      fontSize: 17,
-                      fontWeight: 800,
-                      fontFamily: 'monospace',
-                      color: LIVE_RED,
-                      minWidth: 20,
-                      textAlign: 'center',
-                      marginLeft: 4,
-                    }}
-                  >
-                    {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
-                  </span>
-                )}
-              </div>
+                          {games}
+                          {tb != null && !wonThisSet && (
+                            <sup
+                              style={{
+                                fontSize: 8,
+                                color: '#B0B5BE',
+                                position: 'absolute',
+                                top: -3,
+                                right: -5,
+                              }}
+                            >
+                              {tb}
+                            </sup>
+                          )}
+                        </span>
+                      )
+                    })}
+                    {isLive && gamePoints && (
+                      <span
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 800,
+                          fontFamily: 'monospace',
+                          color: LIVE_RED,
+                          minWidth: 20,
+                          textAlign: 'center',
+                          marginLeft: 4,
+                        }}
+                      >
+                        {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          )
-        })}
+
           </div>
 
           {/* Right-aligned schedule stack — scheduled matches only (live/finished
