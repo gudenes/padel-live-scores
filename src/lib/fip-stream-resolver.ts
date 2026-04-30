@@ -9,7 +9,7 @@
 // Tier 4: no stream data → generic FIP channel URL
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { isFipTier, FIP_CHANNEL_URL, FIP_CHANNEL_HANDLE } from './fip-channel'
+import { isFipTier, FIP_CHANNEL_HANDLE } from './fip-channel'
 
 export interface MatchForStream {
   id: string
@@ -107,16 +107,12 @@ export async function resolveStreamForMatch(
     }
   }
 
-  // Tier 4: generic FIP channel.
-  return {
-    tier: 4,
-    url: FIP_CHANNEL_URL,
-    state: 'channel',
-    videoId: null,
-    title: null,
-    thumbnailUrl: null,
-    manualOffsetSeconds: null,
-  }
+  // No stream evidence for this tournament — return null so the UI doesn't
+  // render a misleading "Watch on YouTube" button that lands on the FIP
+  // channel home page. The "always show something" Tier 4 fallback was
+  // dropped after the buttons appeared on every FIP-tier match before any
+  // streams had been discovered, suggesting a promise we couldn't keep.
+  return null
 }
 
 export async function resolveStreamsForMatches(

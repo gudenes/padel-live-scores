@@ -97,7 +97,7 @@ describe('resolveStreamForMatch', () => {
     expect(r?.url).toContain('search?query=Mendoza')
   })
 
-  it('returns Tier 4 when tournament has no streams known at all', async () => {
+  it('returns null when tournament has no streams known at all', async () => {
     const { supabase } = mockClient([], [])
     const r = await resolveStreamForMatch(supabase as never, {
       id: 'm1',
@@ -107,7 +107,6 @@ describe('resolveStreamForMatch', () => {
       scheduled_at: '2026-04-30T15:00:00Z',
       played_at: null,
     })
-    expect(r?.tier).toBe(4)
-    expect(r?.url).toBe('https://www.youtube.com/c/fipinternationalpadelfederation')
+    expect(r).toBeNull()
   })
 })
