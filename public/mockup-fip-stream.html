@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FIP Stream Mockup — PadelNachos</title>
+<style>
+  /* ─── Brand tokens (match production MatchCard.tsx) ─── */
+  :root{
+    --bg:#0A0A0A; --bg-card:#141414; --bg-elev:#1A1A1A;
+    --green:#7ED321; --orange:#F5A623; --live-red:#FF4655;
+    --muted:#6B7280; --text:#fff; --text-2:#B0B5BE;
+    --border:rgba(255,255,255,0.06);
+    --chunky-card:polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --chunky-badge:polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#000;color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    -webkit-font-smoothing:antialiased}
+  body{padding:24px 16px 96px;max-width:480px;margin:0 auto}
+
+  /* ─── Page chrome ─── */
+  h1{font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-0.3px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 28px;line-height:1.5}
+  h2{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+     color:var(--orange);margin:32px 0 12px}
+  .note{color:var(--muted);font-size:12px;line-height:1.5;margin:6px 0 16px}
+  .label{display:inline-block;font-size:9px;font-weight:800;letter-spacing:0.6px;
+     padding:3px 8px;background:rgba(255,255,255,0.06);color:var(--muted);
+     clip-path:var(--chunky-badge);margin-bottom:6px;text-transform:uppercase}
+
+  /* ─── Match card (matches MatchCard.tsx) ─── */
+  .card{background:var(--bg-card);border:1px solid var(--border);
+    clip-path:var(--chunky-card);padding:12px 14px 12px 16px;
+    position:relative;overflow:hidden;margin-bottom:8px}
+  .card.live{border-color:rgba(255,70,85,0.22)}
+  .card.live::after{content:'';position:absolute;top:-40px;right:-40px;
+    width:120px;height:120px;
+    background:radial-gradient(circle,rgba(255,70,85,0.10) 0%,transparent 70%);
+    pointer-events:none}
+  .gender-bar{position:absolute;top:0;left:0;bottom:0;width:3px}
+  .gender-bar.men{background:#3B82F6}.gender-bar.women{background:#EC4899}
+
+  /* Chip row */
+  .chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px}
+  .chip{font-size:9px;font-weight:700;letter-spacing:0.5px;padding:3px 7px;
+    background:rgba(255,255,255,0.06);color:var(--muted);
+    clip-path:var(--chunky-badge);text-transform:uppercase}
+  .chip.live{background:rgba(255,70,85,0.18);color:var(--live-red)}
+  .chip.finished{background:rgba(126,211,33,0.16);color:var(--green)}
+
+  /* Pairs */
+  .pairs{display:flex;align-items:stretch;gap:8px}
+  .pairs-col{flex:1;min-width:0}
+  .pair{display:flex;align-items:center;justify-content:space-between;
+    padding:5px 0;gap:8px}
+  .pair-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+  .flag-stack{position:relative;width:26px;height:20px;flex-shrink:0}
+  .flag{position:absolute;width:16px;height:12px;border-radius:2px;
+    background:#444;border:1px solid #222}
+  .flag.f1{top:0;left:0;z-index:2}
+  .flag.f2{top:6px;left:8px;z-index:1}
+  .pair-name{font-size:12px;font-weight:600;color:#fff;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pair.winner .pair-name{font-weight:800}
+  .pair.loser{opacity:0.65}
+  .pair.loser .pair-name{color:var(--text-2)}
+  .w-badge{flex-shrink:0;font-size:9px;font-weight:800;letter-spacing:0.5px;
+    color:#0A0A0A;background:var(--green);padding:2px 6px;
+    clip-path:var(--chunky-badge)}
+  .scores{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .score{font-size:15px;font-weight:700;font-family:monospace;
+    color:var(--text-2);min-width:16px;text-align:center}
+  .score.won{color:#fff}
+  .score.live{color:var(--green)}
+
+  /* Right-side schedule */
+  .right-stack{display:flex;flex-direction:column;align-items:flex-end;
+    justify-content:center;font-family:monospace;gap:1px}
+  .right-stack .date{font-size:10px;font-weight:600;color:var(--muted)}
+  .right-stack .time{font-size:13px;font-weight:800;color:var(--green)}
+
+  /* ─── Variant A · YouTube-glyph chip prefix ─── */
+  .stream-chip{display:inline-flex;align-items:center;gap:5px;
+    padding-left:5px;cursor:pointer;
+    background:rgba(255,0,0,0.10);color:#fff;
+    border:0.5px solid rgba(255,0,0,0.25)}
+  .yt-glyph{width:11px;height:11px;color:#FF0000;flex-shrink:0}
+
+  /* ─── Variant B · status chip mutates ─── */
+  .chip.action{display:inline-flex;align-items:center;gap:4px;
+    padding-left:5px;cursor:pointer}
+  .yt-glyph-mini{width:9px;height:9px;flex-shrink:0}
+  .chip.live.action{background:rgba(255,70,85,0.28)}
+  .chip.finished.action{background:rgba(126,211,33,0.24)}
+
+  /* ─── Variant C · vertical button BETWEEN names and scores ─── */
+  /* Restructured pair rows: [names col] [vertical button] [scores col] */
+  .pairs-grid{display:flex;align-items:stretch;gap:10px}
+  .names-col{flex:1;min-width:0;display:flex;flex-direction:column}
+  .scores-col-stack{display:flex;flex-direction:column;flex-shrink:0}
+  .row-name,.row-score{display:flex;align-items:center;padding:5px 0;gap:8px}
+  .row-name{justify-content:flex-start}
+  .row-score{justify-content:flex-end;gap:8px}
+  .row-name.loser,.row-score.loser{opacity:0.65}
+  .row-score .score{color:var(--text-2)}
+  .row-score.winner .score.won{color:#fff}
+  .vertical-stream{display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;width:36px;height:36px;align-self:center;
+    border:0;cursor:pointer;border-radius:50%}
+  .vertical-stream svg{width:14px;height:14px}
+  .vertical-stream.live{background:var(--live-red);color:#fff;
+    animation:pulse-vert 1.6s ease-in-out infinite}
+  .vertical-stream.replay{background:rgba(126,211,33,0.16);color:var(--green);
+    border:1px solid rgba(126,211,33,0.4)}
+  @keyframes pulse-vert{0%,100%{filter:brightness(1)}
+    50%{filter:brightness(1.18)}}
+
+  /* ─── (legacy) compact stream row — kept for reference, no longer used ─── */
+  .stream-row{display:flex;align-items:center;gap:8px;
+    margin-top:10px;padding-top:10px;
+    border-top:1px dashed var(--border)}
+  .yt-icon{width:14px;height:14px;flex-shrink:0;color:#FF0000}
+  .stream-meta{font-size:11px;color:var(--text-2);flex:1;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+  .stream-meta .court{font-weight:700;color:#fff}
+  .stream-cta{flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:0.5px;
+    padding:4px 9px;clip-path:var(--chunky-badge);
+    text-transform:uppercase;border:0;cursor:pointer}
+  .stream-cta.live{background:var(--live-red);color:#fff}
+  .stream-cta.live::before{content:'';display:inline-block;width:6px;height:6px;
+    background:#fff;border-radius:50%;margin-right:5px;vertical-align:middle;
+    animation:pulse 1.4s ease-in-out infinite}
+  .stream-cta.replay{background:rgba(126,211,33,0.16);color:var(--green);
+    border:1px solid rgba(126,211,33,0.3)}
+  .stream-cta.upcoming{background:rgba(245,166,35,0.14);color:var(--orange);
+    border:1px solid rgba(245,166,35,0.3)}
+  .stream-cta.generic{background:rgba(255,255,255,0.04);color:var(--muted);
+    border:1px solid var(--border)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+  /* ─── Detail-page chunky stream card ─── */
+  .detail-card{background:var(--bg-card);border:1px solid var(--border);
+    clip-path:var(--chunky-card);padding:18px 18px 16px;margin-bottom:14px;
+    position:relative;overflow:hidden}
+  .detail-card.live{border-color:rgba(255,70,85,0.3)}
+  .detail-card.live::before{content:'';position:absolute;top:-50px;right:-50px;
+    width:160px;height:160px;
+    background:radial-gradient(circle,rgba(255,70,85,0.14) 0%,transparent 70%);
+    pointer-events:none}
+  .detail-eyebrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .detail-eyebrow .label-text{font-size:10px;font-weight:800;letter-spacing:1.4px;
+    color:var(--orange);text-transform:uppercase}
+  .yt-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .yt-thumb{width:88px;height:50px;background:#222;border-radius:4px;flex-shrink:0;
+    background:linear-gradient(135deg,#1F1F1F 0%,#2A2A2A 100%);
+    display:flex;align-items:center;justify-content:center;position:relative;
+    overflow:hidden}
+  .yt-thumb svg{width:32px;height:32px;color:#FF0000}
+  .yt-thumb.live::after{content:'LIVE';position:absolute;top:4px;left:4px;
+    background:var(--live-red);color:#fff;font-size:8px;font-weight:800;
+    letter-spacing:0.5px;padding:2px 5px;clip-path:var(--chunky-badge)}
+  .yt-info{flex:1;min-width:0}
+  .yt-title{font-size:13px;font-weight:700;color:#fff;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+  .yt-meta{font-size:11px;color:var(--muted);line-height:1.4}
+  .detail-cta{display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;padding:13px;clip-path:var(--chunky-badge);border:0;cursor:pointer;
+    font-size:13px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase}
+  .detail-cta.live{background:var(--live-red);color:#fff}
+  .detail-cta.replay{background:var(--green);color:#0A0A0A}
+  .detail-cta.upcoming{background:rgba(245,166,35,0.14);color:var(--orange);
+    border:1.5px solid var(--orange)}
+  .detail-cta.generic{background:var(--bg-elev);color:var(--text-2);
+    border:1.5px solid var(--border)}
+  .detail-foot{font-size:11px;color:var(--muted);margin-top:10px;text-align:center;
+    line-height:1.4}
+
+  /* ─── Tier diagram ─── */
+  .tier-list{padding:0;margin:14px 0 0;list-style:none}
+  .tier-list li{display:flex;align-items:flex-start;gap:12px;padding:10px 0;
+    border-bottom:1px dashed var(--border)}
+  .tier-list li:last-child{border-bottom:0}
+  .tier-num{flex-shrink:0;width:22px;height:22px;border-radius:50%;
+    background:var(--bg-elev);border:1.5px solid var(--border);color:var(--muted);
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;font-family:monospace}
+  .tier-num.t1{border-color:var(--green);color:var(--green)}
+  .tier-num.t2{border-color:var(--orange);color:var(--orange)}
+  .tier-num.t3{border-color:var(--text-2);color:var(--text-2)}
+  .tier-num.t4{border-color:var(--border);color:var(--muted)}
+  .tier-body{flex:1}
+  .tier-title{font-size:13px;font-weight:700;margin-bottom:2px}
+  .tier-desc{font-size:11px;color:var(--muted);line-height:1.5}
+  .tier-desc code{background:var(--bg-elev);padding:1px 5px;border-radius:3px;
+    font-size:10px;color:var(--text-2)}
+
+  .divider{height:1px;background:var(--border);margin:36px 0 20px}
+</style>
+</head>
+<body>
+
+<h1>Where to Watch — FIP YouTube</h1>
+<p class="sub">Mockup for FIP-tier match livestream surfaces. Tiered fallback so the user always lands somewhere useful, even when our discovery cron didn't pin down the exact court stream.</p>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<h2>1. Match list — no extra row</h2>
+<p class="note">Three integration approaches that signal stream availability without growing the card vertically. Each variant shown with LIVE + FINISHED states for direct comparison. <strong style="color:#fff">Pick one.</strong></p>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<span class="label" style="color:var(--green);background:rgba(126,211,33,0.1)">Variant A · Court chip becomes the link</span>
+<p class="note" style="margin-top:0">YouTube glyph prefix on the existing court chip. The chip itself becomes a tap target opening the stream. Strongest semantic match — stream IS per-court. Tap → opens YouTube directly. Tap anywhere else on the card → match detail.</p>
+
+<!-- A · LIVE -->
+<div class="card live">
+  <div class="gender-bar men"></div>
+  <div class="chips">
+    <span class="chip">SEMIFINALS</span>
+    <span class="chip stream-chip"><svg class="yt-glyph" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a2.99 2.99 0 0 0-2.103-2.115C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.395.525A2.99 2.99 0 0 0 .502 6.186C0 8.087 0 12 0 12s0 3.913.502 5.814a2.99 2.99 0 0 0 2.103 2.115c1.89.525 9.395.525 9.395.525s7.505 0 9.395-.525a2.99 2.99 0 0 0 2.103-2.115C24 15.913 24 12 24 12s0-3.913-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>CENTRE COURT</span>
+    <span class="chip live">LIVE</span>
+  </div>
+  <div class="pairs">
+    <div class="pairs-col">
+      <div class="pair winner">
+        <div class="pair-left"><div class="flag-stack"><div class="flag f1" style="background:#FFCD00"></div><div class="flag f2" style="background:#74ACDF"></div></div><span class="pair-name">Coello / Tapia</span></div>
+        <div class="scores"><span class="score won">6</span><span class="score live">3</span></div>
+      </div>
+      <div class="pair loser">
+        <div class="pair-left"><div class="flag-stack"><div class="flag f1" style="background:#C60B1E"></div><div class="flag f2" style="background:#C60B1E"></div></div><span class="pair-name">Galán / Lebrón</span></div>
+        <div class="scores"><span class="score">4</span><span class="score">2</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- A · FINISHED -->
+<div class="card">
+  <div class="gender-bar women"></div>
+  <div class="chips">
+    <span class="chip">QUARTERFINALS</span>
+    <span class="chip stream-chip"><svg class="yt-glyph" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a2.99 2.99 0 0 0-2.103-2.115C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.395.525A2.99 2.99 0 0 0 .502 6.186C0 8.087 0 12 0 12s0 3.913.502 5.814a2.99 2.99 0 0 0 2.103 2.115c1.89.525 9.395.525 9.395.525s7.505 0 9.395-.525a2.99 2.99 0 0 0 2.103-2.115C24 15.913 24 12 24 12s0-3.913-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>PISTA 2</span>
+    <span class="chip finished">FINISHED</span>
+  </div>
+  <div class="pairs">
+    <div class="pairs-col">
+      <div class="pair winner">
+        <div class="pair-left"><div class="flag-stack"><div class="flag f1" style="background:#C60B1E"></div><div class="flag f2" style="background:#C60B1E"></div></div><span class="pair-name">Triay / Brea</span><span class="w-badge">W</span></div>
+        <div class="scores"><span class="score won">6</span><span class="score won">7</span></div>
+      </div>
+      <div class="pair loser">
+        <div class="pair-left"><div class="flag-stack"><div class="flag f1" style="background:#74ACDF"></div><div class="flag f2" style="background:#74ACDF"></div></div><span class="pair-name">Sánchez / Josemaría</span></div>
+        <div class="scores"><span class="score">4</span><span class="score">5</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<span class="label" style="color:var(--orange);background:rgba(245,166,35,0.12);margin-top:24px">Variant B · Status chip mutates into action</span>
+<p class="note" style="margin-top:0">The existing LIVE / FINISHED chip swaps to <em>▶ LIVE</em> / <em>↻ REPLAY</em> when stream is available, becoming a tap target. Strongest call-to-action without adding pixels. Side-effect: the chip is now a button — slightly heavier visual weight than today's LIVE chip.</p>
+
+<!-- B · LIVE -->
+<div class="card live">
+  <div class="gender-bar men"></div>
+  <div class="chips">
+    <span class="chip">SEMIFINALS</span>
+    <span class="chip">CENTRE COURT</span>
+    <span class="chip live action"><svg class="yt-glyph-mini" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>LIVE</span>
+  </div>
+  <div class="pairs">
+    <div class="pairs-col">
+      <div class="pair winner">
+        <div class="pair-left"><div class="flag-stack"><div class="flag f1" style="background:#FFCD00"></div><div class="flag f2" style="background:#74ACDF"></div></div><span class="pair-name">Coello / Tapia</span></div>
+        <div class="scores"><span class="score won">6</span><span class="score live">3</span></div>
+      </div>
+      <div class="pair loser">
+        <div class="pair-left"><div class="flag-stack"><div class="flag f1" style="background:#C60B1E"></div><div class="flag f2" style="background:#C60B1E"></div></div><span class="pair-name">Galán / Lebrón</span></div>
+        <div class="scores"><span class="score">4</span><span class="score">2</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- B · FINISHED -->
+<div class="card">
+  <div class="gender-bar women"></div>
+  <div class="chips">
+    <span class="chip">QUARTERFINALS</span>
+    <span class="chip">PISTA 2</span>
+    <span class="chip finished action"><svg class="yt-glyph-mini" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>REPLAY</span>
+  </div>
+  <div class="pairs">
+    <div class="pairs-col">
+      <div class="pair winner">
+        <div class="pair-left"><div class="flag-stack"><div class="flag f1" style="background:#C60B1E"></div><div class="flag f2" style="background:#C60B1E"></div></div><span class="pair-name">Triay / Brea</span><span class="w-badge">W</span></div>
+        <div class="scores"><span class="score won">6</span><span class="score won">7</span></div>
+      </div>
+      <div class="pair loser">
+        <div class="pair-left"><div class="flag-stack"><div class="flag f1" style="background:#74ACDF"></div><div class="flag f2" style="background:#74ACDF"></div></div><span class="pair-name">Sánchez / Josemaría</span></div>
+        <div class="scores"><span class="score">4</span><span class="score">5</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<span class="label" style="color:var(--live-red);background:rgba(255,70,85,0.1);margin-top:24px">Variant C · Vertical button between names and scores</span>
+<p class="note" style="margin-top:0">Pair rows restructured into three columns: <code style="background:var(--bg-elev);padding:1px 5px;font-size:10px">[names] [▶ button] [scores]</code>. The button spans both rows vertically — anchored to the center of the score area. Distinct tap target, doesn't fight the chip row or corner badges. Player-name font reduced to 12px (also applied to A & B above).</p>
+
+<!-- C · LIVE -->
+<div class="card live">
+  <div class="gender-bar men"></div>
+  <div class="chips">
+    <span class="chip">SEMIFINALS</span>
+    <span class="chip">CENTRE COURT</span>
+    <span class="chip live">LIVE</span>
+  </div>
+  <div class="pairs-grid">
+    <div class="names-col">
+      <div class="row-name winner">
+        <div class="flag-stack"><div class="flag f1" style="background:#FFCD00"></div><div class="flag f2" style="background:#74ACDF"></div></div>
+        <span class="pair-name">Coello / Tapia</span>
+      </div>
+      <div class="row-name loser">
+        <div class="flag-stack"><div class="flag f1" style="background:#C60B1E"></div><div class="flag f2" style="background:#C60B1E"></div></div>
+        <span class="pair-name">Galán / Lebrón</span>
+      </div>
+    </div>
+    <button class="vertical-stream live" title="Watch live">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <div class="scores-col-stack">
+      <div class="row-score winner"><span class="score won">6</span><span class="score live">3</span></div>
+      <div class="row-score loser"><span class="score">4</span><span class="score">2</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- C · FINISHED -->
+<div class="card">
+  <div class="gender-bar women"></div>
+  <div class="chips">
+    <span class="chip">QUARTERFINALS</span>
+    <span class="chip">PISTA 2</span>
+    <span class="chip finished">FINISHED</span>
+  </div>
+  <div class="pairs-grid">
+    <div class="names-col">
+      <div class="row-name winner">
+        <div class="flag-stack"><div class="flag f1" style="background:#C60B1E"></div><div class="flag f2" style="background:#C60B1E"></div></div>
+        <span class="pair-name">Triay / Brea</span>
+        <span class="w-badge">W</span>
+      </div>
+      <div class="row-name loser">
+        <div class="flag-stack"><div class="flag f1" style="background:#74ACDF"></div><div class="flag f2" style="background:#74ACDF"></div></div>
+        <span class="pair-name">Sánchez / Josemaría</span>
+      </div>
+    </div>
+    <button class="vertical-stream replay" title="Watch replay">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+    </button>
+    <div class="scores-col-stack">
+      <div class="row-score winner"><span class="score won">6</span><span class="score won">7</span></div>
+      <div class="row-score loser"><span class="score">4</span><span class="score">5</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<p class="note" style="margin-top:24px;border-left:2px solid var(--orange);padding-left:12px">
+  <strong style="color:#fff">My read:</strong> Variant A is the most semantically honest (stream is per-court, so the court chip should be the affordance) and lightest visually. Variant B has the strongest call-to-action but turns the LIVE chip into a button — could feel tappy on a card that's already tappable. Variant C now has the largest, most thumb-friendly tap target and clearest visual presence — the trade-off is it requires restructuring the existing pair-row flex layout in <code style="background:var(--bg-elev);padding:1px 5px;font-size:10px">MatchCard.tsx</code>, slightly more invasive.
+</p>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<h2>2. Match detail page — chunky card</h2>
+<p class="note">Sits below the score block on the match page (between score and stats tabs). One per match — never multiple. Same component, four lifecycle variants.</p>
+
+<!-- DETAIL: LIVE -->
+<span class="label">Detail · Live</span>
+<div class="detail-card live">
+  <div class="detail-eyebrow">
+    <span class="label-text">▶ Watch live</span>
+  </div>
+  <div class="yt-row">
+    <div class="yt-thumb live">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a2.99 2.99 0 0 0-2.103-2.115C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.395.525A2.99 2.99 0 0 0 .502 6.186C0 8.087 0 12 0 12s0 3.913.502 5.814a2.99 2.99 0 0 0 2.103 2.115c1.89.525 9.395.525 9.395.525s7.505 0 9.395-.525a2.99 2.99 0 0 0 2.103-2.115C24 15.913 24 12 24 12s0-3.913-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+    </div>
+    <div class="yt-info">
+      <div class="yt-title">FIP Silver Mendoza · Day 4 · Centre Court</div>
+      <div class="yt-meta">Live now · 4.2K watching</div>
+    </div>
+  </div>
+  <button class="detail-cta live">Watch live on YouTube</button>
+  <div class="detail-foot">Streaming free on the FIP YouTube channel</div>
+</div>
+
+<!-- DETAIL: REPLAY -->
+<span class="label">Detail · Finished (replay)</span>
+<div class="detail-card">
+  <div class="detail-eyebrow">
+    <span class="label-text">↻ Watch replay</span>
+  </div>
+  <div class="yt-row">
+    <div class="yt-thumb">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a2.99 2.99 0 0 0-2.103-2.115C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.395.525A2.99 2.99 0 0 0 .502 6.186C0 8.087 0 12 0 12s0 3.913.502 5.814a2.99 2.99 0 0 0 2.103 2.115c1.89.525 9.395.525 9.395.525s7.505 0 9.395-.525a2.99 2.99 0 0 0 2.103-2.115C24 15.913 24 12 24 12s0-3.913-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+    </div>
+    <div class="yt-info">
+      <div class="yt-title">FIP Silver Mendoza · Day 3 · Pista 2</div>
+      <div class="yt-meta">8h 14m · 47K views</div>
+    </div>
+  </div>
+  <button class="detail-cta replay">Watch replay on YouTube</button>
+  <div class="detail-foot">Match was on Pista 2 · scrub the stream to find the start</div>
+</div>
+
+<!-- DETAIL: UPCOMING -->
+<span class="label">Detail · Scheduled (stream not live yet)</span>
+<div class="detail-card">
+  <div class="detail-eyebrow">
+    <span class="label-text">⏱ Tune in</span>
+  </div>
+  <div class="yt-row">
+    <div class="yt-thumb">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a2.99 2.99 0 0 0-2.103-2.115C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.395.525A2.99 2.99 0 0 0 .502 6.186C0 8.087 0 12 0 12s0 3.913.502 5.814a2.99 2.99 0 0 0 2.103 2.115c1.89.525 9.395.525 9.395.525s7.505 0 9.395-.525a2.99 2.99 0 0 0 2.103-2.115C24 15.913 24 12 24 12s0-3.913-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+    </div>
+    <div class="yt-info">
+      <div class="yt-title">FIP Silver Mendoza · Day 4 · Centre Court</div>
+      <div class="yt-meta">Scheduled · starts at 16:30</div>
+    </div>
+  </div>
+  <button class="detail-cta upcoming">Open YouTube stream</button>
+  <div class="detail-foot">Court livestream goes live ~10 min before first match</div>
+</div>
+
+<!-- DETAIL: GENERIC FALLBACK -->
+<span class="label">Detail · Generic fallback (no court match)</span>
+<div class="detail-card">
+  <div class="detail-eyebrow">
+    <span class="label-text">▶ Watch on FIP YouTube</span>
+  </div>
+  <div class="yt-row">
+    <div class="yt-thumb">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a2.99 2.99 0 0 0-2.103-2.115C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.395.525A2.99 2.99 0 0 0 .502 6.186C0 8.087 0 12 0 12s0 3.913.502 5.814a2.99 2.99 0 0 0 2.103 2.115c1.89.525 9.395.525 9.395.525s7.505 0 9.395-.525a2.99 2.99 0 0 0 2.103-2.115C24 15.913 24 12 24 12s0-3.913-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+    </div>
+    <div class="yt-info">
+      <div class="yt-title">FIP International Padel Federation</div>
+      <div class="yt-meta">Browse live and recent streams</div>
+    </div>
+  </div>
+  <button class="detail-cta generic">Open FIP channel</button>
+  <div class="detail-foot">We couldn't pin down this match's stream — the FIP channel has all matches</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<h2>3. Fallback chain — what each tier links to</h2>
+<p class="note">Same UI component renders all four; copy and target URL degrade with whatever data we have. The user always lands somewhere useful.</p>
+
+<ol class="tier-list">
+  <li>
+    <div class="tier-num t1">1</div>
+    <div class="tier-body">
+      <div class="tier-title">Match-level deep link <span style="color:var(--muted);font-weight:500">— v2, future</span></div>
+      <div class="tier-desc">Manual ops timestamp inside the court VOD. Lands at exact match start. <code>youtube.com/watch?v=ABC&amp;t=6210s</code></div>
+    </div>
+  </li>
+  <li>
+    <div class="tier-num t2">2</div>
+    <div class="tier-body">
+      <div class="tier-title">Court livestream / VOD</div>
+      <div class="tier-desc">Court → stream linked by title parsing. Live or replay URL for the right court. <code>youtube.com/watch?v=ABC</code></div>
+    </div>
+  </li>
+  <li>
+    <div class="tier-num t3">3</div>
+    <div class="tier-body">
+      <div class="tier-title">Tournament channel filter</div>
+      <div class="tier-desc">No court linked, but tournament has a known channel. Scoped search URL. <code>youtube.com/@fip/search?q=Mendoza</code></div>
+    </div>
+  </li>
+  <li>
+    <div class="tier-num t4">4</div>
+    <div class="tier-body">
+      <div class="tier-title">Generic FIP channel</div>
+      <div class="tier-desc">Last resort. Always works for FIP-tier matches. <code>youtube.com/c/fipinternationalpadelfederation</code></div>
+    </div>
+  </li>
+</ol>
+
+<div class="divider"></div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<h2>4. What's NOT included in v1</h2>
+<p class="note" style="line-height:1.6">
+  <strong style="color:#fff">Inline YouTube embed.</strong> Aggregators don't embed third-party players (only rights-holders do). Always deep-link out.<br><br>
+  <strong style="color:#fff">Automatic match-start timestamps.</strong> Pre-roll variance + court turnover gaps make naive math wrong by 10–30 min. Manual ops timestamps unlock Tier 1 later if the operator effort is worth it.<br><br>
+  <strong style="color:#fff">Per-match chapter scraping.</strong> FIP doesn't chapter VODs consistently and never with player names. Dead end.<br><br>
+  <strong style="color:#fff">Premier broadcasters.</strong> Already covered by the existing <code style="background:var(--bg-elev);padding:1px 5px;font-size:11px;color:var(--text-2)">WhereToWatch</code> component on tournament pages. This feature is FIP-tier only.
+</p>
+
+</body>
+</html>
