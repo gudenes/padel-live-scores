@@ -322,6 +322,30 @@ describe('parseCrionetResults', () => {
     expect(walkover!.team2Player1Name).toBe('L. Danuzzo');
   });
 
+  it('captures walkovers rendered with `Alternate` / .missingteam placeholder (no WO badge)', async () => {
+    // Some Crionet tournaments render walkovers WITHOUT the WO badge: the
+    // no-show side appears as `<span class="missingteam">Alternate</span>`,
+    // and the present side has only the fa-check icon. Live HTML pulled
+    // from BMW Marmotor (FIP-2026-1812) day 1 — MQ021 = Docampo Fuster
+    // brothers received the walkover when their opponents (an Alternate
+    // pair) didn't show.
+    const html = await fs.readFile(
+      path.resolve(__dirname, '../fixtures/crionet-results-marmotor-walkover.html'),
+      'utf8',
+    );
+    const result = parseCrionetResults(html, 1);
+    const wo = result.find((r) => r.matchWidgetId === 'MQ021');
+    expect(wo).toBeDefined();
+    expect(wo!.status).toBe('walkover');
+    expect(wo!.setScores).toBe('');
+    expect(wo!.winnerTeam).toBe(1); // team1 (Docampo Fuster) had the fa-check
+    expect(wo!.team1Player1Name).toBe('M. Docampo Fuster');
+    expect(wo!.team1Player2Name).toBe('D. Docampo Fuster');
+    // The placeholder text "Alternate" must NOT leak in as a player name.
+    expect(wo!.team2Player1Name).toBeNull();
+    expect(wo!.team2Player2Name).toBeNull();
+  });
+
   it('still drops empty-score rows that have no terminal-status badge', () => {
     // Defensive: a malformed snapshot with empty score cells but no WO/RET badge
     // (would be a Crionet rendering glitch) should still be dropped — we don't

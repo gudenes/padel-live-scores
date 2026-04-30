@@ -63,6 +63,7 @@ function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
   player2: string | null;
   hasWinner: boolean;
   badgeText: string | null;
+  isMissingTeam: boolean;
 } {
   // Winner check: fa-check icon or "winner" class anywhere in the td
   const hasWinner = td.html()?.includes('fa-check') === true ||
@@ -74,6 +75,12 @@ function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
   const badge = td.find('small.badge').first();
   const badgeText = badge.length > 0 ? badge.text().trim().toUpperCase() : null;
 
+  // "Missing team" — when one side didn't show up the widget renders a
+  // single span.missingteam (e.g. text "Alternate") in place of player
+  // names. No fa-check on the missing side, no badge text. Used as a
+  // signal for walkovers that DON'T carry a WO badge.
+  const isMissingTeam = td.find('.missingteam').length > 0;
+
   const playerNames: string[] = [];
 
   td.find('div').each((_, el) => {
@@ -81,6 +88,10 @@ function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
     const cls = $el.attr('class') ?? '';
     // Match the name container: must have ml-2 or ms-2
     if (!/(?:^|\s)(?:ml-2|ms-2)(?:\s|$)/.test(cls)) return;
+
+    // Skip the placeholder div that hosts the missingteam span — it has
+    // a single non-player span we don't want to treat as a player name.
+    if ($el.find('.missingteam').length > 0) return;
 
     // Must contain at least one span (not just small/separator)
     const spans = $el.find('> span');
@@ -101,6 +112,7 @@ function parseTeam($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): {
     player2: playerNames[1] ?? null,
     hasWinner,
     badgeText,
+    isMissingTeam,
   };
 }
 
@@ -165,17 +177,33 @@ export function parseCrionetResults(html: string, dayNumber: number): ParsedResu
     }
     const setScores = sets.join(' ');
 
-    // Terminal-status badge — winner team carries it (e.g. WO when the
-    // opponent didn't show, RET when the opponent retired mid-match).
+    // Terminal-status detection — three signals, any one is enough:
+    //   1. WO/RET badge text on either team's td.
+    //   2. .missingteam placeholder on one team (the other side didn't
+    //      show — Crionet sometimes renders this without a WO badge).
+    //   3. Otherwise: a normal completed match with set scores.
     const badgeStatus = badgeToStatus(team1.badgeText) ?? badgeToStatus(team2.badgeText);
+    const missingTeamStatus: ResultsStatus | null =
+      (team1.isMissingTeam || team2.isMissingTeam) ? 'walkover' : null;
+    const terminalStatus = badgeStatus ?? missingTeamStatus;
 
     // Drop ordinary results rows that have no scores. Walkovers are the
-    // legitimate exception — they have empty set cells but a WO badge,
-    // and we still want to record them so the UI can show "W/O" instead
-    // of leaving the match stuck on `scheduled`.
-    if (sets.length === 0 && !badgeStatus) return;
+    // legitimate exception — they have empty set cells but a WO badge
+    // (or a .missingteam placeholder), and we still want to record them
+    // so the UI can show "W/O" instead of leaving the match stuck on
+    // `scheduled`.
+    if (sets.length === 0 && !terminalStatus) return;
 
-    const winnerTeam: 1 | 2 = team1.hasWinner ? 1 : 2;
+    // For .missingteam walkovers: the present team has the fa-check, the
+    // missing team has neither a check nor a winner class. Default winner
+    // to whichever team is NOT the missing one.
+    const winnerTeam: 1 | 2 = team1.isMissingTeam
+      ? 2
+      : team2.isMissingTeam
+      ? 1
+      : team1.hasWinner
+      ? 1
+      : 2;
     const button = $t.find(STATS_BUTTON_SELECTOR).first();
     const matchWidgetId = button.attr('data-id') ?? null;
 
@@ -191,7 +219,7 @@ export function parseCrionetResults(html: string, dayNumber: number): ParsedResu
       team2Player2Name: team2.player2,
       setScores,
       winnerTeam,
-      status: badgeStatus ?? 'finished',
+      status: terminalStatus ?? 'finished',
     });
   });
 
