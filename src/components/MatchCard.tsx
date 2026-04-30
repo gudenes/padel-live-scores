@@ -157,26 +157,37 @@ export function MatchCard({
   const tPred = useTranslations('prediction')
 
   // ── Hydration-safe prediction read (unified for all card states) ─────
+  // Re-reads localStorage on mount AND every time the panel closes — the
+  // PredictionPanel writes via its own useMatchPrediction hook, which has
+  // a separate useState, so the corner needs an explicit resync after the
+  // user locks in.
   const [prediction, setPredictionLocal] = useState<Prediction | null>(null)
-  useEffect(() => {
+  const [isOpen, setIsOpen] = useState(false)
+  const closeTimer = useRef<NodeJS.Timeout | null>(null)
+
+  const refreshPrediction = useCallback(() => {
     try {
       const raw = localStorage.getItem('pn_match_predictions')
-      if (raw) {
-        const all = JSON.parse(raw)
-        const p = all[match.id]
-        if (p && 'multiplier' in p && 'probability' in p) setPredictionLocal(p as Prediction)
-        else if (p) setPredictionLocal({
-          matchId: match.id, pair: p.pair, margin: p.margin,
-          probability: 0.5, multiplier: 2.0, isFallback: true,
-          createdAt: new Date(0).toISOString(),
-        })
-      }
+      if (!raw) { setPredictionLocal(null); return }
+      const all = JSON.parse(raw)
+      const p = all[match.id]
+      if (!p) { setPredictionLocal(null); return }
+      if ('multiplier' in p && 'probability' in p) setPredictionLocal(p as Prediction)
+      else setPredictionLocal({
+        matchId: match.id, pair: p.pair, margin: p.margin,
+        probability: 0.5, multiplier: 2.0, isFallback: true,
+        createdAt: new Date(0).toISOString(),
+      })
     } catch {}
   }, [match.id])
 
-  // Card-open state for the inline prediction panel.
-  const [isOpen, setIsOpen] = useState(false)
-  const closeTimer = useRef<NodeJS.Timeout | null>(null)
+  useEffect(() => { refreshPrediction() }, [refreshPrediction])
+
+  // Resync after the panel closes — covers auto-collapse + manual close +
+  // any case where PredictionPanel wrote to storage while we were open.
+  useEffect(() => {
+    if (!isOpen) refreshPrediction()
+  }, [isOpen, refreshPrediction])
 
   const toggleOpen = useCallback((e?: React.MouseEvent) => {
     e?.preventDefault()
