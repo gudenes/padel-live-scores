@@ -24,8 +24,8 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import type { Prediction } from '@/lib/predictions/types'
 import { classifyResult } from '@/lib/predictions/scoring'
-import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
+import { PredictionPanel } from '@/components/prediction/PredictionPanel'
 import { pairName, parseSetScore, parseSetFromGames, type Match } from '@/types/match'
 
 const GREEN = '#7ED321'
@@ -232,15 +232,14 @@ export function MatchCard({
   const borderColor = isLive ? 'rgba(255,70,85,0.22)' : BORDER
 
   return (
-    <Link
-      href={`/match/${match.id}`}
-      locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
-      style={{
-        textDecoration: 'none',
-        color: 'inherit',
-        display: 'block',
-        marginBottom: 8,
+    <div
+      onClick={(e) => {
+        // Tap card body → toggle expansion. Skip if click was on a button/anchor
+        // (corner CTA + panel buttons handle their own toggling).
+        if ((e.target as HTMLElement).closest('button, a')) return
+        toggleOpen()
       }}
+      style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 8, cursor: 'pointer' }}
     >
       <style>{PULSE_KEYFRAMES}</style>
       <div
@@ -498,8 +497,43 @@ export function MatchCard({
             </div>
           )}
         </div>
+
+        {/* Expandable insights panel — Guacas prediction game */}
+        <div
+          style={{
+            maxHeight: isOpen ? 600 : 0,
+            opacity: isOpen ? 1 : 0,
+            overflow: 'hidden',
+            marginTop: isOpen ? 12 : 0,
+            paddingTop: isOpen ? 12 : 0,
+            borderTop: isOpen ? `0.5px solid ${BORDER}` : '0.5px solid transparent',
+            transition: 'max-height 380ms ease, opacity 280ms ease, margin-top 380ms ease, padding-top 380ms ease',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {isOpen && (
+            <>
+              <PredictionPanel match={match} onLocked={handleLocked} />
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                aria-label={tPred('tapToClose')}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  margin: '10px auto 0', padding: 8,
+                  background: 'transparent', border: 0, cursor: 'pointer',
+                  color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6,
+                }}
+              >
+                <span style={{ fontSize: 11, lineHeight: 1 }}>▴</span>
+                {tPred('tapToClose')}
+                <span style={{ fontSize: 11, lineHeight: 1 }}>▴</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
-    </Link>
+    </div>
   )
 }
 
