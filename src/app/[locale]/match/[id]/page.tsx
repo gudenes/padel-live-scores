@@ -35,6 +35,9 @@ import {
   PAIR1_COLOR, PAIR2_COLOR, CHUNKY,
   PT_ORD, _matchPrevScores,
 } from './lib/constants'
+import { resolveStreamForMatch } from '@/lib/fip-stream-resolver'
+import type { StreamTier } from '@/lib/fip-stream-resolver'
+import { MatchStreamCard } from '@/components/MatchStreamCard'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
@@ -67,6 +70,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     (match as any)?.rating_count ?? 0
   )
   const [shareToast, setShareToast] = useState(false)
+  const [streamTier, setStreamTier] = useState<StreamTier | null>(null)
   const { user } = useAuth()
 
   const fetchNextMatch = useCallback(async (m: Match) => {
@@ -247,6 +251,19 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     if (match && match.status === 'finished' && (match as any).winner_pair) fetchNextMatch(match)
   }, [match, fetchNextMatch])
+
+  useEffect(() => {
+    if (!match) return
+    const m = match as any
+    resolveStreamForMatch(supabase, {
+      id: match.id,
+      tournament_id: m.tournament_id,
+      tournament_level: m.tournament?.level ?? null,
+      court: match.court,
+      scheduled_at: match.scheduled_at,
+      played_at: m.played_at ?? null,
+    }, m.tournament?.name).then(tier => setStreamTier(tier))
+  }, [match?.id])
 
   useEffect(() => {
     if (prediction) setPredStep('done')
@@ -869,6 +886,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* ── Post-match prediction result ─────────────────────────── */}
       {isFinished && prediction && (
         <PredictionResult match={match} prediction={prediction} pair1Label={pair1Label} pair2Label={pair2Label} />
+      )}
+
+      {/* ── Stream card (FIP-tier matches only) ──────────────────── */}
+      {streamTier && (
+        <div style={{ padding: '0 16px', marginTop: 8 }}>
+          <MatchStreamCard
+            streamTier={streamTier}
+            matchCourt={match.court}
+            matchScheduledAt={match.scheduled_at}
+          />
+        </div>
       )}
 
       {/* ── Match Journey chart ───────────────────────────────────── */}
