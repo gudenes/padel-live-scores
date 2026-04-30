@@ -138,10 +138,17 @@ function tournamentStatusBadge(
   // Trust order:
   //   1. matches.status='live' on at least one of today's matches → LIVE
   //   2. tournament.status='finished'/'completed'/'ended' → FINAL
-  //   3. tournament.status='live'/'ongoing' (in calendar window) → ONGOING
-  //   4. only upcoming today → UPCOMING
-  //   5. only finished today → FINAL
-  //   6. mixed today, no tournament-level signal → no pill
+  //   3. mixed bucket today (upcoming + finished, no live) → ONGOING
+  //      — play has demonstrably started today, that's a stronger signal
+  //      than tournament.status which can be stale ('pending' for FIP
+  //      Silver Leiria/Mendoza even after Q1 wraps, null when padelapi
+  //      never reported a status for FIP-only tiers)
+  //   4. tournament.status='live'/'ongoing' → ONGOING
+  //      — fallback for tournaments with no matches today (rest day) but
+  //      still in window (Cyprus I waiting on Day 2)
+  //   5. only upcoming today → UPCOMING
+  //   6. only finished today → FINAL
+  //   7. otherwise → no pill
   if (groupBucketCounts.live > 0) {
     return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
   }
@@ -149,13 +156,18 @@ function tournamentStatusBadge(
   if (ts === 'finished' || ts === 'completed' || ts === 'ended') {
     return { label: 'FINAL', bg: 'rgba(255,255,255,0.06)', color: MUTED }
   }
+  // Mixed bucket — at least one finished AND at least one upcoming, no live.
+  // This is the strongest "ongoing" signal in the data.
+  if (groupBucketCounts.finished > 0 && groupBucketCounts.upcoming > 0) {
+    return { label: 'ONGOING', bg: 'rgba(245,166,35,0.15)', color: ONGOING_ORANGE }
+  }
   if (ts === 'live' || ts === 'ongoing') {
     return { label: 'ONGOING', bg: 'rgba(245,166,35,0.15)', color: ONGOING_ORANGE }
   }
-  if (groupBucketCounts.live === 0 && groupBucketCounts.upcoming > 0 && groupBucketCounts.finished === 0) {
+  if (groupBucketCounts.upcoming > 0 && groupBucketCounts.finished === 0) {
     return { label: 'UPCOMING', bg: 'rgba(126,211,33,0.12)', color: GREEN }
   }
-  if (groupBucketCounts.live === 0 && groupBucketCounts.upcoming === 0 && groupBucketCounts.finished > 0) {
+  if (groupBucketCounts.upcoming === 0 && groupBucketCounts.finished > 0) {
     return { label: 'FINAL', bg: 'rgba(255,255,255,0.06)', color: MUTED }
   }
   return null
