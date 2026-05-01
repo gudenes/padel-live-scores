@@ -761,7 +761,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       rightColor={justUpdated ? GREEN : undefined}
                     />
                     {liveMatches.map(m => (
-                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
+                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} tournamentLevel={activeTournamentObj?.level} />
                     ))}
                   </div>
                 )}
@@ -770,7 +770,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div style={{ marginBottom: 14 }}>
                     <SectionHeader dot color={ORANGE} label="Warming up" />
                     {warmingUpMatches.map(m => (
-                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
+                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} tournamentLevel={activeTournamentObj?.level} />
                     ))}
                   </div>
                 )}
@@ -779,7 +779,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div style={{ marginBottom: 14 }}>
                     <SectionHeader label="Up next" />
                     {scheduledMatches.map(m => (
-                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} estimatedLabel={estimatedLabels[m.id]} />
+                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} estimatedLabel={estimatedLabels[m.id]} tournamentLevel={activeTournamentObj?.level} />
                     ))}
                   </div>
                 )}
@@ -788,7 +788,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <div>
                     <SectionHeader label={`Results \u00B7 ${selectedRound ?? ''}`} />
                     {finishedMatches.map(m => (
-                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} />
+                      <MatchCard key={m.id} match={m} genderColor={genderColor} locale={locale} userTz={userTz} tournamentLevel={activeTournamentObj?.level} />
                     ))}
                   </div>
                 )}
@@ -1696,7 +1696,7 @@ function V3Story({ tournament, allMatches, genderFilter, genderColor, locale, us
               </div>
               {topUpsets.map((upset, i) => (
                 <div key={i} style={{ marginBottom: 4 }}>
-                  <MatchCard match={upset.match} genderColor={genderColor} locale={locale} userTz={userTz} />
+                  <MatchCard match={upset.match} genderColor={genderColor} locale={locale} userTz={userTz} tournamentLevel={tournament?.level} />
                 </div>
               ))}
             </>

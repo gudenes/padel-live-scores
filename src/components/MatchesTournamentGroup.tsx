@@ -349,7 +349,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
             showSubLabel={hasMultipleBuckets(counts)}
           >
             {live.map(m => (
-              <MatchEntry key={m.id} match={m} status="live" locale={group.locale} userTz={group.userTz} />
+              <MatchEntry key={m.id} match={m} status="live" locale={group.locale} userTz={group.userTz} tournamentLevel={group.tournamentLevel} />
             ))}
           </SubSection>
         )}
@@ -362,7 +362,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
             showSubLabel={hasMultipleBuckets(counts)}
           >
             {upcoming.map(m => (
-              <MatchEntry key={m.id} match={m} status="upcoming" locale={group.locale} userTz={group.userTz} />
+              <MatchEntry key={m.id} match={m} status="upcoming" locale={group.locale} userTz={group.userTz} tournamentLevel={group.tournamentLevel} />
             ))}
           </SubSection>
         )}
@@ -375,7 +375,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
             showSubLabel={hasMultipleBuckets(counts)}
           >
             {finished.map(m => (
-              <MatchEntry key={m.id} match={m} status="finished" locale={group.locale} userTz={group.userTz} />
+              <MatchEntry key={m.id} match={m} status="finished" locale={group.locale} userTz={group.userTz} tournamentLevel={group.tournamentLevel} />
             ))}
           </SubSection>
         )}
@@ -461,11 +461,13 @@ function MatchEntry({
   status,
   locale,
   userTz,
+  tournamentLevel,
 }: {
   match: GroupMatch
   status: 'live' | 'upcoming' | 'finished'
   locale: string
   userTz: string
+  tournamentLevel: string | null
 }) {
   const matchAsFull = match as unknown as Match
   const genderColor = match.category === 'women' ? WOMEN_PURPLE : MEN_BLUE
@@ -483,6 +485,7 @@ function MatchEntry({
         genderColor={genderColor}
         locale={locale}
         userTz={userTz}
+        tournamentLevel={tournamentLevel}
       />
     </div>
   )
