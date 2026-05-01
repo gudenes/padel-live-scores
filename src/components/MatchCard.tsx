@@ -356,6 +356,7 @@ export function MatchCard({
                 const pair = pairName(p1, p2)
                 const isWinner = winner === pairNum
                 const isLoser = winner !== 0 && winner !== pairNum
+                const seed = pairNum === 1 ? match.pair1_seed : match.pair2_seed
                 return (
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
@@ -370,6 +371,26 @@ export function MatchCard({
                         <FlagImage country={p2?.country ?? null} size={16} />
                       </div>
                     </div>
+                    {seed != null && (
+                      <span
+                        title={`Seed ${seed}`}
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 9,
+                          fontWeight: 800,
+                          letterSpacing: 0.3,
+                          color: isLoser ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.7)',
+                          background: 'rgba(255,255,255,0.08)',
+                          padding: '1px 5px',
+                          minWidth: 14,
+                          textAlign: 'center',
+                          clipPath: CHUNKY.badge,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {seed}
+                      </span>
+                    )}
                     <span style={{
                       fontSize: 12, fontWeight: isWinner ? 800 : 600,
                       color: isLoser ? '#B0B5BE' : '#fff',

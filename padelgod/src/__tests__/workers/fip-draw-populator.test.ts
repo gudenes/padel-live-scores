@@ -138,6 +138,8 @@ function fakeSupabase(opts: Options) {
 
   const inserted: any[] = [];
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
+  const tournamentDrawsUpserted: Array<Record<string, unknown>> = [];
+  const tournamentDrawsConflictKeys: Array<string | null> = [];
 
   const matchesTable = () => ({
     select: (_cols: string) => ({
@@ -216,6 +218,18 @@ function fakeSupabase(opts: Options) {
     }),
   });
 
+  // Public.tournament_draws — populator UPSERTs two rows per draw row
+  // (one per team) keyed by (tournament_id, category, draw_position).
+  // Records the raw row + the conflict key so tests can assert on the
+  // exact write the bracket-table consumers expect.
+  const tournamentDrawsTable = () => ({
+    upsert: (row: Record<string, unknown>, opts: { onConflict?: string } = {}) => {
+      tournamentDrawsUpserted.push(row);
+      tournamentDrawsConflictKeys.push(opts.onConflict ?? null);
+      return Promise.resolve({ data: null, error: null });
+    },
+  });
+
   // Returns a builder that resolves to the given `data` either when
   // awaited directly OR when `.range(start, end)` is chained. Mirrors
   // the production populator: it now uses .range() for pagination on
@@ -289,6 +303,8 @@ function fakeSupabase(opts: Options) {
   return {
     inserted,
     updated,
+    tournamentDrawsUpserted,
+    tournamentDrawsConflictKeys,
     get existing() {
       return existingState;
     },
@@ -305,6 +321,7 @@ function fakeSupabase(opts: Options) {
       if (t === 'matches') return matchesTable();
       if (t === 'players') return playersTable();
       if (t === 'tournaments') return tournamentsTable();
+      if (t === 'tournament_draws') return tournamentDrawsTable();
       throw new Error(`unexpected public table: ${t}`);
     },
     rpc: vi.fn(async (name: string) => {
@@ -1743,4 +1760,143 @@ describe('runFipDrawPopulator', () => {
     expect(q1.pair1_player1_name).toBe('L. Wildcard');
     expect(q1.pair2_player2_name).toBe('O. Unknown');
   });
+
+  it('writes pair1_seed and pair2_seed on INSERT when draw_snapshots provides them', async () => {
+    const seededDraw: DrawSnapshotSeed = {
+      tournament_id: TOURNAMENT_ID,
+      match_widget_id: 'MD001',
+      category: 'men',
+      round_label: 'F',
+      draw_position: 1,
+      team1_player1_name: 'Juan Lebron',
+      team1_player2_name: 'Federico Chingotto',
+      team2_player1_name: 'Arturo Coello',
+      team2_player2_name: 'Agustin Tapia',
+      team1_seed: 1,
+      team2_seed: 2,
+      team1_fip_id: 'P000001',
+      team2_fip_id: 'P000002',
+      status: 'scheduled',
+      source: 'fip_event_page',
+      captured_at: "2026-04-24T07:00:00Z",
+    };
+    const entryList: EntryListSeed[] = [
+      { tournament_id: TOURNAMENT_ID, category: 'men', name: 'Juan Lebron', fip_id: 'F1', captured_at: "2026-04-24T07:00:00Z" },
+      { tournament_id: TOURNAMENT_ID, category: 'men', name: 'Federico Chingotto', fip_id: 'F2', captured_at: "2026-04-24T07:00:00Z" },
+      { tournament_id: TOURNAMENT_ID, category: 'men', name: 'Arturo Coello', fip_id: 'F3', captured_at: "2026-04-24T07:00:00Z" },
+      { tournament_id: TOURNAMENT_ID, category: 'men', name: 'Agustin Tapia', fip_id: 'F4', captured_at: "2026-04-24T07:00:00Z" },
+    ]
+    const rosterPlayers: PlayerSeed[] = [
+      { id: 'uuid-1', fip_id: 'F1' },
+      { id: 'uuid-2', fip_id: 'F2' },
+      { id: 'uuid-3', fip_id: 'F3' },
+      { id: 'uuid-4', fip_id: 'F4' },
+    ]
+    const supabase = fakeSupabase({
+      tournaments: [{ tournament_id: TOURNAMENT_ID, tournament_name: 'X', slug: 's' }],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [seededDraw],
+      entryList,
+      players: rosterPlayers,
+    })
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false })
+    expect(result.inserted).toBe(1)
+    const inserted = supabase.inserted[0]
+    expect(inserted.pair1_seed).toBe(1)
+    expect(inserted.pair2_seed).toBe(2)
+  })
+
+  it('writes two tournament_draws rows per draw row with seeds + onConflict key', async () => {
+    const seededDraw: DrawSnapshotSeed = {
+      tournament_id: TOURNAMENT_ID,
+      match_widget_id: 'MD001',
+      category: 'men',
+      round_label: 'F',
+      draw_position: 4,
+      team1_player1_name: 'Juan Lebron',
+      team1_player2_name: 'Federico Chingotto',
+      team2_player1_name: 'Arturo Coello',
+      team2_player2_name: 'Agustin Tapia',
+      team1_seed: 1,
+      team2_seed: 2,
+      team1_fip_id: 'P000001',
+      team2_fip_id: 'P000002',
+      status: 'scheduled',
+      source: 'fip_event_page',
+      captured_at: "2026-04-24T07:00:00Z",
+    }
+    const entryList: EntryListSeed[] = [
+      { tournament_id: TOURNAMENT_ID, category: 'men', name: 'Juan Lebron', fip_id: 'F1', captured_at: "2026-04-24T07:00:00Z" },
+      { tournament_id: TOURNAMENT_ID, category: 'men', name: 'Federico Chingotto', fip_id: 'F2', captured_at: "2026-04-24T07:00:00Z" },
+      { tournament_id: TOURNAMENT_ID, category: 'men', name: 'Arturo Coello', fip_id: 'F3', captured_at: "2026-04-24T07:00:00Z" },
+      { tournament_id: TOURNAMENT_ID, category: 'men', name: 'Agustin Tapia', fip_id: 'F4', captured_at: "2026-04-24T07:00:00Z" },
+    ]
+    const rosterPlayers: PlayerSeed[] = [
+      { id: 'uuid-1', fip_id: 'F1' },
+      { id: 'uuid-2', fip_id: 'F2' },
+      { id: 'uuid-3', fip_id: 'F3' },
+      { id: 'uuid-4', fip_id: 'F4' },
+    ]
+    const supabase = fakeSupabase({
+      tournaments: [{ tournament_id: TOURNAMENT_ID, tournament_name: 'X', slug: 's' }],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [seededDraw],
+      entryList,
+      players: rosterPlayers,
+    })
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false })
+    expect(result.tournamentDrawsWritten).toBe(2)
+    expect(result.tournamentDrawsSkippedNoPosition).toBe(0)
+    expect(supabase.tournamentDrawsUpserted).toHaveLength(2)
+    const team1 = supabase.tournamentDrawsUpserted.find(
+      (r: any) => r.draw_position === 7, // 2*4-1
+    ) as any
+    const team2 = supabase.tournamentDrawsUpserted.find(
+      (r: any) => r.draw_position === 8, // 2*4
+    ) as any
+    expect(team1).toBeDefined()
+    expect(team2).toBeDefined()
+    expect(team1.seed).toBe(1)
+    expect(team2.seed).toBe(2)
+    expect(team1.player1_id).toBe('uuid-1')
+    expect(team1.player2_id).toBe('uuid-2')
+    expect(team2.player1_id).toBe('uuid-3')
+    expect(team2.player2_id).toBe('uuid-4')
+    // Conflict key matches what the legacy reconciler used
+    expect(supabase.tournamentDrawsConflictKeys[0]).toBe(
+      'tournament_id,category,draw_position',
+    )
+  })
+
+  it('skips tournament_draws when draw_position is null (OOP-fallback shape)', async () => {
+    // OOP-fallback rows always have draw_position null. They still go
+    // into public.matches, just not the bracket table.
+    const oopRow: OopSnapshotSeed = {
+      tournament_id: TOURNAMENT_ID,
+      match_widget_id: 'MQ020',
+      category: 'men',
+      round_label: 'Q1',
+      court: 'Court 1',
+      court_position: 0,
+      scheduled_label: 'Starting at 9:00 AM',
+      day_date: '2026-04-30',
+      team1_player1_name: 'Player A',
+      team1_player2_name: 'Player B',
+      team2_player1_name: 'Player C',
+      team2_player2_name: 'Player D',
+      status: 'scheduled',
+      captured_at: "2026-04-24T07:00:00Z",
+    }
+    const supabase = fakeSupabase({
+      tournaments: [{ tournament_id: TOURNAMENT_ID, tournament_name: 'X', slug: 's' }],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      oopSnapshots: [oopRow],
+    })
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false })
+    expect(result.inserted).toBe(1)
+    expect(result.tournamentDrawsWritten).toBe(0)
+    expect(result.tournamentDrawsSkippedNoPosition).toBeGreaterThan(0)
+    expect(supabase.tournamentDrawsUpserted).toHaveLength(0)
+  })
 });

@@ -47,6 +47,8 @@ export interface MatchesDayMatch {
   court_order: number | null
   schedule_label: string | null
   winner_pair: number | null
+  pair1_seed: number | null
+  pair2_seed: number | null
   tournament: {
     id: string
     name: string
@@ -111,7 +113,7 @@ const PLAYER_JOIN_FIELDS = `
 
 const MATCH_SELECT = `
   id, status, category, scheduled_at, finished_at, round, court, court_order,
-  schedule_label, winner_pair,
+  schedule_label, winner_pair, pair1_seed, pair2_seed,
   pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
   pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country,
   tournament:tournaments(id, name, level, country, starts_at, ends_at, status),
