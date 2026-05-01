@@ -107,8 +107,30 @@ interface ExistingMatch {
   court: string | null;
   court_order: number | null;
   /** Used by Pass B to enforce gap-fill semantics — only write
-   *  scheduled_at when current is NULL. */
+   *  scheduled_at when current is NULL or a midnight-UTC placeholder
+   *  (see isPlaceholderScheduledAt). */
   scheduled_at: string | null;
+}
+
+/**
+ * True when scheduled_at is the padelapi midnight-UTC placeholder
+ * pattern — a known calendar date but no time. Padelapi writes
+ * `YYYY-MM-DDT00:00:00+00:00` whenever it has played_at as a date but
+ * no schedule_label. The OOP writer's gap-fill must treat these as
+ * effectively NULL so the real OOP-derived time can replace them;
+ * otherwise the row stays stuck on the placeholder forever (the
+ * trigger that put us on this fix in the first place).
+ *
+ * False-positive risk is negligible: real padel matches don't start
+ * at exactly 00:00:00 UTC anywhere in the world (the closest sane
+ * tz is +1, where 00:00 UTC = 01:00 local — still well outside any
+ * tournament play hours).
+ */
+export function isPlaceholderScheduledAt(value: string | null): boolean {
+  if (!value) return false;
+  // Avoid a Date round-trip — string-match the time component.
+  // Accepts both "T00:00:00" and "T00:00:00.000" sub-second forms.
+  return /T00:00:00(?:\.0+)?(?:Z|[+-]00:00)?$/.test(value);
 }
 
 // ── Main entry ─────────────────────────────────────────────────────────
@@ -179,7 +201,12 @@ export async function runFipOopWriter(
     //    time anchors had already filled in earlier runs, parser saw
     //    only orphan "Followed by" rows and dropped them.
     const allOopForParser: Array<{ matchId: string | null; row: OopRow }> = [];
-    const writeEligible = new Set<string>(); // matchIds whose scheduled_at is NULL
+    // Map<matchId, scheduledAtAtReadTime>. The value is what was on the
+    // row when we loaded it — used as a CAS-style precondition on the
+    // UPDATE so a concurrent writer's edit doesn't get clobbered.
+    // NULL value means "scheduled_at was NULL when read" (use .is(null)
+    // guard); a string is the placeholder value (use .eq(value) guard).
+    const writeEligible = new Map<string, string | null>();
     for (const r of latestOop) {
       result.oopRowsConsidered += 1;
 
@@ -230,12 +257,16 @@ export async function runFipOopWriter(
       // Pass B feed — every OOP row with the basics goes in so the
       // parser's per-court chain is complete. The write step below
       // gates on `writeEligible` (matches whose current scheduled_at
-      // is NULL) so we still preserve gap-fill semantics: filled rows
-      // act as chain anchors, but we never overwrite them.
+      // is NULL or a midnight-UTC padelapi placeholder) so we still
+      // preserve gap-fill semantics: real-time-bearing rows act as
+      // chain anchors but we never overwrite them.
       if (r.day_date && r.scheduled_label) {
         allOopForParser.push({ matchId: existing.id, row: r });
-        if (existing.scheduled_at == null) {
-          writeEligible.add(existing.id);
+        if (
+          existing.scheduled_at == null ||
+          isPlaceholderScheduledAt(existing.scheduled_at)
+        ) {
+          writeEligible.set(existing.id, existing.scheduled_at);
         }
       }
     }
@@ -295,18 +326,27 @@ export async function runFipOopWriter(
               'fip-oop-writer [dry-run]: would WRITE scheduled_at',
             );
           } else {
-            // The .is('scheduled_at', null) clause is a defense-in-depth
-            // gap-fill enforcement at the DB level — between the read
-            // above and this write, padelapi sync (or the manual ops UI)
-            // could have set it. Don't clobber.
-            const { error: schedErr } = await supabase
+            // CAS-style guard against a concurrent writer (manual ops
+            // Schedule Review tab, future padelapi recursion) setting
+            // a real value between our read above and this write. We
+            // only overwrite the EXACT value we observed at read time —
+            // either NULL or the midnight-UTC placeholder. The .is(null)
+            // and .eq(value) PostgREST filters cannot be combined into
+            // one .or() chain reliably, so branch here.
+            const originalValue = writeEligible.get(matchId)!;
+            let query = supabase
               .from('matches')
               .update({
                 scheduled_at: p.scheduledAt,
                 schedule_label: p.scheduleLabel,
               })
-              .eq('id', matchId)
-              .is('scheduled_at', null);
+              .eq('id', matchId);
+            if (originalValue == null) {
+              query = query.is('scheduled_at', null);
+            } else {
+              query = query.eq('scheduled_at', originalValue);
+            }
+            const { error: schedErr } = await query;
             if (schedErr) {
               logger?.warn(
                 { matchId, err: schedErr.message },
