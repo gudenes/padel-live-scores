@@ -32,11 +32,15 @@ export interface MatchesFilterClientProps {
   /** ID of the wrapper div the server renders around all match nodes.
    *  Used as the root for visibility toggling. */
   rootId: string
+  /** Whether any match in the active day has status='live'/'on_court'.
+   *  Drives the LIVE pill's pulse — when nothing is actually live we
+   *  want the dot static so the pill doesn't cry wolf. */
+  hasLiveMatches: boolean
   /** Optional left-side slot for the filter bar (e.g. a "Today" shortcut). */
   leftSlot?: React.ReactNode
 }
 
-export default function MatchesFilterClient({ rootId, leftSlot }: MatchesFilterClientProps) {
+export default function MatchesFilterClient({ rootId, hasLiveMatches, leftSlot }: MatchesFilterClientProps) {
   const { filters, setFilters, reset, hydrated, activeCount } = useMatchesFilters()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [emptyAfterFilter, setEmptyAfterFilter] = useState(false)
@@ -68,11 +72,12 @@ export default function MatchesFilterClient({ rootId, leftSlot }: MatchesFilterC
       node.style.display = hidden ? 'none' : ''
     })
 
-    // 2. Sub-section-level (Live Now / Upcoming / Results inside each
-    //    tournament). Hide the sub-section when all matches inside are
-    //    hidden so we don't leave dangling sub-headers.
-    const substatusNodes = root.querySelectorAll<HTMLElement>('[data-substatus]')
-    substatusNodes.forEach((sub) => {
+    // 2. Court-section-level (one per court inside each tournament).
+    //    Hide the court header when every match on that court is filtered
+    //    out so we don't leave a dangling court row with no matches under
+    //    it. Same cascade idea as the old per-status sub-sections.
+    const courtNodes = root.querySelectorAll<HTMLElement>('[data-court-section]')
+    courtNodes.forEach((sub) => {
       const matchesInside = sub.querySelectorAll<HTMLElement>('[data-match]')
       let anyVisible = false
       matchesInside.forEach((m) => {
@@ -138,12 +143,31 @@ export default function MatchesFilterClient({ rootId, leftSlot }: MatchesFilterC
     applyFilters()
   }, [filters, hydrated, applyFilters])
 
+  // One-tap LIVE toggle. The pill IS the existing status filter — when
+  // active it sets {live:true, upcoming:false, finished:false}; when
+  // toggled off it restores the all-three-true default. Reusing the
+  // status filter (rather than adding a separate boolean) means the
+  // drawer checkboxes stay in sync with the bar pill — no two sources
+  // of truth.
+  const liveActive =
+    filters.status.live && !filters.status.upcoming && !filters.status.finished
+  const handleToggleLive = useCallback(() => {
+    setFilters({
+      ...filters,
+      status: liveActive
+        ? { live: true, upcoming: true, finished: true }
+        : { live: true, upcoming: false, finished: false },
+    })
+  }, [filters, liveActive, setFilters])
+
   return (
     <>
       <MatchesFilterBar
         filters={filters}
         activeCount={activeCount}
         onOpen={() => setDrawerOpen(true)}
+        onToggleLive={handleToggleLive}
+        hasLiveMatches={hasLiveMatches}
         leftSlot={leftSlot}
       />
       <MatchesFilterDrawer

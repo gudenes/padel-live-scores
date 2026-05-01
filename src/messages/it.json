@@ -32,6 +32,7 @@
     "filters": {
       "title": "Filtra partite",
       "open": "Filtri",
+      "liveOnly": "In diretta",
       "close": "Chiudi",
       "summary": {
         "all": "Tutte",
@@ -783,6 +784,9 @@
     "liveSection": "In diretta",
     "upcomingSection": "Prossime",
     "finishedSection": "Risultati",
+    "courtSection": "Campo",
+    "courtUnknown": "Campo non assegnato",
+    "liveCount": "IN DIRETTA",
     "noMatchesTitle": "Il padel si prende il giorno libero",
     "noMatchesSub": "Prova un altro giorno o sfoglia i tornei della settimana con il selettore in alto.",
     "jumpToNextMatches": "Prossime partite: {date}",

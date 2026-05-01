@@ -233,6 +233,14 @@ export default function MatchesDayShell({
   const isErrorActive = activeEntry?.state === 'error'
   const groups = activeEntry?.state === 'loaded' ? activeEntry.groups : []
 
+  // Drives whether the LIVE pill in the filter bar pulses. We only want
+  // the red dot animating when there's actually something live to surface
+  // — otherwise the pulse is a false alarm. `live` and `on_court` are
+  // the only statuses that mean "ball is in play right now".
+  const hasLiveMatches = groups.some((g) =>
+    g.matches.some((m) => m.status === 'live' || m.status === 'on_court'),
+  )
+
   // Live swipe gesture — translate is shared between the body wrapper
   // AND the sticky header so the day pills drag with the finger. On
   // commit (>= 80px), `goTo` swaps the cached day in.
@@ -346,6 +354,7 @@ export default function MatchesDayShell({
             having to first land on a populated day. */}
         <MatchesFilterClient
           rootId="matches-filter-root"
+          hasLiveMatches={hasLiveMatches}
           leftSlot={
             !isOnToday ? (
               <button
@@ -421,14 +430,13 @@ export default function MatchesDayShell({
                     tournamentEndsAt: g.tournamentEndsAt,
                     tournamentStatus: g.tournamentStatus,
                     matches: g.matches as never,
+                    courtOrder: g.courtOrder ?? {},
+                    courtLabel: tDaily('courtSection'),
+                    unknownCourtLabel: tDaily('courtUnknown'),
+                    liveCountLabel: tDaily('liveCount'),
                     isPremier: g.isPremier,
                     locale,
                     userTz,
-                    labels: {
-                      liveNow: tDaily('liveSection'),
-                      upcoming: tDaily('upcomingSection'),
-                      results: tDaily('finishedSection'),
-                    },
                   }}
                 />
               ))}

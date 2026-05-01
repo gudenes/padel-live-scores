@@ -32,6 +32,7 @@
     "filters": {
       "title": "Filtrar partidos",
       "open": "Filtros",
+      "liveOnly": "En vivo",
       "close": "Cerrar",
       "summary": {
         "all": "Todos",
@@ -783,6 +784,9 @@
     "liveSection": "En directo",
     "upcomingSection": "Próximos",
     "finishedSection": "Resultados",
+    "courtSection": "Pista",
+    "courtUnknown": "Pista sin asignar",
+    "liveCount": "EN VIVO",
     "noMatchesTitle": "El pádel se toma el día libre",
     "noMatchesSub": "Prueba con otro día o consulta los torneos de la semana usando el selector superior.",
     "jumpToNextMatches": "Próximos partidos: {date}",
