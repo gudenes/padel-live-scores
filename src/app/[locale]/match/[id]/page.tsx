@@ -10,7 +10,7 @@ import { Match, getCurrentScore, pairName, isStarPoint, parseSetScore, parseSetF
 import { hydrateThinPlayers } from '@/lib/thin-match-player'
 import MomentumChart from './MomentumChart'
 import BottomNav from '@/components/nav/BottomNavV3'
-import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
+import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
 import { withTimeout } from '@/lib/with-timeout'
 import { DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useMatchPrediction } from '@/hooks/useMatchPrediction'
@@ -355,7 +355,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   if (loading) return (
     <>
     <main style={{ background: BG_BASE, minHeight: '100vh' }}>
-      <BrandedLoader hints={[...LOADER_HINTS.match]} />
+      <DetailPageSkeleton variant="match" />
     </main>
     <BottomNav />
     </>

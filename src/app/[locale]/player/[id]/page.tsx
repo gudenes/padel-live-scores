@@ -8,7 +8,7 @@ import { useTranslations, useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { parseSetScore, toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
-import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
+import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
@@ -593,7 +593,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   if (loading) return (
     <>
       <main style={{ background: BG_BASE, minHeight: '100dvh' }}>
-        <BrandedLoader hints={[...LOADER_HINTS.player]} />
+        <DetailPageSkeleton variant="player" />
       </main>
       <BottomNav />
     </>

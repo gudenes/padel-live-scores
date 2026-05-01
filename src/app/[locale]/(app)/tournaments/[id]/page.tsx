@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, parseSetFromGames, isWarmingUp, toShortName } from '@/types/match'
 import { hydrateThinPlayers } from '@/lib/thin-match-player'
 import Spinner from '../../../../components/Spinner'
-import BrandedLoader, { LOADER_HINTS } from '../../../../components/BrandedLoader'
+import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { MatchCard } from '@/components/MatchCard'
@@ -120,7 +120,7 @@ function titleCase(name: string): string {
 export default function TournamentDetailWrapper({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   return (
-    <Suspense fallback={<BrandedLoader hints={[...LOADER_HINTS.tournament]} />}>
+    <Suspense fallback={<DetailPageSkeleton variant="tournament" />}>
       <TournamentDetail tournamentId={id} />
     </Suspense>
   )
