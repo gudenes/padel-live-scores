@@ -2,41 +2,39 @@
 
 // src/components/NavigationTransitionProvider.tsx
 //
-// Tags each route navigation as `forward` or `back` on
-// <html data-direction>. The CSS keyframes in src/app/globals.css read
-// that attribute to pick the correct slide direction.
+// Wires the slide-from-right transition into the app by:
+//   1. Tagging the navigation direction on `<html data-direction>`
+//   2. Wrapping the resulting `router.push` in
+//      `document.startViewTransition(...)` so the CSS keyframes in
+//      globals.css have something to animate.
+//
+// Why a manual wrap (vs. Next.js 16's experimental.viewTransition flag):
+//   The flag pairs with React's experimental `<ViewTransition>` JSX API
+//   which only exists in `react@experimental` — we're on stable
+//   `react@19.2`. The flag is a no-op for us. We bypass it by
+//   intercepting drill-in Link clicks and calling
+//   `document.startViewTransition` manually.
 //
 // Why a global capture-phase intercept instead of wrapping every Link:
-//   - 40+ Link sites surface drill-in navigation (MatchCard, ResultCard,
-//     LiveMatchCard, BracketView, TournamentSpotlightHero, …). A
-//     document-level click handler catches them all without per-Link
-//     wrapping and without missing future components.
+//   40+ Link sites surface drill-in navigation (MatchCard, ResultCard,
+//   LiveMatchCard, BracketView, TournamentSpotlightHero, …). One
+//   document-level handler catches them all without per-Link changes
+//   and won't drift when new components are added.
 //
-//   - Lateral surfaces (bottom-nav tabs, locale switcher, day-pill
-//     swipe) are excluded by path-pattern matching: only paths matching
-//     a known DRILL_IN regex set the forward direction. Any other
-//     navigation gets `data-direction` cleared, which the CSS reads as
-//     "no slide — let the default cross-fade run" (or, with our rules,
-//     no animation at all).
-//
-// Direction detection:
-//   - Click a Link/anchor whose href matches a DRILL_IN pattern → forward
-//   - Browser back/forward (popstate) → back
-//   - Any other navigation → no direction (no slide)
-//
-// Browser support:
-//   - Chrome / Edge / Safari 18.2+ get the compositor-thread transition
-//     via Next.js 16's `experimental.viewTransition` flag, which wraps
-//     client-side route changes in `document.startViewTransition`.
-//   - Firefox falls through to instant navigation (CSS no-op).
-//   - `prefers-reduced-motion: reduce` kills the keyframes (handled in
-//     globals.css), so the listeners can run unconditionally.
+// Forward / back / lateral:
+//   - Click an anchor whose href matches a DRILL_IN regex →
+//     preventDefault, set direction=forward, call startViewTransition
+//     around router.push.
+//   - Browser back/forward, swipe-back, router.back() → popstate →
+//     set direction=back. Can't easily wrap this in a view transition
+//     (popstate fires after navigation), so back uses CSS animation
+//     applied to the already-committed DOM via data-direction.
+//   - Lateral (bottom-nav tabs, locale switcher, day-pill swipe) →
+//     no drill-in match → direction cleared → no transition.
 
 import { useEffect } from 'react'
+import { useRouter } from '@/i18n/navigation'
 
-// Drill-in route patterns. The leading-locale prefix is optional because
-// next-intl emits both `/en/match/...` and `/match/...` depending on the
-// route's localePrefix policy ('as-needed' for the default locale).
 const DRILL_IN_PATTERNS: readonly RegExp[] = [
   /^(?:\/[a-z]{2})?\/match\/[^/]+/,
   /^(?:\/[a-z]{2})?\/tournaments\/[^/]+/,
@@ -50,13 +48,15 @@ function isDrillInPath(path: string): boolean {
   return DRILL_IN_PATTERNS.some((re) => re.test(path))
 }
 
-/**
- * Resolve the destination path for a click event's target anchor,
- * honoring same-origin + non-modified-click semantics. Returns null
- * when the click should be ignored (external link, target=_blank,
- * modifier key held, anchor without href, …).
- */
-function resolveAnchorPath(target: EventTarget | null): string | null {
+interface AnchorTarget {
+  pathWithLocalePrefix: string
+  /** Path stripped of the optional 2-letter locale prefix. next-intl's
+   *  router.push expects the locale-less form (it re-adds the prefix
+   *  based on its own routing config). */
+  pathForRouter: string
+}
+
+function resolveAnchor(target: EventTarget | null): AnchorTarget | null {
   if (!(target instanceof Element)) return null
   const anchor = target.closest('a')
   if (!anchor) return null
@@ -78,38 +78,78 @@ function resolveAnchorPath(target: EventTarget | null): string | null {
     return null
   }
   if (url.origin !== window.location.origin) return null
-  return url.pathname
+
+  const fullPath = url.pathname + url.search + url.hash
+  // Strip the leading /<locale>/ for the i18n router. The router will
+  // re-apply the prefix appropriate for the current locale.
+  const localePrefixMatch = fullPath.match(/^\/[a-z]{2}(?=\/|$)/)
+  const pathForRouter = localePrefixMatch
+    ? fullPath.slice(localePrefixMatch[0].length) || '/'
+    : fullPath
+  return { pathWithLocalePrefix: url.pathname, pathForRouter }
 }
 
 export function NavigationTransitionProvider() {
+  const router = useRouter()
+
   useEffect(() => {
     const root = document.documentElement
+    const supportsVT = typeof document.startViewTransition === 'function'
+    const reducedMotion =
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
     const onClick = (e: MouseEvent) => {
-      // Modifier-key clicks open in a new tab — don't tag them.
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
       if (e.button !== 0) return
       if (e.defaultPrevented) return
-      const path = resolveAnchorPath(e.target)
-      if (!path) return
-      // Same-path no-op = let it through without a transition.
-      if (path === window.location.pathname) {
+
+      const resolved = resolveAnchor(e.target)
+      if (!resolved) return
+
+      // Same-path no-op: let it through with no transition tag. The
+      // i18n router will likely no-op too.
+      if (resolved.pathWithLocalePrefix === window.location.pathname) {
         delete root.dataset.direction
         return
       }
-      if (isDrillInPath(path)) {
-        root.dataset.direction = 'forward'
-      } else {
+
+      // Lateral nav: clear the tag so CSS keyframes don't accidentally
+      // fire from a stale value, and let the click default through to
+      // Next.js Link's own handler (which calls router.push internally).
+      if (!isDrillInPath(resolved.pathWithLocalePrefix)) {
         delete root.dataset.direction
+        return
       }
+
+      // Drill-in path. Take over: preventDefault, set the direction tag,
+      // and wrap the router push in startViewTransition so the CSS
+      // pseudo-element animations actually fire. On unsupported
+      // browsers (Firefox) or reduced-motion users, fall through to a
+      // plain push — the data-direction is still set but the keyframes
+      // are no-ops.
+      e.preventDefault()
+      root.dataset.direction = 'forward'
+
+      const doNavigate = () => {
+        router.push(resolved.pathForRouter as never)
+      }
+
+      if (!supportsVT || reducedMotion) {
+        doNavigate()
+        return
+      }
+      document.startViewTransition(() => doNavigate())
     }
 
     const onPopState = () => {
-      // popstate covers browser back/forward AND router.back(). We
-      // can't easily tell forward-popstate from back-popstate without
-      // a navigation-id history stack; for now treat all popstate as
-      // back. In practice forward-popstate is rare in this app
-      // (drill-in pages don't have a forward-stack the user lands on).
+      // popstate fires AFTER the back navigation has already changed the
+      // history state. We can only tag the direction; the visual effect
+      // from this tag relies on the CSS animation applied to the
+      // already-committed DOM, which is limited. Acceptable: most users
+      // associate "back" with the OS-level swipe-back gesture (iOS) or
+      // an instant swap (desktop / Android), so the lack of a wrapped
+      // view transition on back is barely noticeable.
       root.dataset.direction = 'back'
     }
 
@@ -119,7 +159,7 @@ export function NavigationTransitionProvider() {
       document.removeEventListener('click', onClick, true)
       window.removeEventListener('popstate', onPopState)
     }
-  }, [])
+  }, [router])
 
   return null
 }

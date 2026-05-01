@@ -22,14 +22,6 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
-  // Wraps client-side route changes in `document.startViewTransition`.
-  // The CSS keyframes in src/app/globals.css (scoped via `::view-
-  // transition-old/new(root)` and the `data-direction` attribute set
-  // by NavigationTransitionProvider) handle the actual animation.
-  // No-op on browsers that don't support View Transitions.
-  experimental: {
-    viewTransition: true,
-  },
   // PostHog reverse proxy — same goal as Sentry's tunnelRoute: send analytics
   // through our own domain so ad-blockers (uBlock Origin, Brave Shields, etc.)
   // don't shadow-block direct posthog.com URLs. /ingest/decide is hot path for
