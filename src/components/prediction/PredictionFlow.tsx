@@ -152,60 +152,8 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
     )
   }
 
-  if (step === 'margin' && selectedPair) {
-    const chosenName = selectedPair === 1 ? p1Name : p2Name
-    const chosenReward = selectedPair === 1 ? reward1 : reward2
-    return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12,
-        animation: STEP_IN_ANIMATION,
-      }}>
-        <style>{KEYFRAMES}</style>
-        <div style={{
-          background: 'rgba(126,211,33,0.06)', border: '0.5px solid rgba(126,211,33,0.18)',
-          padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8,
-          fontSize: 11, color: GREEN, clipPath: CHUNKY_BAR,
-        }}>
-          <span>{t('youArePicking')}</span>
-          <span style={{ fontWeight: 800, flex: 1 }}>{chosenName}</span>
-          <span style={{ fontWeight: 800, color: '#FFD166', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-            {chosenReward} <GuacaIcon size={10} />
-          </span>
-          <button
-            type="button"
-            onClick={handleChange}
-            aria-label={`${t('change')} prediction`}
-            style={{ background: 'transparent', border: 0, fontSize: 10, color: MUTED, textDecoration: 'underline', cursor: 'pointer', marginLeft: 8 }}
-          >{t('change')}</button>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {(['2-0', '2-1'] as const).map(margin => (
-            <button
-              key={margin}
-              type="button"
-              onClick={() => handlePickMargin(margin)}
-              aria-label={`Pick ${margin.replace('-', '–')} (${margin === '2-0' ? t('straightSets') : t('threeSets')})`}
-              style={{
-                flex: 1, background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                padding: '12px 8px', cursor: 'pointer', textAlign: 'center',
-                clipPath: CHUNKY_BTN, color: '#fff',
-              }}
-            >
-              <div style={{ fontSize: 18, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{margin.replace('-', ' – ')}</div>
-              <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: MUTED, textTransform: 'uppercase', marginTop: 2 }}>
-                {margin === '2-0' ? t('straightSets') : t('threeSets')}
-              </div>
-              <div style={{ fontSize: 9, fontWeight: 800, color: '#FFD166', marginTop: 4 }}>
-                {t('marginBonusShort')}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
+  // step === 'pick' or 'margin' — both rendered, vertical flip swaps them
+  // (option E from the brainstorm: rotateX flip, 700ms cubic-bezier).
   // step === 'pick'
   const isUpset1 = prob.p1 <= HEAVY_UPSET_THRESHOLD
   const isUpset2 = prob.p2 <= HEAVY_UPSET_THRESHOLD
@@ -271,19 +219,103 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
     )
   }
 
+  // Margin step needs the chosen pair's name + reward; both null when no
+  // pair has been picked yet (step === 'pick'). The flip stage renders
+  // both faces simultaneously so the back can pre-populate before the flip.
+  const chosenName = selectedPair === 1 ? p1Name : selectedPair === 2 ? p2Name : ''
+  const chosenReward = selectedPair === 1 ? reward1 : selectedPair === 2 ? reward2 : 0
+  const isFlipped = step === 'margin'
+
   return (
     <div style={{ animation: STEP_IN_ANIMATION }}>
       <style>{KEYFRAMES}</style>
-      <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.7, color: MUTED, textTransform: 'uppercase', textAlign: 'center', marginBottom: 8 }}>
-        {t('makeYourPick')}
+
+      {/* 3D flip stage — front = pair-pick, back = margin-pick. Vertical
+          axis (rotateX) so it reads as a card flipping top-over-bottom.
+          Stage height shrinks as it flips so the analytics below don't
+          sit on dead space (margin step is shorter than pair-pick). */}
+      <div style={{ perspective: '1400px', marginBottom: 12 }}>
+        <div style={{
+          position: 'relative',
+          transformStyle: 'preserve-3d',
+          WebkitTransformStyle: 'preserve-3d',
+          transition: 'transform 700ms cubic-bezier(0.45, 0.05, 0.25, 1), height 700ms cubic-bezier(0.45, 0.05, 0.25, 1)',
+          height: isFlipped ? 132 : 222,
+          transform: isFlipped ? 'rotateX(180deg)' : 'rotateX(0deg)',
+        }}>
+          {/* Front face — pair pick */}
+          <div style={{
+            position: 'absolute', inset: 0, width: '100%',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            pointerEvents: isFlipped ? 'none' : 'auto',
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.7, color: MUTED, textTransform: 'uppercase', textAlign: 'center', marginBottom: 8 }}>
+              {t('makeYourPick')}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              {pairButton(1, PAIR1_COLOR, shortP1, prob.p1, m1, reward1, isUpset1)}
+              {pairButton(2, PAIR2_COLOR, shortP2, prob.p2, m2, reward2, isUpset2)}
+            </div>
+            <p style={{ textAlign: 'center', color: MUTED, fontSize: 10, margin: 0 }}>
+              {t('marginBonus')}
+            </p>
+          </div>
+
+          {/* Back face — margin pick. Rotated rotateX(180) so when the
+              parent flips, this face lands at 360 = camera-facing. */}
+          <div style={{
+            position: 'absolute', inset: 0, width: '100%',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
+            transform: 'rotateX(180deg)',
+            pointerEvents: isFlipped ? 'auto' : 'none',
+            display: 'flex', flexDirection: 'column', gap: 8,
+          }}>
+            <div style={{
+              background: 'rgba(126,211,33,0.06)', border: '0.5px solid rgba(126,211,33,0.18)',
+              padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8,
+              fontSize: 11, color: GREEN, clipPath: CHUNKY_BAR,
+            }}>
+              <span>{t('youArePicking')}</span>
+              <span style={{ fontWeight: 800, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chosenName}</span>
+              <span style={{ fontWeight: 800, color: '#FFD166', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                {chosenReward} <GuacaIcon size={10} />
+              </span>
+              <button
+                type="button"
+                onClick={handleChange}
+                aria-label={`${t('change')} prediction`}
+                style={{ background: 'transparent', border: 0, fontSize: 10, color: MUTED, textDecoration: 'underline', cursor: 'pointer', marginLeft: 8 }}
+              >{t('change')}</button>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['2-0', '2-1'] as const).map(margin => (
+                <button
+                  key={margin}
+                  type="button"
+                  onClick={() => handlePickMargin(margin)}
+                  aria-label={`Pick ${margin.replace('-', '–')} (${margin === '2-0' ? t('straightSets') : t('threeSets')})`}
+                  style={{
+                    flex: 1, background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    padding: '12px 8px', cursor: 'pointer', textAlign: 'center',
+                    clipPath: CHUNKY_BTN, color: '#fff',
+                  }}
+                >
+                  <div style={{ fontSize: 18, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{margin.replace('-', ' – ')}</div>
+                  <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: MUTED, textTransform: 'uppercase', marginTop: 2 }}>
+                    {margin === '2-0' ? t('straightSets') : t('threeSets')}
+                  </div>
+                  <div style={{ fontSize: 9, fontWeight: 800, color: '#FFD166', marginTop: 4 }}>
+                    {t('marginBonusShort')}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {pairButton(1, PAIR1_COLOR, shortP1, prob.p1, m1, reward1, isUpset1)}
-        {pairButton(2, PAIR2_COLOR, shortP2, prob.p2, m2, reward2, isUpset2)}
-      </div>
-      <p style={{ textAlign: 'center', color: MUTED, fontSize: 10, margin: 0 }}>
-        {t('marginBonus')}
-      </p>
     </div>
   )
 }
