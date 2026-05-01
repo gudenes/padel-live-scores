@@ -621,13 +621,13 @@ function CornerElement({
         onClick={onToggle}
         style={{
           position: 'absolute', top: 10, right: 12, zIndex: 3,
-          background: bg, color, padding: '6px 10px', cursor: 'pointer',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+          background: bg, color, padding: '3px 8px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 1,
           clipPath: CHUNKY.badge, border: 0,
         }}
         aria-label={tPred(labelKey as any)}
       >
-        <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase', lineHeight: 1 }}>
+        <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', lineHeight: 1.2 }}>
           {tPred(labelKey as any)}
         </span>
       </button>
@@ -670,11 +670,12 @@ function CornerElement({
         style={{
           position: 'absolute', top: 10, right: 12, zIndex: 3,
           background: GREEN, color: '#0a0a0a',
-          padding: '7px 14px', cursor: 'pointer', border: 0,
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          fontSize: 12, fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase',
+          padding: '3px 8px', cursor: 'pointer', border: 0,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase',
+          lineHeight: 1.2,
           clipPath: CHUNKY.badge,
-          boxShadow: '0 2px 6px rgba(126,211,33,0.18)',
+          boxShadow: '0 1px 3px rgba(126,211,33,0.20)',
           transform: isOpen ? 'scale(0.9)' : 'scale(1)',
           opacity: isOpen ? 0 : 1,
           pointerEvents: isOpen ? 'none' : 'auto',
@@ -682,7 +683,7 @@ function CornerElement({
         }}
         aria-label={tPred('cta.pick')}
       >
-        <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="10" r="8" /><path d="M8 18h8" /><path d="M7 21h10" />
         </svg>
         <span>{tPred('cta.pick')}</span>
@@ -694,14 +695,14 @@ function CornerElement({
 }
 
 const cornerTopStyle: React.CSSProperties = {
-  fontSize: 8, fontWeight: 800, letterSpacing: 0.5, textTransform: 'uppercase', lineHeight: 1,
+  fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', lineHeight: 1.2,
 }
 
 function cornerPillStyle(bg: string, color: string, borderStyle: 'solid' | 'dashed' = 'solid'): React.CSSProperties {
   return {
     position: 'absolute', top: 10, right: 12, zIndex: 3,
-    background: bg, color, padding: '5px 10px', cursor: 'pointer',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+    background: bg, color, padding: '3px 8px', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: 1,
     clipPath: CHUNKY.badge,
     border: `0.5px ${borderStyle} ${color}40`,
   }

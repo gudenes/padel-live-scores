@@ -206,11 +206,12 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
       >
         {isUpset && (
           <span style={{
-            position: 'absolute', top: -7, right: -4,
+            position: 'absolute', top: 0, right: 0,
             background: 'linear-gradient(135deg, #FF6B2B, #FFD166)',
-            color: '#0a0a0a', fontSize: 7, fontWeight: 800, letterSpacing: 0.5,
-            padding: '3px 6px', textTransform: 'uppercase',
-            clipPath: 'polygon(8% 0%, 100% 0%, 92% 100%, 0% 100%)',
+            color: '#0a0a0a', fontSize: 8, fontWeight: 800, letterSpacing: 0.5,
+            padding: '3px 8px 3px 10px', textTransform: 'uppercase',
+            lineHeight: 1.2,
+            clipPath: 'polygon(20% 0%, 100% 0%, 100% 100%, 0% 100%)',
           }}>{t('upsetFlag')}</span>
         )}
         <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', color }}>
