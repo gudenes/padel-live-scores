@@ -43,21 +43,6 @@ const CHUNKY = {
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
-// Ordered tier list — matches the levelTierWeight ordering so the drawer
-// surfaces the most important tiers first (P1 / Major → Beyond).
-const TIER_OPTIONS: Array<{ value: string; key: string }> = [
-  { value: 'p1', key: 'p1' },
-  { value: 'p2', key: 'p2' },
-  { value: 'fip_platinum', key: 'fip_platinum' },
-  { value: 'fip_gold', key: 'fip_gold' },
-  { value: 'fip_silver', key: 'fip_silver' },
-  { value: 'fip_bronze', key: 'fip_bronze' },
-  { value: 'fip_promises', key: 'fip_promises' },
-  { value: 'fip_beyond', key: 'fip_beyond' },
-  { value: 'fip_hexagon', key: 'fip_hexagon' },
-  { value: 'fip_championship', key: 'fip_championship' },
-]
-
 export interface MatchesFilterDrawerProps {
   open: boolean
   filters: MatchesFilters
@@ -116,16 +101,6 @@ export default function MatchesFilterDrawer({
       ...filters,
       status: { ...filters.status, [key]: !filters.status[key] },
     })
-
-  const toggleTier = (tier: string) => {
-    const next = new Set(filters.tiers)
-    if (next.has(tier)) next.delete(tier)
-    else next.add(tier)
-    onChange({ ...filters, tiers: next })
-  }
-
-  const togglePersonalised = (key: 'followedOnly' | 'hideQualifiers' | 'coverageOnly') =>
-    onChange({ ...filters, [key]: !filters[key] })
 
   // ── Render ────────────────────────────────────────────────────────────
   return createPortal(
@@ -274,42 +249,6 @@ export default function MatchesFilterDrawer({
             </ChipRow>
           </Section>
 
-          {/* Tier */}
-          <Section label={t('tier.label')}>
-            <ChipRow>
-              {TIER_OPTIONS.map((opt) => (
-                <Chip
-                  key={opt.value}
-                  on={filters.tiers.has(opt.value)}
-                  onClick={() => toggleTier(opt.value)}
-                >
-                  {t(`tier.${opt.key}`)}
-                </Chip>
-              ))}
-            </ChipRow>
-          </Section>
-
-          {/* Personalised toggles */}
-          <Section label={t('personalised.label')}>
-            <ToggleRow
-              title={t('personalised.followedTitle')}
-              sub={t('personalised.followedSub')}
-              on={filters.followedOnly}
-              onClick={() => togglePersonalised('followedOnly')}
-            />
-            <ToggleRow
-              title={t('personalised.hideQualifiersTitle')}
-              sub={t('personalised.hideQualifiersSub')}
-              on={filters.hideQualifiers}
-              onClick={() => togglePersonalised('hideQualifiers')}
-            />
-            <ToggleRow
-              title={t('personalised.coverageTitle')}
-              sub={t('personalised.coverageSub')}
-              on={filters.coverageOnly}
-              onClick={() => togglePersonalised('coverageOnly')}
-            />
-          </Section>
         </div>
 
         {/* Footer — sticky reset/apply */}
@@ -483,66 +422,3 @@ function Chip({
   )
 }
 
-function ToggleRow({
-  title,
-  sub,
-  on,
-  onClick,
-}: {
-  title: string
-  sub: string
-  on: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '10px 12px',
-        background: BG_CARD,
-        border: `1px solid ${BORDER}`,
-        clipPath: CHUNKY.card,
-        marginBottom: 6,
-        cursor: 'pointer',
-        textAlign: 'left',
-        width: '100%',
-        fontFamily: 'inherit',
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.3 }}>{title}</div>
-        <div style={{ fontSize: 10, color: MUTED, marginTop: 2, lineHeight: 1.35 }}>{sub}</div>
-      </div>
-      <div
-        style={{
-          width: 36,
-          height: 20,
-          background: on ? GREEN : 'rgba(255,255,255,0.10)',
-          borderRadius: 10,
-          position: 'relative',
-          flexShrink: 0,
-          transition: 'background 180ms',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            top: 2,
-            left: 2,
-            width: 16,
-            height: 16,
-            background: '#fff',
-            borderRadius: '50%',
-            transform: on ? 'translateX(16px)' : 'translateX(0)',
-            transition: 'transform 180ms',
-          }}
-        />
-      </div>
-    </button>
-  )
-}

@@ -53,10 +53,10 @@ export default function MatchesFilterClient({ rootId, hasLiveMatches, leftSlot }
 
     let visibleMatches = 0
 
-    // 1. Match-level filters (status, category, hideQualifiers, coverage).
-    //    Status is now per-match (data-status) since the new layout
-    //    interleaves live/upcoming/finished within each tournament group
-    //    rather than splitting them across top-level sections.
+    // 1. Match-level filters (status, category). Status is per-match
+    //    (data-status) since the layout interleaves live/upcoming/
+    //    finished within each tournament group rather than splitting
+    //    them across top-level sections.
     const matchNodes = root.querySelectorAll<HTMLElement>('[data-match]')
     matchNodes.forEach((node) => {
       let hidden = false
@@ -64,8 +64,6 @@ export default function MatchesFilterClient({ rootId, hasLiveMatches, leftSlot }
       const status = node.getAttribute('data-status') ?? ''
       if (filters.category === 'men' && category !== 'men') hidden = true
       if (filters.category === 'women' && category !== 'women') hidden = true
-      if (filters.hideQualifiers && node.getAttribute('data-qualifier') === '1') hidden = true
-      if (filters.coverageOnly && node.getAttribute('data-coverage') !== '1') hidden = true
       if (status === 'live' && !filters.status.live) hidden = true
       if (status === 'upcoming' && !filters.status.upcoming) hidden = true
       if (status === 'finished' && !filters.status.finished) hidden = true
@@ -86,17 +84,15 @@ export default function MatchesFilterClient({ rootId, hasLiveMatches, leftSlot }
       sub.style.display = anyVisible ? '' : 'none'
     })
 
-    // 3. Tournament-group-level (league, tier). If not blocked by those,
-    //    still hide when every match inside ended up hidden.
+    // 3. Tournament-group-level (league only). Still hide when every
+    //    match inside ended up hidden.
     const groupNodes = root.querySelectorAll<HTMLElement>('[data-tour-group]')
     groupNodes.forEach((group) => {
       let hidden = false
       const league = group.getAttribute('data-league') ?? ''
-      const tier = group.getAttribute('data-tier') ?? ''
 
       if (filters.league === 'premier' && league !== 'premier') hidden = true
       if (filters.league === 'fip' && league !== 'fip') hidden = true
-      if (filters.tiers.size > 0 && !filters.tiers.has(tier)) hidden = true
 
       if (!hidden) {
         const visibleInGroup = group.querySelectorAll<HTMLElement>('[data-match]')
@@ -215,10 +211,5 @@ function filtersEqual(a: MatchesFilters, b: MatchesFilters): boolean {
     a.status.upcoming !== b.status.upcoming ||
     a.status.finished !== b.status.finished
   ) return false
-  if (a.tiers.size !== b.tiers.size) return false
-  for (const t of a.tiers) if (!b.tiers.has(t)) return false
-  if (a.followedOnly !== b.followedOnly) return false
-  if (a.hideQualifiers !== b.hideQualifiers) return false
-  if (a.coverageOnly !== b.coverageOnly) return false
   return true
 }
