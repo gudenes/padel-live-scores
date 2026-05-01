@@ -117,6 +117,12 @@ function fakeSupabase(
   resultsSnapshots: ResultsSnapshotSeed[] = [],
   widgetIdCache: WidgetIdCacheSeed[] = [],
   existingMatches: ExistingMatchSeed[] = [],
+  /** Tournament ids where fip-draw-populator already created widget-
+   *  composite rows. Drives the populator-coexistence skip in
+   *  reconcileDraws (step 2.5). Defaults to empty — every tournament
+   *  is treated as populator-uncovered so existing tests behave
+   *  unchanged. */
+  populatorCoveredTournamentIds: string[] = [],
 ) {
   const inserted: any[] = [];
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
@@ -221,7 +227,7 @@ function fakeSupabase(
 
   function matchesTable() {
     return {
-      // Three shapes:
+      // Four shapes:
       //   A. findOrCreateMatch pair-based fallback:
       //      .select(cols).eq(a).eq(b).eq(c) → Promise<{data: []}>
       //   B. finished_at backfill read (reconcileResults):
@@ -229,7 +235,21 @@ function fakeSupabase(
       //   C. findOrCreateMatch padelapi-twin lookup (PR 2):
       //      .select(cols).eq(a).eq(b).eq(c).ilike('court', x).not('padelapi_id','is',null)
       //      → Promise<{data: []}> (no twin → caller falls through to pair or INSERT)
+      //   D. populator-coverage discriminator (reconcileDraws step 2.5):
+      //      .select('tournament_id').in('tournament_id', [...])
+      //      .not('widget_id_composite','is',null).limit(N)
+      //      → Promise<{data: [{tournament_id}, ...]}>
       select: (_cols: string) => ({
+        in: (_col: string, values: string[]) => ({
+          not: (_c: string, _op: string, _val: unknown) => ({
+            limit: (_n: number) => {
+              const data = values
+                .filter((id) => populatorCoveredTournamentIds.includes(id))
+                .map((id) => ({ tournament_id: id }));
+              return Promise.resolve({ data, error: null });
+            },
+          }),
+        }),
         eq: (_col: string, _val: string) => ({
           // Shape A / C continues: another .eq() chain
           eq: (_c2: string, _v2: string) => ({
@@ -877,6 +897,85 @@ describe('runStaticReconciler — draw phase (V2)', () => {
     expect(supabase2.tournamentDrawState).toHaveLength(2);
     // And no duplicate match entity_external_ids mappings
     expect(supabase2.matchEidsInserted).toHaveLength(0); // second run hit conflict, no new mapping
+  });
+
+  /**
+   * Regression for the duplicate-rows problem cleaned up via
+   * scripts/dedup-no-source-with-widget-twin.mjs. When the new
+   * `fip-draw-populator` has already created widget-composite rows
+   * for a tournament, this legacy phase MUST skip every draw row
+   * for that tournament — otherwise we get parallel inserts (one
+   * widget-composite row from populator + one no-source row from
+   * the reconciler) for every bracket slot. Premier-tier
+   * tournaments (no FIP brackets, no populator coverage) keep
+   * passing through unchanged.
+   */
+  it('skips tournaments where fip-draw-populator already owns the bracket (no inserts, no draw writes)', async () => {
+    const draws: DrawSnapshotSeed[] = [
+      {
+        id: 'draw-covered',
+        tournament_id: TOUR,
+        category: 'men',
+        draw_type: 'main_draw',
+        round_label: 'F',
+        draw_position: 1,
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        team1_seed: 1,
+        team2_seed: 2,
+        team1_country: 'ESP',
+        team2_country: 'ESP',
+        captured_at: T,
+      },
+    ];
+    const supabase = fakeSupabase(
+      entryListRoster,
+      rosterPlayers,
+      draws,
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [TOUR], // populator covers this tournament
+    );
+    const result = await runStaticReconciler({ supabase: supabase as any });
+    expect(result.drawMatchesWritten).toBe(0);
+    expect(result.drawTeamsWritten).toBe(0);
+    expect(result.drawsUnresolved).toBe(0);
+    expect(supabase.matchesInserted).toHaveLength(0);
+    expect(supabase.tournamentDrawsUpserted).toHaveLength(0);
+  });
+
+  it('processes tournaments NOT covered by the populator (Premier-style: no widget rows)', async () => {
+    const draws: DrawSnapshotSeed[] = [
+      {
+        id: 'draw-uncovered',
+        tournament_id: TOUR,
+        category: 'men',
+        draw_type: 'main_draw',
+        round_label: 'F',
+        draw_position: 1,
+        team1_player1_name: 'J. Lebron',
+        team1_player2_name: 'F. Chingotto',
+        team2_player1_name: 'A. Galan',
+        team2_player2_name: 'A. Coello',
+        team1_seed: 1,
+        team2_seed: 2,
+        team1_country: 'ESP',
+        team2_country: 'ESP',
+        captured_at: T,
+      },
+    ];
+    // populatorCoveredTournamentIds left empty → reconciler proceeds.
+    const supabase = fakeSupabase(entryListRoster, rosterPlayers, draws);
+    const result = await runStaticReconciler({ supabase: supabase as any });
+    expect(result.drawMatchesWritten).toBe(1);
+    expect(result.drawTeamsWritten).toBe(2);
+    expect(supabase.matchesInserted).toHaveLength(1);
   });
 });
 
