@@ -134,8 +134,12 @@ export default function MatchesFilterDrawer({
           top: 0,
           right: 0,
           bottom: 0,
-          width: '86%',
-          maxWidth: 360,
+          // 75% / max 300 — narrower than the legacy 86% / 360 because
+          // the trimmed drawer has only 3 sections (League / Category /
+          // Status) and the segmented controls fit comfortably at this
+          // width on every supported device.
+          width: '75%',
+          maxWidth: 300,
           background: BG_BASE,
           borderLeft: `1px solid ${BORDER_STRONG}`,
           transform: open ? 'translateX(0)' : 'translateX(100%)',
@@ -152,7 +156,7 @@ export default function MatchesFilterDrawer({
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            padding: '16px 14px 12px',
+            padding: '12px 12px 10px',
             borderBottom: `1px solid ${BORDER}`,
           }}
         >
@@ -189,7 +193,7 @@ export default function MatchesFilterDrawer({
             flex: 1,
             overflowY: 'auto',
             WebkitOverflowScrolling: 'touch',
-            padding: 14,
+            padding: 12,
           }}
         >
           {/* League */}
@@ -254,7 +258,7 @@ export default function MatchesFilterDrawer({
         {/* Footer — sticky reset/apply */}
         <div
           style={{
-            padding: '12px 14px 14px',
+            padding: '10px 12px 12px',
             borderTop: `1px solid ${BORDER}`,
             display: 'flex',
             gap: 8,
@@ -311,7 +315,7 @@ export default function MatchesFilterDrawer({
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 14 }}>
       <div
         style={{
           fontSize: 10,
