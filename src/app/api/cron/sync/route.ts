@@ -485,9 +485,19 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
   // Get the tournament DB id first
   const { data: tournamentRow } = await supabase
     .from('tournaments')
-    .select('id, timezone')
+    .select('id, timezone, level')
     .eq('external_id', tournamentExternalId)
     .single()
+
+  // Hard guard: padelapi is no longer the source of truth for FIP matches.
+  // Padelgod's Crionet pipeline owns those (better timezone-converted
+  // scheduled_at, complete winner_pair + sets). This guard catches every
+  // caller — the cron loop already filters but the forceTournament path
+  // (`?tournament=NNN`) and admin endpoints bypassed it.
+  if (tournamentRow?.level && String(tournamentRow.level).startsWith('fip_')) {
+    console.log(`[Sync] Skipping tournament ${tournamentExternalId} — FIP-tier (${tournamentRow.level}), padelgod owns this`)
+    return 0
+  }
 
   let synced = 0
   let page = 1

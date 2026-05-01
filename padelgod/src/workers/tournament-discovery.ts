@@ -116,7 +116,7 @@ export async function runTournamentDiscovery(
   );
 
   if (parsed.length === 0) {
-    return { discovered: 0, scrapeJobId: jobResult.scrapeJobId };
+    return { discovered: 0, scrapeJobId: jobResult.scrapeJobId, twinMerges: 0 };
   }
 
   // 3. Upsert (conflict on slug, which is the canonical FIP id post-Plan-1 rename).
