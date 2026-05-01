@@ -138,6 +138,18 @@ export interface FipDrawPopulatorResult {
   skippedBye: number;
   skippedPlayerUnresolved: number;
   skippedAlreadyComplete: number;
+  /** Number of `tournament_draws` UPSERT calls (one per team per
+   *  draw row that has a non-null `draw_position`). The legacy
+   *  static-reconciler used to own this; the populator picked it up
+   *  alongside the matches-side write so the canonical bracket table
+   *  stays current after the reconcileDraws scope-down skipped
+   *  populator-covered tournaments. */
+  tournamentDrawsWritten: number;
+  /** Draw rows where draw_position was null (OOP-fallback path or
+   *  malformed snapshot) — tournament_draws keys on draw_position so
+   *  these rows skip the bracket-table write but still hit
+   *  public.matches normally. */
+  tournamentDrawsSkippedNoPosition: number;
   dryRun: boolean;
 }
 
@@ -207,6 +219,8 @@ interface ExistingMatch {
   pair1_player2_country: string | null;
   pair2_player1_country: string | null;
   pair2_player2_country: string | null;
+  pair1_seed: number | null;
+  pair2_seed: number | null;
 }
 
 // Amateur-tier levels — tournaments at these tiers are club-organized,
@@ -266,6 +280,8 @@ export async function runFipDrawPopulator(
     skippedBye: 0,
     skippedPlayerUnresolved: 0,
     skippedAlreadyComplete: 0,
+    tournamentDrawsWritten: 0,
+    tournamentDrawsSkippedNoPosition: 0,
     dryRun,
   };
 
@@ -540,6 +556,13 @@ export async function runFipDrawPopulator(
             insertRow.pair2_player2_country = d.team2_player2_country;
         }
 
+        // Seeds — written for both resolved-FK and thin-name paths.
+        // FIP draw exposes them on the structured fip_event_page rows;
+        // OOP-fallback rows always have nulls. Only the top 8/16 pairs
+        // are seeded — null is the normal case, not a missing value.
+        if (d.team1_seed != null) insertRow.pair1_seed = d.team1_seed;
+        if (d.team2_seed != null) insertRow.pair2_seed = d.team2_seed;
+
         if (dryRun) {
           logger?.info(
             {
@@ -571,6 +594,14 @@ export async function runFipDrawPopulator(
           }
         }
         result.inserted += 1;
+        await upsertTournamentDraws(
+          supabase,
+          d,
+          resolved,
+          dryRun,
+          result,
+          logger,
+        );
         continue;
       }
 
@@ -580,7 +611,7 @@ export async function runFipDrawPopulator(
       //     player gets added to FIP DB), this path upgrades it.
       //   - thin (amateur, !resolved): backfill missing names so the UI
       //     can keep showing the team strings.
-      const patch: Record<string, string> = {};
+      const patch: Record<string, string | number> = {};
       if (resolved) {
         if (
           existing.pair1_player1_id === null &&
@@ -651,6 +682,16 @@ export async function runFipDrawPopulator(
           patch.pair2_player2_country = d.team2_player2_country;
       }
 
+      // Seeds — gap-fill regardless of resolved/thin path. Pairs go from
+      // null → seeded as the FIP draw page publishes seed numbers; once
+      // a row has its seed we never overwrite (a re-seeding mid-tournament
+      // would be unprecedented). Both branches above wrote either FKs
+      // OR thin names, but neither touched seeds.
+      if (existing.pair1_seed === null && d.team1_seed != null)
+        patch.pair1_seed = d.team1_seed;
+      if (existing.pair2_seed === null && d.team2_seed != null)
+        patch.pair2_seed = d.team2_seed;
+
       if (Object.keys(patch).length === 0) {
         result.skippedAlreadyComplete += 1;
         continue;
@@ -673,11 +714,104 @@ export async function runFipDrawPopulator(
         }
       }
       result.updated += 1;
+      await upsertTournamentDraws(
+        supabase,
+        d,
+        resolved,
+        dryRun,
+        result,
+        logger,
+      );
     }
   }
 
   logger?.info(result, 'fip-draw-populator run complete');
   return result;
+}
+
+// ── tournament_draws helper ────────────────────────────────────────────
+
+/**
+ * UPSERT two `public.tournament_draws` rows (one per team) for one
+ * draw_snapshots row. Mirrors the legacy static-reconciler.reconcileDraws
+ * shape — same column set, same `onConflict` key — so the two writers
+ * produce identical bracket-table state. Skips draw_position=null rows
+ * (OOP-fallback path or malformed snapshot).
+ *
+ * Why the populator owns this now: today's reconcileDraws scope-down
+ * makes the legacy phase skip every tournament where the populator has
+ * created widget-composite matches. Without this helper, FIP-tier
+ * tournaments would stop accumulating bracket-table updates entirely
+ * (the gap that dropped tournament_draws.seed coverage from 54% in
+ * draw_snapshots to 37% in tournament_draws).
+ */
+async function upsertTournamentDraws(
+  supabase: SupabaseClient,
+  d: DrawRow,
+  resolved: { p1p1: string; p1p2: string; p2p1: string; p2p2: string } | null,
+  dryRun: boolean,
+  result: FipDrawPopulatorResult,
+  logger: Logger | undefined,
+): Promise<void> {
+  if (d.draw_position == null) {
+    result.tournamentDrawsSkippedNoPosition += 1;
+    return;
+  }
+  const teamRows = [
+    {
+      tournament_id: d.tournament_id,
+      category: d.category,
+      draw_position: 2 * d.draw_position - 1,
+      seed: d.team1_seed,
+      marker: null,
+      player1_name: d.team1_player1_name,
+      // FIP draw bracket markup has no flag images — country is null on
+      // fip_event_page rows and only populated on OOP-fallback. Use
+      // whatever DrawRow has; null is acceptable.
+      player1_country: d.team1_player1_country,
+      player1_id: resolved?.p1p1 ?? null,
+      player2_name: d.team1_player2_name,
+      player2_country: d.team1_player2_country,
+      player2_id: resolved?.p1p2 ?? null,
+      team_points: null,
+    },
+    {
+      tournament_id: d.tournament_id,
+      category: d.category,
+      draw_position: 2 * d.draw_position,
+      seed: d.team2_seed,
+      marker: null,
+      player1_name: d.team2_player1_name,
+      player1_country: d.team2_player1_country,
+      player1_id: resolved?.p2p1 ?? null,
+      player2_name: d.team2_player2_name,
+      player2_country: d.team2_player2_country,
+      player2_id: resolved?.p2p2 ?? null,
+      team_points: null,
+    },
+  ];
+  for (const teamRow of teamRows) {
+    if (dryRun) {
+      logger?.debug(
+        { teamRow },
+        'fip-draw-populator [dry-run]: would UPSERT tournament_draws',
+      );
+      result.tournamentDrawsWritten += 1;
+      continue;
+    }
+    const { error } = await supabase
+      .from('tournament_draws')
+      .upsert(teamRow, {
+        onConflict: 'tournament_id,category,draw_position',
+      });
+    if (error) {
+      throw new Error(
+        `tournament_draws upsert failed (tournament=${d.tournament_id}, ` +
+          `position=${teamRow.draw_position}): ${error.message}`,
+      );
+    }
+    result.tournamentDrawsWritten += 1;
+  }
 }
 
 // ── Helpers (exported for testing) ─────────────────────────────────────
@@ -969,7 +1103,8 @@ async function loadExistingMatchesByPrefix(
       'id, widget_id_composite, ' +
         'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
         'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name, ' +
-        'pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country',
+        'pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country, ' +
+        'pair1_seed, pair2_seed',
     )
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {

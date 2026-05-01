@@ -58,6 +58,8 @@ export interface GroupMatch {
   court_order: number | null
   schedule_label: string | null
   winner_pair: number | null
+  pair1_seed: number | null
+  pair2_seed: number | null
   pair1_player1: unknown
   pair1_player2: unknown
   pair2_player1: unknown

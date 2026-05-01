@@ -67,6 +67,11 @@ export interface Match {
   pair1_player2: Player | null
   pair2_player1: Player | null
   pair2_player2: Player | null
+  /** Seed number for pair 1 (1, 2, 3, …). Null when not seeded — only
+   *  top 8/16 pairs in the draw get seeded. Sourced from FIP draw page
+   *  via padelgod's fip-draw-populator. */
+  pair1_seed?: number | null
+  pair2_seed?: number | null
   sets?: Set[]
   viewer_count?: number
   avg_rating?: number | null
