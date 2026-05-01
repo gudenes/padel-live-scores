@@ -371,6 +371,11 @@ export function MatchCard({
                         <FlagImage country={p2?.country ?? null} size={16} />
                       </div>
                     </div>
+                    <span style={{
+                      fontSize: 12, fontWeight: isWinner ? 800 : 600,
+                      color: isLoser ? '#B0B5BE' : '#fff',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{pair}</span>
                     {seed != null && (
                       <span
                         title={`Seed ${seed}`}
@@ -391,11 +396,6 @@ export function MatchCard({
                         {seed}
                       </span>
                     )}
-                    <span style={{
-                      fontSize: 12, fontWeight: isWinner ? 800 : 600,
-                      color: isLoser ? '#B0B5BE' : '#fff',
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    }}>{pair}</span>
                     {isWinner && isFinished && (
                       <span style={{
                         flexShrink: 0, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
