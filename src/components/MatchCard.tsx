@@ -196,7 +196,9 @@ export function MatchCard({
 
   const handleLocked = useCallback(() => {
     if (closeTimer.current) clearTimeout(closeTimer.current)
-    closeTimer.current = setTimeout(() => setIsOpen(false), 1400)
+    // Delay accounts for the 700ms card flip + leaves ~2.2s for the user
+    // to read the green "Locked in · pair · margin" confirmation.
+    closeTimer.current = setTimeout(() => setIsOpen(false), 2900)
   }, [])
 
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current) }, [])
