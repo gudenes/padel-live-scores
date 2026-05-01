@@ -135,6 +135,71 @@ button:focus { outline: none; }
 }
 
 /* ───────────────────────────────────────────────────────────────────
+   Drill-in page slide — `.page-slide-in-anim` class
+
+   Full slide-from-right animation for drill-in pages (match,
+   tournament, player, achievements, profile sub-pages). Same
+   architectural choice as `.page-mount-anim` above (CSS keyframes
+   on page mount, owned by the destination page) — sidesteps the
+   View Transitions API's race with the App Router.
+
+   Differences vs. .page-mount-anim:
+     - Translates the whole page width (translateX 100% → 0) for a
+       definitive directional slide instead of a small tug.
+     - Leading-edge drop-shadow that fades to zero by the time the
+       page lands — sells the "stacking on top" depth cue without
+       leaving a residual rim once still.
+     - 600ms duration / iOS spring easing — matches the timing the
+       team validated in the page-transitions mockup.
+
+   Apply to the OUTERMOST wrapper of the drill-in page (the element
+   directly under the layout) so the entire page contents slide as
+   one unit. Don't apply to inner sections — animating multiple
+   nested elements against each other looks janky.
+
+   On desktop the layout caps the device area at max-width: 500px;
+   pages with this class still animate full-width within that box,
+   which gives the same "slide from the frame edge" look the View
+   Transitions API approach was trying to achieve, without the
+   timing gymnastics.
+
+   Trade-offs (same as .page-mount-anim):
+     - No exit animation. Outgoing page unmounts immediately when
+       Next.js commits the route change. iOS swipe-back has its
+       own native animation, desktop back is instant either way —
+       acceptable.
+     - Background underneath the sliding page is the body color,
+       not the previous page. Most users don't notice (Twitter web,
+       Linear, Notion all use this pattern); attention naturally
+       follows what's coming in.
+   ─────────────────────────────────────────────────────────────── */
+
+@keyframes page-slide-in-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+    filter: drop-shadow(-12px 0 24px rgba(0, 0, 0, 0.7));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+  }
+}
+
+.page-slide-in-anim {
+  animation:
+    page-slide-in-from-right 600ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-slide-in-anim {
+    animation: none;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────
    Daily-page day transition — `.matches-day-fade`
 
    Used on /matches/[date] so the body below the sticky header (intro,
@@ -409,120 +474,3 @@ button:focus { outline: none; }
   }
 }
 
-/* ════════════════════════════════════════════════════════════════════
-   PAGE TRANSITIONS — slide-from-right via the View Transitions API.
-
-   Direction is set on `<html data-direction>` by
-   src/components/NavigationTransitionProvider.tsx:
-     - "forward" — clicked a drill-in Link (match / tournament /
-       player detail, profile sub-page, etc.)
-     - "back"    — browser back / forward, swipe-back, router.back()
-     - unset     — lateral navigation (bottom-nav tabs, locale switch,
-                   day-pill swipe). The default browser cross-fade is
-                   suppressed below so unset = instant swap.
-
-   Scoping: the slide is applied to `.app-screen` (the phone-frame
-   inner container in src/app/layout.tsx) instead of the whole
-   document root. On desktop the layout renders the app inside a
-   bezel surrounded by ambient background — without scoping, the
-   slide animates the entire viewport including that chrome. Naming
-   the inner container with `view-transition-name: app-screen`
-   restricts the slide to just the device area.
-
-   Browsers without the View Transitions API (Firefox today) ignore
-   these rules entirely — the navigation just happens instantly.
-   ════════════════════════════════════════════════════════════════════ */
-
-:root {
-  --pn-slide-duration: 600ms;
-  --pn-slide-easing: cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-/* Identifies the phone-frame container to the View Transitions API
-   so the slide pairs old/new app-screen snapshots only. */
-.app-screen {
-  view-transition-name: app-screen;
-}
-
-/* Clip the slide to the frame on desktop. By default, the View
-   Transitions API positions snapshot pseudo-elements at the
-   document root, so a `translateX(100%)` keyframe lets the new
-   page render OUTSIDE the .app-screen bounds — visible against
-   the surrounding ambient/bezel area on desktop. Setting `overflow:
-   clip` on the group pseudo-element confines the snapshot to the
-   .app-screen-shaped container, so the slide reads as "page coming
-   in from inside the frame's right edge" instead of "page flying
-   in from off-screen." On mobile, .app-screen fills the viewport
-   so this is a no-op. */
-::view-transition-group(app-screen) {
-  overflow: clip;
-}
-
-/* Suppress the default cross-fade on root + the named pair. Each
-   direction below defines its own keyframes; unset direction = no
-   animation at all. */
-::view-transition-old(root),
-::view-transition-new(root),
-::view-transition-old(app-screen),
-::view-transition-new(app-screen) {
-  animation: none;
-}
-
-/* ── Forward: new page slides in from the right with a leading-edge
-   shadow that fades to zero by the time it lands. The old page holds
-   underneath unchanged — clean cover, no parallax. ────────────────── */
-html[data-direction='forward']::view-transition-old(app-screen) {
-  animation: pn-hold var(--pn-slide-duration) var(--pn-slide-easing) both;
-  z-index: 1;
-}
-html[data-direction='forward']::view-transition-new(app-screen) {
-  animation: pn-slide-in-right
-    var(--pn-slide-duration) var(--pn-slide-easing) both;
-  z-index: 2;
-}
-
-/* ── Back: the old (detail) page slides off to the right with the
-   same leading-edge shadow, peeling away from the underlying list. ─ */
-html[data-direction='back']::view-transition-old(app-screen) {
-  animation: pn-slide-out-right
-    var(--pn-slide-duration) var(--pn-slide-easing) both;
-  z-index: 2;
-}
-html[data-direction='back']::view-transition-new(app-screen) {
-  animation: pn-hold var(--pn-slide-duration) var(--pn-slide-easing) both;
-  z-index: 1;
-}
-
-@keyframes pn-hold {
-  from { transform: translateX(0); }
-  to   { transform: translateX(0); }
-}
-@keyframes pn-slide-in-right {
-  from {
-    transform: translateX(100%);
-    filter: drop-shadow(-12px 0 24px rgba(0, 0, 0, 0.7));
-  }
-  to {
-    transform: translateX(0);
-    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
-  }
-}
-@keyframes pn-slide-out-right {
-  from {
-    transform: translateX(0);
-    filter: drop-shadow(-12px 0 24px rgba(0, 0, 0, 0.7));
-  }
-  to {
-    transform: translateX(100%);
-    filter: drop-shadow(-4px 0 8px rgba(0, 0, 0, 0.2));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html[data-direction='forward']::view-transition-old(app-screen),
-  html[data-direction='forward']::view-transition-new(app-screen),
-  html[data-direction='back']::view-transition-old(app-screen),
-  html[data-direction='back']::view-transition-new(app-screen) {
-    animation: none !important;
-  }
-}

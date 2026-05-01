@@ -632,7 +632,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <>
-      <div style={{ background: BG_BASE, minHeight: '100dvh', maxWidth: 500, margin: '0 auto', paddingBottom: 80 }}>
+      <div className="page-slide-in-anim" style={{ background: BG_BASE, minHeight: '100dvh', maxWidth: 500, margin: '0 auto', paddingBottom: 80 }}>
 
         {/* Header — back arrow */}
         <div style={{

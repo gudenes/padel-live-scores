@@ -92,7 +92,7 @@ function ArticlePage({ articleId }: { articleId: string }) {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: V3.BG_BASE, color: '#fff' }}>
+    <div className="page-slide-in-anim" style={{ minHeight: '100dvh', background: V3.BG_BASE, color: '#fff' }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
