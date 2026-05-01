@@ -32,6 +32,7 @@
     "filters": {
       "title": "Filtrer les matchs",
       "open": "Filtres",
+      "liveOnly": "En direct",
       "close": "Fermer",
       "summary": {
         "all": "Tous",
@@ -783,6 +784,9 @@
     "liveSection": "En direct",
     "upcomingSection": "À venir",
     "finishedSection": "Résultats",
+    "courtSection": "Court",
+    "courtUnknown": "Court non attribué",
+    "liveCount": "EN DIRECT",
     "noMatchesTitle": "Le padel prend sa journée",
     "noMatchesSub": "Essaie un autre jour ou parcours les tournois de la semaine avec le sélecteur ci-dessus.",
     "jumpToNextMatches": "Prochains matchs : {date}",

@@ -3,15 +3,17 @@
 // src/components/MatchesFilterBar.tsx
 //
 // Sticky bar that lives between the day-pills row and the match list.
-// Just a right-aligned "Filters" button with an active-count badge —
-// the summary line that used to sit on the left was removed because
-// it read defaults back to the user without adding signal.
+// Holds two affordances: a one-tap LIVE toggle (jumps to live-only and
+// back) plus a Filters button that opens the full drawer. The summary
+// line that used to sit on the left was removed because it read defaults
+// back to the user without adding signal.
 
 import type { ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { type MatchesFilters } from '@/hooks/useMatchesFilters'
 
 const GREEN = '#7ED321'
+const LIVE_RED = '#FF4655'
 const BG_CARD = '#141414'
 const BORDER_STRONG = 'rgba(255,255,255,0.10)'
 const CHUNKY_BUTTON = 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)'
@@ -20,6 +22,14 @@ export interface MatchesFilterBarProps {
   filters: MatchesFilters
   activeCount: number
   onOpen: () => void
+  /** Toggle live-only mode. Implementation lives in the parent so the
+   *  drawer state stays in sync — the toggle just nudges the existing
+   *  status filter checkboxes. */
+  onToggleLive: () => void
+  /** Whether the active day actually has any live match. When false the
+   *  pulse animation is suppressed so the pill doesn't claim activity
+   *  that isn't there. */
+  hasLiveMatches: boolean
   /** Optional left-aligned slot. When provided, the bar splits with
    *  space-between so the slot sits on the left and FILTROS on the right.
    *  Used for the "Today" shortcut on /matches/[date]. */
@@ -30,10 +40,14 @@ export default function MatchesFilterBar({
   filters,
   activeCount,
   onOpen,
+  onToggleLive,
+  hasLiveMatches,
   leftSlot,
 }: MatchesFilterBarProps) {
   const tButton = useTranslations('matches.filters')
   const hasActive = activeCount > 0
+  const liveActive =
+    filters.status.live && !filters.status.upcoming && !filters.status.finished
 
   // Filter summary line removed per user feedback — the badge count on
   // the Filters button alone communicates whether anything is active,
@@ -50,6 +64,47 @@ export default function MatchesFilterBar({
       }}
     >
       {leftSlot}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={onToggleLive}
+        aria-pressed={liveActive}
+        aria-label={tButton('liveOnly')}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '8px 12px',
+          background: liveActive ? LIVE_RED : BG_CARD,
+          border: `1px solid ${liveActive ? LIVE_RED : BORDER_STRONG}`,
+          color: liveActive ? '#fff' : '#fff',
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.4,
+          textTransform: 'uppercase',
+          clipPath: CHUNKY_BUTTON,
+          cursor: 'pointer',
+          flexShrink: 0,
+          fontFamily: 'inherit',
+          transition: 'background 0.15s ease, border-color 0.15s ease',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-block',
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            background: liveActive ? '#fff' : LIVE_RED,
+            boxShadow: liveActive ? '0 0 0 2px rgba(255,255,255,0.25)' : `0 0 0 2px rgba(255,70,85,0.25)`,
+            // Pulse only when there's actually something live today —
+            // a static dot when nothing's running, so the pill doesn't
+            // visually promise activity that isn't there.
+            animation: hasLiveMatches ? 'live-pulse 1.4s ease-in-out infinite' : 'none',
+          }}
+        />
+        {tButton('liveOnly')}
+      </button>
       <button
         type="button"
         onClick={onOpen}
@@ -104,6 +159,13 @@ export default function MatchesFilterBar({
           </span>
         )}
       </button>
+      </div>
+      <style jsx>{`
+        @keyframes live-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+      `}</style>
     </div>
   )
 }

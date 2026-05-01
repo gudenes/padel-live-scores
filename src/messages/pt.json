@@ -32,6 +32,7 @@
     "filters": {
       "title": "Filtrar partidas",
       "open": "Filtros",
+      "liveOnly": "Ao vivo",
       "close": "Fechar",
       "summary": {
         "all": "Todas",
@@ -783,6 +784,9 @@
     "liveSection": "Ao vivo",
     "upcomingSection": "Próximos",
     "finishedSection": "Resultados",
+    "courtSection": "Quadra",
+    "courtUnknown": "Quadra não atribuída",
+    "liveCount": "AO VIVO",
     "noMatchesTitle": "O padel tirou o dia de folga",
     "noMatchesSub": "Experimente outro dia ou veja os torneios da semana no seletor acima.",
     "jumpToNextMatches": "Próximos jogos: {date}",

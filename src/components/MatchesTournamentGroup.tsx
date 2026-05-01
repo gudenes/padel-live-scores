@@ -4,21 +4,23 @@
 //
 // Tournament-grouped match card for /matches/[date]. Each group renders
 // a rich header (flag, name, level pill, date range, match count, expand
-// chevron) and a body that breaks the matches down into Live Now /
-// Upcoming / Results sub-sections — only sub-sections with matches show
-// up.
+// chevron) and a body that breaks the matches down by COURT — same
+// layout organizers use on the official OOP page (Brussels: CBC →
+// Nextensa → Lotto). Court order: tournament_courts.display_order if
+// present, alphabetical fallback. Within each court, matches sort by
+// matches.court_order ascending so the day's running order is preserved.
 //
-// Mirrors the pattern the old client-tabs /matches page used (the design
-// the user is happy with), adapted to take server-rendered match data so
-// the daily page stays SEO-crawlable. Collapse state is local to each
-// group; defaults to expanded.
+// Why courts instead of live/upcoming/finished sub-sections: with status
+// sub-sections the layout reshuffled every time a match flipped state,
+// and the natural reading order on-site IS by court. The status signal
+// is preserved via a chip on each match row.
 //
 // Filter integration: the wrapper carries `data-tour-group` + `data-league`
 // + `data-tier` so MatchesFilterClient can hide the whole tournament when
 // it doesn't match the league/tier filter. Each match wrapper inside
 // carries `data-match` + `data-category` + `data-qualifier` + `data-status`
-// for per-match filtering. Sub-section wrappers carry `data-substatus`
-// so the cascade can hide an emptied sub-section header.
+// for per-match filtering. Court-section wrappers carry `data-court-section`
+// so the cascade can hide an emptied court header.
 
 import { useState } from 'react'
 import type { ReactNode } from 'react'
@@ -53,6 +55,7 @@ export interface GroupMatch {
   finished_at: string | null
   round: string | null
   court: string | null
+  court_order: number | null
   schedule_label: string | null
   winner_pair: number | null
   pair1_player1: unknown
@@ -71,13 +74,19 @@ export interface TournamentGroupData {
   tournamentEndsAt: string | null
   tournamentStatus: string | null
   matches: GroupMatch[]
-  /** Sub-section labels translated server-side and passed in so the client
-   *  component doesn't need its own translator round-trip. */
-  labels: {
-    liveNow: string
-    upcoming: string
-    results: string
-  }
+  /** Per-court display order from `tournament_courts.display_order`,
+   *  keyed by lowercased court name. Empty record = no OOP-derived
+   *  order; consumers sort courts alphabetically. */
+  courtOrder: Record<string, number>
+  /** "Court" label for sub-section headers, translated server-side. */
+  courtLabel: string
+  /** "Unknown court" fallback for matches with no court value. */
+  unknownCourtLabel: string
+  /** Plain "LIVE"/"EN VIVO"/etc suffix for the per-court live pill. The
+   *  count is composed in the component (`{n} {suffix}`) — keeping the
+   *  message free of ICU placeholders avoids next-intl validation errors
+   *  when consumers don't pass a count argument. */
+  liveCountLabel: string
   /** Whether this tournament's level is Premier (drives data-league). */
   isPremier: boolean
   /** Locale, threaded for the tournament-detail link. */
@@ -176,18 +185,57 @@ function tournamentStatusBadge(
 // ── Component ───────────────────────────────────────────────────────────
 
 export default function MatchesTournamentGroup({ group }: { group: TournamentGroupData }) {
-  // Bucket matches by status in render order (live → upcoming → finished).
-  const live: GroupMatch[] = []
-  const upcoming: GroupMatch[] = []
-  const finished: GroupMatch[] = []
+  // Aggregate counts for the tournament-level status pill (LIVE / ONGOING
+  // / UPCOMING / FINAL). Same buckets the old layout exposed as sub-
+  // sections — we just don't render them as sections anymore.
+  let liveCount = 0
+  let upcomingCount = 0
+  let finishedCount = 0
   for (const m of group.matches) {
     const b = bucketStatus(m.status)
-    if (b === 'live') live.push(m)
-    else if (b === 'upcoming') upcoming.push(m)
-    else if (b === 'finished') finished.push(m)
+    if (b === 'live') liveCount++
+    else if (b === 'upcoming') upcomingCount++
+    else if (b === 'finished') finishedCount++
   }
   const total = group.matches.length
-  const counts = { live: live.length, upcoming: upcoming.length, finished: finished.length }
+  const counts = { live: liveCount, upcoming: upcomingCount, finished: finishedCount }
+
+  // Bucket matches by court name. `null` court goes into a synthetic
+  // "—" bucket that sorts last. Within each court, sort by court_order
+  // ascending (1-based per-court sequence from OOP), then by
+  // scheduled_at as tiebreaker.
+  const courtBuckets = new Map<string, GroupMatch[]>()
+  for (const m of group.matches) {
+    const key = m.court ?? ''
+    if (!courtBuckets.has(key)) courtBuckets.set(key, [])
+    courtBuckets.get(key)!.push(m)
+  }
+  for (const [, list] of courtBuckets) {
+    list.sort((a, b) => {
+      const oa = a.court_order ?? 9999
+      const ob = b.court_order ?? 9999
+      if (oa !== ob) return oa - ob
+      const sa = a.scheduled_at ?? ''
+      const sb = b.scheduled_at ?? ''
+      return sa.localeCompare(sb)
+    })
+  }
+  // Court order: tournament_courts.display_order first (case-insensitive
+  // lookup), alphabetical fallback. Null/empty court bucket sorts last.
+  const sortedCourtKeys = Array.from(courtBuckets.keys()).sort((a, b) => {
+    if (!a && !b) return 0
+    if (!a) return 1
+    if (!b) return -1
+    const oa = group.courtOrder[a.toLowerCase()]
+    const ob = group.courtOrder[b.toLowerCase()]
+    const hasA = oa !== undefined
+    const hasB = ob !== undefined
+    if (hasA && hasB) return oa - ob
+    if (hasA) return -1
+    if (hasB) return 1
+    return a.localeCompare(b)
+  })
+  const courtCount = sortedCourtKeys.length
 
   const [expanded, setExpanded] = useState(true)
   const tournamentStatusPill = tournamentStatusBadge(counts, group.tournamentStatus)
@@ -331,85 +379,76 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
         </div>
       </button>
 
-      {/* ── Body — collapsible per-status sub-sections ─────────────────── */}
+      {/* ── Body — collapsible court sub-sections ──────────────────────── */}
       <div
         style={{
           overflow: 'hidden',
-          maxHeight: expanded ? total * 130 + 200 : 0,
+          // Approximate ceiling: ~130px per match row + ~36px per court
+          // header + 100px slack. Doesn't need to be exact since
+          // overflow:hidden clips the rest when collapsed.
+          maxHeight: expanded ? total * 130 + courtCount * 36 + 100 : 0,
           transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           background: BG_CARD,
         }}
       >
-        {live.length > 0 && (
-          <SubSection
-            label={group.labels.liveNow}
-            accent={LIVE_RED}
-            substatus="live"
-            count={live.length}
-            showSubLabel={hasMultipleBuckets(counts)}
-          >
-            {live.map(m => (
-              <MatchEntry key={m.id} match={m} status="live" locale={group.locale} userTz={group.userTz} tournamentLevel={group.tournamentLevel} />
-            ))}
-          </SubSection>
-        )}
-        {upcoming.length > 0 && (
-          <SubSection
-            label={group.labels.upcoming}
-            accent={GREEN}
-            substatus="upcoming"
-            count={upcoming.length}
-            showSubLabel={hasMultipleBuckets(counts)}
-          >
-            {upcoming.map(m => (
-              <MatchEntry key={m.id} match={m} status="upcoming" locale={group.locale} userTz={group.userTz} tournamentLevel={group.tournamentLevel} />
-            ))}
-          </SubSection>
-        )}
-        {finished.length > 0 && (
-          <SubSection
-            label={group.labels.results}
-            accent={MUTED}
-            substatus="finished"
-            count={finished.length}
-            showSubLabel={hasMultipleBuckets(counts)}
-          >
-            {finished.map(m => (
-              <MatchEntry key={m.id} match={m} status="finished" locale={group.locale} userTz={group.userTz} tournamentLevel={group.tournamentLevel} />
-            ))}
-          </SubSection>
-        )}
+        {sortedCourtKeys.map(courtKey => {
+          const matches = courtBuckets.get(courtKey)!
+          const liveInCourt = matches.filter(m => bucketStatus(m.status) === 'live').length
+          const courtName = courtKey || group.unknownCourtLabel
+          return (
+            <CourtSection
+              key={courtKey || '__none__'}
+              name={courtName}
+              count={matches.length}
+              liveCount={liveInCourt}
+              liveCountLabel={group.liveCountLabel}
+              showHeader={courtCount > 1}
+            >
+              {matches.map(m => {
+                const s = bucketStatus(m.status)
+                const status: 'live' | 'upcoming' | 'finished' = s ?? 'upcoming'
+                return (
+                  <MatchEntry
+                    key={m.id}
+                    match={m}
+                    status={status}
+                    locale={group.locale}
+                    userTz={group.userTz}
+                    tournamentLevel={group.tournamentLevel}
+                  />
+                )
+              })}
+            </CourtSection>
+          )
+        })}
       </div>
     </div>
   )
 }
 
-function hasMultipleBuckets(counts: { live: number; upcoming: number; finished: number }): boolean {
-  let n = 0
-  if (counts.live > 0) n++
-  if (counts.upcoming > 0) n++
-  if (counts.finished > 0) n++
-  return n > 1
-}
-
-function SubSection({
-  label,
-  accent,
-  substatus,
+function CourtSection({
+  name,
   count,
-  showSubLabel,
+  liveCount,
+  liveCountLabel,
+  showHeader,
   children,
 }: {
-  label: string
-  accent: string
-  substatus: 'live' | 'upcoming' | 'finished'
+  name: string
   count: number
-  showSubLabel: boolean
+  liveCount: number
+  liveCountLabel: string
+  showHeader: boolean
   children: ReactNode
 }) {
+  // The accent stays muted by default — courts aren't statuses, the
+  // chip on each MatchCard already conveys live/upcoming/finished. The
+  // accent goes red ONLY when at least one match in the court is live,
+  // which mirrors the LIVE pill at the tournament-group level.
+  const accent = liveCount > 0 ? LIVE_RED : MUTED
   return (
-    <div data-substatus={substatus} style={{ padding: '6px 0' }}>
-      {showSubLabel && (
+    <div data-court-section style={{ padding: '6px 0' }}>
+      {showHeader && (
         <div
           style={{
             display: 'flex',
@@ -432,10 +471,15 @@ function SubSection({
               fontWeight: 800,
               letterSpacing: '0.16em',
               textTransform: 'uppercase',
-              color: accent === MUTED ? MUTED : 'rgba(255,255,255,0.85)',
+              color: 'rgba(255,255,255,0.85)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+              flex: '0 1 auto',
             }}
           >
-            {label}
+            {name}
           </span>
           <span
             style={{
@@ -445,10 +489,29 @@ function SubSection({
               background: 'rgba(255,255,255,0.04)',
               padding: '1px 6px',
               clipPath: CHUNKY.badge,
+              flexShrink: 0,
             }}
           >
             {count}
           </span>
+          {liveCount > 0 && (
+            <span
+              style={{
+                fontSize: 8,
+                fontWeight: 800,
+                letterSpacing: 0.5,
+                padding: '2px 6px',
+                clipPath: CHUNKY.badge,
+                color: LIVE_RED,
+                background: 'rgba(255,70,85,0.18)',
+                lineHeight: '12px',
+                textTransform: 'uppercase',
+                flexShrink: 0,
+              }}
+            >
+              {`${liveCount} ${liveCountLabel}`}
+            </span>
+          )}
         </div>
       )}
       {children}
