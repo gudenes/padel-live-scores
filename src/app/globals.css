@@ -421,34 +421,47 @@ button:focus { outline: none; }
                    day-pill swipe). The default browser cross-fade is
                    suppressed below so unset = instant swap.
 
-   Next.js 16's `experimental.viewTransition` flag wraps client-side
-   route changes in `document.startViewTransition`, which is what
-   triggers the `::view-transition-*` pseudo-elements below.
+   Scoping: the slide is applied to `.app-screen` (the phone-frame
+   inner container in src/app/layout.tsx) instead of the whole
+   document root. On desktop the layout renders the app inside a
+   bezel surrounded by ambient background — without scoping, the
+   slide animates the entire viewport including that chrome. Naming
+   the inner container with `view-transition-name: app-screen`
+   restricts the slide to just the device area.
 
    Browsers without the View Transitions API (Firefox today) ignore
    these rules entirely — the navigation just happens instantly.
    ════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --pn-slide-duration: 300ms;
+  --pn-slide-duration: 420ms;
   --pn-slide-easing: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Suppress the browser's default cross-fade. Each direction below
-   defines its own keyframes; unset direction = no animation at all. */
+/* Identifies the phone-frame container to the View Transitions API
+   so the slide pairs old/new app-screen snapshots only. */
+.app-screen {
+  view-transition-name: app-screen;
+}
+
+/* Suppress the default cross-fade on root + the named pair. Each
+   direction below defines its own keyframes; unset direction = no
+   animation at all. */
 ::view-transition-old(root),
-::view-transition-new(root) {
+::view-transition-new(root),
+::view-transition-old(app-screen),
+::view-transition-new(app-screen) {
   animation: none;
 }
 
 /* ── Forward: new page slides in from the right with a leading-edge
    shadow that fades to zero by the time it lands. The old page holds
    underneath unchanged — clean cover, no parallax. ────────────────── */
-html[data-direction='forward']::view-transition-old(root) {
+html[data-direction='forward']::view-transition-old(app-screen) {
   animation: pn-hold var(--pn-slide-duration) var(--pn-slide-easing) both;
   z-index: 1;
 }
-html[data-direction='forward']::view-transition-new(root) {
+html[data-direction='forward']::view-transition-new(app-screen) {
   animation: pn-slide-in-right
     var(--pn-slide-duration) var(--pn-slide-easing) both;
   z-index: 2;
@@ -456,12 +469,12 @@ html[data-direction='forward']::view-transition-new(root) {
 
 /* ── Back: the old (detail) page slides off to the right with the
    same leading-edge shadow, peeling away from the underlying list. ─ */
-html[data-direction='back']::view-transition-old(root) {
+html[data-direction='back']::view-transition-old(app-screen) {
   animation: pn-slide-out-right
     var(--pn-slide-duration) var(--pn-slide-easing) both;
   z-index: 2;
 }
-html[data-direction='back']::view-transition-new(root) {
+html[data-direction='back']::view-transition-new(app-screen) {
   animation: pn-hold var(--pn-slide-duration) var(--pn-slide-easing) both;
   z-index: 1;
 }
@@ -492,10 +505,10 @@ html[data-direction='back']::view-transition-new(root) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-direction='forward']::view-transition-old(root),
-  html[data-direction='forward']::view-transition-new(root),
-  html[data-direction='back']::view-transition-old(root),
-  html[data-direction='back']::view-transition-new(root) {
+  html[data-direction='forward']::view-transition-old(app-screen),
+  html[data-direction='forward']::view-transition-new(app-screen),
+  html[data-direction='back']::view-transition-old(app-screen),
+  html[data-direction='back']::view-transition-new(app-screen) {
     animation: none !important;
   }
 }
