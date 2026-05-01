@@ -63,28 +63,6 @@
         "upcoming": "À venir",
         "finished": "Terminés"
       },
-      "tier": {
-        "label": "Niveau du tournoi",
-        "p1": "P1 / Major",
-        "p2": "P2",
-        "fip_platinum": "FIP Platinum",
-        "fip_gold": "FIP Gold",
-        "fip_silver": "FIP Silver",
-        "fip_bronze": "FIP Bronze",
-        "fip_promises": "Promises",
-        "fip_beyond": "Beyond",
-        "fip_hexagon": "Hexagon",
-        "fip_championship": "Championnat"
-      },
-      "personalised": {
-        "label": "Personnalisé",
-        "followedTitle": "Joueurs suivis uniquement",
-        "followedSub": "N'afficher que les matchs avec des joueurs que tu suis",
-        "hideQualifiersTitle": "Masquer les qualifs",
-        "hideQualifiersSub": "Ignorer les matchs de phase qualificative",
-        "coverageTitle": "Couverture live uniquement",
-        "coverageSub": "Seuls les matchs avec suivi point par point"
-      },
       "reset": "Réinitialiser",
       "apply": "Appliquer"
     }
@@ -186,31 +164,68 @@
     "pts": "+10 pts"
   },
   "prediction": {
-    "whoTakesIt": "Qui l'emporte ?",
-    "tapThePair": "Touche la paire que tu penses gagnante",
-    "yourPick": "Ton choix",
-    "howDoesItEnd": "Comment ça se termine ?",
-    "straightSets": "En deux sets",
-    "threeSetBattle": "Bataille en trois sets",
-    "yourPrediction": "Ta prédiction",
-    "win": "{pair} gagne {margin}",
-    "change": "Modifier",
-    "whatOthersThink": "Ce que pensent les autres",
-    "fansHavePredicted": "{count} fans ont prédit",
-    "withMajority": "Tu es avec la majorité",
-    "boldPick": "Choix audacieux !",
-    "predict": "prédire",
-    "locked": "Les prédictions sont verrouillées une fois le match commencé",
-    "spotOn": "Dans le mille !",
-    "calledIt": "{pair} a gagné {margin} — exactement comme tu l'avais prédit",
-    "closeCall": "Presque",
-    "rightPairWrongMargin": "Bonne paire, mauvaise marge",
-    "wrongMarginThree": "Tu as choisi la bonne paire mais il est allé en trois sets au lieu de deux",
-    "wrongMarginTwo": "Tu as choisi la bonne paire mais c'était une victoire en deux sets",
-    "notThisTime": "Pas cette fois",
-    "youBacked": "Tu avais misé sur {picked} mais {winner} s'est imposé {margin}",
-    "nailedIt": "Parfait",
-    "predicted": "Prédit"
+    "cta": {
+      "pick": "CHOISIR",
+      "yourPick": "TON CHOIX",
+      "locked": "VERROUILLÉ"
+    },
+    "makeYourPick": "Fais ton choix",
+    "rewardShown": "Récompense affichée",
+    "favored": "{pct}% favori",
+    "underdog": "{pct}% outsider",
+    "tossUp": "{pct}% indécis",
+    "unrankedTossUp": "Sans classement — indécis",
+    "upsetFlag": "SURPRISE",
+    "ifRight": "guacas si tu gagnes",
+    "marginBonus": "+0,50× bonus si tu trouves le score",
+    "marginBonusShort": "+0,50× bonus",
+    "youArePicking": "Tu choisis",
+    "change": "Changer",
+    "lockedIn": "Validé",
+    "tapToClose": "Touche pour fermer",
+    "closingSoon": "Fermeture imminente…",
+    "stayOpen": "Garder ouvert",
+    "straightSets": "Sets directs",
+    "threeSets": "Trois sets",
+    "result": {
+      "perfect": "Pronostic parfait",
+      "right": "Bon · score raté",
+      "wrong": "Raté",
+      "heavyUpset": "Grosse surprise réussie",
+      "perfectBadge": "PARFAIT",
+      "rightBadge": "BON",
+      "wrongBadge": "RATÉ",
+      "upsetBadge": "SURPRISE"
+    },
+    "live": {
+      "tracking": "Suivi de ton choix",
+      "yourPickHeader": "Ton choix"
+    },
+    "community": {
+      "pick": "Choix de la communauté",
+      "picks": "{n, plural, one {# choix} other {# choix}}",
+      "noPicksYet": "Sois le premier à choisir"
+    },
+    "stats": {
+      "avgRanking": "classement moyen",
+      "lastFive": "5 derniers",
+      "h2h": "h2h"
+    },
+    "sponsor": "Pronostics · présenté par {brand}",
+    "myPicks": {
+      "title": "Mes choix",
+      "totalGuacas": "guacas totaux",
+      "accuracy": "précision",
+      "currentStreak": "série",
+      "bestStreak": "meilleure série",
+      "rank": "RANG #{rank} · GLOBAL",
+      "filterAll": "Tous",
+      "filterPending": "En attente",
+      "filterWon": "Gagnés",
+      "filterLost": "Perdus",
+      "noPicks": "Tu n'as encore choisi aucun match",
+      "noPicksSub": "Touche CHOISIR sur n'importe quel match programmé pour jouer."
+    }
   },
   "rankings": {
     "rankings": "Classement",
@@ -824,58 +839,5 @@
     "searchAria": "Rechercher un pays",
     "clearAria": "Effacer la recherche",
     "noMatch": "Aucun pays ne correspond à \"{query}\""
-  },
-  "prediction": {
-    "cta": { "pick": "CHOISIR", "yourPick": "TON CHOIX", "locked": "VERROUILLÉ" },
-    "makeYourPick": "Fais ton choix",
-    "rewardShown": "Récompense affichée",
-    "favored": "{pct}% favori",
-    "underdog": "{pct}% outsider",
-    "tossUp": "{pct}% indécis",
-    "unrankedTossUp": "Sans classement — indécis",
-    "upsetFlag": "SURPRISE",
-    "ifRight": "guacas si tu gagnes",
-    "marginBonus": "+0,50× bonus si tu trouves le score",
-    "marginBonusShort": "+0,50× bonus",
-    "youArePicking": "Tu choisis",
-    "change": "Changer",
-    "lockedIn": "Validé",
-    "tapToClose": "Touche pour fermer",
-    "closingSoon": "Fermeture imminente…",
-    "stayOpen": "Garder ouvert",
-    "straightSets": "Sets directs",
-    "threeSets": "Trois sets",
-    "result": {
-      "perfect": "Pronostic parfait",
-      "right": "Bon · score raté",
-      "wrong": "Raté",
-      "heavyUpset": "Grosse surprise réussie",
-      "perfectBadge": "PARFAIT",
-      "rightBadge": "BON",
-      "wrongBadge": "RATÉ",
-      "upsetBadge": "SURPRISE"
-    },
-    "live": { "tracking": "Suivi de ton choix", "yourPickHeader": "Ton choix" },
-    "community": {
-      "pick": "Choix de la communauté",
-      "picks": "{n, plural, one {# choix} other {# choix}}",
-      "noPicksYet": "Sois le premier à choisir"
-    },
-    "stats": { "avgRanking": "classement moyen", "lastFive": "5 derniers", "h2h": "h2h" },
-    "sponsor": "Pronostics · présenté par {brand}",
-    "myPicks": {
-      "title": "Mes choix",
-      "totalGuacas": "guacas totaux",
-      "accuracy": "précision",
-      "currentStreak": "série",
-      "bestStreak": "meilleure série",
-      "rank": "RANG #{rank} · GLOBAL",
-      "filterAll": "Tous",
-      "filterPending": "En attente",
-      "filterWon": "Gagnés",
-      "filterLost": "Perdus",
-      "noPicks": "Tu n'as encore choisi aucun match",
-      "noPicksSub": "Touche CHOISIR sur n'importe quel match programmé pour jouer."
-    }
   }
 }
