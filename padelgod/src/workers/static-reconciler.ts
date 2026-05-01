@@ -381,6 +381,18 @@ interface EntryListDictRow {
  * If any name is unresolved: queue all unresolved raw names in
  * `padelgod.unresolved_players` and skip the draw row entirely. No partial
  * match rows are written.
+ *
+ * Populator coexistence (2026-05-01)
+ * ----------------------------------
+ * Tournaments where the new `fip-draw-populator` has already created
+ * matches with `widget_id_composite IS NOT NULL` are SKIPPED entirely
+ * by this phase. Without that gate the two writers produce parallel
+ * rows for every bracket slot (the duplicate-row problem cleaned up
+ * via scripts/dedup-no-source-with-widget-twin.mjs and friends).
+ * Premier-tier tournaments (P1/P2/Major) have no FIP event-page
+ * brackets, so the populator never creates widget rows for them and
+ * this phase remains the only writer. See the in-function comment at
+ * step 2.5 for the discriminator and rationale.
  */
 async function reconcileDraws(
   deps: StaticReconcilerDeps,
@@ -425,7 +437,59 @@ async function reconcileDraws(
       latestDrawByKey.set(k, d);
     }
   }
-  const latestDraws = Array.from(latestDrawByKey.values());
+  let latestDraws = Array.from(latestDrawByKey.values());
+
+  // 2.5. Skip tournaments where `fip-draw-populator` already created
+  // matches with real widget composites. The new populator owns FIP-
+  // tier brackets (Bronze/Silver/Gold) end-to-end; this legacy phase
+  // running for the same tournament produces a parallel set of rows
+  // with widget_id_composite NULL (sidecar-keyed under "draw:*"),
+  // which the public app classifies as "no-source" and renders as
+  // unscheduled duplicates. Premier-tier tournaments (P1/P2/Major)
+  // have no FIP event-page brackets, so no widget rows ever appear
+  // for them — they pass through unchanged and continue to be served
+  // by this phase. Discriminator: any public.matches row in the
+  // tournament with widget_id_composite IS NOT NULL means the
+  // populator owns it.
+  const tournamentIdsInDraws = Array.from(
+    new Set(latestDraws.map((d) => d.tournament_id)),
+  );
+  if (tournamentIdsInDraws.length > 0) {
+    const { data: covered, error: coveredErr } = await supabase
+      .from('matches')
+      .select('tournament_id')
+      .in('tournament_id', tournamentIdsInDraws)
+      .not('widget_id_composite', 'is', null)
+      .limit(2000);
+    if (coveredErr) {
+      throw new Error(
+        `populator-coverage lookup failed: ${coveredErr.message}`,
+      );
+    }
+    const populatorCovered = new Set(
+      (covered ?? []).map(
+        (r) => (r as { tournament_id: string }).tournament_id,
+      ),
+    );
+    if (populatorCovered.size > 0) {
+      const before = latestDraws.length;
+      latestDraws = latestDraws.filter(
+        (d) => !populatorCovered.has(d.tournament_id),
+      );
+      logger?.info(
+        {
+          populatorCoveredTournaments: populatorCovered.size,
+          drawsBefore: before,
+          drawsAfter: latestDraws.length,
+          skipped: before - latestDraws.length,
+        },
+        'reconcileDraws: skipped tournaments handled by fip-draw-populator',
+      );
+    }
+  }
+  if (latestDraws.length === 0) {
+    return { drawMatchesWritten: 0, drawTeamsWritten: 0, drawsUnresolved: 0 };
+  }
 
   // 3. For each (tournament_id, category) in the draw set, fetch the
   //    latest entry-list snapshot — we'll need it to build the dictionary.
