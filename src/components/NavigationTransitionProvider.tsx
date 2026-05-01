@@ -7,6 +7,8 @@
 //   2. Wrapping the resulting `router.push` in
 //      `document.startViewTransition(...)` so the CSS keyframes in
 //      globals.css have something to animate.
+//   3. Pausing the View Transitions API's "NEW snapshot" capture
+//      until React has actually committed the new route.
 //
 // Why a manual wrap (vs. Next.js 16's experimental.viewTransition flag):
 //   The flag pairs with React's experimental `<ViewTransition>` JSX API
@@ -15,24 +17,40 @@
 //   intercepting drill-in Link clicks and calling
 //   `document.startViewTransition` manually.
 //
+// Why the navigation-completion promise:
+//   `document.startViewTransition(callback)` waits for the callback's
+//   returned promise (or the next animation frame if no promise) before
+//   snapshotting the NEW state. If we just call `router.push()` and
+//   return void, the browser snapshots NEW at the next frame — but
+//   React hasn't committed the route change yet, so OLD === NEW and
+//   the animation runs against two identical snapshots. The visible
+//   result is "the current page slides over itself, then the new page
+//   appears instantly" — exactly the bug 2026-05-01 user feedback
+//   reported. By returning a promise that resolves on the next
+//   `usePathname` change (after React commits the route), the browser
+//   waits, snapshots NEW = the new route's first paint (typically the
+//   shimmer skeleton from src/components/skeletons/DetailPageSkeleton.tsx),
+//   and animates between OLD = list and NEW = skeleton. Content streams
+//   into the skeleton afterward without animation.
+//
 // Why a global capture-phase intercept instead of wrapping every Link:
-//   40+ Link sites surface drill-in navigation (MatchCard, ResultCard,
-//   LiveMatchCard, BracketView, TournamentSpotlightHero, …). One
-//   document-level handler catches them all without per-Link changes
-//   and won't drift when new components are added.
+//   40+ Link sites surface drill-in navigation. One document-level
+//   handler catches them all without per-Link changes and won't drift
+//   when new components are added.
 //
 // Forward / back / lateral:
 //   - Click an anchor whose href matches a DRILL_IN regex →
 //     preventDefault, set direction=forward, call startViewTransition
-//     around router.push.
+//     against the i18n router with a navigation-completion promise.
 //   - Browser back/forward, swipe-back, router.back() → popstate →
 //     set direction=back. Can't easily wrap this in a view transition
-//     (popstate fires after navigation), so back uses CSS animation
-//     applied to the already-committed DOM via data-direction.
+//     (popstate fires after navigation), so back uses the CSS
+//     animation applied to the already-committed DOM via data-direction.
 //   - Lateral (bottom-nav tabs, locale switcher, day-pill swipe) →
 //     no drill-in match → direction cleared → no transition.
 
-import { startTransition, useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 
 const DRILL_IN_PATTERNS: readonly RegExp[] = [
@@ -43,6 +61,14 @@ const DRILL_IN_PATTERNS: readonly RegExp[] = [
   /^(?:\/[a-z]{2})?\/achievements/,
   /^(?:\/[a-z]{2})?\/profile\/settings/,
 ]
+
+/** Hard timeout before we give up on the navigation-completion signal
+ *  and let the View Transition snapshot whatever's on screen. Real
+ *  navigations commit in tens of milliseconds; this only fires if
+ *  something has gone genuinely wrong (e.g. router.push silently
+ *  refused to navigate). Avoids leaving the user staring at the OLD
+ *  snapshot indefinitely. */
+const NAV_COMPLETION_TIMEOUT_MS = 800
 
 function isDrillInPath(path: string): boolean {
   return DRILL_IN_PATTERNS.some((re) => re.test(path))
@@ -80,8 +106,6 @@ function resolveAnchor(target: EventTarget | null): AnchorTarget | null {
   if (url.origin !== window.location.origin) return null
 
   const fullPath = url.pathname + url.search + url.hash
-  // Strip the leading /<locale>/ for the i18n router. The router will
-  // re-apply the prefix appropriate for the current locale.
   const localePrefixMatch = fullPath.match(/^\/[a-z]{2}(?=\/|$)/)
   const pathForRouter = localePrefixMatch
     ? fullPath.slice(localePrefixMatch[0].length) || '/'
@@ -91,6 +115,34 @@ function resolveAnchor(target: EventTarget | null): AnchorTarget | null {
 
 export function NavigationTransitionProvider() {
   const router = useRouter()
+  const pathname = usePathname()
+
+  // Holds the resolver for the most recent in-flight view transition.
+  // Set when click handler kicks off a transition; cleared when
+  // pathname effect fires (route committed) or the safety timeout
+  // expires (something went wrong, don't hang the API).
+  const pendingResolveRef = useRef<(() => void) | null>(null)
+
+  // Resolve the pending transition the moment React commits a new
+  // pathname. Two RAFs give the new route's first paint (typically
+  // the shimmer skeleton) a chance to land in the DOM before we let
+  // the browser snapshot — without them the snapshot can race the
+  // commit and capture a transitional empty state.
+  useEffect(() => {
+    if (!pendingResolveRef.current) return
+    let cancelled = false
+    requestAnimationFrame(() => {
+      if (cancelled) return
+      requestAnimationFrame(() => {
+        if (cancelled) return
+        const resolve = pendingResolveRef.current
+        if (!resolve) return
+        pendingResolveRef.current = null
+        resolve()
+      })
+    })
+    return () => { cancelled = true }
+  }, [pathname])
 
   useEffect(() => {
     const root = document.documentElement
@@ -107,60 +159,71 @@ export function NavigationTransitionProvider() {
       const resolved = resolveAnchor(e.target)
       if (!resolved) return
 
-      // Same-path no-op: let it through with no transition tag. The
-      // i18n router will likely no-op too.
+      // Same-path no-op.
       if (resolved.pathWithLocalePrefix === window.location.pathname) {
         delete root.dataset.direction
         return
       }
 
-      // Lateral nav: clear the tag so CSS keyframes don't accidentally
-      // fire from a stale value, and let the click default through to
-      // Next.js Link's own handler (which calls router.push internally).
+      // Lateral nav: clear the tag and let Link's default handler run.
       if (!isDrillInPath(resolved.pathWithLocalePrefix)) {
         delete root.dataset.direction
         return
       }
 
-      // Drill-in path. Take over: preventDefault, set the direction tag,
-      // and wrap the router push in startViewTransition so the CSS
-      // pseudo-element animations actually fire. On unsupported
-      // browsers (Firefox) or reduced-motion users, fall through to a
-      // plain push — the data-direction is still set but the keyframes
-      // are no-ops.
+      // Drill-in path. Take over.
       e.preventDefault()
       root.dataset.direction = 'forward'
 
-      // React.startTransition tells React the route push is interruptible
-      // — it keeps the OLD UI committed (with all its data) until the
-      // NEW route's RSC fetch resolves, instead of flashing a Suspense
-      // fallback / loading spinner in between. Pairing it with
-      // document.startViewTransition means the slide doesn't begin
-      // until the destination is fully rendered — no "slide-then-flash-
-      // loading-then-content" stutter. The existing "Loading…" UI for
-      // detail pages still shows when the fetch genuinely takes a
-      // while, just no longer mid-slide.
-      const doNavigate = () => {
-        startTransition(() => {
-          router.push(resolved.pathForRouter as never)
-        })
-      }
-
       if (!supportsVT || reducedMotion) {
-        doNavigate()
+        router.push(resolved.pathForRouter as never)
         return
       }
-      document.startViewTransition(() => doNavigate())
+
+      // Wrap router.push in a promise that resolves once usePathname
+      // observes the new route AND React has had two animation frames
+      // to paint. The browser waits on this promise before snapshotting
+      // NEW, so the slide animates between OLD = list and NEW = the
+      // new route's first paint (skeleton or content), not against two
+      // identical OLD snapshots.
+      document.startViewTransition(() => {
+        return new Promise<void>((resolve) => {
+          // If a previous transition's resolver is still pending (rare
+          // — would mean the user clicked twice in <800ms), free it
+          // before installing the new one so we never leak.
+          pendingResolveRef.current = null
+          pendingResolveRef.current = resolve
+
+          // Safety net: if the pathname effect somehow doesn't fire
+          // (router.push silently refused, navigation was cancelled,
+          // …), unblock the View Transition so the browser doesn't
+          // stay frozen on the OLD snapshot.
+          const timeoutId = window.setTimeout(() => {
+            if (pendingResolveRef.current === resolve) {
+              pendingResolveRef.current = null
+              resolve()
+            }
+          }, NAV_COMPLETION_TIMEOUT_MS)
+
+          // Replace the resolver with one that also clears the
+          // timeout so we don't double-resolve.
+          const wrappedResolve = () => {
+            window.clearTimeout(timeoutId)
+            resolve()
+          }
+          pendingResolveRef.current = wrappedResolve
+
+          router.push(resolved.pathForRouter as never)
+        })
+      })
     }
 
     const onPopState = () => {
       // popstate fires AFTER the back navigation has already changed the
-      // history state. We can only tag the direction; the visual effect
-      // from this tag relies on the CSS animation applied to the
-      // already-committed DOM, which is limited. Acceptable: most users
-      // associate "back" with the OS-level swipe-back gesture (iOS) or
-      // an instant swap (desktop / Android), so the lack of a wrapped
-      // view transition on back is barely noticeable.
+      // history state. We only tag the direction; the visible effect
+      // is limited (no wrapping view transition possible after-the-fact).
+      // Acceptable: most users associate "back" with the OS-level
+      // swipe-back gesture (iOS) or an instant swap (desktop / Android).
       root.dataset.direction = 'back'
     }
 
