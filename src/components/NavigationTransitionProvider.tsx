@@ -32,7 +32,7 @@
 //   - Lateral (bottom-nav tabs, locale switcher, day-pill swipe) →
 //     no drill-in match → direction cleared → no transition.
 
-import { useEffect } from 'react'
+import { startTransition, useEffect } from 'react'
 import { useRouter } from '@/i18n/navigation'
 
 const DRILL_IN_PATTERNS: readonly RegExp[] = [
@@ -131,8 +131,19 @@ export function NavigationTransitionProvider() {
       e.preventDefault()
       root.dataset.direction = 'forward'
 
+      // React.startTransition tells React the route push is interruptible
+      // — it keeps the OLD UI committed (with all its data) until the
+      // NEW route's RSC fetch resolves, instead of flashing a Suspense
+      // fallback / loading spinner in between. Pairing it with
+      // document.startViewTransition means the slide doesn't begin
+      // until the destination is fully rendered — no "slide-then-flash-
+      // loading-then-content" stutter. The existing "Loading…" UI for
+      // detail pages still shows when the fetch genuinely takes a
+      // while, just no longer mid-slide.
       const doNavigate = () => {
-        router.push(resolved.pathForRouter as never)
+        startTransition(() => {
+          router.push(resolved.pathForRouter as never)
+        })
       }
 
       if (!supportsVT || reducedMotion) {
