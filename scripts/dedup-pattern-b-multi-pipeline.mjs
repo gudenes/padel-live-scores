@@ -100,13 +100,28 @@ function matchSignature(match, playerNameById) {
   return tokens.sort().join('|')
 }
 
+/** Detect the "no real time" sentinel: padelapi sometimes stores
+ *  scheduled_at as midnight UTC when only the date was known and the
+ *  schedule_label string never got converted to a real time. Padelgod's
+ *  oop-fetcher does the timezone conversion correctly. */
+function hasRealScheduledAt(m) {
+  if (!m.scheduled_at) return false
+  const d = new Date(m.scheduled_at)
+  if (Number.isNaN(d.getTime())) return false
+  return !(d.getUTCHours() === 0 && d.getUTCMinutes() === 0)
+}
+
 /** Score a match's "completeness" — higher = better survivor. */
 function completenessScore(m) {
   let s = 0
   if (m.padelapi_id && /^\d+$/.test(m.padelapi_id)) s += 1000
   if (m.widget_id_composite) s += 500
+  // Big bonus for a "real" scheduled_at (not the midnight-UTC date-only
+  // sentinel padelapi often produces for FIP tournaments). This tips
+  // FIP cross-pipeline duplicates to the padelgod row, which gets the
+  // timezone conversion right via oop-fetcher.
+  if (m.scheduled_at) s += hasRealScheduledAt(m) ? 800 : 25
   if (m.finished_at) s += 100
-  if (m.scheduled_at) s += 50
   if (m.court) s += 20
   if (m.winner_pair) s += 10
   if (m.status === 'finished' || m.status === 'retired' || m.status === 'walkover') s += 5
@@ -280,6 +295,16 @@ async function main() {
         if (survivor[f] != null) continue
         for (const d of dupes) {
           if (d[f] != null) { migrate[f] = d[f]; break }
+        }
+      }
+      // Special case: survivor's scheduled_at is the midnight-UTC
+      // date-only sentinel (no real time). If any dupe has a real time,
+      // overwrite with the better value. This catches the padelapi-vs-
+      // padelgod FIP case where the survivor selection still landed on
+      // padelapi (e.g. dupe didn't have widget_id_composite either).
+      if (survivor.scheduled_at && !hasRealScheduledAt(survivor)) {
+        for (const d of dupes) {
+          if (hasRealScheduledAt(d)) { migrate.scheduled_at = d.scheduled_at; break }
         }
       }
 

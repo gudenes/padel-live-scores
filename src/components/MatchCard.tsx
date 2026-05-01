@@ -20,10 +20,14 @@
 // stacked dual country flags, monospace per-set scores, muted loser
 // styling.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
+import type { Prediction } from '@/lib/predictions/types'
+import { classifyResult } from '@/lib/predictions/scoring'
+import { isPremierLevel } from '@/lib/tournament-labels'
 import { FlagImage } from '@/components/FlagImage'
+import { PredictionPanel } from '@/components/prediction/PredictionPanel'
 import { pairName, parseSetScore, parseSetFromGames, type Match } from '@/types/match'
 
 const GREEN = '#7ED321'
@@ -142,6 +146,12 @@ export interface MatchCardProps {
    *  built from the OOP "Followed by" chain. Shown in orange when no real
    *  scheduled time is available. */
   estimatedLabel?: string
+  /** Tournament level (e.g. 'p1', 'major', 'fip_silver'). Required to gate
+   *  the prediction game UI — only Premier-tier matches (where we receive
+   *  point-by-point live data via the relay) get the PICK CTA, the
+   *  expandable insights panel, and the result badge. Non-Premier cards
+   *  fall back to a plain link to the match detail page. */
+  tournamentLevel?: string | null
 }
 
 export function MatchCard({
@@ -150,18 +160,68 @@ export function MatchCard({
   locale,
   userTz,
   estimatedLabel,
+  tournamentLevel,
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
+  const tPred = useTranslations('prediction')
 
-  // Hydration-safe localStorage prediction lookup (was only on
-  // V3ScheduledCard; surfaced here so the matches list shows it too).
-  const [hasPrediction, setHasPrediction] = useState(false)
-  useEffect(() => {
+  // Gate the entire prediction game on tournament tier. Only Premier-tier
+  // matches get full point-by-point coverage via padelapi.org's Pusher
+  // relay; everything else (FIP Bronze/Silver/Gold/Platinum/etc.) doesn't
+  // make sense for live-tracked predictions, so the card stays a plain
+  // link to the match detail page.
+  const isPredictionEnabled = isPremierLevel(tournamentLevel)
+
+  // ── Hydration-safe prediction read (unified for all card states) ─────
+  // Re-reads localStorage on mount AND every time the panel closes — the
+  // PredictionPanel writes via its own useMatchPrediction hook, which has
+  // a separate useState, so the corner needs an explicit resync after the
+  // user locks in.
+  const [prediction, setPredictionLocal] = useState<Prediction | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const closeTimer = useRef<NodeJS.Timeout | null>(null)
+
+  const refreshPrediction = useCallback(() => {
     try {
       const raw = localStorage.getItem('pn_match_predictions')
-      if (raw) setHasPrediction(!!JSON.parse(raw)[match.id])
+      if (!raw) { setPredictionLocal(null); return }
+      const all = JSON.parse(raw)
+      const p = all[match.id]
+      if (!p) { setPredictionLocal(null); return }
+      if ('multiplier' in p && 'probability' in p) setPredictionLocal(p as Prediction)
+      else setPredictionLocal({
+        matchId: match.id, pair: p.pair, margin: p.margin,
+        probability: 0.5, multiplier: 2.0, isFallback: true,
+        createdAt: new Date(0).toISOString(),
+      })
     } catch {}
   }, [match.id])
+
+  useEffect(() => { refreshPrediction() }, [refreshPrediction])
+
+  // Resync after the panel closes — covers auto-collapse + manual close +
+  // any case where PredictionPanel wrote to storage while we were open.
+  useEffect(() => {
+    if (!isOpen) refreshPrediction()
+  }, [isOpen, refreshPrediction])
+
+  const toggleOpen = useCallback((e?: React.MouseEvent) => {
+    // The corner pill is inside the outer <Link>; preventDefault cancels
+    // the link navigation, stopPropagation keeps next-intl's Link click
+    // handler from firing too.
+    e?.preventDefault()
+    e?.stopPropagation()
+    setIsOpen(o => !o)
+  }, [])
+
+  const handleLocked = useCallback(() => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    // Delay accounts for the 700ms card flip + leaves ~2.2s for the user
+    // to read the green "Locked in · pair · margin" confirmation.
+    closeTimer.current = setTimeout(() => setIsOpen(false), 2900)
+  }, [])
+
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current) }, [])
 
   const sets = (match.sets ?? []).slice().sort((a, b) => a.set_number - b.set_number)
   const isLive = match.status === 'live'
@@ -204,17 +264,15 @@ export function MatchCard({
 
   const borderColor = isLive ? 'rgba(255,70,85,0.22)' : BORDER
 
-  return (
-    <Link
-      href={`/match/${match.id}`}
-      locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
-      style={{
-        textDecoration: 'none',
-        color: 'inherit',
-        display: 'block',
-        marginBottom: 8,
-      }}
-    >
+  // The whole card is always a <Link> to match detail. The corner pill
+  // (PICK / YOUR PICK / result badge) is the ONLY thing that toggles the
+  // prediction panel — its onClick calls preventDefault which cancels the
+  // Link's navigation. Clicks anywhere else in the card body navigate as
+  // expected. Clicks inside the open panel call stopPropagation so they
+  // don't bubble up to the Link either.
+  const wrapperStyle = { textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 8 } as const
+  const cardInner = (
+    <>
       <style>{PULSE_KEYFRAMES}</style>
       <div
         style={{
@@ -270,22 +328,21 @@ export function MatchCard({
               {status.label}
             </Chip>
           )}
-          {hasPrediction && isScheduled && (
-            <span style={{
-              display: 'flex', alignItems: 'center', gap: 3,
-              background: 'rgba(126,211,33,0.06)',
-              padding: '2px 8px',
-              clipPath: CHUNKY.badge,
-              border: '0.5px solid rgba(126,211,33,0.15)',
-              marginLeft: 'auto',
-            }}>
-              <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="10" r="8"/><path d="M8 18h8"/><path d="M7 21h10"/>
-              </svg>
-              <span style={{ fontSize: 7, fontWeight: 700, color: '#7ED321', letterSpacing: 0.3 }}>{tTournament('predicted')}</span>
-            </span>
-          )}
         </div>
+
+        {/* Corner CTA / pill / badge — only on Premier-tier matches where
+            we have point-by-point coverage. */}
+        {isPredictionEnabled && (
+          <CornerElement
+            match={match}
+            prediction={prediction}
+            isLive={isLive}
+            isFinished={isFinished}
+            isOpen={isOpen}
+            onToggle={toggleOpen}
+            tPred={tPred}
+          />
+        )}
 
         {/* Pair rows: [names col | optional stream button (Task 11) | scores col] + right-aligned date/time */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
@@ -475,7 +532,59 @@ export function MatchCard({
             </div>
           )}
         </div>
+
+        {/* Expandable insights panel — only mounted on prediction-enabled
+            (Premier-tier) matches. */}
+        {isPredictionEnabled && (
+          <div
+            style={{
+              maxHeight: isOpen ? 600 : 0,
+              opacity: isOpen ? 1 : 0,
+              overflow: 'hidden',
+              marginTop: isOpen ? 12 : 0,
+              paddingTop: isOpen ? 12 : 0,
+              borderTop: isOpen ? `0.5px solid ${BORDER}` : '0.5px solid transparent',
+              transition: 'max-height 380ms ease, opacity 280ms ease, margin-top 380ms ease, padding-top 380ms ease',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {isOpen && (
+              <>
+                <PredictionPanel match={match} onLocked={handleLocked} />
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setIsOpen(false)
+                }}
+                aria-label={tPred('tapToClose')}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  margin: '10px auto 0', padding: 8,
+                  background: 'transparent', border: 0, cursor: 'pointer',
+                  color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6,
+                }}
+              >
+                <span style={{ fontSize: 11, lineHeight: 1 }}>▴</span>
+                {tPred('tapToClose')}
+                <span style={{ fontSize: 11, lineHeight: 1 }}>▴</span>
+              </button>
+            </>
+            )}
+          </div>
+        )}
       </div>
+    </>
+  )
+
+  return (
+    <Link
+      href={`/match/${match.id}`}
+      locale={locale as 'en' | 'es' | 'pt' | 'it' | 'fr'}
+      style={wrapperStyle}
+    >
+      {cardInner}
     </Link>
   )
 }
@@ -513,4 +622,129 @@ function Chip({
       {children}
     </span>
   )
+}
+
+// ── CornerElement — prediction state machine ────────────────────────────
+
+function CornerElement({
+  match, prediction, isLive, isFinished, isOpen, onToggle, tPred,
+}: {
+  match: Match
+  prediction: Prediction | null
+  isLive: boolean
+  isFinished: boolean
+  isOpen: boolean
+  onToggle: (e?: React.MouseEvent) => void
+  tPred: ReturnType<typeof useTranslations>
+}) {
+  const isScheduled = match.status === 'scheduled'
+
+  // Finished + predicted → result badge
+  if (isFinished && prediction) {
+    // ⚠ NEW API: classifyResult returns { result, marginCorrect } | null
+    const classified = classifyResult(prediction, match)
+    if (!classified || classified.result === 'invalidated') return null
+    const result = classified.result
+    const isUpset = result === 'upset'
+    const isPositive = result === 'perfect' || result === 'right' || result === 'upset'
+    const bg = isUpset
+      ? 'linear-gradient(135deg, #7ED321, #FFD166)'
+      : isPositive ? GREEN : 'rgba(255,70,85,0.14)'
+    const color = isPositive ? '#0a0a0a' : '#FF4655'
+    const labelKey =
+      result === 'perfect' ? 'result.perfectBadge'
+      : result === 'right' ? 'result.rightBadge'
+      : result === 'upset' ? 'result.upsetBadge'
+      : 'result.wrongBadge'
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          position: 'absolute', top: 10, right: 12, zIndex: 3,
+          background: bg, color, padding: '3px 8px', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 1,
+          clipPath: CHUNKY.badge, border: 0,
+        }}
+        aria-label={tPred(labelKey as any)}
+      >
+        <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', lineHeight: 1.2 }}>
+          {tPred(labelKey as any)}
+        </span>
+      </button>
+    )
+  }
+
+  // Live + predicted → "YOUR PICK" pill (read-only state)
+  if (isLive && prediction) {
+    return (
+      <button type="button" onClick={onToggle} style={cornerPillStyle('rgba(126,211,33,0.10)', GREEN)}>
+        <span style={cornerTopStyle}>{tPred('cta.yourPick')}</span>
+      </button>
+    )
+  }
+
+  // Live + no prediction → muted LOCKED chip
+  if (isLive && !prediction) {
+    return (
+      <button type="button" onClick={onToggle} style={cornerPillStyle('rgba(255,255,255,0.04)', MUTED, 'dashed')}>
+        <span style={cornerTopStyle}>{tPred('cta.locked')}</span>
+      </button>
+    )
+  }
+
+  // Scheduled + predicted → quieter "YOUR PICK" pill
+  if (isScheduled && prediction) {
+    return (
+      <button type="button" onClick={onToggle} style={cornerPillStyle('rgba(126,211,33,0.10)', GREEN)}>
+        <span style={cornerTopStyle}>{tPred('cta.yourPick')}</span>
+      </button>
+    )
+  }
+
+  // Scheduled + no prediction → green PICK CTA
+  if (isScheduled) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          position: 'absolute', top: 10, right: 12, zIndex: 3,
+          background: GREEN, color: '#0a0a0a',
+          padding: '3px 8px', cursor: 'pointer', border: 0,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase',
+          lineHeight: 1.2,
+          clipPath: CHUNKY.badge,
+          boxShadow: '0 1px 3px rgba(126,211,33,0.20)',
+          transform: isOpen ? 'scale(0.9)' : 'scale(1)',
+          opacity: isOpen ? 0 : 1,
+          pointerEvents: isOpen ? 'none' : 'auto',
+          transition: 'transform 200ms ease, opacity 200ms ease',
+        }}
+        aria-label={tPred('cta.pick')}
+      >
+        <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="10" r="8" /><path d="M8 18h8" /><path d="M7 21h10" />
+        </svg>
+        <span>{tPred('cta.pick')}</span>
+      </button>
+    )
+  }
+
+  return null
+}
+
+const cornerTopStyle: React.CSSProperties = {
+  fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', lineHeight: 1.2,
+}
+
+function cornerPillStyle(bg: string, color: string, borderStyle: 'solid' | 'dashed' = 'solid'): React.CSSProperties {
+  return {
+    position: 'absolute', top: 10, right: 12, zIndex: 3,
+    background: bg, color, padding: '3px 8px', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: 1,
+    clipPath: CHUNKY.badge,
+    border: `0.5px ${borderStyle} ${color}40`,
+  }
 }

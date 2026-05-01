@@ -820,5 +820,58 @@
     "searchAria": "Rechercher un pays",
     "clearAria": "Effacer la recherche",
     "noMatch": "Aucun pays ne correspond à \"{query}\""
+  },
+  "prediction": {
+    "cta": { "pick": "CHOISIR", "yourPick": "TON CHOIX", "locked": "VERROUILLÉ" },
+    "makeYourPick": "Fais ton choix",
+    "rewardShown": "Récompense affichée",
+    "favored": "{pct}% favori",
+    "underdog": "{pct}% outsider",
+    "tossUp": "{pct}% indécis",
+    "unrankedTossUp": "Sans classement — indécis",
+    "upsetFlag": "SURPRISE",
+    "ifRight": "guacas si tu gagnes",
+    "marginBonus": "+0,50× bonus si tu trouves le score",
+    "marginBonusShort": "+0,50× bonus",
+    "youArePicking": "Tu choisis",
+    "change": "Changer",
+    "lockedIn": "Validé",
+    "tapToClose": "Touche pour fermer",
+    "closingSoon": "Fermeture imminente…",
+    "stayOpen": "Garder ouvert",
+    "straightSets": "Sets directs",
+    "threeSets": "Trois sets",
+    "result": {
+      "perfect": "Pronostic parfait",
+      "right": "Bon · score raté",
+      "wrong": "Raté",
+      "heavyUpset": "Grosse surprise réussie",
+      "perfectBadge": "PARFAIT",
+      "rightBadge": "BON",
+      "wrongBadge": "RATÉ",
+      "upsetBadge": "SURPRISE"
+    },
+    "live": { "tracking": "Suivi de ton choix", "yourPickHeader": "Ton choix" },
+    "community": {
+      "pick": "Choix de la communauté",
+      "picks": "{n, plural, one {# choix} other {# choix}}",
+      "noPicksYet": "Sois le premier à choisir"
+    },
+    "stats": { "avgRanking": "classement moyen", "lastFive": "5 derniers", "h2h": "h2h" },
+    "sponsor": "Pronostics · présenté par {brand}",
+    "myPicks": {
+      "title": "Mes choix",
+      "totalGuacas": "guacas totaux",
+      "accuracy": "précision",
+      "currentStreak": "série",
+      "bestStreak": "meilleure série",
+      "rank": "RANG #{rank} · GLOBAL",
+      "filterAll": "Tous",
+      "filterPending": "En attente",
+      "filterWon": "Gagnés",
+      "filterLost": "Perdus",
+      "noPicks": "Tu n'as encore choisi aucun match",
+      "noPicksSub": "Touche CHOISIR sur n'importe quel match programmé pour jouer."
+    }
   }
 }
