@@ -444,6 +444,20 @@ button:focus { outline: none; }
   view-transition-name: app-screen;
 }
 
+/* Clip the slide to the frame on desktop. By default, the View
+   Transitions API positions snapshot pseudo-elements at the
+   document root, so a `translateX(100%)` keyframe lets the new
+   page render OUTSIDE the .app-screen bounds — visible against
+   the surrounding ambient/bezel area on desktop. Setting `overflow:
+   clip` on the group pseudo-element confines the snapshot to the
+   .app-screen-shaped container, so the slide reads as "page coming
+   in from inside the frame's right edge" instead of "page flying
+   in from off-screen." On mobile, .app-screen fills the viewport
+   so this is a no-op. */
+::view-transition-group(app-screen) {
+  overflow: clip;
+}
+
 /* Suppress the default cross-fade on root + the named pair. Each
    direction below defines its own keyframes; unset direction = no
    animation at all. */
