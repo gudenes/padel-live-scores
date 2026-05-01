@@ -2,7 +2,38 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   runFipOopWriter,
   buildOopPatch,
+  isPlaceholderScheduledAt,
 } from '../../workers/fip-oop-writer.js';
+
+describe('isPlaceholderScheduledAt', () => {
+  it('returns true for midnight UTC with Z suffix', () => {
+    expect(isPlaceholderScheduledAt('2026-05-02T00:00:00Z')).toBe(true);
+  });
+  it('returns true for midnight UTC with +00:00 offset', () => {
+    expect(isPlaceholderScheduledAt('2026-05-02T00:00:00+00:00')).toBe(true);
+  });
+  it('returns true for midnight UTC with sub-second precision', () => {
+    expect(isPlaceholderScheduledAt('2026-05-02T00:00:00.000+00:00')).toBe(true);
+  });
+  it('returns true for midnight UTC bare ISO (no tz)', () => {
+    expect(isPlaceholderScheduledAt('2026-05-02T00:00:00')).toBe(true);
+  });
+  it('returns false for any non-midnight time', () => {
+    expect(isPlaceholderScheduledAt('2026-05-02T14:30:00+00:00')).toBe(false);
+    expect(isPlaceholderScheduledAt('2026-05-02T00:30:00+00:00')).toBe(false);
+    expect(isPlaceholderScheduledAt('2026-05-02T00:00:01+00:00')).toBe(false);
+  });
+  it('returns false for null and empty', () => {
+    expect(isPlaceholderScheduledAt(null)).toBe(false);
+    expect(isPlaceholderScheduledAt('')).toBe(false);
+  });
+  it('returns false for midnight LOCAL time with non-zero UTC offset', () => {
+    // A real Madrid-midnight match would store as ...T22:00:00+00:00
+    // (UTC), not midnight UTC. Hypothetical exact midnight in a non-UTC
+    // tz isn't a placeholder.
+    expect(isPlaceholderScheduledAt('2026-05-01T22:00:00+00:00')).toBe(false);
+  });
+});
 
 const TOURNAMENT_ID = 't-isla';
 const TOURNAMENT_SLUG = 'fip-bronze-aquahobby-isla-de-la-palma-2026';
