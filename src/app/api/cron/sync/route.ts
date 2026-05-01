@@ -1014,7 +1014,7 @@ export async function GET(request: Request) {
         // Active tournaments: started and not yet ended
         const { data: activeTournaments } = await supabase
           .from('tournaments')
-          .select('external_id, name')
+          .select('external_id, name, level')
           .lte('starts_at', today)
           .gte('ends_at', today)
           .not('external_id', 'is', null)
@@ -1023,7 +1023,7 @@ export async function GET(request: Request) {
         // Recently completed tournaments
         const { data: recentTournaments } = await supabase
           .from('tournaments')
-          .select('external_id, name')
+          .select('external_id, name, level')
           .gte('ends_at', twoWeeksAgo)
           .lt('ends_at', today)
           .not('external_id', 'is', null)
@@ -1034,7 +1034,7 @@ export async function GET(request: Request) {
         const oneWeekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
         const { data: upcomingTournaments } = await supabase
           .from('tournaments')
-          .select('external_id, name')
+          .select('external_id, name, level')
           .gt('starts_at', today)
           .lte('starts_at', oneWeekFromNow)
           .not('external_id', 'is', null)
@@ -1054,15 +1054,25 @@ export async function GET(request: Request) {
           return true
         })
 
-        console.log(`[Sync] Syncing matches for ${uniqueTournaments.length} tournament(s)`)
+        // Skip FIP-tier tournaments — padelgod owns FIP match data via the
+        // Crionet widget pipeline (fip-draw-populator + fip-results-writer
+        // + fip-oop-writer). Padelapi's FIP coverage is incomplete (missing
+        // scheduled_at time conversion in particular) and was creating
+        // duplicate rows that fight padelgod for the same physical match.
+        // Premier-tier (p1/p2/major/finals) keeps going through padelapi
+        // because that's where the live point-by-point Pusher feed runs.
+        const fipFiltered = uniqueTournaments.filter(t => t.level?.startsWith('fip_'))
+        const eligibleTournaments = uniqueTournaments.filter(t => !t.level?.startsWith('fip_'))
+
+        console.log(`[Sync] Syncing matches for ${eligibleTournaments.length} tournament(s) (skipped ${fipFiltered.length} FIP-tier — padelgod owns those)`)
 
         let totalMatchesSynced = 0
-        for (const t of uniqueTournaments) {
+        for (const t of eligibleTournaments) {
           if (isRateLimited()) break
           const count = await syncTournamentMatches(t.external_id)
           totalMatchesSynced += count
         }
-        innerResult.matches = { synced: totalMatchesSynced, tournaments: uniqueTournaments.map(t => t.external_id) }
+        innerResult.matches = { synced: totalMatchesSynced, tournaments: eligibleTournaments.map(t => t.external_id), skippedFip: fipFiltered.length }
       }
 
       // ── Players ──
