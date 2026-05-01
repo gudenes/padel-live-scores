@@ -5,6 +5,7 @@ import type { Metadata } from 'next'
 import { routing } from '@/i18n/routing'
 import { BookmarkToastProvider } from '@/components/BookmarkToast'
 import { LoginSheetProvider } from '@/components/LoginSheetProvider'
+import { NavigationTransitionProvider } from '@/components/NavigationTransitionProvider'
 import { buildLocaleRootMetadata } from '@/lib/seo-metadata'
 
 export function generateStaticParams() {
@@ -42,6 +43,7 @@ export default async function LocaleLayout({
     <NextIntlClientProvider locale={locale} messages={messages}>
       <LoginSheetProvider>
         <BookmarkToastProvider>
+          <NavigationTransitionProvider />
           {children}
         </BookmarkToastProvider>
       </LoginSheetProvider>

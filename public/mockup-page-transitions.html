@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Page transitions — PadelNachos mockup</title>
+<style>
+  /* ── Brand tokens (mirror src/components/home/shared.tsx) ───────────── */
+  :root {
+    --green: #7ED321;
+    --live: #FF4655;
+    --bg-base: #0A0A0A;
+    --bg-card: #141414;
+    --bg-row: #1e1e1e;
+    --muted: #6B7280;
+    --border: rgba(255,255,255,0.06);
+    --men: #4A9EFF;
+    --women: #D966FF;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #050505; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, system-ui, sans-serif;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px 200px;
+    gap: 18px;
+  }
+
+  /* ── Page-frame: simulates a phone viewport so the slide is visible ── */
+  .frame {
+    position: relative;
+    width: 380px;
+    height: 720px;
+    background: var(--bg-base);
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 8px #1a1a1a, 0 0 0 9px #2a2a2a;
+  }
+
+  /* ── Page = full-frame stacked pane that slides in/out ──────────────── */
+  .page {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-base);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Top bar (matches the real app's sticky header) ─────────────────── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 14px 12px;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar .back {
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px; line-height: 1;
+    padding: 0;
+  }
+  .topbar h1 {
+    flex: 1; margin: 0;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.3px;
+  }
+
+  /* ── Section title ──────────────────────────────────────────────────── */
+  .section-title {
+    font-size: 9px; font-weight: 800;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted);
+    padding: 16px 16px 8px;
+  }
+
+  /* ── Match card (compact mock) ──────────────────────────────────────── */
+  .card {
+    display: block;
+    margin: 0 8px 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    padding: 12px 14px;
+    cursor: pointer;
+    color: inherit;
+    text-decoration: none;
+    position: relative;
+  }
+  .card .accent {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--men);
+  }
+  .card[data-cat="women"] .accent { background: var(--women); }
+  .card .chips {
+    display: flex; gap: 6px; margin-bottom: 10px;
+  }
+  .chip {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+    text-transform: uppercase; color: var(--muted);
+    background: #1a1a1a;
+    padding: 3px 7px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    line-height: 1.2;
+  }
+  .card .pair {
+    display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  }
+  .card .pair .name {
+    font-size: 12px; font-weight: 600; color: #fff;
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .card .pair .seed {
+    font-size: 9px; font-weight: 800;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    line-height: 1.2;
+    min-width: 14px; text-align: center;
+  }
+
+  /* ── Match detail (mock) ────────────────────────────────────────────── */
+  .detail-hero {
+    padding: 24px 16px 16px;
+    background: linear-gradient(135deg, #0e1a0e, #0a0a0a);
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-hero .court { font-size: 9px; font-weight: 700; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; }
+  .detail-hero .vs {
+    margin-top: 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .detail-hero .team {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .detail-hero .team .who { font-size: 14px; font-weight: 700; }
+  .detail-hero .team .seed-pill {
+    font-size: 10px; color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.08);
+    padding: 2px 7px;
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  .detail-section {
+    padding: 18px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .detail-section h3 {
+    margin: 0 0 10px; font-size: 11px;
+    color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .stat-bar {
+    height: 8px; background: rgba(255,255,255,0.05); margin-bottom: 14px; position: relative;
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+  }
+  .stat-bar .fill {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    background: var(--green);
+  }
+  .stat-bar .label {
+    position: absolute; top: -16px; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--muted);
+  }
+
+  /* ── Bottom controls panel ──────────────────────────────────────────── */
+  .controls {
+    width: 100%; max-width: 380px;
+    background: #0e0e0e;
+    border: 1px solid #1f1f1f;
+    border-radius: 14px;
+    padding: 14px 16px;
+    color: #ddd;
+    font-size: 12px;
+  }
+  .controls h2 {
+    margin: 0 0 10px; font-size: 11px;
+    color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .controls .row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .controls .row label {
+    flex: 0 0 88px; font-size: 11px; color: #aaa;
+  }
+  .controls .row select, .controls .row input[type="range"] {
+    flex: 1;
+    background: #181818;
+    border: 1px solid #222;
+    color: #fff;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    border-radius: 4px;
+  }
+  .controls .row .val { width: 50px; font-variant-numeric: tabular-nums; text-align: right; }
+  .controls .preset-row {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .controls .preset-row button {
+    background: #181818;
+    border: 1px solid #222;
+    color: #ddd;
+    padding: 5px 9px;
+    font-size: 10px;
+    font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: inherit;
+  }
+  .controls .preset-row button.on {
+    background: var(--green); color: #0a0a0a; border-color: var(--green);
+  }
+  .controls .hint {
+    color: var(--muted); font-size: 10px; line-height: 1.5; margin-top: 6px;
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     VIEW-TRANSITIONS — the actual transition logic.
+
+     Two named transitions: 'forward' and 'back'. CSS picks which keyframes
+     apply via `::view-transition-old` / `::view-transition-new`.
+     We bind the duration + easing dynamically through CSS variables that
+     the controls panel updates on the fly.
+     ════════════════════════════════════════════════════════════════════ */
+
+  :root {
+    --slide-duration: 300ms;
+    --slide-easing: cubic-bezier(0.32, 0.72, 0, 1);  /* iOS spring-ish */
+  }
+
+  /* Disable the browser's default cross-fade. Each direction defines its own
+     keyframes below. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+
+  /* ── FORWARD: new page slides in from the right ──────────────────────
+     Old page either holds (style A) or shifts left + dims (style B / iOS).
+     Toggled via `data-style="hold" | "ios" | "fade"` on <html>. */
+
+  /* Style A — pure cover (new on top, old holds underneath) */
+  /* Leading-edge shadow: a drop-shadow filter applied to the incoming page
+     follows its leftmost edge during the slide, falling on the old page
+     underneath. The shadow strength tapers to 0 by the time the page lands,
+     so once still there's no residual rim. */
+  html[data-style="hold"][data-direction="forward"]::view-transition-old(root) {
+    animation: hold var(--slide-duration) var(--slide-easing) both;
+    z-index: 1;
+  }
+  html[data-style="hold"][data-direction="forward"]::view-transition-new(root) {
+    animation: slide-in-right-shadowed var(--slide-duration) var(--slide-easing) both;
+    z-index: 2;
+  }
+
+  /* Style B — iOS push (old shifts ~30% left + dims, new comes from right) */
+  html[data-style="ios"][data-direction="forward"]::view-transition-old(root) {
+    animation: shift-left-dim var(--slide-duration) var(--slide-easing) both;
+    z-index: 1;
+  }
+  html[data-style="ios"][data-direction="forward"]::view-transition-new(root) {
+    animation: slide-in-right var(--slide-duration) var(--slide-easing) both;
+    z-index: 2;
+  }
+
+  /* Style C — Material/fade (subtle vertical lift + fade) */
+  html[data-style="fade"][data-direction="forward"]::view-transition-old(root) {
+    animation: fade-out var(--slide-duration) var(--slide-easing) both;
+  }
+  html[data-style="fade"][data-direction="forward"]::view-transition-new(root) {
+    animation: fade-up-in var(--slide-duration) var(--slide-easing) both;
+  }
+
+  /* ── BACK: reverse direction ─────────────────────────────────────── */
+
+  /* Back: the page that's leaving (old) keeps its leading-edge shadow as
+     it slides off, peeling away from the underlying list. */
+  html[data-style="hold"][data-direction="back"]::view-transition-old(root) {
+    animation: slide-out-right-shadowed var(--slide-duration) var(--slide-easing) both;
+    z-index: 2;
+  }
+  html[data-style="hold"][data-direction="back"]::view-transition-new(root) {
+    animation: hold var(--slide-duration) var(--slide-easing) both;
+    z-index: 1;
+  }
+
+  html[data-style="ios"][data-direction="back"]::view-transition-old(root) {
+    animation: slide-out-right var(--slide-duration) var(--slide-easing) both;
+    z-index: 2;
+  }
+  html[data-style="ios"][data-direction="back"]::view-transition-new(root) {
+    animation: shift-right-undim var(--slide-duration) var(--slide-easing) both;
+    z-index: 1;
+  }
+
+  html[data-style="fade"][data-direction="back"]::view-transition-old(root) {
+    animation: fade-down-out var(--slide-duration) var(--slide-easing) both;
+  }
+  html[data-style="fade"][data-direction="back"]::view-transition-new(root) {
+    animation: fade-in var(--slide-duration) var(--slide-easing) both;
+  }
+
+  @keyframes hold {
+    from { transform: translateX(0); opacity: 1; }
+    to   { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes slide-in-right {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+  }
+  @keyframes slide-out-right {
+    from { transform: translateX(0); }
+    to   { transform: translateX(100%); }
+  }
+  /* Same slide as above but layers a left-edge drop-shadow that fades to
+     zero at the end. drop-shadow follows the element's alpha shape, so a
+     negative offsetX puts it on the leading (left) edge of the page that
+     is sliding right-to-left into view. */
+  @keyframes slide-in-right-shadowed {
+    from {
+      transform: translateX(100%);
+      filter: drop-shadow(-12px 0 24px rgba(0, 0, 0, 0.7));
+    }
+    to {
+      transform: translateX(0);
+      filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+    }
+  }
+  @keyframes slide-out-right-shadowed {
+    from {
+      transform: translateX(0);
+      filter: drop-shadow(-12px 0 24px rgba(0, 0, 0, 0.7));
+    }
+    to {
+      transform: translateX(100%);
+      filter: drop-shadow(-4px 0 8px rgba(0, 0, 0, 0.2));
+    }
+  }
+  @keyframes shift-left-dim {
+    from { transform: translateX(0);     filter: brightness(1); }
+    to   { transform: translateX(-30%);  filter: brightness(0.55); }
+  }
+  @keyframes shift-right-undim {
+    from { transform: translateX(-30%);  filter: brightness(0.55); }
+    to   { transform: translateX(0);     filter: brightness(1); }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-12px); }
+  }
+  @keyframes fade-up-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-down-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(12px); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Reduced motion: skip animations entirely. */
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+  }
+
+  /* ── Fallback for browsers without View Transitions ─────────────────
+     We swap pages via CSS classes; this gives a similar visual without the
+     compositor-thread benefit, just to keep the demo usable on Firefox. */
+  .page.entering-from-right { animation: slide-in-right var(--slide-duration) var(--slide-easing) both; }
+  .page.exiting-to-right    { animation: slide-out-right var(--slide-duration) var(--slide-easing) both; }
+</style>
+</head>
+<body>
+
+<!-- ════════════ Page frame ════════════ -->
+<div class="frame" id="frame">
+
+  <!-- ── PAGE 1: matches list ─────────────────────────────────────── -->
+  <div class="page" id="page-list" data-name="Matches list">
+    <div class="topbar">
+      <h1>Matches</h1>
+    </div>
+
+    <div class="section-title">FIP Silver Mendoza · Pista Central</div>
+
+    <a href="#detail" class="card" data-target="detail" data-cat="men">
+      <div class="accent"></div>
+      <div class="chips"><span class="chip">R32</span><span class="chip">FINISHED</span></div>
+      <div class="pair">
+        <span class="name">L. Puppo / M. Maldonado</span>
+        <span class="seed">6</span>
+      </div>
+      <div class="pair">
+        <span class="name">K. Kviatkovski / T. Gamondi</span>
+      </div>
+    </a>
+
+    <a href="#detail" class="card" data-target="detail" data-cat="men">
+      <div class="accent"></div>
+      <div class="chips"><span class="chip">R32</span><span class="chip">FINISHED</span></div>
+      <div class="pair">
+        <span class="name">M. A Rivero / F. Maier</span>
+      </div>
+      <div class="pair">
+        <span class="name">M. Abud / M. Lamperti</span>
+        <span class="seed">4</span>
+      </div>
+    </a>
+
+    <a href="#detail" class="card" data-target="detail" data-cat="men">
+      <div class="accent"></div>
+      <div class="chips"><span class="chip">R32</span><span class="chip">PISTA CENTRAL</span></div>
+      <div class="pair">
+        <span class="name">F. Calleja / J. Pablo Dametto</span>
+        <span class="seed">7</span>
+      </div>
+      <div class="pair">
+        <span class="name">G. Lazzarini / L. Cortese</span>
+      </div>
+    </a>
+
+    <a href="#detail" class="card" data-target="detail" data-cat="women">
+      <div class="accent"></div>
+      <div class="chips"><span class="chip">R16</span><span class="chip">PISTA 2</span></div>
+      <div class="pair">
+        <span class="name">M. Fassio / R. Eugenio Barrera</span>
+        <span class="seed">2</span>
+      </div>
+      <div class="pair">
+        <span class="name">L. Dionisio / C. Ordoñez</span>
+      </div>
+    </a>
+
+    <a href="#detail" class="card" data-target="detail" data-cat="men">
+      <div class="accent"></div>
+      <div class="chips"><span class="chip">QF</span><span class="chip">UPCOMING</span></div>
+      <div class="pair">
+        <span class="name">S. Pineda / D. Garcia</span>
+        <span class="seed">1</span>
+      </div>
+      <div class="pair">
+        <span class="name">M. Benitez / F. Jurado Sosa</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- ── PAGE 2: match detail ─────────────────────────────────────── -->
+  <div class="page" id="page-detail" data-name="Match detail" hidden>
+    <div class="topbar">
+      <button class="back" data-back type="button" aria-label="Back">‹</button>
+      <h1>Match Detail</h1>
+    </div>
+    <div class="detail-hero">
+      <div class="court">Pista Central · R32</div>
+      <div class="vs">
+        <div class="team">
+          <span class="who">L. Puppo / M. Maldonado</span>
+          <span class="seed-pill">Seed 6</span>
+        </div>
+        <div style="font-size: 10px; color: var(--muted); padding: 4px 0;">vs</div>
+        <div class="team">
+          <span class="who">K. Kviatkovski / T. Gamondi</span>
+        </div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h3>Match stats</h3>
+      <div class="stat-bar"><div class="label"><span>62%</span><span>1st serve %</span><span>54%</span></div><div class="fill" style="width: 62%;"></div></div>
+      <div class="stat-bar"><div class="label"><span>78%</span><span>1st serve win</span><span>69%</span></div><div class="fill" style="width: 78%;"></div></div>
+      <div class="stat-bar"><div class="label"><span>4/9</span><span>Break pts won</span><span>2/7</span></div><div class="fill" style="width: 56%;"></div></div>
+      <div class="stat-bar"><div class="label"><span>21</span><span>Winners</span><span>14</span></div><div class="fill" style="width: 60%;"></div></div>
+    </div>
+    <div class="detail-section">
+      <h3>Set scores</h3>
+      <div style="font-size: 14px; padding: 6px 0;">7-6 · 4-6 · 6-3</div>
+    </div>
+    <div class="detail-section" style="border-bottom: 0;">
+      <h3>Tap to go back</h3>
+      <button class="back" data-back type="button" style="border-radius: 6px; padding: 8px 14px; width: auto; height: auto; font-size: 11px;">← Back to matches</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════ Controls panel ════════════ -->
+<div class="controls">
+  <h2>Transition style</h2>
+  <div class="preset-row" id="style-row">
+    <button data-style="hold" class="on" type="button">Hold (cover)</button>
+    <button data-style="ios" type="button">iOS push</button>
+    <button data-style="fade" type="button">Fade up</button>
+  </div>
+
+  <div class="row">
+    <label for="duration">Duration</label>
+    <input id="duration" type="range" min="160" max="600" step="20" value="300" />
+    <span class="val" id="duration-val">300ms</span>
+  </div>
+
+  <div class="row">
+    <label for="easing">Easing</label>
+    <select id="easing">
+      <option value="cubic-bezier(0.32, 0.72, 0, 1)" selected>iOS spring</option>
+      <option value="cubic-bezier(0.16, 1, 0.3, 1)">Out expo</option>
+      <option value="cubic-bezier(0.4, 0, 0.2, 1)">Material standard</option>
+      <option value="ease-out">Ease-out</option>
+      <option value="linear">Linear (debug)</option>
+    </select>
+  </div>
+
+  <div class="hint">
+    Tap a match to drill in. Tap the back button (or ‹) to pop back.
+    The animation runs on the browser compositor when the View Transitions
+    API is supported (Chrome / Edge / Safari 18.2+); Firefox falls back to a
+    plain CSS slide.
+  </div>
+</div>
+
+<script>
+(() => {
+  const root = document.documentElement
+  const list = document.getElementById('page-list')
+  const detail = document.getElementById('page-detail')
+  const supportsVT = !!document.startViewTransition
+
+  function setDirection(dir) {
+    root.dataset.direction = dir
+  }
+
+  function navigate(target, direction) {
+    setDirection(direction)
+    const update = () => {
+      if (target === 'detail') {
+        list.hidden = true
+        detail.hidden = false
+        detail.scrollTop = 0
+      } else {
+        detail.hidden = true
+        list.hidden = false
+      }
+    }
+    if (supportsVT) {
+      document.startViewTransition(update)
+    } else {
+      // Fallback: rough CSS-class approximation
+      const incoming = target === 'detail' ? detail : list
+      const outgoing = target === 'detail' ? list : detail
+      const inClass = direction === 'forward' ? 'entering-from-right' : 'entering-from-right'
+      incoming.classList.add(inClass)
+      update()
+      incoming.addEventListener('animationend', () => incoming.classList.remove(inClass), { once: true })
+    }
+  }
+
+  // Hook drill-in links
+  list.addEventListener('click', (e) => {
+    const card = e.target.closest('[data-target]')
+    if (!card) return
+    e.preventDefault()
+    navigate(card.dataset.target, 'forward')
+  })
+
+  // Hook back buttons
+  document.querySelectorAll('[data-back]').forEach(btn => {
+    btn.addEventListener('click', () => navigate('list', 'back'))
+  })
+
+  // Style selector
+  document.getElementById('style-row').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-style]')
+    if (!btn) return
+    document.querySelectorAll('#style-row button').forEach(b => b.classList.remove('on'))
+    btn.classList.add('on')
+    root.dataset.style = btn.dataset.style
+  })
+  // Initial style
+  root.dataset.style = 'hold'
+
+  // Duration slider
+  const dur = document.getElementById('duration')
+  const durVal = document.getElementById('duration-val')
+  dur.addEventListener('input', () => {
+    root.style.setProperty('--slide-duration', dur.value + 'ms')
+    durVal.textContent = dur.value + 'ms'
+  })
+
+  // Easing selector
+  document.getElementById('easing').addEventListener('change', (e) => {
+    root.style.setProperty('--slide-easing', e.target.value)
+  })
+})()
+</script>
+
+</body>
+</html>
