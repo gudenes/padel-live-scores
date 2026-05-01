@@ -14,6 +14,13 @@ const MUTED = '#6B7280'
 const CHUNKY_BAR = 'polygon(2% 10%, 99% 0%, 100% 90%, 1% 100%)'
 const CHUNKY_TILE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 
+// Probability bar fills from 0 to its target width on every mount.
+// PredictionPanel is conditionally rendered ({isOpen && <PredictionPanel ... />}
+// in MatchCard) so a fresh mount = fresh fill on every panel open.
+const PANEL_KEYFRAMES = `
+@keyframes pn-bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+`
+
 type PanelMode = 'prePick' | 'live' | 'finished' | 'lockedNoPick'
 
 export interface PredictionPanelProps {
@@ -62,7 +69,12 @@ export function PredictionPanel({ match, sponsorBrand, onLocked }: PredictionPan
           <span style={{ color: !leftIsBigger ? GREEN : MUTED }}>{p2Pct}%</span>
         </div>
         <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', clipPath: CHUNKY_BAR, marginBottom: 12 }}>
-          <div style={{ height: '100%', width: `${p1Pct}%`, background: 'linear-gradient(90deg, #7ED321, #5fb314)' }} />
+          <div style={{
+            height: '100%', width: `${p1Pct}%`,
+            background: 'linear-gradient(90deg, #7ED321, #5fb314)',
+            transformOrigin: 'left center',
+            animation: 'pn-bar-grow 700ms cubic-bezier(0.16, 1, 0.3, 1) both',
+          }} />
         </div>
       </>
     )
@@ -143,6 +155,7 @@ export function PredictionPanel({ match, sponsorBrand, onLocked }: PredictionPan
 
   return (
     <div style={{ paddingTop: 8 }}>
+      <style>{PANEL_KEYFRAMES}</style>
       {mode === 'prePick' && (
         <PredictionFlow
           match={match}

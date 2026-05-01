@@ -19,6 +19,26 @@ const MUTED = '#6B7280'
 const CHUNKY_BTN = 'polygon(2% 5%, 98% 0%, 100% 95%, 0% 100%)'
 const CHUNKY_BAR = 'polygon(2% 10%, 99% 0%, 100% 90%, 1% 100%)'
 
+// Step transition + celebration animations. Each step's outer div uses
+// `pn-step-in`; the lock-in check pops via `pn-check-pop`.
+const KEYFRAMES = `
+@keyframes pn-step-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pn-check-pop {
+  0%   { opacity: 0; transform: scale(0); }
+  60%  { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes pn-pair-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+`
+
+const STEP_IN_ANIMATION = 'pn-step-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both'
+
 type Step = 'pick' | 'margin' | 'done'
 
 export interface PredictionFlowProps {
@@ -98,12 +118,15 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
         background: 'rgba(126,211,33,0.10)', border: '0.5px solid rgba(126,211,33,0.25)',
         padding: 12, marginBottom: 12,
         clipPath: 'polygon(1% 5%, 99% 0%, 100% 95%, 0% 100%)',
+        animation: STEP_IN_ANIMATION,
       }}>
+        <style>{KEYFRAMES}</style>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 24, height: 24, borderRadius: '50%', background: GREEN, color: '#0a0a0a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 14, fontWeight: 800, flexShrink: 0,
+            animation: 'pn-check-pop 480ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
           }}>✓</div>
           <div>
             <div style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, color: GREEN, fontWeight: 800 }}>
@@ -133,7 +156,11 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
     const chosenName = selectedPair === 1 ? p1Name : p2Name
     const chosenReward = selectedPair === 1 ? reward1 : reward2
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12,
+        animation: STEP_IN_ANIMATION,
+      }}>
+        <style>{KEYFRAMES}</style>
         <div style={{
           background: 'rgba(126,211,33,0.06)', border: '0.5px solid rgba(126,211,33,0.18)',
           padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 8,
@@ -202,6 +229,8 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
           padding: '10px 8px 12px', cursor: 'pointer',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
           clipPath: CHUNKY_BTN, color: '#fff',
+          // Stagger the two pair buttons so they cascade in.
+          animation: `pn-pair-in 360ms cubic-bezier(0.16, 1, 0.3, 1) ${pair === 1 ? 0 : 60}ms both`,
         }}
       >
         {isUpset && (
@@ -243,7 +272,8 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
   }
 
   return (
-    <>
+    <div style={{ animation: STEP_IN_ANIMATION }}>
+      <style>{KEYFRAMES}</style>
       <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.7, color: MUTED, textTransform: 'uppercase', textAlign: 'center', marginBottom: 8 }}>
         {t('makeYourPick')}
       </div>
@@ -254,6 +284,6 @@ export function PredictionFlow({ match, prediction, onLockIn, onClear, onLocked 
       <p style={{ textAlign: 'center', color: MUTED, fontSize: 10, margin: 0 }}>
         {t('marginBonus')}
       </p>
-    </>
+    </div>
   )
 }
