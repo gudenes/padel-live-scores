@@ -167,9 +167,19 @@ export async function runFipOopWriter(
     );
 
     // 4. Pass A — court / round / court_order updates per OOP row.
-    //    Also collects schedule-write candidates (matches whose
-    //    scheduled_at is currently NULL) for Pass B.
-    const scheduleCandidates: Array<{ matchId: string; row: OopRow }> = [];
+    //    Also tracks which matches are eligible for Pass B's gap-fill
+    //    write. We feed the FULL OOP batch (not just NULL-scheduled_at
+    //    rows) to the parser so "Followed by" can chain off filled-in
+    //    neighbours — e.g. cp=2 "Followed by" needs cp=0/cp=1 in the
+    //    batch as anchors even if those two are already filled. Without
+    //    this, gap-fill becomes order-dependent: a row that arrives
+    //    AFTER its court-mates were filled gets stranded with no chain
+    //    anchor and never resolves. Mendoza day-3 hit this with MD028 /
+    //    MD029 / MD023 — populator created them late, all the absolute-
+    //    time anchors had already filled in earlier runs, parser saw
+    //    only orphan "Followed by" rows and dropped them.
+    const allOopForParser: Array<{ matchId: string | null; row: OopRow }> = [];
+    const writeEligible = new Set<string>(); // matchIds whose scheduled_at is NULL
     for (const r of latestOop) {
       result.oopRowsConsidered += 1;
 
@@ -183,8 +193,14 @@ export async function runFipOopWriter(
 
       if (!existing) {
         // Populator hasn't created this match yet (or never will, e.g.
-        // widget-code-lookup + populator haven't caught up). Skip silently.
+        // widget-code-lookup + populator haven't caught up). Still feed
+        // the OOP row to the parser so the chain stays intact for other
+        // rows on the same court. matchId stays null; the write loop
+        // skips entries without a match.
         result.skippedNoMatch += 1;
+        if (r.day_date && r.scheduled_label) {
+          allOopForParser.push({ matchId: null, row: r });
+        }
         continue;
       }
 
@@ -211,19 +227,21 @@ export async function runFipOopWriter(
         result.updated += 1;
       }
 
-      // Pass B candidate — match exists, scheduled_at currently NULL,
-      // OOP carries enough to compute (day_date + scheduled_label).
-      if (
-        existing.scheduled_at == null &&
-        r.day_date &&
-        r.scheduled_label
-      ) {
-        scheduleCandidates.push({ matchId: existing.id, row: r });
+      // Pass B feed — every OOP row with the basics goes in so the
+      // parser's per-court chain is complete. The write step below
+      // gates on `writeEligible` (matches whose current scheduled_at
+      // is NULL) so we still preserve gap-fill semantics: filled rows
+      // act as chain anchors, but we never overwrite them.
+      if (r.day_date && r.scheduled_label) {
+        allOopForParser.push({ matchId: existing.id, row: r });
+        if (existing.scheduled_at == null) {
+          writeEligible.add(existing.id);
+        }
       }
     }
 
     // 5. Pass B — scheduled_at gap-fill from OOP day_date + label.
-    if (scheduleCandidates.length > 0) {
+    if (writeEligible.size > 0) {
       const tournamentTimezone = await getTournamentTimezone(
         supabase,
         t.tournament_id,
@@ -232,16 +250,16 @@ export async function runFipOopWriter(
         // No tz on the tournament row + country fallback didn't resolve.
         // Skip — without tz we can't compute UTC. Operator can set the
         // tournament's timezone column manually and the next run picks it up.
-        result.scheduledAtSkippedNoTimezone += scheduleCandidates.length;
+        result.scheduledAtSkippedNoTimezone += writeEligible.size;
         logger?.warn(
           {
             tournamentId: t.tournament_id,
-            candidates: scheduleCandidates.length,
+            candidates: writeEligible.size,
           },
           'fip-oop-writer: skipping scheduled_at writes — no timezone resolvable',
         );
       } else {
-        const oopBatch: OopScheduleRow[] = scheduleCandidates.map(
+        const oopBatch: OopScheduleRow[] = allOopForParser.map(
           ({ row }) => ({
             matchWidgetId: row.match_widget_id,
             court: row.court,
@@ -252,18 +270,20 @@ export async function runFipOopWriter(
         );
         const parsed = parseOopScheduledAtBatch(oopBatch, tournamentTimezone);
         const matchIdByWidget = new Map(
-          scheduleCandidates.map(({ matchId, row }) => [
-            row.match_widget_id!,
-            matchId,
-          ]),
+          allOopForParser
+            .filter(({ matchId }) => matchId != null)
+            .map(({ matchId, row }) => [row.match_widget_id!, matchId!]),
         );
 
-        result.scheduledAtSkippedUnparsable +=
-          scheduleCandidates.length - parsed.length;
+        // Track unparsable WRITE candidates only — we don't care if the
+        // parser dropped a row whose match doesn't exist yet.
+        let parsedWriteEligible = 0;
 
         for (const p of parsed) {
           const matchId = matchIdByWidget.get(p.matchWidgetId);
           if (!matchId) continue;
+          if (!writeEligible.has(matchId)) continue; // gap-fill: skip filled rows
+          parsedWriteEligible += 1;
           if (dryRun) {
             logger?.info(
               {
@@ -297,6 +317,11 @@ export async function runFipOopWriter(
           }
           result.scheduledAtWritten += 1;
         }
+
+        // Anything we wanted to write but the parser couldn't resolve
+        // (e.g. "Followed by" with no chain anchor anywhere on its court).
+        result.scheduledAtSkippedUnparsable +=
+          writeEligible.size - parsedWriteEligible;
       }
     }
   }
