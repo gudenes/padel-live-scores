@@ -2,7 +2,12 @@
 import 'dotenv/config'
 import { createClient } from '@supabase/supabase-js'
 const TID = '5027936c-9fd5-4309-83e7-44ee4620a207'
-const s = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!, { auth: { persistSession: false } })
+
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+  console.error('GATE FAIL: missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_KEY in env')
+  process.exit(1)
+}
+const s = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } })
 
 async function main() {
   const { count, error } = await s
@@ -20,7 +25,8 @@ async function main() {
     .eq('tournament_id', TID)
     .order('captured_at', { ascending: false })
     .limit(5)
-  console.table(latest)
+  if (latest && latest.length > 0) console.table(latest)
+  else console.log('(no snapshot rows to display)')
 
   if ((count ?? 0) === 0) {
     console.error('GATE FAIL: no draw snapshots for Asuncion. Wait for next :20 draw-fetcher run, then retry.')
