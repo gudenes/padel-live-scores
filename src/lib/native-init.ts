@@ -6,6 +6,7 @@
 
 import { App } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
+import { PushNotifications } from '@capacitor/push-notifications'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { StatusBar, Style } from '@capacitor/status-bar'
 
@@ -55,5 +56,47 @@ export async function initNative(): Promise<void> {
     })
   } catch (err) {
     console.warn('[native-init] App backButton listener failed', err)
+  }
+
+  // Push notifications: register the device with FCM (Android) / APNs
+  // (iOS, future), POST the resulting token to our backend so the
+  // /api/push/notify fan-out can target this device. Tap routing: when
+  // the user taps a notification, deep-link via window.location to the
+  // URL embedded in the notification's data payload.
+  try {
+    const perm = await PushNotifications.requestPermissions()
+    if (perm.receive === 'granted') {
+      await PushNotifications.register()
+    }
+
+    PushNotifications.addListener('registration', async (token) => {
+      try {
+        await fetch('/api/user/native-push-subscriptions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            platform: Capacitor.getPlatform(), // 'android' | 'ios'
+            deviceToken: token.value,
+            locale: navigator.language?.split('-')[0] || 'en',
+          }),
+        })
+      } catch (err) {
+        console.warn('[native-init] push register POST failed', err)
+      }
+    })
+
+    PushNotifications.addListener('registrationError', (err) => {
+      console.warn('[native-init] push registration error', err)
+    })
+
+    // When user taps a notification, route the WebView to the deep link
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      const url = action.notification.data?.url
+      if (typeof url === 'string' && url.startsWith('/')) {
+        window.location.href = url
+      }
+    })
+  } catch (err) {
+    console.warn('[native-init] PushNotifications setup failed', err)
   }
 }
