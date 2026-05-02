@@ -290,6 +290,33 @@ describe('runTournamentDiscovery', () => {
     // suppress unused-var lint
     void supabase;
   });
+
+  it("sets live_source='padelgod' on new tournament INSERTs", async () => {
+    const supa = fakeSupabase('2026-01-01T00:00:00Z')
+    const httpClient = {
+      get: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 999,
+            slug: 'fip-bronze-newtown-2026',
+            title: { rendered: 'FIP BRONZE NEWTOWN' },
+            modified_gmt: '2026-05-01T00:00:00',
+            acmf_event: {
+              accommodation_start_date: '2026-06-01',
+              accommodation_end_date: '2026-06-07',
+            },
+            tournament_category: [497],   // fip-bronze category id
+            country: [],
+          },
+        ],
+      }),
+    } as never
+    await runTournamentDiscovery({ supabase: supa as never, httpClient, logger: console as never })
+    const tournamentUpserts = supa.upserted.filter((u: any) => u.table === 'tournaments')
+    expect(tournamentUpserts.length).toBeGreaterThan(0)
+    const insertedRow = tournamentUpserts[0].rows[0]
+    expect(insertedRow.live_source).toBe('padelgod')
+  })
 });
 
 // ── Test fixtures for Premier gap-fill tests ──
