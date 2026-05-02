@@ -12,6 +12,9 @@ import {
 export interface OopFetcherDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
+  /** When set, only tournaments whose UUID is in the allowlist are
+   *  processed. Used by the on-demand refresh endpoint. */
+  onlyTournamentIds?: Set<string>;
 }
 
 export interface OopFetcherResult {
@@ -309,7 +312,10 @@ export async function runOopFetcher(deps: OopFetcherDeps): Promise<OopFetcherRes
     'padelgod_active_tournaments_for_static_workers'
   );
   if (error) throw new Error(`Active tournaments RPC failed: ${error.message}`);
-  const list = (tournaments ?? []) as ActiveTournament[];
+  const allList = (tournaments ?? []) as ActiveTournament[];
+  const list = deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0
+    ? allList.filter((t) => deps.onlyTournamentIds!.has(t.tournament_id))
+    : allList;
 
   let totalMatchesInserted = 0;
   for (const t of list) {

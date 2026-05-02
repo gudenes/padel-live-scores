@@ -62,6 +62,9 @@ export interface FipOopWriterDeps {
   /** When true (default), log proposed updates but don't write. Lets
    *  operators review output before committing. */
   dryRun: boolean;
+  /** When set, only tournaments whose UUID is in the allowlist are
+   *  processed. Used by the on-demand refresh endpoint. */
+  onlyTournamentIds?: Set<string>;
 }
 
 export interface FipOopWriterResult {
@@ -163,7 +166,10 @@ export async function runFipOopWriter(
       `padelgod_active_tournaments_with_slug RPC failed: ${toursErr.message}`
     );
   }
-  const tournaments = (tours ?? []) as TournamentRow[];
+  const allTournaments = (tours ?? []) as TournamentRow[];
+  const tournaments = deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0
+    ? allTournaments.filter((t) => deps.onlyTournamentIds!.has(t.tournament_id))
+    : allTournaments;
 
   for (const t of tournaments) {
     const tournamentWidgetId = await getActiveWidgetIdCode(

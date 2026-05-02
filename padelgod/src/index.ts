@@ -39,6 +39,7 @@ import { createLogger } from './lib/logger.js';
 import { createSupabaseClient } from './lib/supabase.js';
 import { registerHealthRoute } from './api/health.js';
 import { registerAdminRoutes } from './api/admin.js';
+import { registerRefreshTournamentRoute } from './api/refresh-tournament.js';
 import { createHttpClient, PADELGOD_USER_AGENT } from './lib/http-client.js';
 import { buildSchedule, startScheduler, stopScheduler, type SchedulerDeps } from './scheduler.js';
 import { shutdownBrowser } from './lib/playwright-pool.js';
@@ -73,6 +74,12 @@ async function main() {
     httpClient,
     logger,
     fipDrawLinkerDryRun: env.FIP_DRAW_LINKER_DRY_RUN,
+  });
+  registerRefreshTournamentRoute(app, {
+    adminToken: env.PADELGOD_ADMIN_TOKEN,
+    supabase,
+    httpClient,
+    logger,
   });
 
   // Preserve known-client-error status codes (4xx) from Fastify — e.g.

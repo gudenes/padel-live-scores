@@ -59,6 +59,9 @@ export interface FipEntryListPopulatorDeps {
    * Lets operators review before committing the worker.
    */
   dryRun: boolean;
+  /** When set, only snapshot rows whose tournament_id is in the
+   *  allowlist are processed. Used by the on-demand refresh endpoint. */
+  onlyTournamentIds?: Set<string>;
 }
 
 export interface FipEntryListPopulatorResult {
@@ -132,7 +135,10 @@ export async function runFipEntryListPopulator(
     );
   }
 
-  const rows = (snapshotRows ?? []) as EntryListSnapshotRow[];
+  const allRows = (snapshotRows ?? []) as EntryListSnapshotRow[];
+  const rows = deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0
+    ? allRows.filter((r) => deps.onlyTournamentIds!.has(r.tournament_id))
+    : allRows;
 
   // 2. Group by (tournament_id, category) and keep only the latest
   //    captured_at within each group. Multiple snapshots accrue on the
