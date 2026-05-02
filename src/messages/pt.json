@@ -844,6 +844,6 @@
     "title": "Você está offline",
     "subtitle": "Não conseguimos acessar os placares ao vivo agora. Mostrando o que carregamos por último.",
     "retry": "Tentar novamente",
-    "banner": "Offline — dados de {time}"
+    "banner": "Offline — última conexão às {time}"
   }
 }

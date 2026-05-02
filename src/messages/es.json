@@ -844,6 +844,6 @@
     "title": "Sin conexión",
     "subtitle": "No podemos acceder a los marcadores en directo ahora mismo. Mostrando lo último cargado.",
     "retry": "Reintentar",
-    "banner": "Sin conexión — datos a las {time}"
+    "banner": "Sin conexión — última conexión a las {time}"
   }
 }

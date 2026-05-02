@@ -891,6 +891,6 @@
     "title": "You're offline",
     "subtitle": "We can't reach the live scores right now. Showing what we last loaded.",
     "retry": "Try again",
-    "banner": "Offline — showing data as of {time}"
+    "banner": "Offline — last connected at {time}"
   }
 }

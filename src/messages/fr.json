@@ -844,6 +844,6 @@
     "title": "Vous êtes hors ligne",
     "subtitle": "Nous ne pouvons pas accéder aux scores en direct pour le moment. Affichage des dernières données chargées.",
     "retry": "Réessayer",
-    "banner": "Hors ligne — données à {time}"
+    "banner": "Hors ligne — dernière connexion à {time}"
   }
 }

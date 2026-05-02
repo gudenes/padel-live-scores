@@ -65,23 +65,20 @@ export default function MatchesDayShell({
 
   // Offline banner — hydration-safe (defaults to hidden on SSR; window
   // listeners only run client-side). When navigator.onLine flips, we
-  // reveal a small "as of HH:mm" strip just below the sticky header so
-  // the user knows scores may be stale. The timestamp is local-now at
-  // the moment the offline event fired (see src/lib/cache-meta.ts for
-  // the rationale — the SW serves last-cached, "now" is the closest
-  // proxy we have until the SW exposes a real cached-at timestamp).
+  // reveal a small "last connected at HH:mm" strip just below the
+  // sticky header so the user knows scores may be stale. We capture the
+  // ms timestamp once on disconnect and re-format on render — keeps the
+  // listener effect locale-independent (no re-binding on locale change)
+  // and preserves the original disconnect moment if the offline event
+  // re-fires while still offline.
   const [showOfflineBanner, setShowOfflineBanner] = useState(false)
-  const [offlineTime, setOfflineTime] = useState('')
+  const [offlineSinceMs, setOfflineSinceMs] = useState<number | null>(null)
 
   useEffect(() => {
     function update() {
       const online = navigator.onLine
       setShowOfflineBanner(!online)
-      if (!online) {
-        setOfflineTime(
-          new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
-        )
-      }
+      setOfflineSinceMs((cur) => (online ? null : cur ?? Date.now()))
     }
     update()
     window.addEventListener('online', update)
@@ -90,7 +87,14 @@ export default function MatchesDayShell({
       window.removeEventListener('online', update)
       window.removeEventListener('offline', update)
     }
-  }, [locale])
+  }, [])
+
+  const offlineTime = offlineSinceMs
+    ? new Date(offlineSinceMs).toLocaleTimeString(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : ''
 
   const [activeIso, setActiveIso] = useState(initialIso)
   // Pill-window iso. Usually mirrors activeIso 1:1, but the "Today"
