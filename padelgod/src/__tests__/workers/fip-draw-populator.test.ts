@@ -2098,4 +2098,268 @@ describe('resolveFourPlayers — middle-name strip and prefix fallbacks', () => 
     const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
     expect(resolved).toEqual({ p1p1: 'uuid-1', p1p2: 'uuid-2', p2p1: 'uuid-3', p2p2: 'uuid-4' });
   });
+
+  it('returns null when middle-name strip is ambiguous (multiple distinct fip_ids)', () => {
+    // Draw: "Maria Jose Carmen Lopez" — stripping different middle tokens
+    // yields different EL entries owned by DIFFERENT players. Must reject
+    // rather than silently pick one. Mirrors the short-form ambiguity rule.
+    const nameToFipId = new Map<string, string>([
+      ['maria carmen lopez', 'fip-PA'],   // strip token 1
+      ['maria jose lopez', 'fip-PB'],     // strip token 2
+      ['david fernandes', 'fip-P2'],
+      ['jose montalban', 'fip-P3'],
+      ['german rodriguez', 'fip-P4'],
+    ]);
+    const shortFormToFipId = buildShortFormMap(nameToFipId);
+    const fipIdToPlayerId = new Map<string, string>([
+      ['fip-PA', 'uuid-A'], ['fip-PB', 'uuid-B'],
+      ['fip-P2', 'uuid-2'], ['fip-P3', 'uuid-3'], ['fip-P4', 'uuid-4'],
+    ]);
+    const draw = {
+      team1_player1_name: 'Maria Jose Carmen Lopez',
+      team1_player2_name: 'David Fernandes',
+      team2_player1_name: 'Jose Montalban',
+      team2_player2_name: 'German Rodriguez',
+    } as never;
+    const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
+    expect(resolved).toBeNull();
+  });
+});
+
+// ── Fix 1: end-to-end pass-3 through the worker ───────────────────────
+//
+// The unit tests above exercise resolveFourPlayers in isolation, with a
+// pre-built fipIdToPlayerId map. That bypasses the real path: the worker
+// pre-loads `wantedFipIds` from the draw rows BEFORE calling the resolver,
+// and `loadPlayersByFipId` only fetches players whose fip_id is in that
+// set. If wantedFipIds doesn't simulate pass-3 candidates, the player
+// row never gets loaded, fipIdToPlayerId.get returns undefined, and the
+// resolver returns null even though the EL has the player.
+describe('runFipDrawPopulator — pass-3 wantedFipIds pre-load', () => {
+  it('resolves a draw row whose player is reachable ONLY via middle-name strip (pass 3)', async () => {
+    // Draw has "Sebastian Maria Rodriguez" (extra middle given name).
+    // EL has "Sebastian Rodriguez" → fip_id fip-MIDS. Pass 1 misses
+    // (no exact match), pass 2 misses (short form is "s. maria rodriguez"
+    // — still doesn't match EL's "Sebastian Rodriguez"), pass 3 succeeds
+    // by stripping "maria".
+    const drawWithMiddleName: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MQ021',
+      team1_player1_name: 'Sebastian Maria Rodriguez',
+    };
+    const elWithStrippable = [
+      ...entryList,
+      { name: 'Sebastian Rodriguez', fip_id: 'fip-MIDS', category: 'men' as const, captured_at: '2026-04-24T07:00:00Z' },
+    ];
+    const playersWithStrippable = [
+      ...rosterPlayers,
+      { id: 'uuid-MIDS', fip_id: 'fip-MIDS' },
+    ];
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Asuncion', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [drawWithMiddleName],
+      entryList: elWithStrippable,
+      players: playersWithStrippable,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedPlayerUnresolved).toBe(0);
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted).toHaveLength(1);
+    expect(supabase.inserted[0].pair1_player1_id).toBe('uuid-MIDS');
+    expect(supabase.inserted[0].pair1_player2_id).toBe('uuid-P2');
+    expect(supabase.inserted[0].pair2_player1_id).toBe('uuid-P3');
+    expect(supabase.inserted[0].pair2_player2_id).toBe('uuid-P4');
+  });
+
+  it('resolves a draw row whose player is reachable ONLY via prefix match (pass 3b)', async () => {
+    // Draw: "Vinny Nahuel Di Francesco Calderon"
+    // EL:   "Vinny Nahuel Di Francesco" → fip_id fip-PFX
+    // Pass 1/2 miss; pass 3b prefix match (4-token prefix) succeeds.
+    const drawWithExtraSurname: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MQ022',
+      team1_player1_name: 'Vinny Nahuel Di Francesco Calderon',
+    };
+    const elWithPrefix = [
+      ...entryList,
+      { name: 'Vinny Nahuel Di Francesco', fip_id: 'fip-PFX', category: 'men' as const, captured_at: '2026-04-24T07:00:00Z' },
+    ];
+    const playersWithPrefix = [
+      ...rosterPlayers,
+      { id: 'uuid-PFX', fip_id: 'fip-PFX' },
+    ];
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Asuncion', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [drawWithExtraSurname],
+      entryList: elWithPrefix,
+      players: playersWithPrefix,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedPlayerUnresolved).toBe(0);
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted[0].pair1_player1_id).toBe('uuid-PFX');
+  });
+});
+
+// ── Fix 2: prefer draw long-form on UPDATE when existing has short-form ─
+//
+// Setup: a match was first created via OOP fallback (short-form names
+// "S. Rodriguez", FKs null). Later the FIP draw_snapshots row lands with
+// long-form names + valid team_fip_id. The populator should refresh the
+// names AND resolve the FKs — the draw is the higher-confidence source.
+describe('runFipDrawPopulator — draw refreshes short-form names on UPDATE', () => {
+  it('UPDATE: short-form names in existing row get replaced by draw long-form + FKs resolved', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Asuncion', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw], // long-form names + team_fip_id, source fip_event_page
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-thin',
+          widget_id_composite: 'FIP-2026-1706:MD017',
+          // OOP-created thin match: short-form names, no FKs
+          pair1_player1_id: null,
+          pair1_player2_id: null,
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+          pair1_player1_name: 'N. Baptista',
+          pair1_player2_name: 'D. Fernandes',
+          pair2_player1_name: 'J. Montalban Martin',
+          pair2_player2_name: 'G. Rodriguez Quesada',
+        },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.updated).toBe(1);
+    expect(supabase.updated).toHaveLength(1);
+    const patch = supabase.updated[0].patch;
+    // FKs resolved
+    expect(patch.pair1_player1_id).toBe('uuid-P1');
+    expect(patch.pair1_player2_id).toBe('uuid-P2');
+    expect(patch.pair2_player1_id).toBe('uuid-P3');
+    expect(patch.pair2_player2_id).toBe('uuid-P4');
+    // Names refreshed from draw long-form (overwriting short-form)
+    expect(patch.pair1_player1_name).toBe('Nuno Baptista');
+    expect(patch.pair1_player2_name).toBe('David Fernandes');
+    expect(patch.pair2_player1_name).toBe('Jose Montalban Martin');
+    expect(patch.pair2_player2_name).toBe('German Rodriguez Quesada');
+  });
+
+  it('UPDATE: does NOT overwrite long-form names already in existing row (no-op when FKs already set)', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Asuncion', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-already-long',
+          widget_id_composite: 'FIP-2026-1706:MD017',
+          pair1_player1_id: 'some-A',
+          pair1_player2_id: 'some-B',
+          pair2_player1_id: 'some-C',
+          pair2_player2_id: 'some-D',
+          pair1_player1_name: 'Nuno Baptista',
+          pair1_player2_name: 'David Fernandes',
+          pair2_player1_name: 'Jose Montalban Martin',
+          pair2_player2_name: 'German Rodriguez Quesada',
+        },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // No short-form trigger, all FKs set, names match — pure no-op.
+    expect(result.updated).toBe(0);
+    expect(result.skippedAlreadyComplete).toBe(1);
+    expect(supabase.updated).toHaveLength(0);
+  });
+
+  it('UPDATE: oop_snapshot source does NOT trigger short-form refresh (only fip_event_page is authoritative)', async () => {
+    // Same scenario but draw row comes from oop_snapshot (also short-form).
+    // Refresh should NOT fire — only fip_event_page draws are higher-
+    // confidence than existing short-form.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Amateur Club', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      // No draw_snapshots — forces OOP fallback (amateur tier).
+      oopSnapshots: [
+        {
+          tournament_id: TOURNAMENT_ID,
+          match_widget_id: 'MD017',
+          category: 'men',
+          round_label: 'R32',
+          team1_player1_name: 'N. Baptista',
+          team1_player2_name: 'D. Fernandes',
+          team2_player1_name: 'J. Montalban',
+          team2_player2_name: 'G. Rodriguez',
+          captured_at: '2026-04-24T08:00:00Z',
+        },
+      ],
+      entryList,
+      players: rosterPlayers,
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      existingMatches: [
+        {
+          id: 'm-oop-thin',
+          widget_id_composite: 'FIP-2026-1706:MD017',
+          pair1_player1_id: null,
+          pair1_player2_id: null,
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+          pair1_player1_name: 'N. Baptista',
+          pair1_player2_name: 'D. Fernandes',
+          pair2_player1_name: 'J. Montalban',
+          pair2_player2_name: 'G. Rodriguez',
+        },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // Pure no-op: nothing in OOP draw is more authoritative than the
+    // short-form names already in the row, and resolver can't fill FKs
+    // from short forms that aren't in the EL's short-form map.
+    expect(result.updated).toBe(0);
+    if (supabase.updated.length > 0) {
+      const patch = supabase.updated[0].patch;
+      expect(patch.pair1_player1_name).not.toBe('N. Baptista');
+    }
+  });
 });

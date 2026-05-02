@@ -331,6 +331,17 @@ function isRealFipTeamId(id: string | null): boolean {
   return id != null && /^P\d+$/i.test(id);
 }
 
+/**
+ * Detects Crionet OOP-style short-form names ("S. Rodriguez", "M. Popovich
+ * Fernández"). Used by the UPDATE branch to decide whether the draw row's
+ * long-form names should overwrite the existing row — the FIP draw
+ * (fip_event_page source) is higher-confidence than OOP-derived names.
+ */
+function nameLooksShortForm(name: string | null | undefined): boolean {
+  if (!name) return false;
+  return /^[A-Za-z]\.\s+\S/.test(name.trim());
+}
+
 // ── Main entry ─────────────────────────────────────────────────────────
 
 export async function runFipDrawPopulator(
@@ -532,6 +543,26 @@ export async function runFipDrawPopulator(
           nameToFipId.get(norm) ??
           (shortFormToFipId.get(norm) ?? undefined);
         if (f) wantedFipIds.add(f);
+
+        // Pass-3 candidates (mirror resolveFourPlayers' middle-strip and
+        // prefix paths). Without this, players reachable only via pass 3
+        // never get loaded into fipIdToPlayerId and the resolver returns
+        // null at runtime even though the EL has the right fip_id.
+        const tokens = norm.split(' ').filter(Boolean);
+        if (tokens.length >= 3) {
+          for (let skip = 1; skip < tokens.length - 1; skip++) {
+            const candidate = [
+              ...tokens.slice(0, skip),
+              ...tokens.slice(skip + 1),
+            ].join(' ');
+            const cf = nameToFipId.get(candidate);
+            if (cf) wantedFipIds.add(cf);
+          }
+          for (let len = tokens.length - 1; len >= 2; len--) {
+            const pf = nameToFipId.get(tokens.slice(0, len).join(' '));
+            if (pf) wantedFipIds.add(pf);
+          }
+        }
       }
     }
     const fipIdToPlayerId = await loadPlayersByFipId(supabase, wantedFipIds);
@@ -692,6 +723,45 @@ export async function runFipDrawPopulator(
       //   - thin (amateur, !resolved): backfill missing names so the UI
       //     can keep showing the team strings.
       const patch: Record<string, string | number> = {};
+
+      // Short-form refresh: when the existing row carries OOP-style
+      // short-form names ("S. Rodriguez") and THIS draw row is from the
+      // higher-confidence FIP event-page bracket with long-form names,
+      // overwrite the short-form names with the long-form. The FIP draw
+      // is the authoritative source for player identity once it lands;
+      // the OOP-derived names were only ever a placeholder until then.
+      // Names-only refresh — FK / seed / country logic below still
+      // applies their own NULL-only rules.
+      const drawIsAuthoritative = d.source === 'fip_event_page';
+      const drawNamesAreLongForm =
+        !nameLooksShortForm(d.team1_player1_name) &&
+        !nameLooksShortForm(d.team1_player2_name) &&
+        !nameLooksShortForm(d.team2_player1_name) &&
+        !nameLooksShortForm(d.team2_player2_name);
+      const refreshShortForm = drawIsAuthoritative && drawNamesAreLongForm;
+      if (refreshShortForm) {
+        if (
+          nameLooksShortForm(existing.pair1_player1_name) &&
+          d.team1_player1_name
+        )
+          patch.pair1_player1_name = d.team1_player1_name;
+        if (
+          nameLooksShortForm(existing.pair1_player2_name) &&
+          d.team1_player2_name
+        )
+          patch.pair1_player2_name = d.team1_player2_name;
+        if (
+          nameLooksShortForm(existing.pair2_player1_name) &&
+          d.team2_player1_name
+        )
+          patch.pair2_player1_name = d.team2_player1_name;
+        if (
+          nameLooksShortForm(existing.pair2_player2_name) &&
+          d.team2_player2_name
+        )
+          patch.pair2_player2_name = d.team2_player2_name;
+      }
+
       if (resolved) {
         if (
           existing.pair1_player1_id === null &&
@@ -933,12 +1003,15 @@ export function resolveFourPlayers(
       return fipIdToPlayerId.get(sfFipId) ?? null;
     }
 
-    // 3. Middle-name strip for draw names with extra given-middle tokens
-    //    (e.g. "Alejandro Valentino López Barresi" → "Alejandro Lopez Barresi").
-    //    Try removing each non-first, non-last token one at a time; also try
-    //    stripping a trailing surname token (EL name is a prefix of draw name).
+    // 3. Middle-name strip / prefix match for draw names with extra
+    //    given-middle tokens or trailing surnames. Collect ALL distinct
+    //    fip_ids reachable across both shapes — if more than one comes
+    //    back we can't safely pick one, so return null (mirrors the
+    //    short-form ambiguity rule).
     const tokens = norm.split(' ').filter(Boolean);
     if (tokens.length >= 3) {
+      const candidates = new Set<string>();
+
       // 3a. Remove one middle token at a time (inner tokens)
       for (let skip = 1; skip < tokens.length - 1; skip++) {
         const candidate = [
@@ -946,7 +1019,7 @@ export function resolveFourPlayers(
           ...tokens.slice(skip + 1),
         ].join(' ');
         const cFipId = nameToFipId.get(candidate);
-        if (cFipId) return fipIdToPlayerId.get(cFipId) ?? null;
+        if (cFipId) candidates.add(cFipId);
       }
 
       // 3b. Prefix match: EL name is a strict prefix of draw name
@@ -955,7 +1028,19 @@ export function resolveFourPlayers(
       for (let len = tokens.length - 1; len >= 2; len--) {
         const prefix = tokens.slice(0, len).join(' ');
         const pFipId = nameToFipId.get(prefix);
-        if (pFipId) return fipIdToPlayerId.get(pFipId) ?? null;
+        if (pFipId) candidates.add(pFipId);
+      }
+
+      if (candidates.size > 1) {
+        logger?.warn(
+          { name, candidates: Array.from(candidates) },
+          'fip-draw-populator: middle-strip/prefix match is ambiguous — leaving unresolved'
+        );
+        return null;
+      }
+      if (candidates.size === 1) {
+        const only = candidates.values().next().value as string;
+        return fipIdToPlayerId.get(only) ?? null;
       }
     }
 
