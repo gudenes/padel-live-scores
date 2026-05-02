@@ -8,7 +8,11 @@
 
 **Architecture:** Capacitor in remote URL mode. Single repo (`padel-live-scores`). Native folders excluded from Vercel deploys via `.vercelignore`. All product logic stays in the existing Next.js code; Capacitor only adds the native plugin layer.
 
-**Tech Stack:** Next.js 16, Capacitor 7, serwist (service worker), Firebase Cloud Messaging (Android delivery + APNs proxy for iOS), Fastlane (build + upload automation).
+**Tech Stack:** Next.js 16, Capacitor 8 (latest stable as of execution; plan was originally drafted against 7), hand-rolled service worker (Phase 1 deviation from the plan), Firebase Cloud Messaging (Android delivery + APNs proxy for iOS when iOS unblocked), Fastlane (build + upload automation).
+
+> **Execution notes (2026-05-02):**
+> - **iOS scaffold (Phase 2c, 4) is deferred indefinitely.** Owner machine runs macOS 12 Monterey (Darwin 21.6.0); current Xcode requires macOS 26+. Forcing a macOS upgrade now is friction; iOS will resume after upgrade. Android-only v1 ship plan still holds.
+> - **Capacitor 8 not 7.** Capacitor released 8 between plan draft and execution; we installed 8.3.1. API surface for `CapacitorConfig` is unchanged so the config sample below typechecks identically. Phase 2b instructions for `npx cap add android` apply to 8 too — the only real downstream change is Android target SDK / Gradle versions, which Capacitor 8 picks newer defaults for automatically.
 
 ---
 
