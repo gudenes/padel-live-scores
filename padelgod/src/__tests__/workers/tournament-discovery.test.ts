@@ -317,6 +317,49 @@ describe('runTournamentDiscovery', () => {
     const insertedRow = tournamentUpserts[0].rows[0]
     expect(insertedRow.live_source).toBe('padelgod')
   })
+
+  it("preserves existing live_source on tournament UPDATE (never silently flips)", async () => {
+    const supa = fakeSupabase('2026-01-01T00:00:00Z')
+    // Simulate an EXISTING tournament with live_source='padelapi' (legacy)
+    const ORIGINAL_FROM = supa.from
+    supa.from = (table: string) => {
+      const base = ORIGINAL_FROM(table)
+      if (table === 'tournaments') {
+        return {
+          ...base,
+          select: (cols: string) => ({
+            ...base.select(cols),
+            in: async (_col: string, _values: string[]) => ({
+              data: [{ slug: 'fip-bronze-existing-2026', level: 'fip_bronze', country: 'PY', live_source: 'padelapi' }],
+              error: null,
+            }),
+          }),
+        }
+      }
+      return base
+    }
+    const httpClient = {
+      get: vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: 1000,
+            slug: 'fip-bronze-existing-2026',
+            title: { rendered: 'FIP BRONZE EXISTING' },
+            modified_gmt: '2026-05-01T00:00:00',
+            acmf_event: { accommodation_start_date: '2026-06-01', accommodation_end_date: '2026-06-07' },
+            tournament_category: [497],
+            country: [],
+          },
+        ],
+      }),
+    } as never
+    await runTournamentDiscovery({ supabase: supa as never, httpClient, logger: console as never })
+    const tournamentUpserts = supa.upserted.filter((u: any) => u.table === 'tournaments')
+    expect(tournamentUpserts.length).toBeGreaterThan(0)
+    const upsertedRow = tournamentUpserts[0].rows[0]
+    // Must NOT silently flip to padelgod — must echo 'padelapi' back
+    expect(upsertedRow.live_source).toBe('padelapi')
+  })
 });
 
 // ── Test fixtures for Premier gap-fill tests ──
