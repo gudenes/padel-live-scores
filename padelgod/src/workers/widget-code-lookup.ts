@@ -8,6 +8,12 @@ import { CRIONET_SEARCH_VERSION } from '../lib/parser-versions.js';
 export interface WidgetCodeLookupDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
+  /**
+   * Optional per-tournament allowlist. When present, the worker only
+   * considers tournaments whose UUID is in the set. Used by the on-demand
+   * refresh endpoint (`POST /admin/refresh-tournament`).
+   */
+  onlyTournamentIds?: Set<string>;
 }
 
 export interface WidgetCodeLookupResult {
@@ -103,7 +109,10 @@ async function fetchTournamentsNeedingResolution(
 export async function runWidgetCodeLookup(
   deps: WidgetCodeLookupDeps
 ): Promise<WidgetCodeLookupResult> {
-  const todo = await fetchTournamentsNeedingResolution(deps.supabase);
+  const allTodo = await fetchTournamentsNeedingResolution(deps.supabase);
+  const todo = deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0
+    ? allTodo.filter((t) => deps.onlyTournamentIds!.has(t.tournament_id))
+    : allTodo;
   let resolved = 0;
   let skipped = 0;
 

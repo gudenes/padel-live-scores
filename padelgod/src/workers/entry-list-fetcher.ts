@@ -67,6 +67,9 @@ import { pdfToText } from '../lib/pdf-text.js';
 export interface EntryListFetcherDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
+  /** When set, only tournaments whose UUID is in the allowlist are
+   *  processed. Used by the on-demand refresh endpoint. */
+  onlyTournamentIds?: Set<string>;
 }
 
 export interface EntryListFetcherResult {
@@ -450,7 +453,10 @@ export async function runEntryListFetcher(
   if (error) {
     throw new Error(`Active tournaments RPC failed: ${error.message}`);
   }
-  const list = (tournaments ?? []) as ActiveTournament[];
+  const allList = (tournaments ?? []) as ActiveTournament[];
+  const list = deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0
+    ? allList.filter((t) => deps.onlyTournamentIds!.has(t.tournament_id))
+    : allList;
 
   let tournamentsProcessed = 0;
   let tournamentsSkippedNoPdfs = 0;

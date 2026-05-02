@@ -50,6 +50,9 @@ export interface FipDrawFetcherDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
   logger?: Logger;
+  /** When set, only tournaments whose UUID is in the allowlist are
+   *  processed. Used by the on-demand refresh endpoint. */
+  onlyTournamentIds?: Set<string>;
 }
 
 export interface FipDrawFetcherResult {
@@ -297,7 +300,10 @@ export async function runFipDrawFetcher(
   if (error) {
     throw new Error(`padelgod_active_tournaments_with_slug RPC failed: ${error.message}`);
   }
-  const tournaments = (data ?? []) as ActiveTournamentWithSlug[];
+  const allTournaments = (data ?? []) as ActiveTournamentWithSlug[];
+  const tournaments = deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0
+    ? allTournaments.filter((t) => deps.onlyTournamentIds!.has(t.tournament_id))
+    : allTournaments;
 
   let tournamentsProcessed = 0;
   let tournamentsSkipped = 0;

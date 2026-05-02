@@ -27,6 +27,9 @@ import { CRIONET_MATCH_STATS_VERSION } from '../lib/parser-versions.js';
 export interface MatchStatsFetcherDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
+  /** When set, only matches belonging to a tournament in the allowlist
+   *  are processed. Used by the on-demand refresh endpoint. */
+  onlyTournamentIds?: Set<string>;
 }
 
 export interface MatchStatsFetcherResult {
@@ -217,7 +220,25 @@ export async function runMatchStatsFetcher(
     return { candidatesSeen, fetched: 0, skipped, rowsUpserted: 0 };
   }
 
-  const parseableIds = parseable.map((c) => c.matchId);
+  let parseableForRun = parseable;
+  if (deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0) {
+    const ids = parseable.map((c) => c.matchId);
+    const { data: matchRows, error: matchErr } = await deps.supabase
+      .from('matches')
+      .select('id, tournament_id')
+      .in('id', ids);
+    if (matchErr) throw new Error(`matches tournament-filter query failed: ${matchErr.message}`);
+    const inTournament = new Set(
+      (matchRows ?? [])
+        .filter((r) => deps.onlyTournamentIds!.has(r.tournament_id as string))
+        .map((r) => r.id as string),
+    );
+    const before = parseable.length;
+    parseableForRun = parseable.filter((c) => inTournament.has(c.matchId));
+    skipped += before - parseableForRun.length;
+  }
+
+  const parseableIds = parseableForRun.map((c) => c.matchId);
   const finishedIds = await fetchFinishedMatchIds(deps.supabase, parseableIds);
   const alreadyHaveStats = await fetchMatchIdsWithExistingStats(
     deps.supabase,
@@ -225,7 +246,7 @@ export async function runMatchStatsFetcher(
   );
 
   const needsFetch: CandidateMapping[] = [];
-  for (const c of parseable) {
+  for (const c of parseableForRun) {
     if (!finishedIds.has(c.matchId)) {
       skipped++;
       continue;

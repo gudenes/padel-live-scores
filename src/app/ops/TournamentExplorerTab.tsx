@@ -15,7 +15,7 @@
 // Filters reset on full reload, which is the right tradeoff for an
 // operator-only tool.
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentMatchesSubtab from './tournament/TournamentMatchesSubtab'
 import TournamentDrawSubtab from './tournament/TournamentDrawSubtab'
@@ -668,6 +668,7 @@ function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
             ))}
           </div>
         </div>
+        <RefreshTournamentButton tournamentId={t.id} />
         {fipUrl && (
           <a
             href={fipUrl}
@@ -1084,5 +1085,123 @@ function SubTabButton({
         </span>
       )}
     </button>
+  )
+}
+
+interface RefreshStepResult {
+  name: string
+  ok: boolean
+  durationMs: number
+  error?: string
+  summary?: unknown
+}
+
+function RefreshTournamentButton({ tournamentId }: { tournamentId: string }) {
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [results, setResults] = useState<RefreshStepResult[] | null>(null)
+  const [overallOk, setOverallOk] = useState<boolean | null>(null)
+
+  // Reset visible state when the tournament changes (drill into a different row).
+  useEffect(() => {
+    setResults(null)
+    setError(null)
+    setOverallOk(null)
+  }, [tournamentId])
+
+  async function onClick() {
+    if (running) return
+    setRunning(true)
+    setError(null)
+    setResults(null)
+    setOverallOk(null)
+    try {
+      const res = await fetch('/api/ops/refresh-tournament', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tournamentId }),
+        credentials: 'same-origin',
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const reason = json?.error?.message || json?.error || `HTTP ${res.status}`
+        setError(typeof reason === 'string' ? reason : JSON.stringify(reason))
+        return
+      }
+      const steps = (json?.data?.stepResults ?? []) as RefreshStepResult[]
+      setResults(steps)
+      setOverallOk(Boolean(json?.data?.ok))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={running}
+        style={{
+          padding: '6px 14px',
+          fontSize: 11,
+          fontWeight: 700,
+          color: running ? '#666' : '#fff',
+          background: running ? '#e5e7eb' : '#0ea5e9',
+          border: 'none',
+          borderRadius: 4,
+          cursor: running ? 'wait' : 'pointer',
+          letterSpacing: '0.4px',
+          textTransform: 'uppercase',
+        }}
+        title="Trigger padelgod ingestion workers for this tournament"
+      >
+        {running ? 'Refreshing…' : 'Refresh'}
+      </button>
+      {error && (
+        <div style={{ fontSize: 11, color: '#dc2626', maxWidth: 320, textAlign: 'right' }}>
+          {error}
+        </div>
+      )}
+      {results && (
+        <div
+          style={{
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 4,
+            padding: 8,
+            fontSize: 11,
+            color: '#333',
+            minWidth: 320,
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 6, color: overallOk ? '#16a34a' : '#dc2626' }}>
+            {overallOk ? 'Refresh OK' : 'Refresh completed with errors'}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '2px 10px' }}>
+            {results.map((r) => (
+              <Fragment key={r.name}>
+                <span style={{ color: r.ok ? '#16a34a' : '#dc2626', fontWeight: 700 }}>
+                  {r.ok ? '✓' : '✗'}
+                </span>
+                <span title={r.error ?? undefined}>
+                  {r.name}
+                  {r.error && (
+                    <span style={{ color: '#dc2626', marginLeft: 6, fontWeight: 500 }}>
+                      {r.error.slice(0, 80)}
+                    </span>
+                  )}
+                </span>
+                <span style={{ color: '#888', fontVariantNumeric: 'tabular-nums' }}>
+                  {r.durationMs}ms
+                </span>
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
