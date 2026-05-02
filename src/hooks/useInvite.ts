@@ -12,6 +12,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { ensureReferralCode, countReferralsByUser } from '@/lib/referral'
 import { tierForCount, AmbassadorTierSpec } from '@/lib/ambassador'
 import { logActivity } from '@/lib/activity-log'
+import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
 
 const SHARE_TITLE = 'PadelNachos'
@@ -77,8 +78,14 @@ export function useInvite(): UseInviteResult {
   const shareNow = useCallback(async (): Promise<{ ok: boolean; fallback: 'clipboard' | 'native' | null }> => {
     if (!inviteUrl) return { ok: false, fallback: null }
 
-    // Prefer native share sheet (@capacitor/share proxies to navigator.share on web).
-    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+    // Prefer native share sheet. Inside Capacitor's WebView,
+    // `navigator.share` is undefined but the Share plugin still opens
+    // the native sheet — so we must gate on "native OR Web Share",
+    // not on `navigator.share` alone.
+    const canShare =
+      Capacitor.isNativePlatform() ||
+      (typeof navigator !== 'undefined' && typeof navigator.share === 'function')
+    if (canShare) {
       try {
         await Share.share({ title: SHARE_TITLE, text: SHARE_TEXT, url: inviteUrl })
         if (user) { void logActivity(user.id, 'share') }
