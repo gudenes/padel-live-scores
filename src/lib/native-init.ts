@@ -36,9 +36,15 @@ export async function initNative(): Promise<void> {
   }
 
   // Hardware back button handling: navigate web router history when
-  // possible, otherwise close the app. Default Capacitor behaviour
-  // is to do nothing — without this, back button is dead, which feels
-  // very un-native on Android.
+  // possible, otherwise close the app. Capacitor's WebView already
+  // triggers `history.back()` by default; we register an explicit
+  // listener so the behaviour is owned at this layer — keeps it
+  // discoverable, lets us add page-aware overrides later (e.g. close
+  // a modal first), and survives any plugin that races to register
+  // its own backButton handler. The `initialized` flag guard above
+  // makes this a no-op on subsequent mounts; in dev with Fast Refresh
+  // the module re-evaluates and a second listener can stack — only a
+  // dev-mode quirk, harmless in production builds.
   try {
     App.addListener('backButton', ({ canGoBack }) => {
       if (canGoBack) {
