@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Day Picker — Size Mockups</title>
+<style>
+  :root {
+    --bg-base: #1A1A1A;
+    --bg-card: #141414;
+    --bg-page: #0A0A0A;
+    --green: #7ED321;
+    --muted: #6B7280;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg-page); color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 24px 0 80px; }
+
+  .frame {
+    max-width: 500px;
+    margin: 0 auto 28px;
+    background: var(--bg-base);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .frame-label {
+    max-width: 500px;
+    margin: 0 auto 8px;
+    padding: 0 16px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  .frame-sub {
+    max-width: 500px;
+    margin: -4px auto 6px;
+    padding: 0 16px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* Mock header just for visual context */
+  .mock-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-page);
+    height: 56px;
+  }
+  .mock-header .logo {
+    font-weight: 900; font-style: italic; font-size: 14px;
+    background: -webkit-linear-gradient(135deg, #fff, #ddd);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+  }
+  .mock-header .search {
+    flex: 1; height: 36px; background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 4px;
+    display: flex; align-items: center; padding: 0 10px;
+    color: var(--muted); font-size: 12px;
+  }
+  .mock-header .pill {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: rgba(126,211,33,0.12); border: 1px solid var(--green);
+  }
+
+  /* The day picker rail itself — these styles mirror the live component. */
+  nav.day-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  nav.day-picker::-webkit-scrollbar { display: none; }
+
+  /* Chunky parallelogram clip-path to match the existing pill design. */
+  .pill {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.08);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    color: #fff;
+    cursor: pointer;
+    padding: 4px 2px;
+    line-height: 1;
+  }
+  .pill.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: #0A0A0A;
+  }
+  .pill .top {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    color: var(--muted);
+    line-height: 1;
+    /* one line, ellipsis if it's still too wide for some weird locale */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .pill.active .top { color: rgba(10,10,10,0.85); opacity: 1; }
+  .pill .bot {
+    font-weight: 700;
+    line-height: 1.1;
+    color: #fff;
+  }
+  .pill.active .bot { color: #0A0A0A; }
+
+  .arrow {
+    flex-shrink: 0;
+    width: 32px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.08);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    color: var(--muted);
+    font-size: 18px; font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* ── Size variants ─────────────────────────────────────────────── */
+
+  /* CURRENT (baseline): 54×44, 9px top, 15px bottom */
+  .v-current .pill { width: 54px; height: 44px; gap: 1px; }
+  .v-current .pill .top { font-size: 9px; }
+  .v-current .pill .bot { font-size: 15px; }
+
+  /* OPTION A — Comfortable: 76×52, smaller top text gives YESTERDAY breathing room */
+  .v-a .pill { width: 76px; height: 52px; gap: 3px; padding: 6px 4px; }
+  .v-a .pill .top { font-size: 9px; letter-spacing: 0.4px; }
+  .v-a .pill .bot { font-size: 18px; }
+  .v-a .arrow { height: 52px; width: 36px; }
+
+  /* OPTION B — Spacious: 90×58, fits at 11px with comfortable padding */
+  .v-b .pill { width: 90px; height: 58px; gap: 4px; padding: 8px 6px; }
+  .v-b .pill .top { font-size: 11px; letter-spacing: 0.5px; }
+  .v-b .pill .bot { font-size: 20px; }
+  .v-b .arrow { height: 58px; width: 38px; }
+
+  /* OPTION C — Card-style: 104×64 */
+  .v-c .pill { width: 104px; height: 64px; gap: 5px; padding: 10px 8px; }
+  .v-c .pill .top { font-size: 12px; letter-spacing: 0.6px; }
+  .v-c .pill .bot { font-size: 22px; }
+  .v-c .arrow { height: 64px; width: 40px; }
+
+  /* Annotation under each row */
+  .specs {
+    max-width: 500px;
+    margin: 4px auto 0;
+    padding: 0 16px 12px;
+    font-size: 10px;
+    color: var(--muted);
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .specs span { background: rgba(255,255,255,0.04); padding: 2px 8px; border-radius: 999px; }
+  .specs .badge-pos { background: rgba(126,211,33,0.12); color: var(--green); }
+
+  h1.title {
+    max-width: 500px; margin: 0 auto 6px; padding: 0 16px;
+    font-size: 18px; font-weight: 800;
+  }
+  p.intro {
+    max-width: 500px; margin: 0 auto 24px; padding: 0 16px;
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="title">Day Picker — size variants</h1>
+<p class="intro">
+  All four rows show the same week (Wed&nbsp;29 → Tue&nbsp;5). The active pill
+  is <b>Today (May 2)</b>. Notice how "Yesterday" and "Tomorrow" wrap on the
+  current size — bigger pills give the labels a single line.
+</p>
+
+<!-- ─────────────────────────────────────────────────────────────── -->
+<div class="frame-label">Current — 54 × 44 (problem: yesterday / tomorrow wrap)</div>
+<div class="frame">
+  <div class="mock-header">
+    <span class="logo">PADEL NACHOS</span>
+    <div class="search">Try "Miami P1"</div>
+    <div class="pill" style="clip-path:none;border-radius:999px"></div>
+  </div>
+  <nav class="day-picker v-current">
+    <div class="arrow">‹</div>
+    <div class="pill"><div class="top">WED</div><div class="bot">29</div></div>
+    <div class="pill"><div class="top">THU</div><div class="bot">30</div></div>
+    <div class="pill"><div class="top">YESTERDAY</div><div class="bot">1</div></div>
+    <div class="pill active"><div class="top">TODAY</div><div class="bot">2</div></div>
+    <div class="pill"><div class="top">TOMORROW</div><div class="bot">3</div></div>
+    <div class="pill"><div class="top">MON</div><div class="bot">4</div></div>
+    <div class="pill"><div class="top">TUE</div><div class="bot">5</div></div>
+    <div class="arrow">›</div>
+  </nav>
+</div>
+<div class="specs">
+  <span>54 × 44</span>
+  <span>top 9px</span>
+  <span>bot 15px</span>
+  <span>~7 visible</span>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────── -->
+<div class="frame-label">Option A — Comfortable: 76 × 52</div>
+<div class="frame">
+  <div class="mock-header">
+    <span class="logo">PADEL NACHOS</span>
+    <div class="search">Try "Miami P1"</div>
+    <div class="pill" style="clip-path:none;border-radius:999px"></div>
+  </div>
+  <nav class="day-picker v-a">
+    <div class="arrow">‹</div>
+    <div class="pill"><div class="top">WED</div><div class="bot">29</div></div>
+    <div class="pill"><div class="top">THU</div><div class="bot">30</div></div>
+    <div class="pill"><div class="top">YESTERDAY</div><div class="bot">1</div></div>
+    <div class="pill active"><div class="top">TODAY</div><div class="bot">2</div></div>
+    <div class="pill"><div class="top">TOMORROW</div><div class="bot">3</div></div>
+    <div class="pill"><div class="top">MON</div><div class="bot">4</div></div>
+    <div class="pill"><div class="top">TUE</div><div class="bot">5</div></div>
+    <div class="arrow">›</div>
+  </nav>
+</div>
+<div class="specs">
+  <span>76 × 52</span>
+  <span>top 9px</span>
+  <span>bot 18px</span>
+  <span class="badge-pos">~5 fully visible, 6 with peek</span>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────── -->
+<div class="frame-label">Option B — Spacious: 90 × 58 ★ recommended</div>
+<div class="frame">
+  <div class="mock-header">
+    <span class="logo">PADEL NACHOS</span>
+    <div class="search">Try "Miami P1"</div>
+    <div class="pill" style="clip-path:none;border-radius:999px"></div>
+  </div>
+  <nav class="day-picker v-b">
+    <div class="arrow">‹</div>
+    <div class="pill"><div class="top">WED</div><div class="bot">29</div></div>
+    <div class="pill"><div class="top">THU</div><div class="bot">30</div></div>
+    <div class="pill"><div class="top">YESTERDAY</div><div class="bot">1</div></div>
+    <div class="pill active"><div class="top">TODAY</div><div class="bot">2</div></div>
+    <div class="pill"><div class="top">TOMORROW</div><div class="bot">3</div></div>
+    <div class="pill"><div class="top">MON</div><div class="bot">4</div></div>
+    <div class="pill"><div class="top">TUE</div><div class="bot">5</div></div>
+    <div class="arrow">›</div>
+  </nav>
+</div>
+<div class="specs">
+  <span>90 × 58</span>
+  <span>top 11px</span>
+  <span>bot 20px</span>
+  <span class="badge-pos">~4 fully visible, easy thumb target</span>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────── -->
+<div class="frame-label">Option C — Card-style: 104 × 64</div>
+<div class="frame">
+  <div class="mock-header">
+    <span class="logo">PADEL NACHOS</span>
+    <div class="search">Try "Miami P1"</div>
+    <div class="pill" style="clip-path:none;border-radius:999px"></div>
+  </div>
+  <nav class="day-picker v-c">
+    <div class="arrow">‹</div>
+    <div class="pill"><div class="top">WED</div><div class="bot">29</div></div>
+    <div class="pill"><div class="top">THU</div><div class="bot">30</div></div>
+    <div class="pill"><div class="top">YESTERDAY</div><div class="bot">1</div></div>
+    <div class="pill active"><div class="top">TODAY</div><div class="bot">2</div></div>
+    <div class="pill"><div class="top">TOMORROW</div><div class="bot">3</div></div>
+    <div class="pill"><div class="top">MON</div><div class="bot">4</div></div>
+    <div class="pill"><div class="top">TUE</div><div class="bot">5</div></div>
+    <div class="arrow">›</div>
+  </nav>
+</div>
+<div class="specs">
+  <span>104 × 64</span>
+  <span>top 12px</span>
+  <span>bot 22px</span>
+  <span>~3 fully visible, biggest tap targets</span>
+</div>
+
+<p class="intro" style="margin-top:24px">
+  <b>Notes:</b> the rail is horizontally scrollable in all variants — the
+  difference is just how many pills land in the viewport at once. The pill
+  width also caps the longest label, so if a future locale has an even
+  longer "yesterday" word the wider sizes give it more room before
+  ellipsis kicks in. Active pill style (lime fill, dark text) is unchanged.
+</p>
+
+</body>
+</html>

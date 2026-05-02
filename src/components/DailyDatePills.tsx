@@ -46,9 +46,29 @@ interface Props {
    * than that, the cap extends to wherever data ends.
    */
   maxIso?: string
+  /**
+   * Live swipe-commit progress in [-1, 1].
+   *  +1 = fully toward `nextIso` (tomorrow).
+   *  -1 = fully toward `prevIso` (yesterday).
+   *  0  = at rest, indicator sits on the active pill.
+   * The lime indicator slides between pills proportionally so the user
+   * can see the swipe commitment in the picker as well as the body.
+   */
+  swipeProgress?: number
+  /** True while the user is mid-swipe — disables the indicator's CSS
+   *  transition so it tracks the finger 1:1. When false, the indicator
+   *  springs back to the active pill with the body's snap-back. */
+  swipeActive?: boolean
 }
 
-export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props) {
+export function DailyDatePills({
+  selectedIso,
+  locale,
+  onSelect,
+  maxIso,
+  swipeProgress = 0,
+  swipeActive = false,
+}: Props) {
   const t = useTranslations('daily')
   const tz = getLocaleHomeTz(locale)
 
@@ -73,6 +93,11 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
   // hollowed out the slide animation.)
   const initialAnchorRef = useRef(selectedIso)
   const RANGE_DAYS = 30
+
+  // Floating lime indicator that slides between active and target pill
+  // as the user swipes. At rest it sits exactly on the active pill —
+  // visually equivalent to the active pill's solid lime fill.
+  const indicatorRef = useRef<HTMLDivElement | null>(null)
 
   // ISO YYYY-MM-DD strings sort lexically the same as chronologically,
   // so a plain `>` comparison is enough to test "past the boundary."
@@ -146,6 +171,45 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
     }
   }, [selectedIso, locale])
 
+  // Position the floating lime indicator. At rest it sits exactly on
+  // the active pill so the visual is identical to the static lime fill.
+  // Mid-swipe the position lerps toward the target pill so the user
+  // sees the day picker react to the gesture in real time.
+  useLayoutEffect(() => {
+    const indicator = indicatorRef.current
+    const active = pillRefs.current.get(selectedIso)
+    if (!indicator || !active) return
+
+    const targetIso = swipeProgress > 0 ? nextIso : prevIso
+    const target = pillRefs.current.get(targetIso) ?? active
+    const t = Math.min(1, Math.abs(swipeProgress))
+
+    const left = active.offsetLeft + (target.offsetLeft - active.offsetLeft) * t
+    const top = active.offsetTop + (target.offsetTop - active.offsetTop) * t
+    const width = active.offsetWidth + (target.offsetWidth - active.offsetWidth) * t
+    const height = active.offsetHeight + (target.offsetHeight - active.offsetHeight) * t
+
+    indicator.style.left = `${left}px`
+    indicator.style.top = `${top}px`
+    indicator.style.width = `${width}px`
+    indicator.style.height = `${height}px`
+  }, [selectedIso, swipeProgress, prevIso, nextIso])
+
+  // Compute the active swipe target iso so each pill knows whether it
+  // is the destination of the current gesture and can crossfade its
+  // text accordingly. At rest (`swipeProgress === 0`) no pill is the
+  // target, so only the active pill carries lime styling.
+  const targetIso = swipeProgress === 0
+    ? null
+    : swipeProgress > 0 ? nextIso : prevIso
+  const swipeMagnitude = Math.min(1, Math.abs(swipeProgress))
+
+  // Cubic-bezier ease for the indicator's snap-back when the user
+  // releases without committing. Matches the body's snap-back timing.
+  const indicatorTransition = swipeActive
+    ? 'none'
+    : 'left 220ms cubic-bezier(0.16, 1, 0.3, 1), top 220ms cubic-bezier(0.16, 1, 0.3, 1), width 220ms cubic-bezier(0.16, 1, 0.3, 1), height 220ms cubic-bezier(0.16, 1, 0.3, 1)'
+
   return (
     <nav
       ref={navRef}
@@ -163,7 +227,32 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
         position: 'relative',
       }}
     >
-      {/* Prev arrow */}
+      {/* Floating lime indicator. Sits in the same scroll container as
+          the pills so it scrolls with them. Position is set imperatively
+          in the layout effect above. Initially hidden (left: -9999px)
+          so the SSR paint shows the active pill's static lime fill;
+          once the layout effect runs (synchronously before paint after
+          mount), the indicator snaps onto the active pill. */}
+      <div
+        ref={indicatorRef}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          left: -9999,
+          top: 0,
+          width: 0,
+          height: 0,
+          background: GREEN,
+          clipPath: CHUNKY_PILL,
+          pointerEvents: 'none',
+          zIndex: 1,
+          transition: indicatorTransition,
+        }}
+      />
+
+      {/* Prev arrow — does NOT register in pillRefs because it shares
+          the iso key with the actual day pill rendered in the days
+          array; the day pill is what the indicator lerps toward. */}
       <PillButton
         iso={prevIso}
         locale={locale}
@@ -172,10 +261,6 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
         isSelected={false}
         isArrow
         onSelect={onSelect}
-        registerRef={(el) => {
-          if (el) pillRefs.current.set(prevIso, el)
-          else pillRefs.current.delete(prevIso)
-        }}
       />
 
       {days.map(({ iso, isSelected, isToday, disabled }) => {
@@ -189,6 +274,14 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
         else if (isLocaleToday(addDaysIso(iso, 1, tz), locale)) topLabel = t('yesterday')
         else if (isLocaleToday(addDaysIso(iso, -1, tz), locale)) topLabel = t('tomorrow')
 
+        // Per-pill swipe overlap drives bg/text crossfade. Active pill
+        // sheds lime (1 → 0) as the gesture commits; target pill gains
+        // it (0 → 1). Other pills are untouched.
+        const isTarget = iso === targetIso
+        const swipeOverlap = isSelected
+          ? 1 - swipeMagnitude
+          : isTarget ? swipeMagnitude : 0
+
         return (
           <PillButton
             key={iso}
@@ -199,6 +292,7 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
             isSelected={isSelected}
             disabled={disabled}
             onSelect={onSelect}
+            swipeOverlap={swipeOverlap}
             registerRef={(el) => {
               if (el) pillRefs.current.set(iso, el)
               else pillRefs.current.delete(iso)
@@ -207,7 +301,7 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
         )
       })}
 
-      {/* Next arrow */}
+      {/* Next arrow — see comment above the prev arrow. */}
       <PillButton
         iso={nextIso}
         locale={locale}
@@ -217,10 +311,6 @@ export function DailyDatePills({ selectedIso, locale, onSelect, maxIso }: Props)
         isArrow
         disabled={nextDisabled}
         onSelect={onSelect}
-        registerRef={(el) => {
-          if (el) pillRefs.current.set(nextIso, el)
-          else pillRefs.current.delete(nextIso)
-        }}
       />
     </nav>
   )
@@ -259,29 +349,48 @@ interface PillButtonProps {
   onSelect?: (iso: string) => void
   /** Stores a DOM ref keyed by iso in the parent's pillRefs map. */
   registerRef?: (el: HTMLElement | null) => void
+  /** How "lime" this pill should look right now, in [0, 1].
+   *  1 = the floating indicator is fully on this pill (its text is
+   *  dark on lime). 0 = no indicator overlap (default state).
+   *  Drives the bg + text crossfade during a swipe so the pill
+   *  visually hands the lime indicator off to its neighbour. */
+  swipeOverlap?: number
 }
 
 function PillButton(p: PillButtonProps) {
   const isActive = p.isSelected && !p.isArrow
   // G2: active pills are SOLID LIME — same idiom as the site's primary
   // CTAs (login/follow/active nav). Dark text on lime bg.
-  const background = isActive ? GREEN : BG_CARD
-  const color = isActive ? '#0A0A0A' : '#FFF'
+  // The active pill's static lime fill is what SSR paints — the floating
+  // indicator on top covers it identically at rest. During a swipe, the
+  // active pill's lime fades out (`swipeOverlap` drops 1 → 0) as the
+  // indicator slides away, while the target pill's `swipeOverlap` rises
+  // 0 → 1 — but the target pill's *background* stays neutral; the
+  // indicator covering it provides the lime. So we only need to fade
+  // the active pill's bg.
+  const overlap = p.swipeOverlap ?? (isActive ? 1 : 0)
+  const isSwiping = (p.swipeOverlap ?? -1) >= 0 && p.swipeOverlap !== (isActive ? 1 : 0)
+  const background = isActive
+    ? `rgba(126, 211, 33, ${overlap})`
+    : BG_CARD
+  // Text crossfades dark ↔ white with overlap. At overlap=1 (lime under),
+  // text is dark; at overlap=0 (no lime), text is white.
+  const color = lerpHex('#0A0A0A', '#FFFFFF', 1 - overlap)
   const border = isActive ? GREEN : 'rgba(255,255,255,0.08)'
   const borderWidth = isActive ? 1.5 : 1
-  const width = p.isArrow ? 32 : 54
-  const minWidth = p.isArrow ? 32 : 54
+  const width = p.isArrow ? 36 : 76
+  const minWidth = p.isArrow ? 36 : 76
 
   const sharedStyle: React.CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 1,
+    gap: 3,
     width,
     minWidth,
-    height: 44,
-    padding: '4px 2px',
+    height: 52,
+    padding: '6px 4px',
     background,
     border: `${borderWidth}px solid ${border}`,
     clipPath: CHUNKY_PILL,
@@ -290,11 +399,21 @@ function PillButton(p: PillButtonProps) {
     flexShrink: 0,
     fontFamily: 'inherit',
     position: 'relative',
-    zIndex: 2,
+    // Mid-swipe pills (active + target) sit ABOVE the indicator block
+    // so their text remains crisp on the lime fill. Other pills sit
+    // below so the indicator can pass over them visually if it ever
+    // travels through.
+    zIndex: isSwiping ? 3 : 2,
     cursor: p.disabled ? 'not-allowed' : 'pointer',
     opacity: p.disabled ? 0.32 : 1,
     pointerEvents: p.disabled ? 'none' : 'auto',
   }
+
+  // Top-label colour crossfades muted ↔ near-dark with overlap, mirroring
+  // the bottom label so the cascade lands on the right tone.
+  const topColor = lerpHex('#5A5A5A', MUTED, 1 - overlap)
+  const bottomColor = lerpHex('#0A0A0A', '#FFFFFF', 1 - overlap)
+  const topOpacity = 0.7 + 0.3 * overlap
 
   const inner = p.isArrow ? (
     <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1, color: p.isSelected ? '#0A0A0A' : MUTED }}>
@@ -310,9 +429,8 @@ function PillButton(p: PillButtonProps) {
           fontWeight: 600,
           letterSpacing: 0.3,
           textTransform: 'uppercase',
-          // G2: dark text on lime fill when active; muted otherwise.
-          color: isActive ? 'rgba(10,10,10,0.85)' : MUTED,
-          opacity: isActive ? 1 : 0.7,
+          color: topColor,
+          opacity: topOpacity,
           lineHeight: 1,
         }}
       />
@@ -320,10 +438,10 @@ function PillButton(p: PillButtonProps) {
         text={p.bottomLabel ?? ''}
         active={isActive}
         style={{
-          fontSize: 15,
+          fontSize: 18,
           fontWeight: 700,
           lineHeight: 1.1,
-          color: isActive ? '#0A0A0A' : '#FFF',
+          color: bottomColor,
         }}
       />
     </>
@@ -380,6 +498,20 @@ function PillButton(p: PillButtonProps) {
       {inner}
     </Link>
   )
+}
+
+// Linear interpolation between two CSS hex colours (e.g. "#0A0A0A").
+// Used to crossfade pill text colour as the swipe indicator slides
+// between active and target pills. Pure function — no DOM access.
+function lerpHex(a: string, b: string, t: number): string {
+  const ax = parseInt(a.slice(1), 16)
+  const bx = parseInt(b.slice(1), 16)
+  const ar = (ax >> 16) & 0xff, ag = (ax >> 8) & 0xff, ab = ax & 0xff
+  const br = (bx >> 16) & 0xff, bg = (bx >> 8) & 0xff, bb = bx & 0xff
+  const r = Math.round(ar + (br - ar) * t)
+  const g = Math.round(ag + (bg - ag) * t)
+  const bl = Math.round(ab + (bb - ab) * t)
+  return `rgb(${r}, ${g}, ${bl})`
 }
 
 // Splits a string into per-character spans so the active pill's

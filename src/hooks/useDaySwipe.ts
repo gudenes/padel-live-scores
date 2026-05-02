@@ -45,6 +45,11 @@ export interface DaySwipeBindings {
   }
   /** Live translateX in pixels. 0 when not gesturing. */
   translate: number
+  /** Live commitment progress in [-1, 1].
+   *  +1 = fully toward `nextIso` (would commit on release).
+   *  -1 = fully toward `prevIso`.
+   *  0  = at rest. Drives the day-picker's lime indicator slide. */
+  progress: number
   /** True while the user's finger is mid-swipe. Use to skip transition
    *  CSS so the page tracks the finger 1:1. */
   active: boolean
@@ -55,6 +60,7 @@ export function useDaySwipe(opts: DaySwipeOptions): DaySwipeBindings {
   const startXRef = useRef<number | null>(null)
   const startYRef = useRef<number | null>(null)
   const [translate, setTranslate] = useState(0)
+  const [progress, setProgress] = useState(0)
   const [active, setActive] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
 
@@ -71,6 +77,7 @@ export function useDaySwipe(opts: DaySwipeOptions): DaySwipeBindings {
     startXRef.current = null
     startYRef.current = null
     setTranslate(0)
+    setProgress(0)
     setActive(false)
   }
 
@@ -93,6 +100,12 @@ export function useDaySwipe(opts: DaySwipeOptions): DaySwipeBindings {
       reset()
       return
     }
+    // Progress drives the day-picker's lime-indicator slide. Use the
+    // raw delta (not the clamped translate) so the indicator hits the
+    // target pill's centre exactly when the gesture would commit.
+    // dx<0 = swiping toward nextIso → progress > 0.
+    const p = Math.max(-1, Math.min(1, -dx / SWIPE_THRESHOLD_PX))
+    setProgress(p)
     if (reducedMotion) {
       setActive(true)
       return
@@ -133,6 +146,7 @@ export function useDaySwipe(opts: DaySwipeOptions): DaySwipeBindings {
       onTouchCancel: reset,
     },
     translate,
+    progress,
     active,
   }
 }

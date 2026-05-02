@@ -241,15 +241,24 @@ export default function MatchesDayShell({
     g.matches.some((m) => m.status === 'live' || m.status === 'on_court'),
   )
 
-  // Live swipe gesture — translate is shared between the body wrapper
-  // AND the sticky header so the day pills drag with the finger. On
-  // commit (>= 80px), `goTo` swaps the cached day in.
-  const { touchHandlers, translate, active: swipeActive } = useDaySwipe({
+  // Live swipe gesture — translate drives the body wrapper's drag-feedback
+  // transform, while `progress` (normalized to [-1, 1]) drives the day
+  // picker's lime indicator slide. On commit (>= 80px), `goTo` swaps the
+  // cached day in.
+  //
+  // The pill strip itself no longer translates with the finger — the
+  // sliding lime indicator is the sole visual signal in the picker.
+  const {
+    touchHandlers,
+    translate,
+    progress: swipeProgress,
+    active: swipeActive,
+  } = useDaySwipe({
     prevIso,
     nextIso,
     onSwipe: goTo,
   })
-  const swipeStyle = {
+  const bodySwipeStyle = {
     transform: translate ? `translateX(${translate}px)` : undefined,
     transition: swipeActive
       ? 'none'
@@ -257,31 +266,18 @@ export default function MatchesDayShell({
   } as const
 
   // Today shortcut — surfaced next to FILTROS when the user is parked on
-  // any day other than today. Tapping it lets the matches body snap to
-  // today's content immediately while the day-pill strip glides smoothly
-  // toward the new centre, the way a carousel swipe feels rather than a
-  // discrete state-flicker.
+  // any day other than today. Tapping it updates `pillIso` to today and
+  // lets `DailyDatePills`' own layout effect smooth-scroll the rail so
+  // today's pill lands in the centre, while the lime indicator's CSS
+  // `left` transition glides it onto today's pill in lockstep. No
+  // wrapper translate / WAAPI — keeping a single motion (the rail
+  // scroll) avoids the "everything reloads from the right" feel that
+  // came from layering a WAAPI translate on top of the smooth-scroll.
   const todayIso = useMemo(() => getLocaleTodayIso(locale), [locale])
   const isOnToday = isLocaleToday(activeIso, locale)
 
-  // Carousel-style slide on Today click. Driven by the Web Animations
-  // API instead of a React-controlled CSS transition: WAAPI runs on
-  // the compositor thread, immune to React 19's automatic batching
-  // (which kept collapsing our 360→0 state pair into a single render
-  // and skipping the animation entirely). The strip's pillIso is
-  // re-centred on today *immediately*; the wrapper's transform animates
-  // smoothly from the old offset back to 0 over 1.1s.
-  const ROLL_DURATION_MS = 1100
-  const ROLL_EASING = 'cubic-bezier(0.5, 0.0, 0.5, 1.0)'
-  // Each pill is 54px wide with a 6px row gap → 60px stride.
-  const PILL_STRIDE_PX = 60
-  const rollWrapperRef = useRef<HTMLDivElement | null>(null)
-
   const rollToToday = useCallback(() => {
-    const fromMs = Date.parse(pillIso + 'T12:00:00Z')
-    const toMs = Date.parse(todayIso + 'T12:00:00Z')
-    const dayDiff = Math.round((toMs - fromMs) / 86_400_000)
-    if (dayDiff === 0) return
+    if (pillIso === todayIso) return
 
     // Body + URL snap to today right away.
     setActiveIso(todayIso)
@@ -290,22 +286,6 @@ export default function MatchesDayShell({
       fetchDay(todayIso)
     }
     setPillIso(todayIso)
-
-    // Animate the rendered (re-centred-on-today) strip from where the
-    // old window visually was to its natural centre. WAAPI bypasses
-    // React; the animation reads "from offset=360 to offset=0" no
-    // matter how many re-renders happen between now and finish.
-    const offset = dayDiff * PILL_STRIDE_PX
-    const node = rollWrapperRef.current
-    if (node && typeof node.animate === 'function') {
-      node.animate(
-        [
-          { transform: `translateX(${offset}px)` },
-          { transform: 'translateX(0px)' },
-        ],
-        { duration: ROLL_DURATION_MS, easing: ROLL_EASING, fill: 'none' },
-      )
-    }
   }, [pillIso, todayIso, cache, fetchDay])
 
   // Format the suggested-next-iso into a short, human-friendly label
@@ -339,16 +319,14 @@ export default function MatchesDayShell({
           overflow: 'hidden',
         }}
       >
-        <div style={swipeStyle}>
-          <div ref={rollWrapperRef}>
-            <DailyDatePills
-              selectedIso={pillIso}
-              locale={locale}
-              onSelect={goTo}
-              maxIso={boundaryIso}
-            />
-          </div>
-        </div>
+        <DailyDatePills
+          selectedIso={pillIso}
+          locale={locale}
+          onSelect={goTo}
+          maxIso={boundaryIso}
+          swipeProgress={swipeProgress}
+          swipeActive={swipeActive}
+        />
         {/* Filter bar is always visible — even on empty days the user
             should be able to flip filters or hop back to today without
             having to first land on a populated day. */}
@@ -383,7 +361,7 @@ export default function MatchesDayShell({
         />
       </div>
 
-      <div {...touchHandlers} style={{ ...swipeStyle, touchAction: 'pan-y' }}>
+      <div {...touchHandlers} style={{ ...bodySwipeStyle, touchAction: 'pan-y' }}>
         {/* `key` swap forces React to remount the body — runs the
             `.matches-day-fade` keyframe + scrolls any sub-state back to
             initial without a jarring page-flash. */}

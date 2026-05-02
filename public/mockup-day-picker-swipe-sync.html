@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Day Picker — Swipe sync mockup</title>
+<style>
+  :root {
+    --bg-base: #1A1A1A;
+    --bg-card: #141414;
+    --bg-page: #0A0A0A;
+    --green: #7ED321;
+    --muted: #6B7280;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg-page); color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { padding: 24px 0 100px; }
+  user-select: none;
+
+  h1.title {
+    max-width: 500px; margin: 0 auto 6px; padding: 0 16px;
+    font-size: 18px; font-weight: 800;
+  }
+  p.intro {
+    max-width: 500px; margin: 0 auto 18px; padding: 0 16px;
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+  }
+
+  .frame {
+    max-width: 500px;
+    margin: 0 auto 14px;
+    background: var(--bg-base);
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+  .frame-label {
+    max-width: 500px;
+    margin: 24px auto 8px;
+    padding: 0 16px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  .frame-sub {
+    max-width: 500px;
+    margin: -4px auto 8px;
+    padding: 0 16px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* Day-picker rail (matches the live component sizes) */
+  nav.day-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    position: relative;
+  }
+  nav.day-picker::-webkit-scrollbar { display: none; }
+
+  .pill {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 76px; height: 52px;
+    padding: 6px 4px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.08);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    color: #fff;
+    cursor: pointer;
+    line-height: 1;
+    position: relative;
+  }
+  .pill .top {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    color: var(--muted);
+    line-height: 1;
+    white-space: nowrap;
+    transition: color 80ms linear;
+  }
+  .pill .bot {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #fff;
+    transition: color 80ms linear;
+  }
+  .arrow {
+    flex-shrink: 0;
+    width: 36px; height: 52px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-card);
+    border: 1px solid rgba(255,255,255,0.08);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    color: var(--muted);
+    font-size: 18px; font-weight: 700;
+  }
+
+  /* Mock content body that the user "swipes" */
+  .content {
+    height: 240px;
+    background: linear-gradient(180deg, #1f1f1f 0%, var(--bg-base) 100%);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    font-size: 13px;
+    user-select: none;
+    cursor: grab;
+    touch-action: pan-y;
+  }
+  .content.dragging { cursor: grabbing; }
+  .content-inner {
+    text-align: center;
+    pointer-events: none;
+  }
+  .content-day {
+    font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 6px;
+  }
+  .content-hint {
+    font-size: 11px; color: var(--muted);
+  }
+  .swipe-hint {
+    text-align: center;
+    font-size: 10px;
+    color: var(--green);
+    padding: 6px;
+    background: rgba(126,211,33,0.08);
+  }
+
+  /* ── Concept-specific styles ─────────────────────────────────── */
+
+  /* CONCEPT A — Crossfade (lime opacity transfers between pills) */
+  .concept-a .pill[data-state="active"] .lime-bg,
+  .concept-a .pill[data-state="next"] .lime-bg {
+    position: absolute; inset: 0;
+    background: var(--green);
+    clip-path: inherit;
+    pointer-events: none;
+  }
+  .concept-a .pill .lime-bg { display: none; }
+  .concept-a .pill[data-state="active"] .lime-bg,
+  .concept-a .pill[data-state="next"] .lime-bg { display: block; }
+  .concept-a .pill[data-state="active"] .top,
+  .concept-a .pill[data-state="active"] .bot,
+  .concept-a .pill[data-state="next"] .top,
+  .concept-a .pill[data-state="next"] .bot { position: relative; z-index: 2; }
+
+  /* CONCEPT B — Sliding underline marker that bridges between pills */
+  .concept-b nav.day-picker { padding-bottom: 14px; }
+  .concept-b .marker {
+    position: absolute;
+    bottom: 4px;
+    height: 3px;
+    background: var(--green);
+    border-radius: 2px;
+    pointer-events: none;
+    transition: none;
+  }
+  .concept-b .pill[data-state="active"],
+  .concept-b .pill[data-state="next"] {
+    /* Subtle text colour shift to hint at active state */
+  }
+
+  /* CONCEPT C — Translate the lime block between pills */
+  .concept-c nav.day-picker {
+    /* Need the rail to be position: relative to anchor the floating block */
+  }
+  .concept-c .lime-block {
+    position: absolute;
+    top: 12px;  /* matches nav padding-top */
+    height: 52px;
+    background: var(--green);
+    clip-path: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    pointer-events: none;
+    transition: none;
+    z-index: 1;
+  }
+  .concept-c .pill { position: relative; z-index: 2; background: transparent !important; }
+  .concept-c .pill[data-state="active"], .concept-c .pill[data-state="next"] { /* text colour set inline */ }
+
+  /* Slider for static demos */
+  .progress-row {
+    max-width: 500px;
+    margin: 8px auto 0;
+    padding: 8px 16px 0;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .progress-row label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+  .progress-row input[type=range] {
+    flex: 1; accent-color: var(--green);
+  }
+  .progress-row .val { font-size: 11px; color: var(--green); width: 40px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .row-tag {
+    display: inline-block;
+    font-size: 9px; padding: 2px 8px; border-radius: 999px;
+    background: rgba(126,211,33,0.12); color: var(--green);
+    font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
+    margin-left: 6px;
+  }
+
+  .legend {
+    max-width: 500px; margin: 18px auto 0; padding: 0 16px;
+    font-size: 11px; color: var(--muted);
+    line-height: 1.5;
+  }
+  .legend b { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1 class="title">Day Picker — swipe-sync animation</h1>
+<p class="intro">
+  Drag the dark <b>content area</b> left/right (touch or mouse) to simulate
+  swiping between days. Watch how the day picker reflects swipe progress in
+  real time. Each row uses a different visualization. Or use the slider
+  underneath to scrub progress at exact 0–100%.
+</p>
+
+<!-- ───── CONCEPT A — CROSSFADE ──────────────────────────────────── -->
+<div class="frame-label">Concept A — Crossfade<span class="row-tag">simplest</span></div>
+<div class="frame-sub">
+  As you swipe toward tomorrow, the lime fill on <b>TODAY</b> fades out and
+  the lime fill on <b>TOMORROW</b> fades in proportionally. Text colours
+  cross-fade with it.
+</div>
+<div class="frame concept-a" data-concept="a">
+  <nav class="day-picker">
+    <div class="arrow">‹</div>
+    <div class="pill" data-iso="29"><div class="top">WED</div><div class="bot">29</div></div>
+    <div class="pill" data-iso="30"><div class="top">THU</div><div class="bot">30</div></div>
+    <div class="pill" data-iso="1"><div class="top">YESTERDAY</div><div class="bot">1</div></div>
+    <div class="pill" data-iso="2" data-state="active"><div class="lime-bg"></div><div class="top">TODAY</div><div class="bot">2</div></div>
+    <div class="pill" data-iso="3" data-state="next"><div class="lime-bg"></div><div class="top">TOMORROW</div><div class="bot">3</div></div>
+    <div class="pill" data-iso="4"><div class="top">MON</div><div class="bot">4</div></div>
+    <div class="pill" data-iso="5"><div class="top">TUE</div><div class="bot">5</div></div>
+    <div class="arrow">›</div>
+  </nav>
+  <div class="swipe-hint">↔ Drag below to swipe</div>
+  <div class="content">
+    <div class="content-inner">
+      <div class="content-day" data-day-text>Today, May 2</div>
+      <div class="content-hint">14 matches scheduled</div>
+    </div>
+  </div>
+</div>
+<div class="progress-row">
+  <label>scrub progress →</label>
+  <input type="range" min="-100" max="100" value="0" data-progress />
+  <span class="val" data-pct>0%</span>
+</div>
+
+<!-- ───── CONCEPT B — SLIDING UNDERLINE ─────────────────────────── -->
+<div class="frame-label">Concept B — Sliding underline marker<span class="row-tag">subtle</span></div>
+<div class="frame-sub">
+  A thin lime marker slides under the pills from the current day's center to
+  the target day's center. Pill backgrounds stay neutral; only the marker
+  position (and slight text-colour cross-fade) signals progress.
+</div>
+<div class="frame concept-b" data-concept="b">
+  <nav class="day-picker">
+    <div class="arrow">‹</div>
+    <div class="pill" data-iso="29"><div class="top">WED</div><div class="bot">29</div></div>
+    <div class="pill" data-iso="30"><div class="top">THU</div><div class="bot">30</div></div>
+    <div class="pill" data-iso="1"><div class="top">YESTERDAY</div><div class="bot">1</div></div>
+    <div class="pill" data-iso="2" data-state="active"><div class="top">TODAY</div><div class="bot">2</div></div>
+    <div class="pill" data-iso="3" data-state="next"><div class="top">TOMORROW</div><div class="bot">3</div></div>
+    <div class="pill" data-iso="4"><div class="top">MON</div><div class="bot">4</div></div>
+    <div class="pill" data-iso="5"><div class="top">TUE</div><div class="bot">5</div></div>
+    <div class="arrow">›</div>
+    <div class="marker"></div>
+  </nav>
+  <div class="swipe-hint">↔ Drag below to swipe</div>
+  <div class="content">
+    <div class="content-inner">
+      <div class="content-day" data-day-text>Today, May 2</div>
+      <div class="content-hint">14 matches scheduled</div>
+    </div>
+  </div>
+</div>
+<div class="progress-row">
+  <label>scrub progress →</label>
+  <input type="range" min="-100" max="100" value="0" data-progress />
+  <span class="val" data-pct>0%</span>
+</div>
+
+<!-- ───── CONCEPT C — TRANSLATING LIME BLOCK ────────────────────── -->
+<div class="frame-label">Concept C — Lime block slides between pills<span class="row-tag">most physical</span></div>
+<div class="frame-sub">
+  The active lime fill itself translates horizontally to follow the swipe.
+  The pills become "windows" through which the moving lime block is seen.
+  Strongest sense of physical connection between gesture and selector.
+</div>
+<div class="frame concept-c" data-concept="c">
+  <nav class="day-picker">
+    <div class="arrow">‹</div>
+    <div class="pill" data-iso="29"><div class="top">WED</div><div class="bot">29</div></div>
+    <div class="pill" data-iso="30"><div class="top">THU</div><div class="bot">30</div></div>
+    <div class="pill" data-iso="1"><div class="top">YESTERDAY</div><div class="bot">1</div></div>
+    <div class="pill" data-iso="2" data-state="active"><div class="top">TODAY</div><div class="bot">2</div></div>
+    <div class="pill" data-iso="3" data-state="next"><div class="top">TOMORROW</div><div class="bot">3</div></div>
+    <div class="pill" data-iso="4"><div class="top">MON</div><div class="bot">4</div></div>
+    <div class="pill" data-iso="5"><div class="top">TUE</div><div class="bot">5</div></div>
+    <div class="arrow">›</div>
+    <div class="lime-block"></div>
+  </nav>
+  <div class="swipe-hint">↔ Drag below to swipe</div>
+  <div class="content">
+    <div class="content-inner">
+      <div class="content-day" data-day-text>Today, May 2</div>
+      <div class="content-hint">14 matches scheduled</div>
+    </div>
+  </div>
+</div>
+<div class="progress-row">
+  <label>scrub progress →</label>
+  <input type="range" min="-100" max="100" value="0" data-progress />
+  <span class="val" data-pct>0%</span>
+</div>
+
+<p class="legend">
+  <b>How it would map to real swipe:</b> the existing
+  <code style="background:rgba(255,255,255,0.06);padding:1px 4px;border-radius:3px">MatchesDaySwipe</code>
+  component already tracks finger drag in pixels. Divide by half the screen
+  width → progress 0..1. At &gt;0 swipe toward tomorrow; at &lt;0 toward
+  yesterday. Use that progress to drive whichever effect we pick.
+  <br/><br/>
+  <b>Negative progress</b> (drag right) demos swipe toward <b>YESTERDAY</b>.
+  <b>Positive progress</b> (drag left) demos swipe toward <b>TOMORROW</b>.
+</p>
+
+<script>
+(() => {
+  // For each concept, wire up:
+  //   - Slider scrub → applies styles for that progress
+  //   - Drag content area → applies styles based on drag delta
+  // Progress is normalized to [-1, +1].
+  //   +1 = fully transitioned to the "next" (tomorrow) day
+  //   -1 = fully transitioned to the "prev" (yesterday) day
+
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const lerpColor = (c1, c2, t) => {
+    // c1, c2 as [r,g,b]
+    return `rgb(${Math.round(lerp(c1[0],c2[0],t))},${Math.round(lerp(c1[1],c2[1],t))},${Math.round(lerp(c1[2],c2[2],t))})`;
+  };
+
+  const GREEN = [126, 211, 33];
+  const DARK  = [10, 10, 10];
+  const WHITE = [255, 255, 255];
+  const MUTED = [107, 114, 128];
+  const CARD  = [20, 20, 20];
+
+  function applyConceptA(frame, p) {
+    // p in [-1, 1]. p > 0 → moving toward "next" (tomorrow).
+    // Active pill (TODAY): lime opacity = 1 - |p|. Text dark→white as |p| grows.
+    // Target pill: lime opacity = |p|. Text white→dark as |p| grows.
+    // p<0: target is the pill before active; p>0: target is the pill after.
+    const active = frame.querySelector('.pill[data-state="active"]');
+    const next   = frame.querySelector('.pill[data-state="next"]');
+    const prev   = active.previousElementSibling; // YESTERDAY
+    const target = p >= 0 ? next : prev;
+    const t = Math.min(1, Math.abs(p));
+
+    // Reset: remove lime from both possible targets, restore default.
+    [next, prev].forEach(el => {
+      if (!el) return;
+      const lime = el.querySelector('.lime-bg') || (() => {
+        const d = document.createElement('div'); d.className = 'lime-bg';
+        d.style.position = 'absolute'; d.style.inset = '0';
+        d.style.background = 'var(--green)';
+        d.style.clipPath = 'inherit';
+        d.style.pointerEvents = 'none';
+        d.style.opacity = '0';
+        el.style.position = 'relative';
+        el.insertBefore(d, el.firstChild);
+        return d;
+      })();
+      lime.style.display = 'block';
+      lime.style.opacity = '0';
+      // Reset text colour
+      const top = el.querySelector('.top'); const bot = el.querySelector('.bot');
+      top.style.color = ''; bot.style.color = '';
+    });
+
+    // Active pill: ensure lime element exists
+    let activeLime = active.querySelector('.lime-bg');
+    if (!activeLime) {
+      activeLime = document.createElement('div');
+      activeLime.className = 'lime-bg';
+      activeLime.style.position = 'absolute'; activeLime.style.inset = '0';
+      activeLime.style.background = 'var(--green)';
+      activeLime.style.clipPath = 'inherit';
+      activeLime.style.pointerEvents = 'none';
+      active.style.position = 'relative';
+      active.insertBefore(activeLime, active.firstChild);
+    }
+    activeLime.style.display = 'block';
+    activeLime.style.opacity = String(1 - t);
+
+    // Target lime opacity
+    if (target) {
+      const targetLime = target.querySelector('.lime-bg');
+      targetLime.style.opacity = String(t);
+    }
+
+    // Text colours
+    const aTop = active.querySelector('.top'), aBot = active.querySelector('.bot');
+    aTop.style.color = lerpColor(DARK, MUTED, t);
+    aTop.style.opacity = String(lerp(1, 0.7, t));
+    aBot.style.color = lerpColor(DARK, WHITE, t);
+
+    if (target) {
+      const tTop = target.querySelector('.top'), tBot = target.querySelector('.bot');
+      tTop.style.color = lerpColor(MUTED, DARK, t);
+      tTop.style.opacity = String(lerp(0.7, 1, t));
+      tBot.style.color = lerpColor(WHITE, DARK, t);
+    }
+
+    // Z-index for text above lime
+    aTop.style.position = 'relative'; aTop.style.zIndex = '2';
+    aBot.style.position = 'relative'; aBot.style.zIndex = '2';
+  }
+
+  function applyConceptB(frame, p) {
+    const nav = frame.querySelector('nav.day-picker');
+    const active = frame.querySelector('.pill[data-state="active"]');
+    const next = frame.querySelector('.pill[data-state="next"]');
+    const prev = active.previousElementSibling;
+    const target = p >= 0 ? next : prev;
+    const t = Math.min(1, Math.abs(p));
+
+    const activeBox = active.getBoundingClientRect();
+    const navBox = nav.getBoundingClientRect();
+    const activeCenter = activeBox.left - navBox.left + nav.scrollLeft + activeBox.width / 2;
+
+    let targetCenter = activeCenter;
+    if (target) {
+      const tBox = target.getBoundingClientRect();
+      targetCenter = tBox.left - navBox.left + nav.scrollLeft + tBox.width / 2;
+    }
+    const center = lerp(activeCenter, targetCenter, t);
+    const width = lerp(28, 28, t); // constant width 28px
+
+    let marker = nav.querySelector('.marker');
+    if (!marker) {
+      marker = document.createElement('div');
+      marker.className = 'marker';
+      nav.appendChild(marker);
+    }
+    marker.style.left = `${center - width/2}px`;
+    marker.style.width = `${width}px`;
+
+    // Slight text-colour fade
+    const aBot = active.querySelector('.bot');
+    aBot.style.color = lerpColor(WHITE, MUTED, t);
+    if (target) {
+      const tBot = target.querySelector('.bot');
+      tBot.style.color = lerpColor(WHITE, [255,255,255], 0); // stay white but maybe brighten
+    }
+  }
+
+  function applyConceptC(frame, p) {
+    const nav = frame.querySelector('nav.day-picker');
+    const active = frame.querySelector('.pill[data-state="active"]');
+    const next = frame.querySelector('.pill[data-state="next"]');
+    const prev = active.previousElementSibling;
+    const target = p >= 0 ? next : prev;
+    const t = Math.min(1, Math.abs(p));
+
+    const activeBox = active.getBoundingClientRect();
+    const navBox = nav.getBoundingClientRect();
+    const activeLeft = activeBox.left - navBox.left + nav.scrollLeft;
+    let targetLeft = activeLeft;
+    if (target) {
+      const tBox = target.getBoundingClientRect();
+      targetLeft = tBox.left - navBox.left + nav.scrollLeft;
+    }
+    const left = lerp(activeLeft, targetLeft, t);
+
+    let block = nav.querySelector('.lime-block');
+    if (!block) {
+      block = document.createElement('div');
+      block.className = 'lime-block';
+      nav.appendChild(block);
+    }
+    block.style.left = `${left}px`;
+    block.style.width = `${activeBox.width}px`;
+
+    // Cross-fade text colours
+    const aTop = active.querySelector('.top'), aBot = active.querySelector('.bot');
+    aTop.style.color = lerpColor(DARK, MUTED, t);
+    aTop.style.opacity = String(lerp(1, 0.7, t));
+    aBot.style.color = lerpColor(DARK, WHITE, t);
+    if (target) {
+      const tTop = target.querySelector('.top'), tBot = target.querySelector('.bot');
+      tTop.style.color = lerpColor(MUTED, DARK, t);
+      tTop.style.opacity = String(lerp(0.7, 1, t));
+      tBot.style.color = lerpColor(WHITE, DARK, t);
+    }
+  }
+
+  const handlers = { a: applyConceptA, b: applyConceptB, c: applyConceptC };
+
+  function applyAll(frame, progress) {
+    const concept = frame.dataset.concept;
+    handlers[concept](frame, progress);
+    // Update the content text to reflect target day
+    const dayEl = frame.querySelector('[data-day-text]');
+    if (dayEl) {
+      const t = Math.abs(progress);
+      if (progress > 0.95) dayEl.textContent = 'Tomorrow, May 3';
+      else if (progress < -0.95) dayEl.textContent = 'Yesterday, May 1';
+      else dayEl.textContent = 'Today, May 2';
+    }
+    // Update slider visual
+    const slider = frame.parentElement.querySelector('[data-progress]') ||
+                   frame.nextElementSibling?.querySelector('[data-progress]');
+    if (slider && document.activeElement !== slider) {
+      slider.value = String(Math.round(progress * 100));
+    }
+    const pct = frame.nextElementSibling?.querySelector('[data-pct]');
+    if (pct) pct.textContent = `${Math.round(progress * 100)}%`;
+  }
+
+  // Wire sliders
+  document.querySelectorAll('[data-progress]').forEach(slider => {
+    slider.addEventListener('input', () => {
+      const frame = slider.closest('.progress-row').previousElementSibling;
+      const p = parseInt(slider.value, 10) / 100;
+      applyAll(frame, p);
+    });
+  });
+
+  // Wire drag on content areas
+  document.querySelectorAll('.content').forEach(content => {
+    const frame = content.closest('.frame');
+    let startX = null;
+    let dragging = false;
+    let activePointer = null;
+
+    const onDown = (e) => {
+      const x = e.touches ? e.touches[0].clientX : e.clientX;
+      startX = x;
+      dragging = true;
+      content.classList.add('dragging');
+      activePointer = e.pointerId;
+      if (e.pointerId !== undefined) content.setPointerCapture?.(e.pointerId);
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const x = e.touches ? e.touches[0].clientX : e.clientX;
+      const delta = x - startX;
+      const railWidth = frame.querySelector('nav.day-picker').clientWidth;
+      // Map drag distance to progress. A drag of railWidth/2 → full transition.
+      const progress = Math.max(-1, Math.min(1, -delta / (railWidth / 2)));
+      applyAll(frame, progress);
+    };
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      content.classList.remove('dragging');
+      // Snap back to 0 with animation
+      const start = parseFloat(frame.querySelector('[data-progress]')?.value ?? '0') / 100;
+      const t0 = performance.now();
+      const dur = 240;
+      const tick = (now) => {
+        const k = Math.min(1, (now - t0) / dur);
+        const eased = 1 - Math.pow(1 - k, 3);
+        const p = start * (1 - eased);
+        applyAll(frame, p);
+        if (k < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+
+    content.addEventListener('mousedown', onDown);
+    content.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    content.addEventListener('touchstart', onDown, { passive: true });
+    content.addEventListener('touchmove', onMove, { passive: true });
+    content.addEventListener('touchend', onUp);
+    content.addEventListener('pointerdown', onDown);
+    content.addEventListener('pointermove', onMove);
+    content.addEventListener('pointerup', onUp);
+    content.addEventListener('pointercancel', onUp);
+  });
+
+  // Initial render at 0
+  document.querySelectorAll('.frame[data-concept]').forEach(f => applyAll(f, 0));
+})();
+</script>
+
+</body>
+</html>
