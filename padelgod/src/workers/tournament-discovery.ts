@@ -136,14 +136,14 @@ export async function runTournamentDiscovery(
   // keeps the row visible in the public app).
   const slugs = parsed.map((p) => p.slug).filter((s): s is string => !!s);
   const { data: existing } = slugs.length > 0
-    ? await deps.supabase.from('tournaments').select('slug, level, country').in('slug', slugs)
+    ? await deps.supabase.from('tournaments').select('slug, level, country, live_source').in('slug', slugs)
     : { data: [] };
   const existingBySlug = new Map<
     string,
-    { level: string | null; country: string | null }
+    { level: string | null; country: string | null; live_source: string | null }
   >(
-    ((existing ?? []) as Array<{ slug: string; level: string | null; country: string | null }>).map(
-      (r) => [r.slug, { level: r.level, country: r.country }],
+    ((existing ?? []) as Array<{ slug: string; level: string | null; country: string | null; live_source: string | null }>).map(
+      (r) => [r.slug, { level: r.level, country: r.country, live_source: r.live_source }],
     ),
   );
 
@@ -192,6 +192,11 @@ export async function runTournamentDiscovery(
   // duplicate row that would have been created pre-fix.
   const twinMerges: Array<{ twinId: string; slug: string; name: string }> = [];
 
+  // twinIds is populated during the map below (twinMerges accumulates as
+  // we iterate), so we define a live Set here and fill it incrementally.
+  // The downstream batch-split code references the same Set after the map.
+  const twinIds = new Set<string>();
+
   const rows = parsed.map((p) => {
     const level = resolveFipLevel(p.categoryTermIds, p.slug);
 
@@ -224,6 +229,7 @@ export async function runTournamentDiscovery(
       // the existing row, and remove from the slug map so we don't
       // double-count it in the upsert telemetry.
       twinMerges.push({ twinId: twin.id, slug: p.slug, name: p.name });
+      twinIds.add(twin.id);
     }
 
     // Country gap-fill. Source-priority for `tournament.country` is
@@ -278,6 +284,21 @@ export async function runTournamentDiscovery(
       // else: brand-new row with no level signal — leave undefined,
       // which lets the column's NULL default apply on insert.
     }
+
+    // Auto-flip: new tournaments default to padelgod-owned. Existing rows
+    // are NEVER touched — never silently flip an in-flight tournament.
+    // Per spec: docs/superpowers/specs/2026-05-02-padelapi-departure-design.md §3
+    const existingForSlug = existingBySlug.get(p.slug);
+    const isTwinUpdate = typeof row.id === 'string' && twinIds.has(row.id);
+    if (!existingForSlug && !isTwinUpdate) {
+      row.live_source = 'padelgod';
+    } else if (existingForSlug?.live_source != null) {
+      // Echo existing value back into the payload to defeat Supabase
+      // upsert's "missing column → reset to default" behavior on UPDATE
+      // (same gotcha as level/country preservation above).
+      row.live_source = existingForSlug.live_source;
+    }
+
     return row;
   });
 
@@ -287,7 +308,7 @@ export async function runTournamentDiscovery(
   // historical `onConflict: 'slug'` path (insert when new, update on
   // slug match). Doing both in one batch with `onConflict: 'slug'`
   // would fail for twins because they don't yet have a slug to match.
-  const twinIds = new Set(twinMerges.map((t) => t.twinId));
+  // (twinIds was populated incrementally during the map above)
   const twinRows = rows.filter((r) => typeof r.id === 'string' && twinIds.has(r.id));
   const newRows = rows.filter((r) => !twinRows.includes(r));
 
