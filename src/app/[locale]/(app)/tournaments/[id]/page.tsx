@@ -13,6 +13,7 @@ import { Match, countryFlag, pairName, parseSetScore, parseSetFromGames, isWarmi
 import { hydrateThinPlayers } from '@/lib/thin-match-player'
 import Spinner from '../../../../components/Spinner'
 import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
+import MatchCardSkeleton from '@/components/skeletons/MatchCardSkeleton'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { MatchCard } from '@/components/MatchCard'
@@ -749,7 +750,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           <div style={{ padding: '8px 12px 16px' }}>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} style={{ background: BG_CARD, clipPath: CHUNKY.card, height: 88, marginBottom: 6, opacity: 0.3 }} />
+                <MatchCardSkeleton key={i} />
               ))
             ) : (
               <>
