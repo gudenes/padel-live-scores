@@ -60,7 +60,37 @@ export default function MatchesDayShell({
   emptyStateSubtitle,
 }: Props) {
   const tDaily = useTranslations('daily')
+  const tOffline = useTranslations('offline')
   const tz = useMemo(() => getLocaleHomeTz(locale), [locale])
+
+  // Offline banner — hydration-safe (defaults to hidden on SSR; window
+  // listeners only run client-side). When navigator.onLine flips, we
+  // reveal a small "as of HH:mm" strip just below the sticky header so
+  // the user knows scores may be stale. The timestamp is local-now at
+  // the moment the offline event fired (see src/lib/cache-meta.ts for
+  // the rationale — the SW serves last-cached, "now" is the closest
+  // proxy we have until the SW exposes a real cached-at timestamp).
+  const [showOfflineBanner, setShowOfflineBanner] = useState(false)
+  const [offlineTime, setOfflineTime] = useState('')
+
+  useEffect(() => {
+    function update() {
+      const online = navigator.onLine
+      setShowOfflineBanner(!online)
+      if (!online) {
+        setOfflineTime(
+          new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+        )
+      }
+    }
+    update()
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+    }
+  }, [locale])
 
   const [activeIso, setActiveIso] = useState(initialIso)
   // Pill-window iso. Usually mirrors activeIso 1:1, but the "Today"
@@ -360,6 +390,21 @@ export default function MatchesDayShell({
           }
         />
       </div>
+
+      {showOfflineBanner && (
+        <div
+          style={{
+            fontSize: 11,
+            color: '#F5A623',
+            background: 'rgba(245,166,35,0.08)',
+            padding: '6px 16px',
+            textAlign: 'center',
+            fontWeight: 600,
+          }}
+        >
+          {tOffline('banner', { time: offlineTime })}
+        </div>
+      )}
 
       <div {...touchHandlers} style={{ ...bodySwipeStyle, touchAction: 'pan-y' }}>
         {/* `key` swap forces React to remount the body — runs the
