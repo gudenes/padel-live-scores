@@ -58,6 +58,25 @@ export async function initNative(): Promise<void> {
     console.warn('[native-init] App backButton listener failed', err)
   }
 
+  // Deep link handler: when an https://padelnachos.com URL arrives via
+  // Android App Links (or iOS Universal Links, future), route the WebView
+  // to the path so OAuth callbacks, magic-link emails, and shared match
+  // URLs all land inside the app instead of bouncing out to Chrome.
+  try {
+    App.addListener('appUrlOpen', ({ url }) => {
+      try {
+        const parsed = new URL(url)
+        if (parsed.host !== 'padelnachos.com') return
+        const path = parsed.pathname + parsed.search + parsed.hash
+        window.location.href = path || '/'
+      } catch {
+        // malformed URL — ignore silently
+      }
+    })
+  } catch (err) {
+    console.warn('[native-init] App.appUrlOpen listener failed', err)
+  }
+
   // Push notifications: register the device with FCM (Android) / APNs
   // (iOS, future), POST the resulting token to our backend so the
   // /api/push/notify fan-out can target this device. Tap routing: when

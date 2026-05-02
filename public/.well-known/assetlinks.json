@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.padelnachos.app",
+      "sha256_cert_fingerprints": [
+        "69:7A:23:A2:9E:9C:C5:81:42:ED:D2:E8:0F:BD:E4:A3:61:29:3B:FB:1D:AB:83:3A:73:49:57:0E:D9:70:99:5A"
+      ]
+    }
+  }
+]
