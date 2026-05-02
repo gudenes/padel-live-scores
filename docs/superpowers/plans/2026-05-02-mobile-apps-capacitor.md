@@ -704,245 +704,148 @@ git commit -m "feat(mobile): hardware back button handling"
 
 ---
 
-## Phase 3b — Push notifications
+## Phase 3b — Native push (FCM)
 
-The largest single subsystem in v1. Two triggers (favourite player goes live, prediction resolved), localized payloads, preferences UI.
+> **Re-spec landed 2026-05-02.** Original Phase 3b was written assuming nothing existed. Reality: the codebase has a complete two-layer notification system already in production — Web Push for browser users, in-app log via `user_notifications`, full settings page at `/profile/settings/notifications`, 3 active triggers (`match_live_follow`, `match_live_bookmark`, `match_finished`), recipient fan-out across bookmarks + follows, dedup via `user_notifications`, stale subscription cleanup. Phase 3b is now scoped to **adding FCM as a third transport** behind the existing pipeline, not building the pipeline.
 
-> **Re-spec required before starting Phase 3b.** During Phase 1 we discovered the codebase already has a complete Web Push implementation (`src/lib/push.ts`, `src/hooks/usePushNotifications.ts`, `/api/user/push-subscriptions`, `push_subscriptions` table with `endpoint` + `keys` columns). The plan below was written assuming nothing existed. Reality: **Web Push works for browser users today. We need to ADD an FCM/APNs path alongside for native apps**, not replace. Capacitor's WebView doesn't reliably surface Web Push, so native apps need the `@capacitor/push-notifications` plugin → FCM (Android) / APNs (iOS). The existing `push_subscriptions` table needs a column add (`device_token`, `platform`) to coexist with the Web Push columns. Re-do this Phase 3b section with the existing infra in mind before kicking off implementation.
+**Why narrower than the original:**
+- ❌ No new triggers — the 3 active ones already fire from `/api/cron/scores` + padelgod
+- ❌ No localized payload builders — payloads are already built per-recipient inside `/api/push/notify` (with personalization for follow vs bookmark reason)
+- ❌ No new settings UI — `/profile/settings/notifications` already covers it. Single per-category "Push" toggle routes to web *and* FCM transports for users with both subscribed (Slack/Discord pattern)
+- ❌ No `user_predictions` work — there's no "prediction resolved" trigger in the existing taxonomy. Predictions stay localStorage-only
 
-### Task 3b.1: Firebase project setup (manual, ~30 min)
+iOS deferred until macOS upgrade. Phase 3b ships Android-only FCM; APNs adds later.
 
-- [ ] **Step 1: Go to console.firebase.google.com → Create project** named "Padel Nachos".
-- [ ] **Step 2: Add Android app** — package name `com.padelnachos.app`, download `google-services.json`, place at `android/app/google-services.json`.
-- [ ] **Step 3: Add iOS app** — bundle ID `com.padelnachos.app`, download `GoogleService-Info.plist`, place at `ios/App/App/GoogleService-Info.plist`.
-- [ ] **Step 4: Enable Cloud Messaging API** in Firebase console → Settings → Cloud Messaging.
-- [ ] **Step 5: Generate FCM v1 service account key** — Firebase console → Project settings → Service accounts → Generate new private key. Save JSON securely, NOT in repo.
-- [ ] **Step 6: Add to Vercel env vars**:
-  - `FCM_PROJECT_ID` (from service account JSON)
-  - `FCM_SERVICE_ACCOUNT_JSON` (full JSON contents, single line)
+### Task 3b.0: Firebase project setup (MANUAL, owner-driven, ~30 min)
 
-### Task 3b.2: Apple APNs setup (manual, ~45 min, requires Apple Developer account)
+This step is for you, not the implementer subagent. Do it before kicking off implementation:
 
-- [ ] **Step 1: Apple Developer portal → Certificates → New → APNs Key**. Download `.p8` file.
-- [ ] **Step 2: In Firebase console → Project settings → Cloud Messaging → APNs authentication key → Upload** the `.p8` along with key ID and team ID.
-- [ ] **Step 3: In Xcode**: select App target → Signing & Capabilities → + Capability → Push Notifications. Then + Capability → Background Modes → check "Remote notifications".
-- [ ] **Step 4: Commit any Xcode project file changes**
+- [ ] Go to console.firebase.google.com → **Create project** named "Padel Nachos"
+- [ ] **Add Android app** — package name `com.padelnachos.app`. Download `google-services.json` and place at `android/app/google-services.json`. (Will be gitignored — don't commit.)
+- [ ] Firebase console → **Project Settings → Cloud Messaging** → enable Cloud Messaging API if not already on
+- [ ] Firebase console → **Project Settings → Service accounts** → click **Generate new private key**. Saves a JSON file
+- [ ] Add Vercel env vars (Production + Preview):
+  - `FCM_PROJECT_ID` = the `project_id` value from the service account JSON
+  - `FCM_SERVICE_ACCOUNT_JSON` = the entire JSON file contents (single line, escape if needed)
+- [ ] Update `android/.gitignore`:
 
-```bash
-git add ios/App/App.xcodeproj/project.pbxproj
-git commit -m "feat(mobile): enable APNs push capability on iOS"
-```
+  ```gitignore
+  # Firebase config — should be present locally but never committed
+  android/app/google-services.json
+  ```
 
-### Task 3b.3: Database migration — push_subscriptions
+- [ ] When done, tell the orchestrator. Phase 3b implementation can then proceed.
+
+### Task 3b.1: Schema — `native_push_subscriptions` table
 
 **Files:**
-- Create: `supabase/migrations/20260502_push_subscriptions.sql`
+- Create: `supabase/migrations/20260502_native_push_subscriptions.sql`
+
+The existing `push_subscriptions` table stays as-is for Web Push. Native (FCM/APNs) gets its own sibling table — cleaner separation, no risk of breaking the working Web Push system, makes "all transports for user X" a clean UNION across the two tables.
 
 - [ ] **Step 1: Write migration**
 
-> **Note:** project uses Auth.js v5 (not Supabase Auth), so `user_id` references `public.profiles(id)` (the convention used by `user_badges`, `match_ratings`, etc. in this codebase). Access goes through service-key API endpoints only — RLS stays disabled like the other Auth.js-era tables.
-
 ```sql
--- supabase/migrations/20260502_push_subscriptions.sql
-CREATE TABLE public.push_subscriptions (
+-- supabase/migrations/20260502_native_push_subscriptions.sql
+-- Sibling to push_subscriptions (Web Push); stores FCM (Android) and
+-- APNs (iOS, future) device tokens separately so Web Push schema
+-- stays unchanged. Service-key access only — same pattern as the
+-- other Auth.js-era tables (user_badges, match_ratings, etc.).
+
+CREATE TABLE public.native_push_subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  platform text NOT NULL CHECK (platform IN ('android', 'ios', 'web')),
+  platform text NOT NULL CHECK (platform IN ('android', 'ios')),
   device_token text NOT NULL,
   locale text NOT NULL DEFAULT 'en' CHECK (locale IN ('en','es','pt','it','fr')),
-  prefs jsonb NOT NULL DEFAULT '{"player_live": true, "prediction_resolved": true}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   last_seen_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (user_id, device_token)
 );
 
-CREATE INDEX push_subscriptions_user_idx ON public.push_subscriptions(user_id);
-CREATE INDEX push_subscriptions_token_idx ON public.push_subscriptions(device_token);
+CREATE INDEX native_push_user_idx ON public.native_push_subscriptions(user_id);
 ```
 
-- [ ] **Step 2: Apply via Supabase dashboard** (paste SQL into SQL editor, run)
-
+- [ ] **Step 2: Apply via Supabase dashboard** SQL editor. Confirm table appears.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add supabase/migrations/20260502_push_subscriptions.sql
-git commit -m "feat(push): push_subscriptions table"
+git add supabase/migrations/20260502_native_push_subscriptions.sql
+git commit -m "feat(push): native_push_subscriptions table for FCM/APNs"
 ```
 
-### Task 3b.4: Server endpoint — register a device
+### Task 3b.2: Endpoint — POST /api/user/native-push-subscriptions
 
 **Files:**
-- Create: `src/app/api/push/register/route.ts`
-- Create: `src/lib/__tests__/push-register.test.ts`
+- Create: `src/app/api/user/native-push-subscriptions/route.ts`
 
-- [ ] **Step 1: Write the failing test**
+Mirrors the existing `/api/user/push-subscriptions` route (same auth pattern via `getUserOrFail()`, same UPSERT shape), but stores FCM/APNs device tokens.
 
-```ts
-// src/lib/__tests__/push-register.test.ts
-import { describe, it, expect, vi } from 'vitest'
-
-describe('POST /api/push/register', () => {
-  it('rejects without auth session', async () => {
-    // Mock auth() to return null
-    vi.doMock('@/auth', () => ({ auth: () => Promise.resolve(null) }))
-    const { POST } = await import('@/app/api/push/register/route')
-    const req = new Request('http://localhost/api/push/register', {
-      method: 'POST',
-      body: JSON.stringify({ platform: 'android', deviceToken: 'abc', locale: 'en' }),
-    })
-    const res = await POST(req)
-    expect(res.status).toBe(401)
-  })
-
-  it('upserts subscription for authenticated user', async () => {
-    // Test wiring TBD when Supabase mock harness is in scope
-    expect(true).toBe(true) // placeholder
-  })
-})
-```
-
-- [ ] **Step 2: Run, verify failure** (auth import path mismatch is OK at this stage; the structure is the deliverable)
-
-```bash
-npx vitest run src/lib/__tests__/push-register.test.ts
-```
-
-- [ ] **Step 3: Implement the endpoint**
+- [ ] **Step 1: Write the route**
 
 ```ts
-// src/app/api/push/register/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { createServerClient } from '@/lib/supabase'
+// src/app/api/user/native-push-subscriptions/route.ts
+import { getUserOrFail } from '../../_auth'
 
-export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
+export async function POST(req: Request) {
+  const { user, supabase, error } = await getUserOrFail()
+  if (error) return error
 
   const body = await req.json().catch(() => null)
   if (!body || !body.platform || !body.deviceToken) {
-    return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
+    return Response.json({ error: 'Missing platform or deviceToken' }, { status: 400 })
+  }
+  if (body.platform !== 'android' && body.platform !== 'ios') {
+    return Response.json({ error: 'Invalid platform' }, { status: 400 })
   }
 
-  const supabase = createServerClient()
-  const { error } = await supabase
-    .from('push_subscriptions')
-    .upsert({
-      user_id: session.user.id,
-      platform: body.platform,
-      device_token: body.deviceToken,
-      locale: body.locale || 'en',
-      last_seen_at: new Date().toISOString(),
-    }, {
-      onConflict: 'user_id,device_token',
-    })
+  const { error: dbErr } = await supabase
+    .from('native_push_subscriptions')
+    .upsert(
+      {
+        user_id: user.id,
+        platform: body.platform,
+        device_token: body.deviceToken,
+        locale: body.locale || 'en',
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,device_token' },
+    )
 
-  if (error) {
-    return NextResponse.json({ error: 'db_error', detail: error.message }, { status: 500 })
-  }
+  if (dbErr) return Response.json({ error: dbErr.message }, { status: 500 })
+  return Response.json({ ok: true })
+}
 
-  return NextResponse.json({ ok: true })
+export async function DELETE(req: Request) {
+  const { user, supabase, error } = await getUserOrFail()
+  if (error) return error
+
+  const { deviceToken } = await req.json().catch(() => ({}))
+  if (!deviceToken) return Response.json({ error: 'Missing deviceToken' }, { status: 400 })
+
+  await supabase
+    .from('native_push_subscriptions')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('device_token', deviceToken)
+
+  return Response.json({ ok: true })
 }
 ```
 
-- [ ] **Step 4: Verify test passes**
+- [ ] **Step 2: Run typecheck** — `npx tsc --noEmit` clean.
+- [ ] **Step 3: Commit**
 
 ```bash
-npx vitest run src/lib/__tests__/push-register.test.ts
+git add src/app/api/user/native-push-subscriptions/
+git commit -m "feat(push): /api/user/native-push-subscriptions endpoint"
 ```
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/app/api/push/register/ src/lib/__tests__/push-register.test.ts
-git commit -m "feat(push): /api/push/register endpoint"
-```
-
-### Task 3b.5: Client-side registration
+### Task 3b.3: Server-side FCM send helper
 
 **Files:**
-- Modify: `src/lib/native-init.ts`
-- Install: `@capacitor/push-notifications`
-
-- [ ] **Step 1: Install plugin**
-
-```bash
-npm install @capacitor/push-notifications
-npx cap sync
-```
-
-- [ ] **Step 2: Wire registration**
-
-```ts
-// In src/lib/native-init.ts, append:
-import { Capacitor } from '@capacitor/core'
-import { PushNotifications } from '@capacitor/push-notifications'
-
-async function initPush(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return
-
-  // Request permission
-  const perm = await PushNotifications.requestPermissions()
-  if (perm.receive !== 'granted') return
-
-  // Register with the OS — fires 'registration' event with device token
-  await PushNotifications.register()
-
-  PushNotifications.addListener('registration', async (token) => {
-    // Send to our backend
-    await fetch('/api/push/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        platform: Capacitor.getPlatform(), // 'android' | 'ios'
-        deviceToken: token.value,
-        locale: navigator.language.split('-')[0] || 'en',
-      }),
-    }).catch(err => console.error('push register failed', err))
-  })
-
-  PushNotifications.addListener('registrationError', (err) => {
-    console.error('push registration error', err)
-  })
-
-  // When user taps a notification, deep-link to the match/etc.
-  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    const url = action.notification.data?.url
-    if (url) window.location.href = url
-  })
-}
-
-// Call from the existing initNative()
-export async function initNative(): Promise<void> {
-  // ...existing status bar / splash code
-  await initPush()
-}
-```
-
-- [ ] **Step 3: Build and run on device**
-
-```bash
-npx cap sync && npx cap run android
-```
-
-Watch logcat: `adb logcat | grep -i fcm` — verify token logged.
-
-- [ ] **Step 4: Verify token landed in `push_subscriptions` table** via Supabase dashboard.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add package.json package-lock.json src/lib/native-init.ts
-git commit -m "feat(push): client-side device registration"
-```
-
-### Task 3b.6: Server-side FCM send helper
-
-**Files:**
-- Create: `src/lib/push-server.ts`
-- Create: `src/lib/__tests__/push-server.test.ts`
+- Create: `src/lib/push-fcm.ts`
+- Modify: `package.json` (add `firebase-admin`)
 
 - [ ] **Step 1: Install firebase-admin**
 
@@ -950,13 +853,13 @@ git commit -m "feat(push): client-side device registration"
 npm install firebase-admin
 ```
 
-- [ ] **Step 2: Write the helper**
+- [ ] **Step 2: Write the helper** — mirrors the existing `src/lib/push.ts` API surface so `/api/push/notify` can call both transports with similar code.
 
 ```ts
-// src/lib/push-server.ts
-// Server-side FCM v1 push send. Unifies Android (direct FCM) and iOS
-// (FCM proxies to APNs). Reads service account from env at boot;
-// initialized lazily so test envs don't crash.
+// src/lib/push-fcm.ts
+// Server-side FCM v1 send. Sibling to src/lib/push.ts (Web Push).
+// Lazy-initialises firebase-admin on first call so test envs without
+// FCM env vars don't crash at module import.
 
 import admin from 'firebase-admin'
 
@@ -974,17 +877,25 @@ function getApp(): admin.app.App {
   return app
 }
 
-export interface PushPayload {
+export interface FcmPayload {
   title: string
   body: string
-  url?: string  // deep link path for notification tap
-  imageUrl?: string
+  url?: string
+  tag?: string
 }
 
-export async function sendPushToTokens(
+export interface FcmSendResult {
+  success: number
+  failed: number
+  /** Tokens FCM rejected as unregistered/invalid — caller should
+   *  delete these from native_push_subscriptions. */
+  invalidTokens: string[]
+}
+
+export async function sendPushToFcmTokens(
   tokens: string[],
-  payload: PushPayload,
-): Promise<{ success: number; failed: number; invalidTokens: string[] }> {
+  payload: FcmPayload,
+): Promise<FcmSendResult> {
   if (tokens.length === 0) return { success: 0, failed: 0, invalidTokens: [] }
 
   const messaging = admin.messaging(getApp())
@@ -993,32 +904,29 @@ export async function sendPushToTokens(
     notification: {
       title: payload.title,
       body: payload.body,
-      imageUrl: payload.imageUrl,
     },
     data: {
       url: payload.url || '/',
+      tag: payload.tag || 'match-live',
     },
     android: {
       priority: 'high',
       notification: {
         channelId: 'padel_default',
         sound: 'default',
-      },
-    },
-    apns: {
-      payload: {
-        aps: { sound: 'default', badge: 1 },
+        tag: payload.tag,
       },
     },
   })
 
-  // Identify expired/invalid tokens so caller can clean them up
   const invalid: string[] = []
   result.responses.forEach((r, i) => {
     if (!r.success && r.error) {
       const code = r.error.code
-      if (code === 'messaging/registration-token-not-registered' ||
-          code === 'messaging/invalid-registration-token') {
+      if (
+        code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-registration-token'
+      ) {
         invalid.push(tokens[i])
       }
     }
@@ -1032,395 +940,172 @@ export async function sendPushToTokens(
 }
 ```
 
-- [ ] **Step 3: Smoke test** — manual, send test push to your device using Firebase console → Cloud Messaging → Send your first message. Verify it lands.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add package.json package-lock.json src/lib/push-server.ts
+git add package.json package-lock.json src/lib/push-fcm.ts
 git commit -m "feat(push): server-side FCM send helper"
 ```
 
-### Task 3b.7: Localized payload builders
+### Task 3b.4: Wire FCM into /api/push/notify
 
 **Files:**
-- Create: `src/lib/push-payloads.ts`
-- Modify: `src/messages/{en,es,pt,it,fr}.json` (add `push.*` keys)
+- Modify: `src/app/api/push/notify/route.ts`
 
-- [ ] **Step 1: Add translation keys to all 5 locales**
+The existing route already builds personalized payloads per-recipient (different for "follow" reason vs "bookmark" reason) and calls `sendPush()` from `src/lib/push.ts`. Extend it to ALSO query `native_push_subscriptions` for the same recipients and send via FCM. Same payload, different transport.
 
-```json
-"push": {
-  "playerLive": {
-    "title": "{playerName} is on court!",
-    "body": "Live now: {pair1} vs {pair2} — {tournamentName}"
-  },
-  "predictionResolved": {
-    "titleWin": "You called it! 🎯",
-    "titleLoss": "Match over",
-    "body": "{pair1} vs {pair2} — {result}"
-  }
-}
-```
+- [ ] **Step 1: Find the existing `sendPush` call site(s)** in `src/app/api/push/notify/route.ts`. Document where the per-recipient `payload` object is finalized — that's our hook point.
 
-(Translate per locale.)
+- [ ] **Step 2: After the existing Web Push fan-out**, add a parallel FCM fan-out:
+  - Query `native_push_subscriptions` for the same `recipientUserIds` set (same user IDs the Web Push branch used).
+  - For each native subscription, build the same payload that was sent via Web Push for that user (or rebuild it the same way — keep the personalization logic shared).
+  - Group tokens by user (a user may have multiple Android devices) and call `sendPushToFcmTokens` once per payload-shape with all matching tokens.
+  - Collect `invalidTokens` from FCM responses and `DELETE` them from `native_push_subscriptions`.
 
-- [ ] **Step 2: Write the payload builder**
-
-```ts
-// src/lib/push-payloads.ts
-// Builds localized push payloads. Mirrors the createTranslator pattern
-// used by the welcome email so the same JSON files drive both channels.
-
-import { createTranslator } from 'next-intl'
-import en from '@/messages/en.json'
-import es from '@/messages/es.json'
-import pt from '@/messages/pt.json'
-import it from '@/messages/it.json'
-import fr from '@/messages/fr.json'
-import type { PushPayload } from './push-server'
-
-const messages = { en, es, pt, it, fr } satisfies Record<string, unknown>
-type Locale = keyof typeof messages
-
-function t(locale: string) {
-  const safe = (locale in messages ? locale : 'en') as Locale
-  return createTranslator({ locale: safe, messages: messages[safe] as never })
-}
-
-export function buildPlayerLivePayload(input: {
-  locale: string
-  playerName: string
-  pair1: string
-  pair2: string
-  tournamentName: string
-  matchId: string
-}): PushPayload {
-  const tr = t(input.locale)
-  return {
-    title: tr('push.playerLive.title', { playerName: input.playerName }),
-    body: tr('push.playerLive.body', {
-      pair1: input.pair1,
-      pair2: input.pair2,
-      tournamentName: input.tournamentName,
-    }),
-    url: `/match/${input.matchId}`,
-  }
-}
-
-export function buildPredictionResolvedPayload(input: {
-  locale: string
-  pair1: string
-  pair2: string
-  result: string
-  matchId: string
-  userPredictionCorrect: boolean
-}): PushPayload {
-  const tr = t(input.locale)
-  return {
-    title: tr(input.userPredictionCorrect ? 'push.predictionResolved.titleWin' : 'push.predictionResolved.titleLoss'),
-    body: tr('push.predictionResolved.body', {
-      pair1: input.pair1,
-      pair2: input.pair2,
-      result: input.result,
-    }),
-    url: `/match/${input.matchId}`,
-  }
-}
-```
-
-- [ ] **Step 3: Add unit tests**
-
-```ts
-// src/lib/__tests__/push-payloads.test.ts
-import { describe, it, expect } from 'vitest'
-import { buildPlayerLivePayload } from '../push-payloads'
-
-describe('buildPlayerLivePayload', () => {
-  it('renders English title with player name', () => {
-    const p = buildPlayerLivePayload({
-      locale: 'en', playerName: 'Tapia',
-      pair1: 'Tapia/Coello', pair2: 'Galan/Chingotto',
-      tournamentName: 'Miami P1', matchId: 'abc',
-    })
-    expect(p.title).toContain('Tapia')
-    expect(p.url).toBe('/match/abc')
+- [ ] **Step 3: Update the response shape** to include native send counts:
+  ```ts
+  return Response.json({
+    ok: true,
+    recipients,
+    inapp_written,
+    sent: webPushSent,        // existing
+    fcm_sent: fcmSent,        // new
+    by_reason: { bookmark, follow },
+    stale_cleaned: webStale,  // existing
+    fcm_stale_cleaned: fcmStale,  // new
   })
+  ```
 
-  it('falls back to en for unknown locale', () => {
-    const p = buildPlayerLivePayload({
-      locale: 'xyz', playerName: 'Tapia',
-      pair1: 'A/B', pair2: 'C/D',
-      tournamentName: 'X', matchId: 'q',
-    })
-    expect(p.title).toBeDefined()
-  })
-})
-```
+- [ ] **Step 4: Run typecheck** — `npx tsc --noEmit` clean.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-npx vitest run src/lib/__tests__/push-payloads.test.ts
+git add src/app/api/push/notify/
+git commit -m "feat(push): fan out match notifications to FCM tokens"
 ```
 
-- [ ] **Step 4: Commit**
+> **Note for the implementer:** the existing route is large and dense. Read it carefully before editing — keep the existing dedup, recipient fan-out, follow-vs-bookmark personalization, and stale cleanup logic intact. Add FCM as a parallel branch, don't restructure the existing one.
 
-```bash
-git add src/lib/push-payloads.ts src/lib/__tests__/push-payloads.test.ts src/messages/
-git commit -m "feat(push): localized payload builders"
-```
-
-### Task 3b.8: Trigger — bookmarked-player-live
+### Task 3b.5: Install @capacitor/push-notifications + native scaffolding
 
 **Files:**
-- Modify: `src/app/api/cron/scores/route.ts` (or wherever match-status transitions happen)
-- Create: `src/lib/push-triggers.ts`
+- Modify: `package.json`
+- Verify: `android/app/google-services.json` (placed by user in Task 3b.0)
+- Possibly modify: `android/app/build.gradle` (Capacitor's plugin auto-applies the google-services Gradle plugin)
 
-- [ ] **Step 1: Write the trigger function**
-
-```ts
-// src/lib/push-triggers.ts
-import { createServerClient } from '@/lib/supabase'
-import { sendPushToTokens } from './push-server'
-import { buildPlayerLivePayload } from './push-payloads'
-
-export async function notifyPlayerWentLive(matchId: string): Promise<void> {
-  const supabase = createServerClient()
-
-  // Look up match details + player IDs
-  const { data: match } = await supabase
-    .from('matches')
-    .select(`
-      id,
-      pair1_player1:pair1_player1_id(id, name),
-      pair1_player2:pair1_player2_id(id, name),
-      pair2_player1:pair2_player1_id(id, name),
-      pair2_player2:pair2_player2_id(id, name),
-      tournament:tournament_id(name)
-    `)
-    .eq('id', matchId)
-    .single()
-  if (!match) return
-
-  const playerIds = [
-    match.pair1_player1?.id,
-    match.pair1_player2?.id,
-    match.pair2_player1?.id,
-    match.pair2_player2?.id,
-  ].filter(Boolean) as string[]
-
-  // Find users who bookmarked any of these players (table assumed to exist)
-  const { data: subs } = await supabase
-    .from('user_bookmarked_players')
-    .select(`
-      user_id,
-      player_id,
-      push_subscriptions:user_id(device_token, locale, prefs)
-    `)
-    .in('player_id', playerIds)
-
-  if (!subs) return
-
-  // Group tokens by locale + bookmarked player so payloads are personalized
-  const byLocale = new Map<string, { tokens: string[]; playerName: string }>()
-  for (const row of subs) {
-    const subsArr = row.push_subscriptions as Array<{ device_token: string; locale: string; prefs: { player_live?: boolean } }>
-    for (const sub of subsArr) {
-      if (sub.prefs?.player_live === false) continue
-      const playerName = playerIds
-        .map(pid => [match.pair1_player1, match.pair1_player2, match.pair2_player1, match.pair2_player2]
-          .find(p => p?.id === row.player_id)?.name)
-        .find(Boolean) || ''
-      const key = `${sub.locale}::${playerName}`
-      if (!byLocale.has(key)) byLocale.set(key, { tokens: [], playerName })
-      byLocale.get(key)!.tokens.push(sub.device_token)
-    }
-  }
-
-  // Send a per-locale-per-player batch
-  const pair1Names = [match.pair1_player1?.name, match.pair1_player2?.name].filter(Boolean).join('/')
-  const pair2Names = [match.pair2_player1?.name, match.pair2_player2?.name].filter(Boolean).join('/')
-
-  for (const [key, { tokens, playerName }] of byLocale) {
-    const locale = key.split('::')[0]
-    const payload = buildPlayerLivePayload({
-      locale, playerName,
-      pair1: pair1Names, pair2: pair2Names,
-      tournamentName: match.tournament?.name || '',
-      matchId: match.id,
-    })
-    await sendPushToTokens(tokens, payload)
-  }
-}
-```
-
-- [ ] **Step 2: Hook into the score-transition logic**
-
-In `src/app/api/cron/scores/route.ts`, find where matches transition to `status: 'live'` and call:
-
-```ts
-import { notifyPlayerWentLive } from '@/lib/push-triggers'
-
-// After the match status update succeeds:
-if (newStatus === 'live' && oldStatus !== 'live') {
-  await notifyPlayerWentLive(match.id).catch(err => console.error('push trigger failed', err))
-}
-```
-
-- [ ] **Step 3: Test manually** — bookmark a player on your test account, wait for one of their matches to transition to live, verify push arrives.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 1: Install plugin**
 
 ```bash
-git add src/lib/push-triggers.ts src/app/api/cron/scores/route.ts
-git commit -m "feat(push): trigger when bookmarked player goes live"
+npm install @capacitor/push-notifications
+npx cap sync android
 ```
 
-### Task 3b.9: Trigger — prediction resolved
+- [ ] **Step 2: Verify `google-services.json` is present** at `android/app/google-services.json`. If missing, ask the user to complete Task 3b.0.
+
+- [ ] **Step 3: Append to `android/.gitignore`** (if not already done in Task 3b.0):
+
+```gitignore
+android/app/google-services.json
+```
+
+- [ ] **Step 4: Verify build** — `cd android && ./gradlew assembleDebug && cd ..`. Expected: gradle now applies the google-services plugin automatically (Capacitor handles this) and the build succeeds.
+
+- [ ] **Step 5: Commit** (the .gitignore append + any android/ Capacitor sync output)
+
+```bash
+git add package.json package-lock.json android/
+git commit -m "feat(push): @capacitor/push-notifications plugin"
+```
+
+### Task 3b.6: Wire Capacitor client to register
 
 **Files:**
-- Modify: `src/lib/push-triggers.ts`
-- Modify: wherever match-finished propagation happens (likely `src/app/api/cron/scores/route.ts` or `relay/index.js`)
+- Modify: `src/lib/native-init.ts`
 
-- [ ] **Step 1: Add the trigger** to `src/lib/push-triggers.ts`
+Add `initPush()` to the existing native-init module. Same `Capacitor.isNativePlatform()` gate, same try/catch pattern as the other plugin setups in that file.
+
+- [ ] **Step 1: Extend `src/lib/native-init.ts`** — append after the existing back-button listener:
 
 ```ts
-import { buildPredictionResolvedPayload } from './push-payloads'
+import { PushNotifications } from '@capacitor/push-notifications'
 
-export async function notifyPredictionResolved(matchId: string): Promise<void> {
-  const supabase = createServerClient()
+// ... at the bottom of initNative(), AFTER the back-button listener:
 
-  // Look up match + winner
-  const { data: match } = await supabase
-    .from('matches')
-    .select('id, winner_pair, pair1_player1:pair1_player1_id(name), pair1_player2:pair1_player2_id(name), pair2_player1:pair2_player1_id(name), pair2_player2:pair2_player2_id(name), final_score')
-    .eq('id', matchId)
-    .single()
-  if (!match || !match.winner_pair) return
+// Push notifications: register the device with FCM (Android) / APNs
+// (iOS, future), POST the resulting token to our backend so the
+// /api/push/notify fan-out can target this device. Tap routing: when
+// the user taps a notification, deep-link via window.location to the
+// URL embedded in the notification's data payload.
+try {
+  const perm = await PushNotifications.requestPermissions()
+  if (perm.receive === 'granted') {
+    await PushNotifications.register()
+  }
 
-  // Find users who predicted this match (predictions stored in localStorage
-  // currently — for v1 push we only fire if user logged in AND we tracked
-  // their prediction server-side, e.g., via user_predictions table).
-  const { data: predictions } = await supabase
-    .from('user_predictions')
-    .select('user_id, predicted_pair, push_subscriptions:user_id(device_token, locale, prefs)')
-    .eq('match_id', matchId)
-
-  if (!predictions) return
-
-  const pair1 = [match.pair1_player1?.name, match.pair1_player2?.name].filter(Boolean).join('/')
-  const pair2 = [match.pair2_player1?.name, match.pair2_player2?.name].filter(Boolean).join('/')
-  const result = match.final_score || ''
-
-  for (const pred of predictions) {
-    const subsArr = pred.push_subscriptions as Array<{ device_token: string; locale: string; prefs: { prediction_resolved?: boolean } }>
-    const correct = pred.predicted_pair === match.winner_pair
-    for (const sub of subsArr) {
-      if (sub.prefs?.prediction_resolved === false) continue
-      const payload = buildPredictionResolvedPayload({
-        locale: sub.locale, pair1, pair2, result,
-        matchId: match.id,
-        userPredictionCorrect: correct,
+  PushNotifications.addListener('registration', async (token) => {
+    try {
+      await fetch('/api/user/native-push-subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: Capacitor.getPlatform(), // 'android' | 'ios'
+          deviceToken: token.value,
+          locale: navigator.language?.split('-')[0] || 'en',
+        }),
       })
-      await sendPushToTokens([sub.device_token], payload)
+    } catch (err) {
+      console.warn('[native-init] push register POST failed', err)
     }
-  }
+  })
+
+  PushNotifications.addListener('registrationError', (err) => {
+    console.warn('[native-init] push registration error', err)
+  })
+
+  // When user taps a notification, route the WebView to the deep link
+  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    const url = action.notification.data?.url
+    if (typeof url === 'string' && url.startsWith('/')) {
+      window.location.href = url
+    }
+  })
+} catch (err) {
+  console.warn('[native-init] PushNotifications setup failed', err)
 }
 ```
 
-> **Open dependency:** the spec mentions predictions are currently localStorage-only. To trigger this push reliably, predictions need to land in a `user_predictions` table for logged-in users. If that table doesn't exist yet, add it as a prerequisite migration before this trigger ships, or scope the v1 push to bookmarked-player-live only and ship prediction-resolved in v1.1.
-
-- [ ] **Step 2: Hook into match-finished logic** — wherever `winner_pair` gets set or status flips to `finished`:
-
-```ts
-import { notifyPredictionResolved } from '@/lib/push-triggers'
-
-// After the match.winner_pair is committed:
-await notifyPredictionResolved(match.id).catch(err => console.error('prediction push failed', err))
-```
+- [ ] **Step 2: Run typecheck** — `npx tsc --noEmit` clean.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/lib/push-triggers.ts src/app/api/
-git commit -m "feat(push): trigger when user prediction resolves"
+git add src/lib/native-init.ts
+git commit -m "feat(push): Capacitor client registration + tap routing"
 ```
 
-### Task 3b.10: Notification preferences UI
+### Task 3b.7: End-to-end smoke test (owner-driven)
 
-**Files:**
-- Create: `src/app/[locale]/(app)/profile/notifications/page.tsx`
-- Create: `src/app/api/push/prefs/route.ts`
+After all the above is merged + Vercel deploys + APK rebuilt + reinstalled:
 
-- [ ] **Step 1: Create the prefs endpoint**
+- [ ] **Step 1: Sign in to the app** on the Xiaomi device, ensure user has a session
+- [ ] **Step 2: Verify token registration** — check `native_push_subscriptions` table in Supabase, should see a row for the device
+- [ ] **Step 3: Trigger a test push** via `/api/admin/test-push` with the user's email:
 
-```ts
-// src/app/api/push/prefs/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/auth'
-import { createServerClient } from '@/lib/supabase'
+  ```bash
+  curl -X POST https://padelnachos.com/api/admin/test-push \
+    -H "Authorization: Bearer $CRON_SECRET" \
+    -H "Content-Type: application/json" \
+    -d '{"email": "your@email.com", "title": "Test 🟢", "body": "FCM hello", "url": "/"}'
+  ```
 
-export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  Note: `/api/admin/test-push` currently only sends Web Push. We may extend it to also send FCM in this task, or use a simpler standalone curl that hits `/api/push/notify` for a real match the user has bookmarked.
 
-  const { prefs } = await req.json()
-  if (!prefs || typeof prefs !== 'object') {
-    return NextResponse.json({ error: 'invalid_body' }, { status: 400 })
-  }
+- [ ] **Step 4: Verify notification arrives** on the device, taps deep-link to the right page, doesn't fire twice (dedup works)
 
-  const supabase = createServerClient()
-  const { error } = await supabase
-    .from('push_subscriptions')
-    .update({ prefs })
-    .eq('user_id', session.user.id)
+- [ ] **Step 5: Test the actual triggers** — bookmark a player whose match is starting soon, wait for it to go live, verify push arrives
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
-}
-```
-
-- [ ] **Step 2: Create the prefs page** — chunky styled toggles for `player_live` and `prediction_resolved` (one row per pref, lime active state). Pull initial state from `push_subscriptions` table for the logged-in user; on change, POST to `/api/push/prefs`.
-
-(Skeleton — fill out per existing profile-page styling)
-
-```tsx
-'use client'
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/components/AuthProvider'
-
-export default function NotificationsPage() {
-  const { user } = useAuth()
-  const [prefs, setPrefs] = useState({ player_live: true, prediction_resolved: true })
-
-  useEffect(() => {
-    if (!user) return
-    supabase.from('push_subscriptions').select('prefs').eq('user_id', user.id).limit(1)
-      .then(({ data }) => { if (data?.[0]?.prefs) setPrefs(data[0].prefs) })
-  }, [user])
-
-  async function toggle(key: keyof typeof prefs) {
-    const next = { ...prefs, [key]: !prefs[key] }
-    setPrefs(next)
-    await fetch('/api/push/prefs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prefs: next }),
-    })
-  }
-
-  // ...render chunky toggle rows for each pref
-}
-```
-
-- [ ] **Step 3: Add link from `/profile` to `/profile/notifications`**
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add src/app/\[locale\]/\(app\)/profile/notifications/ src/app/api/push/prefs/
-git commit -m "feat(push): /profile/notifications preferences UI"
-```
+If all green, Phase 3b is done.
 
 ---
 
