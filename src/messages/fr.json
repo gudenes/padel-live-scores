@@ -839,5 +839,11 @@
     "searchAria": "Rechercher un pays",
     "clearAria": "Effacer la recherche",
     "noMatch": "Aucun pays ne correspond à \"{query}\""
+  },
+  "offline": {
+    "title": "Vous êtes hors ligne",
+    "subtitle": "Nous ne pouvons pas accéder aux scores en direct pour le moment. Affichage des dernières données chargées.",
+    "retry": "Réessayer",
+    "banner": "Hors ligne — données à {time}"
   }
 }

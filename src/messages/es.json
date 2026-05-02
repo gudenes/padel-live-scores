@@ -839,5 +839,11 @@
     "searchAria": "Buscar país",
     "clearAria": "Borrar búsqueda",
     "noMatch": "Ningún país coincide con \"{query}\""
+  },
+  "offline": {
+    "title": "Sin conexión",
+    "subtitle": "No podemos acceder a los marcadores en directo ahora mismo. Mostrando lo último cargado.",
+    "retry": "Reintentar",
+    "banner": "Sin conexión — datos a las {time}"
   }
 }

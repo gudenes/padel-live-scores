@@ -886,5 +886,11 @@
       "noPicks": "You haven't picked any matches yet",
       "noPicksSub": "Tap PICK on any scheduled match to play."
     }
+  },
+  "offline": {
+    "title": "You're offline",
+    "subtitle": "We can't reach the live scores right now. Showing what we last loaded.",
+    "retry": "Try again",
+    "banner": "Offline — showing data as of {time}"
   }
 }
