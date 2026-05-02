@@ -22,6 +22,7 @@ import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { isPremierLevel } from '@/lib/tournament-labels'
+import { Share } from '@capacitor/share'
 
 import { WinnerBanner } from './WinnerBanner'
 import { PredictionSection, PredictionResult } from './PredictionSection'
@@ -523,9 +524,14 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   navigator.canShare({ files: [imageFile] })
 
                 if (canShareFiles && imageFile) {
+                  // Web Share API Level 2 file attachment — Capacitor's
+                  // Share plugin only accepts file:// URL strings, not
+                  // File objects, so we keep this path on navigator.share.
                   await navigator.share({ title, text, url: shareUrl, files: [imageFile] })
                 } else {
-                  await navigator.share({ title, text, url: shareUrl })
+                  // No file attachment — use Capacitor Share so Android
+                  // gets the native share sheet (proxies to navigator.share on web).
+                  await Share.share({ title, text, url: shareUrl, dialogTitle: title })
                 }
               } else {
                 await navigator.clipboard.writeText(shareUrl)

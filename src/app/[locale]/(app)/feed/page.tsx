@@ -17,6 +17,7 @@ import SearchOverlay from '@/components/nav/SearchOverlay'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
+import { Share } from '@capacitor/share'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -323,8 +324,11 @@ function NewsCard({ item, onClickArticle, onPeek, userLocale, bookmarked, onTogg
     const articleUrl = typeof window !== 'undefined'
       ? `${window.location.origin}/feed/article/${item.id}`
       : `/feed/article/${item.id}`
-    if (navigator.share) {
-      try { await navigator.share({ title: item.title, text: item.snippet ?? item.title, url: articleUrl }) } catch {}
+    // @capacitor/share proxies to navigator.share on web and uses the
+    // native share sheet on iOS/Android. Throws on cancel; ignore.
+    const hasShareApi = typeof navigator !== 'undefined' && 'share' in navigator
+    if (hasShareApi) {
+      try { await Share.share({ title: item.title, text: item.snippet ?? item.title, url: articleUrl }) } catch {}
     } else {
       try {
         await navigator.clipboard.writeText(articleUrl)
