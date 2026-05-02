@@ -47,3 +47,14 @@ next-env.d.ts
 
 # superpowers worktrees (project-local isolated workspaces)
 .worktrees/
+
+# Capacitor — Android Studio
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+android/.cxx/
+android/app/release/
+*.iml
