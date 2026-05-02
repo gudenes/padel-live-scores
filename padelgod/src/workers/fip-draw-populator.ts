@@ -253,6 +253,78 @@ export function normalizeName(name: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+/**
+ * Build the short-form Crionet uses in OOP snapshots: first initial + dot +
+ * space + all tokens after the first. For compound surnames the full compound
+ * is preserved (they don't shorten surnames).
+ *
+ * "Mateo Alvarez"         → "m. alvarez"
+ * "Matias Negrete Oliva"  → "m. negrete oliva"
+ * "Adrian Ronco Lopez"    → "a. ronco lopez"
+ *
+ * Input should already be normalized (lowercase, no accents) — or pass the
+ * raw long-form; normalizeName is applied internally.
+ *
+ * Note: Crionet also generates a "last-token-only" short form for players
+ * with middle given names (e.g. "A. Miranda" for "Adrian Maria Miranda"
+ * where "Maria" is dropped). buildShortFormMap registers both variants.
+ */
+export function shortenName(longName: string): string {
+  const norm = normalizeName(longName);
+  const tokens = norm.split(' ').filter(Boolean);
+  if (tokens.length < 2) return norm;
+  const initial = tokens[0]!.charAt(0);
+  const tail = tokens.slice(1).join(' ');
+  return `${initial}. ${tail}`;
+}
+
+/**
+ * Build a short-form → fip_id lookup from the long-form nameToFipId map.
+ *
+ * Covers two Crionet short-form patterns observed in oop_snapshots:
+ *   1. Full-tail: "M. Negrete Oliva" ← "Matias Negrete Oliva"
+ *      (first initial + dot + all tokens after first)
+ *   2. Last-token: "A. Miranda" ← "Adrian Maria Miranda"
+ *      (first initial + dot + last token only — Crionet drops middle given names
+ *       when the "surname" is a single token)
+ *
+ * Collision rule: if two different long-forms produce the same short key
+ * (e.g. "Mateo Alvarez" + "Marco Alvarez" → "m. alvarez"), the value is
+ * set to null — we won't silently pick the wrong player. Callers treat
+ * null as "ambiguous / not found".
+ */
+export function buildShortFormMap(
+  nameToFipId: Map<string, string>
+): Map<string, string | null> {
+  const map = new Map<string, string | null>();
+
+  const put = (key: string, fipId: string) => {
+    if (map.has(key)) {
+      const existing = map.get(key);
+      if (existing !== fipId) map.set(key, null); // ambiguous — two long-forms collide
+      // same fip_id (de-duplicated entry from multiple snapshot batches) → keep
+    } else {
+      map.set(key, fipId);
+    }
+  };
+
+  for (const [longNorm, fipId] of nameToFipId) {
+    // Pattern 1: full-tail short form ("M. Negrete Oliva")
+    put(shortenName(longNorm), fipId);
+
+    // Pattern 2: last-token-only short form ("A. Miranda") — only useful for
+    // names with 3+ tokens where the middle token(s) are given middle names
+    // rather than part of a compound surname.
+    const tokens = longNorm.split(' ').filter(Boolean);
+    if (tokens.length >= 3) {
+      const lastOnly = `${tokens[0]!.charAt(0)}. ${tokens[tokens.length - 1]}`;
+      put(lastOnly, fipId);
+    }
+  }
+
+  return map;
+}
+
 
 function isRealFipTeamId(id: string | null): boolean {
   // FIP team ids are "P######" for real pairs; byes have non-P numeric ids.
@@ -437,10 +509,15 @@ export async function runFipDrawPopulator(
 
     result.tournamentsProcessed += 1;
 
-    // 4. Build name → fip_id map from latest entry_list snapshot
+    // 4. Build name → fip_id map from latest entry_list snapshot, plus a
+    //    short-form map for Crionet OOP names ("M. Alvarez") and a middle-name
+    //    strip fallback for draw names with extra given-middle tokens.
     const nameToFipId = await loadEntryListNameMap(supabase, t.tournament_id);
+    const shortFormToFipId = buildShortFormMap(nameToFipId);
 
-    // 5. Build fip_id → players.id map (only for fip_ids we'll actually use)
+    // 5. Build fip_id → players.id map (only for fip_ids we'll actually use).
+    //    Include both exact-match and short-form candidates so loadPlayersByFipId
+    //    fetches the right rows even when the draw name is short-form.
     const wantedFipIds = new Set<string>();
     for (const d of latestDraws) {
       for (const n of [
@@ -450,7 +527,10 @@ export async function runFipDrawPopulator(
         d.team2_player2_name,
       ]) {
         if (!n) continue;
-        const f = nameToFipId.get(normalizeName(n));
+        const norm = normalizeName(n);
+        const f =
+          nameToFipId.get(norm) ??
+          (shortFormToFipId.get(norm) ?? undefined);
         if (f) wantedFipIds.add(f);
       }
     }
@@ -506,7 +586,7 @@ export async function runFipDrawPopulator(
         tournamentLevel != null && AMATEUR_TIER_LEVELS.has(tournamentLevel);
       const isOopSourced = d.source === 'oop_snapshot';
       const allowThinMatch = isAmateurTier || isOopSourced;
-      const resolved = resolveFourPlayers(d, nameToFipId, fipIdToPlayerId);
+      const resolved = resolveFourPlayers(d, nameToFipId, shortFormToFipId, fipIdToPlayerId, logger);
       if (!resolved && !allowThinMatch) {
         result.skippedPlayerUnresolved += 1;
         logger?.debug(
@@ -819,7 +899,9 @@ async function upsertTournamentDraws(
 export function resolveFourPlayers(
   d: DrawRow,
   nameToFipId: Map<string, string>,
-  fipIdToPlayerId: Map<string, string>
+  shortFormToFipId: Map<string, string | null>,
+  fipIdToPlayerId: Map<string, string>,
+  logger?: Logger
 ): {
   p1p1: string;
   p1p2: string;
@@ -828,9 +910,56 @@ export function resolveFourPlayers(
 } | null {
   const lookup = (name: string | null): string | null => {
     if (!name) return null;
-    const fipId = nameToFipId.get(normalizeName(name));
-    if (!fipId) return null;
-    return fipIdToPlayerId.get(fipId) ?? null;
+    const norm = normalizeName(name);
+
+    // 1. Exact-match (long-form from entry list) — fastest path.
+    const exactFipId = nameToFipId.get(norm);
+    if (exactFipId) return fipIdToPlayerId.get(exactFipId) ?? null;
+
+    // 2. Short-form match. OOP snapshots write "M. Alvarez" while the entry
+    //    list has "Mateo Alvarez". buildShortFormMap() pre-computed the
+    //    short-form keys for every entry-list player (two variants: full-tail
+    //    "M. Negrete Oliva" and last-token "A. Miranda"). We look the input
+    //    up directly against those keys.
+    if (shortFormToFipId.has(norm)) {
+      const sfFipId = shortFormToFipId.get(norm) ?? null;
+      if (sfFipId == null) {
+        logger?.warn(
+          { name },
+          'fip-draw-populator: short-form name is ambiguous — leaving unresolved'
+        );
+        return null;
+      }
+      return fipIdToPlayerId.get(sfFipId) ?? null;
+    }
+
+    // 3. Middle-name strip for draw names with extra given-middle tokens
+    //    (e.g. "Alejandro Valentino López Barresi" → "Alejandro Lopez Barresi").
+    //    Try removing each non-first, non-last token one at a time; also try
+    //    stripping a trailing surname token (EL name is a prefix of draw name).
+    const tokens = norm.split(' ').filter(Boolean);
+    if (tokens.length >= 3) {
+      // 3a. Remove one middle token at a time (inner tokens)
+      for (let skip = 1; skip < tokens.length - 1; skip++) {
+        const candidate = [
+          ...tokens.slice(0, skip),
+          ...tokens.slice(skip + 1),
+        ].join(' ');
+        const cFipId = nameToFipId.get(candidate);
+        if (cFipId) return fipIdToPlayerId.get(cFipId) ?? null;
+      }
+
+      // 3b. Prefix match: EL name is a strict prefix of draw name
+      //     e.g. "Vinny Nahuel Di Francesco" is a prefix of
+      //          "Vinny Nahuel Di Francesco Calderon"
+      for (let len = tokens.length - 1; len >= 2; len--) {
+        const prefix = tokens.slice(0, len).join(' ');
+        const pFipId = nameToFipId.get(prefix);
+        if (pFipId) return fipIdToPlayerId.get(pFipId) ?? null;
+      }
+    }
+
+    return null;
   };
 
   const p1p1 = lookup(d.team1_player1_name);

@@ -3,6 +3,8 @@ import {
   runFipDrawPopulator,
   resolveFourPlayers,
   normalizeName,
+  shortenName,
+  buildShortFormMap,
 } from '../../workers/fip-draw-populator.js';
 
 // Matches the production Isla de la Palma shape minus fields the
@@ -357,6 +359,7 @@ describe('resolveFourPlayers', () => {
     ['jose montalban', 'fip-P3'],
     ['german rodriguez', 'fip-P4'],
   ]);
+  const emptyShortForm = new Map<string, string | null>();
   const fipIdToPlayerId = new Map([
     ['fip-P1', 'uuid-1'],
     ['fip-P2', 'uuid-2'],
@@ -372,7 +375,7 @@ describe('resolveFourPlayers', () => {
   };
 
   it('resolves 4 long-form names to UUIDs', () => {
-    expect(resolveFourPlayers(baseDraw, nameToFipId, fipIdToPlayerId)).toEqual({
+    expect(resolveFourPlayers(baseDraw, nameToFipId, emptyShortForm, fipIdToPlayerId)).toEqual({
       p1p1: 'uuid-1',
       p1p2: 'uuid-2',
       p2p1: 'uuid-3',
@@ -382,13 +385,13 @@ describe('resolveFourPlayers', () => {
 
   it('returns null when one name is missing from entry list', () => {
     const d = { ...baseDraw, team1_player1_name: 'Nobody Here' };
-    expect(resolveFourPlayers(d, nameToFipId, fipIdToPlayerId)).toBeNull();
+    expect(resolveFourPlayers(d, nameToFipId, emptyShortForm, fipIdToPlayerId)).toBeNull();
   });
 
   it('returns null when one fip_id has no public.players row', () => {
     const noP4 = new Map(fipIdToPlayerId);
     noP4.delete('fip-P4');
-    expect(resolveFourPlayers(baseDraw, nameToFipId, noP4)).toBeNull();
+    expect(resolveFourPlayers(baseDraw, nameToFipId, emptyShortForm, noP4)).toBeNull();
   });
 });
 
@@ -1899,4 +1902,200 @@ describe('runFipDrawPopulator', () => {
     expect(result.tournamentDrawsSkippedNoPosition).toBeGreaterThan(0)
     expect(supabase.tournamentDrawsUpserted).toHaveLength(0)
   })
+});
+
+// ── shortenName ────────────────────────────────────────────────────────
+
+describe('shortenName', () => {
+  it("collapses 'Mateo Alvarez' → 'm. alvarez'", () => {
+    expect(shortenName('Mateo Alvarez')).toBe('m. alvarez');
+  });
+
+  it("preserves compound surname — 'Matias Negrete Oliva' → 'm. negrete oliva'", () => {
+    expect(shortenName('Matias Negrete Oliva')).toBe('m. negrete oliva');
+  });
+
+  it("normalizes accents — 'María Fernández' → 'm. fernandez'", () => {
+    expect(shortenName('María Fernández')).toBe('m. fernandez');
+  });
+
+  it("handles single-token name as-is", () => {
+    expect(shortenName('Madonna')).toBe('madonna');
+  });
+
+  it("three-token with middle given name — 'Adrian Maria Miranda' → 'a. maria miranda'", () => {
+    // Full-tail: shortenName always preserves ALL tokens after first.
+    // The last-token variant ("a. miranda") is handled by buildShortFormMap.
+    expect(shortenName('Adrian Maria Miranda')).toBe('a. maria miranda');
+  });
+});
+
+// ── buildShortFormMap ──────────────────────────────────────────────────
+
+describe('buildShortFormMap', () => {
+  it('builds full-tail entry for two-token name', () => {
+    const m = buildShortFormMap(new Map([['mateo alvarez', 'fip-P1']]));
+    expect(m.get('m. alvarez')).toBe('fip-P1');
+  });
+
+  it('builds full-tail entry for compound surname', () => {
+    const m = buildShortFormMap(new Map([['matias negrete oliva', 'fip-P1']]));
+    expect(m.get('m. negrete oliva')).toBe('fip-P1');
+  });
+
+  it('builds last-token entry for 3-token name with middle given name', () => {
+    // "Adrian Maria Miranda" → full-tail = "a. maria miranda"
+    //                        → last-token = "a. miranda"
+    const m = buildShortFormMap(new Map([['adrian maria miranda', 'fip-P1']]));
+    expect(m.get('a. maria miranda')).toBe('fip-P1');
+    expect(m.get('a. miranda')).toBe('fip-P1');
+  });
+
+  it('marks ambiguous when two names produce the same short key', () => {
+    const m = buildShortFormMap(
+      new Map([
+        ['mateo alvarez', 'fip-P1'],
+        ['marco alvarez', 'fip-P2'],
+      ])
+    );
+    // Both produce "m. alvarez" — ambiguous
+    expect(m.get('m. alvarez')).toBeNull();
+  });
+
+  it('keeps value when same fip_id produces the same short key (dedup)', () => {
+    const m = buildShortFormMap(
+      new Map([['mateo alvarez', 'fip-P1']])
+    );
+    // Only one player — no collision
+    expect(m.get('m. alvarez')).toBe('fip-P1');
+  });
+});
+
+// ── resolveFourPlayers — short-form and middle-name fallbacks ──────────
+
+describe('resolveFourPlayers — short-form fallback', () => {
+  it('resolves Crionet OOP-style short-form names ("M. Alvarez")', () => {
+    const nameToFipId = new Map<string, string>([
+      ['mateo alvarez', 'fip-P216185'],
+      ['octavio alvarez', 'fip-P100615'],
+    ]);
+    const shortFormToFipId = buildShortFormMap(nameToFipId);
+    const fipIdToPlayerId = new Map<string, string>([
+      ['fip-P216185', 'uuid-mateo'],
+      ['fip-P100615', 'uuid-octavio'],
+    ]);
+    const draw = {
+      team1_player1_name: 'M. Alvarez',
+      team1_player2_name: 'O. Alvarez',
+      team2_player1_name: 'Mateo Alvarez',      // long-form should also work
+      team2_player2_name: 'octavio alvarez',     // already normalized long-form
+    } as never;
+    const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
+    expect(resolved).toEqual({
+      p1p1: 'uuid-mateo',
+      p1p2: 'uuid-octavio',
+      p2p1: 'uuid-mateo',
+      p2p2: 'uuid-octavio',
+    });
+  });
+
+  it('resolves last-token short form for players with middle given names ("A. Miranda")', () => {
+    // EL: "Adrian Maria Miranda", OOP: "A. Miranda"
+    // last-token short = "a. miranda"
+    const nameToFipId = new Map<string, string>([
+      ['mateo alvarez', 'fip-P1'],
+      ['adrian maria miranda', 'fip-P2'],
+      ['jose garcia', 'fip-P3'],
+      ['carlos lopez', 'fip-P4'],
+    ]);
+    const shortFormToFipId = buildShortFormMap(nameToFipId);
+    const fipIdToPlayerId = new Map<string, string>([
+      ['fip-P1', 'uuid-1'],
+      ['fip-P2', 'uuid-2'],
+      ['fip-P3', 'uuid-3'],
+      ['fip-P4', 'uuid-4'],
+    ]);
+    const draw = {
+      team1_player1_name: 'M. Alvarez',
+      team1_player2_name: 'A. Miranda',
+      team2_player1_name: 'Jose Garcia',
+      team2_player2_name: 'Carlos Lopez',
+    } as never;
+    const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
+    expect(resolved).toEqual({ p1p1: 'uuid-1', p1p2: 'uuid-2', p2p1: 'uuid-3', p2p2: 'uuid-4' });
+  });
+
+  it('returns null when short-form is ambiguous', () => {
+    const nameToFipId = new Map<string, string>([
+      ['mateo alvarez', 'fip-P1'],
+      ['marco alvarez', 'fip-P2'],
+      ['jose garcia', 'fip-P3'],
+      ['carlos lopez', 'fip-P4'],
+    ]);
+    const shortFormToFipId = buildShortFormMap(nameToFipId);
+    // 'm. alvarez' → null (ambiguous)
+    const fipIdToPlayerId = new Map<string, string>([
+      ['fip-P1', 'uuid-1'], ['fip-P2', 'uuid-2'],
+      ['fip-P3', 'uuid-3'], ['fip-P4', 'uuid-4'],
+    ]);
+    const draw = {
+      team1_player1_name: 'M. Alvarez',
+      team1_player2_name: 'Jose Garcia',
+      team2_player1_name: 'Carlos Lopez',
+      team2_player2_name: 'Jose Garcia',
+    } as never;
+    expect(resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId)).toBeNull();
+  });
+});
+
+describe('resolveFourPlayers — middle-name strip and prefix fallbacks', () => {
+  it('resolves draw name with extra middle given name by stripping it', () => {
+    // Draw: "Alejandro Valentino Lopez Barresi"
+    // EL:   "Alejandro Lopez Barresi"
+    // Strip index 1 ("valentino") → "alejandro lopez barresi" ✓
+    const nameToFipId = new Map<string, string>([
+      ['alejandro lopez barresi', 'fip-P1'],
+      ['david fernandes', 'fip-P2'],
+      ['jose montalban', 'fip-P3'],
+      ['german rodriguez', 'fip-P4'],
+    ]);
+    const shortFormToFipId = buildShortFormMap(nameToFipId);
+    const fipIdToPlayerId = new Map<string, string>([
+      ['fip-P1', 'uuid-1'], ['fip-P2', 'uuid-2'],
+      ['fip-P3', 'uuid-3'], ['fip-P4', 'uuid-4'],
+    ]);
+    const draw = {
+      team1_player1_name: 'Alejandro Valentino Lopez Barresi',
+      team1_player2_name: 'David Fernandes',
+      team2_player1_name: 'Jose Montalban',
+      team2_player2_name: 'German Rodriguez',
+    } as never;
+    const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
+    expect(resolved).toEqual({ p1p1: 'uuid-1', p1p2: 'uuid-2', p2p1: 'uuid-3', p2p2: 'uuid-4' });
+  });
+
+  it('resolves draw name with extra trailing surname by prefix match', () => {
+    // Draw: "Vinny Nahuel Di Francesco Calderon"
+    // EL:   "Vinny Nahuel Di Francesco"
+    // Prefix match: first 4 tokens match ✓
+    const nameToFipId = new Map<string, string>([
+      ['vinny nahuel di francesco', 'fip-P1'],
+      ['david fernandes', 'fip-P2'],
+      ['jose montalban', 'fip-P3'],
+      ['german rodriguez', 'fip-P4'],
+    ]);
+    const shortFormToFipId = buildShortFormMap(nameToFipId);
+    const fipIdToPlayerId = new Map<string, string>([
+      ['fip-P1', 'uuid-1'], ['fip-P2', 'uuid-2'],
+      ['fip-P3', 'uuid-3'], ['fip-P4', 'uuid-4'],
+    ]);
+    const draw = {
+      team1_player1_name: 'Vinny Nahuel Di Francesco Calderon',
+      team1_player2_name: 'David Fernandes',
+      team2_player1_name: 'Jose Montalban',
+      team2_player2_name: 'German Rodriguez',
+    } as never;
+    const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
+    expect(resolved).toEqual({ p1p1: 'uuid-1', p1p2: 'uuid-2', p2p1: 'uuid-3', p2p2: 'uuid-4' });
+  });
 });
