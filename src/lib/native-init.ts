@@ -4,6 +4,7 @@
 // web (Capacitor.isNativePlatform() returns false). Call once from
 // a top-level client mount.
 
+import { App } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { StatusBar, Style } from '@capacitor/status-bar'
@@ -32,5 +33,21 @@ export async function initNative(): Promise<void> {
     await SplashScreen.hide()
   } catch (err) {
     console.warn('[native-init] SplashScreen.hide failed', err)
+  }
+
+  // Hardware back button handling: navigate web router history when
+  // possible, otherwise close the app. Default Capacitor behaviour
+  // is to do nothing — without this, back button is dead, which feels
+  // very un-native on Android.
+  try {
+    App.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        window.history.back()
+      } else {
+        void App.exitApp()
+      }
+    })
+  } catch (err) {
+    console.warn('[native-init] App backButton listener failed', err)
   }
 }
