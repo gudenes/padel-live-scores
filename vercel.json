@@ -1,14 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/cron/sync?scope=matches",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/cron/sync",
-      "schedule": "0 4 * * 1"
-    },
-    {
       "path": "/api/cron/sync-fip-rankings?type=official&gender=male",
       "schedule": "0 5 * * *"
     },
