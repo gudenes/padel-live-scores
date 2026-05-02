@@ -33,6 +33,8 @@ export default function OfflinePage() {
         {t('subtitle')}
       </p>
       <button
+        type="button"
+        aria-label={t('retry')}
         onClick={() => window.location.reload()}
         style={{
           marginTop: 8,
