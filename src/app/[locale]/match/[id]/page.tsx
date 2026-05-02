@@ -22,6 +22,8 @@ import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { isPremierLevel } from '@/lib/tournament-labels'
+import { Capacitor } from '@capacitor/core'
+import { Share } from '@capacitor/share'
 
 import { WinnerBanner } from './WinnerBanner'
 import { PredictionSection, PredictionResult } from './PredictionSection'
@@ -491,16 +493,28 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               [tournamentName, round].filter(Boolean).join(' · '),
             ].filter(Boolean).join('\n')
 
-            const hasShareApi = typeof navigator !== 'undefined' && 'share' in navigator
+            // Three platform tiers:
+            // - Capacitor native (Android/iOS app): Share plugin opens
+            //   the native sheet. `navigator.share` is undefined inside
+            //   the WebView, so gating on it would skip the native path.
+            // - Web Share API (modern browsers): Share plugin proxies to
+            //   navigator.share. Level 2 file attachment is only
+            //   reachable via direct navigator.share — Capacitor's Share
+            //   takes file:// URI strings, not File objects.
+            // - Fallback (older browsers): copy URL to clipboard.
+            const canShareViaCapacitor = Capacitor.isNativePlatform()
+            const canShareViaWebShare = typeof navigator !== 'undefined' && 'share' in navigator
+            const canShare = canShareViaCapacitor || canShareViaWebShare
 
             // Try to include the dynamic OG image as a file attachment via
-            // Web Share API Level 2 (iOS 15+, Chrome Android). When the
-            // browser/OS doesn't support file sharing we fall back gracefully.
+            // Web Share API Level 2 (iOS 15+, Chrome Android). Only reachable
+            // through navigator.share, so skip on Capacitor native (where
+            // we'd just throw the file away anyway).
             //
             // Best-effort — we cap the image fetch at 3s so a slow render
             // never blocks the share sheet from opening.
             let imageFile: File | null = null
-            if (hasShareApi) {
+            if (canShareViaWebShare) {
               try {
                 const controller = new AbortController()
                 const timeout = setTimeout(() => controller.abort(), 3000)
@@ -516,16 +530,20 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             }
 
             try {
-              if (hasShareApi) {
+              if (canShare) {
                 const canShareFiles =
                   imageFile !== null &&
+                  canShareViaWebShare &&
                   typeof navigator.canShare === 'function' &&
                   navigator.canShare({ files: [imageFile] })
 
                 if (canShareFiles && imageFile) {
+                  // Web Share API Level 2 file attachment.
                   await navigator.share({ title, text, url: shareUrl, files: [imageFile] })
                 } else {
-                  await navigator.share({ title, text, url: shareUrl })
+                  // URL-only share via Capacitor — opens native sheet on
+                  // Android/iOS, proxies to navigator.share on web.
+                  await Share.share({ title, text, url: shareUrl, dialogTitle: title })
                 }
               } else {
                 await navigator.clipboard.writeText(shareUrl)

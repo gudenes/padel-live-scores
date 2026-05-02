@@ -4,7 +4,8 @@
 // Provides useAuth() hook for components that need user identity.
 
 import { SessionProvider, useSession } from 'next-auth/react'
-import { createContext, useContext, useCallback, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode } from 'react'
+import { initNative } from '@/lib/native-init'
 
 interface Profile {
   id: string
@@ -69,6 +70,9 @@ function AuthInner({ children }: { children: ReactNode }) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // Initialize Capacitor native plugins (no-op on web).
+  useEffect(() => { void initNative() }, [])
+
   return (
     <SessionProvider
       refetchInterval={0}
