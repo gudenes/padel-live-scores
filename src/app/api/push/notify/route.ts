@@ -34,6 +34,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { sendPush } from '@/lib/push'
+import { sendPushToFcmTokens } from '@/lib/push-fcm'
 import { resolvePrefs, type ChannelPrefs } from '@/lib/notification-categories'
 
 const supabase = createClient(
@@ -373,6 +374,10 @@ export async function POST(request: Request) {
   const pushJobs: PushJob[] = []
   // Track reason-per-sub for per-reason counters
   const reasonBySubId = new Map<string, 'bookmark' | 'follow'>()
+  // Per-user payload, used by the FCM branch below so the SAME payload
+  // we built for Web Push gets reused for native devices.
+  type UserFcmPayload = { title: string; body: string; url: string; tag: string }
+  const fcmPayloadByUser = new Map<string, UserFcmPayload>()
 
   for (const [userId, reason] of recipientReason) {
     // Category depends on event type: finished matches always land in
@@ -424,6 +429,14 @@ export async function POST(request: Request) {
           tag: `match-${matchId}`,
         })
       }
+      // Mirror the same payload for the FCM branch (native devices).
+      // Single push pref gates both transports — see plan rationale.
+      fcmPayloadByUser.set(userId, {
+        title,
+        body,
+        url: `/match/${matchId}`,
+        tag: `match-${matchId}`,
+      })
     }
   }
 
@@ -471,10 +484,65 @@ export async function POST(request: Request) {
     console.log(`[Push] Cleaned ${staleIds.length} stale subscriptions`)
   }
 
+  // ── FCM fan-out (native devices) ─────────────────────────────────
+  // Parallel branch to the Web Push send above. Pulls device tokens
+  // from native_push_subscriptions for the same recipients (filtered
+  // by the same push pref — see fcmPayloadByUser population). Tokens
+  // FCM rejects as unregistered get cleaned from the table.
+  let fcmSent = 0
+  let fcmFailed = 0
+  let fcmStaleCleaned = 0
+  if (fcmPayloadByUser.size > 0) {
+    const eligibleUserIds = [...fcmPayloadByUser.keys()]
+    const { data: nativeSubs } = await supabase
+      .from('native_push_subscriptions')
+      .select('user_id, device_token')
+      .in('user_id', eligibleUserIds)
+
+    const tokensByUser = new Map<string, string[]>()
+    for (const row of nativeSubs ?? []) {
+      const uid = row.user_id as string
+      const tok = row.device_token as string
+      if (!uid || !tok) continue
+      const arr = tokensByUser.get(uid) ?? []
+      arr.push(tok)
+      tokensByUser.set(uid, arr)
+    }
+
+    const invalidTokens: string[] = []
+    await Promise.allSettled(
+      [...tokensByUser.entries()].map(async ([userId, tokens]) => {
+        const payload = fcmPayloadByUser.get(userId)
+        if (!payload) return
+        try {
+          const result = await sendPushToFcmTokens(tokens, payload)
+          fcmSent += result.success
+          fcmFailed += result.failed
+          if (result.invalidTokens.length > 0) {
+            invalidTokens.push(...result.invalidTokens)
+          }
+        } catch (err) {
+          console.error('[Push] FCM send failed:', (err as Error).message)
+          fcmFailed += tokens.length
+        }
+      })
+    )
+
+    if (invalidTokens.length > 0) {
+      const { error: delErr } = await supabase
+        .from('native_push_subscriptions')
+        .delete()
+        .in('device_token', invalidTokens)
+      if (!delErr) fcmStaleCleaned = invalidTokens.length
+      console.log(`[Push] Cleaned ${invalidTokens.length} stale FCM tokens`)
+    }
+  }
+
   console.log(
     `[Push] match=${matchId} recipients=${recipientReason.size} ` +
-    `inapp=${inappWritten} push=${pushSent} ` +
-    `(bookmark=${bookmarkSent} follow=${followSent}) stale=${staleIds.length}`
+    `inapp=${inappWritten} push=${pushSent} fcm=${fcmSent} ` +
+    `(bookmark=${bookmarkSent} follow=${followSent}) ` +
+    `stale=${staleIds.length} fcm_stale=${fcmStaleCleaned} fcm_failed=${fcmFailed}`
   )
 
   return Response.json({
@@ -482,7 +550,9 @@ export async function POST(request: Request) {
     recipients: recipientReason.size,
     inapp_written: inappWritten,
     sent: pushSent,
+    fcm_sent: fcmSent,
     by_reason: { bookmark: bookmarkSent, follow: followSent },
     stale_cleaned: staleIds.length,
+    fcm_stale_cleaned: fcmStaleCleaned,
   })
 }
