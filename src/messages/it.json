@@ -839,5 +839,11 @@
     "searchAria": "Cerca paese",
     "clearAria": "Cancella ricerca",
     "noMatch": "Nessun paese corrisponde a \"{query}\""
+  },
+  "offline": {
+    "title": "Sei offline",
+    "subtitle": "Non possiamo raggiungere i punteggi live in questo momento. Mostriamo gli ultimi dati caricati.",
+    "retry": "Riprova",
+    "banner": "Offline — ultima connessione alle {time}"
   }
 }

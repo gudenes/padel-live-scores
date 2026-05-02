@@ -16,100 +16,112 @@
 
 Make the existing PWA pass Lighthouse's installability check and serve a usable offline state. This is a prerequisite for both Play Store acceptance and good app UX in poor connectivity. Pure web work — no native code touched.
 
-### Task 1.1: Install serwist
+> **Discovery during execution (2026-05-02):** the codebase already has a working hand-rolled service worker at `public/sw.js` with Web Push handlers, plus full client/server push infrastructure (`src/lib/push.ts`, `src/hooks/usePushNotifications.ts`, `/api/user/push-subscriptions`, `push_subscriptions` table with Web Push schema). Original Phase 1 plan called for serwist (Workbox wrapper) but two blockers emerged: (1) `@serwist/next` doesn't support Next 16's default Turbopack build; (2) serwist's `swDest: 'public/sw.js'` would clobber the existing push handlers. **Revised approach: enhance the existing `public/sw.js` directly with precache + offline fallback, no serwist.** Trade-off: lose Workbox's pre-built runtime cache strategies (we'd hand-roll any we want later); gain zero risk of breaking production push, no Turbopack workaround, simpler mental model.
+
+### Task 1.1: Enhance `public/sw.js` with precache + offline fallback
 
 **Files:**
-- Modify: `package.json`
+- Modify: `public/sw.js` (existing — keep push handlers intact)
+- Modify: `src/app/layout.tsx` (the SW is already registered there — verify the register call survives any layout changes)
 
-- [ ] **Step 1: Install serwist** (latest stable Workbox-based PWA runtime, App Router compatible)
+- [ ] **Step 1: Read the current `public/sw.js`** to confirm its push + notificationclick handlers, and `src/app/layout.tsx:120` for the existing `navigator.serviceWorker.register('/sw.js')` call.
 
-```bash
-npm install @serwist/next serwist
-```
+- [ ] **Step 2: Append precache + offline fallback to `public/sw.js`** — keeping existing push/notificationclick listeners untouched.
 
-- [ ] **Step 2: Commit**
+```js
+// public/sw.js — append to existing file (do NOT replace push handlers)
 
-```bash
-git add package.json package-lock.json
-git commit -m "chore(pwa): add serwist dependency"
-```
+// ── Precache ────────────────────────────────────────────────────
+// Hard-coded list of brand assets we want available offline. Bump
+// CACHE_VERSION any time a new asset is added so old caches are
+// purged on activate. Keep this list short — it ships every SW
+// install. Match cards / score data are network-only (cache-first
+// would serve stale scores, which is worse than an offline banner).
+const CACHE_VERSION = 'pn-shell-v1'
+const PRECACHE_URLS = [
+  '/offline',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/padelnachos-logo-v2.png',
+]
 
-### Task 1.2: Wire serwist into Next.js config
-
-**Files:**
-- Modify: `next.config.ts`
-- Create: `src/app/sw.ts`
-
-- [ ] **Step 1: Read current `next.config.ts`** to see existing config so we wrap it correctly
-
-- [ ] **Step 2: Wrap config with serwist's `withSerwist`**
-
-```ts
-// next.config.ts (top of file, after existing imports)
-import withSerwistInit from '@serwist/next'
-
-const withSerwist = withSerwistInit({
-  swSrc: 'src/app/sw.ts',
-  swDest: 'public/sw.js',
-  // Enable in dev to verify behaviour without needing prod builds
-  disable: false,
-  // Do NOT cache pages with auth-gated server data
-  exclude: [
-    /\/api\/.*/,
-    /\/auth\/.*/,
-    /\/ops\/.*/,
-    /\/admin\/.*/,
-  ],
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
+  )
 })
 
-// Wrap the existing exported config
-export default withSerwist(/* existing config object */)
-```
-
-- [ ] **Step 3: Create the SW source** (`src/app/sw.ts`)
-
-```ts
-import { defaultCache } from '@serwist/next/worker'
-import { Serwist } from 'serwist'
-
-declare const self: ServiceWorkerGlobalScope & {
-  __SW_MANIFEST: (string | { url: string; revision: string })[]
-}
-
-const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
-  clientsClaim: true,
-  navigationPreload: true,
-  runtimeCaching: defaultCache,
-  // Offline fallback: when navigation fails AND the page isn't precached,
-  // serve our brand offline page instead of the browser's default error.
-  fallbacks: {
-    entries: [
-      {
-        url: '/offline',
-        matcher: ({ request }) => request.destination === 'document',
-      },
-    ],
-  },
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  )
 })
 
-serwist.addEventListeners()
+// ── Fetch handler ──────────────────────────────────────────────
+// Strategy:
+//  - Navigation requests (HTML pages): network first, fall back to
+//    the precached /offline page when network fails.
+//  - All other requests (assets, API, images): just pass through to
+//    the network. We deliberately do NOT cache match scores, API
+//    responses, etc. — staleness here is worse than no offline.
+self.addEventListener('fetch', (event) => {
+  const req = event.request
+  if (req.method !== 'GET') return
+
+  // Navigation request = top-level page load
+  if (req.mode === 'navigate') {
+    event.respondWith(
+      fetch(req).catch(() =>
+        caches.match('/offline').then((res) => res || new Response('Offline', { status: 503 }))
+      )
+    )
+    return
+  }
+  // Static assets we precached — serve from cache when available
+  if (PRECACHE_URLS.includes(new URL(req.url).pathname)) {
+    event.respondWith(caches.match(req).then((res) => res || fetch(req)))
+    return
+  }
+  // Everything else: pass through. No SW interference.
+})
 ```
 
-- [ ] **Step 4: Verify build still succeeds**
+- [ ] **Step 3: Verify `src/app/layout.tsx` already registers the SW** (it should, per the existing setup). If the register call is missing/stale, ensure it looks like:
+
+```tsx
+// In src/app/layout.tsx — should already exist near line 120
+useEffect(() => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  }
+}, [])
+```
+
+- [ ] **Step 4: Build and verify**
 
 ```bash
 npm run build
 ```
 
-Expected: build completes; `public/sw.js` is generated.
+Expected: build succeeds. (No SW generation step — we're shipping the file as-is.)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Smoke test in dev**
 
 ```bash
-git add next.config.ts src/app/sw.ts
-git commit -m "feat(pwa): scaffold serwist service worker"
+npm run dev
+```
+
+In Chrome DevTools → Application → Service Workers, confirm `sw.js` is "activated and is running". Trigger an offline nav (DevTools → Network → Offline → reload). Should not crash; should show the `/offline` page (which we'll create in Task 1.2 — until then, expect the fallback to fail with the inline 503 string, that's fine).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add public/sw.js
+git commit -m "feat(pwa): precache + offline fallback in sw.js"
 ```
 
 ### Task 1.3: Build the offline fallback page
@@ -691,6 +703,8 @@ git commit -m "feat(mobile): hardware back button handling"
 ## Phase 3b — Push notifications
 
 The largest single subsystem in v1. Two triggers (favourite player goes live, prediction resolved), localized payloads, preferences UI.
+
+> **Re-spec required before starting Phase 3b.** During Phase 1 we discovered the codebase already has a complete Web Push implementation (`src/lib/push.ts`, `src/hooks/usePushNotifications.ts`, `/api/user/push-subscriptions`, `push_subscriptions` table with `endpoint` + `keys` columns). The plan below was written assuming nothing existed. Reality: **Web Push works for browser users today. We need to ADD an FCM/APNs path alongside for native apps**, not replace. Capacitor's WebView doesn't reliably surface Web Push, so native apps need the `@capacitor/push-notifications` plugin → FCM (Android) / APNs (iOS). The existing `push_subscriptions` table needs a column add (`device_token`, `platform`) to coexist with the Web Push columns. Re-do this Phase 3b section with the existing infra in mind before kicking off implementation.
 
 ### Task 3b.1: Firebase project setup (manual, ~30 min)
 

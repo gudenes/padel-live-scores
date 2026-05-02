@@ -60,7 +60,41 @@ export default function MatchesDayShell({
   emptyStateSubtitle,
 }: Props) {
   const tDaily = useTranslations('daily')
+  const tOffline = useTranslations('offline')
   const tz = useMemo(() => getLocaleHomeTz(locale), [locale])
+
+  // Offline banner — hydration-safe (defaults to hidden on SSR; window
+  // listeners only run client-side). When navigator.onLine flips, we
+  // reveal a small "last connected at HH:mm" strip just below the
+  // sticky header so the user knows scores may be stale. We capture the
+  // ms timestamp once on disconnect and re-format on render — keeps the
+  // listener effect locale-independent (no re-binding on locale change)
+  // and preserves the original disconnect moment if the offline event
+  // re-fires while still offline.
+  const [showOfflineBanner, setShowOfflineBanner] = useState(false)
+  const [offlineSinceMs, setOfflineSinceMs] = useState<number | null>(null)
+
+  useEffect(() => {
+    function update() {
+      const online = navigator.onLine
+      setShowOfflineBanner(!online)
+      setOfflineSinceMs((cur) => (online ? null : cur ?? Date.now()))
+    }
+    update()
+    window.addEventListener('online', update)
+    window.addEventListener('offline', update)
+    return () => {
+      window.removeEventListener('online', update)
+      window.removeEventListener('offline', update)
+    }
+  }, [])
+
+  const offlineTime = offlineSinceMs
+    ? new Date(offlineSinceMs).toLocaleTimeString(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : ''
 
   const [activeIso, setActiveIso] = useState(initialIso)
   // Pill-window iso. Usually mirrors activeIso 1:1, but the "Today"
@@ -360,6 +394,21 @@ export default function MatchesDayShell({
           }
         />
       </div>
+
+      {showOfflineBanner && (
+        <div
+          style={{
+            fontSize: 11,
+            color: '#F5A623',
+            background: 'rgba(245,166,35,0.08)',
+            padding: '6px 16px',
+            textAlign: 'center',
+            fontWeight: 600,
+          }}
+        >
+          {tOffline('banner', { time: offlineTime })}
+        </div>
+      )}
 
       <div {...touchHandlers} style={{ ...bodySwipeStyle, touchAction: 'pan-y' }}>
         {/* `key` swap forces React to remount the body — runs the

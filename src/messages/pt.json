@@ -839,5 +839,11 @@
     "searchAria": "Procurar país",
     "clearAria": "Limpar pesquisa",
     "noMatch": "Nenhum país corresponde a \"{query}\""
+  },
+  "offline": {
+    "title": "Você está offline",
+    "subtitle": "Não conseguimos acessar os placares ao vivo agora. Mostrando o que carregamos por último.",
+    "retry": "Tentar novamente",
+    "banner": "Offline — última conexão às {time}"
   }
 }
