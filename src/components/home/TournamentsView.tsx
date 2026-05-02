@@ -6,7 +6,6 @@ import { Link } from '@/i18n/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT } from '@/lib/format-patterns'
 import { supabase } from '@/lib/supabase'
-import Spinner from '@/app/components/Spinner'
 import {
   GREEN, GREEN_DIM, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, CHUNKY,
   MEN_BLUE, WOMEN_PURPLE,
@@ -650,7 +649,7 @@ export default function TournamentsView({
       )}
 
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center' }}><Spinner /></div>
+        <TournamentsViewSkeleton />
       ) : (
         <>
           {/* ── Live / Ongoing / Upcoming hero(s) ────────────
@@ -1288,6 +1287,173 @@ function OngoingCarousel({ tournaments }: { tournaments: TournamentWithWinners[]
           />
         ))}
       </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Loading skeleton — mirrors the structure rendered when data lands:
+// hero card on top, horizontal upcoming-strip below, a couple of
+// completed-list rows. Replaces the previous blue spinner so the
+// loading state previews the layout instead of just signalling "wait".
+// Uses the global `.skeleton-line` shimmer class from globals.css.
+// ─────────────────────────────────────────────────────────────────────
+
+function TournamentsViewSkeleton() {
+  return (
+    <div style={{ padding: '8px 16px 16px' }}>
+      {/* Section title placeholder */}
+      <span
+        className="skeleton-line"
+        style={{ width: 110, height: 12, display: 'inline-block', marginBottom: 10 }}
+        aria-hidden
+      >
+        .
+      </span>
+
+      {/* Hero card — large primary tournament block */}
+      <div
+        style={{
+          background: BG_CARD,
+          border: `1px solid ${BORDER}`,
+          clipPath: CHUNKY.card,
+          padding: 16,
+          marginBottom: 16,
+          minHeight: 140,
+        }}
+      >
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span
+            className="skeleton-line"
+            style={{ width: 44, height: 44, display: 'inline-block', borderRadius: 6 }}
+            aria-hidden
+          >
+            .
+          </span>
+          <div style={{ flex: 1 }}>
+            <span
+              className="skeleton-line"
+              style={{ width: '70%', height: 16, display: 'inline-block', marginBottom: 8 }}
+              aria-hidden
+            >
+              .
+            </span>
+            <br />
+            <span
+              className="skeleton-line"
+              style={{ width: '45%', height: 12, display: 'inline-block' }}
+              aria-hidden
+            >
+              .
+            </span>
+          </div>
+        </div>
+        <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+          <span
+            className="skeleton-line"
+            style={{ width: 60, height: 22, display: 'inline-block' }}
+            aria-hidden
+          >
+            .
+          </span>
+          <span
+            className="skeleton-line"
+            style={{ width: 80, height: 22, display: 'inline-block' }}
+            aria-hidden
+          >
+            .
+          </span>
+        </div>
+      </div>
+
+      {/* Upcoming strip — small horizontal cards */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, overflow: 'hidden' }}>
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              padding: '10px 14px',
+              background: BG_CARD,
+              border: `1px solid ${BORDER}`,
+              clipPath: CHUNKY.card,
+              minWidth: 160,
+            }}
+          >
+            <span
+              className="skeleton-line"
+              style={{ width: 50, height: 9, display: 'inline-block', marginBottom: 6 }}
+              aria-hidden
+            >
+              .
+            </span>
+            <br />
+            <span
+              className="skeleton-line"
+              style={{ width: 96, height: 12, display: 'inline-block' }}
+              aria-hidden
+            >
+              .
+            </span>
+            <br />
+            <span
+              className="skeleton-line"
+              style={{ width: 48, height: 10, display: 'inline-block', marginTop: 4 }}
+              aria-hidden
+            >
+              .
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Completed list rows */}
+      <span
+        className="skeleton-line"
+        style={{ width: 80, height: 12, display: 'inline-block', marginBottom: 10 }}
+        aria-hidden
+      >
+        .
+      </span>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          style={{
+            padding: '12px 14px',
+            background: BG_CARD,
+            border: `1px solid ${BORDER}`,
+            clipPath: CHUNKY.card,
+            marginBottom: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <span
+            className="skeleton-line"
+            style={{ width: 28, height: 28, display: 'inline-block' }}
+            aria-hidden
+          >
+            .
+          </span>
+          <div style={{ flex: 1 }}>
+            <span
+              className="skeleton-line"
+              style={{ width: '70%', height: 13, display: 'inline-block' }}
+              aria-hidden
+            >
+              .
+            </span>
+            <br />
+            <span
+              className="skeleton-line"
+              style={{ width: '40%', height: 10, display: 'inline-block', marginTop: 4 }}
+              aria-hidden
+            >
+              .
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
