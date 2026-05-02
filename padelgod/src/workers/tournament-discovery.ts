@@ -136,14 +136,14 @@ export async function runTournamentDiscovery(
   // keeps the row visible in the public app).
   const slugs = parsed.map((p) => p.slug).filter((s): s is string => !!s);
   const { data: existing } = slugs.length > 0
-    ? await deps.supabase.from('tournaments').select('slug, level, country').in('slug', slugs)
+    ? await deps.supabase.from('tournaments').select('slug, level, country, live_source').in('slug', slugs)
     : { data: [] };
   const existingBySlug = new Map<
     string,
-    { level: string | null; country: string | null }
+    { level: string | null; country: string | null; live_source: string | null }
   >(
-    ((existing ?? []) as Array<{ slug: string; level: string | null; country: string | null }>).map(
-      (r) => [r.slug, { level: r.level, country: r.country }],
+    ((existing ?? []) as Array<{ slug: string; level: string | null; country: string | null; live_source: string | null }>).map(
+      (r) => [r.slug, { level: r.level, country: r.country, live_source: r.live_source }],
     ),
   );
 
