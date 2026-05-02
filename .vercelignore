@@ -1,0 +1,20 @@
+# Native mobile platforms — built with Android Studio / Xcode, not Vercel
+android/
+ios/
+
+# Mobile build automation
+fastlane/
+
+# Mobile artifacts
+*.apk
+*.aab
+*.ipa
+
+# Local mobile env files
+*.keystore
+*.jks
+.env.mobile
+
+# Dev / test artifacts that shouldn't ship to production
+.playwright-mcp/
+*.gif
