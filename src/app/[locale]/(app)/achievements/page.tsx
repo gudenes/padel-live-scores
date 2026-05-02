@@ -71,7 +71,7 @@ export default function AchievementsPage() {
   const overallMeta = overallTier ? TIER_META[overallTier] : null
 
   return (
-    <div className="page-slide-in-anim" style={{
+    <div style={{
       maxWidth: 500, margin: '0 auto', background: '#1A1A1A',
       minHeight: '100dvh', paddingBottom: 80,
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',

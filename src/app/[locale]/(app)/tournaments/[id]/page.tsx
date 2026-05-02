@@ -487,7 +487,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // ══════════════════════════════════════════════════════════════
 
   return (
-    <div className="page-slide-in-anim" style={{ background: BG_BASE, minHeight: '100vh' }}>
+    <div style={{ background: BG_BASE, minHeight: '100vh' }}>
       <main style={{
         background: BG_BASE, minHeight: '100vh',
         maxWidth: 500, margin: '0 auto',

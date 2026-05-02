@@ -431,7 +431,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         100% { transform: translateY(0); }
       }
     `}</style>
-    <main className="page-slide-in-anim" style={{ background: BG_BASE, minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
+    <main style={{ background: BG_BASE, minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
 
       {/* ── Nav bar ───────────────────────────────────────────────────── */}
       <div style={{
