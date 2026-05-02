@@ -384,11 +384,10 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enableFipOopWriter) {
     entries.push({
       name: 'fip-oop-writer',
-      // Hourly at :52 — sequenced AFTER oop-fetcher (:50) so the
-      // snapshots are fresh, BEFORE results-fetcher (:55) to stay out
-      // of its way. Deliberately not piggybacking on the reconciler
-      // slots (:05 / :35) — independence is the whole point.
-      cron: '52 * * * *',
+      // Every 15 min at :02/:17/:32/:47 — sequenced 2 min AFTER
+      // oop-fetcher (:00/:15/:30/:45) so the snapshots are fresh.
+      // DB-only worker; no upstream contention.
+      cron: '2,17,32,47 * * * *',
       run: async (deps) => {
         return runFipOopWriter({
           supabase: deps.supabase,
@@ -401,10 +400,10 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enableFipResultsWriter) {
     entries.push({
       name: 'fip-results-writer',
-      // Hourly at :57 — sequenced AFTER results-fetcher (:55) so the
-      // snapshots are fresh. Last of the simplified-pipeline writers
-      // each hour; doesn't compete with reconciler at :05/:35.
-      cron: '57 * * * *',
+      // Every 5 min at :02/:07/:12/... — sequenced 2 min AFTER
+      // results-fetcher (:00/:05/:10/...) so the snapshots are fresh.
+      // DB-only worker; no upstream contention.
+      cron: '2-57/5 * * * *',
       run: async (deps) => {
         return runFipResultsWriter({
           supabase: deps.supabase,
@@ -436,14 +435,14 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enableOopFetcher) {
     entries.push({
       name: 'oop-fetcher',
-      cron: '50 * * * *', // hourly at :50
+      cron: '*/15 * * * *', // every 15 min at :00/:15/:30/:45
       run: getWorkerRunner('oop-fetcher')!,
     });
   }
   if (flags.enableResultsFetcher) {
     entries.push({
       name: 'results-fetcher',
-      cron: '55 * * * *', // hourly at :55
+      cron: '*/5 * * * *', // every 5 min
       run: getWorkerRunner('results-fetcher')!,
     });
   }

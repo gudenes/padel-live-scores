@@ -246,10 +246,10 @@ Ordered by `:MM` so the hourly chain is easier to follow:
 | entry-list-fetcher | hourly :45 | Fetch tournament entry-list PDFs / pages | `padelgod.entry_list_snapshots` |
 | fip-entry-list-populator | hourly :46 | Resolve entry-list rows into `players` (after fetcher) | `players` |
 | fip-draw-populator | hourly :47 | INSERT `public.matches` from draw + OOP qualifying rounds | `matches` |
-| oop-fetcher | hourly :50 | Capture Order of Play snapshots from matchscorerlive | `padelgod.oop_snapshots` |
-| fip-oop-writer | hourly :52 | UPDATE `public.matches` court/round from OOP snapshots | `matches` (UPDATE) |
-| results-fetcher | hourly :55 | Capture match-results snapshots from Crionet widget | `padelgod.results_snapshots` |
-| fip-results-writer | hourly :57 | Write final scores from results snapshots | `matches`, `sets` |
+| oop-fetcher | every 15m :00/:15/:30/:45 | Capture Order of Play snapshots from matchscorerlive | `padelgod.oop_snapshots` |
+| fip-oop-writer | every 15m :02/:17/:32/:47 | UPDATE `public.matches` court/round from OOP snapshots | `matches` (UPDATE) |
+| results-fetcher | every 5m :00/:05/... | Capture match-results snapshots from Crionet widget | `padelgod.results_snapshots` |
+| fip-results-writer | every 5m :02/:07/... | Write final scores from results snapshots | `matches`, `sets` |
 | player-rankings | daily 05:00 UTC | Sync FIP race + official rankings (top 1000, both genders) | `players` |
 | live-poller-manager | every 1m | Spawn / supervise per-match live-poll loops | (orchestration only) |
 | shadow-diff-live | every 1m | Snapshot live-match latency vs padelapi for telemetry | (telemetry) |
@@ -264,8 +264,8 @@ confused at a glance — the table below is the canonical mapping:
 | Name | Runtime | Schedule | What it does |
 |---|---|---|---|
 | `oop-monitor` | Vercel cron | every 2h :30 | Watches matchscorerlive for OOP page changes, emits notifications |
-| `oop-fetcher` | Padelgod (Railway) | hourly :50 | Fetches OOP HTML, parses it, writes `padelgod.oop_snapshots` |
-| `fip-oop-writer` | Padelgod (Railway) | hourly :52 | Reads snapshots, UPDATEs court / round / court_order on `public.matches` |
+| `oop-fetcher` | Padelgod (Railway) | every 15m | Fetches OOP HTML, parses it, writes `padelgod.oop_snapshots` |
+| `fip-oop-writer` | Padelgod (Railway) | every 15m (offset +2) | Reads snapshots, UPDATEs court / round / court_order on `public.matches` |
 
 The "OOP Schedule Review" tab in the ops dashboard is yet another piece
 of the same puzzle — a human-in-the-loop UI that parses the
