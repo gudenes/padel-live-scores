@@ -222,17 +222,16 @@ export async function runMatchStatsFetcher(
 
   let parseableForRun = parseable;
   if (deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0) {
-    const ids = parseable.map((c) => c.matchId);
+    // Query matches by tournament_id (bounded by tournament size — typically
+    // <200 rows) rather than .in('id', [parseable...]) which would exceed
+    // PostgREST's URL-length limit on workers with thousands of crionet_widget
+    // mappings across all tournaments.
     const { data: matchRows, error: matchErr } = await deps.supabase
       .from('matches')
-      .select('id, tournament_id')
-      .in('id', ids);
+      .select('id')
+      .in('tournament_id', Array.from(deps.onlyTournamentIds));
     if (matchErr) throw new Error(`matches tournament-filter query failed: ${matchErr.message}`);
-    const inTournament = new Set(
-      (matchRows ?? [])
-        .filter((r) => deps.onlyTournamentIds!.has(r.tournament_id as string))
-        .map((r) => r.id as string),
-    );
+    const inTournament = new Set((matchRows ?? []).map((r) => r.id as string));
     const before = parseable.length;
     parseableForRun = parseable.filter((c) => inTournament.has(c.matchId));
     skipped += before - parseableForRun.length;
