@@ -452,6 +452,7 @@ function CourtSection({
     <div data-court-section style={{ padding: '6px 0' }}>
       {showHeader && (
         <div
+          data-court-header
           style={{
             display: 'flex',
             alignItems: 'center',
