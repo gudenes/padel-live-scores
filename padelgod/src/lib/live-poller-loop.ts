@@ -806,9 +806,25 @@ export class LivePollerLoop {
       curr.team2Sets.some((s) => s != null && (s.games > 0 || (s.tiebreak ?? 0) > 0)) ||
       isPointStateNonZero(curr.pointState);
 
+    // Priority (tightened 2026-05-03):
+    //   1. parser says 'on_court' → 'on_court'
+    //      Trust the explicit warm-up label even if pre-match sample
+    //      scores leak into the pointState.
+    //   2. scoring evidence → 'live'
+    //      Real play happened — flip up regardless of label.
+    //   3. parser says 'live' but NO scoring evidence → 'on_court'
+    //      The Crionet widget sometimes briefly surfaces a match with no
+    //      scoring data + a non pre-match label. Without this downgrade,
+    //      naively trusting parser='live' produces phantom-live rows
+    //      (started_at NULL, no sets, status stuck at 'live'). Reproduced
+    //      on FIP Silver Cyprus I men's final
+    //      041351b2-687e-4daa-ad89-9f3279a180f6 — flickered into the
+    //      widget's payload between scheduled times despite never starting.
+    //   4. parser says 'scheduled' (rare) → no-op
     let target: 'on_court' | 'live' | null = null;
-    if (curr.status === 'live' || hasScoringEvidence) target = 'live';
-    else if (curr.status === 'on_court') target = 'on_court';
+    if (curr.status === 'on_court') target = 'on_court';
+    else if (hasScoringEvidence) target = 'live';
+    else if (curr.status === 'live') target = 'on_court';
     if (target === null) return;
 
     // Skip the DB write when this poller already promoted the match to its
@@ -816,13 +832,16 @@ export class LivePollerLoop {
     // this.states so it tracks the last value we wrote — identical-tick
     // heartbeats then become free instead of round-tripping the DB every 6s.
     // First-tick (prev === null) always falls through and writes.
+    // Mirrors the same scoring-evidence rule as `target` above.
+    const prevHadEvidence = prev
+      ? prev.team1Sets.some((s) => s != null && s.games > 0) ||
+        prev.team2Sets.some((s) => s != null && s.games > 0) ||
+        isPointStateNonZero(prev.pointState)
+      : false;
     const prevTarget: 'on_court' | 'live' | null = prev
-      ? prev.status === 'live' ||
-        (prev.team1Sets.some((s) => s != null && s.games > 0) ||
-          prev.team2Sets.some((s) => s != null && s.games > 0) ||
-          isPointStateNonZero(prev.pointState))
+      ? prevHadEvidence
         ? 'live'
-        : prev.status === 'on_court'
+        : prev.status === 'live' || prev.status === 'on_court'
           ? 'on_court'
           : null
       : null;
@@ -847,7 +866,7 @@ export class LivePollerLoop {
     const nowIso = new Date().toISOString();
     const { error } = await this.opts.supabase
       .from('matches')
-      .update({ status: target, updated_at: nowIso })
+      .update({ status: target, updated_at: nowIso, last_updated_by: 'padelgod' })
       .eq('id', matchId)
       .in('status', allowedFrom);
 
