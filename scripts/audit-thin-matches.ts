@@ -60,6 +60,21 @@ async function main() {
   //
   //    We can't use a single .is() on all 4 columns with OR in PostgREST
   //    easily, so we load matches with all 4 FKs and filter in JS.
+  type ThinMatchRow = {
+    id: string
+    tournament_id: string
+    widget_id_composite: string | null
+    round: string | null
+    pair1_player1_id: string | null
+    pair1_player2_id: string | null
+    pair2_player1_id: string | null
+    pair2_player2_id: string | null
+    pair1_player1_name: string | null
+    pair1_player2_name: string | null
+    pair2_player1_name: string | null
+    pair2_player2_name: string | null
+  }
+
   const { data: matches, error: mErr } = await supabase
     .from('matches')
     .select(
@@ -73,6 +88,7 @@ async function main() {
       'pair1_player1_id.is.null,pair1_player2_id.is.null,' +
       'pair2_player1_id.is.null,pair2_player2_id.is.null'
     )
+    .returns<ThinMatchRow[]>()
 
   if (mErr) throw new Error(`matches: ${mErr.message}`)
 
