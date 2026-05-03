@@ -48,7 +48,20 @@ const PULSE_KEYFRAMES = `
   0%, 100% { filter: brightness(1); }
   50% { filter: brightness(1.18); }
 }
+@keyframes mc-score-sweep {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  18%  { transform: translateX(0);     opacity: 1; }
+  60%  { transform: translateX(0);     opacity: 1; }
+  100% { transform: translateX(110%);  opacity: 0; }
+}
 `
+
+// Module-level prev-score map keyed by match.id — survives card remounts
+// (e.g. when MatchesDayShell refetches and React reconciles a new array of
+// children) so the flash only fires on the actual transition tick, not on
+// every mount. Same trick used by the home LiveMatchCard.
+const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4, 'AD': 4 }
+const _matchCardPrev = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
 
 // ── Round normalisation ─────────────────────────────────────────────────
 //
@@ -274,6 +287,53 @@ export function MatchCard({
     serverId === match.pair2_player1?.id || serverId === match.pair2_player2?.id
   )
 
+  // ── Score-flash banner detection ─────────────────────────────────
+  // Same algorithm as home LiveMatchCard: track prev (games, pts) per
+  // match.id in a module-level Map; on transition fire the sweep banner
+  // on the scoring side. Banner is a red overlay that slides in from
+  // the left, holds, then slides out — ~2.5s total.
+  const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
+  const flashKeyRef = useRef(0)
+  const p1TotalGames = sets.reduce((s, st) => s + (st.pair1_games ?? 0), 0)
+  const p2TotalGames = sets.reduce((s, st) => s + (st.pair2_games ?? 0), 0)
+  const flashPtsParts = (gamePoints ?? '').split(/[:\-]/)
+  const _p1Pts = flashPtsParts[0] ?? ''
+  const _p2Pts = flashPtsParts[1] ?? ''
+  useEffect(() => {
+    if (!isLive) { _matchCardPrev.delete(match.id); return }
+    const cur = { p1Games: p1TotalGames, p2Games: p2TotalGames, p1Pts: _p1Pts, p2Pts: _p2Pts }
+    const prev = _matchCardPrev.get(match.id)
+    if (prev && (
+      prev.p1Games !== cur.p1Games ||
+      prev.p2Games !== cur.p2Games ||
+      prev.p1Pts !== cur.p1Pts ||
+      prev.p2Pts !== cur.p2Pts
+    )) {
+      let scorer: 1 | 2 | null = null
+      if (cur.p1Games > prev.p1Games) scorer = 1
+      else if (cur.p2Games > prev.p2Games) scorer = 2
+      else {
+        const cP1 = PT_ORD[cur.p1Pts] ?? 0
+        const cP2 = PT_ORD[cur.p2Pts] ?? 0
+        const pP1 = PT_ORD[prev.p1Pts] ?? 0
+        const pP2 = PT_ORD[prev.p2Pts] ?? 0
+        if (cP1 > pP1) scorer = 1
+        else if (cP2 > pP2) scorer = 2
+        else if (pP1 > pP2 && cP1 <= cP2) scorer = 2
+        else if (pP2 > pP1 && cP2 <= cP1) scorer = 1
+      }
+      _matchCardPrev.set(match.id, cur)
+      if (scorer) {
+        flashKeyRef.current += 1
+        setFlashPair(scorer)
+        const t = setTimeout(() => setFlashPair(null), 2800)
+        return () => clearTimeout(t)
+      }
+    } else {
+      _matchCardPrev.set(match.id, cur)
+    }
+  }, [isLive, match.id, p1TotalGames, p2TotalGames, _p1Pts, _p2Pts])
+
   const round = formatRound(match.round)
   const courtRaw = match.court ? match.court.trim() : null
   const status = statusChip(match)
@@ -302,6 +362,30 @@ export function MatchCard({
           overflow: 'hidden',
         }}
       >
+        {/* Score-flash sweep banner — fires for ~2.5s when a pair scores.
+            Spans the FULL width of the card and is anchored to the pair
+            row that scored (top half for pair1, bottom half for pair2).
+            Pure visual; does not block clicks. Pinned beneath the content
+            (z-index 0) so player names + scores read on top, but the red
+            wash is still clearly visible behind them. */}
+        {flashPair && (
+          <div
+            key={`mc-sweep-${match.id}-${flashKeyRef.current}`}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: flashPair === 1 ? '32%' : '60%',
+              height: '32%',
+              background: 'rgba(255, 70, 85, 0.55)',
+              animation: 'mc-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+              pointerEvents: 'none',
+              zIndex: 0,
+              willChange: 'transform, opacity',
+            }}
+          />
+        )}
         {/* Left gender accent bar — runs the full height of the card */}
         <div
           style={{
@@ -337,6 +421,8 @@ export function MatchCard({
             alignItems: 'center',
             gap: 6,
             marginBottom: 6,
+            position: 'relative',
+            zIndex: 2,
           }}
         >
           {round && <Chip>{round}</Chip>}
@@ -363,7 +449,7 @@ export function MatchCard({
         )}
 
         {/* Pair rows: [names col | optional stream button (Task 11) | scores col] + right-aligned date/time */}
-        <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, position: 'relative', zIndex: 2 }}>
           <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, flex: 1, minWidth: 0 }}>
 
             {/* Names column — both pair-lefts stacked */}
