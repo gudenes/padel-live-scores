@@ -91,6 +91,7 @@ export function needsEnrichment(row: TournamentRow): boolean {
   if (row.venue == null) return true;
   if (row.registration_status == null) return true;
   if (row.prize_money_fip == null) return true;
+  if (row.prize_breakdown == null) return true;  // PR 3 — also retry when breakdown is missing
 
   const endsAtMs = row.ends_at ? Date.parse(row.ends_at) : null;
   const isCurrentOrFuture =

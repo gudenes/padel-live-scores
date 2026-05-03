@@ -58,6 +58,7 @@ describe('needsEnrichment', () => {
         venue: 'Some Club',
         registration_status: 'closed',
         prize_money_fip: 10000,
+        prize_breakdown: { tiers: [] }, // PR 3 — also needed for completeness
       }),
     ).toBe(false);
   });
