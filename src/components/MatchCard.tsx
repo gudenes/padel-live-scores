@@ -241,8 +241,34 @@ export function MatchCard({
   // signal and may carry real point data once play starts (Crionet sometimes
   // keeps the "On court" label sticky after the first point).
   const isLive = match.status === 'live' || (match.status as string) === 'on_court'
-  const isScheduled = match.status === 'scheduled'
-  const isFinished = ['finished', 'retired', 'walkover', 'ended'].includes(match.status as string)
+  // ── Defensive "looks finished" detection ──────────────────────────────
+  // Sometimes the upstream pipeline writes per-set scores from the
+  // results widget but the match-status flip to 'finished' fails (the
+  // closeMatch tick can be missed if the live-poller never saw the match,
+  // or the results-writer ran before the live-poller initialized).
+  // Detect this by counting set-wins from the actual game counts: if
+  // either pair has won 2+ sets AND no set is currently in progress,
+  // treat the match as finished for display purposes — show the per-set
+  // scores + W badge instead of the scheduled date/time stack.
+  const setsArr = match.sets ?? []
+  const setsLookFinished = (() => {
+    if (setsArr.length < 2) return false
+    if (setsArr.some((s) => s.is_current)) return false
+    let p1Sets = 0
+    let p2Sets = 0
+    for (const s of setsArr) {
+      const p1 = s.pair1_games ?? 0
+      const p2 = s.pair2_games ?? 0
+      if (p1 > p2) p1Sets++
+      else if (p2 > p1) p2Sets++
+    }
+    return p1Sets >= 2 || p2Sets >= 2
+  })()
+  const dbScheduled = match.status === 'scheduled'
+  const isScheduled = dbScheduled && !setsLookFinished
+  const isFinished =
+    ['finished', 'retired', 'walkover', 'ended'].includes(match.status as string) ||
+    (dbScheduled && setsLookFinished)
   const scheduleLabel = (match as any).schedule_label as string | null
   const isApproximateTime = isScheduled && /not before|followed by/i.test(scheduleLabel ?? '')
 
