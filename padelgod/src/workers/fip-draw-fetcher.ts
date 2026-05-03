@@ -213,7 +213,14 @@ async function fetchAndStoreDraw(
             `drawType mismatch: requested ${drawCode} got ${payload.drawType}`
           );
         }
-        parsed = parseFipEventDraw(payload.html);
+        // CRITICAL: pass drawType so the parser uses Q1/Q2/Q3 labels for
+        // qualifier draws (MQ/WQ codes) instead of falling back to main-draw
+        // labels (R16/R32/QF/SF/F). Without this, qualifier matches end up
+        // mislabeled as R16/R32 and the tournament page shows them in the
+        // wrong stage strip section.
+        const drawTypeForParser: 'main_draw' | 'qualifying' =
+          drawCode === 'MQ' || drawCode === 'WQ' ? 'qualifying' : 'main_draw';
+        parsed = parseFipEventDraw(payload.html, drawTypeForParser);
         responseOk = true;
         return { body, contentHash };
       }
