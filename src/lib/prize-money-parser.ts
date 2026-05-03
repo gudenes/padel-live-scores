@@ -1,3 +1,15 @@
+/**
+ * Parses messy prize-money strings from upstream sources (padelapi.org,
+ * FIP scrapers) into a structured { amount, currency } shape.
+ *
+ * Pure function — no I/O, no DB. Returns null when the input is
+ * genuinely ambiguous or unparseable; the caller is responsible for
+ * surfacing nulls to a manual-review queue.
+ *
+ * Handles 8+ observed production formats. See unit tests for the full
+ * matrix.
+ */
+
 export type ParsedPrize = {
   amount: number
   currency: 'EUR' | 'USD' | 'OTHER'
@@ -61,9 +73,12 @@ function parseNumericPart(raw: string): number | null {
     if (parts.length === 2) {
       const prefix = parts[0]
       const suffix = parts[1]
-      // If suffix is exactly 3 digits AND prefix has ≥ 2 digits, it's European thousands
+      // European thousands rule: "X.YYY" where X has ≥2 digits and YYY
+      // is exactly 3 digits → X * 1000 + YYY. The prefix-length-2 floor
+      // is a domain assumption: prize pools are never under €100, so
+      // "10.500" is safe to read as €10,500 (not €10.50). Inputs with a
+      // 1-digit prefix like "1.500" remain ambiguous and return null.
       if (suffix.length === 3 && /^\d{3}$/.test(suffix) && prefix.length >= 2) {
-        // 19.950, 264.534, 25.000 → European thousands
         const n = Number.parseInt(digits, 10)
         return Number.isFinite(n) ? n : null
       }
