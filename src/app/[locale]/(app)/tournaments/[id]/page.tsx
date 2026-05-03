@@ -359,16 +359,46 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   // ── Filtered matches ──────────────────────────────────────────
   const filtered = useMemo(() => {
-    return allMatches.filter(m => {
+    const passed = allMatches.filter(m => {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
       if (selectedRound && normalizeRoundFull(m.round as string) !== selectedRound) return false
       if ((m as any).category !== genderFilter) return false
       return true
     })
+    // Defense-in-depth dedup: cross-source ingest sometimes leaves two
+    // match rows with identical 4-player UUIDs in the same tournament
+    // (entry-list path + live-poller create-or-find race). Without this
+    // step, both rows render — once under LIVE NOW and again under
+    // UP NEXT. Keep the row with the higher status priority + richer
+    // metadata. Run dedup-same-player-uuids.mjs to fix the underlying
+    // data, but the UI stays clean even if new dupes slip through.
+    const rank = (s: string) => ({ live: 4, on_court: 3, finished: 2, scheduled: 1 }[s as 'live'] ?? 0)
+    const bestByUuids = new Map<string, typeof passed[number]>()
+    for (const m of passed) {
+      const ids = [
+        (m as any).pair1_player1_id,
+        (m as any).pair1_player2_id,
+        (m as any).pair2_player1_id,
+        (m as any).pair2_player2_id,
+      ].filter(Boolean).sort().join('|')
+      if (!ids) { bestByUuids.set(m.id, m); continue }
+      const key = `${(m as any).tournament?.id ?? activeTournament ?? ''}::${ids}`
+      const existing = bestByUuids.get(key)
+      if (!existing) { bestByUuids.set(key, m); continue }
+      const a = rank(existing.status as string)
+      const b = rank(m.status as string)
+      // Higher status wins; ties broken by widget_id_composite presence
+      // (entry-list-tracked rows have richer metadata: round, seeds, names).
+      if (b > a) bestByUuids.set(key, m)
+      else if (b === a && !(existing as any).widget_id_composite && (m as any).widget_id_composite) {
+        bestByUuids.set(key, m)
+      }
+    }
+    return [...bestByUuids.values()]
   }, [allMatches, activeTournament, selectedRound, genderFilter])
 
-  const liveMatches = filtered.filter(m => m.status === 'live' && !isWarmingUp(m as Match))
-  const warmingUpMatches = filtered.filter(m => m.status === 'live' && isWarmingUp(m as Match))
+  const liveMatches = filtered.filter(m => (m.status === 'live' || (m.status as string) === 'on_court') && !isWarmingUp(m as Match))
+  const warmingUpMatches = filtered.filter(m => (m.status === 'live' || (m.status as string) === 'on_court') && isWarmingUp(m as Match))
   const scheduledMatches = filtered
     .filter(m => m.status === 'scheduled')
     .sort((a: any, b: any) => {
