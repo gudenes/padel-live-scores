@@ -23,7 +23,13 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 800,
+      // Show for 2.5s minimum so the brand moment lands; if WebView
+      // first-paint is faster, we extend until launchShowDuration so
+      // the splash doesn't flicker out instantly. Hide is still
+      // automatic — set launchAutoHide:false if we want to control
+      // dismissal entirely from JS.
+      launchShowDuration: 2500,
+      launchFadeOutDuration: 300,
       launchAutoHide: true,
       // Black brand background — matches the splash.png canvas so there's
       // no flash between Android's pre-WebView splash and the splash image
