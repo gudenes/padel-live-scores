@@ -107,11 +107,17 @@ for (const rich of richRows ?? []) {
       if (upErr2) console.warn(`  reparent ${table}:`, upErr2.message);
     }
 
-    // 3. Promote rich's status if phantom is ahead.
+    // 3. Promote rich's status if phantom is ahead AND has real evidence.
+    // NEVER promote on phantom.status alone — the whole reason phantoms
+    // exist is because something incorrectly set them to 'live' without
+    // actual play. Copying that status would launder the bug. Promotion
+    // requires hard evidence: phantom has started_at, OR phantom has at
+    // least one set with games > 0 (already migrated above to rich).
     if (phantom) {
       const rank = (s) => ({ scheduled: 1, on_court: 2, live: 3, finished: 4 })[s] ?? 0;
       const patch = {};
-      if (rank(phantom.status) > rank(rich.status)) {
+      const phantomHasEvidence = !!phantom.started_at || !!phantom.finished_at;
+      if (rank(phantom.status) > rank(rich.status) && phantomHasEvidence) {
         patch.status = phantom.status;
         if (phantom.started_at) patch.started_at = phantom.started_at;
         if (phantom.finished_at) patch.finished_at = phantom.finished_at;
