@@ -175,9 +175,14 @@ export function computeEarningsForTournament(
     const tier = tierFromLevel(tournament.level, category)
     if (tier == null) continue  // out-of-scope tier
 
+    // earned_at canonicalises on tournament.ends_at, NOT match.finished_at —
+    // some upstream pipelines stamp finished_at = NOW() on stale matches,
+    // which would mis-attribute historical earnings to the current year.
+    // Tournament-level precision is sufficient (every consumer aggregates
+    // by year for YTD / all-time totals).
+    if (!tournament.ends_at) continue  // skip the entire category if no canonical date
     const termini = findPlayerTermini(catMatches)
     for (const t of termini) {
-      if (!t.earned_at) continue  // skip rows without a finished_at
       const resolved = resolvePerPlayer(tier, t.category, t.terminal_round, t.is_winner, tournament)
       if (!resolved) continue
 
@@ -188,7 +193,7 @@ export function computeEarningsForTournament(
         round_eliminated: t.terminal_round,
         per_player_eur: resolved.per_player_eur,
         source: resolved.source,
-        earned_at: t.earned_at,
+        earned_at: tournament.ends_at,
       })
     }
   }

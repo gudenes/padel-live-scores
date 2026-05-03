@@ -88,6 +88,7 @@ describe('computeEarningsForTournament — Premier P2 path', () => {
     id: 'tn-1', level: 'p2',
     prize_money_eur: 264_534,            // not used for Premier
     prize_breakdown: null,
+    ends_at: '2026-04-30T00:00:00Z',
   }
 
   it('produces 8 rows with correct amounts and source = premier_rulebook', () => {
@@ -104,7 +105,15 @@ describe('computeEarningsForTournament — Premier P2 path', () => {
       expect(r.source).toBe('premier_rulebook')
       expect(r.tournament_id).toBe('tn-1')
       expect(r.category).toBe('men')
+      // All rows share the tournament's ends_at, not per-match finished_at.
+      // Previously this was t.earned_at (from match.finished_at) — now canonical.
+      expect(r.earned_at).toBe('2026-04-30T00:00:00Z')
     }
+  })
+
+  it('skips when tournament.ends_at is null', () => {
+    const tn: TournamentInput = { id: 'tn-x', level: 'p2', prize_money_eur: null, prize_breakdown: null, ends_at: null }
+    expect(computeEarningsForTournament(tn, [SF1, SF2, FINAL])).toHaveLength(0)
   })
 })
 
@@ -116,6 +125,7 @@ describe('computeEarningsForTournament — FIP Tour path with scraped breakdown'
       winner: 1_600, finalist: 800, sf: 425, qf: 211, r16: 113,
       per: 'player', currency: 'EUR', source: 'scraped',
     },
+    ends_at: '2026-04-30T00:00:00Z',
   }
 
   it('uses scraped values, source = fip_breakdown_scraped', () => {
@@ -134,6 +144,7 @@ describe('computeEarningsForTournament — FIP Tour fallback to rulebook %', () 
     id: 'tn-3', level: 'fip_silver',
     prize_money_eur: 16_024,
     prize_breakdown: null,  // no scrape
+    ends_at: '2026-04-30T00:00:00Z',
   }
 
   it('falls back to rulebook %, source = fip_tour_rulebook_pct', () => {
@@ -147,17 +158,17 @@ describe('computeEarningsForTournament — FIP Tour fallback to rulebook %', () 
 
 describe('computeEarningsForTournament — out-of-scope tiers produce no rows', () => {
   it('fip_beyond → 0 rows', () => {
-    const tn: TournamentInput = { id: 'tn-4', level: 'fip_beyond', prize_money_eur: null, prize_breakdown: null }
+    const tn: TournamentInput = { id: 'tn-4', level: 'fip_beyond', prize_money_eur: null, prize_breakdown: null, ends_at: '2026-04-30T00:00:00Z' }
     expect(computeEarningsForTournament(tn, [SF1, SF2, FINAL])).toHaveLength(0)
   })
 
   it('fip_promises → 0 rows', () => {
-    const tn: TournamentInput = { id: 'tn-5', level: 'fip_promises', prize_money_eur: 5_000, prize_breakdown: null }
+    const tn: TournamentInput = { id: 'tn-5', level: 'fip_promises', prize_money_eur: 5_000, prize_breakdown: null, ends_at: '2026-04-30T00:00:00Z' }
     expect(computeEarningsForTournament(tn, [SF1, SF2, FINAL])).toHaveLength(0)
   })
 
   it('unknown level → 0 rows', () => {
-    const tn: TournamentInput = { id: 'tn-6', level: 'something_weird', prize_money_eur: 100_000, prize_breakdown: null }
+    const tn: TournamentInput = { id: 'tn-6', level: 'something_weird', prize_money_eur: 100_000, prize_breakdown: null, ends_at: '2026-04-30T00:00:00Z' }
     expect(computeEarningsForTournament(tn, [SF1, SF2, FINAL])).toHaveLength(0)
   })
 })
@@ -177,7 +188,7 @@ describe('computeEarningsForTournament — separates men and women categories', 
   }
 
   const tournament: TournamentInput = {
-    id: 'tn-7', level: 'p2', prize_money_eur: null, prize_breakdown: null,
+    id: 'tn-7', level: 'p2', prize_money_eur: null, prize_breakdown: null, ends_at: '2026-04-30T00:00:00Z',
   }
 
   it('produces separate rows per category with correct gender amounts', () => {

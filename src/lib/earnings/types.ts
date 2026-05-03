@@ -32,7 +32,7 @@ export type EarningRow = {
   round_eliminated: RoundCode
   per_player_eur: number
   source: EarningSource
-  earned_at: string  // ISO 8601 — copied from match.finished_at
+  earned_at: string  // ISO 8601 — tournament.ends_at (match.finished_at is unreliable)
 }
 
 // Plain shape mirroring public.matches columns we read.
@@ -59,6 +59,7 @@ export type TournamentInput = {
   // Keys are lower-case canonical round labels: 'winner', 'finalist', 'sf',
   // 'qf', 'r16', 'r32', 'r64', 'q1', 'q2', 'q3'. Values are EUR per player.
   prize_breakdown: Record<string, number | string> | null
+  ends_at: string | null  // ISO 8601. Used as canonical earned_at — match.finished_at is unreliable.
 }
 
 // Map from DB tournaments.level → our Tier union.
