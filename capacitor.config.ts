@@ -23,12 +23,20 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1500,
+      launchShowDuration: 2500,
       launchAutoHide: true,
-      backgroundColor: '#1A1A1A',
+      // Lime brand background — matches the splash.png canvas so there's
+      // no flash between Android's pre-WebView splash and the splash image
+      // itself, and no flash between splash hide and the WebView's first
+      // paint while the page loads.
+      backgroundColor: '#7ED321',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
-      showSpinner: false,
+      // Show a small dark spinner over the splash so users know it's
+      // loading rather than frozen, especially on slow networks.
+      showSpinner: true,
+      androidSpinnerStyle: 'large',
+      spinnerColor: '#0A0A0A',
       splashFullScreen: true,
       splashImmersive: true,
     },
