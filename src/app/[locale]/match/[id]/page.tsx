@@ -389,7 +389,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const isFinished = ['finished', 'retired', 'walkover'].includes(match.status)
   const isRetired = match.status === 'retired'
   const isWalkover = match.status === 'walkover'
-  const isLive = match.status === 'live'
+  const isLive = match.status === 'live' || (match.status as string) === 'on_court'
 
   // Serving indicator — server_player_id is populated for live matches by
   // the canonical /scores cron and by padelgod's dual-write. Parser only
@@ -404,8 +404,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const winnerPair = (match as any).winner_pair
   const p1Won = isFinished && winnerPair === 1
   const p2Won = isFinished && winnerPair === 2
-  const p1Leading = !isFinished && (p1Point === 'A' || (p1Point && p2Point && p1Point !== 'A' && p2Point !== 'A' && parseInt(p1Point) > parseInt(p2Point)))
-  const p2Leading = !isFinished && (p2Point === 'A' || (p1Point && p2Point && p1Point !== 'A' && p2Point !== 'A' && parseInt(p2Point) > parseInt(p1Point)))
+  const isAdv = (s: string | null) => s === 'A' || s === 'AD'
+  const p1Leading = !isFinished && (isAdv(p1Point) || (p1Point && p2Point && !isAdv(p1Point) && !isAdv(p2Point) && parseInt(p1Point) > parseInt(p2Point)))
+  const p2Leading = !isFinished && (isAdv(p2Point) || (p1Point && p2Point && !isAdv(p1Point) && !isAdv(p2Point) && parseInt(p2Point) > parseInt(p1Point)))
 
   const category = (match as any).category as string | null
   const duration = (match as any).duration as string | null

@@ -48,7 +48,7 @@ const LIVE_RED = '#FF4455'
 function extractPointScorers(game: Game): { scorer: 1 | 2 }[] {
   const pts = (game.points ?? []).filter(p => p !== '0:0')
   const result: { scorer: 1 | 2 }[] = []
-  const val = (s: string) => s === 'A' ? 50 : s === '40' ? 40 : s === '30' ? 30 : s === '15' ? 15 : 0
+  const val = (s: string) => s === 'A' || s === 'AD' ? 50 : s === '40' ? 40 : s === '30' ? 30 : s === '15' ? 15 : 0
 
   for (let i = 0; i < pts.length; i++) {
     const [p1s, p2s] = pts[i].split(':')
@@ -81,7 +81,7 @@ function inferWinnerFromPoints(game: Game): 1 | 2 | null {
   if (parts.length !== 2) return null
   const [raw1, raw2] = parts
   // Standard scoring hierarchy: 0 < 15 < 30 < 40 < A
-  const STD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4 }
+  const STD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4, 'AD': 4 }
   const v1 = STD[raw1], v2 = STD[raw2]
   if (v1 !== undefined && v2 !== undefined) {
     return v1 !== v2 ? (v1 > v2 ? 1 : 2) : null

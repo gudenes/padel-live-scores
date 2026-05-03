@@ -276,20 +276,31 @@ function makeFakeSupabase(opts: {
         };
       },
       update: (patch: Record<string, unknown>) => ({
-        eq: (col1: string, val1: unknown) => ({
-          neq: (col2: string, val2: unknown) => {
-            state.gamesUpdateCalls.push({
-              patch,
-              filters: { [col1]: val1, [`!${col2}`]: val2 },
-            });
-            for (const g of state.games) {
-              if (g.set_id === val1 && g.game_number !== val2) {
-                Object.assign(g, patch);
+        eq: (col1: string, val1: unknown) => {
+          // Shape A: .update().eq('id', gameId) — points sync (thenable)
+          // Shape B: .update().eq('set_id', ...).neq('game_number', ...) — is_current clear
+          const result = {
+            neq: (col2: string, val2: unknown) => {
+              state.gamesUpdateCalls.push({
+                patch,
+                filters: { [col1]: val1, [`!${col2}`]: val2 },
+              });
+              for (const g of state.games) {
+                if (g.set_id === val1 && g.game_number !== val2) {
+                  Object.assign(g, patch);
+                }
               }
-            }
-            return Promise.resolve({ data: null, error: null });
-          },
-        }),
+              return Promise.resolve({ data: null, error: null });
+            },
+            then: (resolve: any, reject?: any) => {
+              // Shape A — direct .eq('id', gameId) for points update
+              const game = state.games.find((g) => g.id === val1);
+              if (game) Object.assign(game, patch);
+              return Promise.resolve({ data: null, error: null }).then(resolve, reject);
+            },
+          };
+          return result;
+        },
       }),
     };
   }
@@ -304,7 +315,22 @@ function makeFakeSupabase(opts: {
             ).length;
             return Promise.resolve({ count, data: null, error: null });
           }
-          return Promise.resolve({ data: [], count: 0, error: null });
+          const filtered = state.matchPointsInserted.filter(
+            (p) => (p as any)[col] === val,
+          );
+          return {
+            order: (_orderCol: string) => {
+              const sorted = [...filtered].sort(
+                (a, b) => a.point_number - b.point_number,
+              );
+              return Promise.resolve({
+                data: sorted.map((p) => ({ score_after: p.score_after })),
+                error: null,
+              });
+            },
+            then: (resolve: any, reject?: any) =>
+              Promise.resolve({ data: filtered, count: filtered.length, error: null }).then(resolve, reject),
+          };
         },
       }),
       insert: (row: MatchPointRow) => {
