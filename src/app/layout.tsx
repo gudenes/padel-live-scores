@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { GatedAnalytics } from "@/components/GatedAnalytics";
 import { AuthProvider } from "@/components/AuthProvider";
+import { BootAnimation } from "@/components/BootAnimation";
 import { PostHogIdentify } from "@/components/PostHogIdentify";
 import { buildAlternates } from "@/lib/seo-helpers";
 import "./globals.css";
@@ -137,6 +138,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <PostHogIdentify />
             </AuthProvider>
             <GatedAnalytics />
+            {/* Native-only animated boot overlay. Self-gates on
+                Capacitor.isNativePlatform() — renders nothing on web. */}
+            <BootAnimation />
           </div>
         </div>
       </div>

@@ -25,18 +25,16 @@ export async function initNative(): Promise<void> {
     console.warn('[native-init] StatusBar setup failed', err)
   }
 
-  // Splash dismissal: wait for first paint AND a minimum brand-moment
-  // (1500ms after first paint) before hiding. This guarantees:
-  //  - We never reveal a half-rendered React tree (the rAF wait covers that)
-  //  - The splash always shows for a noticeable beat, even on fast networks
-  //    where the WebView would otherwise paint in <500ms and the brand
-  //    would barely register
-  // launchShowDuration in capacitor.config.ts is the upper bound; this is
-  // the lower bound. The splash is visible for max(rAF + 1500ms, 0) and
-  // capped at launchShowDuration if launchAutoHide kicks in first.
+  // Splash dismissal: wait for first paint, then hand off to the
+  // <BootAnimation> overlay (mounted in src/app/layout.tsx) which
+  // provides the animated brand moment. The static native splash now
+  // exists only to cover the WebView load gap — once React paints,
+  // BootAnimation is already in the tree and ready to take over, so we
+  // hide the native splash immediately to avoid stacking two splashes.
+  // launchShowDuration in capacitor.config.ts is the upper bound if
+  // launchAutoHide kicks in before this code runs.
   try {
     await new Promise(r => requestAnimationFrame(r))
-    await new Promise(r => setTimeout(r, 1500))
     await SplashScreen.hide()
   } catch (err) {
     console.warn('[native-init] SplashScreen.hide failed', err)
