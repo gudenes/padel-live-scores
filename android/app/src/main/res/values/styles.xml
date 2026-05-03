@@ -3,20 +3,37 @@
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <!-- Customize your theme here. -->
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
+    <!-- Theme used while the WebView activity is running. The web app
+         draws its own background, so this theme stays neutral. -->
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/splash_lime</item>
     </style>
 
+    <!-- Launch theme. Shown by the OS from "tap icon" until the Activity's
+         WebView paints — i.e., the cold-start window. Two layers because
+         Android 12 introduced a new splash API:
 
+         - Android 12+ uses `windowSplashScreen*` attributes (system-managed)
+         - Pre-12 uses `android:windowBackground` to paint the splash drawable
+           into the window before the Activity is created. Without this
+           attribute, the window stays black until our Capacitor plugin
+           draws — that's the "black for 2 seconds" the user reported. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ splash (system-drawn, before any of our code runs) -->
+        <item name="windowSplashScreenBackground">@color/splash_lime</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+
+        <!-- Pre-12 fallback: paint the splash drawable into the window
+             so there is never a black frame between launcher tap and
+             Capacitor's SplashScreen plugin showing the same image. -->
+        <item name="android:windowBackground">@drawable/splash</item>
     </style>
 </resources>

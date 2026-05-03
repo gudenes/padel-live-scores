@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand tokens — keep in sync with capacitor.config.ts and CSS. -->
+    <color name="splash_lime">#7ED321</color>
+    <color name="brand_dark">#0A0A0A</color>
+    <color name="brand_base">#1A1A1A</color>
+
+    <!-- Defaults that AppTheme references; safe placeholders since the
+         legacy ActionBar theme isn't actually shown to users. -->
+    <color name="colorPrimary">#1A1A1A</color>
+    <color name="colorPrimaryDark">#0A0A0A</color>
+    <color name="colorAccent">#7ED321</color>
+</resources>
