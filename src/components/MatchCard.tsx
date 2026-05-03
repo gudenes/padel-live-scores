@@ -474,6 +474,11 @@ export function MatchCard({
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
                     opacity: isLoser ? 0.65 : 1,
+                    // Each pair row gets an equal share of the names column
+                    // height. Without this, rows pack to natural heights and
+                    // drift apart from the (taller) score column rows on the
+                    // second row — pair 2 names sat ~6px above pair 2 scores.
+                    flex: 1,
                   }}>
                     {/* Stacked dual flags */}
                     <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
@@ -543,6 +548,9 @@ export function MatchCard({
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
                     gap: 8, padding: '5px 0', opacity: isLoser ? 0.65 : 1,
+                    // Equal-share row height — paired with the names column's
+                    // flex:1 so both columns' pair 1 / pair 2 boundaries align.
+                    flex: 1,
                   }}>
                     {sets.map(s => {
                       const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
