@@ -23,7 +23,7 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2500,
+      launchShowDuration: 800,
       launchAutoHide: true,
       // Black brand background — matches the splash.png canvas so there's
       // no flash between Android's pre-WebView splash and the splash image
