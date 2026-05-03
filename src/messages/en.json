@@ -846,8 +846,9 @@
     "cta": {
       "pick": "PICK",
       "yourPick": "YOUR PICK",
-      "locked": "PICKS LOCKED"
+      "locked": "PICK"
     },
+    "lockedTooltip": "Oops! This match is already live. Try predicting an upcoming match instead.",
     "makeYourPick": "Make your pick",
     "rewardShown": "Reward shown",
     "favored": "{pct}% favored",

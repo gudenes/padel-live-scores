@@ -167,8 +167,9 @@
     "cta": {
       "pick": "SCEGLI",
       "yourPick": "LA TUA SCELTA",
-      "locked": "BLOCCATO"
+      "locked": "SCEGLI"
     },
+    "lockedTooltip": "Ops! Questa partita è già in corso. Prova a pronosticare una prossima partita.",
     "makeYourPick": "Fai la tua scelta",
     "rewardShown": "Premio mostrato",
     "favored": "{pct}% favorito",
