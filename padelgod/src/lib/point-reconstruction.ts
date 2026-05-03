@@ -146,6 +146,23 @@ export function formatPointScore(p: PointState): string {
   }
 }
 
+/** Mirror of live-poller-loop.ts isPointStateNonZero — duplicated here so
+ *  point-reconstruction.ts doesn't need to import from a sibling module
+ *  (avoiding a circular dep risk). True when any non-zero point has been
+ *  scored in the current game. */
+function isPointStateNonZeroShadow(p: PointState): boolean {
+  switch (p.kind) {
+    case 'regular':
+      return p.team1 > 0 || p.team2 > 0;
+    case 'tiebreak':
+      return p.team1 > 0 || p.team2 > 0;
+    case 'deuce':
+    case 'advantage':
+    case 'golden_point':
+      return true;
+  }
+}
+
 /** Index of the last non-null set entry, or -1 if none. */
 function lastSetIndex(sets: Array<{ games: number } | null>): number {
   for (let i = sets.length - 1; i >= 0; i--) {
@@ -660,10 +677,23 @@ async function flipShadowPublicStatus(
 ): Promise<void> {
   // Widget parser emits 'scheduled' | 'on_court' | 'live' | 'finished'.
   // `finished` ticks are handled upstream by closeMatch — not this function.
-  // Pre-match phases ('scheduled' — unusual, we normally don't see it) and
-  // 'on_court' collapse to `on_court`. Everything else is `live`.
+  //
+  // Priority (tightened 2026-05-03 — mirrors canonical stampObservedStatus):
+  //   1. parser says 'on_court' → 'on_court' (trust explicit warm-up)
+  //   2. scoring evidence → 'live' (real play)
+  //   3. parser says 'live' but no evidence → 'on_court' (widget flicker)
+  //   4. parser says 'scheduled' → 'on_court' (rare; we already know widget
+  //      saw the match)
+  const hasScoringEvidence =
+    curr.team1Sets.some((s) => s != null && (s.games > 0 || (s.tiebreak ?? 0) > 0)) ||
+    curr.team2Sets.some((s) => s != null && (s.games > 0 || (s.tiebreak ?? 0) > 0)) ||
+    isPointStateNonZeroShadow(curr.pointState);
   const targetStatus: 'on_court' | 'live' =
-    curr.status === 'on_court' ? 'on_court' : 'live';
+    curr.status === 'on_court'
+      ? 'on_court'
+      : hasScoringEvidence
+        ? 'live'
+        : 'on_court';
 
   // Allowed prev states by target:
   //   - on_court ← scheduled                  (forward-only; never live → on_court)
@@ -693,7 +723,7 @@ async function flipShadowPublicStatus(
 
   const { error: statusErr } = await supabase
     .from('matches')
-    .update({ status: targetStatus, updated_at: new Date().toISOString() })
+    .update({ status: targetStatus, updated_at: new Date().toISOString(), last_updated_by: 'padelgod' })
     .eq('id', matchId)
     .in('status', allowedFromStates);
   if (statusErr) {
