@@ -158,6 +158,35 @@ describe('parseFipEventDraw — Brussels WQ fixture (the unlinked match)', () =>
     expect(byRound.size).toBeGreaterThanOrEqual(1);
     expect(matches.length).toBeGreaterThanOrEqual(12);
   });
+
+  it('emits Q1/Q2 labels when drawType="qualifying"', () => {
+    // Same fixture, but with drawType passed in: the parser should map round
+    // sizes to qualifier labels (largest round = Q1, next = Q2, …) instead
+    // of main-draw labels (R24/QF). Repro of the Asuncion P2 bug where
+    // women's qualifying matches landed in public.matches with round='R16'.
+    const qualifying = parseFipEventDraw(html, 'qualifying');
+    const labels = new Set(qualifying.map((m) => m.roundLabel));
+    expect(labels).toContain('Q1');
+    expect(labels).toContain('Q2');
+    expect(labels.has('R24')).toBe(false);
+    expect(labels.has('QF')).toBe(false);
+
+    // The widget that originally surfaced the bug must now carry Q-style
+    // label, not the bracket-shape fall-through.
+    const wq011 = qualifying.find((m) => m.matchWidgetId === 'WQ011')!;
+    expect(wq011.roundLabel).toMatch(/^Q\d+$/);
+  });
+
+  it('main_draw drawType keeps R32/R16/QF labels unchanged', () => {
+    // Sanity: passing drawType='main_draw' must not touch the existing
+    // mapping. Same as omitting the arg.
+    const md = parseFipEventDraw(loadResponse('MD'), 'main_draw');
+    const counts = md.reduce<Record<string, number>>((acc, m) => {
+      acc[m.roundLabel] = (acc[m.roundLabel] ?? 0) + 1;
+      return acc;
+    }, {});
+    expect(counts).toEqual({ R32: 16, R16: 8, QF: 4, SF: 2, F: 1 });
+  });
 });
 
 describe('parseFipEventDraw — robustness', () => {

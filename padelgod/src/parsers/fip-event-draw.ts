@@ -137,9 +137,31 @@ export interface ParsedFipDrawMatch {
  * Parse the `html` field from a `/wp-admin/admin-ajax.php?action=handle_ajax_request`
  * response, plus the drawType code (from the same response), into structured match rows.
  */
-export function parseFipEventDraw(html: string): ParsedFipDrawMatch[] {
+export function parseFipEventDraw(
+  html: string,
+  drawType?: 'main_draw' | 'qualifying'
+): ParsedFipDrawMatch[] {
   const $ = cheerio.load(html);
   const out: ParsedFipDrawMatch[] = [];
+
+  // Qualifying draws don't have main-draw round semantics — an 8-match round
+  // in the women's qualifier is "Q1" (first qualifying round in a 2-round
+  // draw), not "R16". Number of qualifying rounds varies by tournament:
+  // women's at Asuncion has 2 rounds (8→4), men's has 3 (16→8→4). So we
+  // can't statically map matchCount → Q-label; we have to look at all the
+  // round columns present and assign Q1 to the largest, Q2 to the next, etc.
+  // Without this, the populator writes main-draw labels (R16/R32/QF) onto
+  // qualifying matches and the UI shows confusing round names.
+  let qLabelByCount: Map<number, string> | null = null;
+  if (drawType === 'qualifying') {
+    const counts = new Set<number>();
+    $('.colDraw').each((_, col) => {
+      const mc = parseInt($(col).attr('data-round') ?? '', 10);
+      if (Number.isFinite(mc) && mc > 0) counts.add(mc);
+    });
+    const sortedDesc = [...counts].sort((a, b) => b - a);
+    qLabelByCount = new Map(sortedDesc.map((c, i) => [c, `Q${i + 1}`]));
+  }
 
   // Iterate each round column. `data-round` gives us the round size; we track
   // a draw_position counter per round so the output is self-consistent even
@@ -150,7 +172,8 @@ export function parseFipEventDraw(html: string): ParsedFipDrawMatch[] {
     const $col = $(col);
     const matchCount = parseInt($col.attr('data-round') ?? '', 10);
     if (!Number.isFinite(matchCount) || matchCount <= 0) return;
-    const roundLabel = roundLabelFromMatchCount(matchCount);
+    const roundLabel =
+      qLabelByCount?.get(matchCount) ?? roundLabelFromMatchCount(matchCount);
 
     $col.find('.singleMatch').each((_idx, m) => {
       const $m = $(m);
