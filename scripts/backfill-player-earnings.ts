@@ -51,6 +51,7 @@ const APPLY = process.argv.includes('--apply')
 // engine needs to compute earnings.
 type TournamentRow = DedupRow & {
   level: string
+  ends_at: string | null
 }
 
 type MatchRow = {
@@ -74,7 +75,7 @@ async function main() {
     (start, end) =>
       supabase
         .from('tournaments')
-        .select('id, name, starts_at, level, prize_money_eur, prize_breakdown, fip_id, padelapi_id')
+        .select('id, name, starts_at, ends_at, level, prize_money_eur, prize_breakdown, fip_id, padelapi_id')
         .gte('ends_at', '2024-01-01')
         .lt('ends_at', new Date().toISOString())
         .order('starts_at', { ascending: false })
@@ -151,6 +152,7 @@ async function main() {
       level: t.level,
       prize_money_eur: t.prize_money_eur,
       prize_breakdown: t.prize_breakdown as TournamentInput['prize_breakdown'],
+      ends_at: t.ends_at,
     }
     const matches = matchesByTournament.get(t.id) ?? []
     const earnings = computeEarningsForTournament(tournamentInput, matches)
