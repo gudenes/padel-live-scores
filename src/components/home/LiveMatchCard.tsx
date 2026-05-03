@@ -31,15 +31,19 @@ function LiveMatchCardInner({ match }: { match: Match }) {
     : null
   // Live point score comes from the last entry in the points[] array.
   // Points format: "30:40", "A:40", "15:15", etc.
-  // Fallback: game_score (from production padelgod, always populated even
-  // when points[] is null on older builds — same shape, just dash separator).
+  // Fallback chain:
+  //   1. games.points[] last entry (newer canonical writes)
+  //   2. games.game_score (always populated by production padelgod, includes "0-0")
+  //   3. "0-0" placeholder for live matches between games (so Pts column
+  //      stays visible as games turn over)
+  const liveStatusForPts = match.status === 'live' || (match.status as string) === 'on_court'
   const currentPoints = currentGame?.points?.length
     ? currentGame.points[currentGame.points.length - 1]
-    : (currentGame?.game_score && currentGame.game_score !== '0-0' ? currentGame.game_score : '')
+    : (currentGame?.game_score ?? (liveStatusForPts ? '0-0' : ''))
   const pointsParts = (currentPoints ?? '').split(/[:\-]/)
   const p1GamePts = pointsParts[0] ?? ''
   const p2GamePts = pointsParts[1] ?? ''
-  const hasLivePts = !!(p1GamePts || p2GamePts)
+  const hasLivePts = liveStatusForPts || !!(p1GamePts || p2GamePts)
 
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)

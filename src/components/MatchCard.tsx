@@ -268,12 +268,17 @@ export function MatchCard({
   // game_score as fallback when points[] is empty/null. Production padelgod
   // always writes game_score on every tick, but only newer builds populate
   // games.points[]. Fallback keeps the Pts column rendering regardless.
+  //
+  // Always show '0-0' when the match is live but no current game exists
+  // (between games / very start) so the Pts column doesn't disappear and
+  // reappear as games turn over — fans expect a stable live point indicator.
   const currentSet = sets.find(s => s.is_current)
   const currentGame = currentSet?.games?.find(g => g.is_current)
+  const liveStatusForPts = match.status === 'live' || (match.status as string) === 'on_court'
   const lastPoint = currentGame?.points?.length
     ? currentGame.points[currentGame.points.length - 1]
-    : (currentGame?.game_score && currentGame.game_score !== '0-0' ? currentGame.game_score : '')
-  const gamePoints = lastPoint ?? ''
+    : (currentGame?.game_score ?? (liveStatusForPts ? '0-0' : ''))
+  const gamePoints = lastPoint ?? (liveStatusForPts ? '0-0' : '')
 
   // Serving indicator — server_player_id is populated by the live-poller for
   // any in-progress match (canonical /scores cron + padelgod). Stored as the
@@ -366,30 +371,6 @@ export function MatchCard({
           overflow: 'hidden',
         }}
       >
-        {/* Score-flash sweep banner — fires for ~2.5s when a pair scores.
-            Spans the FULL width of the card and is anchored to the pair
-            row that scored (top half for pair1, bottom half for pair2).
-            Pure visual; does not block clicks. Pinned beneath the content
-            (z-index 0) so player names + scores read on top, but the red
-            wash is still clearly visible behind them. */}
-        {flashPair && (
-          <div
-            key={`mc-sweep-${match.id}-${flashKeyRef.current}`}
-            aria-hidden
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: flashPair === 1 ? '32%' : '60%',
-              height: '32%',
-              background: 'rgba(255, 70, 85, 0.55)',
-              animation: 'mc-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
-              pointerEvents: 'none',
-              zIndex: 0,
-              willChange: 'transform, opacity',
-            }}
-          />
-        )}
         {/* Left gender accent bar — runs the full height of the card */}
         <div
           style={{
@@ -454,7 +435,28 @@ export function MatchCard({
 
         {/* Pair rows: [names col | optional stream button (Task 11) | scores col] + right-aligned date/time */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, position: 'relative', zIndex: 2 }}>
-          <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, flex: 1, minWidth: 0 }}>
+          {/* Score-flash sweep banner — anchored to the EXACT pair row that
+              scored. Pair rows are minHeight:30 so the pixel offsets line up
+              with row boundaries no matter what the card chrome above adds. */}
+          {flashPair && (
+            <div
+              key={`mc-sweep-${match.id}-${flashKeyRef.current}`}
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: -16,    // extend to the card's left edge (past the 16px padding)
+                right: -14,   // extend to the card's right edge (past the 14px padding)
+                top: flashPair === 1 ? 0 : 30,
+                height: 30,
+                background: 'rgba(255, 70, 85, 0.55)',
+                animation: 'mc-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                pointerEvents: 'none',
+                zIndex: 0,
+                willChange: 'transform, opacity',
+              }}
+            />
+          )}
+          <div style={{ display: 'flex', alignItems: 'stretch', gap: 10, flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
 
             {/* Names column — both pair-lefts stacked */}
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -469,9 +471,12 @@ export function MatchCard({
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
                     opacity: isLoser ? 0.65 : 1,
+                    minHeight: 30,
                   }}>
-                    {/* Stacked dual flags */}
-                    <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
+                    {/* Stacked dual flags — container is 22px tall so the
+                        offset second flag (top:6 + 16px = 22) fits inside,
+                        keeping the flex baseline accurate. */}
+                    <div style={{ position: 'relative', width: 26, height: 22, flexShrink: 0 }}>
                       <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
                         <FlagImage country={p1?.country ?? null} size={16} />
                       </div>
@@ -538,6 +543,7 @@ export function MatchCard({
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
                     gap: 8, padding: '5px 0', opacity: isLoser ? 0.65 : 1,
+                    minHeight: 30,
                   }}>
                     {sets.map(s => {
                       const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
