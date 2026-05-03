@@ -262,6 +262,18 @@ export function MatchCard({
     : (currentGame?.game_score && currentGame.game_score !== '0-0' ? currentGame.game_score : '')
   const gamePoints = lastPoint ?? ''
 
+  // Serving indicator — server_player_id is populated by the live-poller for
+  // any in-progress match (canonical /scores cron + padelgod). Stored as the
+  // pair's player1 UUID; we match against either player UUID to decide which
+  // pair the dot goes on. Same logic as the match detail page.
+  const serverId = isLive ? ((currentGame as { server_player_id?: string | null })?.server_player_id ?? null) : null
+  const pair1IsServing = !!serverId && (
+    serverId === match.pair1_player1?.id || serverId === match.pair1_player2?.id
+  )
+  const pair2IsServing = !!serverId && (
+    serverId === match.pair2_player1?.id || serverId === match.pair2_player2?.id
+  )
+
   const round = formatRound(match.round)
   const courtRaw = match.court ? match.court.trim() : null
   const status = statusChip(match)
@@ -382,6 +394,20 @@ export function MatchCard({
                       color: isLoser ? '#B0B5BE' : '#fff',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{pair}</span>
+                    {((pairNum === 1 && pair1IsServing) || (pairNum === 2 && pair2IsServing)) && (
+                      <span
+                        title="Serving"
+                        aria-label="Serving"
+                        style={{
+                          flexShrink: 0,
+                          width: 7,
+                          height: 7,
+                          borderRadius: '50%',
+                          background: '#F5C518',
+                          boxShadow: '0 0 6px rgba(245,197,24,0.55)',
+                        }}
+                      />
+                    )}
                     {seed != null && (
                       <span
                         title={`Seed ${seed}`}
