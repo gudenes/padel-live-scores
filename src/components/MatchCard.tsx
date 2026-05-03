@@ -357,7 +357,11 @@ export function MatchCard({
           background: BG_CARD,
           border: `1px solid ${borderColor}`,
           clipPath: CHUNKY.card,
-          padding: '12px 14px 12px 16px',
+          // Asymmetric vertical padding: top has the 6px chip-row marginBottom
+          // adding to the gap between chips and pair 1 text, so bottom can be
+          // tighter to feel balanced. Without this, live cards look bottom-heavy
+          // because there's nothing below the last pair row but card chrome.
+          padding: '12px 14px 6px 16px',
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -644,7 +648,7 @@ export function MatchCard({
               overflow: 'hidden',
               marginTop: isOpen ? 12 : 0,
               paddingTop: isOpen ? 12 : 0,
-              borderTop: isOpen ? `0.5px solid ${BORDER}` : '0.5px solid transparent',
+              borderTop: isOpen ? `0.5px solid ${BORDER}` : 'none',
               transition: 'max-height 380ms ease, opacity 280ms ease, margin-top 380ms ease, padding-top 380ms ease',
             }}
             onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
