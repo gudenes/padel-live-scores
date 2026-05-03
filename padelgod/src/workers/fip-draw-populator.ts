@@ -207,6 +207,7 @@ interface EntryListRow {
 interface ExistingMatch {
   id: string;
   widget_id_composite: string;
+  round: string | null;
   pair1_player1_id: string | null;
   pair1_player2_id: string | null;
   pair2_player1_id: string | null;
@@ -340,6 +341,31 @@ function isRealFipTeamId(id: string | null): boolean {
 function nameLooksShortForm(name: string | null | undefined): boolean {
   if (!name) return false;
   return /^[A-Za-z]\.\s+\S/.test(name.trim());
+}
+
+/** Main-draw bracket-position labels emitted by `roundLabelFromMatchCount`.
+ *  Used to detect stale labels written before the qualifier-aware parser
+ *  shipped — a row whose widget is qualifier-prefixed (MQ/WQ) but whose
+ *  round is one of these is a backfill candidate. */
+const MAIN_DRAW_ROUND_LABELS: ReadonlySet<string> = new Set([
+  'R64', 'R32', 'R16', 'QF', 'SF', 'F',
+]);
+
+function isMainDrawRoundLabel(label: string | null | undefined): boolean {
+  return !!label && MAIN_DRAW_ROUND_LABELS.has(label);
+}
+
+function isQualifierRoundLabel(label: string | null | undefined): boolean {
+  return !!label && /^Q\d+$/.test(label);
+}
+
+/** Qualifier widgets are prefixed `MQ`/`WQ` (men's / women's qualifying)
+ *  in the FIP scheme. Used to gate the round-label backfill rule so it
+ *  only fires on qualifier rows — a main-draw row legitimately carries
+ *  R32/R16/QF and must never be touched by this rule. */
+function isQualifierWidget(matchWidgetId: string | null | undefined): boolean {
+  if (!matchWidgetId) return false;
+  return /^[MW]Q/i.test(matchWidgetId);
 }
 
 // ── Main entry ─────────────────────────────────────────────────────────
@@ -738,6 +764,20 @@ export async function runFipDrawPopulator(
         !nameLooksShortForm(d.team1_player2_name) &&
         !nameLooksShortForm(d.team2_player1_name) &&
         !nameLooksShortForm(d.team2_player2_name);
+      // Round-label backfill: when the widget is a qualifier (MQ/WQ
+      // prefix) AND the existing row carries a stale main-draw label
+      // (R32/R16/QF/SF/F written by the pre-qualifier-aware parser) AND
+      // this draw row brings a Q-label, overwrite. Main-draw widgets
+      // and rows whose round is already a Q-label are never touched —
+      // this rule is narrowly scoped to repair the historical mislabel.
+      if (
+        isQualifierWidget(d.match_widget_id) &&
+        isMainDrawRoundLabel(existing.round) &&
+        isQualifierRoundLabel(d.round_label)
+      ) {
+        patch.round = d.round_label;
+      }
+
       const refreshShortForm = drawIsAuthoritative && drawNamesAreLongForm;
       if (refreshShortForm) {
         if (
@@ -1314,7 +1354,7 @@ async function loadExistingMatchesByPrefix(
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'id, widget_id_composite, ' +
+      'id, widget_id_composite, round, ' +
         'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
         'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name, ' +
         'pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country, ' +
