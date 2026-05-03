@@ -67,6 +67,29 @@ import {
 import { inferWinnerFromSets } from './shadow-winner-inference.js';
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * True when the parsed point state shows ANY non-zero score — i.e. play has
+ * actually started in the current game. Used as a hard signal that overrides
+ * Crionet's "On court" / "Warming up" label when the widget gets stuck on a
+ * pre-match label even though points are being scored.
+ */
+function isPointStateNonZero(p: PointState): boolean {
+  switch (p.kind) {
+    case 'regular':
+      return p.team1 > 0 || p.team2 > 0;
+    case 'tiebreak':
+      return p.team1 > 0 || p.team2 > 0;
+    case 'deuce':
+    case 'advantage':
+    case 'golden_point':
+      return true;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -607,7 +630,7 @@ export class LivePollerLoop {
       // regress a match already past warmup. Same precedent as
       // `closeMatch`, which runs in both modes because padelapi can't
       // be trusted to close terminal states quickly either.
-      await this.stampObservedStatus(matchId, curr);
+      await this.stampObservedStatus(matchId, curr, prev);
     }
 
     await applyDiff(this.opts.supabase, matchId, prev, curr, diff, resolvedPlayers, {
@@ -762,54 +785,83 @@ export class LivePollerLoop {
   private async stampObservedStatus(
     matchId: string,
     curr: LiveMatchState,
+    prev: LiveMatchState | null,
   ): Promise<void> {
-    // Only fire on the one transition this method owns.
-    if (curr.status !== 'on_court') return;
+    // Terminal-status ticks are handled by closeMatch (case A) — never let
+    // this method overwrite them with 'live'.
+    if (curr.status === 'finished') return;
 
-    // Diagnostic (2026-04-23): the first production deployment of this
-    // method produced zero `on_court` rows across multiple matches that
-    // definitively went through a warmup phase. The `attempting` log
-    // line lets us verify in Railway logs that the method is actually
-    // being called (not being swallowed silently by an earlier early-
-    // return). If we see `attempting` but no effect on DB rows, it's
-    // the classic race: padelapi flips scheduled → live before we stamp,
-    // and our `.eq('status', 'scheduled')` guard matches 0 rows (no
-    // error, no-op).
+    // Derive the effective status from the parsed widget state.
+    //
+    // Priority:
+    //   1. curr.status === 'live' OR scoring evidence detected → 'live'
+    //      (Some Crionet widgets keep the "On court" label stuck after the
+    //      first point is scored. Once there's any non-zero score, treat
+    //      the match as live regardless of the widget label.)
+    //   2. curr.status === 'on_court'                          → 'on_court'
+    //      (warmup phase — stamp the transitional status)
+    //   3. else (curr.status === 'scheduled', no scoring)      → no-op
+    const hasScoringEvidence =
+      curr.team1Sets.some((s) => s != null && (s.games > 0 || (s.tiebreak ?? 0) > 0)) ||
+      curr.team2Sets.some((s) => s != null && (s.games > 0 || (s.tiebreak ?? 0) > 0)) ||
+      isPointStateNonZero(curr.pointState);
+
+    let target: 'on_court' | 'live' | null = null;
+    if (curr.status === 'live' || hasScoringEvidence) target = 'live';
+    else if (curr.status === 'on_court') target = 'on_court';
+    if (target === null) return;
+
+    // Skip the DB write when this poller already promoted the match to its
+    // target state on a previous tick. `prev` is the in-memory cache from
+    // this.states so it tracks the last value we wrote — identical-tick
+    // heartbeats then become free instead of round-tripping the DB every 6s.
+    // First-tick (prev === null) always falls through and writes.
+    const prevTarget: 'on_court' | 'live' | null = prev
+      ? prev.status === 'live' ||
+        (prev.team1Sets.some((s) => s != null && s.games > 0) ||
+          prev.team2Sets.some((s) => s != null && s.games > 0) ||
+          isPointStateNonZero(prev.pointState))
+        ? 'live'
+        : prev.status === 'on_court'
+          ? 'on_court'
+          : null
+      : null;
+    if (prev !== null && prevTarget === target) return;
+
+    // Allowed prev states by target — same forward-only rules as the
+    // shadow path's flipShadowPublicStatus:
+    //   on_court ← scheduled
+    //   live     ← scheduled | on_court | live (self-heartbeat OK)
+    // Terminal statuses (finished/walkover/retired) never appear here so
+    // the .in() filter naturally guards against regressing them.
+    const allowedFrom =
+      target === 'on_court'
+        ? ['scheduled']
+        : ['scheduled', 'on_court', 'live'];
+
     this.opts.logger.info(
-      this.logCtx({ matchId }),
-      'stamp on_court status: attempting (curr.status=on_court)',
+      this.logCtx({ matchId, target, hasScoringEvidence, currStatus: curr.status }),
+      `stamp ${target} status: attempting`,
     );
 
     const nowIso = new Date().toISOString();
     const { error } = await this.opts.supabase
       .from('matches')
-      .update({ status: 'on_court', updated_at: nowIso })
+      .update({ status: target, updated_at: nowIso })
       .eq('id', matchId)
-      .eq('status', 'scheduled');
+      .in('status', allowedFrom);
 
     if (error) {
       this.opts.logger.warn(
-        this.logCtx({ matchId, err: error.message }),
-        'stamp on_court status failed',
+        this.logCtx({ matchId, target, err: error.message }),
+        `stamp ${target} status failed`,
       );
       return;
     }
 
-    // Cross-check: re-read the row to see what actually landed. One extra
-    // query per on_court candidate isn't a hot-path concern — we only
-    // emit `on_court` during the warmup window (few ticks per tournament).
-    // If status is now 'on_court', great. If it's 'live', padelapi raced.
-    const { data: verify } = await this.opts.supabase
-      .from('matches')
-      .select('status')
-      .eq('id', matchId)
-      .maybeSingle();
-    const actual = verify?.status ?? 'unknown';
     this.opts.logger.info(
-      this.logCtx({ matchId, resultingStatus: actual }),
-      actual === 'on_court'
-        ? 'stamp on_court status: SUCCESS (scheduled → on_court)'
-        : `stamp on_court status: NO-OP (row is '${actual}', expected 'scheduled')`,
+      this.logCtx({ matchId, target }),
+      `stamp ${target} status: applied`,
     );
   }
 

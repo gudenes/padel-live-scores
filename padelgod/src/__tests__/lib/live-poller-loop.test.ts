@@ -1496,11 +1496,13 @@ describe('LivePollerLoop.stampObservedStatus — canonical mode on_court', () =>
 
     const calls = (supabase as any).__matchesUpdateCalls as MatchesUpdateCall[];
     // Find the on_court stamp specifically — filtered by the
-    // scheduled→on_court guard.
+    // scheduled→on_court guard. New shape uses `.in('status', ['scheduled'])`.
     const stampCall = calls.find(
       (c) =>
         c.patch.status === 'on_court' &&
-        c.filters['eq:status'] === 'scheduled' &&
+        Array.isArray(c.filters['in:status']) &&
+        (c.filters['in:status'] as string[]).includes('scheduled') &&
+        !(c.filters['in:status'] as string[]).includes('live') &&
         c.filters['eq:id'] === 'match-uuid-1',
     );
     expect(stampCall, 'expected exactly one on_court stamp write').toBeDefined();
@@ -1579,8 +1581,16 @@ describe('LivePollerLoop.stampObservedStatus — canonical mode on_court', () =>
     // canonical-only. applyDiff's dualWritePublic handles status writes in
     // shadow mode, but this test stops short of asserting on applyDiff's
     // own path (covered separately in point-reconstruction.test.ts).
+    // Canonical-mode stampObservedStatus uses `in:status: ['scheduled']`
+    // for on_court target. Shadow-mode flipShadowPublicStatus uses
+    // `['scheduled', 'on_court']`. Distinguish by exact array length to
+    // assert the canonical path didn't fire.
     const stampCall = calls.find(
-      (c) => c.patch.status === 'on_court' && c.filters['eq:status'] === 'scheduled',
+      (c) =>
+        c.patch.status === 'on_court' &&
+        Array.isArray(c.filters['in:status']) &&
+        (c.filters['in:status'] as string[]).length === 1 &&
+        (c.filters['in:status'] as string[])[0] === 'scheduled',
     );
     expect(stampCall, 'stampObservedStatus should not fire in shadow mode').toBeUndefined();
 

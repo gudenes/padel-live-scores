@@ -224,7 +224,10 @@ export function MatchCard({
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current) }, [])
 
   const sets = (match.sets ?? []).slice().sort((a, b) => a.set_number - b.set_number)
-  const isLive = match.status === 'live'
+  // Treat `on_court` as live for display purposes — it's the padelgod warmup
+  // signal and may carry real point data once play starts (Crionet sometimes
+  // keeps the "On court" label sticky after the first point).
+  const isLive = match.status === 'live' || (match.status as string) === 'on_court'
   const isScheduled = match.status === 'scheduled'
   const isFinished = ['finished', 'retired', 'walkover', 'ended'].includes(match.status as string)
   const scheduleLabel = (match as any).schedule_label as string | null
