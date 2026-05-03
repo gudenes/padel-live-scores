@@ -429,6 +429,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       brand: { name: string; logo_url: string | null } | null
     } | null
   } | null>(null)
+  const [earnings, setEarnings] = useState<{ ytdEur: number; allTimeEur: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -499,6 +500,28 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         // has unexpected null date combinations.
         const sorted = (matchesResult.data ?? []).slice().sort((a, b) => matchTime(b) - matchTime(a))
         setMatches(sorted)
+
+        // Earnings totals (PR 2C). Two cheap queries in parallel — typical
+        // active player has < 50 rows so client-side sum is fine.
+        const allTimeStart = '2024-01-01T00:00:00Z'
+        const ytdStart = `${new Date().getUTCFullYear()}-01-01T00:00:00Z`
+        const { data: earningsRows, error: eErr } = await supabase
+          .from('player_tournament_earnings')
+          .select('per_player_eur, earned_at')
+          .eq('player_id', id)
+          .gte('earned_at', allTimeStart)
+        if (cancelled) return
+        if (eErr) {
+          console.warn('[Player] earnings load failed', eErr)
+          setEarnings({ ytdEur: 0, allTimeEur: 0 })
+        } else {
+          let ytd = 0, all = 0
+          for (const row of earningsRows ?? []) {
+            all += row.per_player_eur
+            if (row.earned_at >= ytdStart) ytd += row.per_player_eur
+          }
+          setEarnings({ ytdEur: ytd, allTimeEur: all })
+        }
       } catch (e) {
         console.error('[Player] load exception:', e)
       } finally {
@@ -782,6 +805,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             router={router}
             setActiveTab={setActiveTab}
             currentEquipment={currentEquipment}
+            earnings={earnings}
           />
         )}
         {activeTab === 'season' && (
@@ -826,7 +850,7 @@ interface DerivedData {
 }
 
 function OverviewTab({
-  player, matches, derived, playerId, router, setActiveTab, currentEquipment,
+  player, matches, derived, playerId, router, setActiveTab, currentEquipment, earnings,
 }: {
   player: PlayerRow
   matches: MatchRow[]
@@ -847,6 +871,7 @@ function OverviewTab({
       brand: { name: string; logo_url: string | null } | null
     } | null
   } | null
+  earnings: { ytdEur: number; allTimeEur: number } | null
 }) {
   const t = useTranslations('player')
   const format = useFormatter()
@@ -865,6 +890,32 @@ function OverviewTab({
 
   return (
     <div style={{ padding: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+
+      {/* Career earnings — YTD + All-Time tiles (PR 2C) */}
+      {earnings != null && earnings.allTimeEur > 0 && (
+        <>
+          <Widget label={t('ytdEarnings')}>
+            <div style={{
+              fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.1, marginTop: 4,
+            }}>
+              {format.number(earnings.ytdEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+            </div>
+            <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+              {new Date().getUTCFullYear()}
+            </div>
+          </Widget>
+          <Widget label={t('allTimeEarnings')}>
+            <div style={{
+              fontSize: 22, fontWeight: 800, color: GREEN, lineHeight: 1.1, marginTop: 4,
+            }}>
+              {format.number(earnings.allTimeEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+            </div>
+            <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+              {t('earningsSinceLabel', { year: 2024 })}
+            </div>
+          </Widget>
+        </>
+      )}
 
       {/* Current Partner — wide */}
       {derived.currentPartner && (() => {
