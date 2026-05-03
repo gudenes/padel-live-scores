@@ -28,5 +28,5 @@ export const CHUNKY = {
 }
 
 // ── Score-flash tracking (module-level, survives remounts) ───────────────────
-export const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4 }
+export const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4, 'AD': 4 }
 export const _matchPrevScores = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()

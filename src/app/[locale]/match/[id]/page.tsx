@@ -317,7 +317,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const _cp = _cg?.points?.filter(p => p !== '0:0').slice(-1)[0] ?? null
   const _p1Pt = _cp ? _cp.split(':')[0] : '0'
   const _p2Pt = _cp ? _cp.split(':')[1] : '0'
-  const _isLive = match?.status === 'live'
+  const _isLive = match?.status === 'live' || (match?.status as string) === 'on_court'
 
   useEffect(() => {
     if (!_isLive) { _matchPrevScores.delete(id); return }
