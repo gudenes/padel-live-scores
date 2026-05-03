@@ -312,11 +312,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const matchSets = match?.sets ?? []
   const p1TotalGames = useMemo(() => matchSets.reduce((s, st) => s + ((parseSetScore(st.set_score) ?? parseSetFromGames(st.pair1_games, st.pair2_games))?.p1 ?? 0), 0), [matchSets])
   const p2TotalGames = useMemo(() => matchSets.reduce((s, st) => s + ((parseSetScore(st.set_score) ?? parseSetFromGames(st.pair1_games, st.pair2_games))?.p2 ?? 0), 0), [matchSets])
-  // Extract current point for flash detection (same logic used below for display)
+  // Extract current point for flash detection (same logic used below for
+  // display). Falls back to game_score when points[] is empty — keeps the
+  // animation responsive even when only game_score is being written.
   const _cg = match ? getCurrentScore(match).currentGame : null
-  const _cp = _cg?.points?.filter(p => p !== '0:0').slice(-1)[0] ?? null
-  const _p1Pt = _cp ? _cp.split(':')[0] : '0'
-  const _p2Pt = _cp ? _cp.split(':')[1] : '0'
+  const _cp =
+    _cg?.points?.filter(p => p !== '0:0').slice(-1)[0]
+    ?? (_cg?.game_score && _cg.game_score !== '0-0' ? _cg.game_score : null)
+    ?? null
+  const _cpParts = _cp ? _cp.split(/[:\-]/) : null
+  const _p1Pt = _cpParts ? _cpParts[0] : '0'
+  const _p2Pt = _cpParts ? _cpParts[1] : '0'
   const _isLive = match?.status === 'live' || (match?.status as string) === 'on_court'
 
   useEffect(() => {
@@ -379,9 +385,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const pair2Label = pairName(match.pair2_player1, match.pair2_player2)
 
   // Accept both point-score separators: ':' (padelapi/relay canonical writes)
-  // and '-' (padelgod dual-write via formatPointScore). Also filter the empty
+  // and '-' (padelgod via formatPointScore). Also filter the empty
   // start-of-game placeholder in either format.
-  const currentPoint = currentGame?.points?.filter(p => p !== '0:0' && p !== '0-0').slice(-1)[0] ?? null
+  //
+  // Fallback to game_score when points[] is empty/null — production padelgod
+  // always writes game_score on every tick, but games.points[] is only
+  // populated by builds that have the canonical-mode mirror (added 2026-05-03).
+  // The fallback keeps live points rendering during the deploy window and
+  // for any historical/in-flight game whose points array never got written.
+  const currentPoint =
+    currentGame?.points?.filter(p => p !== '0:0' && p !== '0-0').slice(-1)[0]
+    ?? (currentGame?.game_score && currentGame.game_score !== '0-0' ? currentGame.game_score : null)
+    ?? null
   const [p1Point, p2Point] = currentPoint ? currentPoint.split(/[:\-]/) : [null, null]
   const starPoint = currentGame ? isStarPoint(currentGame.points ?? []) : false
 

@@ -251,12 +251,15 @@ export function MatchCard({
     return p1Sets > p2Sets ? 1 : 2
   })()
 
-  // Live point — last entry in the current game's points[] array.
+  // Live point — last entry in the current game's points[] array, with
+  // game_score as fallback when points[] is empty/null. Production padelgod
+  // always writes game_score on every tick, but only newer builds populate
+  // games.points[]. Fallback keeps the Pts column rendering regardless.
   const currentSet = sets.find(s => s.is_current)
   const currentGame = currentSet?.games?.find(g => g.is_current)
   const lastPoint = currentGame?.points?.length
     ? currentGame.points[currentGame.points.length - 1]
-    : ''
+    : (currentGame?.game_score && currentGame.game_score !== '0-0' ? currentGame.game_score : '')
   const gamePoints = lastPoint ?? ''
 
   const round = formatRound(match.round)
