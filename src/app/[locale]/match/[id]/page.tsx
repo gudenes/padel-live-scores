@@ -400,8 +400,29 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [p1Point, p2Point] = currentPoint ? currentPoint.split(/[:\-]/) : [null, null]
   const starPoint = currentGame ? isStarPoint(currentGame.points ?? []) : false
 
-  const isScheduled = match.status === 'scheduled'
-  const isFinished = ['finished', 'retired', 'walkover'].includes(match.status)
+  // Defensive "looks finished" detection — sometimes the upstream pipeline
+  // writes per-set scores from the results widget but the status flip to
+  // 'finished' fails. If 2+ sets are won by one pair AND no set is
+  // currently in progress, treat the match as finished for display.
+  const _matchSetsArr = match.sets ?? []
+  const _matchSetsLookFinished = (() => {
+    if (_matchSetsArr.length < 2) return false
+    if (_matchSetsArr.some((s) => s.is_current)) return false
+    let p1Sets = 0
+    let p2Sets = 0
+    for (const s of _matchSetsArr) {
+      const p1 = s.pair1_games ?? 0
+      const p2 = s.pair2_games ?? 0
+      if (p1 > p2) p1Sets++
+      else if (p2 > p1) p2Sets++
+    }
+    return p1Sets >= 2 || p2Sets >= 2
+  })()
+  const _dbScheduled = match.status === 'scheduled'
+  const isScheduled = _dbScheduled && !_matchSetsLookFinished
+  const isFinished =
+    ['finished', 'retired', 'walkover'].includes(match.status) ||
+    (_dbScheduled && _matchSetsLookFinished)
   const isRetired = match.status === 'retired'
   const isWalkover = match.status === 'walkover'
   const isLive = match.status === 'live' || (match.status as string) === 'on_court'
@@ -416,7 +437,25 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const pair2IsServing = !!serverId && (
     serverId === match.pair2_player1?.id || serverId === match.pair2_player2?.id
   )
-  const winnerPair = (match as any).winner_pair
+  // Derive winner_pair from sets when the upstream didn't stamp it but
+  // the sets clearly show a winner (matches the same fallback logic
+  // MatchCard uses for finished-display).
+  const _rawWinnerPair = (match as any).winner_pair as 1 | 2 | null
+  const winnerPair: 1 | 2 | null = (() => {
+    if (_rawWinnerPair === 1 || _rawWinnerPair === 2) return _rawWinnerPair
+    if (!isFinished) return null
+    let p1Sets = 0
+    let p2Sets = 0
+    for (const s of _matchSetsArr) {
+      const p1 = s.pair1_games ?? 0
+      const p2 = s.pair2_games ?? 0
+      if (p1 > p2) p1Sets++
+      else if (p2 > p1) p2Sets++
+    }
+    if (p1Sets > p2Sets) return 1
+    if (p2Sets > p1Sets) return 2
+    return null
+  })()
   const p1Won = isFinished && winnerPair === 1
   const p2Won = isFinished && winnerPair === 2
   const isAdv = (s: string | null) => s === 'A' || s === 'AD'
