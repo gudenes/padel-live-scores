@@ -567,7 +567,7 @@ export function MatchCard({
               borderTop: isOpen ? `0.5px solid ${BORDER}` : '0.5px solid transparent',
               transition: 'max-height 380ms ease, opacity 280ms ease, margin-top 380ms ease, padding-top 380ms ease',
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
           >
             {isOpen && (
               <>
