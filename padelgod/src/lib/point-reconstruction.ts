@@ -434,6 +434,26 @@ export async function applyDiff(
         }
       }
     }
+
+    // Sync games.points[] from match_points so the Live Feed UI has data.
+    // Shadow dual-write does the same via dualWriteShadowToPublic; canonical
+    // mode was missing this step — games.points stayed null.
+    const { data: allPts, error: allPtsErr } = await supabase
+      .from('match_points')
+      .select('score_after')
+      .eq('game_id', gameId)
+      .order('point_number');
+    if (!allPtsErr && allPts) {
+      const pointsArr = (allPts as Array<{ score_after: string | null }>)
+        .map((p) => (p.score_after ?? '').replace('-', ':').replace('AD', 'A'))
+        .filter(Boolean);
+      if (pointsArr.length > 0) {
+        await supabase
+          .from('games')
+          .update({ points: pointsArr })
+          .eq('id', gameId);
+      }
+    }
   }
 }
 

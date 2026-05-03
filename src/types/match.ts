@@ -229,7 +229,7 @@ export function isStarPoint(points: string[]): boolean {
   const last = points[points.length - 1]
   if (last !== '40:40') return false
   const hadAdvantage = points.slice(0, -1).some(
-    (p) => p === 'A:40' || p === '40:A'
+    (p) => /^(A|AD):40$/.test(p) || /^40:(A|AD)$/.test(p)
   )
   return hadAdvantage
 }
@@ -254,10 +254,11 @@ export function getLastNPoints(
       const prevParts = prev.split(':')
       const currParts = curr.split(':')
 
-      const p1Prev = prevParts[0] === 'A' ? 50 : prevParts[0] === '40' ? 40 : parseInt(prevParts[0])
-      const p2Prev = prevParts[1] === 'A' ? 50 : prevParts[1] === '40' ? 40 : parseInt(prevParts[1])
-      const p1Curr = currParts[0] === 'A' ? 50 : currParts[0] === '40' ? 40 : parseInt(currParts[0])
-      const p2Curr = currParts[1] === 'A' ? 50 : currParts[1] === '40' ? 40 : parseInt(currParts[1])
+      const adv = (s: string) => s === 'A' || s === 'AD'
+      const p1Prev = adv(prevParts[0]) ? 50 : prevParts[0] === '40' ? 40 : parseInt(prevParts[0])
+      const p2Prev = adv(prevParts[1]) ? 50 : prevParts[1] === '40' ? 40 : parseInt(prevParts[1])
+      const p1Curr = adv(currParts[0]) ? 50 : currParts[0] === '40' ? 40 : parseInt(currParts[0])
+      const p2Curr = adv(currParts[1]) ? 50 : currParts[1] === '40' ? 40 : parseInt(currParts[1])
 
       if (p1Curr > p1Prev) allPoints.push({ winner: 1 })
       else if (p2Curr > p2Prev) allPoints.push({ winner: 2 })
@@ -266,12 +267,13 @@ export function getLastNPoints(
     if (pts.length > 0 && game.game_score && game.game_score !== '0-0' && !game.is_current) {
       const lastPt = pts[pts.length - 1]
       const parts = lastPt.split(':')
-      const p1 = parts[0] === 'A' ? 50 : parseInt(parts[0])
-      const p2 = parts[1] === 'A' ? 50 : parseInt(parts[1])
+      const adv2 = (s: string) => s === 'A' || s === 'AD'
+      const p1 = adv2(parts[0]) ? 50 : parseInt(parts[0])
+      const p2 = adv2(parts[1]) ? 50 : parseInt(parts[1])
       if (p1 >= 40 && p2 < 40) allPoints.push({ winner: 1 })
       else if (p2 >= 40 && p1 < 40) allPoints.push({ winner: 2 })
-      else if (parts[0] === 'A') allPoints.push({ winner: 1 })
-      else if (parts[1] === 'A') allPoints.push({ winner: 2 })
+      else if (adv2(parts[0])) allPoints.push({ winner: 1 })
+      else if (adv2(parts[1])) allPoints.push({ winner: 2 })
     }
   }
 

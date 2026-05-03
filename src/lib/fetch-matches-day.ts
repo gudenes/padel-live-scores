@@ -118,7 +118,8 @@ const MATCH_SELECT = `
   pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country,
   tournament:tournaments(id, name, level, country, starts_at, ends_at, status),
   ${PLAYER_JOIN_FIELDS},
-  sets(id, set_number, set_score, pair1_games, pair2_games, is_current)
+  sets(id, set_number, set_score, pair1_games, pair2_games, is_current,
+       games(id, game_number, game_score, points, is_current, server_player_id))
 `
 
 // Tier priority for tournament groups within a section uses the

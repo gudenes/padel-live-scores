@@ -5,8 +5,8 @@ import { Game } from '@/types/match'
 export function extractGamePoints(game: Game): { scorer: 1 | 2; score: string; isSP: boolean }[] {
   const pts = (game.points ?? []).filter(p => p !== '0:0')
   const result: { scorer: 1 | 2; score: string; isSP: boolean }[] = []
-  const val = (s: string) => s === 'A' ? 50 : s === '40' ? 40 : s === '30' ? 30 : s === '15' ? 15 : 0
-  const fmt = (s: string) => s === 'A' ? 'Adv' : s
+  const val = (s: string) => s === 'A' || s === 'AD' ? 50 : s === '40' ? 40 : s === '30' ? 30 : s === '15' ? 15 : 0
+  const fmt = (s: string) => s === 'A' || s === 'AD' ? 'Adv' : s
 
   for (let i = 0; i < pts.length; i++) {
     const pt = pts[i]
@@ -22,7 +22,7 @@ export function extractGamePoints(game: Game): { scorer: 1 | 2; score: string; i
       else if (p2v > val(p2sPrev)) scorer = 2
     }
     if (!scorer) continue
-    const isSP = pt === '40:40' && pts.slice(0, i).some(p => p === 'A:40' || p === '40:A')
+    const isSP = pt === '40:40' && pts.slice(0, i).some(p => /^(A|AD):40$/.test(p) || /^40:(A|AD)$/.test(p))
     result.push({ scorer, score: `${fmt(p1s)} – ${fmt(p2s)}`, isSP })
   }
   return result
@@ -36,7 +36,7 @@ export function inferWinnerFromPoints(game: any): 1 | 2 | null {
   const parts = last.split(':')
   if (parts.length !== 2) return null
   const [raw1, raw2] = parts
-  const STD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4 }
+  const STD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'A': 4, 'AD': 4 }
   const v1 = STD[raw1], v2 = STD[raw2]
   if (v1 !== undefined && v2 !== undefined) {
     return v1 !== v2 ? (v1 > v2 ? 1 : 2) : null
