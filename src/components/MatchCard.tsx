@@ -33,7 +33,7 @@ import { pairName, parseSetScore, parseSetFromGames, type Match } from '@/types/
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
 const ORANGE = '#F5A623'
-const BG_CARD = '#141414'
+const BG_CARD = 'rgba(255,255,255,0.03)'
 const BG_ELEV = '#1A1A1A'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
@@ -318,7 +318,7 @@ export function MatchCard({
             flexWrap: 'wrap',
             alignItems: 'center',
             gap: 6,
-            marginBottom: 10,
+            marginBottom: 6,
           }}
         >
           {round && <Chip>{round}</Chip>}
@@ -372,7 +372,7 @@ export function MatchCard({
                       </div>
                     </div>
                     <span style={{
-                      fontSize: 12, fontWeight: isWinner ? 800 : 600,
+                      fontSize: 13, fontWeight: isWinner ? 700 : 600,
                       color: isLoser ? '#B0B5BE' : '#fff',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{pair}</span>
@@ -472,7 +472,7 @@ export function MatchCard({
                         <span
                           key={s.id}
                           style={{
-                            fontSize: 15,
+                            fontSize: 16,
                             fontWeight: 700,
                             fontFamily: 'monospace',
                             color: isCurrent
