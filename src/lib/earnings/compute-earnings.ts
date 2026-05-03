@@ -53,7 +53,10 @@ function lookupBreakdown(
   const key = round === 'F' ? (isWinner ? 'winner' : 'finalist') : BREAKDOWN_KEY[round]
   const raw = bd[key]
   const n = typeof raw === 'string' ? Number(raw) : raw
-  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null
+  if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) return null
+  // Scraped FIP breakdowns sometimes carry fractional cents
+  // (Bronze QF = €111.56). per_player_eur is INTEGER in the DB, so round here.
+  return Math.round(n)
 }
 
 type PlayerTerminus = {
