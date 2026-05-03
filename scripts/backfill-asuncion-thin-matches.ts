@@ -168,6 +168,18 @@ async function main() {
   console.log(`  ${nameToFipId.size} players in entry list`)
 
   // 2. Load the 4 thin matches
+  type ThinMatchRow = {
+    id: string
+    widget_id_composite: string | null
+    pair1_player1_name: string | null
+    pair1_player2_name: string | null
+    pair2_player1_name: string | null
+    pair2_player2_name: string | null
+    pair1_player1_id: string | null
+    pair1_player2_id: string | null
+    pair2_player1_id: string | null
+    pair2_player2_id: string | null
+  }
   const { data: matches, error: mErr } = await supabase
     .from('matches')
     .select(
@@ -176,6 +188,7 @@ async function main() {
       'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id'
     )
     .in('id', THIN_MATCH_IDS)
+    .returns<ThinMatchRow[]>()
   if (mErr) throw new Error(`matches read: ${mErr.message}`)
 
   // 3. Collect all needed fip_ids to bulk-load players
