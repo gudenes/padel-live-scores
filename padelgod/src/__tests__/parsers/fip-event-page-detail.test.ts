@@ -19,6 +19,10 @@ const singaporeHtml = readFileSync(
   join(fixtureDir, 'fip-event-singapore-b3.html'),
   'utf8',
 );
+const qatarHtml = readFileSync(
+  join(fixtureDir, 'fip-event-qatar-doha-bronze.html'),
+  'utf8',
+);
 
 describe('parseEventDates', () => {
   it('parses DD/MM/YYYY range from header', () => {
@@ -216,6 +220,22 @@ describe('parsePrizeBreakdown — Cyprus fixture (FIP Silver)', () => {
     expect(breakdown!.sf).toBe(382);
     expect(breakdown!.finalist).toBe(720);
     expect(breakdown!.winner).toBe(1440);
+  });
+});
+
+describe('parsePrizeBreakdown — Qatar Doha II fixture (<p>-layout)', () => {
+  it('parses the <p>+<br/>+dash layout used by some Bronze events', () => {
+    const breakdown = parsePrizeBreakdown(qatarHtml);
+    expect(breakdown).not.toBeNull();
+    expect(breakdown!.winner).toBe(349.65);
+    expect(breakdown!.finalist).toBe(262.33);
+    expect(breakdown!.sf).toBe(175.09);
+    expect(breakdown!.qf).toBe(87.28);
+    expect(breakdown!.r16).toBe(54.82);
+    expect(breakdown!.r32).toBe(0);
+    expect(breakdown!.currency).toBe('EUR');
+    expect(breakdown!.per).toBe('player');
+    expect(breakdown!.source).toBe('scraped');
   });
 });
 
