@@ -2363,3 +2363,164 @@ describe('runFipDrawPopulator — draw refreshes short-form names on UPDATE', ()
     }
   });
 });
+
+// ── round label overwrite for stale main-draw labels on qualifier widgets ─
+//
+// When the parser was wrong about qualifier brackets (emitting R16/QF/SF
+// instead of Q1/Q2/Q3), the populator wrote those wrong labels onto
+// public.matches. After the parser fix, draw_snapshots now carry correct
+// Q-labels — but the populator's UPDATE branch never touched `round`, so
+// existing rows kept the wrong label until something else updated them.
+// This block adds a narrow rule: when the widget is a qualifier (MQ/WQ
+// prefix) AND existing.round is a main-draw label AND the draw row brings
+// a Q-label, overwrite. Main-draw widgets and Q-labelled rows are never
+// touched.
+describe('runFipDrawPopulator — qualifier round label backfill on UPDATE', () => {
+  const qDraw: DrawSeed = {
+    ...realMatchDraw,
+    match_widget_id: 'WQ011',
+    round_label: 'Q1',
+  };
+
+  it('overwrites stale R16 → Q1 on a WQ widget when existing has main-draw label', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Asuncion', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [qDraw],
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-stale-round',
+          widget_id_composite: 'FIP-2026-1706:WQ011',
+          pair1_player1_id: 'uuid-P1',
+          pair1_player2_id: 'uuid-P2',
+          pair2_player1_id: 'uuid-P3',
+          pair2_player2_id: 'uuid-P4',
+        },
+      ],
+    });
+    // Inject the stale round directly on the existing-match seed so the
+    // fake's match-row reflects the production scenario (matches.round is
+    // a real column the populator's loadExistingMatchesByPrefix doesn't
+    // currently project; we set it via the seed for assertion purposes).
+    (supabase.existing[0] as any).round = 'R16';
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.updated).toBe(1);
+    expect(supabase.updated[0].patch.round).toBe('Q1');
+  });
+
+  it('does NOT overwrite when widget is main-draw (MD/WD prefix)', async () => {
+    const mdDraw: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD017',
+      round_label: 'R16',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Asuncion', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [mdDraw],
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-md',
+          widget_id_composite: 'FIP-2026-1706:MD017',
+          pair1_player1_id: 'uuid-P1',
+          pair1_player2_id: 'uuid-P2',
+          pair2_player1_id: 'uuid-P3',
+          pair2_player2_id: 'uuid-P4',
+        },
+      ],
+    });
+    (supabase.existing[0] as any).round = 'R32';
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // No round overwrite; FKs already complete → skippedAlreadyComplete
+    expect(result.skippedAlreadyComplete).toBe(1);
+    expect(supabase.updated).toHaveLength(0);
+  });
+
+  it('does NOT overwrite when existing.round is already a Q-label (no churn)', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Asuncion', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [qDraw], // Q1
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-already-q',
+          widget_id_composite: 'FIP-2026-1706:WQ011',
+          pair1_player1_id: 'uuid-P1',
+          pair1_player2_id: 'uuid-P2',
+          pair2_player1_id: 'uuid-P3',
+          pair2_player2_id: 'uuid-P4',
+        },
+      ],
+    });
+    (supabase.existing[0] as any).round = 'Q1';
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedAlreadyComplete).toBe(1);
+    expect(supabase.updated).toHaveLength(0);
+  });
+
+  it('does NOT overwrite when draw row has a non-Q label (e.g. OOP fallback with stale R16)', async () => {
+    // Defensive — the parser fix corrects FIP draw snapshots, but if some
+    // upstream source still emits R16 for a qualifier widget, we don't
+    // want to overwrite a different (also-wrong) label with this one.
+    const stillBadDraw: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'WQ011',
+      round_label: 'R16',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Asuncion', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [stillBadDraw],
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-both-bad',
+          widget_id_composite: 'FIP-2026-1706:WQ011',
+          pair1_player1_id: 'uuid-P1',
+          pair1_player2_id: 'uuid-P2',
+          pair2_player1_id: 'uuid-P3',
+          pair2_player2_id: 'uuid-P4',
+        },
+      ],
+    });
+    (supabase.existing[0] as any).round = 'QF';
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedAlreadyComplete).toBe(1);
+    expect(supabase.updated).toHaveLength(0);
+  });
+});
