@@ -488,6 +488,10 @@ export function MatchCard({
                       fontSize: 13, fontWeight: isWinner ? 700 : 600,
                       color: isLoser ? '#B0B5BE' : '#fff',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      // Explicit line-height so the baseline aligns with the
+                      // bigger score text in the adjacent column. Both columns
+                      // use lineHeight:20 → baselines land on the same y-line.
+                      lineHeight: '20px',
                     }}>{pair}</span>
                     {((pairNum === 1 && pair1IsServing) || (pairNum === 2 && pair2IsServing)) && (
                       <span
@@ -573,6 +577,9 @@ export function MatchCard({
                             minWidth: 16,
                             textAlign: 'center',
                             position: 'relative',
+                            // Match the names column line-height so baselines
+                            // land on the same y across columns.
+                            lineHeight: '20px',
                           }}
                         >
                           {games}
@@ -602,6 +609,9 @@ export function MatchCard({
                           minWidth: 20,
                           textAlign: 'center',
                           marginLeft: 4,
+                          // Same line-height as the names column so the
+                          // 17px Pts text shares a baseline with the 13px name.
+                          lineHeight: '20px',
                         }}
                       >
                         {gamePoints.split(/[:\-]/)[pairNum === 1 ? 0 : 1] ?? ''}
