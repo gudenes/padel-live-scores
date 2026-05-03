@@ -37,7 +37,12 @@ const config: CapacitorConfig = {
       // paint while the page loads.
       backgroundColor: '#000000',
       androidSplashResourceName: 'splash',
-      androidScaleType: 'CENTER_CROP',
+      // FIT_CENTER preserves the asset's aspect ratio and never crops.
+      // The asset is pre-composed at 1080×2400 (designed in-tool), so we
+      // want WYSIWYG. On phones with a different aspect ratio than the
+      // asset, FIT_CENTER letterboxes — invisible because the asset's
+      // background and `backgroundColor` above are both pure black.
+      androidScaleType: 'FIT_CENTER',
       // Show a small lime spinner over the splash so users know it's
       // loading rather than frozen, especially on slow networks.
       showSpinner: true,
