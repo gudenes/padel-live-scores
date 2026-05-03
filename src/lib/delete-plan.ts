@@ -25,13 +25,16 @@ export function buildDeletePlan(userId: string): DeleteStatement[] {
     // 1. Blank the inviter link on anyone this user referred (do not delete them).
     { sql: 'UPDATE profiles SET referred_by = NULL WHERE referred_by = $1', params: [userId] },
 
-    // 2–7. Defensive explicit child deletes.
+    // 2–10. Defensive explicit child deletes.
     { sql: 'DELETE FROM user_badges WHERE user_id = $1', params: [userId] },
     { sql: 'DELETE FROM user_bookmarks WHERE user_id = $1', params: [userId] },
     { sql: 'DELETE FROM push_subscriptions WHERE user_id = $1', params: [userId] },
+    { sql: 'DELETE FROM native_push_subscriptions WHERE user_id = $1', params: [userId] },
+    { sql: 'DELETE FROM user_notifications WHERE user_id = $1', params: [userId] },
     { sql: 'DELETE FROM match_ratings WHERE user_id = $1', params: [userId] },
     { sql: 'DELETE FROM feature_interest WHERE user_id = $1', params: [userId] },
     { sql: 'DELETE FROM user_activity_log WHERE user_id = $1', params: [userId] },
+    { sql: 'DELETE FROM racket_clicks WHERE user_id = $1', params: [userId] },
 
     // 8. Profile row.
     { sql: 'DELETE FROM profiles WHERE id = $1', params: [userId] },

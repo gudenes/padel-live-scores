@@ -11,9 +11,9 @@ import { buildDeletePlan } from '../delete-plan'
 const USER_ID = '11111111-1111-1111-1111-111111111111'
 
 describe('buildDeletePlan', () => {
-  it('returns 11 ordered statements', () => {
+  it('returns 14 ordered statements', () => {
     const plan = buildDeletePlan(USER_ID)
-    expect(plan).toHaveLength(11)
+    expect(plan).toHaveLength(14)
   })
 
   it('first statement nulls referred_by on anyone this user invited', () => {
@@ -43,9 +43,12 @@ describe('buildDeletePlan', () => {
       'user_badges',
       'user_bookmarks',
       'push_subscriptions',
+      'native_push_subscriptions',
+      'user_notifications',
       'match_ratings',
       'feature_interest',
       'user_activity_log',
+      'racket_clicks',
     ]
     for (const t of childTables) {
       const idx = plan.findIndex(p => new RegExp(`DELETE FROM\\s+${t}`, 'i').test(p.sql))
