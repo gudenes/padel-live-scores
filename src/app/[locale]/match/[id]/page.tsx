@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, use, useRef, useMemo } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import { Match, getCurrentScore, pairName, isStarPoint, parseSetScore, parseSetFromGames, toShortName } from '@/types/match'
+import { Match, getCurrentScore, pairName, isStarPoint, parseSetScore, parseSetFromGames, parseAndHealSet, toShortName } from '@/types/match'
 import { hydrateThinPlayers } from '@/lib/thin-match-player'
 import MomentumChart from './MomentumChart'
 import BottomNav from '@/components/nav/BottomNavV3'
@@ -657,11 +657,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               {(match.sets ?? []).map(set => {
-                const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
-                const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
+                const healed = parseAndHealSet(set)
+                const p1WonSet = healed.p1 > healed.p2
                 return (
                   <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p1WonSet ? '#fff' : '#B0B5BE' }}>
-                    {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
+                    {healed.p1}
                   </span>
                 )
               })}
@@ -673,11 +673,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               {(match.sets ?? []).map(set => {
-                const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
-                const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
+                const healed = parseAndHealSet(set)
+                const p2WonSet = healed.p2 > healed.p1
                 return (
                   <span key={set.set_number} style={{ fontSize: 13, fontWeight: 800, width: 18, textAlign: 'center', fontFamily: 'monospace', color: set.is_current ? GREEN : p2WonSet ? '#fff' : '#B0B5BE' }}>
-                    {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
+                    {healed.p2}
                   </span>
                 )
               })}
@@ -756,12 +756,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           {!isScheduled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
               {(match.sets ?? []).map(set => {
-                const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
-                const p1WonSet = parsed ? parsed.p1 > parsed.p2 : false
+                const healed = parseAndHealSet(set)
+                const p1WonSet = healed.p1 > healed.p2
                 return (
-                  <span key={set.set_number} style={{ ...scoreNumStyle(p1WonSet && !set.is_current, set.is_current || (!!parsed && !p1WonSet)), position: 'relative' }}>
-                    {parsed ? parsed.p1 : (set.pair1_games ?? 0)}
-                    {parsed?.tb != null && !p1WonSet && <sup style={{ fontSize: 10, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{parsed.tb}</sup>}
+                  <span key={set.set_number} style={{ ...scoreNumStyle(p1WonSet && !set.is_current, set.is_current || !p1WonSet), position: 'relative' }}>
+                    {healed.p1}
+                    {healed.tb != null && !p1WonSet && <sup style={{ fontSize: 10, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{healed.tb}</sup>}
                   </span>
                 )
               })}
@@ -838,12 +838,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           {!isScheduled && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
               {(match.sets ?? []).map(set => {
-                const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
-                const p2WonSet = parsed ? parsed.p2 > parsed.p1 : false
+                const healed = parseAndHealSet(set)
+                const p2WonSet = healed.p2 > healed.p1
                 return (
-                  <span key={set.set_number} style={{ ...scoreNumStyle(p2WonSet && !set.is_current, set.is_current || (!!parsed && !p2WonSet)), position: 'relative' }}>
-                    {parsed ? parsed.p2 : (set.pair2_games ?? 0)}
-                    {parsed?.tb != null && !p2WonSet && <sup style={{ fontSize: 10, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{parsed.tb}</sup>}
+                  <span key={set.set_number} style={{ ...scoreNumStyle(p2WonSet && !set.is_current, set.is_current || !p2WonSet), position: 'relative' }}>
+                    {healed.p2}
+                    {healed.tb != null && !p2WonSet && <sup style={{ fontSize: 10, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{healed.tb}</sup>}
                   </span>
                 )
               })}

@@ -178,6 +178,62 @@ export function parseSetScore(score: string | null): { p1: number; p2: number; t
 }
 
 /**
+ * Parse a set's display scores and heal invalid closed-set values in one
+ * call. Wrapper around parseSetScore + parseSetFromGames + healClosedSetGames
+ * so every call site renders the same numbers without duplicating the
+ * (parsed ?? raw, then heal) dance.
+ */
+export function parseAndHealSet(set: {
+  set_score: string | null
+  pair1_games: number | null
+  pair2_games: number | null
+  is_current: boolean
+}): { p1: number; p2: number; tb: number | null } {
+  const parsed = parseSetScore(set.set_score) ?? parseSetFromGames(set.pair1_games, set.pair2_games)
+  const rawP1 = parsed?.p1 ?? set.pair1_games ?? 0
+  const rawP2 = parsed?.p2 ?? set.pair2_games ?? 0
+  const healed = healClosedSetGames(rawP1, rawP2, !!set.is_current, !!set.set_score)
+  return { p1: healed.p1, p2: healed.p2, tb: parsed?.tb ?? null }
+}
+
+/**
+ * Heal a closed-set games count to a valid final score.
+ *
+ * Crionet's tournamentlive widget sometimes drops the final game tick — the
+ * set goes from "5-3" (in progress, server's last game pending) straight to
+ * the next set without us ever seeing "6-3". The padelgod live-poller writes
+ * whatever it last saw, leaving the closed set frozen at an invalid score.
+ *
+ * Heuristic: if a set is no longer current AND set_score is empty AND the
+ * games count is below the standard win threshold (6 with at least 2-game
+ * margin, OR 7-5, OR 7-6 tiebreak), bump the side with more games to 6
+ * (or to 7 if the loser already had 5+). Conservative — only fires when
+ * the score is definitively invalid for a completed set.
+ */
+export function healClosedSetGames(
+  p1Games: number,
+  p2Games: number,
+  isCurrent: boolean,
+  hasSetScore: boolean,
+): { p1: number; p2: number } {
+  if (isCurrent || hasSetScore) return { p1: p1Games, p2: p2Games }
+  const max = Math.max(p1Games, p2Games)
+  const min = Math.min(p1Games, p2Games)
+  // Valid completed sets: 6-{0..4}, 7-5, 7-6 (tb), 10-x (super-tiebreak),
+  // or anything with max >= 6 and a 2-game margin.
+  const valid =
+    (max >= 6 && (max - min >= 2 || (max === 7 && (min === 5 || min === 6)))) ||
+    max >= 10
+  if (valid) return { p1: p1Games, p2: p2Games }
+  // Heal: bump the winning side. If the trailing side already has 5,
+  // jump to 7-5 (the other win condition); otherwise to 6.
+  const winnerTarget = min >= 5 ? 7 : 6
+  return p1Games > p2Games
+    ? { p1: winnerTarget, p2: p2Games }
+    : { p1: p1Games, p2: winnerTarget }
+}
+
+/**
  * Fallback parser when set_score string is unavailable but pair1_games/pair2_games
  * may contain concatenated tiebreak values (e.g. 78 = 7 games, tb 8 vs 66 = 6 games, tb 6).
  * Returns null if the games don't look like a tiebreak set.

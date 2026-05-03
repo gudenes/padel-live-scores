@@ -28,7 +28,7 @@ import { classifyResult } from '@/lib/predictions/scoring'
 import { isPremierLevel } from '@/lib/tournament-labels'
 import { FlagImage } from '@/components/FlagImage'
 import { PredictionPanel } from '@/components/prediction/PredictionPanel'
-import { pairName, parseSetScore, parseSetFromGames, type Match } from '@/types/match'
+import { pairName, parseSetScore, parseSetFromGames, healClosedSetGames, type Match } from '@/types/match'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -425,8 +425,13 @@ export function MatchCard({
                   }}>
                     {sets.map(s => {
                       const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
-                      const p1g = parsed?.p1 ?? s.pair1_games ?? 0
-                      const p2g = parsed?.p2 ?? s.pair2_games ?? 0
+                      const rawP1 = parsed?.p1 ?? s.pair1_games ?? 0
+                      const rawP2 = parsed?.p2 ?? s.pair2_games ?? 0
+                      // Heal closed-set scores stuck below the win threshold
+                      // (e.g. Crionet dropped the closing tick at 5-3 → display 6-3).
+                      const healed = healClosedSetGames(rawP1, rawP2, !!s.is_current, !!s.set_score)
+                      const p1g = healed.p1
+                      const p2g = healed.p2
                       const games = pairNum === 1 ? p1g : p2g
                       const tb = parsed?.tb ?? null
                       const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
@@ -477,7 +482,7 @@ export function MatchCard({
                           marginLeft: 4,
                         }}
                       >
-                        {gamePoints.split(':')[pairNum === 1 ? 0 : 1] ?? ''}
+                        {gamePoints.split(/[:\-]/)[pairNum === 1 ? 0 : 1] ?? ''}
                       </span>
                     )}
                   </div>
