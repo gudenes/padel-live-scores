@@ -761,6 +761,10 @@
       "title": "News & Highlights",
       "description": "Padel news, match highlights, and video recaps from Premier Padel, FIP, and top padel channels. Stay up to date with the latest in professional padel."
     },
+    "tournaments": {
+      "title": "Padel Tournaments — Schedule, Draws & Results",
+      "description": "Premier Padel and FIP tournament calendar with draws, schedules, courts, and live results from every event on tour."
+    },
     "about": {
       "title": "About Padel Nachos — Live Padel Scores Platform",
       "description": "Learn about Padel Nachos — the free platform for real-time padel scores, rankings, tournament draws, and highlights from Premier Padel and FIP."

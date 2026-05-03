@@ -778,6 +778,10 @@
       "title": "News e highlights padel",
       "description": "News padel, highlights delle partite e video da Premier Padel, FIP e i migliori canali. Resta aggiornato sul padel professionistico."
     },
+    "tournaments": {
+      "title": "Tornei di padel — Calendario, tabelloni e risultati",
+      "description": "Calendario dei tornei Premier Padel e FIP con tabelloni, orari, campi e risultati in diretta di ogni evento."
+    },
     "about": {
       "title": "Su Padel Nachos — Risultati padel in diretta",
       "description": "Scopri Padel Nachos, la piattaforma gratuita di risultati padel in diretta, classifica, tabelloni e highlights di Premier Padel e FIP."

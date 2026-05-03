@@ -778,6 +778,10 @@
       "title": "Notícias e highlights de padel",
       "description": "Notícias de padel, highlights de partidas e vídeos resumo da Premier Padel, FIP e dos melhores canais. Fique por dentro do padel profissional."
     },
+    "tournaments": {
+      "title": "Torneios de padel — Calendário, chaves e resultados",
+      "description": "Calendário dos torneios da Premier Padel e FIP com chaves, horários, quadras e resultados ao vivo de cada evento."
+    },
     "about": {
       "title": "Sobre Padel Nachos — Resultados de padel ao vivo",
       "description": "Conheça o Padel Nachos, a plataforma gratuita de resultados de padel ao vivo, ranking, chaves e highlights da Premier Padel e FIP."
