@@ -15,7 +15,7 @@
 // Filters reset on full reload, which is the right tradeoff for an
 // operator-only tool.
 
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentMatchesSubtab from './tournament/TournamentMatchesSubtab'
 import TournamentDrawSubtab from './tournament/TournamentDrawSubtab'
@@ -47,6 +47,8 @@ interface TournamentWithSources {
   level: string | null
   prize_money: string | null
   prize_money_fip: number | null
+  prize_money_eur: number | null
+  prize_money_eur_source: string | null
   prize_breakdown: Record<string, number | string> | null
   signup_fee_eur: number | null
   registration_status: string | null
@@ -189,6 +191,11 @@ export default function TournamentExplorerTab() {
   // so the audit summary feels identical across views.
   const [hoveredRow, setHoveredRow] = useState<{ t: TournamentWithSources; x: number; y: number } | null>(null)
 
+  // Bump this key to force a re-fetch without changing filter state
+  // (used by EditPrizeButton after a successful save).
+  const [reloadKey, setReloadKey] = useState(0)
+  const refetch = useCallback(() => setReloadKey(k => k + 1), [])
+
   // Refetch whenever filters change. Builds the query string from current
   // state — falsy/default values get dropped so the URL stays clean.
   useEffect(() => {
@@ -222,7 +229,7 @@ export default function TournamentExplorerTab() {
       })
 
     return () => { cancelled = true }
-  }, [fromDate, toDate, selectedLevels])
+  }, [fromDate, toDate, selectedLevels, reloadKey])
 
   const selected = useMemo(
     () => tournaments.find(t => t.id === selectedId) ?? null,
@@ -326,7 +333,7 @@ export default function TournamentExplorerTab() {
           ← Back to list
         </button>
 
-        <TournamentDetailsHeader t={selected} />
+        <TournamentDetailsHeader t={selected} onRefetch={refetch} />
 
         <div style={{ display: 'flex', gap: 2, marginBottom: 12, borderBottom: '1px solid #e5e7eb' }}>
           <SubTabButton
@@ -612,7 +619,7 @@ export default function TournamentExplorerTab() {
 
 // ── Tournament details header (drill-down view) ─────────────────────────
 
-function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
+function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; onRefetch: () => void }) {
   const startEnd = [t.starts_at?.slice(0, 10), t.ends_at?.slice(0, 10)]
     .filter(Boolean)
     .join(' → ')
@@ -709,7 +716,27 @@ function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
           <Field label="Status" value={t.status} />
           <Field label="Entry list status" value={t.entry_list_status} />
           <Field label="Registration" value={t.registration_status} />
-          <Field label="Prize money" value={prize} />
+          <Field label="Prize money (raw)" value={prize} />
+          <Field
+            label="Prize money (EUR)"
+            value={
+              <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <span>{t.prize_money_eur != null ? `€${t.prize_money_eur.toLocaleString()}` : '—'}</span>
+                {t.prize_money_eur_source && (
+                  <span style={{
+                    fontSize: 9, marginLeft: 6, padding: '1px 5px',
+                    background: '#eef', color: '#557', borderRadius: 3,
+                    textTransform: 'uppercase', letterSpacing: '0.4px',
+                  }}>{t.prize_money_eur_source}</span>
+                )}
+                <EditPrizeButton
+                  tournamentId={t.id}
+                  currentValue={t.prize_money_eur}
+                  onSaved={onRefetch}
+                />
+              </span>
+            }
+          />
           <Field label="Sign-up fee" value={t.signup_fee_eur != null ? `€${t.signup_fee_eur}` : null} />
           <Field label="Draw size" value={drawSize || null} />
           <Field label="Venue" value={venueLine || null} />
@@ -855,7 +882,8 @@ function TournamentDetailsHeader({ t }: { t: TournamentWithSources }) {
   )
 }
 
-function Field({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
+function Field({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  const isEmpty = value === null || value === undefined || value === ''
   return (
     <div>
       <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
@@ -865,13 +893,13 @@ function Field({ label, value, mono }: { label: string; value: string | null | u
         style={{
           fontSize: 12,
           fontWeight: 600,
-          color: value ? '#222' : '#bbb',
+          color: isEmpty ? '#bbb' : '#222',
           fontFamily: mono ? 'ui-monospace, SFMono-Regular, monospace' : 'inherit',
           marginTop: 2,
           wordBreak: 'break-word',
         }}
       >
-        {value || '—'}
+        {isEmpty ? '—' : value}
       </div>
     </div>
   )
@@ -1094,6 +1122,92 @@ interface RefreshStepResult {
   durationMs: number
   error?: string
   summary?: unknown
+}
+
+function EditPrizeButton({
+  tournamentId,
+  currentValue,
+  onSaved,
+}: {
+  tournamentId: string
+  currentValue: number | null
+  onSaved: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState<string>(currentValue?.toString() ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => { setEditing(true); setValue(currentValue?.toString() ?? '') }}
+        style={{
+          fontSize: 10, padding: '2px 6px', marginLeft: 6,
+          color: '#444', background: '#f4f4f4', border: '1px solid #ddd',
+          borderRadius: 3, cursor: 'pointer',
+        }}
+      >
+        Edit
+      </button>
+    )
+  }
+
+  const handleSave = async (clear: boolean) => {
+    setSaving(true)
+    setError(null)
+    const parsed = clear ? null : Number.parseInt(value, 10)
+    if (!clear && (!Number.isInteger(parsed) || (parsed as number) < 0)) {
+      setError('Must be a non-negative integer')
+      setSaving(false)
+      return
+    }
+    const res = await fetch('/api/ops/tournament-prize', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tournamentId, prizeMoneyEur: clear ? null : parsed }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      setError(body.error ?? `HTTP ${res.status}`)
+      setSaving(false)
+      return
+    }
+    setSaving(false)
+    setEditing(false)
+    onSaved()
+  }
+
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 6 }}>
+      <input
+        type="number"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        disabled={saving}
+        style={{
+          fontSize: 11, padding: '2px 4px', width: 90,
+          border: '1px solid #aaa', borderRadius: 3,
+        }}
+      />
+      <button
+        onClick={() => handleSave(false)}
+        disabled={saving}
+        style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer' }}
+      >Save</button>
+      <button
+        onClick={() => handleSave(true)}
+        disabled={saving}
+        style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', color: '#a00' }}
+      >Clear</button>
+      <button
+        onClick={() => { setEditing(false); setError(null) }}
+        disabled={saving}
+        style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer' }}
+      >Cancel</button>
+      {error && <span style={{ color: '#c00', fontSize: 10 }}>{error}</span>}
+    </span>
+  )
 }
 
 function RefreshTournamentButton({ tournamentId }: { tournamentId: string }) {
