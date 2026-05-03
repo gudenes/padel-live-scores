@@ -135,6 +135,7 @@ export default async function MatchLayout({ params, children }: Props) {
       .select(`
         id,
         status,
+        scheduled_at, started_at, finished_at,
         pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
         pair1_player1:players!matches_pair1_player1_id_fkey(name),
         pair1_player2:players!matches_pair1_player2_id_fkey(name),
@@ -154,29 +155,46 @@ export default async function MatchLayout({ params, children }: Props) {
     const playerName = (joined: unknown, fallback: string | null | undefined): string | undefined =>
       (joined as PlayerRef)?.name ?? (fallback?.trim() || undefined)
 
-    const p1 = [
+    const p1Names = [
       playerName(match?.pair1_player1, match?.pair1_player1_name),
       playerName(match?.pair1_player2, match?.pair1_player2_name),
-    ]
-      .filter(Boolean)
-      .join(' / ')
-    const p2 = [
+    ].filter((n): n is string => Boolean(n))
+    const p2Names = [
       playerName(match?.pair2_player1, match?.pair2_player1_name),
       playerName(match?.pair2_player2, match?.pair2_player2_name),
-    ]
-      .filter(Boolean)
-      .join(' / ')
+    ].filter((n): n is string => Boolean(n))
+    const p1 = p1Names.join(' / ')
+    const p2 = p2Names.join(' / ')
+
+    // Per-match dates — Google's SportsEvent expects the actual match
+    // window, not the parent tournament's full date range. Fall back to
+    // tournament.starts_at only when the match has no scheduling info at
+    // all (rare for tracked matches, common for backfilled historical).
+    const startDate = match?.started_at ?? match?.scheduled_at ?? tournament?.starts_at ?? null
+    const endDate = match?.finished_at ?? null
+
+    const buildTeam = (names: string[]) =>
+      names.length > 0
+        ? {
+            '@type': 'SportsTeam',
+            name: names.join(' / '),
+            athlete: names.map((n) => ({ '@type': 'Person', name: n })),
+          }
+        : null
+
+    const competitor = [buildTeam(p1Names), buildTeam(p2Names)].filter(Boolean)
 
     jsonLd =
-      match && tournament
+      match && tournament && startDate
         ? {
             '@context': 'https://schema.org',
             '@type': 'SportsEvent',
             name: `${p1} vs ${p2}`,
-            startDate: tournament.starts_at,
-            endDate: tournament.ends_at,
+            startDate,
+            ...(endDate ? { endDate } : {}),
             location: { '@type': 'Place', name: tournament.name },
             sport: 'Padel',
+            ...(competitor.length > 0 ? { competitor } : {}),
           }
         : null
   } catch {
