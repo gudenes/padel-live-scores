@@ -782,6 +782,12 @@
       "title": "Torneios de padel — Calendário, chaves e resultados",
       "description": "Calendário dos torneios da Premier Padel e FIP com chaves, horários, quadras e resultados ao vivo de cada evento."
     },
+    "search": {
+      "title": "Buscar jogadores, torneios e partidas de padel",
+      "description": "Busque no Padel Nachos jogadores, torneios e partidas ao vivo da Premier Padel e FIP.",
+      "titleWithQuery": "Resultados da busca por \"{query}\"",
+      "descriptionWithQuery": "Jogadores, torneios e partidas de padel correspondentes a \"{query}\" no Padel Nachos."
+    },
     "about": {
       "title": "Sobre Padel Nachos — Resultados de padel ao vivo",
       "description": "Conheça o Padel Nachos, a plataforma gratuita de resultados de padel ao vivo, ranking, chaves e highlights da Premier Padel e FIP."
@@ -794,6 +800,12 @@
       "title": "Jogos de padel {date} — Resultados, horários e placar",
       "description": "Todos os jogos de padel de {date}. Placar ao vivo, horários e resultados da Premier Padel e FIP, atualizados em tempo real."
     }
+  },
+  "search": {
+    "heading": "Buscar",
+    "placeholder": "Jogadores, torneios…",
+    "typeToSearch": "Digite um nome para buscar jogadores e torneios.",
+    "noResults": "Sem resultados para \"{query}\". Tente uma busca mais curta ou diferente."
   },
   "daily": {
     "backToMatches": "Todos os jogos",
