@@ -44,6 +44,18 @@ function LiveMatchCardInner({ match }: { match: Match }) {
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
 
+  // Serving indicator — server_player_id is populated by padelgod for
+  // any in-progress match. Stored as the pair's player1 UUID; match against
+  // either player UUID to decide which pair the dot goes on.
+  const serverId =
+    ((currentGame as { server_player_id?: string | null } | null)?.server_player_id) ?? null
+  const pair1IsServing = !!serverId && (
+    serverId === match.pair1_player1?.id || serverId === match.pair1_player2?.id
+  )
+  const pair2IsServing = !!serverId && (
+    serverId === match.pair2_player1?.id || serverId === match.pair2_player2?.id
+  )
+
   // ── Score-change banner detection ───────────────────────────
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
   const flashKeyRef = useRef(0)
@@ -184,6 +196,20 @@ function LiveMatchCardInner({ match }: { match: Match }) {
               }}>
                 {pair}
               </span>
+              {((pairNum === 1 && pair1IsServing) || (pairNum === 2 && pair2IsServing)) && (
+                <span
+                  title="Serving"
+                  aria-label="Serving"
+                  style={{
+                    flexShrink: 0,
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#F5C518',
+                    boxShadow: '0 0 6px rgba(245,197,24,0.55)',
+                  }}
+                />
+              )}
             </div>
             <div style={{
               display: 'flex',
