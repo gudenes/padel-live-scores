@@ -435,9 +435,12 @@ export function MatchCard({
 
         {/* Pair rows: [names col | optional stream button (Task 11) | scores col] + right-aligned date/time */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, position: 'relative', zIndex: 2 }}>
-          {/* Score-flash sweep banner — anchored to the EXACT pair row that
-              scored. Pair rows are minHeight:30 so the pixel offsets line up
-              with row boundaries no matter what the card chrome above adds. */}
+          {/* Score-flash sweep banner — anchored to the pair row that scored.
+              Pair rows have natural heights (no forced minHeight) so we use
+              50% top split: top 0-50% for pair 1, 50-100% for pair 2.
+              Since both pair rows have identical content structure (flag +
+              text), they end up the same height naturally and the 50% split
+              is exact. */}
           {flashPair && (
             <div
               key={`mc-sweep-${match.id}-${flashKeyRef.current}`}
@@ -446,8 +449,8 @@ export function MatchCard({
                 position: 'absolute',
                 left: -16,    // extend to the card's left edge (past the 16px padding)
                 right: -14,   // extend to the card's right edge (past the 14px padding)
-                top: flashPair === 1 ? 0 : 30,
-                height: 30,
+                top: flashPair === 1 ? '0%' : '50%',
+                height: '50%',
                 background: 'rgba(255, 70, 85, 0.55)',
                 animation: 'mc-score-sweep 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
                 pointerEvents: 'none',
@@ -471,12 +474,9 @@ export function MatchCard({
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
                     opacity: isLoser ? 0.65 : 1,
-                    minHeight: 30,
                   }}>
-                    {/* Stacked dual flags — container is 22px tall so the
-                        offset second flag (top:6 + 16px = 22) fits inside,
-                        keeping the flex baseline accurate. */}
-                    <div style={{ position: 'relative', width: 26, height: 22, flexShrink: 0 }}>
+                    {/* Stacked dual flags */}
+                    <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                       <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
                         <FlagImage country={p1?.country ?? null} size={16} />
                       </div>
@@ -488,7 +488,6 @@ export function MatchCard({
                       fontSize: 13, fontWeight: isWinner ? 700 : 600,
                       color: isLoser ? '#B0B5BE' : '#fff',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      lineHeight: 1,
                     }}>{pair}</span>
                     {((pairNum === 1 && pair1IsServing) || (pairNum === 2 && pair2IsServing)) && (
                       <span
@@ -544,7 +543,6 @@ export function MatchCard({
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
                     gap: 8, padding: '5px 0', opacity: isLoser ? 0.65 : 1,
-                    minHeight: 30,
                   }}>
                     {sets.map(s => {
                       const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
@@ -574,7 +572,6 @@ export function MatchCard({
                             minWidth: 16,
                             textAlign: 'center',
                             position: 'relative',
-                            lineHeight: 1,
                           }}
                         >
                           {games}
@@ -604,7 +601,6 @@ export function MatchCard({
                           minWidth: 20,
                           textAlign: 'center',
                           marginLeft: 4,
-                          lineHeight: 1,
                         }}
                       >
                         {gamePoints.split(/[:\-]/)[pairNum === 1 ? 0 : 1] ?? ''}
