@@ -84,6 +84,14 @@ const jsonLd = {
       name: 'Padel Nachos',
       description: 'Follow every point live. Real-time scores, player rankings, tournament draws, highlights, and breaking news from Premier Padel and FIP.',
       inLanguage: 'en',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: 'https://padelnachos.com/search?q={search_term_string}',
+        },
+        'query-input': 'required name=search_term_string',
+      },
     },
     {
       '@type': 'WebApplication',

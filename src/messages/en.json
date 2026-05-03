@@ -761,6 +761,16 @@
       "title": "News & Highlights",
       "description": "Padel news, match highlights, and video recaps from Premier Padel, FIP, and top padel channels. Stay up to date with the latest in professional padel."
     },
+    "tournaments": {
+      "title": "Padel Tournaments — Schedule, Draws & Results",
+      "description": "Premier Padel and FIP tournament calendar with draws, schedules, courts, and live results from every event on tour."
+    },
+    "search": {
+      "title": "Search padel players, tournaments and matches",
+      "description": "Search Padel Nachos for players, tournaments and live matches across Premier Padel and FIP.",
+      "titleWithQuery": "Search results for \"{query}\"",
+      "descriptionWithQuery": "Padel players, tournaments and matches matching \"{query}\" on Padel Nachos."
+    },
     "about": {
       "title": "About Padel Nachos — Live Padel Scores Platform",
       "description": "Learn about Padel Nachos — the free platform for real-time padel scores, rankings, tournament draws, and highlights from Premier Padel and FIP."
@@ -773,6 +783,12 @@
       "title": "Padel matches {date} — Live scores, results & schedule",
       "description": "Every padel match on {date}. Live scores, start times, results and tournament info from Premier Padel and FIP — updated in real time."
     }
+  },
+  "search": {
+    "heading": "Search",
+    "placeholder": "Players, tournaments…",
+    "typeToSearch": "Type a name to search players and tournaments.",
+    "noResults": "No results for \"{query}\". Try a shorter or different search."
   },
   "daily": {
     "backToMatches": "All matches",

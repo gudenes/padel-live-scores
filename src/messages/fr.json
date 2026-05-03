@@ -778,6 +778,16 @@
       "title": "Actualités et highlights padel",
       "description": "Actualités padel, highlights de matchs et vidéos récap Premier Padel, FIP et les meilleures chaînes. Restez à jour sur le padel professionnel."
     },
+    "tournaments": {
+      "title": "Tournois de padel — Calendrier, tableaux et résultats",
+      "description": "Calendrier des tournois Premier Padel et FIP avec tableaux, horaires, courts et résultats en direct de chaque événement."
+    },
+    "search": {
+      "title": "Rechercher joueurs, tournois et matchs de padel",
+      "description": "Recherchez sur Padel Nachos des joueurs, tournois et matchs en direct de Premier Padel et FIP.",
+      "titleWithQuery": "Résultats de recherche pour « {query} »",
+      "descriptionWithQuery": "Joueurs, tournois et matchs de padel correspondant à « {query} » sur Padel Nachos."
+    },
     "about": {
       "title": "À propos de Padel Nachos — Résultats padel en direct",
       "description": "Découvrez Padel Nachos, la plateforme gratuite de résultats padel en direct, classement, tableaux et highlights Premier Padel et FIP."
@@ -790,6 +800,12 @@
       "title": "Matchs de padel {date} — Résultats, horaires et scores",
       "description": "Tous les matchs de padel du {date}. Scores en direct, horaires et résultats Premier Padel et FIP, mis à jour en temps réel."
     }
+  },
+  "search": {
+    "heading": "Rechercher",
+    "placeholder": "Joueurs, tournois…",
+    "typeToSearch": "Saisissez un nom pour rechercher joueurs et tournois.",
+    "noResults": "Aucun résultat pour « {query} ». Essayez une recherche plus courte ou différente."
   },
   "daily": {
     "backToMatches": "Tous les matchs",
