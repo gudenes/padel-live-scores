@@ -29,12 +29,13 @@ function LiveMatchCardInner({ match }: { match: Match }) {
     ? currentGames.reduce((latest, g) =>
         (g.game_number ?? 0) > (latest.game_number ?? 0) ? g : latest)
     : null
-  // Live point score comes from the last entry in the points[] array
-  // (game_score is the running game count like "1-1", NOT the point score)
+  // Live point score comes from the last entry in the points[] array.
   // Points format: "30:40", "A:40", "15:15", etc.
+  // Fallback: game_score (from production padelgod, always populated even
+  // when points[] is null on older builds — same shape, just dash separator).
   const currentPoints = currentGame?.points?.length
     ? currentGame.points[currentGame.points.length - 1]
-    : ''
+    : (currentGame?.game_score && currentGame.game_score !== '0-0' ? currentGame.game_score : '')
   const pointsParts = (currentPoints ?? '').split(/[:\-]/)
   const p1GamePts = pointsParts[0] ?? ''
   const p2GamePts = pointsParts[1] ?? ''
