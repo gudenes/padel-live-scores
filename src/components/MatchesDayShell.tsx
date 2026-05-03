@@ -29,6 +29,7 @@ import { DailyDatePills } from '@/components/DailyDatePills'
 import { addDaysIso, getLocaleHomeTz, isLocaleToday, getLocaleTodayIso } from '@/lib/locale-time'
 import { useDaySwipe } from '@/hooks/useDaySwipe'
 import type { MatchesDayGroup } from '@/lib/fetch-matches-day'
+import { supabase } from '@/lib/supabase'
 import { nextDayWithMatches } from '@/lib/fetch-matches-calendar'
 
 const CACHE_NEIGHBOUR_RANGE = 3 // prefetch ±3 days around active
@@ -194,6 +195,36 @@ export default function MatchesDayShell({
       }
     }
   }, [activeIso, tz, cache, fetchDay])
+
+  // Realtime subscription — refetch the active day when ANY live match's
+  // matches/sets/games row changes. Same pattern the home page and match
+  // detail page use; this is what makes points + set scores tick live on
+  // the matches list. Debounced via a 1.5s trailing timer so a burst of
+  // ticks (point + game_score + set update) collapses into one refetch.
+  useEffect(() => {
+    let pending: ReturnType<typeof setTimeout> | null = null
+    const triggerRefetch = () => {
+      if (pending) return
+      pending = setTimeout(() => {
+        pending = null
+        // Force-refetch the active day even if cache.state === 'loaded'.
+        // fetchDay's cache check would skip a refetch when already loaded;
+        // we want the data to actually update on each tick.
+        const inFlight = inFlightRef.current.has(activeIso)
+        if (!inFlight) fetchDay(activeIso)
+      }, 1500)
+    }
+    const channel = supabase
+      .channel(`matches-day-${activeIso}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: 'status=in.(live,on_court)' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sets' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, triggerRefetch)
+      .subscribe()
+    return () => {
+      if (pending) clearTimeout(pending)
+      supabase.removeChannel(channel)
+    }
+  }, [activeIso, fetchDay])
 
   // Update the URL bar without triggering a Next.js navigation. Scroll
   // position is preserved.
