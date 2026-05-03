@@ -54,6 +54,8 @@ interface TournamentWithSources {
   level: string | null
   prize_money: string | null         // padelapi text format ("$525,000")
   prize_money_fip: number | null     // FIP integer (euros)
+  prize_money_eur: number | null              // normalized EUR (PR 1+2)
+  prize_money_eur_source: string | null       // 'fip_int' | 'parsed_text' | 'manual'
   draw_size_md: number | null
   draw_size_qd: number | null
   // Status
@@ -141,7 +143,7 @@ export async function GET(request: Request) {
       'id, name, source, padelapi_id, fip_id, slug, matchscorer_url, ' +
       'starts_at, ends_at, timezone, ' +
       'country, location, venue, venue_address, venue_type, n_courts, surface, ' +
-      'level, prize_money, prize_money_fip, prize_breakdown, signup_fee_eur, ' +
+      'level, prize_money, prize_money_fip, prize_money_eur, prize_money_eur_source, prize_breakdown, signup_fee_eur, ' +
       'registration_status, schedule_notes, draw_size_md, draw_size_qd, ' +
       'status, entry_list_status, logo_url',
     )
