@@ -802,13 +802,11 @@ function CornerElement({
     )
   }
 
-  // Live + no prediction → muted LOCKED chip
+  // Live + no prediction → friendly "TOO LATE" pill that explains why
+  // when tapped (toast bubble pops out for ~3s). Doesn't open the
+  // prediction panel — there's nothing actionable for the user there.
   if (isLive && !prediction) {
-    return (
-      <button type="button" onClick={onToggle} style={cornerPillStyle('rgba(255,255,255,0.04)', MUTED, 'dashed')}>
-        <span style={cornerTopStyle}>{tPred('cta.locked')}</span>
-      </button>
-    )
+    return <LockedPill tPred={tPred} />
   }
 
   // Scheduled + predicted → quieter "YOUR PICK" pill
@@ -855,6 +853,95 @@ function CornerElement({
 
 const cornerTopStyle: React.CSSProperties = {
   fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', lineHeight: 1.2,
+}
+
+// ── LockedPill — grayed-out PICK pill for live matches ──────────────────
+//
+// Mirrors the active green PICK pill (lightbulb icon + "PICK" label) but
+// rendered in muted gray to signal the prediction window is closed. On
+// tap, pops a small friendly tooltip below the pill:
+// "Oops! This match is already live. Try predicting an upcoming match."
+// Auto-dismisses after 3.5s. Tap again or anywhere on it to dismiss
+// earlier.
+//
+// Stays self-contained so MatchCard.CornerElement can still return a
+// single element from its state machine. Stops click propagation so
+// the surrounding <Link> doesn't navigate to match detail.
+
+function LockedPill({ tPred }: { tPred: ReturnType<typeof useTranslations> }) {
+  const [open, setOpen] = useState(false)
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setOpen((prev) => !prev)
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    if (!open) {
+      dismissTimerRef.current = setTimeout(() => setOpen(false), 3500)
+    }
+  }
+
+  useEffect(() => () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current) }, [])
+
+  return (
+    <>
+      <style>{`
+        @keyframes mc-locked-pop {
+          0%   { opacity: 0; transform: translateY(-4px) scale(0.95); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
+      <button
+        type="button"
+        onClick={handleClick}
+        style={{
+          position: 'absolute', top: 10, right: 12, zIndex: 3,
+          background: 'rgba(255,255,255,0.06)', color: MUTED,
+          padding: '3px 8px', cursor: 'pointer',
+          border: `0.5px dashed ${MUTED}40`,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase',
+          lineHeight: 1.2,
+          clipPath: CHUNKY.badge,
+          opacity: 0.7,
+        }}
+        aria-expanded={open}
+        aria-label={tPred('cta.pick')}
+      >
+        <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="10" r="8" /><path d="M8 18h8" /><path d="M7 21h10" />
+        </svg>
+        <span>{tPred('cta.locked')}</span>
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }}
+          style={{
+            position: 'absolute',
+            top: 36,           // just below the pill (pill is at top:10, h~22)
+            right: 12,
+            zIndex: 4,
+            maxWidth: 240,
+            padding: '8px 10px',
+            background: BG_ELEV,
+            border: `0.5px solid rgba(255,255,255,0.12)`,
+            clipPath: CHUNKY.badge,
+            color: '#E5E7EB',
+            fontSize: 11,
+            fontWeight: 500,
+            lineHeight: 1.35,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+            cursor: 'pointer',
+            animation: 'mc-locked-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+          }}
+        >
+          {tPred('lockedTooltip')}
+        </div>
+      )}
+    </>
+  )
 }
 
 function cornerPillStyle(bg: string, color: string, borderStyle: 'solid' | 'dashed' = 'solid'): React.CSSProperties {

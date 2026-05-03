@@ -167,8 +167,9 @@
     "cta": {
       "pick": "CHOISIR",
       "yourPick": "TON CHOIX",
-      "locked": "VERROUILLÉ"
+      "locked": "CHOISIR"
     },
+    "lockedTooltip": "Oups ! Ce match est déjà en cours. Essaie de prédire un prochain match.",
     "makeYourPick": "Fais ton choix",
     "rewardShown": "Récompense affichée",
     "favored": "{pct}% favori",
