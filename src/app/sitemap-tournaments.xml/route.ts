@@ -20,6 +20,14 @@ export async function GET() {
   const { data, error } = await supabase
     .from('tournaments')
     .select('id, starts_at, ends_at, updated_at')
+    // Skip ghost rows that leak into the index — empty-name or
+    // dateless tournaments render as "Tournament Detail" with all
+    // stats as em-dashes. Filtering at the sitemap level stops new
+    // discovery; layout.tsx handles existing indexed pages with
+    // robots: noindex.
+    .not('name', 'is', null)
+    .neq('name', '')
+    .not('starts_at', 'is', null)
     .order('starts_at', { ascending: false })
     .limit(45_000)
 
