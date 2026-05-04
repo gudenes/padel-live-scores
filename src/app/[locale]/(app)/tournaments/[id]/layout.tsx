@@ -30,8 +30,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq('id', id)
     .single()
 
-  if (!tournament) {
-    return { title: 'Tournament | Padel Nachos' }
+  // Ghost rows: missing tournament, empty name, or no start date.
+  // These render as "Tournament Detail" with em-dashes everywhere
+  // and have nothing useful for Search. De-index them so Google
+  // drops the URL on next crawl.
+  const isGhost = !tournament || !tournament.name?.trim() || !tournament.starts_at
+  if (isGhost) {
+    return {
+      title: 'Tournament | Padel Nachos',
+      robots: { index: false, follow: false },
+    }
   }
 
   const title = `${tournament.name} — Results & Live Scores`
