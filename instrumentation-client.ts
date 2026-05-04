@@ -47,6 +47,18 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
       "Can't find variable: ZiloCS",
       // Service worker / cache-related noise we generally can't act on
       'Failed to fetch dynamically imported module',
+      // Instagram Android in-app browser injects its own
+      // `navigation_performance_logger_android` script and tears down
+      // the Java bridge before the JS callback fires. Throws on every
+      // navigate-away and is unfixable from our side.
+      /Java object is gone/,
+      /enableDidUserTypeOnKeyboardLogging/,
+    ],
+    // Drop events whose top frame originates from the Instagram
+    // in-app browser's injected scripts — same noise as above, but
+    // catches variants that don't match the message regex.
+    denyUrls: [
+      /^app:\/\/navigation_performance_logger_android/,
     ],
   })
 }
