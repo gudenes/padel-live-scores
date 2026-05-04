@@ -1572,9 +1572,11 @@ function TeamRow({
                 } : {}),
               }}>
                 {mine}
-                {/* Tie-break superscript — shown on the set winner's cell,
-                    displaying the loser's tie-break points count (tennis convention) */}
-                {setWinner && parsed.tb != null && (
+                {/* Tie-break superscript — shown on the set LOSER's cell,
+                    displaying the loser's tie-break points count (tennis
+                    convention: "7-6(5)" → loser scored 5). Matches
+                    MatchCard / CompactMatchCard / opengraph rendering. */}
+                {!setWinner && parsed.tb != null && (
                   <span style={{
                     fontSize: 8, verticalAlign: 'super',
                     color: MUTED, marginLeft: 1,
