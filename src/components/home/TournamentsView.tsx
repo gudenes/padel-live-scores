@@ -222,7 +222,7 @@ export default function TournamentsView({
       if (candidateLive.length > 0) {
         const { data: matchData } = await supabase
           .from('matches')
-          .select('id, status, tournament:tournaments!inner(id)')
+          .select('id, status, round, tournament:tournaments!inner(id)')
           .in('tournament.id', candidateLive.map(t => t.id))
 
         const byTournament: Record<string, any[]> = {}
@@ -233,17 +233,44 @@ export default function TournamentsView({
           byTournament[tid].push(m)
         }
 
+        const FINAL_LABELS = new Set(['final', 'finals', 'f'])
+        const isFinalRound = (r: string | null | undefined) =>
+          !!r && FINAL_LABELS.has(r.toLowerCase().trim())
+        const TERMINAL_STATUSES = new Set(['finished', 'retired', 'walkover'])
+
         for (const t of candidateLive) {
           const matches = byTournament[t.id] ?? []
           const hasLive = matches.some((m: any) => m.status === 'live')
           if (hasLive) {
             confirmedLiveIds.add(t.id)
-          } else {
-            // Still between sessions only when unplayed matches remain.
-            // Once every match is finished/retired/walkover/bye, the tournament is done.
-            const hasScheduled = matches.some((m: any) => m.status === 'scheduled')
-            if (hasScheduled) confirmedOngoingIds.add(t.id)
+            continue
           }
+
+          // If every Final-round match has a winner, the tournament is done —
+          // even if there are leftover `scheduled` rows (orphan qualifiers,
+          // bracket placeholders that were never played). Common because
+          // upstream `tournaments.status` is often stale (`pending`, `live`,
+          // or null) for hours/days after the actual Final wraps. Brussels P2
+          // showed the same residue, but only on `t.status='finished'` rows;
+          // FIP Bronze/Silver/Promises/Beyond rarely flip the flag at all.
+          const finals = matches.filter((m: any) => isFinalRound(m.round))
+          const allFinalsDecided =
+            finals.length > 0 && finals.every((m: any) => TERMINAL_STATUSES.has(m.status))
+          if (allFinalsDecided) continue
+
+          // Past `ends_at` with no live match → done. The +3-day buffer in
+          // `candidateLive` is for late results trickling in, not a license
+          // to keep an event "ongoing" indefinitely. Smaller FIP tiers (Promises,
+          // Beyond, Bronze) often ship 100% scheduled placeholders that we
+          // never receive results for; without this guard they sit in Ongoing
+          // forever.
+          const tournamentEnded = new Date(t.ends_at) < now
+          if (tournamentEnded) continue
+
+          // Still between sessions only when unplayed matches remain AND
+          // we're inside the actual tournament window.
+          const hasScheduled = matches.some((m: any) => m.status === 'scheduled')
+          if (hasScheduled) confirmedOngoingIds.add(t.id)
         }
       }
 
