@@ -46,6 +46,10 @@ interface State {
       // fallback lookup (added in PR #2).
       padelapi_id?: string | null;
       scheduled_at?: string | null;
+      // Optional — set by `fip-draw-populator` on populator-owned rows.
+      // Drives the widget_id_composite hot-column lookup step in
+      // findOrCreateMatch.
+      widget_id_composite?: string | null;
     }
   >;
   // Called on every entity_external_ids upsert. Lets tests simulate a
@@ -328,6 +332,47 @@ describe('findOrCreateMatch', () => {
     // No new rows inserted
     expect(state.matches.size).toBe(1);
     expect(state.eids.size).toBe(1);
+  });
+
+  it('widget_id_composite hot-column lookup links a populator-owned row with no sidecar entry', async () => {
+    // Reproduces FIP Silver Mendoza Final 2026-05-03: fip-draw-populator
+    // created the bracket row with widget_id_composite set but never
+    // registered a crionet_widget sidecar entry. Pair1 was still null
+    // because winner-propagator hadn't filled it in yet, so pair-based
+    // fallback couldn't help either. Without the hot-column lookup,
+    // findOrCreateMatch would INSERT a duplicate.
+    const state = makeState();
+    state.matches.set('populator-uuid', {
+      id: 'populator-uuid',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: null,
+      pair1_player1_id: null,
+      pair1_player2_id: null,
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+      widget_id_composite: COMPOSITE,
+    });
+    // No sidecar entry — populator never wrote one.
+    expect(state.eids.size).toBe(0);
+
+    const supabase = fakeSupabase(state);
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      pair1PlayerIds: ['p-A', 'p-B'],
+      pair2PlayerIds: ['p-C', 'p-D'],
+    });
+
+    expect(result).toEqual({
+      matchId: 'populator-uuid',
+      created: false,
+      linkedExisting: true,
+    });
+    // The original populator row is reused, no duplicate inserted.
+    expect(state.matches.size).toBe(1);
+    // And the sidecar gets backfilled so future lookups hit step 1.
+    expect(state.eids.get(COMPOSITE)?.entity_id).toBe('populator-uuid');
   });
 
   it('creates a new match + entity_external_ids row when neither widget id nor pair match exists', async () => {

@@ -4,10 +4,18 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * match-identifier — resolves a Crionet widget match id to a canonical
  * `matches.id` UUID, creating the row if needed.
  *
- * Four-tier lookup:
+ * Five-tier lookup:
  *   1. Widget-id direct lookup via `entity_external_ids`
  *      (source='crionet_widget').
- *   2. Padelapi-twin fallback — when padelapi sync has already populated a
+ *   2. `matches.widget_id_composite` direct lookup — populator-owned rows
+ *      (created by `fip-draw-populator`) carry the composite in this hot
+ *      column but are NOT registered in `entity_external_ids`. Without
+ *      this step, the static-reconciler's results phase can't see
+ *      populator rows whose pair FKs are still partially null (e.g. a
+ *      Final whose team1 hasn't been propagated yet) and creates a
+ *      duplicate. When found, we backfill the sidecar mapping so future
+ *      lookups land in step 1.
+ *   3. Padelapi-twin fallback — when padelapi sync has already populated a
  *      row (padelapi_id IS NOT NULL) for the same real-world match on the
  *      same court (case-insensitive), link our Crionet widget id to that
  *      row. Critical for Premier tournaments where our own Crionet
@@ -15,12 +23,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  *      tournament: without this, every live tick for a match padelapi
  *      already knows about creates a duplicate thin row (no player FKs →
  *      "TBD" in UI).
- *   3. Pair-based fallback — match on unordered {pair1, pair2} player
+ *   4. Pair-based fallback — match on unordered {pair1, pair2} player
  *      UUIDs within (tournament_id, category, round). Prevents duplicate
  *      match rows when the draw-reconciler created the row before the
  *      widget id was known. Skipped when any of the four player UUIDs is
  *      null.
- *   4. Fresh INSERT into `matches` + link via `entity_external_ids` using
+ *   5. Fresh INSERT into `matches` + link via `entity_external_ids` using
  *      `onConflict: DO NOTHING` + re-SELECT for concurrent-create safety.
  */
 
@@ -76,6 +84,28 @@ async function lookupByWidgetId(
     throw new Error(`entity_external_ids lookup failed: ${error.message}`);
   }
   return data?.entity_id ?? null;
+}
+
+/**
+ * Direct lookup against `matches.widget_id_composite` — the hot column
+ * `fip-draw-populator` writes when it creates bracket rows. Populator
+ * rows are NOT registered in `entity_external_ids`, so step 1 misses
+ * them. Returns the match id or null.
+ */
+async function lookupByCompositeColumn(
+  supabase: SupabaseClient,
+  composite: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id')
+    .eq('widget_id_composite', composite)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`matches widget_id_composite lookup failed: ${error.message}`);
+  }
+  return (data as { id?: string } | null)?.id ?? null;
 }
 
 interface MatchCandidate {
@@ -485,13 +515,33 @@ export async function findOrCreateMatch(
 ): Promise<MatchIdentifierResult> {
   const composite = buildComposite(input.tournamentWidgetId, input.matchWidgetId);
 
-  // Step 2: widget-id direct lookup
+  // Step 1: widget-id direct lookup (sidecar)
   const existing = await lookupByWidgetId(supabase, composite);
   if (existing) {
     return { matchId: existing, created: false, linkedExisting: false };
   }
 
-  // Step 2.5: padelapi-twin fallback
+  // Step 2: widget-id direct lookup against the hot column
+  // (`matches.widget_id_composite`). Populator-owned rows live here
+  // without a sidecar entry — backfill the sidecar so future lookups
+  // hit step 1. See file header.
+  const compositeColMatchId = await lookupByCompositeColumn(supabase, composite);
+  if (compositeColMatchId) {
+    const won = await linkWidgetId(supabase, compositeColMatchId, composite);
+    if (!won) {
+      // Race: another writer linked this widget id first. Pick their winner.
+      const winner = await lookupByWidgetId(supabase, composite);
+      if (winner) {
+        return { matchId: winner, created: false, linkedExisting: false };
+      }
+      throw new Error(
+        'match-identifier: widget-id upsert reported conflict but re-select returned null'
+      );
+    }
+    return { matchId: compositeColMatchId, created: false, linkedExisting: true };
+  }
+
+  // Step 3: padelapi-twin fallback
   const twinId = await findPadelapiTwin(supabase, input, opts.logger);
   if (twinId) {
     const won = await linkWidgetId(supabase, twinId, composite);
