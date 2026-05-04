@@ -159,6 +159,12 @@ export default function TournamentsView({
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set())
   const [ongoingIds, setOngoingIds] = useState<Set<string>>(new Set())
+  // Explicit "tournament is done" set — populated when match data shows a
+  // decided Final OR `ends_at` has passed with no live activity. Used by
+  // the Completed filter so events transition out of Ongoing AND into
+  // Completed in the same render, instead of falling through every bucket
+  // until end-of-day midnight rolls past `ends_at`.
+  const [doneIds, setDoneIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
 
   // ── FIP sub-tier (only meaningful when tab === 'fip')
@@ -219,6 +225,7 @@ export default function TournamentsView({
 
       const confirmedLiveIds = new Set<string>()
       const confirmedOngoingIds = new Set<string>()
+      const confirmedDoneIds = new Set<string>()
       if (candidateLive.length > 0) {
         const { data: matchData } = await supabase
           .from('matches')
@@ -256,7 +263,10 @@ export default function TournamentsView({
           const finals = matches.filter((m: any) => isFinalRound(m.round))
           const allFinalsDecided =
             finals.length > 0 && finals.every((m: any) => TERMINAL_STATUSES.has(m.status))
-          if (allFinalsDecided) continue
+          if (allFinalsDecided) {
+            confirmedDoneIds.add(t.id)
+            continue
+          }
 
           // Past `ends_at` with no live match → done. The +3-day buffer in
           // `candidateLive` is for late results trickling in, not a license
@@ -265,7 +275,10 @@ export default function TournamentsView({
           // never receive results for; without this guard they sit in Ongoing
           // forever.
           const tournamentEnded = new Date(t.ends_at) < now
-          if (tournamentEnded) continue
+          if (tournamentEnded) {
+            confirmedDoneIds.add(t.id)
+            continue
+          }
 
           // Still between sessions only when unplayed matches remain AND
           // we're inside the actual tournament window.
@@ -276,6 +289,7 @@ export default function TournamentsView({
 
       setLiveIds(confirmedLiveIds)
       setOngoingIds(confirmedOngoingIds)
+      setDoneIds(confirmedDoneIds)
 
       // Step 2: Fetch winners for completed tournaments
       const completedIds = tournamentsData
@@ -408,6 +422,12 @@ export default function TournamentsView({
       : []
     const completed = filters.estado.completed
       ? visible.filter(t => {
+          // Tournaments explicitly classified as done by the data fetch
+          // (decided Final OR ends_at past with no live match) → completed
+          // immediately, regardless of clock relative to ends_at midnight.
+          if (doneIds.has(t.id)) return true
+          // Fallback for tournaments outside the +3-day candidate window
+          // that the live-detection loop never inspected — clock-based.
           const end = new Date(t.ends_at); end.setHours(23, 59, 59)
           return end < now && !liveIds.has(t.id) && !ongoingIds.has(t.id)
         })
@@ -422,7 +442,7 @@ export default function TournamentsView({
     const prevByYear: Record<number, TournamentWithWinners[]> = {}
     return { live, ongoing, upcoming, currentSeasonCompleted, prevByYear, currentYear }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournaments, liveIds, ongoingIds, filters])
+  }, [tournaments, liveIds, ongoingIds, doneIds, filters])
 
   // ── Pending-state count (for the "Aplicar (N eventos)" button).
   const pendingCount = useMemo(() => {
@@ -439,13 +459,14 @@ export default function TournamentsView({
     if (pendingInSheet.estado.completed) {
       const now = new Date()
       n += visible.filter(t => {
+        if (doneIds.has(t.id)) return true
         const end = new Date(t.ends_at); end.setHours(23, 59, 59)
         return end < now && !liveIds.has(t.id) && !ongoingIds.has(t.id)
       }).length
     }
     return n
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournaments, liveIds, ongoingIds, pendingInSheet])
+  }, [tournaments, liveIds, ongoingIds, doneIds, pendingInSheet])
 
   const filterCount = activeFilterCount(filters)
 
