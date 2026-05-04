@@ -203,6 +203,9 @@ function buildJsonLd({
         startDate: m.scheduled_at,
         sport: 'Padel',
         url: `https://padelnachos.com/match/${m.id}`,
+        location: m.tournament
+          ? { '@type': 'Place', name: m.tournament.name }
+          : { '@type': 'Place', name: 'Padel Tournament' },
         eventStatus:
           m.status === 'live' ? 'https://schema.org/EventInProgress'
           : m.status === 'scheduled' ? 'https://schema.org/EventScheduled'
