@@ -12,6 +12,12 @@
 const express = require('express')
 const Pusher = require('pusher-js')
 const { createClient } = require('@supabase/supabase-js')
+// `ws` is the polyfill that supabase-js's RealtimeClient needs on Node
+// < 22 (which doesn't have a native WebSocket). The relay never actually
+// uses Supabase Realtime subscriptions — only DB writes — but the
+// supabase-js client constructs its internal RealtimeClient at
+// createClient() time and crashes if no transport is wired in.
+const ws = require('ws')
 
 // ── Config ────────────────────────────────────────────────────
 const PUSHER_APP_KEY = process.env.PUSHER_APP_KEY || '0ffbefeb945e4e466065'
@@ -28,7 +34,8 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
 // ── Supabase client ───────────────────────────────────────────
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  process.env.SUPABASE_SERVICE_KEY,
+  { realtime: { transport: ws } },
 )
 
 // ── Pusher client (single persistent connection) ──────────────
