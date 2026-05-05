@@ -30,6 +30,7 @@ import RankingsSection from '@/components/home/RankingsSection'
 import ResultsSection from '@/components/home/ResultsSection'
 import HighlightsPreview from '@/components/home/HighlightsPreview'
 import TournamentsView from '@/components/home/TournamentsView'
+import { WelcomeStrip } from '@/components/home/WelcomeStrip'
 
 // ── Match select queries ──────────────────────────────────────
 const MATCH_PLAYER_JOINS = `
@@ -381,6 +382,7 @@ function V3HomePageInner() {
 
       <InviteWelcomeBanner />
       <ReferralToast />
+      <WelcomeStrip />
 
       {/* ── LIVE NOW ──────���─────────────────────────────────── */}
       {liveScorable.length > 0 && (

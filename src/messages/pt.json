@@ -705,8 +705,7 @@
   },
   "loginCta": {
     "title": "Salve seus favoritos",
-    "bodyWithCount_one": "Você está seguindo 1 jogador. Faça login para mantê-lo em todos os dispositivos.",
-    "bodyWithCount_other": "Você está seguindo {count} itens. Faça login para mantê-los em todos os dispositivos.",
+    "bodyWithCount": "{count, plural, one {Você está seguindo 1 jogador. Faça login para mantê-lo em todos os dispositivos.} other {Você está seguindo {count} itens. Faça login para mantê-los em todos os dispositivos.}}",
     "later": "Talvez depois",
     "signIn": "Entrar"
   },
@@ -734,8 +733,7 @@
   },
   "welcomeStrip": {
     "title": "Bem-vindo ao PadelNachos",
-    "followingCount_one": "Seguindo 1 jogador",
-    "followingCount_other": "Seguindo {count} jogadores",
+    "followingCount": "{count, plural, one {Seguindo 1 jogador} other {Seguindo {count} jogadores}}",
     "syncHint": "Faça login a qualquer momento para mantê-los em todos os dispositivos",
     "dismiss": "Dispensar"
   },

@@ -726,8 +726,7 @@
   },
   "loginCta": {
     "title": "Save your favorites",
-    "bodyWithCount_one": "You're following 1 player. Sign in to keep them across devices.",
-    "bodyWithCount_other": "You're following {count} items. Sign in to keep them across devices.",
+    "bodyWithCount": "{count, plural, one {You're following 1 player. Sign in to keep them across devices.} other {You're following {count} items. Sign in to keep them across devices.}}",
     "later": "Maybe later",
     "signIn": "Sign in"
   },
@@ -755,8 +754,7 @@
   },
   "welcomeStrip": {
     "title": "Welcome to PadelNachos",
-    "followingCount_one": "Following 1 player",
-    "followingCount_other": "Following {count} players",
+    "followingCount": "{count, plural, one {Following 1 player} other {Following {count} players}}",
     "syncHint": "Sign in anytime to keep them across devices",
     "dismiss": "Dismiss"
   },
