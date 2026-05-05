@@ -9,6 +9,7 @@ import { overallTierFromBadgeCount, TIER_META } from '@/lib/badges'
 import { supabase } from '@/lib/supabase'
 import { useInvite } from '@/hooks/useInvite'
 import { readAllPredictions } from '@/hooks/useMatchPrediction'
+import { useLoginSheet } from '@/components/LoginSheetProvider'
 
 const CHUNKY = {
   card: 'polygon(0% 3%, 97% 0%, 100% 97%, 3% 100%)',
@@ -66,6 +67,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
     return () => { cancelled = true }
   }, [open, user])
 
+  const { openLoginSheet } = useLoginSheet()
   const { shareNow } = useInvite()
   const [picksCount, setPicksCount] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -272,7 +274,100 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
         </>
       )}
 
-      {/* Logged-out items + auth stack added in Task 7 */}
+      {!user && (
+        <>
+          {/* Sign in / Create account stack */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            padding: 14,
+            borderBottom: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <button
+              type="button"
+              onClick={() => { onClose(); openLoginSheet() }}
+              style={{
+                height: 36,
+                background: '#7ED321',
+                color: '#0a0a0a',
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: 0.3,
+                textTransform: 'uppercase',
+                clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+                border: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 7,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                <polyline points="10 17 15 12 10 7"/>
+                <line x1="15" y1="12" x2="3" y2="12"/>
+              </svg>
+              {t('signIn')}
+            </button>
+            <button
+              type="button"
+              onClick={() => { onClose(); openLoginSheet() }}
+              style={{
+                height: 36,
+                background: 'rgba(255,255,255,0.05)',
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: 0.3,
+                textTransform: 'uppercase',
+                clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                cursor: 'pointer',
+              }}
+            >
+              {t('createAccount')}
+            </button>
+          </div>
+
+          <Item
+            href="/notifications"
+            onClick={onClose}
+            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>}
+            label={t('notifications')}
+            rightSlot={<Chevron/>}
+          />
+          <Item
+            href="/picks"
+            onClick={onClose}
+            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+            label={t('picks')}
+            rightSlot={picksCount > 0 ? <CountBadge tone="green">{picksCount}</CountBadge> : <Chevron/>}
+          />
+          <Item
+            href="/feed"
+            onClick={onClose}
+            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>}
+            label={t('feed')}
+            rightSlot={<Chevron/>}
+          />
+          <Item
+            onClick={() => { void shareNow(); onClose() }}
+            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>}
+            label={t('inviteFriends')}
+            rightSlot={<Chevron/>}
+          />
+          <Item
+            href="/about"
+            onClick={onClose}
+            tone="muted"
+            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>}
+            label={t('about')}
+            rightSlot={<Chevron/>}
+          />
+        </>
+      )}
       {/* Locale footer added in Task 8 */}
     </div>
   )
