@@ -228,6 +228,24 @@
       "noPicksSub": "Toca ELIGE en cualquier partido programado para jugar."
     }
   },
+  "profileMenu": {
+    "viewProfile": "Ver perfil",
+    "dayStreak": "Racha de {count} días",
+    "welcomeTitle": "Bienvenido a PadelNachos",
+    "welcomeSub": "Sigue jugadores · gana logros · mantén tu racha",
+    "signIn": "Iniciar sesión",
+    "createAccount": "Crear cuenta",
+    "notifications": "Notificaciones",
+    "picks": "Pronósticos",
+    "achievements": "Logros",
+    "feed": "Noticias",
+    "padelGenius": "Padel Genius",
+    "comingSoon": "Próximamente",
+    "inviteFriends": "Invitar amigos",
+    "settings": "Ajustes",
+    "about": "Acerca de",
+    "language": "Idioma"
+  },
   "rankings": {
     "rankings": "Clasificación",
     "official": "Oficial",
