@@ -124,13 +124,43 @@ export function useFollowing() {
       const local = readLocalStorage()
 
       if (userId) {
-        const data = await fetchBookmarksDeduplicated(userId)
+        const migrationFlagKey = `pn_migrated_to_user_${userId}`
+        const alreadyMigrated =
+          typeof window !== 'undefined' &&
+          localStorage.getItem(migrationFlagKey) === '1'
+
+        let dbRows = await fetchBookmarksDeduplicated(userId)
+
+        // First-time-on-this-device migration: send any localStorage follows
+        // that aren't already in the user's DB bookmarks. POST is idempotent
+        // (route uses upsert with composite-key onConflict).
+        if (!alreadyMigrated) {
+          const { computeFollowMigration } = await import('@/lib/follow-migration')
+          const toMigrate = computeFollowMigration(local, dbRows)
+          if (toMigrate.length > 0) {
+            await Promise.all(
+              toMigrate.map(item =>
+                fetch('/api/user/bookmarks', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(item),
+                }).catch(() => null), // tolerate single failures; flag stays unset so we retry next session
+              ),
+            )
+            // Re-fetch so the in-memory store reflects what just got persisted.
+            invalidateBookmarksCache()
+            dbRows = await fetchBookmarksDeduplicated(userId)
+          }
+          try {
+            localStorage.setItem(migrationFlagKey, '1')
+          } catch {}
+        }
 
         const dbMatches = new Set<string>()
         const dbPlayers = new Set<string>()
         const dbTournaments = new Set<string>()
 
-        for (const row of data) {
+        for (const row of dbRows) {
           if (row.bookmark_type === 'match') dbMatches.add(row.target_id)
           else if (row.bookmark_type === 'player') dbPlayers.add(row.target_id)
           else if (row.bookmark_type === 'tournament') dbTournaments.add(row.target_id)
