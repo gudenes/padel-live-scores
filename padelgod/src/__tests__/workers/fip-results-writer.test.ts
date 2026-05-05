@@ -395,10 +395,10 @@ describe('runFipResultsWriter', () => {
     });
 
     expect(result.setsWritten).toBe(3);
-    // First set — tiebreak notation stripped from set_score
+    // First set — tiebreak loser-side digit preserved on set_score
     expect(supabase.setsUpserted[0]).toMatchObject({
       set_number: 1,
-      set_score: '7-6',
+      set_score: '7-6(3)',
       pair1_games: 7,
       pair2_games: 6,
     });

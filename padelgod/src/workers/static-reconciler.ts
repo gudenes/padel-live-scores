@@ -883,9 +883,9 @@ async function buildDictForTournamentCategory(
  *   "7-6(3) 4-6 6-2"     → set 1 tiebreak, loser (pair2) took 3 points
  *   "6(5)-7 6-4 6-3"     → set 1 tiebreak, loser (pair1) took 5 points
  *
- * For `set_score` we always return the clean "7-6" format (without the
- * tiebreak digit) to match the main app convention — per-game tiebreak
- * details belong in the `games` table which is out of scope for V1.
+ * `set_score` preserves the loser-side tiebreak digit in bracket form
+ * (e.g. "7-6(3)") so the frontend can render the superscript convention.
+ * `parseSetScore` in src/types/match.ts already handles this format.
  */
 export interface ParsedSet {
   set_number: number;
@@ -924,11 +924,16 @@ export function parseSetScores(text: string): ParsedSet[] {
     else if (tb1 != null) tbLoser = tb1;
     else if (tb2 != null) tbLoser = tb2;
 
+    let setScore: string;
+    if (tbLoser != null && pair1 > pair2) setScore = `${pair1}-${pair2}(${tbLoser})`;
+    else if (tbLoser != null && pair2 > pair1) setScore = `${pair1}(${tbLoser})-${pair2}`;
+    else setScore = `${pair1}-${pair2}`;
+
     out.push({
       set_number: i + 1,
       pair1_games: pair1,
       pair2_games: pair2,
-      set_score: `${pair1}-${pair2}`,
+      set_score: setScore,
       tiebreak_loser_points: tbLoser,
     });
   });

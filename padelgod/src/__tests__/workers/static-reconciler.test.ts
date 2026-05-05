@@ -1414,9 +1414,10 @@ describe('runStaticReconciler — results phase (V4)', () => {
     });
   });
 
-  it('parses tiebreak notation: "7-6(3)" sets pair1=7, pair2=6, set_score="7-6" (tiebreak digit not on sets table)', async () => {
+  it('parses tiebreak notation: "7-6(3)" preserves loser-side tb digit on set_score', async () => {
     // Also exercises the reverse-side notation "6(5)-7" in set 2: loser (pair1)
-    // took 5 points in the tiebreak but the stored set_score is still "6-7".
+    // took 5 points in the tiebreak — set_score keeps the bracket so the
+    // frontend renders the superscript convention.
     const results: ResultsSnapshotSeed[] = [
       {
         id: 'res-tb',
@@ -1454,18 +1455,17 @@ describe('runStaticReconciler — results phase (V4)', () => {
       set_number: 1,
       pair1_games: 7,
       pair2_games: 6,
-      set_score: '7-6',
+      set_score: '7-6(3)',
     });
     expect(supabase.setsUpserted[1]).toMatchObject({
       set_number: 2,
       pair1_games: 6,
       pair2_games: 7,
-      set_score: '6-7',
+      set_score: '6(5)-7',
     });
 
-    // Schema note: `sets` has no tiebreak column. Per-game tiebreak detail is
-    // Task 12's job (games table). Set-level rows carry the clean "7-6"
-    // score only — verified by the matchers above (no tiebreak key present).
+    // No dedicated tb column on `sets` — the digit lives inside set_score and
+    // is parsed back out by parseSetScore in src/types/match.ts.
     expect(supabase.setsUpserted[0]).not.toHaveProperty('tiebreak_loser_points');
   });
 });
