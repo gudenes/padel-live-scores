@@ -14,6 +14,7 @@ import FollowButton from '@/components/FollowButton'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import { FlagImage } from '@/components/FlagImage'
 import { pairName, parseSetScore } from '@/types/match'
+import { SuggestedPlayersMarquee } from '@/components/following/SuggestedPlayersMarquee'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN       = '#7ED321'
@@ -646,6 +647,9 @@ export default function FollowingPage() {
 
       {/* ── Header ─────────────────────────────────────────────── */}
       <AppHeader onSearchOpen={() => setSearchOpen(true)} />
+
+      {/* ── Suggested players marquee ────────────────────────────── */}
+      <SuggestedPlayersMarquee />
 
       {/* ── Empty state ─────────────────────────────────────────── */}
       {loaded && totalFollows === 0 && (
