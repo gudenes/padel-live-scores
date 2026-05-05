@@ -50,6 +50,12 @@ export default function NotificationsPage() {
       qs.set('limit', '30')
       if (!reset && cursor) qs.set('before', cursor)
       const res = await fetch(`/api/notifications?${qs.toString()}`, { cache: 'no-store' })
+      if (!res.ok) {
+        // Logged-out (401) or transient API failure — render an empty list rather than crashing.
+        if (reset) setItems([])
+        setHasMore(false)
+        return
+      }
       const body = await res.json() as { items: NotificationRowData[]; nextCursor: string | null }
       setItems(prev => reset ? body.items : [...prev, ...body.items])
       setCursor(body.nextCursor)
