@@ -194,6 +194,24 @@
     "nailedIt": "Nailed it",
     "predicted": "Predicted"
   },
+  "profileMenu": {
+    "viewProfile": "View profile",
+    "dayStreak": "{count}-day streak",
+    "welcomeTitle": "Welcome to PadelNachos",
+    "welcomeSub": "Track players · earn badges · keep streaks",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "notifications": "Notifications",
+    "picks": "Picks",
+    "achievements": "Achievements",
+    "feed": "Feed",
+    "padelGenius": "Padel Genius",
+    "comingSoon": "Coming soon",
+    "inviteFriends": "Invite friends",
+    "settings": "Settings",
+    "about": "About",
+    "language": "Language"
+  },
   "rankings": {
     "rankings": "Rankings",
     "official": "Official",
