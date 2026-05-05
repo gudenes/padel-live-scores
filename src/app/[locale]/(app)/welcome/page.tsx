@@ -14,6 +14,13 @@ const CHUNKY = {
   button: 'polygon(1% 6%, 99% 0%, 100% 94%, 0% 100%)',
 }
 
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+}
+
 export default function WelcomePickerPage() {
   const t = useTranslations('picker')
   const router = useRouter()
@@ -25,6 +32,7 @@ export default function WelcomePickerPage() {
   const [initialFollowed, setInitialFollowed] = useState<Set<string>>(new Set())
   const [showPushSheet, setShowPushSheet] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [query, setQuery] = useState('')
 
   // Hydrate already-followed players if the user landed here with prior state
   useEffect(() => {
@@ -61,12 +69,6 @@ export default function WelcomePickerPage() {
   const pickedCount = picked.size
   const canContinue = pickedCount >= 1
 
-  const softHint = useMemo(() => {
-    if (pickedCount === 0 || pickedCount >= 3) return null
-    const remaining = 3 - pickedCount
-    return t('softHint', { count: remaining })
-  }, [pickedCount, t])
-
   // Country boost — applied server-side already; we just split by section
   // for the visual grouping. Read country from the cookie on the client.
   const userCountry = useMemo(() => {
@@ -75,16 +77,28 @@ export default function WelcomePickerPage() {
     return m ? decodeURIComponent(m[1]).toUpperCase() : null
   }, [])
 
-  const { topInCountry, topRest } = useMemo(() => {
-    if (!players || !userCountry) return { topInCountry: [], topRest: players ?? [] }
+  // Live filter on top of the section split. When the user types, the grid
+  // narrows to matches; the country split collapses if no matches exist.
+  const { topInCountry, topRest, isFiltered } = useMemo(() => {
+    if (!players) return { topInCountry: [], topRest: [], isFiltered: false }
+    const q = normalize(query.trim())
+    const matches = q
+      ? players.filter(p => {
+          const name = p.display_name || p.name || ''
+          return normalize(name).includes(q)
+        })
+      : players
+    if (!userCountry) {
+      return { topInCountry: [], topRest: matches, isFiltered: q.length > 0 }
+    }
     const inC: PickerPlayer[] = []
     const rest: PickerPlayer[] = []
-    for (const p of players) {
+    for (const p of matches) {
       if ((p.country ?? '').toUpperCase() === userCountry) inC.push(p)
       else rest.push(p)
     }
-    return { topInCountry: inC, topRest: rest }
-  }, [players, userCountry])
+    return { topInCountry: inC, topRest: rest, isFiltered: q.length > 0 }
+  }, [players, query, userCountry])
 
   const finishAndGoHome = useCallback(() => {
     try {
@@ -140,6 +154,8 @@ export default function WelcomePickerPage() {
     return [...picked].slice(0, 3).map(id => map.get(id) ?? '').filter(Boolean)
   }, [picked, players])
 
+  const noMatches = isFiltered && topInCountry.length === 0 && topRest.length === 0
+
   return (
     <div style={{
       background: BG_BASE,
@@ -151,8 +167,13 @@ export default function WelcomePickerPage() {
       paddingBottom: 110, // space for sticky CTA
     }}>
       {/* Header */}
-      <div style={{ padding: '28px 18px 18px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ color: GREEN, fontSize: 13, fontWeight: 900, marginBottom: 16 }}>PadelNachos</div>
+      <div style={{ padding: '24px 18px 18px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/padelnachos-logo-v2.png"
+          alt="PadelNachos"
+          style={{ height: 56, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }}
+        />
         <h1 style={{ fontSize: 22, fontWeight: 900, lineHeight: 1.2, marginBottom: 8, letterSpacing: '-0.5px' }}>
           {t('title')}
         </h1>
@@ -161,27 +182,51 @@ export default function WelcomePickerPage() {
         </p>
       </div>
 
-      {/* Search affordance — links to existing search route */}
+      {/* Live search filter */}
       <div style={{ padding: '14px 16px 0' }}>
-        <button
-          type="button"
-          onClick={() => router.push('/search')}
-          style={{
-            width: '100%',
-            padding: '11px 14px',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            clipPath: CHUNKY.search,
-            display: 'flex', alignItems: 'center', gap: 8,
-            color: '#666', fontSize: 13, fontFamily: 'inherit',
-            cursor: 'pointer', textAlign: 'left',
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{
+          width: '100%',
+          padding: '0 12px',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          clipPath: CHUNKY.search,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
             <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
           </svg>
-          {t('search')}
-        </button>
+          <input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder={t('search')}
+            aria-label={t('search')}
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: '#fff',
+              fontSize: 13,
+              padding: '11px 0',
+              fontFamily: 'inherit',
+            }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label="Clear search"
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: '#888', fontSize: 16, padding: '4px 6px',
+                fontFamily: 'inherit',
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Body */}
@@ -194,7 +239,12 @@ export default function WelcomePickerPage() {
         {!players && !error && (
           <div style={{ padding: 32, color: '#666', fontSize: 12, textAlign: 'center' }}>…</div>
         )}
-        {players && (
+        {players && noMatches && (
+          <div style={{ padding: 32, color: '#666', fontSize: 13, textAlign: 'center' }}>
+            {t('errorLoading') /* reuse — generic "no results" tone */}
+          </div>
+        )}
+        {players && !noMatches && (
           <>
             {topInCountry.length > 0 && (
               <>
@@ -204,8 +254,12 @@ export default function WelcomePickerPage() {
                 <Grid players={topInCountry} picked={picked} onToggle={togglePick} />
               </>
             )}
-            <h2 style={sectionStyle}>{t('topWorldwide')}</h2>
-            <Grid players={topRest} picked={picked} onToggle={togglePick} />
+            {topRest.length > 0 && (
+              <>
+                <h2 style={sectionStyle}>{t('topWorldwide')}</h2>
+                <Grid players={topRest} picked={picked} onToggle={togglePick} />
+              </>
+            )}
           </>
         )}
       </div>
@@ -220,11 +274,6 @@ export default function WelcomePickerPage() {
         padding: '32px 16px 22px',
         zIndex: 10,
       }}>
-        {softHint && (
-          <p style={{ textAlign: 'center', fontSize: 11, color: GREEN, marginBottom: 8 }}>
-            {softHint}
-          </p>
-        )}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button
             type="button"

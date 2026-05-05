@@ -1,7 +1,12 @@
 'use client'
 
+import Avatar from '@/components/Avatar'
+import { FlagImg, shortName } from '@/components/home/shared'
+
 const GREEN = '#7ED321'
-const CHUNKY_CARD = 'polygon(0% 1%, 99% 0%, 100% 99%, 1% 100%)'
+const BORDER = 'rgba(255,255,255,0.06)'
+const MUTED = '#6B7280'
+const CHUNKY_BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 
 export interface PickerPlayer {
   id: string
@@ -25,62 +30,84 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
+// Visual style mirrors the home page's PlayerBustCard so picker and home feel
+// like one product. Selection state replaces the rank badge with a green
+// checkmark and brightens the avatar border.
 export function PickerCard({ player, picked, onToggle }: Props) {
-  const display = player.display_name || player.name
+  const display = (player.display_name ?? player.name) || ''
   return (
     <button
       type="button"
       onClick={() => onToggle(player.id)}
       aria-pressed={picked}
       style={{
-        background: picked ? 'rgba(126,211,33,0.08)' : 'rgba(255,255,255,0.03)',
-        border: `1.5px solid ${picked ? GREEN : 'transparent'}`,
-        clipPath: CHUNKY_CARD,
-        padding: '12px 8px 10px',
-        textAlign: 'center',
-        position: 'relative',
+        width: 110,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 4px',
+        background: 'transparent',
+        border: 'none',
         cursor: 'pointer',
-        transform: picked ? 'scale(0.97)' : 'scale(1)',
-        transition: 'transform 0.15s, background 0.15s, border-color 0.15s',
         fontFamily: 'inherit',
-        color: '#fff',
+        color: 'inherit',
+        transform: picked ? 'scale(0.97)' : 'scale(1)',
+        transition: 'transform 0.15s',
       }}
     >
-      {picked && (
-        <div
-          aria-hidden
+      <div style={{ position: 'relative' }}>
+        <Avatar
+          src={player.avatar_url ?? null}
+          alt={display}
+          size={64}
+          fallback={initials(display)}
           style={{
-            position: 'absolute', top: 4, right: 4,
-            width: 18, height: 18,
-            background: GREEN, color: '#000',
-            borderRadius: '50%',
-            fontSize: 12, fontWeight: 900,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            objectPosition: 'top center',
+            border: `2px solid ${picked ? GREEN : BORDER}`,
+            transition: 'border-color 0.15s',
           }}
-        >
-          ✓
+        />
+        {/* Badge — rank by default, green checkmark when picked */}
+        <div style={{
+          position: 'absolute',
+          bottom: -4, right: -4,
+          width: 24,
+          height: 24,
+          background: picked ? GREEN : 'rgba(255,255,255,0.15)',
+          clipPath: CHUNKY_BADGE,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'background 0.15s',
+        }}>
+          <span style={{
+            fontSize: picked ? 14 : 11,
+            fontWeight: 900,
+            color: picked ? '#000' : '#fff',
+            lineHeight: 1,
+          }}>
+            {picked ? '✓' : (player.ranking ?? '—')}
+          </span>
         </div>
-      )}
-      <div
-        style={{
-          width: 52, height: 52,
-          background: player.avatar_url
-            ? `url(${player.avatar_url}) center/cover`
-            : 'linear-gradient(135deg, #2a2a2a, #1a1a1a)',
-          border: `1.5px solid ${picked ? GREEN : 'rgba(126,211,33,0.25)'}`,
-          borderRadius: '50%',
-          margin: '0 auto 8px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 15, fontWeight: 800, color: GREEN,
-        }}
-      >
-        {!player.avatar_url && initials(display)}
       </div>
-      <div style={{ fontSize: 11, fontWeight: 800, lineHeight: 1.2, height: 26, overflow: 'hidden', marginBottom: 4 }}>
-        {display}
+
+      {/* Name */}
+      <div style={{
+        fontSize: 12, fontWeight: 700, color: '#fff',
+        textAlign: 'center', lineHeight: 1.2,
+        height: 28, overflow: 'hidden',
+      }}>
+        {shortName(display)}
       </div>
-      <div style={{ fontSize: 9, color: '#888' }}>
-        {player.country ?? '—'} · <span style={{ color: GREEN, fontWeight: 800 }}>#{player.ranking ?? '—'}</span>
+
+      {/* Flag + ranking */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <FlagImg country={player.country} size={14} />
+        <span style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>
+          #{player.ranking ?? '—'}
+        </span>
       </div>
     </button>
   )
