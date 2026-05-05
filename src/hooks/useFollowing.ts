@@ -137,23 +137,32 @@ export function useFollowing() {
         if (!alreadyMigrated) {
           const { computeFollowMigration } = await import('@/lib/follow-migration')
           const toMigrate = computeFollowMigration(local, dbRows)
+          let allSucceeded = true
           if (toMigrate.length > 0) {
-            await Promise.all(
+            const results = await Promise.all(
               toMigrate.map(item =>
                 fetch('/api/user/bookmarks', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(item),
-                }).catch(() => null), // tolerate single failures; flag stays unset so we retry next session
+                })
+                  .then(r => r.ok)
+                  .catch(() => false),
               ),
             )
+            allSucceeded = results.every(Boolean)
             // Re-fetch so the in-memory store reflects what just got persisted.
             invalidateBookmarksCache()
             dbRows = await fetchBookmarksDeduplicated(userId)
           }
-          try {
-            localStorage.setItem(migrationFlagKey, '1')
-          } catch {}
+          // Only mark migration complete if every POST landed (or there was nothing
+          // to migrate). On partial/total failure leave the flag unset so the next
+          // session retries.
+          if (allSucceeded) {
+            try {
+              localStorage.setItem(migrationFlagKey, '1')
+            } catch {}
+          }
         }
 
         const dbMatches = new Set<string>()
