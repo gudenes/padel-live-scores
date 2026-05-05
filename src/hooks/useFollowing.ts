@@ -163,8 +163,13 @@ export function useFollowing() {
   )
 
   const toggle = useCallback(
-    async (type: FollowType, targetId: string) => {
+    async (
+      type: FollowType,
+      targetId: string,
+      opts?: { silent?: boolean },
+    ) => {
       const isCurrently = store[type].has(targetId)
+      const silent = opts?.silent === true
 
       // Optimistic update
       setStore(prev => {
@@ -184,7 +189,9 @@ export function useFollowing() {
       })
 
       // Fire bookmark feedback toast (skip news_source — not a user-facing bookmark)
-      if (type !== 'news_source' && typeof window !== 'undefined') {
+      // Suppressed entirely when `silent: true` — used by the picker which writes
+      // many follows at once and surfaces a single consolidated prompt instead.
+      if (!silent && type !== 'news_source' && typeof window !== 'undefined') {
         // Attach the enable-push CTA on the first follow/bookmark-ADD when:
         //   (a) the action is a net-new follow (not an unfollow), and
         //   (b) the type is one the user wants real-time alerts on
