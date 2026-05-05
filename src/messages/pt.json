@@ -703,16 +703,42 @@
     "errorSignIn": "Erro ao entrar, tente novamente",
     "errorSendLink": "Erro ao enviar link, tente novamente"
   },
-  "onboarding": {
-    "step1Title": "Encontre tudo",
-    "step1Desc": "Encontre seus jogadores favoritos, torneios e partidas.",
-    "step2Title": "Seu feed personalizado",
-    "step2Desc": "Siga os jogadores e torneios que você ama. Tudo que importa em um só lugar!",
-    "step3Title": "Ganhe medalhas",
-    "step3Desc": "Desbloqueie medalhas enquanto explora! De Novato a Gênio do Padel, colecione todas.",
+  "loginCta": {
+    "title": "Salve seus favoritos",
+    "bodyWithCount_one": "Você está seguindo 1 jogador. Faça login para mantê-lo em todos os dispositivos.",
+    "bodyWithCount_other": "Você está seguindo {count} itens. Faça login para mantê-los em todos os dispositivos.",
+    "later": "Talvez depois",
+    "signIn": "Entrar"
+  },
+  "notificationPrompt": {
+    "title": "Não perca nenhuma partida",
+    "bodyWithNames": "Receba avisos quando {names} jogarem ao vivo ou em uma final.",
+    "bodyGeneric": "Receba avisos quando seus jogadores jogarem ao vivo ou em uma final.",
+    "enable": "Ativar notificações",
+    "later": "Talvez depois"
+  },
+  "picker": {
+    "title": "Quem você segue?",
+    "subtitle": "Escolha pelo menos um jogador para personalizar pontuações, notícias e notificações",
+    "search": "Procurar jogador",
     "skip": "Pular",
-    "next": "Próximo →",
-    "done": "Pronto"
+    "continue": "Continuar",
+    "softHint_one": "Escolha mais um para melhores recomendações",
+    "softHint_other": "Escolha mais {count} para melhores recomendações",
+    "topInCountry": "Melhores em {country}",
+    "topWorldwide": "Melhores jogadores",
+    "errorLoading": "Não foi possível carregar sugestões. Tente de novo."
+  },
+  "suggestedPlayers": {
+    "sectionTitle": "Sugeridos para você",
+    "more": "Mais"
+  },
+  "welcomeStrip": {
+    "title": "Bem-vindo ao PadelNachos",
+    "followingCount_one": "Seguindo 1 jogador",
+    "followingCount_other": "Seguindo {count} jogadores",
+    "syncHint": "Faça login a qualquer momento para mantê-los em todos os dispositivos",
+    "dismiss": "Dispensar"
   },
   "notifications": {
     "title": "Notificações",

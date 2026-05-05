@@ -686,16 +686,42 @@
     "errorSignIn": "Sign in failed, please try again",
     "errorSendLink": "Failed to send link, please try again"
   },
-  "onboarding": {
-    "step1Title": "Find anything",
-    "step1Desc": "Find your favorite players, upcoming tournaments and matches.",
-    "step2Title": "Your following feed",
-    "step2Desc": "Follow the players and tournaments you love. Everything you care about, all in one place!",
-    "step3Title": "Earn badges",
-    "step3Desc": "Unlock badges as you explore! From Rookie to Padel Genius, collect them all and show off your padel passion.",
+  "loginCta": {
+    "title": "Save your favorites",
+    "bodyWithCount_one": "You're following 1 player. Sign in to keep them across devices.",
+    "bodyWithCount_other": "You're following {count} items. Sign in to keep them across devices.",
+    "later": "Maybe later",
+    "signIn": "Sign in"
+  },
+  "notificationPrompt": {
+    "title": "Never miss a match",
+    "bodyWithNames": "Get notified when {names} go live or play in a final.",
+    "bodyGeneric": "Get notified when your players go live or play in a final.",
+    "enable": "Enable notifications",
+    "later": "Maybe later"
+  },
+  "picker": {
+    "title": "Who do you follow?",
+    "subtitle": "Pick at least one player to personalize your scores, news, and notifications",
+    "search": "Search for a player",
     "skip": "Skip",
-    "next": "Next →",
-    "done": "Done"
+    "continue": "Continue",
+    "softHint_one": "Pick one more for better recommendations",
+    "softHint_other": "Pick {count} more for better recommendations",
+    "topInCountry": "Top in {country}",
+    "topWorldwide": "Top players",
+    "errorLoading": "Couldn't load suggestions. Try again."
+  },
+  "suggestedPlayers": {
+    "sectionTitle": "Suggested for you",
+    "more": "More"
+  },
+  "welcomeStrip": {
+    "title": "Welcome to PadelNachos",
+    "followingCount_one": "Following 1 player",
+    "followingCount_other": "Following {count} players",
+    "syncHint": "Sign in anytime to keep them across devices",
+    "dismiss": "Dismiss"
   },
   "notifications": {
     "title": "Notifications",

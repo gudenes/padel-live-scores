@@ -703,16 +703,42 @@
     "errorSignIn": "Error al iniciar sesión, intenta de nuevo",
     "errorSendLink": "Error al enviar el enlace, intenta de nuevo"
   },
-  "onboarding": {
-    "step1Title": "Busca lo que quieras",
-    "step1Desc": "Encuentra tus jugadores favoritos, torneos y partidos.",
-    "step2Title": "Tu feed personalizado",
-    "step2Desc": "Sigue a los jugadores y torneos que te gustan. ¡Todo lo que te importa en un solo lugar!",
-    "step3Title": "Gana insignias",
-    "step3Desc": "¡Desbloquea insignias mientras exploras! De Novato a Genio del Pádel, colecciónalas todas.",
-    "skip": "Saltar",
-    "next": "Siguiente →",
-    "done": "Listo"
+  "loginCta": {
+    "title": "Guarda tus favoritos",
+    "bodyWithCount_one": "Sigues 1 jugador. Inicia sesión para guardarlo en todos tus dispositivos.",
+    "bodyWithCount_other": "Sigues {count} elementos. Inicia sesión para guardarlos en todos tus dispositivos.",
+    "later": "Quizá más tarde",
+    "signIn": "Iniciar sesión"
+  },
+  "notificationPrompt": {
+    "title": "No te pierdas ningún partido",
+    "bodyWithNames": "Recibe alertas cuando {names} jueguen en directo o en una final.",
+    "bodyGeneric": "Recibe alertas cuando tus jugadores jueguen en directo o en una final.",
+    "enable": "Activar notificaciones",
+    "later": "Quizá más tarde"
+  },
+  "picker": {
+    "title": "¿A quién sigues?",
+    "subtitle": "Elige al menos un jugador para personalizar resultados, noticias y notificaciones",
+    "search": "Buscar jugador",
+    "skip": "Omitir",
+    "continue": "Continuar",
+    "softHint_one": "Elige uno más para mejores recomendaciones",
+    "softHint_other": "Elige {count} más para mejores recomendaciones",
+    "topInCountry": "Mejores en {country}",
+    "topWorldwide": "Mejores jugadores",
+    "errorLoading": "No se pudieron cargar sugerencias. Inténtalo de nuevo."
+  },
+  "suggestedPlayers": {
+    "sectionTitle": "Sugeridos para ti",
+    "more": "Más"
+  },
+  "welcomeStrip": {
+    "title": "Bienvenido a PadelNachos",
+    "followingCount_one": "Sigues 1 jugador",
+    "followingCount_other": "Sigues {count} jugadores",
+    "syncHint": "Inicia sesión cuando quieras para guardarlos en todos tus dispositivos",
+    "dismiss": "Descartar"
   },
   "notifications": {
     "title": "Notificaciones",

@@ -703,16 +703,42 @@
     "errorSignIn": "Échec de la connexion, réessayez",
     "errorSendLink": "Échec de l'envoi du lien, réessayez"
   },
-  "onboarding": {
-    "step1Title": "Trouvez tout",
-    "step1Desc": "Trouvez vos joueurs préférés, tournois et matchs.",
-    "step2Title": "Votre flux personnalisé",
-    "step2Desc": "Suivez les joueurs et tournois que vous aimez. Tout ce qui compte, au même endroit !",
-    "step3Title": "Gagnez des badges",
-    "step3Desc": "Débloquez des badges en explorant ! De Débutant à Génie du Padel, collectionnez-les tous.",
+  "loginCta": {
+    "title": "Sauvegardez vos favoris",
+    "bodyWithCount_one": "Vous suivez 1 joueur. Connectez-vous pour le garder sur tous vos appareils.",
+    "bodyWithCount_other": "Vous suivez {count} éléments. Connectez-vous pour les garder sur tous vos appareils.",
+    "later": "Plus tard",
+    "signIn": "Se connecter"
+  },
+  "notificationPrompt": {
+    "title": "Ne ratez aucun match",
+    "bodyWithNames": "Soyez alerté quand {names} jouent en direct ou en finale.",
+    "bodyGeneric": "Soyez alerté quand vos joueurs jouent en direct ou en finale.",
+    "enable": "Activer les notifications",
+    "later": "Plus tard"
+  },
+  "picker": {
+    "title": "Qui suivez-vous ?",
+    "subtitle": "Choisissez au moins un joueur pour personnaliser scores, actualités et notifications",
+    "search": "Rechercher un joueur",
     "skip": "Passer",
-    "next": "Suivant →",
-    "done": "Terminé"
+    "continue": "Continuer",
+    "softHint_one": "Choisissez-en un de plus pour de meilleures recommandations",
+    "softHint_other": "Choisissez-en {count} de plus pour de meilleures recommandations",
+    "topInCountry": "Meilleurs en {country}",
+    "topWorldwide": "Meilleurs joueurs",
+    "errorLoading": "Impossible de charger les suggestions. Réessayez."
+  },
+  "suggestedPlayers": {
+    "sectionTitle": "Suggérés pour vous",
+    "more": "Plus"
+  },
+  "welcomeStrip": {
+    "title": "Bienvenue sur PadelNachos",
+    "followingCount_one": "Vous suivez 1 joueur",
+    "followingCount_other": "Vous suivez {count} joueurs",
+    "syncHint": "Connectez-vous quand vous voulez pour les garder sur tous vos appareils",
+    "dismiss": "Fermer"
   },
   "notifications": {
     "title": "Notifications",
