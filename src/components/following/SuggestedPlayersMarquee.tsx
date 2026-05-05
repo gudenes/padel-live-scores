@@ -34,6 +34,7 @@ function PlayerPill({
   followed: boolean
   onToggle: (id: string) => void
 }) {
+  const t = useTranslations('suggestedPlayers')
   const display = p.display_name || p.name
   return (
     <div style={{
@@ -85,7 +86,7 @@ function PlayerPill({
           fontFamily: 'inherit',
         }}
       >
-        {followed ? '✓ Followed' : '+ Follow'}
+        {followed ? t('followed') : t('follow')}
       </button>
     </div>
   )

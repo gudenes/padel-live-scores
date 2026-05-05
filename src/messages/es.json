@@ -729,7 +729,9 @@
   },
   "suggestedPlayers": {
     "sectionTitle": "Sugeridos para ti",
-    "more": "Más"
+    "more": "Más",
+    "follow": "+ Seguir",
+    "followed": "✓ Siguiendo"
   },
   "welcomeStrip": {
     "title": "Bienvenido a PadelNachos",

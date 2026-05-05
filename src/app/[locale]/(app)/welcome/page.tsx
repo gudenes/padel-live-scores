@@ -22,13 +22,16 @@ export default function WelcomePickerPage() {
   const [players, setPlayers] = useState<PickerPlayer[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [initialFollowed, setInitialFollowed] = useState<Set<string>>(new Set())
   const [showPushSheet, setShowPushSheet] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // Hydrate already-followed players if the user landed here with prior state
   useEffect(() => {
     if (followingLoaded) {
-      setPicked(new Set(getFollowed('player')))
+      const followed = new Set(getFollowed('player'))
+      setPicked(followed)
+      setInitialFollowed(followed)
     }
   }, [followingLoaded, getFollowed])
 
@@ -94,9 +97,20 @@ export default function WelcomePickerPage() {
   const handleContinue = useCallback(async () => {
     if (!canContinue || submitting) return
     setSubmitting(true)
-    // Write each pick silently — single consolidated NotificationPromptSheet
-    // surfaces afterwards.
+    // Diff against the initial set so re-visits don't accidentally
+    // toggle (and therefore UNFOLLOW) already-followed players.
+    const toAdd: string[] = []
+    const toRemove: string[] = []
     for (const id of picked) {
+      if (!initialFollowed.has(id)) toAdd.push(id)
+    }
+    for (const id of initialFollowed) {
+      if (!picked.has(id)) toRemove.push(id)
+    }
+    for (const id of toAdd) {
+      await toggle('player', id, { silent: true })
+    }
+    for (const id of toRemove) {
       await toggle('player', id, { silent: true })
     }
     // Decide whether to show the push sheet
@@ -112,7 +126,7 @@ export default function WelcomePickerPage() {
     } else {
       finishAndGoHome()
     }
-  }, [canContinue, submitting, picked, toggle, finishAndGoHome])
+  }, [canContinue, submitting, picked, initialFollowed, toggle, finishAndGoHome])
 
   const handleSkip = useCallback(() => {
     try { localStorage.setItem('pn_picker_done', '1') } catch {}
