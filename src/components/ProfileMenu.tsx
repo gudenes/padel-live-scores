@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { Link } from '@/i18n/navigation'
+import { useTranslations, useLocale } from 'next-intl'
+import { Link, useRouter, usePathname } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
 import { useBadges } from '@/hooks/useBadges'
 import { overallTierFromBadgeCount, TIER_META } from '@/lib/badges'
@@ -10,11 +10,15 @@ import { supabase } from '@/lib/supabase'
 import { useInvite } from '@/hooks/useInvite'
 import { readAllPredictions } from '@/hooks/useMatchPrediction'
 import { useLoginSheet } from '@/components/LoginSheetProvider'
+import { FLAG_BY_LOCALE } from '@/components/icons/FlagIcons'
 
 const CHUNKY = {
   card: 'polygon(0% 3%, 97% 0%, 100% 97%, 3% 100%)',
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
 }
+
+const LOCALES = ['en', 'es', 'pt', 'it', 'fr'] as const
+type LocaleCode = typeof LOCALES[number]
 
 interface ProfileMenuProps {
   open: boolean
@@ -24,6 +28,9 @@ interface ProfileMenuProps {
 
 export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuProps) {
   const t = useTranslations('profileMenu')
+  const locale = useLocale() as LocaleCode
+  const router = useRouter()
+  const pathname = usePathname()
   const { user, profile } = useAuth()
   const { badges: earnedBadges } = useBadges()
   const tier = overallTierFromBadgeCount(earnedBadges?.length ?? 0)
@@ -368,7 +375,67 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
           />
         </>
       )}
-      {/* Locale footer added in Task 8 */}
+      <div style={{
+        padding: '10px 12px 12px',
+        background: 'rgba(255,255,255,0.02)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+      }}>
+        <div style={{
+          fontSize: 8,
+          fontWeight: 800,
+          color: '#6B7280',
+          letterSpacing: 0.6,
+          textTransform: 'uppercase',
+          marginBottom: 8,
+          padding: '0 2px',
+        }}>{t('language')}</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {LOCALES.map(code => {
+            const Flag = FLAG_BY_LOCALE[code]
+            const active = code === locale
+            return (
+              <button
+                key={code}
+                type="button"
+                aria-label={code.toUpperCase()}
+                aria-current={active ? 'true' : undefined}
+                onClick={() => {
+                  if (active) return
+                  router.replace(pathname, { locale: code })
+                  onClose()
+                }}
+                style={{
+                  flex: 1,
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: active ? 'rgba(126,211,33,0.15)' : 'rgba(255,255,255,0.04)',
+                  border: active ? '1px solid #7ED321' : '1px solid transparent',
+                  clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+                  cursor: active ? 'default' : 'pointer',
+                  position: 'relative',
+                  padding: 0,
+                }}
+              >
+                <Flag width={28} height={20} />
+                {active && (
+                  <span style={{
+                    position: 'absolute',
+                    bottom: 3,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 14,
+                    height: 2,
+                    background: '#7ED321',
+                    borderRadius: 1,
+                  }} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
