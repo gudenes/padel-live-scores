@@ -232,10 +232,19 @@ export default function V3RankingPage() {
   // Swipe between Official / Race tabs
   const RANK_KEYS = useMemo(() => ['official', 'race'] as const, [])
   const rankIndex = RANK_KEYS.indexOf(rankType)
+  // Memoised so useSwipeTabs returns a stable goTo — without this, the
+  // hook's inline onTabChange is a fresh closure on every render,
+  // making goTo unstable, which made the line-below useEffect fire
+  // every render and reset visibleCount back to 50 (so "Load more"
+  // appeared to do nothing).
+  const handleTabChange = useCallback((idx: number) => {
+    setRankType(RANK_KEYS[idx])
+    setVisibleCount(50)
+  }, [RANK_KEYS])
   const { goTo: swipeGoTo, handlers: swipeHandlers } = useSwipeTabs({
     count: 2,
     initial: rankIndex,
-    onTabChange: (idx) => { setRankType(RANK_KEYS[idx]); setVisibleCount(50) },
+    onTabChange: handleTabChange,
   })
   useEffect(() => { swipeGoTo(RANK_KEYS.indexOf(rankType)) }, [rankType, swipeGoTo, RANK_KEYS])
   const [players, setPlayers] = useState<Player[]>([])
@@ -547,7 +556,7 @@ export default function V3RankingPage() {
                   transition: 'all 0.15s',
                 }}
               >
-                Load more ({filtered.length - visibleCount} remaining)
+                Load more
               </button>
             </div>
           )}
