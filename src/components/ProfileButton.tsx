@@ -5,12 +5,11 @@
 // Shows a notification dot when new badges have been earned since last
 // visit to /achievements.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Avatar from '@/components/Avatar'
-import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
-import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { supabase } from '@/lib/supabase'
+import ProfileMenu from '@/components/ProfileMenu'
 
 const SEEN_BADGE_COUNT_KEY = 'pn_seen_badge_count'
 const SEEN_REFERRAL_COUNT_KEY = 'pn_seen_referral_count'
@@ -29,9 +28,9 @@ function highestMilestoneReached(streak: number): number {
 
 export default function ProfileButton() {
   const { user, profile, loading } = useAuth()
-  const router = useRouter()
-  const { openLoginSheet } = useLoginSheet()
   const [hasNotification, setHasNotification] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   // Check for unseen profile updates: new badges, referrals, streak milestones.
   // For anonymous users: show dot if there's a pending referral invite.
@@ -80,36 +79,32 @@ export default function ProfileButton() {
   }, [user])
 
   const handleClick = () => {
-    if (user) {
-      // Clear the notification on tap + persist seen counts
-      if (hasNotification) {
-        setHasNotification(false)
-        // Update all seen counts so the dot stays cleared
-        void (async () => {
-          try {
-            const [badgeRes, referralRes, profileRes] = await Promise.all([
-              supabase.from('user_badges').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-              supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', user.id),
-              supabase.from('profiles').select('login_streak').eq('id', user.id).single(),
-            ])
-            localStorage.setItem(SEEN_BADGE_COUNT_KEY, String(badgeRes.count ?? 0))
-            localStorage.setItem(SEEN_REFERRAL_COUNT_KEY, String(referralRes.count ?? 0))
-            localStorage.setItem(SEEN_STREAK_MILESTONE_KEY, String(highestMilestoneReached(profileRes.data?.login_streak ?? 0)))
-          } catch { /* silent */ }
-        })()
-      }
-      router.push('/profile')
-    } else {
-      openLoginSheet()
+    // Opening the menu? Clear the red dot + persist seen counts (logged-in only).
+    if (!menuOpen && user && hasNotification) {
+      setHasNotification(false)
+      void (async () => {
+        try {
+          const [badgeRes, referralRes, profileRes] = await Promise.all([
+            supabase.from('user_badges').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+            supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referred_by', user.id),
+            supabase.from('profiles').select('login_streak').eq('id', user.id).single(),
+          ])
+          localStorage.setItem(SEEN_BADGE_COUNT_KEY, String(badgeRes.count ?? 0))
+          localStorage.setItem(SEEN_REFERRAL_COUNT_KEY, String(referralRes.count ?? 0))
+          localStorage.setItem(SEEN_STREAK_MILESTONE_KEY, String(highestMilestoneReached(profileRes.data?.login_streak ?? 0)))
+        } catch { /* silent */ }
+      })()
     }
+    setMenuOpen(o => !o)
   }
 
   // Show generic icon while loading to avoid flash
   const isLoggedIn = !loading && !!user
 
   return (
-    <>
+    <div style={{ position: 'relative' }}>
       <button
+        ref={triggerRef}
         data-coachmark="profile"
         onClick={handleClick}
         suppressHydrationWarning
@@ -172,6 +167,7 @@ export default function ProfileButton() {
         )}
         </div>
       </button>
-    </>
+      <ProfileMenu open={menuOpen} onClose={() => setMenuOpen(false)} triggerRef={triggerRef} />
+    </div>
   )
 }
