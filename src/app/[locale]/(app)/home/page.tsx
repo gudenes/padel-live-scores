@@ -72,6 +72,31 @@ function V3HomePageInner() {
     router.replace(url, { scroll: false })
   }, [router])
 
+  // First-launch picker gate. Redirects new anonymous users to /welcome once.
+  // Existing users who dismissed the legacy coachmark inherit pn_picker_done
+  // synthetically so they're never asked again.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    // Don't redirect if user already reached the picker terminus
+    if (localStorage.getItem('pn_picker_done') === '1') return
+
+    // Legacy migration: users who completed the old SpotlightCoachmarks
+    // already saw orientation; don't yank them into a new picker now.
+    if (localStorage.getItem('pn_onboarding_done') === '1') {
+      try { localStorage.setItem('pn_picker_done', '1') } catch {}
+      return
+    }
+
+    // Don't fight the referral banner — show picker after that flow finishes.
+    const refCode = new URLSearchParams(window.location.search).get('ref')
+    if (refCode && !sessionStorage.getItem(`pn_welcome_dismissed_${refCode}`)) {
+      return
+    }
+
+    router.replace('/welcome')
+  }, [router])
+
   // Sync state when the URL changes
   useEffect(() => {
     const next = searchParams.get('view') === 'tournaments' ? 'tournaments' : 'home'
