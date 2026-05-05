@@ -11,13 +11,14 @@ import { useInvite } from '@/hooks/useInvite'
 import { readAllPredictions } from '@/hooks/useMatchPrediction'
 import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { FLAG_BY_LOCALE } from '@/components/icons/FlagIcons'
+import { routing } from '@/i18n/routing'
 
 const CHUNKY = {
   card: 'polygon(0% 3%, 97% 0%, 100% 97%, 3% 100%)',
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
 }
 
-const LOCALES = ['en', 'es', 'pt', 'it', 'fr'] as const
+const LOCALES = routing.locales
 type LocaleCode = typeof LOCALES[number]
 
 interface ProfileMenuProps {
@@ -50,7 +51,9 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
     }
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
-  }, [open, onClose, triggerRef])
+    // triggerRef is a stable ref object, intentionally omitted from deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, onClose])
 
   // Escape closes
   useEffect(() => {
@@ -62,7 +65,6 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
 
   // Fetch login_streak when menu opens for logged-in user
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!open || !user) { setStreak(0); return }
     let cancelled = false
     void (async () => {
@@ -81,12 +83,10 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
 
   useEffect(() => {
     if (!open) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPicksCount(readAllPredictions().length)
   }, [open])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!open || !user) { setUnreadCount(0); return }
     let cancelled = false
     void (async () => {
@@ -232,7 +232,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
             onClick={onClose}
             icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>}
             label={t('notifications')}
-            rightSlot={unreadCount > 0 ? <CountBadge tone="red">{unreadCount >= 99 ? '99+' : unreadCount}</CountBadge> : <Chevron/>}
+            rightSlot={unreadCount > 0 ? <CountBadge tone="red">{unreadCount > 99 ? '99+' : unreadCount}</CountBadge> : <Chevron/>}
           />
           <Item
             href="/picks"
@@ -283,7 +283,9 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
 
       {!user && (
         <>
-          {/* Sign in / Create account stack */}
+          {/* Sign in / Create account stack — both buttons open the same LoginSheet
+              which contains both flows internally. The visual split signals the two
+              destinations to users; consolidate if/when LoginSheet exposes a mode arg. */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
