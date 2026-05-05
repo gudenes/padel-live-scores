@@ -454,20 +454,6 @@ export function MatchCard({
                       color: isLoser ? '#B0B5BE' : '#fff',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{pair}</span>
-                    {((pairNum === 1 && pair1IsServing) || (pairNum === 2 && pair2IsServing)) && (
-                      <span
-                        title="Serving"
-                        aria-label="Serving"
-                        style={{
-                          flexShrink: 0,
-                          width: 7,
-                          height: 7,
-                          borderRadius: '50%',
-                          background: '#F5C518',
-                          boxShadow: '0 0 6px rgba(245,197,24,0.55)',
-                        }}
-                      />
-                    )}
                     {seed != null && (
                       <span
                         title={`Seed ${seed}`}
@@ -487,6 +473,20 @@ export function MatchCard({
                       >
                         {seed}
                       </span>
+                    )}
+                    {((pairNum === 1 && pair1IsServing) || (pairNum === 2 && pair2IsServing)) && (
+                      <span
+                        title="Serving"
+                        aria-label="Serving"
+                        style={{
+                          flexShrink: 0,
+                          width: 7,
+                          height: 7,
+                          borderRadius: '50%',
+                          background: '#F5C518',
+                          boxShadow: '0 0 6px rgba(245,197,24,0.55)',
+                        }}
+                      />
                     )}
                     {isWinner && isFinished && (
                       <span style={{
