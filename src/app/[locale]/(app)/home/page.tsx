@@ -31,6 +31,7 @@ import ResultsSection from '@/components/home/ResultsSection'
 import HighlightsPreview from '@/components/home/HighlightsPreview'
 import TournamentsView from '@/components/home/TournamentsView'
 import { WelcomeStrip } from '@/components/home/WelcomeStrip'
+import { LoginCtaSheet } from '@/components/LoginCtaSheet'
 
 // ── Match select queries ──────────────────────────────────────
 const MATCH_PLAYER_JOINS = `
@@ -486,6 +487,8 @@ function V3HomePageInner() {
       </div>
 
       <div style={{ height: 30 }} />
+
+      <LoginCtaSheet />
     </div>
   )
 }
