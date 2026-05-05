@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
-import { Match, pairName, parseSetScore, parseSetFromGames } from '@/types/match'
+import { Match, pairName, getMatchDisplay } from '@/types/match'
+import { useLiveMatch } from '@/hooks/useLiveMatch'
 import {
   GREEN, LIVE_RED, ORANGE, BG_CARD, MUTED, CHUNKY, FlagImg,
 } from './shared'
@@ -15,50 +16,36 @@ import {
 const PT_ORD: Record<string, number> = { '0': 0, '15': 1, '30': 2, '40': 3, 'AD': 4 }
 const _liveScoresPrev = new Map<string, { p1Games: number; p2Games: number; p1Pts: string; p2Pts: string }>()
 
-function LiveMatchCardInner({ match }: { match: Match }) {
+function LiveMatchCardInner({ match: matchProp }: { match: Match }) {
   // Badge label lives in the `common` namespace so the same translation
   // key is reused across /matches, /home and /matches/[date].
   const tCommon = useTranslations('common')
-  const sets = (match.sets ?? []).sort((a, b) => a.set_number - b.set_number)
-  const currentSet = sets.find(s => s.is_current)
-  // Pick the LAST current game (not first) — when a game finishes and a
-  // new one starts, both can briefly carry is_current=true while the
-  // realtime relay catches up. We want the most recent (highest game_number).
-  const currentGames = (currentSet?.games ?? []).filter(g => g.is_current)
-  const currentGame = currentGames.length > 0
-    ? currentGames.reduce((latest, g) =>
-        (g.game_number ?? 0) > (latest.game_number ?? 0) ? g : latest)
-    : null
-  // Live point score comes from the last entry in the points[] array.
-  // Points format: "30:40", "A:40", "15:15", etc.
-  // Fallback chain:
-  //   1. games.points[] last entry (newer canonical writes)
-  //   2. games.game_score (always populated by production padelgod, includes "0-0")
-  //   3. "0-0" placeholder for live matches between games (so Pts column
-  //      stays visible as games turn over)
-  const liveStatusForPts = match.status === 'live' || (match.status as string) === 'on_court'
-  const currentPoints = currentGame?.points?.length
-    ? currentGame.points[currentGame.points.length - 1]
-    : (currentGame?.game_score ?? (liveStatusForPts ? '0-0' : ''))
-  const pointsParts = (currentPoints ?? '').split(/[:\-]/)
-  const p1GamePts = pointsParts[0] ?? ''
-  const p2GamePts = pointsParts[1] ?? ''
+
+  // Per-card realtime subscription — same primitive the matches page,
+  // tournament detail, and match detail all use. Keeps the home live
+  // carousel in lock-step with the gold-standard match-detail page.
+  const isLiveOrOnCourt =
+    matchProp.status === 'live' || (matchProp.status as string) === 'on_court'
+  const match = useLiveMatch(matchProp.id, isLiveOrOnCourt, matchProp)
+
+  // Unified display calculation — identical to MatchCard + match detail.
+  const display = getMatchDisplay(match)
+  const {
+    sets,
+    isLive: isLiveDisplay,
+    livePointParts,
+    pair1Serving: pair1IsServing,
+    pair2Serving: pair2IsServing,
+    pair1TotalGames: p1Games,
+    pair2TotalGames: p2Games,
+  } = display
+  const p1GamePts = livePointParts[0]
+  const p2GamePts = livePointParts[1]
+  const liveStatusForPts = isLiveDisplay
   const hasLivePts = liveStatusForPts || !!(p1GamePts || p2GamePts)
 
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
-
-  // Serving indicator — server_player_id is populated by padelgod for
-  // any in-progress match. Stored as the pair's player1 UUID; match against
-  // either player UUID to decide which pair the dot goes on.
-  const serverId =
-    ((currentGame as { server_player_id?: string | null } | null)?.server_player_id) ?? null
-  const pair1IsServing = !!serverId && (
-    serverId === match.pair1_player1?.id || serverId === match.pair1_player2?.id
-  )
-  const pair2IsServing = !!serverId && (
-    serverId === match.pair2_player1?.id || serverId === match.pair2_player2?.id
-  )
 
   // ── Score-change banner detection ───────────────────────────
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
@@ -68,8 +55,6 @@ function LiveMatchCardInner({ match }: { match: Match }) {
   // on the court but no first point yet. Rendered with an orange "ON COURT"
   // pill (same shape as LIVE) so fans can tell it apart from an active match.
   const isOnCourt = (match.status as string) === 'on_court'
-  const p1Games = sets.reduce((s, st) => s + (st.pair1_games ?? 0), 0)
-  const p2Games = sets.reduce((s, st) => s + (st.pair2_games ?? 0), 0)
   const p1Pts = p1GamePts
   const p2Pts = p2GamePts
 
@@ -223,16 +208,13 @@ function LiveMatchCardInner({ match }: { match: Match }) {
               zIndex: 2,
               fontVariantNumeric: 'tabular-nums',
             }}>
-              {sets.map(s => {
-                const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
-                const p1g = parsed?.p1 ?? s.pair1_games ?? 0
-                const p2g = parsed?.p2 ?? s.pair2_games ?? 0
-                const games = pairNum === 1 ? p1g : p2g
-                const tb = parsed?.tb ?? null
-                const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
-                const isCurrent = s.is_current
+              {sets.map(ps => {
+                const games = pairNum === 1 ? ps.p1Games : ps.p2Games
+                const tb = ps.tb
+                const wonThisSet = pairNum === 1 ? ps.pair1Won : ps.pair2Won
+                const isCurrent = ps.raw.is_current
                 return (
-                  <span key={s.id} style={{
+                  <span key={ps.raw.id} style={{
                     display: 'inline-block',
                     fontSize: 16,
                     fontWeight: 700,

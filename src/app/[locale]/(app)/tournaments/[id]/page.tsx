@@ -232,7 +232,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   useEffect(() => { fetchAll(); fetchTournaments() }, [fetchAll, fetchTournaments])
 
-  // ── Realtime — debounced ──────────────────────────────────────
+  // ── Realtime — list-shape watcher only ────────────────────────
+  //
+  // MatchCard now subscribes per-match via useLiveMatch when its row
+  // is live/on_court, so score ticks no longer flow through this
+  // page. The parent's only job is to react to status transitions
+  // (scheduled→live, live→finished) and bracket additions, which
+  // require re-bucketing the visible groups. Filter scopes the sub
+  // to this tournament's matches so unrelated tournaments don't
+  // trigger refetches here.
   const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     const handleChange = () => {
@@ -240,14 +248,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       realtimeDebounceRef.current = setTimeout(fetchAll, 500)
     }
     const ch = supabase
-      .channel('v3-tournament-feed')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, handleChange)
+      .channel(`v3-tournament-feed-${tournamentId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${tournamentId}` },
+        handleChange,
+      )
       .subscribe()
     return () => {
       supabase.removeChannel(ch)
       if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
     }
-  }, [fetchAll])
+  }, [fetchAll, tournamentId])
 
   // ── Sync ago ──────────────────────────────────────────────────
   useEffect(() => {

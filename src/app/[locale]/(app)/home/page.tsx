@@ -283,15 +283,35 @@ function V3HomePageInner() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Realtime subscription for live matches
+  // Realtime — list-shape watcher only.
+  //
+  // The home LiveMatchCard now subscribes per-match via useLiveMatch
+  // for scores, so this parent sub no longer needs to drive score
+  // updates. Its only job is to refetch when the list of live matches
+  // changes shape (a match goes live, or finishes and exits the live
+  // bucket). Debounced because fetchData() is heavy — it pulls
+  // highlights, articles, rankings, recent results, etc.
   useEffect(() => {
+    let pending: ReturnType<typeof setTimeout> | null = null
+    const triggerRefetch = () => {
+      if (pending) clearTimeout(pending)
+      pending = setTimeout(() => {
+        pending = null
+        fetchData()
+      }, 1500)
+    }
     const channel = supabase
       .channel('v3-home-live')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: 'status=eq.live' }, () => {
-        fetchData()
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches', filter: 'status=eq.live' },
+        triggerRefetch,
+      )
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      if (pending) clearTimeout(pending)
+      supabase.removeChannel(channel)
+    }
   }, [fetchData])
 
   if (loading) {

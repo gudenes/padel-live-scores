@@ -7,11 +7,10 @@ import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, getCurrentScore, pairName, isStarPoint, parseSetScore, parseSetFromGames, parseAndHealSet, toShortName } from '@/types/match'
-import { hydrateThinPlayers } from '@/lib/thin-match-player'
+import { fetchMatchById } from '@/lib/match-fetch'
 import MomentumChart from './MomentumChart'
 import BottomNav from '@/components/nav/BottomNavV3'
 import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
-import { withTimeout } from '@/lib/with-timeout'
 import { DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useMatchPrediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
@@ -106,37 +105,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       setLoading(false)
     }, 12_000)
     try {
-      const result = await withTimeout<{ data: any; error: any }>(
-        supabase
-          .from('matches')
-          .select(`
-            *,
-            tournament:tournaments(id, name, starts_at, ends_at, country, timezone, source, level),
-            pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, country, external_id, ranking, win_rate, total_matches, avatar_url, side),
-            sets(*, games(*))
-          `)
-          .eq('id', id)
-          .single() as unknown as Promise<{ data: any; error: any }>,
-        10_000,
-        'match:detail'
-      )
-      const { data, error } = result
-
-      if (error || !data) return
-
-      const sorted = hydrateThinPlayers({
-        ...data,
-        sets: (data.sets ?? [])
-          .sort((a: any, b: any) => a.set_number - b.set_number)
-          .map((set: any) => ({
-            ...set,
-            games: (set.games ?? []).sort((a: any, b: any) => a.game_number - b.game_number),
-          })),
-      })
-      setMatch(sorted as Match)
+      // Shared fetcher — same projection used by useLiveMatch on the
+      // card surfaces. Guarantees a single source of truth for the
+      // match data shape across home / matches / tournament / detail.
+      const next = await fetchMatchById(supabase, id, { label: 'match:detail' })
+      if (next) setMatch(next)
     } catch (e) {
       console.error('[Match] fetchMatch exception:', e)
     } finally {
