@@ -150,6 +150,7 @@
       "secondReturnWon": "Points gagnés sur second retour",
       "returnGamesPlayed": "Jeux de retour",
       "totalReturnWon": "Total points gagnés en retour",
+      "breaksWon": "Breaks gagnés",
       "longestStreak": "Plus longue série de points gagnés"
     }
   },

@@ -17,6 +17,7 @@ import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import { MatchStatsView } from '@/components/MatchStatsView'
+import { computeBreaks } from './break-stats'
 import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
@@ -982,14 +983,21 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         const tournamentLevel = ((match as any).tournament)?.level as string | null | undefined
         const isPremier = isPremierLevel(tournamentLevel)
 
+        const breaks = computeBreaks(match)
+
         const recapTab = { key: 'recap', label: tMatch('scoreRecap') }
         const liveTab = { key: 'live', label: tMatch('liveFeed') }
         const playersTab = { key: 'players', label: tMatch('players') }
         const h2hTab = { key: 'h2h', label: tMatch('h2h') }
 
+        // Show recap (Stats) for Premier matches always, and for non-Premier
+        // matches when we have break data to surface. MatchStatsView handles
+        // the "breaks-only" path when premier stats are unavailable.
+        const showRecap = isPremier || breaks.hasData
+
         const tabList: { key: string; label: string }[] = isFinished
-          ? isPremier
-            ? [recapTab, liveTab, playersTab, h2hTab]
+          ? showRecap
+            ? [recapTab, ...(isPremier ? [liveTab] : []), playersTab, h2hTab]
             : [playersTab, h2hTab]
           : isScheduled
             ? [playersTab, h2hTab]
@@ -1009,7 +1017,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             {tabList.map(t => (
               <div key={t.key} style={{ background: BG_CARD, minHeight: 300 }}>
                 {t.key === 'recap' && isFinished && (
-                  <MatchStatsView matchId={match.id} />
+                  <MatchStatsView matchId={match.id} breaks={breaks} />
                 )}
                 {t.key === 'live' && (
                   <LiveFeedTab match={match} pair1Label={pair1Label} pair2Label={pair2Label} isLive={isLive} />

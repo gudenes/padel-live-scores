@@ -154,6 +154,8 @@
       "secondReturnWon": "Second return points won",
       "returnGamesPlayed": "Return games played",
       "totalReturnWon": "Total return points won",
+      "breaksWon": "Breaks of serve won",
+      "_breaksWon_context": "Padel/tennis stat — number of times a pair won a game while their opponents were serving. ES: \"Roturas de saque\". IT: \"Break vinti\". PT: \"Quebras de serviço\". FR: \"Breaks gagnés\".",
       "longestStreak": "Longest points won streak"
     }
   },

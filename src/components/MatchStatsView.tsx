@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl'
 import { MatchStatsBar } from './MatchStatsBar'
 import { MatchStatsSetTabs, type SetTabItem } from './MatchStatsSetTabs'
 import type { MatchStatsRow } from '@/lib/premier-stats-parser'
+import type { BreakStats } from '@/app/[locale]/match/[id]/break-stats'
 
 const MUTED = '#8a8f98'
 
@@ -28,7 +29,7 @@ interface ApiResponse {
   status: StatsStatus
 }
 
-export function MatchStatsView({ matchId }: { matchId: string }) {
+export function MatchStatsView({ matchId, breaks }: { matchId: string; breaks?: BreakStats }) {
   const t = useTranslations('matchDetail.stats')
   const [response, setResponse] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -64,13 +65,25 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
   if (!response) return <ErrorState message={t('noData')} />
   if (response.status === 'upcoming')
     return <EmptyState icon="⏰" text={t('matchNotStarted')} />
-  if (response.status === 'no_mapping' || response.status === 'unavailable')
-    return <EmptyState icon="📊" text={t('notAvailable')} />
-  if (response.status === 'pending_sync')
-    return <EmptyState icon="⏳" text={t('comingSoon')} />
+
+  const noPremierStats =
+    response.status === 'no_mapping' ||
+    response.status === 'unavailable' ||
+    response.status === 'pending_sync' ||
+    (response.stats ?? []).length === 0
+
+  // Premier stats unavailable → fall back to a breaks-only layout when we
+  // have break data, so FIP/padelgod-sourced matches still get a Stats tab.
+  if (noPremierStats) {
+    if (breaks?.hasData) return <BreaksOnlyView breaks={breaks} />
+    if (response.status === 'no_mapping' || response.status === 'unavailable')
+      return <EmptyState icon="📊" text={t('notAvailable')} />
+    if (response.status === 'pending_sync')
+      return <EmptyState icon="⏳" text={t('comingSoon')} />
+    return <EmptyState icon="📊" text={t('empty')} />
+  }
 
   const stats = response.stats ?? []
-  if (stats.length === 0) return <EmptyState icon="📊" text={t('empty')} />
 
   const activeRow = stats.find(s => s.set_number === activeSet) ?? stats[0]
   const availableSetNumbers = new Set(stats.map(s => s.set_number))
@@ -87,6 +100,12 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
   ]
 
   const isMatchTab = activeSet === 0
+
+  const breaksAgg = breaks?.hasData
+    ? isMatchTab
+      ? breaks.match
+      : breaks.perSet[activeSet] ?? null
+    : null
 
   return (
     <div>
@@ -164,6 +183,17 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
           t2Total={null}
           rowIndex={6}
         />
+        {breaksAgg && (
+          <MatchStatsBar
+            label={t('breaksWon')}
+            kind="count"
+            t1Value={breaksAgg.team1}
+            t1Total={null}
+            t2Value={breaksAgg.team2}
+            t2Total={null}
+            rowIndex={7}
+          />
+        )}
         {/* Total return points won — Match tab only */}
         {isMatchTab && (
           <MatchStatsBar
@@ -173,7 +203,7 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
             t1Total={activeRow.team1_return_points_played}
             t2Value={activeRow.team2_return_points_won}
             t2Total={activeRow.team2_return_points_played}
-            rowIndex={7}
+            rowIndex={8}
           />
         )}
       </Section>
@@ -188,10 +218,54 @@ export function MatchStatsView({ matchId }: { matchId: string }) {
             t1Total={null}
             t2Value={activeRow.team2_longest_streak}
             t2Total={null}
-            rowIndex={8}
+            rowIndex={9}
           />
         </Section>
       )}
+    </div>
+  )
+}
+
+// ── Breaks-only fallback ──────────────────────────────────────
+// Used when premier stats are unavailable but we have break data
+// (typically FIP/padelgod-sourced matches). Same set-tabs pattern as
+// the main view, single Return-section row with the breaks count.
+
+function BreaksOnlyView({ breaks }: { breaks: BreakStats }) {
+  const t = useTranslations('matchDetail.stats')
+  const [activeSet, setActiveSet] = useState(0)
+
+  const setNumbers = Object.keys(breaks.perSet)
+    .map(Number)
+    .sort((a, b) => a - b)
+  const maxSet = setNumbers[setNumbers.length - 1] ?? 0
+
+  const tabs: SetTabItem[] = [
+    { setNumber: 0, label: t('matchTab'), disabled: false },
+    ...Array.from({ length: Math.max(maxSet, 2) }, (_, i) => ({
+      setNumber: i + 1,
+      label: t('setN', { n: i + 1 }),
+      disabled: !breaks.perSet[i + 1],
+    })),
+  ]
+
+  const agg = activeSet === 0 ? breaks.match : breaks.perSet[activeSet] ?? null
+  if (!agg) return null
+
+  return (
+    <div>
+      <MatchStatsSetTabs tabs={tabs} active={activeSet} onChange={setActiveSet} />
+      <Section title={t('return')} isFirst>
+        <MatchStatsBar
+          label={t('breaksWon')}
+          kind="count"
+          t1Value={agg.team1}
+          t1Total={null}
+          t2Value={agg.team2}
+          t2Total={null}
+          rowIndex={0}
+        />
+      </Section>
     </div>
   )
 }
