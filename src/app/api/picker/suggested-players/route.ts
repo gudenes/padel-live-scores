@@ -17,7 +17,8 @@ export async function GET(_req: NextRequest) {
     .limit(60)
 
   if (error) {
-    return Response.json({ error: error.message }, { status: 500 })
+    console.error('[suggested-players] supabase error', error)
+    return Response.json({ error: 'Internal error' }, { status: 500 })
   }
 
   const players = (data ?? []) as SuggestedPlayer[]
@@ -25,7 +26,10 @@ export async function GET(_req: NextRequest) {
 
   // Cache for 5 minutes — rankings don't change minute-to-minute and
   // most picker visits happen in the first session.
+  // Response is shaped by the geo-country cookie, so we mark it private
+  // to prevent shared caches (Vercel edge / CDNs / proxies) from serving
+  // a country-boosted variant to a different visitor.
   return Response.json(top30, {
-    headers: { 'Cache-Control': 'public, max-age=300, s-maxage=300' },
+    headers: { 'Cache-Control': 'private, max-age=300' },
   })
 }
