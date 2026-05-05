@@ -196,29 +196,32 @@ export default function MatchesDayShell({
     }
   }, [activeIso, tz, cache, fetchDay])
 
-  // Realtime subscription — refetch the active day when ANY live match's
-  // matches/sets/games row changes. Same pattern the home page and match
-  // detail page use; this is what makes points + set scores tick live on
-  // the matches list. Debounced via a 1.5s trailing timer so a burst of
-  // ticks (point + game_score + set update) collapses into one refetch.
+  // Realtime subscription — list-shape watcher only.
+  //
+  // Each card now subscribes to its own match via useLiveMatch when its
+  // status is live/on_court, so score ticks (sets + games changes) no
+  // longer need to flow through the parent. The parent's only job is
+  // to react to list-shape changes: new matches scheduled, status
+  // transitions in/out of live, finishes that need to move a card from
+  // the live bucket to the results bucket.
+  //
+  // Debounced (1.5s) to absorb the inevitable status-flip + finished_at
+  // double-write. The sets/games subs from the previous architecture
+  // are intentionally gone — they were the source of the matches list
+  // visibly lagging score ticks by up to 1.5s.
   useEffect(() => {
     let pending: ReturnType<typeof setTimeout> | null = null
     const triggerRefetch = () => {
       if (pending) return
       pending = setTimeout(() => {
         pending = null
-        // Force-refetch the active day even if cache.state === 'loaded'.
-        // fetchDay's cache check would skip a refetch when already loaded;
-        // we want the data to actually update on each tick.
         const inFlight = inFlightRef.current.has(activeIso)
         if (!inFlight) fetchDay(activeIso)
       }, 1500)
     }
     const channel = supabase
       .channel(`matches-day-${activeIso}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: 'status=in.(live,on_court)' }, triggerRefetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sets' }, triggerRefetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'games' }, triggerRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, triggerRefetch)
       .subscribe()
     return () => {
       if (pending) clearTimeout(pending)

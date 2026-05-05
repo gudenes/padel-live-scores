@@ -28,7 +28,8 @@ import { classifyResult } from '@/lib/predictions/scoring'
 import { isPremierLevel } from '@/lib/tournament-labels'
 import { FlagImage } from '@/components/FlagImage'
 import { PredictionPanel } from '@/components/prediction/PredictionPanel'
-import { pairName, parseSetScore, parseSetFromGames, healClosedSetGames, type Match } from '@/types/match'
+import { pairName, getMatchDisplay, type Match } from '@/types/match'
+import { useLiveMatch } from '@/hooks/useLiveMatch'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -168,7 +169,7 @@ export interface MatchCardProps {
 }
 
 export function MatchCard({
-  match,
+  match: matchProp,
   genderColor,
   locale,
   userTz,
@@ -177,6 +178,14 @@ export function MatchCard({
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
   const tPred = useTranslations('prediction')
+
+  // Per-match realtime subscription. Only opens the channel when the
+  // match is live or warming up; for scheduled / finished cards we
+  // happily render the parent's prop (the parent's status-only sub
+  // will rewrite the prop when status flips).
+  const isLiveStatus =
+    matchProp.status === 'live' || (matchProp.status as string) === 'on_court'
+  const match = useLiveMatch(matchProp.id, isLiveStatus, matchProp)
 
   // Gate the entire prediction game on tournament tier. Only Premier-tier
   // matches get full point-by-point coverage via padelapi.org's Pusher
@@ -236,100 +245,25 @@ export function MatchCard({
 
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current) }, [])
 
-  const sets = (match.sets ?? []).slice().sort((a, b) => a.set_number - b.set_number)
-  // Treat `on_court` as live for display purposes — it's the padelgod warmup
-  // signal and may carry real point data once play starts (Crionet sometimes
-  // keeps the "On court" label sticky after the first point).
-  const isLive = match.status === 'live' || (match.status as string) === 'on_court'
-  // ── Defensive "looks finished" detection ──────────────────────────────
-  // Sometimes the upstream pipeline writes per-set scores from the
-  // results widget but the match-status flip to 'finished' fails (the
-  // closeMatch tick can be missed if the live-poller never saw the match,
-  // or the results-writer ran before the live-poller initialized).
-  // Detect this by counting set-wins from the actual game counts: if
-  // either pair has won 2+ sets AND no set is currently in progress,
-  // treat the match as finished for display purposes — show the per-set
-  // scores + W badge instead of the scheduled date/time stack.
-  const setsArr = match.sets ?? []
-  const setsLookFinished = (() => {
-    if (setsArr.length < 2) return false
-    if (setsArr.some((s) => s.is_current)) return false
-    let p1Sets = 0
-    let p2Sets = 0
-    for (const s of setsArr) {
-      const p1 = s.pair1_games ?? 0
-      const p2 = s.pair2_games ?? 0
-      if (p1 > p2) p1Sets++
-      else if (p2 > p1) p2Sets++
-    }
-    return p1Sets >= 2 || p2Sets >= 2
-  })()
-  const dbScheduled = match.status === 'scheduled'
-  const isScheduled = dbScheduled && !setsLookFinished
-  const isFinished =
-    ['finished', 'retired', 'walkover', 'ended'].includes(match.status as string) ||
-    (dbScheduled && setsLookFinished)
+  // ── Unified display calculation ──────────────────────────────────
+  // Single helper used by every card surface (home, matches, tournament,
+  // match detail) — guarantees identical math everywhere.
+  const display = getMatchDisplay(match)
+  const { sets, winner, isLive, isFinished, isScheduled,
+          livePointParts,
+          pair1Serving: pair1IsServing, pair2Serving: pair2IsServing,
+          pair1TotalGames: p1TotalGames, pair2TotalGames: p2TotalGames } = display
+  const gamePoints = display.livePoint
   const scheduleLabel = (match as any).schedule_label as string | null
   const isApproximateTime = isScheduled && /not before|followed by/i.test(scheduleLabel ?? '')
 
-  // Resolve winner from sets when winner_pair isn't stamped on the row.
-  const winner: 0 | 1 | 2 = (() => {
-    if (match.winner_pair === 1) return 1
-    if (match.winner_pair === 2) return 2
-    if (!isFinished) return 0
-    let p1Sets = 0
-    let p2Sets = 0
-    for (const s of sets) {
-      const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
-      const p1 = parsed?.p1 ?? s.pair1_games ?? 0
-      const p2 = parsed?.p2 ?? s.pair2_games ?? 0
-      if (p1 > p2) p1Sets++
-      else if (p2 > p1) p2Sets++
-    }
-    if (p1Sets === p2Sets) return 0
-    return p1Sets > p2Sets ? 1 : 2
-  })()
-
-  // Live point — last entry in the current game's points[] array, with
-  // game_score as fallback when points[] is empty/null. Production padelgod
-  // always writes game_score on every tick, but only newer builds populate
-  // games.points[]. Fallback keeps the Pts column rendering regardless.
-  //
-  // Always show '0-0' when the match is live but no current game exists
-  // (between games / very start) so the Pts column doesn't disappear and
-  // reappear as games turn over — fans expect a stable live point indicator.
-  const currentSet = sets.find(s => s.is_current)
-  const currentGame = currentSet?.games?.find(g => g.is_current)
-  const liveStatusForPts = match.status === 'live' || (match.status as string) === 'on_court'
-  const lastPoint = currentGame?.points?.length
-    ? currentGame.points[currentGame.points.length - 1]
-    : (currentGame?.game_score ?? (liveStatusForPts ? '0-0' : ''))
-  const gamePoints = lastPoint ?? (liveStatusForPts ? '0-0' : '')
-
-  // Serving indicator — server_player_id is populated by the live-poller for
-  // any in-progress match (canonical /scores cron + padelgod). Stored as the
-  // pair's player1 UUID; we match against either player UUID to decide which
-  // pair the dot goes on. Same logic as the match detail page.
-  const serverId = isLive ? ((currentGame as { server_player_id?: string | null })?.server_player_id ?? null) : null
-  const pair1IsServing = !!serverId && (
-    serverId === match.pair1_player1?.id || serverId === match.pair1_player2?.id
-  )
-  const pair2IsServing = !!serverId && (
-    serverId === match.pair2_player1?.id || serverId === match.pair2_player2?.id
-  )
-
   // ── Score-flash banner detection ─────────────────────────────────
-  // Same algorithm as home LiveMatchCard: track prev (games, pts) per
-  // match.id in a module-level Map; on transition fire the sweep banner
-  // on the scoring side. Banner is a red overlay that slides in from
-  // the left, holds, then slides out — ~2.5s total.
+  // Track prev (games, pts) per match.id in a module-level Map; on
+  // transition fire the sweep banner on the scoring side. ~2.5s total.
   const [flashPair, setFlashPair] = useState<1 | 2 | null>(null)
   const flashKeyRef = useRef(0)
-  const p1TotalGames = sets.reduce((s, st) => s + (st.pair1_games ?? 0), 0)
-  const p2TotalGames = sets.reduce((s, st) => s + (st.pair2_games ?? 0), 0)
-  const flashPtsParts = (gamePoints ?? '').split(/[:\-]/)
-  const _p1Pts = flashPtsParts[0] ?? ''
-  const _p2Pts = flashPtsParts[1] ?? ''
+  const _p1Pts = livePointParts[0]
+  const _p2Pts = livePointParts[1]
   useEffect(() => {
     if (!isLive) { _matchCardPrev.delete(match.id); return }
     const cur = { p1Games: p1TotalGames, p2Games: p2TotalGames, p1Pts: _p1Pts, p2Pts: _p2Pts }
@@ -578,22 +512,14 @@ export function MatchCard({
                     // flex:1 so both columns' pair 1 / pair 2 boundaries align.
                     flex: 1,
                   }}>
-                    {sets.map(s => {
-                      const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
-                      const rawP1 = parsed?.p1 ?? s.pair1_games ?? 0
-                      const rawP2 = parsed?.p2 ?? s.pair2_games ?? 0
-                      // Heal closed-set scores stuck below the win threshold
-                      // (e.g. Crionet dropped the closing tick at 5-3 → display 6-3).
-                      const healed = healClosedSetGames(rawP1, rawP2, !!s.is_current, !!s.set_score)
-                      const p1g = healed.p1
-                      const p2g = healed.p2
-                      const games = pairNum === 1 ? p1g : p2g
-                      const tb = parsed?.tb ?? null
-                      const wonThisSet = pairNum === 1 ? p1g > p2g : p2g > p1g
-                      const isCurrent = s.is_current && isLive
+                    {sets.map(ps => {
+                      const games = pairNum === 1 ? ps.p1Games : ps.p2Games
+                      const tb = ps.tb
+                      const wonThisSet = pairNum === 1 ? ps.pair1Won : ps.pair2Won
+                      const isCurrent = ps.raw.is_current && isLive
                       return (
                         <span
-                          key={s.id}
+                          key={ps.raw.id}
                           style={{
                             fontSize: 16,
                             fontWeight: 700,
@@ -637,7 +563,7 @@ export function MatchCard({
                           marginLeft: 4,
                         }}
                       >
-                        {gamePoints.split(/[:\-]/)[pairNum === 1 ? 0 : 1] ?? ''}
+                        {livePointParts[pairNum === 1 ? 0 : 1]}
                       </span>
                     )}
                   </div>

@@ -279,6 +279,198 @@ export function pairName(p1: Player | null, p2: Player | null): string {
   return `${toShortName(n1)} / ${toShortName(n2)}`
 }
 
+// ── Unified match display calculation ────────────────────────
+//
+// Single function every card surface calls to derive what to render from
+// a Match row. Consolidates: set ordering, parse + heal, winner inference
+// from sets when winner_pair is null, current set/game lookup, last-point
+// extraction with the established fallback chain (points[] → game_score →
+// '0-0' for live, '' otherwise), serving-pair derivation, and a
+// "looks-finished" detector for matches where the upstream pipeline wrote
+// per-set scores but missed the status flip.
+//
+// Returns a flat, render-ready bag of values. By calling this from
+// MatchCard, home LiveMatchCard, and match detail, all 4 surfaces stay
+// in lock-step on every calculation that affects what fans see.
+
+export interface ParsedSet {
+  /** Original set row reference for keys + is_current. */
+  raw: Set
+  /** Healed games count for pair 1 (closed-set healing applied). */
+  p1Games: number
+  /** Healed games count for pair 2. */
+  p2Games: number
+  /** Tiebreak loser-points (superscript), or null when no tiebreak. */
+  tb: number | null
+  /** Was pair 1 the set winner? Derived from healed games. */
+  pair1Won: boolean
+  /** Was pair 2 the set winner? */
+  pair2Won: boolean
+}
+
+export interface MatchDisplay {
+  /** Sorted by set_number ascending. */
+  sets: ParsedSet[]
+  /** 0 = no winner (live/scheduled), 1 = pair 1 won, 2 = pair 2 won.
+   *  Falls back to set-count comparison when match.winner_pair is null
+   *  and the match looks finished. */
+  winner: 0 | 1 | 2
+  /** True for status='live' or status='on_court'. */
+  isLive: boolean
+  /** True for finished/retired/walkover/ended OR scheduled rows whose
+   *  per-set scores already prove the match is decided (defensive
+   *  detection — covers pipeline gaps where status flip is missed). */
+  isFinished: boolean
+  /** True only when status='scheduled' AND scores don't look finished. */
+  isScheduled: boolean
+  /** Currently in-progress set, or null. */
+  currentSet: Set | null
+  /** Currently in-progress game (within currentSet), or null. When more
+   *  than one game briefly carries is_current (relay write race), the
+   *  highest game_number wins. */
+  currentGame: Game | null
+  /** Last point in current game, with fallback chain:
+   *    1. games.points[last]
+   *    2. games.game_score
+   *    3. '0-0' when match is live (so Pts column doesn't blink off
+   *       between games), '' otherwise. */
+  livePoint: string
+  /** Pre-split: ['p1Pts', 'p2Pts'] from livePoint. Empty strings when
+   *  not parseable. */
+  livePointParts: [string, string]
+  /** UUID of the player serving the current game, or null. */
+  serverPlayerId: string | null
+  /** True if the serving player belongs to pair 1. */
+  pair1Serving: boolean
+  /** True if the serving player belongs to pair 2. */
+  pair2Serving: boolean
+  /** Total games won across all sets, per pair (used by score-flash
+   *  detection to spot game-level transitions). */
+  pair1TotalGames: number
+  pair2TotalGames: number
+}
+
+export function getMatchDisplay(match: Match): MatchDisplay {
+  const isLive = match.status === 'live' || (match.status as string) === 'on_court'
+
+  // Sort once.
+  const rawSets = (match.sets ?? []).slice().sort((a, b) => a.set_number - b.set_number)
+
+  // "Looks finished" — sometimes per-set scores land but the status flip
+  // is missed. Count set-wins from raw games; if either pair has 2+ AND
+  // no set is currently in progress, treat as finished for display.
+  const setsLookFinished = (() => {
+    if (rawSets.length < 2) return false
+    if (rawSets.some((s) => s.is_current)) return false
+    let p1 = 0
+    let p2 = 0
+    for (const s of rawSets) {
+      const a = s.pair1_games ?? 0
+      const b = s.pair2_games ?? 0
+      if (a > b) p1++
+      else if (b > a) p2++
+    }
+    return p1 >= 2 || p2 >= 2
+  })()
+
+  const dbScheduled = match.status === 'scheduled'
+  const isScheduled = dbScheduled && !setsLookFinished
+  const isFinished =
+    ['finished', 'retired', 'walkover', 'ended'].includes(match.status as string) ||
+    (dbScheduled && setsLookFinished)
+
+  // Parse + heal each set in one pass.
+  const sets: ParsedSet[] = rawSets.map((s) => {
+    const { p1, p2, tb } = parseAndHealSet({
+      set_score: s.set_score,
+      pair1_games: s.pair1_games,
+      pair2_games: s.pair2_games,
+      is_current: s.is_current,
+    })
+    return {
+      raw: s,
+      p1Games: p1,
+      p2Games: p2,
+      tb,
+      pair1Won: p1 > p2,
+      pair2Won: p2 > p1,
+    }
+  })
+
+  // Winner: trust the column first, fall back to set-count.
+  const winner: 0 | 1 | 2 = (() => {
+    if (match.winner_pair === 1) return 1
+    if (match.winner_pair === 2) return 2
+    if (!isFinished) return 0
+    let p1 = 0
+    let p2 = 0
+    for (const s of sets) {
+      if (s.pair1Won) p1++
+      else if (s.pair2Won) p2++
+    }
+    if (p1 === p2) return 0
+    return p1 > p2 ? 1 : 2
+  })()
+
+  const currentSet = rawSets.find((s) => s.is_current) ?? null
+
+  // Multiple is_current games can briefly coexist during relay writes —
+  // pick the highest game_number to skip the stale one.
+  const currentGames = (currentSet?.games ?? []).filter((g) => g.is_current)
+  const currentGame =
+    currentGames.length > 0
+      ? currentGames.reduce((latest, g) =>
+          (g.game_number ?? 0) > (latest.game_number ?? 0) ? g : latest,
+        )
+      : null
+
+  const livePointRaw = currentGame?.points?.length
+    ? currentGame.points[currentGame.points.length - 1]
+    : currentGame?.game_score ?? (isLive ? '0-0' : '')
+  const livePoint = livePointRaw ?? (isLive ? '0-0' : '')
+  const livePointParts: [string, string] = (() => {
+    const parts = (livePoint ?? '').split(/[:\-]/)
+    return [parts[0] ?? '', parts[1] ?? '']
+  })()
+
+  const serverPlayerId =
+    isLive
+      ? ((currentGame as { server_player_id?: string | null } | null)?.server_player_id ?? null)
+      : null
+  const pair1Serving =
+    !!serverPlayerId &&
+    (serverPlayerId === match.pair1_player1?.id ||
+      serverPlayerId === match.pair1_player2?.id)
+  const pair2Serving =
+    !!serverPlayerId &&
+    (serverPlayerId === match.pair2_player1?.id ||
+      serverPlayerId === match.pair2_player2?.id)
+
+  let pair1TotalGames = 0
+  let pair2TotalGames = 0
+  for (const s of rawSets) {
+    pair1TotalGames += s.pair1_games ?? 0
+    pair2TotalGames += s.pair2_games ?? 0
+  }
+
+  return {
+    sets,
+    winner,
+    isLive,
+    isFinished,
+    isScheduled,
+    currentSet,
+    currentGame,
+    livePoint,
+    livePointParts,
+    serverPlayerId,
+    pair1Serving,
+    pair2Serving,
+    pair1TotalGames,
+    pair2TotalGames,
+  }
+}
+
 // Detects star point — 40:40 that follows at least one advantage point
 export function isStarPoint(points: string[]): boolean {
   if (!points.length) return false
