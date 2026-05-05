@@ -105,7 +105,6 @@ export default function ProfileButton() {
     <div style={{ position: 'relative' }}>
       <button
         ref={triggerRef}
-        data-coachmark="profile"
         onClick={handleClick}
         suppressHydrationWarning
         style={{
