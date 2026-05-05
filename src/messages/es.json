@@ -723,11 +723,10 @@
     "search": "Buscar jugador",
     "skip": "Omitir",
     "continue": "Continuar",
-    "softHint_one": "Elige uno más para mejores recomendaciones",
-    "softHint_other": "Elige {count} más para mejores recomendaciones",
     "topInCountry": "Mejores en {country}",
     "topWorldwide": "Mejores jugadores",
-    "errorLoading": "No se pudieron cargar sugerencias. Inténtalo de nuevo."
+    "errorLoading": "No se pudieron cargar sugerencias. Inténtalo de nuevo.",
+    "softHint": "{count, plural, one {Elige uno más para mejores recomendaciones} other {Elige {count} más para mejores recomendaciones}}"
   },
   "suggestedPlayers": {
     "sectionTitle": "Sugeridos para ti",

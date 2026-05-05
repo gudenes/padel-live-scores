@@ -723,11 +723,10 @@
     "search": "Cerca un giocatore",
     "skip": "Salta",
     "continue": "Continua",
-    "softHint_one": "Scegline un altro per consigli migliori",
-    "softHint_other": "Scegline altri {count} per consigli migliori",
     "topInCountry": "Top in {country}",
     "topWorldwide": "Migliori giocatori",
-    "errorLoading": "Impossibile caricare i suggerimenti. Riprova."
+    "errorLoading": "Impossibile caricare i suggerimenti. Riprova.",
+    "softHint": "{count, plural, one {Scegli ancora uno per migliori raccomandazioni} other {Scegli altri {count} per migliori raccomandazioni}}"
   },
   "suggestedPlayers": {
     "sectionTitle": "Suggeriti per te",
