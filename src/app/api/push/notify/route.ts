@@ -294,9 +294,12 @@ export async function POST(request: Request) {
     }
   }
 
-  if (recipientReason.size === 0) {
-    return Response.json({ ok: true, recipients: 0, sent: 0, inapp_written: 0, reason: 'no recipients' })
-  }
+  // NOTE: the previous "early return when no authed recipients" check has been
+  // removed because anon recipients (Spec 2) live in a separate table that's
+  // queried later in this route. Bailing here would skip the anon fan-out for
+  // anon-only matches. The user-side blocks below short-circuit naturally on
+  // empty arrays (Promise.allSettled([]) resolves immediately) so the wasted
+  // work is negligible — typically a single SELECT with no rows.
 
   // ── Event resolution ──────────────────────────────────────
   // The endpoint auto-detects finished vs live from match.status.
