@@ -12,6 +12,7 @@ import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
 import { runFipEntryListPopulator } from './workers/fip-entry-list-populator.js';
 import { runFipOopWriter } from './workers/fip-oop-writer.js';
 import { runFipResultsWriter } from './workers/fip-results-writer.js';
+import { runScheduleHintsWriter } from './workers/schedule-hints-writer.js';
 import { runFipWinnerPropagator } from './workers/fip-winner-propagator.js';
 import { runFipDrawLinker } from './workers/fip-draw-linker.js';
 import { runOopFetcher } from './workers/oop-fetcher.js';
@@ -74,6 +75,11 @@ export interface SchedulerFlags {
   enableShadowDiffFinalizer: boolean;
   enableShadowDiffLive: boolean;
   enableCloseStaleLiveSweeper: boolean;
+  enableScheduleHintsWriter: boolean;
+  /** Same dry-run semantics as the populator flag. Independent. */
+  scheduleHintsWriterDryRun: boolean;
+  /** Default 90. Override via env to tune the "running over" threshold. */
+  scheduleHintsExpectedDurationMin: number;
 }
 
 export interface SchedulerDeps {
@@ -122,7 +128,8 @@ export type WorkerName =
   | 'live-poller-manager'
   | 'shadow-diff-finalizer'
   | 'shadow-diff-live'
-  | 'close-stale-live-sweeper';
+  | 'close-stale-live-sweeper'
+  | 'schedule-hints-writer';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -149,6 +156,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'shadow-diff-finalizer',
   'shadow-diff-live',
   'close-stale-live-sweeper',
+  'schedule-hints-writer',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -218,6 +226,14 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'shadow-diff-finalizer': return (deps) => runShadowDiffFinalizer({ supabase: deps.supabase, logger: deps.logger });
     case 'shadow-diff-live':      return (deps) => runShadowDiffLive({ supabase: deps.supabase, logger: deps.logger });
     case 'close-stale-live-sweeper': return (deps) => runCloseStaleLiveSweeper({ supabase: deps.supabase, logger: deps.logger });
+    case 'schedule-hints-writer':   return (deps) => runScheduleHintsWriter({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger always dry-run-safe. Scheduled cron threads the real
+      // env flag via closure (see buildSchedule below).
+      dryRun: true,
+      expectedDurationMinutes: 90, // matches env default
+    });
     default: return null;
   }
 }
@@ -495,6 +511,23 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // state). Reads from our own DB — no external calls, safe to run frequently.
       cron: '*/5 * * * *',
       run: getWorkerRunner('close-stale-live-sweeper')!,
+    });
+  }
+  if (flags.enableScheduleHintsWriter) {
+    entries.push({
+      name: 'schedule-hints-writer',
+      // Every 2 minutes — worst-case staleness for a late hint to appear or
+      // clear after the underlying match status changes. DB-only; no external
+      // HTTP calls, so the cadence is safe.
+      cron: '*/2 * * * *',
+      run: async (deps) => {
+        return runScheduleHintsWriter({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.scheduleHintsWriterDryRun,
+          expectedDurationMinutes: flags.scheduleHintsExpectedDurationMin,
+        });
+      },
     });
   }
   return entries;

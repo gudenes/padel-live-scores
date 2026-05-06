@@ -62,6 +62,12 @@ export interface Match {
   started_at: string | null
   finished_at: string | null
   winner_pair: number | null
+  /** Computed schedule hint written by padelgod's schedule-hints-writer.
+   *  'may_be_late' = the previous match on this court is running over or
+   *  itself delayed. 'starting_soon' = previous match has finished and this
+   *  is the immediate next still scheduled. NULL = no hint. Only meaningful
+   *  while status === 'scheduled' — UI shows existing chips for other states. */
+  late_hint?: 'may_be_late' | 'starting_soon' | null
   serving_player_id?: string | null
   pair1_player1: Player | null
   pair1_player2: Player | null

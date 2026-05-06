@@ -22,6 +22,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import posthog from 'posthog-js'
 import { Link } from '@/i18n/navigation'
 import type { Prediction } from '@/lib/predictions/types'
 import { classifyResult } from '@/lib/predictions/scoring'
@@ -39,6 +40,8 @@ const BG_ELEV = '#1A1A1A'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
 
+const LATE_HINTS_ENABLED = process.env.NEXT_PUBLIC_LATE_HINTS_ENABLED !== 'false'
+
 const CHUNKY = {
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
@@ -54,6 +57,10 @@ const PULSE_KEYFRAMES = `
   18%  { transform: translateX(0);     opacity: 1; }
   60%  { transform: translateX(0);     opacity: 1; }
   100% { transform: translateX(110%);  opacity: 0; }
+}
+@keyframes mc-locked-pop {
+  0%   { opacity: 0; transform: translateY(-4px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 `
 
@@ -178,6 +185,7 @@ export function MatchCard({
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
   const tPred = useTranslations('prediction')
+  const tMatch = useTranslations('match')
 
   // Per-match realtime subscription. Only opens the channel when the
   // match is live or warming up; for scheduled / finished cards we
@@ -376,6 +384,27 @@ export function MatchCard({
             <Chip bg={status.bg} color={status.color} bold>
               {status.label}
             </Chip>
+          )}
+          {LATE_HINTS_ENABLED && !isPredictionEnabled && (
+            <span
+              title={tMatch('lateHint.estChipAria')}
+              aria-label={tMatch('lateHint.estChipAria')}
+              style={{
+                fontSize: 9,
+                fontWeight: 800,
+                letterSpacing: 0.4,
+                textTransform: 'uppercase',
+                color: GREEN,
+                background: 'rgba(126,211,33,0.10)',
+                border: '1px solid rgba(126,211,33,0.25)',
+                padding: '2px 6px',
+                clipPath: CHUNKY.badge,
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tMatch('lateHint.estChip')}
+            </span>
           )}
         </div>
 
@@ -598,6 +627,14 @@ export function MatchCard({
                 <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, lineHeight: 1.2, opacity: 0.5 }}>
                   TBD
                 </span>
+              )}
+              {LATE_HINTS_ENABLED && timeStr && (match.late_hint === 'may_be_late' || match.late_hint === 'starting_soon') && (
+                <LateHintPill
+                  hint={match.late_hint}
+                  courtName={match.court ?? ''}
+                  matchId={match.id}
+                  tMatch={tMatch}
+                />
               )}
             </div>
           )}
@@ -838,12 +875,6 @@ function LockedPill({ tPred }: { tPred: ReturnType<typeof useTranslations> }) {
 
   return (
     <>
-      <style>{`
-        @keyframes mc-locked-pop {
-          0%   { opacity: 0; transform: translateY(-4px) scale(0.95); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
       <button
         type="button"
         onClick={handleClick}
@@ -904,4 +935,114 @@ function cornerPillStyle(bg: string, color: string, borderStyle: 'solid' | 'dash
     clipPath: CHUNKY.badge,
     border: `0.5px ${borderStyle} ${color}40`,
   }
+}
+
+// ── LateHintPill — small dotted-underline tap target under the time ────────
+//
+// Renders only on scheduled matches with a real timeStr and a non-null
+// late_hint. Tapping pops a tiny info sheet (mirrors LockedPill's pattern):
+// 3.5s auto-dismiss, click anywhere on the sheet to dismiss earlier.
+//
+// Two variants:
+//   may_be_late   → orange (#F5A623), "may be late"   → "...running long..."
+//   starting_soon → green  (#7ED321), "starting soon" → "...should be called shortly..."
+
+interface LateHintPillProps {
+  hint: 'may_be_late' | 'starting_soon'
+  courtName: string
+  matchId: string
+  tMatch: ReturnType<typeof useTranslations>
+}
+
+function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
+  const [open, setOpen] = useState(false)
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Fire 'shown' once per mount
+  useEffect(() => {
+    posthog.capture('schedule_late_hint_shown', { matchId, hint })
+  }, [matchId, hint])
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setOpen((prev) => !prev)
+    // Fire 'tapped' only on OPEN (not on close)
+    if (!open) {
+      posthog.capture('schedule_late_hint_tapped', { matchId, hint })
+    }
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    if (!open) {
+      dismissTimerRef.current = setTimeout(() => setOpen(false), 3500)
+    }
+  }
+
+  useEffect(() => () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current) }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const isLate = hint === 'may_be_late'
+  const accent = isLate ? ORANGE : GREEN
+  const labelKey = isLate ? 'lateHint.mayBeLate' : 'lateHint.startingSoon'
+  const ariaKey  = isLate ? 'lateHint.mayBeLateAria' : 'lateHint.startingSoonAria'
+  const sheetKey = isLate ? 'lateHint.mayBeLateSheet' : 'lateHint.startingSoonSheet'
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-label={tMatch(ariaKey)}
+        aria-expanded={open}
+        style={{
+          marginTop: 2,
+          padding: '4px 0',
+          border: 0,
+          background: 'transparent',
+          color: accent,
+          opacity: isLate ? 0.85 : 0.95,
+          fontSize: 9,
+          fontWeight: 600,
+          letterSpacing: 0.2,
+          cursor: 'pointer',
+          borderBottom: `1px dotted ${accent}66`,
+          lineHeight: 1.2,
+          alignSelf: 'flex-end',
+        }}
+      >
+        {tMatch(labelKey)}
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }}
+          style={{
+            position: 'absolute',
+            right: 12,
+            bottom: 6,
+            zIndex: 4,
+            maxWidth: 240,
+            padding: '8px 10px',
+            background: BG_ELEV,
+            border: `0.5px solid rgba(255,255,255,0.12)`,
+            clipPath: CHUNKY.badge,
+            color: '#E5E7EB',
+            fontSize: 11,
+            fontWeight: 500,
+            lineHeight: 1.35,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+            cursor: 'pointer',
+            animation: 'mc-locked-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+          }}
+        >
+          {tMatch(sheetKey, { court: courtName })}
+        </div>
+      )}
+    </>
+  )
 }
