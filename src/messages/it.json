@@ -703,16 +703,44 @@
     "errorSignIn": "Accesso fallito, riprova",
     "errorSendLink": "Invio link fallito, riprova"
   },
-  "onboarding": {
-    "step1Title": "Trova tutto",
-    "step1Desc": "Trova i tuoi giocatori preferiti, tornei e partite.",
-    "step2Title": "Il tuo feed personalizzato",
-    "step2Desc": "Segui i giocatori e i tornei che ami. Tutto ciò che ti interessa in un unico posto!",
-    "step3Title": "Guadagna badge",
-    "step3Desc": "Sblocca badge mentre esplori! Da Principiante a Genio del Padel, collezionali tutti.",
+  "loginCta": {
+    "title": "Salva i preferiti",
+    "bodyWithCount": "{count, plural, one {Stai seguendo 1 giocatore. Accedi per conservarlo su tutti i dispositivi.} other {Stai seguendo {count} elementi. Accedi per conservarli su tutti i dispositivi.}}",
+    "later": "Forse più tardi",
+    "signIn": "Accedi"
+  },
+  "notificationPrompt": {
+    "title": "Non perdere mai una partita",
+    "bodyWithNames": "Ricevi notifiche quando {names} giocano dal vivo o in finale.",
+    "bodyGeneric": "Ricevi notifiche quando i tuoi giocatori giocano dal vivo o in finale.",
+    "enable": "Attiva le notifiche",
+    "later": "Forse più tardi"
+  },
+  "picker": {
+    "title": "Chi segui?",
+    "subtitle": "Scegli almeno un giocatore per personalizzare punteggi, notizie e notifiche",
+    "search": "Cerca un giocatore",
     "skip": "Salta",
-    "next": "Avanti →",
-    "done": "Fatto"
+    "continue": "Continua",
+    "topInCountry": "Top in {country}",
+    "topWorldwide": "Migliori giocatori",
+    "errorLoading": "Impossibile caricare i suggerimenti. Riprova.",
+    "softHint": "{count, plural, one {Scegli ancora uno per migliori raccomandazioni} other {Scegli altri {count} per migliori raccomandazioni}}",
+    "searchResults": "Risultati",
+    "noResults": "Nessun giocatore trovato per \"{query}\"",
+    "signIn": "Accedi"
+  },
+  "suggestedPlayers": {
+    "sectionTitle": "Suggeriti per te",
+    "more": "Altri",
+    "follow": "+ Segui",
+    "followed": "✓ Seguito"
+  },
+  "welcomeStrip": {
+    "title": "Benvenuto in PadelNachos",
+    "followingCount": "{count, plural, one {Stai seguendo 1 giocatore} other {Stai seguendo {count} giocatori}}",
+    "syncHint": "Accedi quando vuoi per conservarli su tutti i dispositivi",
+    "dismiss": "Chiudi"
   },
   "notifications": {
     "title": "Notifiche",

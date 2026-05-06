@@ -170,31 +170,69 @@
     "pts": "+10 pts"
   },
   "prediction": {
-    "whoTakesIt": "Who takes it?",
-    "tapThePair": "Tap the pair you fancy",
-    "yourPick": "Your pick",
-    "howDoesItEnd": "How does it end?",
-    "straightSets": "Straight sets",
-    "threeSetBattle": "Three-set battle",
-    "yourPrediction": "Your prediction",
-    "win": "{pair} win {margin}",
+    "cta": {
+      "pick": "PICK",
+      "yourPick": "YOUR PICK",
+      "locked": "PICK"
+    },
+    "lockedTooltip": "Oops! This match is already live. Try predicting an upcoming match instead.",
+    "makeYourPick": "Make your pick",
+    "rewardShown": "Reward shown",
+    "favored": "{pct}% favored",
+    "underdog": "{pct}% underdog",
+    "tossUp": "{pct}% toss-up",
+    "unrankedTossUp": "Unranked — toss-up",
+    "upsetFlag": "UPSET",
+    "ifRight": "guacas if right",
+    "marginBonus": "+0.50× bonus if you nail the margin",
+    "marginBonusShort": "+0.50× bonus",
+    "youArePicking": "You're picking",
     "change": "Change",
-    "whatOthersThink": "What others think",
-    "fansHavePredicted": "{count} fans have predicted",
-    "withMajority": "You're with the majority",
-    "boldPick": "Bold pick!",
-    "predict": "predict",
-    "locked": "Predictions are locked once the match starts",
-    "spotOn": "Spot on!",
-    "calledIt": "{pair} won {margin} — just as you called it",
-    "closeCall": "Close call",
-    "rightPairWrongMargin": "Right pair, wrong margin",
-    "wrongMarginThree": "You picked the right pair but it went to three sets instead of two",
-    "wrongMarginTwo": "You picked the right pair but it was a straight-sets win instead",
-    "notThisTime": "Not this time",
-    "youBacked": "You backed {picked} but {winner} pulled through {margin}",
-    "nailedIt": "Nailed it",
-    "predicted": "Predicted"
+    "lockedIn": "Locked in",
+    "tapToClose": "Tap to close",
+    "closingSoon": "Closing in a moment…",
+    "stayOpen": "Stay open",
+    "straightSets": "Straight sets",
+    "threeSets": "Three sets",
+    "result": {
+      "perfect": "Perfect call",
+      "right": "Right · margin off",
+      "wrong": "Wrong",
+      "heavyUpset": "Heavy upset called",
+      "perfectBadge": "PERFECT",
+      "rightBadge": "RIGHT",
+      "wrongBadge": "WRONG",
+      "upsetBadge": "UPSET"
+    },
+    "live": {
+      "tracking": "Tracking your pick",
+      "yourPickHeader": "Your pick"
+    },
+    "community": {
+      "pick": "Community pick",
+      "picks": "{n, plural, one {# pick} other {# picks}}",
+      "noPicksYet": "Be the first to pick"
+    },
+    "stats": {
+      "avgRanking": "avg ranking",
+      "lastFive": "last 5",
+      "h2h": "h2h"
+    },
+    "sponsor": "Predictions · presented by {brand}",
+    "myPicks": {
+      "title": "My picks",
+      "totalGuacas": "total guacas",
+      "accuracy": "accuracy",
+      "currentStreak": "streak",
+      "bestStreak": "best streak",
+      "rank": "RANK #{rank} · GLOBAL",
+      "filterAll": "All",
+      "filterPending": "Pending",
+      "filterWon": "Won",
+      "filterLost": "Lost",
+      "noPicks": "You haven't picked any matches yet",
+      "noPicksSub": "Tap PICK on any scheduled match to play."
+    }
   },
   "profileMenu": {
     "viewProfile": "View profile",
@@ -686,16 +724,44 @@
     "errorSignIn": "Sign in failed, please try again",
     "errorSendLink": "Failed to send link, please try again"
   },
-  "onboarding": {
-    "step1Title": "Find anything",
-    "step1Desc": "Find your favorite players, upcoming tournaments and matches.",
-    "step2Title": "Your following feed",
-    "step2Desc": "Follow the players and tournaments you love. Everything you care about, all in one place!",
-    "step3Title": "Earn badges",
-    "step3Desc": "Unlock badges as you explore! From Rookie to Padel Genius, collect them all and show off your padel passion.",
+  "loginCta": {
+    "title": "Save your favorites",
+    "bodyWithCount": "{count, plural, one {You're following 1 player. Sign in to keep them across devices.} other {You're following {count} items. Sign in to keep them across devices.}}",
+    "later": "Maybe later",
+    "signIn": "Sign in"
+  },
+  "notificationPrompt": {
+    "title": "Never miss a match",
+    "bodyWithNames": "Get notified when {names} go live or play in a final.",
+    "bodyGeneric": "Get notified when your players go live or play in a final.",
+    "enable": "Enable notifications",
+    "later": "Maybe later"
+  },
+  "picker": {
+    "title": "Who do you follow?",
+    "subtitle": "Pick at least one player to personalize your scores, news, and notifications",
+    "search": "Search for a player",
     "skip": "Skip",
-    "next": "Next →",
-    "done": "Done"
+    "continue": "Continue",
+    "topInCountry": "Top in {country}",
+    "topWorldwide": "Top players",
+    "errorLoading": "Couldn't load suggestions. Try again.",
+    "softHint": "{count, plural, one {Pick one more for better recommendations} other {Pick {count} more for better recommendations}}",
+    "searchResults": "Search results",
+    "noResults": "No players found for \"{query}\"",
+    "signIn": "Sign in"
+  },
+  "suggestedPlayers": {
+    "sectionTitle": "Suggested for you",
+    "more": "More",
+    "follow": "+ Follow",
+    "followed": "✓ Followed"
+  },
+  "welcomeStrip": {
+    "title": "Welcome to PadelNachos",
+    "followingCount": "{count, plural, one {Following 1 player} other {Following {count} players}}",
+    "syncHint": "Sign in anytime to keep them across devices",
+    "dismiss": "Dismiss"
   },
   "notifications": {
     "title": "Notifications",
@@ -861,71 +927,6 @@
     "searchAria": "Search country",
     "clearAria": "Clear search",
     "noMatch": "No country matches \"{query}\""
-  },
-  "prediction": {
-    "cta": {
-      "pick": "PICK",
-      "yourPick": "YOUR PICK",
-      "locked": "PICK"
-    },
-    "lockedTooltip": "Oops! This match is already live. Try predicting an upcoming match instead.",
-    "makeYourPick": "Make your pick",
-    "rewardShown": "Reward shown",
-    "favored": "{pct}% favored",
-    "underdog": "{pct}% underdog",
-    "tossUp": "{pct}% toss-up",
-    "unrankedTossUp": "Unranked — toss-up",
-    "upsetFlag": "UPSET",
-    "ifRight": "guacas if right",
-    "marginBonus": "+0.50× bonus if you nail the margin",
-    "marginBonusShort": "+0.50× bonus",
-    "youArePicking": "You're picking",
-    "change": "Change",
-    "lockedIn": "Locked in",
-    "tapToClose": "Tap to close",
-    "closingSoon": "Closing in a moment…",
-    "stayOpen": "Stay open",
-    "straightSets": "Straight sets",
-    "threeSets": "Three sets",
-    "result": {
-      "perfect": "Perfect call",
-      "right": "Right · margin off",
-      "wrong": "Wrong",
-      "heavyUpset": "Heavy upset called",
-      "perfectBadge": "PERFECT",
-      "rightBadge": "RIGHT",
-      "wrongBadge": "WRONG",
-      "upsetBadge": "UPSET"
-    },
-    "live": {
-      "tracking": "Tracking your pick",
-      "yourPickHeader": "Your pick"
-    },
-    "community": {
-      "pick": "Community pick",
-      "picks": "{n, plural, one {# pick} other {# picks}}",
-      "noPicksYet": "Be the first to pick"
-    },
-    "stats": {
-      "avgRanking": "avg ranking",
-      "lastFive": "last 5",
-      "h2h": "h2h"
-    },
-    "sponsor": "Predictions · presented by {brand}",
-    "myPicks": {
-      "title": "My picks",
-      "totalGuacas": "total guacas",
-      "accuracy": "accuracy",
-      "currentStreak": "streak",
-      "bestStreak": "best streak",
-      "rank": "RANK #{rank} · GLOBAL",
-      "filterAll": "All",
-      "filterPending": "Pending",
-      "filterWon": "Won",
-      "filterLost": "Lost",
-      "noPicks": "You haven't picked any matches yet",
-      "noPicksSub": "Tap PICK on any scheduled match to play."
-    }
   },
   "offline": {
     "title": "You're offline",

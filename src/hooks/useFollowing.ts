@@ -124,13 +124,52 @@ export function useFollowing() {
       const local = readLocalStorage()
 
       if (userId) {
-        const data = await fetchBookmarksDeduplicated(userId)
+        const migrationFlagKey = `pn_migrated_to_user_${userId}`
+        const alreadyMigrated =
+          typeof window !== 'undefined' &&
+          localStorage.getItem(migrationFlagKey) === '1'
+
+        let dbRows = await fetchBookmarksDeduplicated(userId)
+
+        // First-time-on-this-device migration: send any localStorage follows
+        // that aren't already in the user's DB bookmarks. POST is idempotent
+        // (route uses upsert with composite-key onConflict).
+        if (!alreadyMigrated) {
+          const { computeFollowMigration } = await import('@/lib/follow-migration')
+          const toMigrate = computeFollowMigration(local, dbRows)
+          let allSucceeded = true
+          if (toMigrate.length > 0) {
+            const results = await Promise.all(
+              toMigrate.map(item =>
+                fetch('/api/user/bookmarks', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(item),
+                })
+                  .then(r => r.ok)
+                  .catch(() => false),
+              ),
+            )
+            allSucceeded = results.every(Boolean)
+            // Re-fetch so the in-memory store reflects what just got persisted.
+            invalidateBookmarksCache()
+            dbRows = await fetchBookmarksDeduplicated(userId)
+          }
+          // Only mark migration complete if every POST landed (or there was nothing
+          // to migrate). On partial/total failure leave the flag unset so the next
+          // session retries.
+          if (allSucceeded) {
+            try {
+              localStorage.setItem(migrationFlagKey, '1')
+            } catch {}
+          }
+        }
 
         const dbMatches = new Set<string>()
         const dbPlayers = new Set<string>()
         const dbTournaments = new Set<string>()
 
-        for (const row of data) {
+        for (const row of dbRows) {
           if (row.bookmark_type === 'match') dbMatches.add(row.target_id)
           else if (row.bookmark_type === 'player') dbPlayers.add(row.target_id)
           else if (row.bookmark_type === 'tournament') dbTournaments.add(row.target_id)
@@ -163,8 +202,13 @@ export function useFollowing() {
   )
 
   const toggle = useCallback(
-    async (type: FollowType, targetId: string) => {
+    async (
+      type: FollowType,
+      targetId: string,
+      opts?: { silent?: boolean },
+    ) => {
       const isCurrently = store[type].has(targetId)
+      const silent = opts?.silent === true
 
       // Optimistic update
       setStore(prev => {
@@ -184,7 +228,9 @@ export function useFollowing() {
       })
 
       // Fire bookmark feedback toast (skip news_source — not a user-facing bookmark)
-      if (type !== 'news_source' && typeof window !== 'undefined') {
+      // Suppressed entirely when `silent: true` — used by the picker which writes
+      // many follows at once and surfaces a single consolidated prompt instead.
+      if (!silent && type !== 'news_source' && typeof window !== 'undefined') {
         // Attach the enable-push CTA on the first follow/bookmark-ADD when:
         //   (a) the action is a net-new follow (not an unfollow), and
         //   (b) the type is one the user wants real-time alerts on

@@ -347,7 +347,6 @@ export default function BottomNavV3() {
               }}
               href={tab.href}
               prefetch={true}
-              data-coachmark={tab.key === 'following' ? 'following' : undefined}
               onClick={saveCurrentScroll}
               className={`v3-nav-tab${isActive ? ' v3-tab-active' : ''}${wasActive ? ' v3-tab-was-active' : ''}`}
               style={{

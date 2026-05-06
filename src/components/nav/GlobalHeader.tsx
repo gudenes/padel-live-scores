@@ -89,7 +89,6 @@ export default function GlobalHeader() {
 
         {/* Search trigger — opens SearchOverlay */}
         <div
-          data-coachmark="search"
           onClick={() => setSearchOpen(true)}
           style={{
             flex: 1,
