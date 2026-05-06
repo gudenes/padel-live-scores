@@ -958,6 +958,15 @@
         "label": "Push notifications",
         "description": "Receive live-match alerts on this device, even without signing in."
       }
+    },
+    "pwaInstall": {
+      "title": "Get notifications on iPhone",
+      "body": "Add PadelNachos to your home screen — takes 5 seconds.",
+      "shareLabel": "Tap Share at the bottom",
+      "addLabel": "Tap Add to Home Screen",
+      "openLabel": "Open the app from your home screen",
+      "maybeLater": "Maybe later",
+      "gotIt": "Got it"
     }
   }
 }

@@ -937,6 +937,15 @@
         "label": "Notifications push",
         "description": "Recevez des alertes en direct sur cet appareil, sans vous connecter."
       }
+    },
+    "pwaInstall": {
+      "title": "Recevoir des notifications sur iPhone",
+      "body": "Ajoutez PadelNachos à votre écran d accueil — 5 secondes.",
+      "shareLabel": "Appuyez sur Partager en bas",
+      "addLabel": "Appuyez sur Sur l écran d accueil",
+      "openLabel": "Ouvrez l app depuis votre écran d accueil",
+      "maybeLater": "Plus tard",
+      "gotIt": "Compris"
     }
   }
 }

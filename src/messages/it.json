@@ -937,6 +937,15 @@
         "label": "Notifiche push",
         "description": "Ricevi notifiche di partite live su questo dispositivo, senza accedere."
       }
+    },
+    "pwaInstall": {
+      "title": "Ricevi notifiche su iPhone",
+      "body": "Aggiungi PadelNachos alla schermata Home — ci vogliono 5 secondi.",
+      "shareLabel": "Tocca Condividi in basso",
+      "addLabel": "Tocca Aggiungi alla schermata Home",
+      "openLabel": "Apri l app dalla schermata Home",
+      "maybeLater": "Forse più tardi",
+      "gotIt": "Ho capito"
     }
   }
 }

@@ -937,6 +937,15 @@
         "label": "Notificações push",
         "description": "Receba alertas de partidas ao vivo neste dispositivo, sem precisar fazer login."
       }
+    },
+    "pwaInstall": {
+      "title": "Receba notificações no iPhone",
+      "body": "Adicione o PadelNachos à tela inicial — leva 5 segundos.",
+      "shareLabel": "Toque em Compartilhar embaixo",
+      "addLabel": "Toque em Adicionar à Tela de Início",
+      "openLabel": "Abra o app pela tela inicial",
+      "maybeLater": "Talvez depois",
+      "gotIt": "Entendi"
     }
   }
 }
