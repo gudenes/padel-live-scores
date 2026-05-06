@@ -5,6 +5,7 @@
 import { useTranslations } from 'next-intl'
 import { useFollowing } from '@/hooks/useFollowing'
 import { useAnonPush } from '@/hooks/useAnonPush'
+import { tryEnablePushOrShowInstallNudge } from '@/lib/pwa-install'
 
 const GREEN = '#7ED321'
 const CHUNKY = {
@@ -34,7 +35,8 @@ export function NotificationPromptSheet({ pickedNames, onResolve }: Props) {
       ...getFollowed('player').map(id => ({ type: 'player' as const, target_id: id })),
       ...getFollowed('match').map(id => ({ type: 'match' as const, target_id: id })),
     ]
-    const granted = await anonPush.ensureSubscription(initial)
+    const result = await tryEnablePushOrShowInstallNudge(initial, 'picker')
+    const granted = result.enabled
     onResolve(granted)
   }
 
