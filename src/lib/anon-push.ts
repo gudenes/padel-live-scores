@@ -230,14 +230,27 @@ export async function unsubscribe(): Promise<void> {
 /**
  * Migrate this device's anon subscriptions to the now-signed-in user.
  * Called from the existing useFollowing sign-in migration block.
+ *
+ * Failures are logged but not thrown — the surrounding sign-in flow
+ * shouldn't break if migration hits a network blip. Anon rows that
+ * fail to migrate stay in place; the 90-day cleanup cron eventually
+ * drops them, or the user can re-subscribe under their user_id which
+ * silently absorbs them on the next migrate retry.
  */
 export async function migrateToUser(): Promise<void> {
   const deviceId = getDeviceId()
   const payload = buildMigrationPayload(deviceId)
   if (!payload) return
-  await fetch('/api/anon/push-subscriptions/migrate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).catch(() => null)
+  try {
+    const res = await fetch('/api/anon/push-subscriptions/migrate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      console.error('[anon-push] migrateToUser non-ok response', res.status)
+    }
+  } catch (err) {
+    console.error('[anon-push] migrateToUser network error', err)
+  }
 }
