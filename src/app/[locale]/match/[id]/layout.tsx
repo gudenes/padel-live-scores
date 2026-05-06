@@ -125,6 +125,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function MatchLayout({ params, children }: Props) {
   let jsonLd: object | null = null
+  let h1Text: string | null = null
 
   try {
     const { id } = await params
@@ -197,6 +198,13 @@ export default async function MatchLayout({ params, children }: Props) {
             ...(competitor.length > 0 ? { competitor } : {}),
           }
         : null
+
+    if (p1 && p2) {
+      const tournamentName = tournament?.name ?? ''
+      h1Text = tournamentName
+        ? `${p1} vs ${p2} — ${tournamentName}`
+        : `${p1} vs ${p2}`
+    }
   } catch {
     // DB unavailable — render children without JSON-LD
   }
@@ -209,6 +217,9 @@ export default async function MatchLayout({ params, children }: Props) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
+      {/* SEO/a11y heading — visible match title is a styled div in the
+          client page's score grid for design reasons. */}
+      {h1Text && <h1 className="sr-only">{h1Text}</h1>}
       {children}
     </>
   )

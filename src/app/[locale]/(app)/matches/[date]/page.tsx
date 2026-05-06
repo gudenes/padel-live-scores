@@ -134,6 +134,10 @@ export default async function DailyMatchesPage({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd).replace(/</g, '\\u003c') }}
       />
 
+      {/* SEO/a11y heading — visible day pills + match list serve as
+          the primary visual hierarchy; the h1 itself stays SR-only. */}
+      <h1 className="sr-only">{intro.h1}</h1>
+
       {/* Global app header — same logo / search / share / profile pattern
           as home, feed, following. */}
       <MatchesPageHeader />

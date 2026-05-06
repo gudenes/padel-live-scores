@@ -50,6 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PlayerLayout({ params, children }: Props) {
   let jsonLd: object | null = null
+  let playerName: string | null = null
 
   try {
     const { id } = await params
@@ -61,6 +62,7 @@ export default async function PlayerLayout({ params, children }: Props) {
       .eq('id', id)
       .single()
 
+    playerName = player?.name ?? null
     jsonLd = player
       ? {
           '@context': 'https://schema.org',
@@ -81,6 +83,11 @@ export default async function PlayerLayout({ params, children }: Props) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+      )}
+      {/* SEO/a11y heading — visible name lives inside the client page's
+          hero block as a styled div for design reasons. */}
+      {playerName && (
+        <h1 className="sr-only">{playerName} — Padel Player Profile & Stats</h1>
       )}
       {children}
     </>

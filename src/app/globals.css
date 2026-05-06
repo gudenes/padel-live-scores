@@ -410,3 +410,18 @@ button:focus { outline: none; }
   }
 }
 
+/* Visually-hidden but readable by screen readers and search engines.
+   Used for SEO/a11y h1 tags on pages where the visible heading is
+   styled as a non-semantic <div> (e.g. score grids, profile heroes). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
