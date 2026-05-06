@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
-import { searchFipPlayer, buildSearchUrl, candidateQueries } from '../fip-player-search'
+import {
+  searchFipPlayer,
+  buildSearchUrl,
+  candidateQueries,
+  nameTokensOverlap,
+  isPlausibleNameMatch,
+} from '../fip-player-search'
 
 // Sample API payloads — shape verified live against
 // https://www.padelfip.com/wp-json/fip/v1/player/search
@@ -358,5 +364,113 @@ describe('searchFipPlayer', () => {
       }]]) }
     )
     expect(r!.fullName).toBe('Genaro Manuel Campuzano Vazquez')
+  })
+
+  it('rejects same-surname-only matches (regression: Asuncion P2 women, Nuria→Elvira)', async () => {
+    // Real bug: input "Nuria Rodriguez Camacho" not in FIP (no fip_id yet);
+    // the surname-only candidate query "Camacho" returns "Elvira Camacho
+    // Marente" who passes country (ESP) and gender (female) filters. Without
+    // a name-overlap guard the snapshot stored Elvira at Nuria's row,
+    // poisoning downstream draw resolution. Now we expect the wrong-player
+    // hit to be filtered out and the search to return null.
+    const elvira = {
+      player_id: 'P201666',
+      name: 'Elvira',
+      surname: 'Camacho Marente',
+      nationality: 'ESP',
+      gender: 'female',
+      rank: 95, points: 540, year: 2026, week_no: 18,
+      url: '', category: 'master', thumbnail: '', country_flag: '', country_name: 'ESP',
+    }
+    // candidateQueries('Nuria Rodriguez Camacho') = ['Nuria Rodriguez Camacho', 'Rodriguez Camacho', 'Camacho']
+    const { fetchFn, urls } = recordingFetch([
+      [],                 // full name — no hits
+      [],                 // 'Rodriguez Camacho' — no hits
+      [elvira],           // 'Camacho' — wrong same-surname player
+    ])
+    const r = await searchFipPlayer(
+      { name: 'Nuria Rodriguez Camacho', country: 'ESP', category: 'women', rankingHint: 36 },
+      { fetchFn }
+    )
+    expect(r).toBeNull()
+    expect(urls.length).toBe(3)
+  })
+
+  it('rejects wrong same-surname match where input shares only a connecting word ("Fernández")', async () => {
+    // Real bug: input "Marta Borrero Fernández" got resolved to wholly
+    // different "Claudia Fernandez Sanchez" via the surname-only fallback.
+    const claudia = {
+      player_id: 'P200006',
+      name: 'Claudia',
+      surname: 'Fernandez Sanchez',
+      nationality: 'ESP',
+      gender: 'female',
+      rank: 6, points: 12620, year: 2026, week_no: 18,
+      url: '', category: 'master', thumbnail: '', country_flag: '', country_name: 'ESP',
+    }
+    const { fetchFn } = recordingFetch([[], [], [claudia]])
+    const r = await searchFipPlayer(
+      { name: 'Marta Borrero Fernández', country: 'ESP', category: 'women', rankingHint: 44 },
+      { fetchFn }
+    )
+    expect(r).toBeNull()
+  })
+
+  it('still accepts a legitimate match with 2-token overlap (Olga Bareiro via surname-only fallback)', async () => {
+    // Regression check for the existing "next candidate query" behaviour:
+    // surname-only fallback that returns the RIGHT player must still pass.
+    const realHit = {
+      player_id: 'P209603', name: 'Olga', surname: 'Bareiro',
+      nationality: 'PAR', gender: 'female', rank: 618, points: 16, year: 2026, week_no: 17,
+      url: '', category: 'master', thumbnail: '', country_flag: '', country_name: 'PAR',
+    }
+    const { fetchFn } = recordingFetch([[], [], [], [], [], [realHit]])
+    const r = await searchFipPlayer(
+      { name: 'Olga Arami Bareiro Mora', country: 'PAR', category: 'women' },
+      { fetchFn }
+    )
+    expect(r?.playerId).toBe('P209603')
+  })
+})
+
+describe('nameTokensOverlap', () => {
+  it('counts shared ≥3-char tokens (case- and accent-insensitive)', () => {
+    expect(nameTokensOverlap('Nuria Rodriguez Camacho', 'Elvira Camacho Marente')).toBe(1)
+    expect(nameTokensOverlap('Olga Arami Bareiro Mora', 'Olga Bareiro')).toBe(2)
+    expect(nameTokensOverlap('Marta Borrero Fernández', 'Claudia Fernandez Sanchez')).toBe(1)
+  })
+
+  it('ignores short connecting words like "de", "la", "do"', () => {
+    // "de" and "la" should not contribute to overlap
+    expect(nameTokensOverlap('Maria de la Paz', 'Pedro de la Cruz')).toBe(0)
+  })
+
+  it('returns 0 for empty inputs', () => {
+    expect(nameTokensOverlap('', 'Anyone')).toBe(0)
+    expect(nameTokensOverlap('Anyone', '')).toBe(0)
+  })
+})
+
+describe('isPlausibleNameMatch', () => {
+  it('requires ≥2 overlapping tokens for multi-token inputs', () => {
+    expect(isPlausibleNameMatch('Nuria Rodriguez Camacho', 'Elvira Camacho Marente')).toBe(false)
+    expect(isPlausibleNameMatch('Nuria Rodriguez Camacho', 'Nuria Rodriguez')).toBe(true)
+    expect(isPlausibleNameMatch('Olga Arami Bareiro Mora', 'Olga Bareiro')).toBe(true)
+  })
+
+  it('requires all tokens to overlap for single-token inputs', () => {
+    // Single-token input falls back to "all tokens must overlap" — preserves
+    // backwards-compat with existing tests like `name: 'Cleo'`.
+    expect(isPlausibleNameMatch('Cleo', 'Cleo Carvalho')).toBe(true)
+    expect(isPlausibleNameMatch('Cleo', 'Mario Garcia')).toBe(false)
+  })
+
+  it('rejects when only short connecting tokens overlap', () => {
+    expect(isPlausibleNameMatch('Maria de la Paz', 'Pedro de la Cruz')).toBe(false)
+  })
+
+  it('handles diacritics and case', () => {
+    expect(isPlausibleNameMatch('Marta Borrero Fernández', 'Marta Borrero Fernandez')).toBe(true)
+    expect(isPlausibleNameMatch('GIULIA DAL POZZO', 'Giulia dal pozzo')).toBe(true)
   })
 })

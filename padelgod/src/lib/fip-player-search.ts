@@ -77,6 +77,46 @@ export function candidateQueries(name: string): string[] {
   return [...new Set(out)];
 }
 
+function tokenizeName(s: string): string[] {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter((t) => t.length >= 3);
+}
+
+/**
+ * Count distinct ≥3-char tokens shared by two names. Short connecting words
+ * ("de", "la", "do") are excluded so they can't fake a match.
+ */
+export function nameTokensOverlap(a: string, b: string): number {
+  const aTokens = new Set(tokenizeName(a));
+  if (aTokens.size === 0) return 0;
+  const bTokens = new Set(tokenizeName(b));
+  let n = 0;
+  for (const t of aTokens) if (bTokens.has(t)) n++;
+  return n;
+}
+
+/**
+ * Decide whether a search hit's full name plausibly matches the input name.
+ * Guards against the surname-only candidate query returning an unrelated
+ * player who happens to share one surname token (e.g. searching for
+ * "Nuria Rodriguez Camacho" via the "Camacho" fallback and getting back
+ * "Elvira Camacho Marente"). Requires at least 2 distinct ≥3-char tokens
+ * to overlap, OR — when the input name itself has fewer than 2 such tokens
+ * — every input token to overlap.
+ */
+export function isPlausibleNameMatch(inputName: string, hitFullName: string): boolean {
+  const inputTokens = tokenizeName(inputName);
+  if (inputTokens.length === 0) return false;
+  const required = Math.min(2, inputTokens.length);
+  return nameTokensOverlap(inputName, hitFullName) >= required;
+}
+
 function toResult(h: RawSearchHit): FipPlayerSearchResult {
   return {
     playerId: h.player_id,
@@ -112,6 +152,14 @@ export async function searchFipPlayer(
     if (wantCountry) {
       pool = pool.filter((h) => normalizeCountry(h.nationality) === wantCountry);
     }
+    // Reject hits whose full name doesn't share enough tokens with the
+    // input. Without this guard the surname-only candidate query (e.g.
+    // "Camacho" derived from "Nuria Rodriguez Camacho") returns whoever
+    // happens to share that surname (e.g. "Elvira Camacho Marente"), and
+    // the country/gender filters happily pass them through.
+    pool = pool.filter((h) =>
+      isPlausibleNameMatch(input.name, `${h.name} ${h.surname}`.trim())
+    );
     if (pool.length === 0) return null;
     if (pool.length === 1) return toResult(pool[0]!);
     if (input.rankingHint != null) {
