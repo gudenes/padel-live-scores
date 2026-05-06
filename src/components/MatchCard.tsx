@@ -973,7 +973,7 @@ function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
     }
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     if (!open) {
-      dismissTimerRef.current = setTimeout(() => setOpen(false), 3500)
+      dismissTimerRef.current = setTimeout(() => setOpen(false), 4500)
     }
   }
 
@@ -1029,7 +1029,6 @@ function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
             maxWidth: 260,
             padding: '10px 12px 10px 14px',
             background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)',
-            borderLeft: `2px solid ${accent}`,
             borderRadius: 8,
             boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 0 24px ${accent}10`,
             cursor: 'pointer',
