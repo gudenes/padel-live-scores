@@ -912,5 +912,31 @@
     "subtitle": "No podemos acceder a los marcadores en directo ahora mismo. Mostrando lo último cargado.",
     "retry": "Reintentar",
     "banner": "Sin conexión — última conexión a las {time}"
+  },
+  "consent": {
+    "title": "Usamos cookies",
+    "body": "Usamos cookies para mejorar resultados y rankings, entender cómo se usa la app y (próximamente) enviarte alertas de partidos en directo en los dispositivos que elijas.",
+    "privacyLink": "Leer nuestra Política de Privacidad",
+    "rejectAll": "Rechazar todo",
+    "customize": "Personalizar",
+    "acceptAll": "Aceptar todo",
+    "customizeTitle": "Gestionar cookies",
+    "customizeSave": "Guardar preferencias",
+    "customizeCancel": "Cancelar",
+    "categories": {
+      "essential": {
+        "label": "Esenciales",
+        "lockedNote": "Siempre activos",
+        "description": "Inicio de sesión, idioma y tus seguidos guardados."
+      },
+      "analytics": {
+        "label": "Analítica",
+        "description": "PostHog, Vercel Analytics e informes de errores de Sentry. Nos ayuda a mejorar la app."
+      },
+      "push": {
+        "label": "Notificaciones push",
+        "description": "Recibe alertas de partidos en directo en este dispositivo, sin necesidad de iniciar sesión."
+      }
+    }
   }
 }
