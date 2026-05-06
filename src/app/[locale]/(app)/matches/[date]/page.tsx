@@ -195,25 +195,48 @@ function buildJsonLd({
   intro: { h1: string; lead: string }
   matches: MatchesDayMatch[]
 }) {
-  const items = matches.slice(0, 50).map((m, i) => {
+  const items = matches.slice(0, 50).flatMap((m, i) => {
     const p1 = [m.pair1_player1, m.pair1_player2].filter(Boolean).map(p => (p!.display_name || p!.name || '').trim()).filter(Boolean)
     const p2 = [m.pair2_player1, m.pair2_player2].filter(Boolean).map(p => (p!.display_name || p!.name || '').trim()).filter(Boolean)
-    return {
+    // Fall back to tournament start when match-level scheduling is missing.
+    // SportsEvent without a startDate is invalid in Search Console; matches
+    // that can't supply either are skipped entirely rather than emitted
+    // broken.
+    const startDate = m.scheduled_at ?? m.tournament?.starts_at ?? null
+    if (!startDate) return []
+
+    const buildTeam = (names: string[]) =>
+      names.length > 0
+        ? {
+            '@type': 'SportsTeam',
+            name: names.join(' / '),
+            athlete: names.map((n) => ({ '@type': 'Person', name: n })),
+          }
+        : null
+    const competitor = [buildTeam(p1), buildTeam(p2)].filter(Boolean)
+
+    return [{
       '@type': 'ListItem',
       position: i + 1,
       item: {
         '@type': 'SportsEvent',
         name: `${p1.join(' / ')} vs ${p2.join(' / ')}`,
-        startDate: m.scheduled_at,
+        startDate,
+        ...(m.finished_at ? { endDate: m.finished_at } : {}),
         sport: 'Padel',
         url: `https://padelnachos.com/match/${m.id}`,
         location: m.tournament
-          ? { '@type': 'Place', name: m.tournament.name }
+          ? {
+              '@type': 'Place',
+              name: m.tournament.name,
+              ...(m.tournament.country ? { address: m.tournament.country } : {}),
+            }
           : { '@type': 'Place', name: 'Padel Tournament' },
         eventStatus:
           m.status === 'live' ? 'https://schema.org/EventInProgress'
           : m.status === 'scheduled' ? 'https://schema.org/EventScheduled'
           : 'https://schema.org/EventOnHold',
+        ...(competitor.length > 0 ? { competitor } : {}),
         superEvent: m.tournament
           ? {
               '@type': 'SportsEvent',
@@ -222,7 +245,7 @@ function buildJsonLd({
             }
           : undefined,
       },
-    }
+    }]
   })
   const locPrefix = locale === 'en' ? '' : `/${locale}`
   return {
