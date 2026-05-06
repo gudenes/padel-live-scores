@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+:root {
+  /* Neutrals (Tailwind zinc) */
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --surface-2: #f4f4f5;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --text: #18181b;
+  --text-muted: #52525b;
+  --text-subtle: #71717a;
+
+  /* Accent — Lime (Tailwind lime) */
+  --lime-50: #f7fee7;
+  --lime-100: #ecfccb;
+  --lime-200: #d9f99d;
+  --lime-300: #bef264;
+  --lime-400: #a3e635;
+  --lime-500: #84cc16;
+  --lime-600: #65a30d;
+  --lime-700: #4d7c0f;
+  --lime-900: #1a2e05;
+
+  /* Fonts (system stack only — no custom font load) */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+a { color: inherit; text-decoration: none; }
+
+/* ───── Sentry-style buttons (the satisfying ones) ───── */
+.btn {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.12s ease;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--lime-400) 0%, var(--lime-500) 100%);
+  color: var(--lime-900);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 1px 2px rgba(26, 46, 5, 0.12),
+    0 4px 10px -2px rgba(132, 204, 22, 0.32);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--lime-300) 0%, var(--lime-400) 100%);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 4px rgba(26, 46, 5, 0.14),
+    0 10px 20px -4px rgba(132, 204, 22, 0.45);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  background: linear-gradient(180deg, var(--lime-500) 0%, var(--lime-600) 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(26, 46, 5, 0.2),
+    0 1px 1px rgba(26, 46, 5, 0.1);
+}
+
+.btn-secondary {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: #a1a1aa;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.08);
+}
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(0);
+  background: var(--surface-2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* ───── Brand mark (lime gradient square) ───── */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--lime-400) 0%, var(--lime-500) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 6px rgba(132, 204, 22, 0.32);
+  color: var(--lime-900);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* ───── Inputs ───── */
+.input {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 11px 14px;
+  width: 100%;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--lime-500);
+  box-shadow: 0 0 0 3px var(--lime-100);
+}

@@ -59,6 +59,25 @@ supabase/
   migrations/              # SQL migrations (applied via Supabase dashboard)
 ```
 
+## Padel Labs (apps/labs/) — B2B prosumer SaaS
+
+Padel Labs is a separate Next.js app at `apps/labs/` deployed to `padellabs.tech`. It productizes the same data Padel Nachos collects, sold to padel content creators (analysts, YouTubers, coaches) as a chat + templates + exports product. Independent npm package (no workspaces), separate Vercel project with `Root Directory = apps/labs/`. Shares the same Supabase project — reads from public tables, writes to `labs_*` tables. See [v1 design](docs/superpowers/specs/2026-05-06-padel-labs-v1-design.md) and [Phase 1 plan](docs/superpowers/plans/2026-05-06-padel-labs-v1-phase-1-foundation.md).
+
+### Padel Labs DB tables
+
+All prefixed `labs_*`:
+
+| Table | Purpose |
+|---|---|
+| `labs_subscriptions` | Stripe subscription state (tier, status, period_end) per user |
+| `labs_conversations` | Chat session container (title, locale, timestamps) |
+| `labs_messages` | Individual chat turns (role, content, citations, cost tokens) |
+| `labs_saved_queries` | User-saved questions for re-running |
+| `labs_usage_events` | Per-question metering for rate limits + analytics |
+| `labs_template_runs` | Template execution log |
+
+Auth users live in `public.users` (Auth.js v5 PostgresAdapter table — same as Padel Nachos).
+
 ## Database Tables
 
 | Table | Purpose | Key columns |
