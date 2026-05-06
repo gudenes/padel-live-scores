@@ -41,8 +41,6 @@ export function PickerCard({ player, picked, onToggle }: Props) {
       onClick={() => onToggle(player.id)}
       aria-pressed={picked}
       style={{
-        width: 110,
-        flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
