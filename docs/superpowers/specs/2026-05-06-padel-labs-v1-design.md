@@ -66,12 +66,15 @@ The chat alone is commodity. The chat + data + outputs + workflow templates is t
         └── padellabs.tech    → APIs + chat + templates (B2B / prosumer)
   ```
 
-- **Domains:**
-  - `padellabs.tech` — marketing site + public demo chat (IP-throttled, no auth)
-  - `app.padellabs.tech` — authenticated workspace (the actual product)
+- **Multi-module platform.** `padellabs.tech` is the marketing umbrella showcasing all modules. Each module lives at its own subdomain. Existing module: `padelboard.padellabs.tech` (live scores, rankings — already shipped).
+- **Domains for v1:**
+  - `padellabs.tech` — marketing umbrella (ships full polish in Phase 5; Phase 1 has a placeholder)
+  - `analyst.padellabs.tech` — the chat module (working name "Padel Analyst") — authenticated workspace + public demo chat
   - `api.padellabs.tech` — internal API host (powers both surfaces; not publicly documented in v1)
   - `cdn.padellabs.tech` — image / static assets (deferred until needed)
   - `docs.padellabs.tech` — deferred to v2
+
+  See [`2026-05-06-padel-labs-brand-design-system.md`](2026-05-06-padel-labs-brand-design-system.md) for full IA + brand decisions.
 
 - **Repo:** stays in the existing `padel-live-scores` monorepo. New folder `apps/labs/` for the Next.js 16 app. **Do not fork.** Shared types via `../../src/lib/...` initially; extract `packages/` later when reuse pressure warrants it.
 
@@ -107,7 +110,7 @@ Capabilities the chat + templates can answer in v1, mapped to existing data:
 - Public demo chat embedded on homepage — IP-rate-limited (e.g. 5 questions per IP per day, no auth required)
 - Marketing positioning: *"The data engine for padel content creators — chat with the numbers, ship branded cards in seconds."* (NOT "AI chatbot for padel.")
 
-### 6.2 Authenticated workspace at `app.padellabs.tech`
+### 6.2 Authenticated workspace at `analyst.padellabs.tech`
 
 Sidebar layout:
 

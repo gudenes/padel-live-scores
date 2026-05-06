@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deploy a new `apps/labs/` Next.js 16 app at `padellabs.tech` with Auth.js v5 (magic-link + Google OAuth), the seven `labs_*` Supabase tables, a placeholder marketing landing page, and a stubbed authenticated workspace. No AI yet — this phase establishes the scaffolding.
+**Goal:** Deploy a new `apps/labs/` Next.js 16 app serving both `padellabs.tech` (placeholder marketing umbrella) and `analyst.padellabs.tech` (chat module — the v1 product) with Auth.js v5 (magic-link + Google OAuth), the six `labs_*` Supabase tables, and a stubbed authenticated workspace. No AI yet — this phase establishes the scaffolding.
 
-**Architecture:** New independent npm package at `apps/labs/` (mirrors the existing `relay/` and `padelgod/` sibling-package pattern — not npm workspaces). New Vercel project with `Root Directory = apps/labs/`. Auth.js v5 with `@auth/pg-adapter` pointing at the same Supabase Postgres as Padel Nachos. Seven `labs_*` tables created via a single Supabase migration with RLS policies. No data duplication; reads from existing public tables come later in Phase 2.
+**Visual direction:** light theme, white-predominant, lime accent (`#84cc16`), system font stack, Sentry-style buttons. See [brand design system spec](../specs/2026-05-06-padel-labs-brand-design-system.md) for tokens and rationale.
+
+**Architecture:** New independent npm package at `apps/labs/` (mirrors the existing `relay/` and `padelgod/` sibling-package pattern — not npm workspaces). New Vercel project with `Root Directory = apps/labs/`. Auth.js v5 with `@auth/pg-adapter` pointing at the same Supabase Postgres as Padel Nachos. Six `labs_*` tables created via a single Supabase migration with RLS enabled (defense-in-depth). No data duplication; reads from existing public tables come later in Phase 2.
 
 **Tech Stack:** Next.js 16.2.0, React 19.2.4, TypeScript 5, Tailwind 4, Auth.js v5 (next-auth 5.0.0-beta.31), `@auth/pg-adapter`, `@supabase/supabase-js`, Resend (magic-link delivery), Vitest 4 (smoke tests), Vercel.
 
@@ -18,7 +20,7 @@ This is Phase 1 of 5 (see [v1 design spec](../specs/2026-05-06-padel-labs-v1-des
 - **P4 — Billing + Rate-limiting**: Stripe Checkout, free/pro gates, usage metering
 - **P5 — Marketing site + i18n**: 5-locale marketing site, public demo chat
 
-Phase 1's deliverable: `https://padellabs.tech` and `https://app.padellabs.tech` are live; you can sign in with magic-link or Google; clicking "Ask" routes to a placeholder page that hits `POST /api/v1/ask` and renders a hardcoded response.
+Phase 1's deliverable: `https://padellabs.tech` (placeholder umbrella) and `https://analyst.padellabs.tech` (the chat module's auth + workspace shell) are live; you can sign in with magic-link or Google; clicking "Ask" routes to a placeholder page that hits `POST /api/v1/ask` and renders a hardcoded response.
 
 ## File Structure
 
@@ -145,7 +147,7 @@ SUPABASE_SERVICE_KEY=
 
 # Auth.js v5
 AUTH_SECRET=                     # openssl rand -base64 32
-AUTH_URL=http://localhost:3003   # production: https://app.padellabs.tech
+AUTH_URL=http://localhost:3003   # production: https://analyst.padellabs.tech
 DATABASE_URL=                    # postgres://... full connection string to Supabase Postgres
 
 # OAuth
@@ -276,19 +278,142 @@ export default defineConfig({
 
 - [ ] **Step 2.6: Write `apps/labs/src/app/globals.css`**
 
+Tokens come from the [brand design system spec](../specs/2026-05-06-padel-labs-brand-design-system.md) §2 and §4. Light theme, lime accent, zinc neutrals, system font, Sentry-style buttons.
+
 ```css
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
-  --brand-green: #7ed321;
+  /* Neutrals (Tailwind zinc) */
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --surface-2: #f4f4f5;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --text: #18181b;
+  --text-muted: #52525b;
+  --text-subtle: #71717a;
+
+  /* Accent — Lime (Tailwind lime) */
+  --lime-50: #f7fee7;
+  --lime-100: #ecfccb;
+  --lime-200: #d9f99d;
+  --lime-300: #bef264;
+  --lime-400: #a3e635;
+  --lime-500: #84cc16;
+  --lime-600: #65a30d;
+  --lime-700: #4d7c0f;
+  --lime-900: #1a2e05;
+
+  /* Fonts (system stack only — no custom font load) */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 html, body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+a { color: inherit; text-decoration: none; }
+
+/* ───── Sentry-style buttons (the satisfying ones) ───── */
+.btn {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+              background 0.12s ease;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--lime-400) 0%, var(--lime-500) 100%);
+  color: var(--lime-900);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 1px 2px rgba(26, 46, 5, 0.12),
+    0 4px 10px -2px rgba(132, 204, 22, 0.32);
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--lime-300) 0%, var(--lime-400) 100%);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 4px rgba(26, 46, 5, 0.14),
+    0 10px 20px -4px rgba(132, 204, 22, 0.45);
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+  background: linear-gradient(180deg, var(--lime-500) 0%, var(--lime-600) 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(26, 46, 5, 0.2),
+    0 1px 1px rgba(26, 46, 5, 0.1);
+}
+
+.btn-secondary {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: #a1a1aa;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.08);
+}
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(0);
+  background: var(--surface-2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* ───── Brand mark (lime gradient square) ───── */
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--lime-400) 0%, var(--lime-500) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 6px rgba(132, 204, 22, 0.32);
+  color: var(--lime-900);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+/* ───── Inputs ───── */
+.input {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 11px 14px;
+  width: 100%;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--lime-500);
+  box-shadow: 0 0 0 3px var(--lime-100);
 }
 ```
 
@@ -668,7 +793,7 @@ git commit -m "feat(labs): add root layout"
 
 - [ ] **Step 6.1: Write `apps/labs/src/app/page.tsx`**
 
-Minimal landing page — sets up the brand vibe and gives users a "Sign in" CTA. Polish lands in Phase 5.
+Phase 1 is a **minimal placeholder**, not the polished multi-module landing — that ships in Phase 5. Light theme, lime accent, system fonts, Sentry-style buttons (the `.btn` classes from globals.css). NO emojis or arrow characters.
 
 ```tsx
 // apps/labs/src/app/page.tsx
@@ -676,26 +801,75 @@ import Link from 'next/link'
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
+    <main style={{ minHeight: '100vh' }} className="flex items-center justify-center px-6">
       <div className="max-w-2xl text-center">
-        <p className="text-xs uppercase tracking-widest text-[var(--brand-green)] mb-4">
-          Padel Labs
-        </p>
-        <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-6">
-          The data engine for padel content creators.
-        </h1>
-        <p className="text-lg text-neutral-400 mb-10">
-          Chat with live padel data. Ship branded stat cards in seconds. Built for
-          analysts, YouTubers, and coaches.
-        </p>
-        <Link
-          href="/login"
-          className="inline-block bg-[var(--brand-green)] text-black font-semibold px-8 py-3 rounded-lg hover:opacity-90 transition"
+        {/* Brand mark + wordmark */}
+        <div className="flex items-center justify-center gap-2.5 mb-10">
+          <span className="brand-mark" style={{ width: 30, height: 30, fontSize: 15 }}>P</span>
+          <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: '-0.015em' }}>
+            padel <span style={{ color: 'var(--text-subtle)', fontWeight: 500 }}>labs</span>
+          </span>
+        </div>
+
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'var(--lime-50)',
+            color: 'var(--lime-700)',
+            border: '1px solid var(--lime-200)',
+            padding: '5px 11px',
+            borderRadius: 999,
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+            marginBottom: 24,
+          }}
         >
-          Sign in
-        </Link>
-        <p className="mt-6 text-xs text-neutral-600">
-          Marketing site — full polish lands in Phase 5
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              background: 'var(--lime-500)',
+              borderRadius: '50%',
+              boxShadow: '0 0 0 3px var(--lime-100)',
+            }}
+          />
+          The padel data platform
+        </span>
+
+        <h1
+          style={{
+            fontSize: 56,
+            lineHeight: 1.05,
+            letterSpacing: '-0.035em',
+            fontWeight: 700,
+            margin: '0 0 22px',
+          }}
+        >
+          One platform.<br />Every padel data tool you need.
+        </h1>
+        <p
+          style={{
+            fontSize: 19,
+            lineHeight: 1.55,
+            color: 'var(--text-muted)',
+            margin: '0 0 36px',
+          }}
+        >
+          Modules powering the next generation of padel content, analytics, and tools.
+        </p>
+
+        <div className="flex items-center justify-center gap-3">
+          <Link href="/login" className="btn btn-primary">Get started</Link>
+          <Link href="https://padelboard.padellabs.tech" className="btn btn-secondary">
+            See Padelboard
+          </Link>
+        </div>
+
+        <p style={{ marginTop: 36, fontSize: 12, color: 'var(--text-subtle)' }}>
+          Phase 1 placeholder. Full multi-module marketing site ships in Phase 5.
         </p>
       </div>
     </main>
@@ -724,21 +898,38 @@ git commit -m "feat(labs): add placeholder marketing landing page"
 
 - [ ] **Step 7.1: Write `apps/labs/src/app/login/page.tsx`**
 
+Light theme, lime accent, Sentry-style buttons. NO emojis. Uses the `.btn`, `.input`, and `.brand-mark` classes from `globals.css`. Both buttons fill width via inline `width: '100%'`.
+
 ```tsx
 // apps/labs/src/app/login/page.tsx
 import { signIn } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ callbackUrl?: string; error?: string }>
-}) {
+export default function LoginPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
+    <main style={{ minHeight: '100vh' }} className="flex items-center justify-center px-6">
       <div className="w-full max-w-sm">
-        <h1 className="text-3xl font-bold mb-2 text-center">Sign in to Padel Labs</h1>
-        <p className="text-neutral-400 text-center mb-8">
+        {/* Brand */}
+        <Link href="/" className="flex items-center justify-center gap-2.5 mb-10">
+          <span className="brand-mark" style={{ width: 28, height: 28, fontSize: 14 }}>P</span>
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.015em' }}>
+            padel <span style={{ color: 'var(--text-subtle)', fontWeight: 500 }}>labs</span>
+          </span>
+        </Link>
+
+        <h1
+          style={{
+            fontSize: 26,
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            textAlign: 'center',
+            margin: '0 0 8px',
+          }}
+        >
+          Sign in to Padel Labs
+        </h1>
+        <p style={{ color: 'var(--text-muted)', textAlign: 'center', margin: '0 0 32px', fontSize: 14 }}>
           Magic link via email or continue with Google.
         </p>
 
@@ -751,16 +942,17 @@ export default function LoginPage({
         >
           <button
             type="submit"
-            className="w-full border border-neutral-700 rounded-lg py-3 mb-4 hover:bg-neutral-900 transition"
+            className="btn btn-secondary"
+            style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }}
           >
             Continue with Google
           </button>
         </form>
 
         <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-neutral-800" />
-          <span className="text-xs text-neutral-600 uppercase">or</span>
-          <div className="flex-1 h-px bg-neutral-800" />
+          <div className="flex-1" style={{ height: 1, background: 'var(--border)' }} />
+          <span style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>or</span>
+          <div className="flex-1" style={{ height: 1, background: 'var(--border)' }} />
         </div>
 
         {/* Magic link */}
@@ -777,17 +969,19 @@ export default function LoginPage({
             type="email"
             required
             placeholder="you@example.com"
-            className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-3 mb-3"
+            className="input"
+            style={{ marginBottom: 12 }}
           />
           <button
             type="submit"
-            className="w-full bg-[var(--brand-green)] text-black font-semibold rounded-lg py-3 hover:opacity-90 transition"
+            className="btn btn-primary"
+            style={{ width: '100%', justifyContent: 'center' }}
           >
             Send magic link
           </button>
         </form>
 
-        <p className="text-xs text-neutral-600 text-center mt-8">
+        <p style={{ fontSize: 12, color: 'var(--text-subtle)', textAlign: 'center', marginTop: 32 }}>
           By signing in, you agree to the terms of service and privacy policy.
         </p>
       </div>
@@ -825,11 +1019,11 @@ git commit -m "feat(labs): add login page with magic-link + Google"
 
 - [ ] **Step 8.1: Write `apps/labs/src/app/(app)/layout.tsx`**
 
+Light theme app shell. Sidebar pinned to white with subtle border. Active page indicated by `var(--lime-50)` background + `var(--lime-700)` text. Templates / Browse / Settings are placeholders in Phase 1; they 404 by design.
+
 ```tsx
 // apps/labs/src/app/(app)/layout.tsx
-// Auth-gated workspace shell. Sidebar with Ask / Templates / Browse / Settings.
-// Templates / Browse / Settings are placeholders in Phase 1; they 404 by design.
-
+// Auth-gated workspace shell.
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
@@ -841,30 +1035,56 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="w-56 border-r border-neutral-900 p-6 flex flex-col">
-        <div className="mb-8">
-          <p className="text-xs uppercase tracking-widest text-[var(--brand-green)]">
-            Padel Labs
-          </p>
-        </div>
+    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--bg)' }}>
+      <aside
+        style={{
+          width: 232,
+          borderRight: '1px solid var(--border)',
+          padding: '20px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'var(--bg)',
+        }}
+      >
+        {/* Brand */}
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, padding: '0 6px' }}>
+          <span className="brand-mark" style={{ width: 26, height: 26, fontSize: 13 }}>P</span>
+          <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.015em' }}>
+            padel <span style={{ color: 'var(--text-subtle)', fontWeight: 500 }}>labs</span>
+          </span>
+        </Link>
 
-        <nav className="flex-1 flex flex-col gap-1 text-sm">
-          <Link href="/ask" className="px-3 py-2 rounded hover:bg-neutral-900">Ask</Link>
-          <Link href="/templates" className="px-3 py-2 rounded text-neutral-500 hover:bg-neutral-900">
-            Templates <span className="text-xs">(P3)</span>
+        <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, fontSize: 14 }}>
+          <Link
+            href="/ask"
+            style={{
+              padding: '8px 10px',
+              borderRadius: 6,
+              background: 'var(--lime-50)',
+              color: 'var(--lime-700)',
+              fontWeight: 600,
+            }}
+          >
+            Ask
           </Link>
-          <Link href="/browse" className="px-3 py-2 rounded text-neutral-500 hover:bg-neutral-900">
-            Browse <span className="text-xs">(P3)</span>
+          <Link href="/templates" style={{ padding: '8px 10px', borderRadius: 6, color: 'var(--text-subtle)' }}>
+            Templates <span style={{ fontSize: 11 }}>(P3)</span>
           </Link>
-          <Link href="/settings" className="px-3 py-2 rounded text-neutral-500 hover:bg-neutral-900">
-            Settings <span className="text-xs">(P4)</span>
+          <Link href="/browse" style={{ padding: '8px 10px', borderRadius: 6, color: 'var(--text-subtle)' }}>
+            Browse <span style={{ fontSize: 11 }}>(P3)</span>
+          </Link>
+          <Link href="/settings" style={{ padding: '8px 10px', borderRadius: 6, color: 'var(--text-subtle)' }}>
+            Settings <span style={{ fontSize: 11 }}>(P4)</span>
           </Link>
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-neutral-900">
-          <p className="text-xs text-neutral-600 mb-1">Signed in as</p>
-          <p className="text-sm truncate">{session.user.email}</p>
+        <div style={{ marginTop: 'auto', paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+          <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '0 6px 2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Signed in as
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--text)', margin: '0 6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {session.user.email}
+          </p>
           <form
             action={async () => {
               'use server'
@@ -872,14 +1092,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               await signOut({ redirectTo: '/' })
             }}
           >
-            <button type="submit" className="text-xs text-neutral-500 hover:text-neutral-300 mt-3">
+            <button
+              type="submit"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                fontSize: 12,
+                padding: '8px 6px',
+                marginTop: 6,
+                cursor: 'pointer',
+              }}
+            >
               Sign out
             </button>
           </form>
         </div>
       </aside>
 
-      <section className="flex-1">{children}</section>
+      <section style={{ flex: 1 }}>{children}</section>
     </div>
   )
 }
@@ -933,6 +1164,8 @@ export async function POST(req: Request) {
 
 - [ ] **Step 9.2: Write `apps/labs/src/app/(app)/ask/page.tsx`**
 
+Light theme placeholder. Uses the `.input` and `.btn-primary` classes from `globals.css`. NO emojis.
+
 ```tsx
 // apps/labs/src/app/(app)/ask/page.tsx
 'use client'
@@ -965,31 +1198,43 @@ export default function AskPage() {
   }
 
   return (
-    <main className="max-w-3xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-2">Ask</h1>
-      <p className="text-neutral-400 mb-8">
+    <main style={{ maxWidth: 768, margin: '0 auto', padding: '40px 32px' }}>
+      <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 6px' }}>Ask</h1>
+      <p style={{ color: 'var(--text-muted)', margin: '0 0 28px', fontSize: 14 }}>
         Phase 1 placeholder. Real chat engine ships in Phase 2.
       </p>
 
-      <form onSubmit={submit} className="mb-8">
+      <form onSubmit={submit} style={{ marginBottom: 28 }}>
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="Ask anything about padel matches, players, tournaments..."
           rows={4}
-          className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-3 mb-3 resize-none"
+          className="input"
+          style={{ marginBottom: 12, resize: 'none', fontFamily: 'var(--font-sans)' }}
         />
         <button
           type="submit"
           disabled={loading || !question.trim()}
-          className="bg-[var(--brand-green)] text-black font-semibold px-6 py-2 rounded-lg disabled:opacity-50"
+          className="btn btn-primary"
         >
           {loading ? 'Thinking…' : 'Send'}
         </button>
       </form>
 
       {answer && (
-        <div className="border border-neutral-800 rounded-lg p-6 bg-neutral-950 whitespace-pre-wrap">
+        <div
+          style={{
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            padding: 20,
+            background: 'var(--surface)',
+            whiteSpace: 'pre-wrap',
+            fontSize: 14,
+            lineHeight: 1.6,
+            color: 'var(--text)',
+          }}
+        >
           {answer}
         </div>
       )}
@@ -1158,7 +1403,7 @@ If `padellabs.tech` is not yet registered:
    | `SUPABASE_SERVICE_KEY` | Same as Padel Nachos |
    | `DATABASE_URL` | Supabase project → Settings → Database → Connection string (URI) |
    | `AUTH_SECRET` | `openssl rand -base64 32` (new value, do NOT reuse Nachos's) |
-   | `AUTH_URL` | `https://app.padellabs.tech` (production); leave Preview as Vercel default |
+   | `AUTH_URL` | `https://analyst.padellabs.tech` (production); leave Preview as Vercel default |
    | `AUTH_GOOGLE_ID` | New OAuth client (see step 3) |
    | `AUTH_GOOGLE_SECRET` | New OAuth client (see step 3) |
    | `RESEND_API_KEY` | Same as Padel Nachos |
@@ -1172,10 +1417,10 @@ If `padellabs.tech` is not yet registered:
 2. Application type: Web application
 3. Name: `Padel Labs`
 4. Authorized JavaScript origins:
-   - `https://app.padellabs.tech`
+   - `https://analyst.padellabs.tech`
    - `http://localhost:3003`
 5. Authorized redirect URIs:
-   - `https://app.padellabs.tech/api/auth/callback/google`
+   - `https://analyst.padellabs.tech/api/auth/callback/google`
    - `http://localhost:3003/api/auth/callback/google`
 6. Save → copy Client ID + Client secret into Vercel env vars
 
@@ -1187,13 +1432,13 @@ In your registrar's DNS panel, add:
 |---|---|---|---|
 | `padellabs.tech` (apex) | A | `76.76.21.21` | Vercel apex IP |
 | `www` | CNAME | `cname.vercel-dns.com` |  |
-| `app` | CNAME | `cname.vercel-dns.com` | for app.padellabs.tech |
+| `analyst` | CNAME | `cname.vercel-dns.com` | for analyst.padellabs.tech (the chat module) |
 | `api` | CNAME | `cname.vercel-dns.com` | reserved (used in Phase 2+) |
 | Resend domain verification records | TXT/MX | (Resend dashboard) | needed before sending magic-links from `@padellabs.tech` |
 
 In Vercel → Project → Settings → Domains:
 - Add `padellabs.tech` (apex) → set as primary
-- Add `app.padellabs.tech`
+- Add `analyst.padellabs.tech`
 - Add `api.padellabs.tech` (reserved)
 
 Wait for DNS propagation + TLS issuance (a few minutes).
@@ -1210,12 +1455,12 @@ Wait for DNS propagation + TLS issuance (a few minutes).
 1. Visit `https://padellabs.tech` → see landing page
 2. Click "Sign in" → routed to `/login`
 3. Sign in with Google or magic-link
-4. Should redirect to `https://app.padellabs.tech/ask`
+4. Should redirect to `https://analyst.padellabs.tech/ask`
 5. Type a test question → see Phase 1 stub response
 
 ## 7. Subdomain routing note
 
-Vercel automatically serves both `padellabs.tech` and `app.padellabs.tech` from the same Next.js project; routing is by path within the app (homepage at `/`, app at `/(app)/*`). If you later want stricter separation, add Vercel "Production Branches" + a second Vercel project pointing at the same Root Directory but with different env vars. **Defer to Phase 5.**
+Vercel automatically serves both `padellabs.tech` and `analyst.padellabs.tech` from the same Next.js project; routing is by path within the app (homepage at `/`, app at `/(app)/*`). If you later want stricter separation, add Vercel "Production Branches" + a second Vercel project pointing at the same Root Directory but with different env vars. **Defer to Phase 5.**
 ```
 
 - [ ] **Step 12.2: Commit**
@@ -1277,7 +1522,7 @@ After completing the Vercel runbook (Task 12) on production:
 1. Visit `https://padellabs.tech` → see landing page render
 2. Click "Sign in" → land on `/login`
 3. Submit your email for magic-link → check inbox → click link
-4. Verify redirect to `https://app.padellabs.tech/ask` (or whatever production URL serves `/ask`)
+4. Verify redirect to `https://analyst.padellabs.tech/ask` (or whatever production URL serves `/ask`)
 5. Submit a test question → see Phase 1 stub response
 6. In Supabase SQL editor:
    ```sql
