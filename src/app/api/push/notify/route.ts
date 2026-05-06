@@ -543,55 +543,66 @@ export async function POST(request: Request) {
   // any of its 4 player IDs (follow). Anonymous recipients have no
   // profile → no per-channel prefs and no in-app notifications; we
   // just send the push.
-  // Two parallel queries (match + players) with dedup by subscription
-  // ID — more reliable than PostgREST's embedded .or() syntax.
+  //
+  // Two-step query (no embedded join — there's no declared FK between
+  // anon_push_subscriptions and anon_bookmarks; the device_id link is
+  // many-to-many):
+  //   1. Find device_ids whose anon_bookmarks match this match's targets.
+  //   2. Fetch anon_push_subscriptions for those device_ids.
 
-  const anonByMatchPromise = supabase
-    .from('anon_push_subscriptions')
-    .select('id, device_id, endpoint, p256dh_key, auth_key, anon_bookmarks!inner(bookmark_type, target_id)')
-    .eq('anon_bookmarks.bookmark_type', 'match')
-    .eq('anon_bookmarks.target_id', matchId)
+  const matchBookmarksPromise = supabase
+    .from('anon_bookmarks')
+    .select('device_id')
+    .eq('bookmark_type', 'match')
+    .eq('target_id', matchId)
 
-  const anonByPlayersPromise = playerIds.length > 0
+  const playerBookmarksPromise = playerIds.length > 0
     ? supabase
-        .from('anon_push_subscriptions')
-        .select('id, device_id, endpoint, p256dh_key, auth_key, anon_bookmarks!inner(bookmark_type, target_id)')
-        .eq('anon_bookmarks.bookmark_type', 'player')
-        .in('anon_bookmarks.target_id', playerIds)
-    : null
+        .from('anon_bookmarks')
+        .select('device_id')
+        .eq('bookmark_type', 'player')
+        .in('target_id', playerIds)
+    : Promise.resolve({ data: [] as Array<{ device_id: string }>, error: null })
 
-  const [anonByMatchRes, anonByPlayersRes] = await Promise.all([
-    anonByMatchPromise,
-    anonByPlayersPromise ?? Promise.resolve({ data: null, error: null }),
+  const [matchBookmarksRes, playerBookmarksRes] = await Promise.all([
+    matchBookmarksPromise,
+    playerBookmarksPromise,
   ])
 
-  // Dedup by subscription ID — a device that bookmarked the match AND
-  // follows one of its players should only get one push.
-  const anonSubsById = new Map<string, { id: string; device_id: string; endpoint: string; p256dh_key: string; auth_key: string }>()
-  for (const row of anonByMatchRes.data ?? []) {
-    if (row.id && !anonSubsById.has(row.id as string)) {
-      anonSubsById.set(row.id as string, {
-        id: row.id as string,
-        device_id: row.device_id as string,
-        endpoint: row.endpoint as string,
-        p256dh_key: row.p256dh_key as string,
-        auth_key: row.auth_key as string,
-      })
-    }
+  // Collect unique device_ids across both result sets.
+  const matchedDeviceIds = new Set<string>()
+  for (const row of matchBookmarksRes.data ?? []) {
+    if (row.device_id) matchedDeviceIds.add(row.device_id as string)
   }
-  for (const row of anonByPlayersRes.data ?? []) {
-    if (row.id && !anonSubsById.has(row.id as string)) {
-      anonSubsById.set(row.id as string, {
-        id: row.id as string,
-        device_id: row.device_id as string,
-        endpoint: row.endpoint as string,
-        p256dh_key: row.p256dh_key as string,
-        auth_key: row.auth_key as string,
-      })
-    }
+  for (const row of playerBookmarksRes.data ?? []) {
+    if (row.device_id) matchedDeviceIds.add(row.device_id as string)
   }
 
-  const anonSubs = [...anonSubsById.values()]
+  let anonSubs: Array<{
+    id: string
+    device_id: string
+    endpoint: string
+    p256dh_key: string
+    auth_key: string
+  }> = []
+
+  if (matchedDeviceIds.size > 0) {
+    const { data: subsData, error: subsErr } = await supabase
+      .from('anon_push_subscriptions')
+      .select('id, device_id, endpoint, p256dh_key, auth_key')
+      .in('device_id', [...matchedDeviceIds])
+    if (subsErr) {
+      console.error('[Push] anon_push_subscriptions fetch failed', subsErr)
+    } else {
+      anonSubs = (subsData ?? []).map(s => ({
+        id: s.id as string,
+        device_id: s.device_id as string,
+        endpoint: s.endpoint as string,
+        p256dh_key: s.p256dh_key as string,
+        auth_key: s.auth_key as string,
+      }))
+    }
+  }
   let anonSent = 0
   const anonStaleIds: string[] = []
 
