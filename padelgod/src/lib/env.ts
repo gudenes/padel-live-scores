@@ -137,6 +137,16 @@ const EnvSchema = z.object({
   ENABLE_SHADOW_DIFF_FINALIZER: boolEnv(true),
   ENABLE_SHADOW_DIFF_LIVE: boolEnv(true),
   ENABLE_CLOSE_STALE_LIVE_SWEEPER: boolEnv(true),
+  // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
+  // "starting soon" / null) for the matches list UI. Runs every 2 min.
+  // Default ON; disable via ENABLE_SCHEDULE_HINTS_WRITER=false.
+  ENABLE_SCHEDULE_HINTS_WRITER: boolEnv(true),
+  // Dry-run: when true (default), logs proposed UPDATEs but makes no DB
+  // writes. Flip to false in Railway once dry-run output looks correct.
+  SCHEDULE_HINTS_WRITER_DRY_RUN: boolEnv(true),
+  // Override the "running over" threshold (minutes). Default 90. Tune if
+  // the average match duration at the venues warrants it.
+  SCHEDULE_HINTS_EXPECTED_DURATION_MIN: z.coerce.number().int().positive().default(90),
   // Web push notification hook — set to the padelnachos.com origin to fire
   // `/api/push/notify` whenever padelgod flips a match out of `scheduled`.
   // Both vars optional: if either is unset, notify is skipped silently (so

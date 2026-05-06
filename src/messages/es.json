@@ -93,6 +93,16 @@
       },
       "metaLive": "En vivo · {viewers} viendo",
       "metaScheduled": "Programado · empieza a las {time}"
+    },
+    "lateHint": {
+      "mayBeLate": "podría retrasarse",
+      "mayBeLateAria": "Este partido podría retrasarse — toca para más información",
+      "startingSoon": "empieza pronto",
+      "startingSoonAria": "El partido empieza pronto — toca para más información",
+      "mayBeLateSheet": "El partido anterior en {court} se está alargando. Actualizaremos en cuanto termine.",
+      "startingSoonSheet": "El partido anterior ha terminado. Este debería entrar en pista en breve.",
+      "estChip": "EST",
+      "estChipAria": "Hora estimada — sin seguimiento en directo de este torneo"
     }
   },
   "matchDetail": {
