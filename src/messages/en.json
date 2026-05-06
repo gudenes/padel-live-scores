@@ -93,6 +93,16 @@
       },
       "metaLive": "Live now · {viewers} watching",
       "metaScheduled": "Scheduled · starts at {time}"
+    },
+    "lateHint": {
+      "mayBeLate": "may be late",
+      "mayBeLateAria": "Match may be late — tap for details",
+      "startingSoon": "starting soon",
+      "startingSoonAria": "Match starting soon — tap for details",
+      "mayBeLateSheet": "The previous match on {court} is running long. We'll update as soon as it ends.",
+      "startingSoonSheet": "The previous match has finished. This one should be called to court shortly.",
+      "estChip": "EST",
+      "estChipAria": "Estimated time — no live tracking on this tournament"
     }
   },
   "matchDetail": {
