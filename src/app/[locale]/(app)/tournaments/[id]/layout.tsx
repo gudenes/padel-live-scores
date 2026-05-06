@@ -66,6 +66,7 @@ export default async function TournamentLayout({ params, children }: Props) {
   let jsonLd: object | null = null
   let editorialJsonLd: object | null = null
   let editorial: EditorialPost | null = null
+  let tournamentName: string | null = null
 
   try {
     const supabase = createServerClient()
@@ -91,6 +92,7 @@ export default async function TournamentLayout({ params, children }: Props) {
     ])
 
     const tournament = tournamentRes.data
+    tournamentName = tournament?.name?.trim() || null
     editorial = (editorialRes.data && editorialRes.data[0]
       ? editorialRes.data[0] as unknown as EditorialPost
       : null)
@@ -148,6 +150,11 @@ export default async function TournamentLayout({ params, children }: Props) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(editorialJsonLd) }}
         />
+      )}
+      {/* SEO/a11y heading — visible tournament name lives in the
+          client page's hero block as a styled div for design reasons. */}
+      {tournamentName && (
+        <h1 className="sr-only">{tournamentName} — Padel Tournament Results</h1>
       )}
       <EditorialProvider post={editorial}>
         {children}

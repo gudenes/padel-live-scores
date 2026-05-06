@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { getLocale } from "next-intl/server";
 import { GatedAnalytics } from "@/components/GatedAnalytics";
 import { AuthProvider } from "@/components/AuthProvider";
 import { PostHogIdentify } from "@/components/PostHogIdentify";
@@ -109,9 +110,14 @@ const jsonLd = {
   ],
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Pull the active locale from next-intl's request context so the root
+  // <html lang> matches the page's language. Hardcoding "en" caused
+  // Ahrefs' "Hreflang and HTML lang mismatch" error on every non-English
+  // page (the locale layouts couldn't override <html> from a child).
+  const locale = await getLocale()
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
     <head />
     <body>
       <script

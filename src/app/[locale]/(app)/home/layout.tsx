@@ -4,6 +4,7 @@
 // keyword-loaded copy instead of English.
 
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { buildPageMetadata } from '@/lib/seo-metadata'
 
 type Props = {
@@ -16,6 +17,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return buildPageMetadata({ locale, pageKey: 'home', path: '/home' })
 }
 
-export default function HomeLayout({ children }: Props) {
-  return <>{children}</>
+export default async function HomeLayout({ params, children }: Props) {
+  const { locale } = await params
+  const t = await getTranslations({ locale, namespace: 'seo.home' })
+  return (
+    <>
+      <h1 className="sr-only">{t('title')}</h1>
+      {children}
+    </>
+  )
 }
