@@ -9,8 +9,9 @@
 import { useState, useCallback, useEffect, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/components/AuthProvider'
-import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { useAnonPush } from '@/hooks/useAnonPush'
+import { useFollowing } from '@/hooks/useFollowing'
 
 const GREEN = '#7ED321'
 const GOLD = '#FFD166'
@@ -181,8 +182,9 @@ export function BookmarkToastProvider({ children }: { children: ReactNode }) {
 function BookmarkToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: () => void }) {
   const t = useTranslations('bookmark')
   const { user } = useAuth()
-  const { openLoginSheet } = useLoginSheet()
   const { subscribe, supported: pushSupported } = usePushNotifications()
+  const anonPush = useAnonPush()
+  const { getFollowed } = useFollowing()
   const isAdd = toast.action === 'add'
   const isMatch = toast.type === 'match'
   const borderColor = isAdd
@@ -213,10 +215,15 @@ function BookmarkToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: 
     // on subsequent follows even if they dismiss the native prompt later.
     try { localStorage.setItem('pn_push_prompted', '1') } catch {}
     if (!user) {
-      // Anonymous — open sign-in sheet; remember the push intent so we can
-      // surface the permission prompt once the session lands.
-      try { localStorage.setItem(PUSH_SIGNIN_PENDING_KEY, '1') } catch {}
-      openLoginSheet()
+      // Anonymous — register an anon push subscription on the spot. The
+      // user's current bookmarks become the initial anon_bookmarks set so
+      // they immediately start receiving push for things they already follow.
+      // No sign-in punt: anon push is a first-class path post-Spec 2.
+      const initial = [
+        ...getFollowed('player').map(id => ({ type: 'player' as const, target_id: id })),
+        ...getFollowed('match').map(id => ({ type: 'match' as const, target_id: id })),
+      ]
+      await anonPush.ensureSubscription(initial)
       onDismiss()
       return
     }
@@ -227,7 +234,7 @@ function BookmarkToastItem({ toast, onDismiss }: { toast: ToastData; onDismiss: 
     // Signed in — trigger the native permission prompt inline.
     await subscribe()
     onDismiss()
-  }, [toast.cta, user, pushSupported, subscribe, openLoginSheet, onDismiss])
+  }, [toast.cta, user, pushSupported, subscribe, anonPush, getFollowed, onDismiss])
 
   return (
     <div style={{

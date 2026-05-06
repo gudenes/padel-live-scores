@@ -538,11 +538,138 @@ export async function POST(request: Request) {
     }
   }
 
+  // ── Anonymous recipient fan-out ───────────────────────────
+  // Devices whose anon_bookmarks reference this match (bookmark) or
+  // any of its 4 player IDs (follow). Anonymous recipients have no
+  // profile → no per-channel prefs and no in-app notifications; we
+  // just send the push.
+  //
+  // Two-step query (no embedded join — there's no declared FK between
+  // anon_push_subscriptions and anon_bookmarks; the device_id link is
+  // many-to-many):
+  //   1. Find device_ids whose anon_bookmarks match this match's targets.
+  //   2. Fetch anon_push_subscriptions for those device_ids.
+
+  const matchBookmarksPromise = supabase
+    .from('anon_bookmarks')
+    .select('device_id')
+    .eq('bookmark_type', 'match')
+    .eq('target_id', matchId)
+
+  const playerBookmarksPromise = playerIds.length > 0
+    ? supabase
+        .from('anon_bookmarks')
+        .select('device_id')
+        .eq('bookmark_type', 'player')
+        .in('target_id', playerIds)
+    : Promise.resolve({ data: [] as Array<{ device_id: string }>, error: null })
+
+  const [matchBookmarksRes, playerBookmarksRes] = await Promise.all([
+    matchBookmarksPromise,
+    playerBookmarksPromise,
+  ])
+
+  // Collect unique device_ids across both result sets.
+  const matchedDeviceIds = new Set<string>()
+  for (const row of matchBookmarksRes.data ?? []) {
+    if (row.device_id) matchedDeviceIds.add(row.device_id as string)
+  }
+  for (const row of playerBookmarksRes.data ?? []) {
+    if (row.device_id) matchedDeviceIds.add(row.device_id as string)
+  }
+
+  let anonSubs: Array<{
+    id: string
+    device_id: string
+    endpoint: string
+    p256dh_key: string
+    auth_key: string
+  }> = []
+
+  if (matchedDeviceIds.size > 0) {
+    const { data: subsData, error: subsErr } = await supabase
+      .from('anon_push_subscriptions')
+      .select('id, device_id, endpoint, p256dh_key, auth_key')
+      .in('device_id', [...matchedDeviceIds])
+    if (subsErr) {
+      console.error('[Push] anon_push_subscriptions fetch failed', subsErr)
+    } else {
+      anonSubs = (subsData ?? []).map(s => ({
+        id: s.id as string,
+        device_id: s.device_id as string,
+        endpoint: s.endpoint as string,
+        p256dh_key: s.p256dh_key as string,
+        auth_key: s.auth_key as string,
+      }))
+    }
+  }
+  let anonSent = 0
+  const anonStaleIds: string[] = []
+
+  if (anonSubs.length > 0) {
+    // Build a generic anon push payload. Anon recipients don't have a
+    // per-recipient reason (that's a sign-in concept), so we use the
+    // bookmark-reason content for both follow and bookmark cases —
+    // bookmark phrasing is more universal ("Match is Live! 🟢" vs
+    // "<lastName> is on court").
+    const anonContent = isFinishedEvent
+      ? buildFinishedContent(match, { kind: 'bookmark' }, null)
+      : { title: 'Match is Live! 🟢', body: buildBody(match) }
+
+    const anonResults = await Promise.allSettled(
+      anonSubs.map(s =>
+        sendPush(
+          {
+            endpoint: s.endpoint,
+            keys: { p256dh: s.p256dh_key, auth: s.auth_key },
+          },
+          {
+            title: anonContent.title,
+            body: anonContent.body,
+            url: `/match/${matchId}`,
+            tag: `match-${matchId}`,
+          },
+        ),
+      ),
+    )
+    anonSubs.forEach((s, i) => {
+      const r = anonResults[i]
+      if (r.status === 'fulfilled' && r.value === true) {
+        anonSent++
+      } else if (r.status === 'fulfilled' && r.value === false) {
+        // sendPush returns false on 410/404 → stale subscription
+        anonStaleIds.push(s.id)
+      }
+    })
+  }
+
+  // Delete stale anon subscriptions; trigger handles bookmark cleanup.
+  if (anonStaleIds.length > 0) {
+    await supabase
+      .from('anon_push_subscriptions')
+      .delete()
+      .in('id', anonStaleIds)
+    console.log(`[Push] Cleaned ${anonStaleIds.length} stale anon subscriptions`)
+  }
+
+  // Bump last_seen_at for surviving anon subs that successfully received
+  // a push — used by the 90-day cleanup cron.
+  const survivingAnonIds = anonSubs
+    .filter(s => !anonStaleIds.includes(s.id))
+    .map(s => s.id)
+  if (survivingAnonIds.length > 0) {
+    await supabase
+      .from('anon_push_subscriptions')
+      .update({ last_seen_at: new Date().toISOString() })
+      .in('id', survivingAnonIds)
+  }
+
   console.log(
     `[Push] match=${matchId} recipients=${recipientReason.size} ` +
     `inapp=${inappWritten} push=${pushSent} fcm=${fcmSent} ` +
     `(bookmark=${bookmarkSent} follow=${followSent}) ` +
-    `stale=${staleIds.length} fcm_stale=${fcmStaleCleaned} fcm_failed=${fcmFailed}`
+    `stale=${staleIds.length} fcm_stale=${fcmStaleCleaned} fcm_failed=${fcmFailed} ` +
+    `anon=${anonSubs.length} anon_sent=${anonSent} anon_stale=${anonStaleIds.length}`
   )
 
   return Response.json({
@@ -554,5 +681,7 @@ export async function POST(request: Request) {
     by_reason: { bookmark: bookmarkSent, follow: followSent },
     stale_cleaned: staleIds.length,
     fcm_stale_cleaned: fcmStaleCleaned,
+    anon_recipients: anonSubs.length,
+    anon_sent: anonSent,
   })
 }
