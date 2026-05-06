@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { useFollowing } from '@/hooks/useFollowing'
+import { supabase } from '@/lib/supabase'
 import { PickerCard, type PickerPlayer } from './PickerCard'
 import { NotificationPromptSheet } from './NotificationPromptSheet'
 
@@ -14,12 +15,8 @@ const CHUNKY = {
   button: 'polygon(1% 6%, 99% 0%, 100% 94%, 0% 100%)',
 }
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-}
+const SEARCH_DEBOUNCE_MS = 220
+const SEARCH_LIMIT = 30
 
 export default function WelcomePickerPage() {
   const t = useTranslations('picker')
@@ -33,6 +30,9 @@ export default function WelcomePickerPage() {
   const [showPushSheet, setShowPushSheet] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [query, setQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<PickerPlayer[] | null>(null)
+  const [searching, setSearching] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hydrate already-followed players if the user landed here with prior state
   useEffect(() => {
@@ -77,28 +77,62 @@ export default function WelcomePickerPage() {
     return m ? decodeURIComponent(m[1]).toUpperCase() : null
   }, [])
 
-  // Live filter on top of the section split. When the user types, the grid
-  // narrows to matches; the country split collapses if no matches exist.
-  const { topInCountry, topRest, isFiltered } = useMemo(() => {
-    if (!players) return { topInCountry: [], topRest: [], isFiltered: false }
-    const q = normalize(query.trim())
-    const matches = q
-      ? players.filter(p => {
-          const name = p.display_name || p.name || ''
-          return normalize(name).includes(q)
-        })
-      : players
-    if (!userCountry) {
-      return { topInCountry: [], topRest: matches, isFiltered: q.length > 0 }
+  // Debounced server-side search. Hits the players table directly via the
+  // Supabase browser client — same pattern as nav/SearchOverlay. Lets the
+  // user find ANY ranked player, not just the curated top 30.
+  useEffect(() => {
+    const trimmed = query.trim()
+    if (!trimmed) {
+      setSearchResults(null)
+      setSearching(false)
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
+      return
+    }
+    setSearching(true)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      const pattern = `%${trimmed}%`
+      const { data, error: dbErr } = await supabase
+        .from('players')
+        .select('id, name, display_name, country, ranking, category, avatar_url')
+        .ilike('name', pattern)
+        .order('ranking', { ascending: true, nullsFirst: false })
+        .limit(SEARCH_LIMIT)
+      if (dbErr) {
+        setSearchResults([])
+      } else {
+        setSearchResults((data ?? []) as PickerPlayer[])
+      }
+      setSearching(false)
+    }, SEARCH_DEBOUNCE_MS)
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        debounceRef.current = null
+      }
+    }
+  }, [query])
+
+  // Visible list: search results when querying, otherwise the curated top 30.
+  // While searching, we show one flat list (no country split) — country boost
+  // is a discovery aid for the default view, not for explicit name search.
+  const isSearching = query.trim().length > 0
+  const { topInCountry, topRest } = useMemo(() => {
+    const list = isSearching ? (searchResults ?? []) : (players ?? [])
+    if (isSearching || !userCountry || !players) {
+      return { topInCountry: [], topRest: list }
     }
     const inC: PickerPlayer[] = []
     const rest: PickerPlayer[] = []
-    for (const p of matches) {
+    for (const p of list) {
       if ((p.country ?? '').toUpperCase() === userCountry) inC.push(p)
       else rest.push(p)
     }
-    return { topInCountry: inC, topRest: rest, isFiltered: q.length > 0 }
-  }, [players, query, userCountry])
+    return { topInCountry: inC, topRest: rest }
+  }, [players, searchResults, isSearching, userCountry])
 
   const finishAndGoHome = useCallback(() => {
     try {
@@ -154,7 +188,12 @@ export default function WelcomePickerPage() {
     return [...picked].slice(0, 3).map(id => map.get(id) ?? '').filter(Boolean)
   }, [picked, players])
 
-  const noMatches = isFiltered && topInCountry.length === 0 && topRest.length === 0
+  const noMatches =
+    isSearching &&
+    !searching &&
+    searchResults !== null &&
+    topInCountry.length === 0 &&
+    topRest.length === 0
 
   return (
     <div style={{
@@ -240,25 +279,39 @@ export default function WelcomePickerPage() {
         {!players && !error && (
           <div style={{ padding: 32, color: '#666', fontSize: 12, textAlign: 'center' }}>…</div>
         )}
+        {players && isSearching && searching && (
+          <div style={{ padding: 32, color: '#666', fontSize: 12, textAlign: 'center' }}>…</div>
+        )}
         {players && noMatches && (
           <div style={{ padding: 32, color: '#666', fontSize: 13, textAlign: 'center' }}>
-            {t('errorLoading') /* reuse — generic "no results" tone */}
+            {t('noResults', { query: query.trim() })}
           </div>
         )}
-        {players && !noMatches && (
+        {players && !noMatches && (!isSearching || (isSearching && !searching)) && (
           <>
-            {topInCountry.length > 0 && (
+            {isSearching ? (
+              topRest.length > 0 && (
+                <>
+                  <h2 style={sectionStyle}>{t('searchResults')}</h2>
+                  <Grid players={topRest} picked={picked} onToggle={togglePick} />
+                </>
+              )
+            ) : (
               <>
-                <h2 style={sectionStyle}>
-                  {t('topInCountry', { country: userCountry ?? '' })}
-                </h2>
-                <Grid players={topInCountry} picked={picked} onToggle={togglePick} />
-              </>
-            )}
-            {topRest.length > 0 && (
-              <>
-                <h2 style={sectionStyle}>{t('topWorldwide')}</h2>
-                <Grid players={topRest} picked={picked} onToggle={togglePick} />
+                {topInCountry.length > 0 && (
+                  <>
+                    <h2 style={sectionStyle}>
+                      {t('topInCountry', { country: userCountry ?? '' })}
+                    </h2>
+                    <Grid players={topInCountry} picked={picked} onToggle={togglePick} />
+                  </>
+                )}
+                {topRest.length > 0 && (
+                  <>
+                    <h2 style={sectionStyle}>{t('topWorldwide')}</h2>
+                    <Grid players={topRest} picked={picked} onToggle={togglePick} />
+                  </>
+                )}
               </>
             )}
           </>

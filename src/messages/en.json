@@ -746,7 +746,9 @@
     "topInCountry": "Top in {country}",
     "topWorldwide": "Top players",
     "errorLoading": "Couldn't load suggestions. Try again.",
-    "softHint": "{count, plural, one {Pick one more for better recommendations} other {Pick {count} more for better recommendations}}"
+    "softHint": "{count, plural, one {Pick one more for better recommendations} other {Pick {count} more for better recommendations}}",
+    "searchResults": "Search results",
+    "noResults": "No players found for \"{query}\""
   },
   "suggestedPlayers": {
     "sectionTitle": "Suggested for you",

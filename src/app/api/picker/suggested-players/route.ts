@@ -24,11 +24,12 @@ export async function GET(_req: NextRequest) {
   const players = (data ?? []) as SuggestedPlayer[]
   const top30 = boostAndTrim(players, geoCountry, 30)
 
-  // Cache for 5 minutes — rankings don't change minute-to-minute and
-  // most picker visits happen in the first session.
   // Response is shaped by the geo-country cookie, so we mark it private
-  // to prevent shared caches (Vercel edge / CDNs / proxies) from serving
-  // a country-boosted variant to a different visitor.
+  // to prevent shared caches from serving a country-boosted variant to
+  // a different visitor. 5-minute browser cache — rankings change daily
+  // at most. The picker also issues direct ilike queries against players
+  // when the user types in the search box; that path doesn't go through
+  // this endpoint.
   return Response.json(top30, {
     headers: { 'Cache-Control': 'private, max-age=300' },
   })

@@ -725,7 +725,9 @@
     "topInCountry": "Top in {country}",
     "topWorldwide": "Migliori giocatori",
     "errorLoading": "Impossibile caricare i suggerimenti. Riprova.",
-    "softHint": "{count, plural, one {Scegli ancora uno per migliori raccomandazioni} other {Scegli altri {count} per migliori raccomandazioni}}"
+    "softHint": "{count, plural, one {Scegli ancora uno per migliori raccomandazioni} other {Scegli altri {count} per migliori raccomandazioni}}",
+    "searchResults": "Risultati",
+    "noResults": "Nessun giocatore trovato per \"{query}\""
   },
   "suggestedPlayers": {
     "sectionTitle": "Suggeriti per te",
