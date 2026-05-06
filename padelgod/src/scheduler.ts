@@ -226,8 +226,14 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'shadow-diff-finalizer': return (deps) => runShadowDiffFinalizer({ supabase: deps.supabase, logger: deps.logger });
     case 'shadow-diff-live':      return (deps) => runShadowDiffLive({ supabase: deps.supabase, logger: deps.logger });
     case 'close-stale-live-sweeper': return (deps) => runCloseStaleLiveSweeper({ supabase: deps.supabase, logger: deps.logger });
-    // schedule-hints-writer has no admin-trigger shortcut yet — default to null
-    // so it only runs via the scheduled cron entry in buildSchedule.
+    case 'schedule-hints-writer':   return (deps) => runScheduleHintsWriter({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger always dry-run-safe. Scheduled cron threads the real
+      // env flag via closure (see buildSchedule below).
+      dryRun: true,
+      expectedDurationMinutes: 90, // matches env default
+    });
     default: return null;
   }
 }
@@ -517,7 +523,7 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       run: async (deps) => {
         return runScheduleHintsWriter({
           supabase: deps.supabase,
-          logger: deps.logger.child({ worker: 'schedule-hints-writer' }),
+          logger: deps.logger,
           dryRun: flags.scheduleHintsWriterDryRun,
           expectedDurationMinutes: flags.scheduleHintsExpectedDurationMin,
         });

@@ -139,8 +139,8 @@ const EnvSchema = z.object({
   ENABLE_CLOSE_STALE_LIVE_SWEEPER: boolEnv(true),
   // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
   // "starting soon" / null) for the matches list UI. Runs every 2 min.
-  // Default ON; disable via PADELGOD_ENABLE_SCHEDULE_HINTS_WRITER=false.
-  PADELGOD_ENABLE_SCHEDULE_HINTS_WRITER: boolEnv(true),
+  // Default ON; disable via ENABLE_SCHEDULE_HINTS_WRITER=false.
+  ENABLE_SCHEDULE_HINTS_WRITER: boolEnv(true),
   // Dry-run: when true (default), logs proposed UPDATEs but makes no DB
   // writes. Flip to false in Railway once dry-run output looks correct.
   SCHEDULE_HINTS_WRITER_DRY_RUN: boolEnv(true),
