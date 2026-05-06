@@ -1029,7 +1029,7 @@ function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
             maxWidth: 260,
             padding: '10px 12px 10px 14px',
             background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)',
-            borderRadius: 8,
+            clipPath: CHUNKY.badge,
             boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 0 24px ${accent}10`,
             cursor: 'pointer',
             animation: 'mc-locked-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
