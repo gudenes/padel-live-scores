@@ -330,12 +330,11 @@ export async function POST(request: Request) {
   }
   // Filter recipients to only those not yet notified for this event type.
   for (const uid of alreadyNotifiedUsers) recipientReason.delete(uid)
-  if (recipientReason.size === 0) {
-    return Response.json({
-      ok: true, recipients: 0, sent: 0, inapp_written: 0,
-      reason: 'all recipients already notified (finished dedup)',
-    })
-  }
+  // NOTE: previous "early return when no authed recipients remain after dedup"
+  // is removed — the finished dedup only filters AUTHED users (via
+  // user_notifications), so bailing here would skip the anon fan-out for
+  // finished events. The user-side blocks below handle empty arrays
+  // naturally; the anon block runs unconditionally further down.
   const filteredUserIds = [...recipientReason.keys()]
 
   // ── Batch-fetch prefs + subscriptions in parallel ──────────
