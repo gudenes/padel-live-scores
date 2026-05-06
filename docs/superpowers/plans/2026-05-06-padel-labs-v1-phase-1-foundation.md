@@ -58,7 +58,7 @@ apps/labs/
     └── smoke.test.ts                           # Smoke tests
 
 supabase/migrations/
-└── 20260506_padel_labs_v1_phase1.sql           # 7 labs_* tables + RLS
+└── 20260506_padel_labs_v1_phase1.sql           # 6 labs_* tables + RLS
 
 docs/runbooks/
 └── padel-labs-vercel-deploy.md                 # One-time Vercel + DNS setup notes
@@ -439,7 +439,7 @@ git commit -m "chore(labs): configure next/ts/tailwind/eslint/vitest"
 
 - [ ] **Step 3.1: Write the migration**
 
-This creates all 7 tables from spec §9.2 with FKs to `auth.users` (Auth.js v5's `users` table), constraints, and RLS policies.
+This creates all 6 tables from spec §9.2 with FKs to `public.users` (Auth.js v5's `users` table), constraints, and RLS enabled (defense-in-depth, no grant policies).
 
 ```sql
 -- supabase/migrations/20260506_padel_labs_v1_phase1.sql
@@ -700,11 +700,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           to: email,
           subject: 'Sign in to Padel Labs',
           html: `
-            <div style="font-family:-apple-system,sans-serif;background:#0a0a0a;color:#fafafa;padding:48px 24px;text-align:center">
-              <h1 style="font-size:24px;margin-bottom:24px">Sign in to Padel Labs</h1>
-              <p style="margin-bottom:32px;color:#aaa">Click the button below to sign in. This link expires in 24 hours.</p>
-              <a href="${url}" style="display:inline-block;background:#7ed321;color:#0a0a0a;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none">Sign in</a>
-              <p style="margin-top:32px;color:#666;font-size:13px">If you didn't request this, you can safely ignore this email.</p>
+            <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#ffffff;color:#18181b;padding:48px 24px;text-align:center;max-width:520px;margin:0 auto">
+              <h1 style="font-size:24px;margin:0 0 16px;font-weight:700;letter-spacing:-0.02em">Sign in to Padel Labs</h1>
+              <p style="margin:0 0 32px;color:#52525b;font-size:15px;line-height:1.55">Click the button below to sign in. This link expires in 24 hours.</p>
+              <a href="${url}" style="display:inline-block;background:linear-gradient(180deg,#a3e635 0%,#84cc16 100%);color:#1a2e05;font-weight:600;padding:13px 28px;border-radius:8px;text-decoration:none;font-size:15px">Sign in</a>
+              <p style="margin:40px 0 0;color:#a1a1aa;font-size:12px">If you didn't request this, you can safely ignore this email.</p>
             </div>
           `,
         })
