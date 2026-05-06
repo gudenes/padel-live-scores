@@ -350,13 +350,17 @@ export async function applyDiff(
   const gameScore = formatPointScore(curr.pointState);
   const serverId = serverPlayerId(curr.servingTeam, resolvedPlayers);
 
-  // ── Clear is_current on other games in this set ──────────────────────
-  // Scoped by set_id so we don't touch games from other sets.
+  // ── Clear is_current on every other game in this match ──────────────
+  // Scope is the WHOLE match (not just the current set) so the previous
+  // set's last in-progress game gets its flag dropped when the set
+  // advances. The upsert below will re-stamp is_current=true on the
+  // one current game. Without this whole-match scope, the chart's
+  // marker logic ends up with multiple is_current=true rows and locks
+  // onto the FIRST one (typically a stuck game from set 1).
   const { error: clearGameErr } = await supabase
     .from('games')
     .update({ is_current: false })
-    .eq('set_id', setId)
-    .neq('game_number', gameNumber);
+    .eq('match_id', matchId);
   if (clearGameErr) {
     logger?.warn(
       { matchId, setId, err: clearGameErr.message },
@@ -469,6 +473,74 @@ export async function applyDiff(
           .from('games')
           .update({ points: pointsArr })
           .eq('id', gameId);
+      }
+    }
+  }
+
+  // ── winner_pair: authoritative write driven by set-tally jump ─────────
+  //
+  // When diff.gameChanged is true, EXACTLY ONE game just ended in this tick
+  // — the game that was in-progress in `prev` is now complete. We know who
+  // won because diff.gameWinnerSide was derived from the set-tally jump
+  // (whichever pair's `games` count went up). This is observably correct
+  // and immune to sparse-point-capture: even if we missed every point of
+  // the deciding game, the post-game set tally is a hard fact.
+  //
+  // The shadow dual-write path already wrote this column for shadow-mode
+  // tournaments. Mirroring the same logic here keeps games.winner_pair
+  // populated for canonical-mode tournaments too — without it, downstream
+  // features that depend on it (the momentum chart's BROKE badge, future
+  // serve-stats aggregations) read NULL on every game and fall silent.
+  //
+  // Compute the just-ended game's location from `prev`. For the very
+  // first tick (prev=null) gameChanged is necessarily false, so this
+  // branch never fires there. For subsequent ticks, prev's last set
+  // index + game tally tells us exactly which row to update.
+  if (diff.gameChanged && diff.gameWinnerSide && prev) {
+    const prevIdxA = lastSetIndex(prev.team1Sets);
+    const prevIdxB = lastSetIndex(prev.team2Sets);
+    const prevIdxMax = Math.max(prevIdxA, prevIdxB);
+    if (prevIdxMax >= 0) {
+      const prevSetNumber = prevIdxMax + 1;
+      const prevPair1Games = prev.team1Sets[prevIdxMax]?.games ?? 0;
+      const prevPair2Games = prev.team2Sets[prevIdxMax]?.games ?? 0;
+      // Game number that just ended = whatever was in-progress last tick.
+      const prevGameNumber = prevPair1Games + prevPair2Games + 1;
+      // Resolve the previous set's id. May be the same as `setId` when
+      // the game ended without advancing the set, or a different row
+      // when the just-ended game was the set-clinching one.
+      const { data: prevSetRow, error: prevSetErr } = await supabase
+        .from('sets')
+        .select('id')
+        .eq('match_id', matchId)
+        .eq('set_number', prevSetNumber)
+        .maybeSingle();
+      if (prevSetErr) {
+        logger?.warn(
+          { matchId, prevSetNumber, err: prevSetErr.message },
+          'applyDiff: failed to read prev set id for winner_pair write',
+        );
+      } else if (prevSetRow?.id) {
+        const { error: winErr } = await supabase
+          .from('games')
+          .update({
+            winner_pair: diff.gameWinnerSide,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('set_id', prevSetRow.id)
+          .eq('game_number', prevGameNumber);
+        if (winErr) {
+          logger?.warn(
+            {
+              matchId,
+              prevSetNumber,
+              prevGameNumber,
+              winnerSide: diff.gameWinnerSide,
+              err: winErr.message,
+            },
+            'applyDiff: failed to set winner_pair on completed game',
+          );
+        }
       }
     }
   }

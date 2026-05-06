@@ -278,24 +278,52 @@ function makeFakeSupabase(opts: {
       update: (patch: Record<string, unknown>) => ({
         eq: (col1: string, val1: unknown) => {
           // Shape A: .update().eq('id', gameId) — points sync (thenable)
-          // Shape B: .update().eq('set_id', ...).neq('game_number', ...) — is_current clear
+          // Shape B: .update().eq('match_id', matchId) — match-wide is_current clear
+          // Shape C: .update().eq('set_id', ...).eq('game_number', ...) — winner_pair write
+          // Shape D (legacy): .update().eq('set_id', ...).neq('game_number', ...) — old per-set is_current clear
           const result = {
+            eq: (col2: string, val2: unknown) => {
+              state.gamesUpdateCalls.push({
+                patch,
+                filters: { [col1]: val1, [col2]: val2 },
+              });
+              for (const g of state.games) {
+                if ((g as any)[col1] === val1 && (g as any)[col2] === val2) {
+                  Object.assign(g, patch);
+                }
+              }
+              return Promise.resolve({ data: null, error: null });
+            },
             neq: (col2: string, val2: unknown) => {
               state.gamesUpdateCalls.push({
                 patch,
                 filters: { [col1]: val1, [`!${col2}`]: val2 },
               });
               for (const g of state.games) {
-                if (g.set_id === val1 && g.game_number !== val2) {
+                if ((g as any)[col1] === val1 && (g as any)[col2] !== val2) {
                   Object.assign(g, patch);
                 }
               }
               return Promise.resolve({ data: null, error: null });
             },
             then: (resolve: any, reject?: any) => {
-              // Shape A — direct .eq('id', gameId) for points update
-              const game = state.games.find((g) => g.id === val1);
-              if (game) Object.assign(game, patch);
+              // Shape A: .update().eq('id', gameId) — points sync, single row
+              // Shape B: .update().eq('match_id', matchId) — match-wide
+              if (col1 === 'id') {
+                state.gamesUpdateCalls.push({ patch, filters: { id: val1 } });
+                const game = state.games.find((g) => g.id === val1);
+                if (game) Object.assign(game, patch);
+              } else {
+                state.gamesUpdateCalls.push({
+                  patch,
+                  filters: { [col1]: val1 },
+                });
+                for (const g of state.games) {
+                  if ((g as any)[col1] === val1) {
+                    Object.assign(g, patch);
+                  }
+                }
+              }
               return Promise.resolve({ data: null, error: null }).then(resolve, reject);
             },
           };
@@ -751,6 +779,140 @@ describe('applyDiff — games row', () => {
     // the prior game should now have is_current=false
     const prior = s.games.find((g) => g.id === 'game-uuid-prior')!;
     expect(prior.is_current).toBe(false);
+  });
+
+  it('clears is_current on prior games in DIFFERENT sets (set advance)', async () => {
+    // Regression: when set 1 → 2, the previous set's last in-progress
+    // game (e.g. set 1 / game 7) used to keep is_current=true because
+    // the clear was scoped by set_id of the new (set 2) row. The chart
+    // then saw two is_current=true games and locked its marker on the
+    // FIRST one, making the chart appear stuck on set 1.
+    const set1: SetRow = {
+      id: 'set-uuid-s1',
+      match_id: MATCH_ID,
+      set_number: 1,
+      pair1_games: 1,
+      pair2_games: 6,
+      is_current: false,
+    };
+    const set1LastGame: GameRow = {
+      id: 'game-s1g7',
+      set_id: set1.id,
+      match_id: MATCH_ID,
+      game_number: 7,
+      game_score: '40-AD',
+      server_player_id: 'p2p1',
+      is_tiebreak: false,
+      is_current: true, // stuck — this is what we're fixing
+    };
+    const set2: SetRow = {
+      id: 'set-uuid-s2',
+      match_id: MATCH_ID,
+      set_number: 2,
+      pair1_games: 4,
+      pair2_games: 0,
+      is_current: true,
+    };
+    const set2CurrentGame: GameRow = {
+      id: 'game-s2g5',
+      set_id: set2.id,
+      match_id: MATCH_ID,
+      game_number: 5,
+      game_score: '0-30',
+      server_player_id: 'p1p1',
+      is_tiebreak: false,
+      is_current: true,
+    };
+    const { client, state: s } = makeFakeSupabase({
+      preSets: [set1, set2],
+      preGames: [set1LastGame, set2CurrentGame],
+    });
+
+    // prev: set 2, 4-0, in game 5 at 0-30
+    // curr: set 2, 4-0, in game 5 at 0-40 (one more point for pair2)
+    const prev = state({ kind: 'regular', team1: 0, team2: 30 }, {
+      team1Sets: [
+        { games: 1, tiebreak: null },
+        { games: 4, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 6, tiebreak: null },
+        { games: 0, tiebreak: null },
+      ],
+    });
+    const curr = state({ kind: 'regular', team1: 0, team2: 40 }, {
+      team1Sets: [
+        { games: 1, tiebreak: null },
+        { games: 4, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 6, tiebreak: null },
+        { games: 0, tiebreak: null },
+      ],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 2 }],
+    };
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    // After the run: only set 2 / game 5 should have is_current=true.
+    const stuck = s.games.find((g) => g.id === 'game-s1g7')!;
+    expect(stuck.is_current).toBe(false);
+    const current = s.games.find((g) => g.id === 'game-s2g5')!;
+    expect(current.is_current).toBe(true);
+  });
+
+  it('writes winner_pair on the just-completed game when set tally jumps', async () => {
+    // Regression: in canonical mode, games.winner_pair was never being
+    // written — only the shadow dual-write path set it. The momentum
+    // chart's BROKE badge depends on this column, so break detection
+    // was silently dead for every canonical-mode tournament.
+    const set1: SetRow = {
+      id: 'set-uuid-s1',
+      match_id: MATCH_ID,
+      set_number: 1,
+      pair1_games: 3,
+      pair2_games: 2,
+      is_current: true,
+    };
+    // Game 6 was in progress (pair1 serving, lost the game — pair2 broke).
+    const completingGame: GameRow = {
+      id: 'game-s1g6',
+      set_id: set1.id,
+      match_id: MATCH_ID,
+      game_number: 6,
+      game_score: '40-AD',
+      server_player_id: 'p1p1',
+      is_tiebreak: false,
+      is_current: true,
+      // winner_pair: undefined  ← what we're filling
+    };
+    const { client, state: s } = makeFakeSupabase({
+      preSets: [set1],
+      preGames: [completingGame],
+    });
+
+    const prev = state({ kind: 'regular', team1: 40, team2: 40 /*AD*/ }, {
+      team1Sets: [{ games: 3, tiebreak: null }],
+      team2Sets: [{ games: 2, tiebreak: null }],
+    });
+    const curr = state({ kind: 'regular', team1: 0, team2: 0 }, {
+      team1Sets: [{ games: 3, tiebreak: null }],
+      team2Sets: [{ games: 3, tiebreak: null }],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 2 }],
+      gameChanged: true,
+      gameWinnerSide: 2,
+    };
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    // Game 6 (the just-completed one) should now carry winner_pair=2.
+    // pair1 was serving → pair2 won → that's a break.
+    const completed = s.games.find((g) => g.id === 'game-s1g6')!;
+    expect(completed.winner_pair).toBe(2);
   });
 });
 
