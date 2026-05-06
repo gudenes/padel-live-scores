@@ -164,7 +164,8 @@ export default function WelcomePickerPage() {
       margin: '0 auto',
       color: '#fff',
       fontFamily: 'system-ui, -apple-system, sans-serif',
-      paddingBottom: 110, // space for sticky CTA
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       {/* Header */}
       <div style={{ padding: '24px 18px 18px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
@@ -229,8 +230,8 @@ export default function WelcomePickerPage() {
         </div>
       </div>
 
-      {/* Body */}
-      <div style={{ padding: '18px 16px 0' }}>
+      {/* Body — grows so the CTA can stick to the bottom of the viewport */}
+      <div style={{ padding: '18px 16px 0', flex: 1 }}>
         {error && (
           <div style={{ padding: 16, color: '#FF4655', fontSize: 13, textAlign: 'center' }}>
             {error}
@@ -264,12 +265,14 @@ export default function WelcomePickerPage() {
         )}
       </div>
 
-      {/* Sticky CTA */}
+      {/* Sticky CTA — sticky (not fixed) because .app-screen uses
+          `contain: paint` which traps fixed-positioned descendants
+          inside the scroll container. Sticky pins to the bottom of
+          the viewport while scrolling within .app-screen. */}
       <div style={{
-        position: 'fixed',
-        bottom: 0, left: '50%',
-        transform: 'translateX(-50%)',
-        width: '100%', maxWidth: 500,
+        position: 'sticky',
+        bottom: 0,
+        marginTop: 24,
         background: 'linear-gradient(180deg, rgba(26,26,26,0), #1A1A1A 40%)',
         padding: '32px 16px 22px',
         zIndex: 10,
