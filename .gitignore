@@ -58,3 +58,4 @@ android/captures/
 android/.cxx/
 android/app/release/
 *.iml
+mobile-webdir/
