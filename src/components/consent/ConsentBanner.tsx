@@ -45,6 +45,28 @@ export function ConsentBanner() {
 
   return (
     <>
+      {/* Soft dim overlay — non-blocking. Reduces visual weight of the
+          page content behind the banner so the user's eye lands on the
+          decision to make. pointer-events:none lets clicks / scroll
+          pass through to the underlying app, preserving the spec's
+          "non-blocking" choice. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: 'rgba(0, 0, 0, 0.4)',
+          pointerEvents: 'none',
+          animation: 'pn-consent-dim-in 0.3s ease-out',
+        }}
+      />
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes pn-consent-dim-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}} />
       <div
         role="region"
         aria-label={t('title')}
