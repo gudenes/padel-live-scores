@@ -912,5 +912,31 @@
     "subtitle": "Não conseguimos acessar os placares ao vivo agora. Mostrando o que carregamos por último.",
     "retry": "Tentar novamente",
     "banner": "Offline — última conexão às {time}"
+  },
+  "consent": {
+    "title": "Usamos cookies",
+    "body": "Usamos cookies para melhorar pontuações e rankings, entender como o app é usado e (em breve) enviar alertas de partidas ao vivo nos dispositivos que você escolher.",
+    "privacyLink": "Leia nossa Política de Privacidade",
+    "rejectAll": "Rejeitar tudo",
+    "customize": "Personalizar",
+    "acceptAll": "Aceitar tudo",
+    "customizeTitle": "Gerenciar cookies",
+    "customizeSave": "Salvar preferências",
+    "customizeCancel": "Cancelar",
+    "categories": {
+      "essential": {
+        "label": "Essenciais",
+        "lockedNote": "Sempre ativos",
+        "description": "Login, idioma e seus seguidos salvos."
+      },
+      "analytics": {
+        "label": "Análise",
+        "description": "PostHog, Vercel Analytics e relatórios de erro do Sentry. Ajuda a melhorar o app."
+      },
+      "push": {
+        "label": "Notificações push",
+        "description": "Receba alertas de partidas ao vivo neste dispositivo, sem precisar fazer login."
+      }
+    }
   }
 }

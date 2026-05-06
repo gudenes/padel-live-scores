@@ -912,5 +912,31 @@
     "subtitle": "Nous ne pouvons pas accéder aux scores en direct pour le moment. Affichage des dernières données chargées.",
     "retry": "Réessayer",
     "banner": "Hors ligne — dernière connexion à {time}"
+  },
+  "consent": {
+    "title": "Nous utilisons des cookies",
+    "body": "Nous utilisons des cookies pour améliorer les scores et classements, comprendre comment l'app est utilisée et (bientôt) vous envoyer des alertes en direct sur les appareils de votre choix.",
+    "privacyLink": "Lire notre politique de confidentialité",
+    "rejectAll": "Tout refuser",
+    "customize": "Personnaliser",
+    "acceptAll": "Tout accepter",
+    "customizeTitle": "Gérer les cookies",
+    "customizeSave": "Enregistrer",
+    "customizeCancel": "Annuler",
+    "categories": {
+      "essential": {
+        "label": "Essentiels",
+        "lockedNote": "Toujours actifs",
+        "description": "Connexion, langue et vos suivis enregistrés."
+      },
+      "analytics": {
+        "label": "Analytique",
+        "description": "PostHog, Vercel Analytics et rapports d'erreurs Sentry. Nous aide à améliorer l'app."
+      },
+      "push": {
+        "label": "Notifications push",
+        "description": "Recevez des alertes en direct sur cet appareil, sans vous connecter."
+      }
+    }
   }
 }

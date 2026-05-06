@@ -933,5 +933,31 @@
     "subtitle": "We can't reach the live scores right now. Showing what we last loaded.",
     "retry": "Try again",
     "banner": "Offline — last connected at {time}"
+  },
+  "consent": {
+    "title": "We use cookies",
+    "body": "We use cookies to improve scores and rankings, understand how people use the app, and (soon) send you live-match alerts on devices you choose.",
+    "privacyLink": "Read our Privacy Policy",
+    "rejectAll": "Reject all",
+    "customize": "Customize",
+    "acceptAll": "Accept all",
+    "customizeTitle": "Manage cookies",
+    "customizeSave": "Save preferences",
+    "customizeCancel": "Cancel",
+    "categories": {
+      "essential": {
+        "label": "Essential",
+        "lockedNote": "Always on",
+        "description": "Sign-in, language, and your saved follows."
+      },
+      "analytics": {
+        "label": "Analytics",
+        "description": "PostHog, Vercel Analytics, and Sentry error reports. Helps us improve the app."
+      },
+      "push": {
+        "label": "Push notifications",
+        "description": "Receive live-match alerts on this device, even without signing in."
+      }
+    }
   }
 }

@@ -912,5 +912,31 @@
     "subtitle": "Non possiamo raggiungere i punteggi live in questo momento. Mostriamo gli ultimi dati caricati.",
     "retry": "Riprova",
     "banner": "Offline — ultima connessione alle {time}"
+  },
+  "consent": {
+    "title": "Usiamo i cookie",
+    "body": "Usiamo i cookie per migliorare punteggi e classifiche, capire come viene usata l'app e (presto) inviarti notifiche di partite live sui dispositivi che scegli.",
+    "privacyLink": "Leggi la nostra Privacy Policy",
+    "rejectAll": "Rifiuta tutti",
+    "customize": "Personalizza",
+    "acceptAll": "Accetta tutti",
+    "customizeTitle": "Gestisci i cookie",
+    "customizeSave": "Salva preferenze",
+    "customizeCancel": "Annulla",
+    "categories": {
+      "essential": {
+        "label": "Essenziali",
+        "lockedNote": "Sempre attivi",
+        "description": "Accesso, lingua e i tuoi seguiti salvati."
+      },
+      "analytics": {
+        "label": "Analitica",
+        "description": "PostHog, Vercel Analytics e report degli errori di Sentry. Ci aiuta a migliorare l'app."
+      },
+      "push": {
+        "label": "Notifiche push",
+        "description": "Ricevi notifiche di partite live su questo dispositivo, senza accedere."
+      }
+    }
   }
 }
