@@ -1,0 +1,3 @@
+{
+  "url": "postgres://user:p%40ss%2Fword%21@db.example.com:5432/postgres"
+}
