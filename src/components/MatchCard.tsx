@@ -382,6 +382,27 @@ export function MatchCard({
               {status.label}
             </Chip>
           )}
+          {!isPredictionEnabled && (
+            <span
+              title={tMatch('lateHint.estChipAria')}
+              aria-label={tMatch('lateHint.estChipAria')}
+              style={{
+                fontSize: 9,
+                fontWeight: 800,
+                letterSpacing: 0.4,
+                textTransform: 'uppercase',
+                color: GREEN,
+                background: 'rgba(126,211,33,0.10)',
+                border: '1px solid rgba(126,211,33,0.25)',
+                padding: '2px 6px',
+                clipPath: CHUNKY.badge,
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {tMatch('lateHint.estChip')}
+            </span>
+          )}
         </div>
 
         {/* Corner CTA / pill / badge — only on Premier-tier matches where
