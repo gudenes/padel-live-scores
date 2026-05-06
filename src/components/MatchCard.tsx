@@ -178,6 +178,7 @@ export function MatchCard({
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
   const tPred = useTranslations('prediction')
+  const tMatch = useTranslations('match')
 
   // Per-match realtime subscription. Only opens the channel when the
   // match is live or warming up; for scheduled / finished cards we
@@ -599,6 +600,13 @@ export function MatchCard({
                   TBD
                 </span>
               )}
+              {timeStr && (match.late_hint === 'may_be_late' || match.late_hint === 'starting_soon') && (
+                <LateHintPill
+                  hint={match.late_hint}
+                  courtName={match.court ?? ''}
+                  tMatch={tMatch}
+                />
+              )}
             </div>
           )}
         </div>
@@ -904,4 +912,98 @@ function cornerPillStyle(bg: string, color: string, borderStyle: 'solid' | 'dash
     clipPath: CHUNKY.badge,
     border: `0.5px ${borderStyle} ${color}40`,
   }
+}
+
+// ── LateHintPill — small dotted-underline tap target under the time ────────
+//
+// Renders only on scheduled matches with a real timeStr and a non-null
+// late_hint. Tapping pops a tiny info sheet (mirrors LockedPill's pattern):
+// 3.5s auto-dismiss, click anywhere on the sheet to dismiss earlier.
+//
+// Two variants:
+//   may_be_late   → orange (#F5A623), "may be late"   → "...running long..."
+//   starting_soon → green  (#7ED321), "starting soon" → "...should be called shortly..."
+
+interface LateHintPillProps {
+  hint: 'may_be_late' | 'starting_soon'
+  courtName: string
+  tMatch: ReturnType<typeof useTranslations>
+}
+
+function LateHintPill({ hint, courtName, tMatch }: LateHintPillProps) {
+  const [open, setOpen] = useState(false)
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setOpen((prev) => !prev)
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    if (!open) {
+      dismissTimerRef.current = setTimeout(() => setOpen(false), 3500)
+    }
+  }
+
+  useEffect(() => () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current) }, [])
+
+  const isLate = hint === 'may_be_late'
+  const accent = isLate ? ORANGE : GREEN
+  const labelKey = isLate ? 'lateHint.mayBeLate' : 'lateHint.startingSoon'
+  const ariaKey  = isLate ? 'lateHint.mayBeLateAria' : 'lateHint.startingSoonAria'
+  const sheetKey = isLate ? 'lateHint.mayBeLateSheet' : 'lateHint.startingSoonSheet'
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-label={tMatch(ariaKey)}
+        aria-expanded={open}
+        style={{
+          marginTop: 2,
+          padding: 0,
+          border: 0,
+          background: 'transparent',
+          color: accent,
+          opacity: isLate ? 0.85 : 0.95,
+          fontSize: 9,
+          fontWeight: 600,
+          letterSpacing: 0.2,
+          textTransform: 'lowercase',
+          cursor: 'pointer',
+          borderBottom: `1px dotted ${accent}66`,
+          lineHeight: 1.2,
+          alignSelf: 'flex-end',
+        }}
+      >
+        {tMatch(labelKey)}
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }}
+          style={{
+            position: 'absolute',
+            right: 12,
+            bottom: 6,
+            zIndex: 4,
+            maxWidth: 240,
+            padding: '8px 10px',
+            background: BG_ELEV,
+            border: `0.5px solid rgba(255,255,255,0.12)`,
+            clipPath: CHUNKY.badge,
+            color: '#E5E7EB',
+            fontSize: 11,
+            fontWeight: 500,
+            lineHeight: 1.35,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+            cursor: 'pointer',
+            animation: 'mc-locked-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+          }}
+        >
+          {tMatch(sheetKey, { court: courtName })}
+        </div>
+      )}
+    </>
+  )
 }
