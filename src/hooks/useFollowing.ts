@@ -10,6 +10,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { BOOKMARK_EVENT, type BookmarkEventDetail } from '@/components/BookmarkToast'
 import { useAnonPush } from '@/hooks/useAnonPush'
+import { tryEnablePushOrShowInstallNudge } from '@/lib/pwa-install'
 
 export type FollowType = 'match' | 'player' | 'tournament' | 'news_source'
 
@@ -259,7 +260,7 @@ export function useFollowing() {
             // a subscription already exists. addBookmark fires after, in case
             // the subscription was already there.
             void (async () => {
-              await anonPush.ensureSubscription(initial)
+              await tryEnablePushOrShowInstallNudge(initial, 'first_follow')
               await anonPush.addBookmark(bookmark)
             })()
           } else {
