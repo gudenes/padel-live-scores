@@ -944,7 +944,7 @@ Find the array of `ScheduleEntry` registrations. Add an entry like the existing 
 Find where `SchedulerFlags` is constructed from `process.env` (typically in `padelgod/src/index.ts` or wherever `flags:` is built). Add:
 
 ```ts
-  enableScheduleHintsWriter: process.env.PADELGOD_ENABLE_SCHEDULE_HINTS_WRITER !== 'false',
+  enableScheduleHintsWriter: process.env.ENABLE_SCHEDULE_HINTS_WRITER !== 'false',
   scheduleHintsWriterDryRun: process.env.SCHEDULE_HINTS_WRITER_DRY_RUN !== 'false', // default true
   scheduleHintsExpectedDurationMin: Number.parseInt(
     process.env.SCHEDULE_HINTS_EXPECTED_DURATION_MIN ?? '90',
