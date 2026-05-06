@@ -3,6 +3,8 @@
 // Single consolidated push-permission prompt — replaces N stacked per-follow toasts.
 
 import { useTranslations } from 'next-intl'
+import { useFollowing } from '@/hooks/useFollowing'
+import { useAnonPush } from '@/hooks/useAnonPush'
 
 const GREEN = '#7ED321'
 const CHUNKY = {
@@ -19,20 +21,20 @@ interface Props {
 
 export function NotificationPromptSheet({ pickedNames, onResolve }: Props) {
   const t = useTranslations('notificationPrompt')
+  const { getFollowed } = useFollowing()
+  const anonPush = useAnonPush()
 
   const handleEnable = async () => {
     try {
       localStorage.setItem('pn_push_prompted', '1')
     } catch {}
-    let granted = false
-    try {
-      if ('Notification' in window && Notification.permission === 'default') {
-        const result = await Notification.requestPermission()
-        granted = result === 'granted'
-      } else {
-        granted = 'Notification' in window && Notification.permission === 'granted'
-      }
-    } catch { /* permission API may throw on iOS PWA edge cases */ }
+    // Build the initial bookmark snapshot so the server-side
+    // anon_bookmarks list is seeded with the user's current follows.
+    const initial = [
+      ...getFollowed('player').map(id => ({ type: 'player' as const, target_id: id })),
+      ...getFollowed('match').map(id => ({ type: 'match' as const, target_id: id })),
+    ]
+    const granted = await anonPush.ensureSubscription(initial)
     onResolve(granted)
   }
 
