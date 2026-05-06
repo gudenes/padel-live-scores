@@ -3,7 +3,9 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { useAuth } from '@/components/AuthProvider'
 import { useFollowing } from '@/hooks/useFollowing'
+import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { supabase } from '@/lib/supabase'
 import { PickerCard, type PickerPlayer } from './PickerCard'
 import { NotificationPromptSheet } from './NotificationPromptSheet'
@@ -21,6 +23,8 @@ const SEARCH_LIMIT = 30
 export default function WelcomePickerPage() {
   const t = useTranslations('picker')
   const router = useRouter()
+  const { user } = useAuth()
+  const { openLoginSheet } = useLoginSheet()
   const { toggle, getFollowed, loaded: followingLoaded } = useFollowing()
 
   const [players, setPlayers] = useState<PickerPlayer[] | null>(null)
@@ -207,7 +211,31 @@ export default function WelcomePickerPage() {
       flexDirection: 'column',
     }}>
       {/* Header */}
-      <div style={{ padding: '24px 18px 18px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ position: 'relative', padding: '24px 18px 18px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        {/* Sign-in pill — anonymous-only opt-in shortcut. Doesn't gate the
+            flow; users who already have an account can authenticate first
+            so their picks land directly in their DB bookmarks. */}
+        {!user && (
+          <button
+            type="button"
+            onClick={openLoginSheet}
+            style={{
+              position: 'absolute',
+              top: 14, right: 14,
+              padding: '6px 12px',
+              fontSize: 11, fontWeight: 800,
+              textTransform: 'uppercase', letterSpacing: 0.5,
+              color: GREEN,
+              background: 'rgba(126,211,33,0.08)',
+              border: `1px solid rgba(126,211,33,0.3)`,
+              clipPath: 'polygon(2% 8%, 98% 0%, 100% 92%, 0% 100%)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {t('signIn')}
+          </button>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/padelnachos-logo-v2.png"

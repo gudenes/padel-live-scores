@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { useFollowing } from '@/hooks/useFollowing'
@@ -8,6 +8,12 @@ import { useFollowing } from '@/hooks/useFollowing'
 const GREEN = '#7ED321'
 const CHUNKY_CARD = 'polygon(0% 1%, 99% 0%, 100% 99%, 1% 100%)'
 const CHUNKY_BTN = 'polygon(2% 8%, 98% 0%, 100% 92%, 0% 100%)'
+
+// Slow drift — easy to read, doesn't fight the user. Roughly one
+// pill every ~6 seconds (PILL_WIDTH / SCROLL_PX_PER_SEC).
+const SCROLL_PX_PER_SEC = 18
+// After the user releases their finger, wait this long before resuming.
+const RESUME_DELAY_MS = 2500
 
 interface SuggestedPlayer {
   id: string
@@ -39,34 +45,32 @@ function PlayerPill({
   return (
     <div style={{
       flexShrink: 0,
-      width: 96,
+      width: 116,
       background: 'rgba(255,255,255,0.03)',
       clipPath: CHUNKY_CARD,
-      padding: '10px 8px',
+      padding: '12px 10px 10px',
       textAlign: 'center',
       color: '#fff',
     }}>
       <Link
         href={`/player/${p.id}`}
-        style={{
-          display: 'block', textDecoration: 'none', color: 'inherit',
-        }}
+        style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
       >
         <div style={{
-          width: 50, height: 50,
-          background: p.avatar_url ? `url(${p.avatar_url}) center/cover` : 'linear-gradient(135deg, #2a2a2a, #1a1a1a)',
-          border: `1.5px solid rgba(126,211,33,${followed ? 1 : 0.25})`,
+          width: 68, height: 68,
+          background: p.avatar_url ? `url(${p.avatar_url}) center top / cover` : 'linear-gradient(135deg, #2a2a2a, #1a1a1a)',
+          border: `2px solid rgba(126,211,33,${followed ? 1 : 0.25})`,
           borderRadius: '50%',
-          margin: '0 auto 6px',
+          margin: '0 auto 8px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 14, fontWeight: 800, color: GREEN,
+          fontSize: 16, fontWeight: 800, color: GREEN,
         }}>
           {!p.avatar_url && initials(display)}
         </div>
-        <div style={{ fontSize: 10, fontWeight: 800, lineHeight: 1.2, height: 24, overflow: 'hidden', marginBottom: 4 }}>
+        <div style={{ fontSize: 12, fontWeight: 800, lineHeight: 1.2, height: 28, overflow: 'hidden', marginBottom: 4 }}>
           {display}
         </div>
-        <div style={{ fontSize: 9, color: '#888', marginBottom: 6 }}>
+        <div style={{ fontSize: 10, color: '#888', marginBottom: 8 }}>
           {p.country ?? '—'} · <span style={{ color: GREEN, fontWeight: 800 }}>#{p.ranking ?? '—'}</span>
         </div>
       </Link>
@@ -78,9 +82,9 @@ function PlayerPill({
           background: followed ? 'rgba(126,211,33,0.15)' : GREEN,
           color: followed ? GREEN : '#000',
           border: followed ? `1px solid rgba(126,211,33,0.3)` : 'none',
-          fontSize: 9, fontWeight: 900,
+          fontSize: 10, fontWeight: 900,
           textTransform: 'uppercase', letterSpacing: 0.4,
-          padding: '5px 0',
+          padding: '6px 0',
           clipPath: CHUNKY_BTN,
           cursor: 'pointer',
           fontFamily: 'inherit',
@@ -97,6 +101,13 @@ export function SuggestedPlayersMarquee() {
   const [players, setPlayers] = useState<SuggestedPlayer[] | null>(null)
   const { isFollowing, toggle } = useFollowing()
 
+  // Native horizontal scroll container — user can swipe / drag freely.
+  // A rAF loop nudges scrollLeft while the user isn't interacting, giving
+  // the slow auto-drift feel without freezing manual control.
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const isInteractingRef = useRef(false)
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     let cancelled = false
     fetch('/api/picker/suggested-players')
@@ -106,9 +117,83 @@ export function SuggestedPlayersMarquee() {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    if (!players || players.length === 0) return
+    const el = scrollerRef.current
+    if (!el) return
+
+    // Honor reduced-motion: stay still, user still has manual scroll.
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    let raf = 0
+    let lastTs = 0
+
+    function tick(ts: number) {
+      if (!isInteractingRef.current && !reduceMotion) {
+        if (lastTs > 0) {
+          const dt = ts - lastTs
+          el!.scrollLeft += (SCROLL_PX_PER_SEC * dt) / 1000
+          // Seamless wrap: content is duplicated 2x, so reset to 0 once
+          // we've drifted past the first half.
+          const halfWidth = el!.scrollWidth / 2
+          if (el!.scrollLeft >= halfWidth) el!.scrollLeft -= halfWidth
+        }
+        lastTs = ts
+      } else {
+        // Reset so resume doesn't compute a huge delta.
+        lastTs = 0
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+
+    function pause() {
+      isInteractingRef.current = true
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current)
+        idleTimerRef.current = null
+      }
+    }
+    function scheduleResume() {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+      idleTimerRef.current = setTimeout(() => {
+        isInteractingRef.current = false
+      }, RESUME_DELAY_MS)
+    }
+
+    el.addEventListener('mouseenter', pause)
+    el.addEventListener('mouseleave', scheduleResume)
+    el.addEventListener('pointerdown', pause)
+    el.addEventListener('pointerup', scheduleResume)
+    el.addEventListener('pointercancel', scheduleResume)
+    el.addEventListener('touchstart', pause, { passive: true })
+    el.addEventListener('touchend', scheduleResume)
+    el.addEventListener('touchcancel', scheduleResume)
+    // Wheel / trackpad horizontal scroll also counts as user intent.
+    el.addEventListener('wheel', pause, { passive: true })
+    el.addEventListener('wheel', scheduleResume, { passive: true })
+
+    return () => {
+      cancelAnimationFrame(raf)
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+      el.removeEventListener('mouseenter', pause)
+      el.removeEventListener('mouseleave', scheduleResume)
+      el.removeEventListener('pointerdown', pause)
+      el.removeEventListener('pointerup', scheduleResume)
+      el.removeEventListener('pointercancel', scheduleResume)
+      el.removeEventListener('touchstart', pause)
+      el.removeEventListener('touchend', scheduleResume)
+      el.removeEventListener('touchcancel', scheduleResume)
+      el.removeEventListener('wheel', pause)
+      el.removeEventListener('wheel', scheduleResume)
+    }
+  }, [players])
+
   if (!players || players.length === 0) return null
 
-  // Duplicate the list 2x for seamless loop
+  // Duplicate the list 2x so the rAF wrap is seamless.
   const doubled = [...players, ...players]
 
   return (
@@ -131,20 +216,24 @@ export function SuggestedPlayersMarquee() {
       </div>
 
       <div
-        className="pn-marquee"
+        ref={scrollerRef}
+        className="pn-marquee-scroller"
         style={{
-          overflow: 'hidden',
-          position: 'relative',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
           WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
           maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
         }}
       >
-        <div className="pn-marquee-track" style={{
+        <div style={{
           display: 'flex',
-          gap: 8,
-          width: 'max-content',
+          gap: 10,
           paddingLeft: 12,
-          animation: 'pn-marquee-scroll 32s linear infinite',
+          paddingRight: 12,
+          width: 'max-content',
         }}>
           {doubled.map((p, idx) => (
             <PlayerPill
@@ -158,17 +247,7 @@ export function SuggestedPlayersMarquee() {
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes pn-marquee-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-        .pn-marquee:hover .pn-marquee-track,
-        .pn-marquee:active .pn-marquee-track {
-          animation-play-state: paused;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .pn-marquee-track { animation: none !important; }
-        }
+        .pn-marquee-scroller::-webkit-scrollbar { display: none; }
       `}} />
     </div>
   )

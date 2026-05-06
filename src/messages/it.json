@@ -727,7 +727,8 @@
     "errorLoading": "Impossibile caricare i suggerimenti. Riprova.",
     "softHint": "{count, plural, one {Scegli ancora uno per migliori raccomandazioni} other {Scegli altri {count} per migliori raccomandazioni}}",
     "searchResults": "Risultati",
-    "noResults": "Nessun giocatore trovato per \"{query}\""
+    "noResults": "Nessun giocatore trovato per \"{query}\"",
+    "signIn": "Accedi"
   },
   "suggestedPlayers": {
     "sectionTitle": "Suggeriti per te",
