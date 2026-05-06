@@ -288,6 +288,86 @@ describe('runEntryListFetcher (FIP PDF mode)', () => {
     expect(qualifying[0].seed).toBe(1); // qualifying positions restart at 1
   });
 
+  it('stores the resolvable partner when only one player on the team can be resolved', async () => {
+    // Regression: pre-fix behaviour skipped the whole team if either player
+    // failed to resolve. This dropped legitimate fip-IDed players (e.g.
+    // Giulia Dal Pozzo paired with a not-yet-FIP-indexed Nuria Rodriguez
+    // Camacho) from the snapshot, breaking downstream draw resolution for
+    // every match that referenced them. Now: at least one resolved player
+    // means at least one row written, and the unresolved partner shows up
+    // as a raw `partner_name` with `partner_fip_id: null`.
+    const supabase = fakeSupabase({
+      activeTournaments: [
+        {
+          tournament_id: 'tour-1',
+          tournament_name: 'FIP Bronze Testonia',
+          slug: 'fip-bronze-testonia-2026',
+          starts_at: '2026-05-01T00:00:00Z',
+          ends_at: '2026-05-08T00:00:00Z',
+        },
+      ],
+      dbPlayers: [
+        // Resolvable: in DB with fip_id.
+        { id: 'p1', fip_id: 'fip-P0001', name: 'Arturo Coello', normalized_name: 'arturo coello', country: 'ES', ranking: 1, category: 'men' },
+        { id: 'p3', fip_id: 'fip-P0010', name: 'Federico Chingotto', normalized_name: 'federico chingotto', country: 'AR', ranking: 10, category: 'men' },
+        { id: 'p4', fip_id: 'fip-P0011', name: 'Alejandro Galan', normalized_name: 'alejandro galan', country: 'ES', ranking: 11, category: 'men' },
+        { id: 'p5', fip_id: 'fip-P0150', name: 'Q One Player', normalized_name: 'q one player', country: 'AR', ranking: 150, category: 'men' },
+        { id: 'p6', fip_id: 'fip-P0151', name: 'Q Two Player', normalized_name: 'q two player', country: 'AR', ranking: 151, category: 'men' },
+        // Note: Agustin Tapia intentionally NOT seeded so r2 fails to
+        // resolve for team 1. FIP search fallback below also stubbed
+        // empty so searchFipPlayer returns null cleanly.
+      ],
+    });
+
+    vi.mocked(pdfToText)
+      .mockImplementationOnce(async () => menPdfText)
+      .mockImplementation(async () => '');
+
+    const httpClient = {
+      // Event-page GET, then 2 PDF GETs, then any number of FIP search
+      // GETs (all returning empty arrays so Tapia stays unresolved).
+      get: vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/events/')) return Promise.resolve({ data: eventPageHtml });
+        if (url.endsWith('.pdf') || url.includes('/uploads/')) return Promise.resolve({ data: new ArrayBuffer(8) });
+        // Default — FIP player search returning no matches
+        return Promise.resolve({ data: [] });
+      }),
+      post: vi.fn().mockResolvedValueOnce({
+        data: ajaxJson(
+          'https://www.padelfip.com/wp-content/uploads/men.pdf',
+          'https://www.padelfip.com/wp-content/uploads/women.pdf'
+        ),
+      }),
+    };
+
+    const result = await runEntryListFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(result.tournamentsProcessed).toBe(1);
+
+    // Team 1 (Coello + Tapia): Coello resolves, Tapia doesn't → 1 row.
+    // Team 2 (Chingotto + Galan): both resolve → 2 rows.
+    // Q team (Q One + Q Two): both resolve → 2 rows.
+    // Total = 5 rows (was 4 under old behaviour: team 1 entirely skipped).
+    expect(supabase.inserted).toHaveLength(5);
+
+    // Coello's row exists with seed and a partner_name (raw) but null partner_fip_id.
+    const coello = supabase.inserted.find((r) => r.fip_id === 'fip-P0001');
+    expect(coello).toBeDefined();
+    expect(coello!.seed).toBe(1);
+    expect(coello!.partner_fip_id).toBeNull();
+    expect(coello!.partner_name).toBe('Agustin Tapia');
+
+    // No row for Tapia (he didn't resolve).
+    expect(supabase.inserted.some((r) => r.name === 'Agustin Tapia')).toBe(false);
+
+    // Team 2 still writes both rows with seeds + linked partner ids.
+    const chingotto = supabase.inserted.find((r) => r.fip_id === 'fip-P0010');
+    expect(chingotto!.partner_fip_id).toBe('fip-P0011');
+  });
+
   it('soft-skips a failing tournament without taking the rest of the run down', async () => {
     const supabase = fakeSupabase({
       activeTournaments: [

@@ -383,15 +383,25 @@ describe('resolveFourPlayers', () => {
     });
   });
 
-  it('returns null when one name is missing from entry list', () => {
+  it('returns the single missing slot as null when one name is missing from entry list', () => {
     const d = { ...baseDraw, team1_player1_name: 'Nobody Here' };
-    expect(resolveFourPlayers(d, nameToFipId, emptyShortForm, fipIdToPlayerId)).toBeNull();
+    expect(resolveFourPlayers(d, nameToFipId, emptyShortForm, fipIdToPlayerId)).toEqual({
+      p1p1: null,
+      p1p2: 'uuid-2',
+      p2p1: 'uuid-3',
+      p2p2: 'uuid-4',
+    });
   });
 
-  it('returns null when one fip_id has no public.players row', () => {
+  it('returns the affected slot as null when one fip_id has no public.players row', () => {
     const noP4 = new Map(fipIdToPlayerId);
     noP4.delete('fip-P4');
-    expect(resolveFourPlayers(baseDraw, nameToFipId, emptyShortForm, noP4)).toBeNull();
+    expect(resolveFourPlayers(baseDraw, nameToFipId, emptyShortForm, noP4)).toEqual({
+      p1p1: 'uuid-1',
+      p1p2: 'uuid-2',
+      p2p1: 'uuid-3',
+      p2p2: null,
+    });
   });
 });
 
@@ -615,7 +625,7 @@ describe('runFipDrawPopulator', () => {
     expect(result.inserted).toBe(0);
   });
 
-  it('skips rows where any player is unresolved (will retry next run)', async () => {
+  it('inserts partial-FK rows when 1 of 4 players is unresolved (skip only when all 4 fail)', async () => {
     const missingPartner: DrawSeed = {
       ...realMatchDraw,
       match_widget_id: 'MD002',
@@ -627,6 +637,44 @@ describe('runFipDrawPopulator', () => {
       ],
       widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
       draws: [missingPartner],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // Per-slot resilience: 3 of 4 resolved → INSERT with 3 FKs + 1 raw
+    // name. Only when ALL 4 are unresolved AND non-amateur tier do we
+    // defer to the next run.
+    expect(result.skippedPlayerUnresolved).toBe(0);
+    expect(result.inserted).toBe(1);
+    const inserted = supabase.inserted.find((r) => r.widget_id_composite?.endsWith(':MD002'));
+    expect(inserted).toBeDefined();
+    expect(inserted!.pair1_player1_id).toBe('uuid-P1');
+    expect(inserted!.pair1_player2_id).toBe('uuid-P2');
+    expect(inserted!.pair2_player1_id).toBe('uuid-P3');
+    expect(inserted!.pair2_player2_id).toBeUndefined();
+    expect(inserted!.pair2_player2_name).toBe('Completely Unknown Player');
+  });
+
+  it('still skips rows when ALL 4 players unresolved on a non-amateur tier', async () => {
+    const allMissing: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD003',
+      team1_player1_name: 'Unknown One',
+      team1_player2_name: 'Unknown Two',
+      team2_player1_name: 'Unknown Three',
+      team2_player2_name: 'Unknown Four',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [allMissing],
       entryList,
       players: rosterPlayers,
     });
@@ -2044,7 +2092,14 @@ describe('resolveFourPlayers — short-form fallback', () => {
       team2_player1_name: 'Carlos Lopez',
       team2_player2_name: 'Jose Garcia',
     } as never;
-    expect(resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId)).toBeNull();
+    // Ambiguous short-form returns null only for the affected slot — other
+    // unambiguous slots still resolve so callers can do partial FK fills.
+    expect(resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId)).toEqual({
+      p1p1: null,
+      p1p2: 'uuid-3',
+      p2p1: 'uuid-4',
+      p2p2: 'uuid-3',
+    });
   });
 });
 
@@ -2122,7 +2177,14 @@ describe('resolveFourPlayers — middle-name strip and prefix fallbacks', () => 
       team2_player2_name: 'German Rodriguez',
     } as never;
     const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
-    expect(resolved).toBeNull();
+    // Ambiguous middle-strip returns null for the ambiguous slot only —
+    // other unambiguous slots still resolve to enable partial FK fills.
+    expect(resolved).toEqual({
+      p1p1: null,
+      p1p2: 'uuid-2',
+      p2p1: 'uuid-3',
+      p2p2: 'uuid-4',
+    });
   });
 });
 
@@ -2353,13 +2415,21 @@ describe('runFipDrawPopulator — draw refreshes short-form names on UPDATE', ()
       dryRun: false,
     });
 
-    // Pure no-op: nothing in OOP draw is more authoritative than the
-    // short-form names already in the row, and resolver can't fill FKs
-    // from short forms that aren't in the EL's short-form map.
-    expect(result.updated).toBe(0);
+    // OOP-source draws never trigger short-form NAME refresh — that's
+    // reserved for fip_event_page (the authoritative bracket). The patch
+    // (if any) must NOT contain pair*_player*_name overwrites of the
+    // existing short-form values. Per-slot FK fills are still allowed:
+    // resolveFourPlayers may resolve 2 of 4 short forms via the EL's
+    // short-form map (Nuno Baptista / David Fernandes), while the other
+    // two stay unresolved because their PDF entries have extra surnames
+    // ("Jose Montalban Martin", "German Rodriguez Quesada") that don't
+    // match the OOP-form initials.
     if (supabase.updated.length > 0) {
-      const patch = supabase.updated[0].patch;
-      expect(patch.pair1_player1_name).not.toBe('N. Baptista');
+      const patch = supabase.updated[0].patch as Record<string, unknown>;
+      expect(patch.pair1_player1_name).toBeUndefined();
+      expect(patch.pair1_player2_name).toBeUndefined();
+      expect(patch.pair2_player1_name).toBeUndefined();
+      expect(patch.pair2_player2_name).toBeUndefined();
     }
   });
 });

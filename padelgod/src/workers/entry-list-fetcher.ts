@@ -349,36 +349,49 @@ async function processCategory(
     if (r2) resolved++;
     else unresolved++;
 
-    // Both must be resolved for the row to be useful — the populator
-    // skips fip_id-less rows, and writing one half of a team without the
-    // other would leave a dangling partner_fip_id pointing nowhere.
-    if (!r1 || !r2) continue;
+    // Skip the team only when neither side resolved — no useful signal.
+    // When exactly one side resolved, store that player's row anyway so
+    // downstream consumers (the draw populator's nameToFipId map) can still
+    // map them to a fip_id. The unresolved partner shows up as
+    // `partner_name` (raw parsed string) with `partner_fip_id: null`. This
+    // breaks the cascade where one unresolvable player (e.g. a late-add
+    // wildcard, a player not yet in FIP's search index) drops their
+    // teammate from the snapshot too.
+    if (!r1 && !r2) continue;
 
     const draw_type = DRAW_TYPE_DB[team.drawType];
-    rows.push({
-      scrape_job_id: job.scrapeJobId,
-      tournament_id: tournamentId,
-      category,
-      draw_type,
-      fip_id: r1.fipId,
-      name: r1.name,
-      country: normalizeCountry(r1.country),
-      seed: team.position,
-      partner_fip_id: r2.fipId,
-      partner_name: r2.name,
-    });
-    rows.push({
-      scrape_job_id: job.scrapeJobId,
-      tournament_id: tournamentId,
-      category,
-      draw_type,
-      fip_id: r2.fipId,
-      name: r2.name,
-      country: normalizeCountry(r2.country),
-      seed: null, // team position recorded once, on player1
-      partner_fip_id: r1.fipId,
-      partner_name: r1.name,
-    });
+
+    if (r1) {
+      rows.push({
+        scrape_job_id: job.scrapeJobId,
+        tournament_id: tournamentId,
+        category,
+        draw_type,
+        fip_id: r1.fipId,
+        name: r1.name,
+        country: normalizeCountry(r1.country),
+        seed: team.position,
+        partner_fip_id: r2 ? r2.fipId : null,
+        partner_name: r2 ? r2.name : team.player2.name,
+      });
+    }
+    if (r2) {
+      rows.push({
+        scrape_job_id: job.scrapeJobId,
+        tournament_id: tournamentId,
+        category,
+        draw_type,
+        fip_id: r2.fipId,
+        name: r2.name,
+        country: normalizeCountry(r2.country),
+        // Seed lives on player1's row by convention. When player1 didn't
+        // resolve and only this row gets written, fall back to recording
+        // the seed here so the team position isn't lost.
+        seed: r1 ? null : team.position,
+        partner_fip_id: r1 ? r1.fipId : null,
+        partner_name: r1 ? r1.name : team.player1.name,
+      });
+    }
   }
 
   if (rows.length === 0) {

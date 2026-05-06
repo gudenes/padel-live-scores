@@ -623,10 +623,13 @@ export async function runFipDrawPopulator(
         }
       }
 
-      // Resolve 4 players. Two cases allow a "thin match" fallback —
-      // same composite + round + category, FK columns NULL, raw names
-      // preserved on pair*_player*_name (the UI renders the strings
-      // without a profile link):
+      // Resolve 4 players. Each slot resolves independently — partial
+      // success is allowed everywhere now. Skip rules:
+      //   * If 0 of 4 resolve AND not amateur/OOP-sourced → skip (no
+      //     useful signal; defer to next run when entry list catches up).
+      //   * Otherwise → INSERT/UPDATE with whatever resolved, keeping
+      //     unresolved slots as raw names (thin) on a per-slot basis.
+      // Two cases allow a fully-thin match (zero FKs):
       //   1. Amateur tiers (Beyond / Promises / Other) — these don't
       //      have a strict entry-list discipline, late wildcards are
       //      common, and the player pool is small enough that profile
@@ -644,14 +647,15 @@ export async function runFipDrawPopulator(
       const isOopSourced = d.source === 'oop_snapshot';
       const allowThinMatch = isAmateurTier || isOopSourced;
       const resolved = resolveFourPlayers(d, nameToFipId, shortFormToFipId, fipIdToPlayerId, logger);
-      if (!resolved && !allowThinMatch) {
+      const numResolved = resolvedCount(resolved);
+      if (numResolved === 0 && !allowThinMatch) {
         result.skippedPlayerUnresolved += 1;
         logger?.debug(
           {
             tournamentId: t.tournament_id,
             matchWidgetId: d.match_widget_id,
           },
-          'fip-draw-populator: player unresolved — deferring to next run'
+          'fip-draw-populator: all 4 players unresolved — deferring to next run'
         );
         continue;
       }
@@ -660,38 +664,41 @@ export async function runFipDrawPopulator(
       const existing = existingByComposite.get(composite);
 
       if (!existing) {
-        // INSERT new match. When `resolved` is set we write the FKs;
-        // when null (amateur-tier thin match) we write the raw names.
-        // NOTE: deliberately not setting status/court/scheduled_at/
-        // winner_pair/sets — those belong to other writers.
+        // INSERT new match. Per-slot: write FK if resolved, raw name if
+        // not. Resolved + unresolved slots can coexist on the same row —
+        // the UI renders the FK ones with profile links and the raw-name
+        // ones as plain text. NOTE: deliberately not setting status/
+        // court/scheduled_at/winner_pair/sets — those belong to other
+        // writers.
         const insertRow: Record<string, unknown> = {
           widget_id_composite: composite,
           tournament_id: t.tournament_id,
           category: d.category,
           round: d.round_label,
         };
-        if (resolved) {
-          insertRow.pair1_player1_id = resolved.p1p1;
-          insertRow.pair1_player2_id = resolved.p1p2;
-          insertRow.pair2_player1_id = resolved.p2p1;
-          insertRow.pair2_player2_id = resolved.p2p2;
-        } else {
-          insertRow.pair1_player1_name = d.team1_player1_name;
-          insertRow.pair1_player2_name = d.team1_player2_name;
-          insertRow.pair2_player1_name = d.team2_player1_name;
-          insertRow.pair2_player2_name = d.team2_player2_name;
-          // Country codes — non-null only on OOP-fallback rows. The
-          // FIP draw_snapshots path leaves these null because the
-          // bracket markup has no flag images.
-          if (d.team1_player1_country)
-            insertRow.pair1_player1_country = d.team1_player1_country;
-          if (d.team1_player2_country)
-            insertRow.pair1_player2_country = d.team1_player2_country;
-          if (d.team2_player1_country)
-            insertRow.pair2_player1_country = d.team2_player1_country;
-          if (d.team2_player2_country)
-            insertRow.pair2_player2_country = d.team2_player2_country;
-        }
+
+        const slot = (
+          fk: string | null,
+          name: string | null,
+          country: string | null,
+          fkCol: string,
+          nameCol: string,
+          countryCol: string,
+        ) => {
+          if (fk) {
+            insertRow[fkCol] = fk;
+          } else {
+            if (name) insertRow[nameCol] = name;
+            // Country codes — non-null only on OOP-fallback rows. The
+            // FIP draw_snapshots path leaves these null because the
+            // bracket markup has no flag images.
+            if (country) insertRow[countryCol] = country;
+          }
+        };
+        slot(resolved.p1p1, d.team1_player1_name, d.team1_player1_country, 'pair1_player1_id', 'pair1_player1_name', 'pair1_player1_country');
+        slot(resolved.p1p2, d.team1_player2_name, d.team1_player2_country, 'pair1_player2_id', 'pair1_player2_name', 'pair1_player2_country');
+        slot(resolved.p2p1, d.team2_player1_name, d.team2_player1_country, 'pair2_player1_id', 'pair2_player1_name', 'pair2_player1_country');
+        slot(resolved.p2p2, d.team2_player2_name, d.team2_player2_country, 'pair2_player2_id', 'pair2_player2_name', 'pair2_player2_country');
 
         // Seeds — written for both resolved-FK and thin-name paths.
         // FIP draw exposes them on the structured fip_event_page rows;
@@ -706,7 +713,7 @@ export async function runFipDrawPopulator(
               composite,
               tournamentId: t.tournament_id,
               round: d.round_label,
-              thin: !resolved,
+              numResolved,
             },
             'fip-draw-populator [dry-run]: would INSERT match'
           );
@@ -742,12 +749,13 @@ export async function runFipDrawPopulator(
         continue;
       }
 
-      // UPDATE NULL-only. Two flavours:
-      //   - resolved: backfill missing FKs (existing behaviour). When a
-      //     thin match later gets its players resolved (entry list lands,
-      //     player gets added to FIP DB), this path upgrades it.
-      //   - thin (amateur, !resolved): backfill missing names so the UI
-      //     can keep showing the team strings.
+      // UPDATE NULL-only, per slot. Each player slot follows one of two
+      // flavours independently:
+      //   - resolved this run: backfill the FK if existing is null.
+      //   - unresolved this run: backfill name + country if those are
+      //     null (thin row gap-fill).
+      // A 3-of-4 resolution this run can therefore upgrade 3 slots from
+      // thin → linked while leaving the 4th slot's name in place.
       const patch: Record<string, string | number> = {};
 
       // Short-form refresh: when the existing row carries OOP-style
@@ -802,75 +810,50 @@ export async function runFipDrawPopulator(
           patch.pair2_player2_name = d.team2_player2_name;
       }
 
-      if (resolved) {
-        if (
-          existing.pair1_player1_id === null &&
-          resolved.p1p1 !== null
-        )
-          patch.pair1_player1_id = resolved.p1p1;
-        if (
-          existing.pair1_player2_id === null &&
-          resolved.p1p2 !== null
-        )
-          patch.pair1_player2_id = resolved.p1p2;
-        if (
-          existing.pair2_player1_id === null &&
-          resolved.p2p1 !== null
-        )
-          patch.pair2_player1_id = resolved.p2p1;
-        if (
-          existing.pair2_player2_id === null &&
-          resolved.p2p2 !== null
-        )
-          patch.pair2_player2_id = resolved.p2p2;
-      } else {
-        // Thin update: only fill names + countries that are still null.
-        // Country may land on a later run than the name (e.g. earlier
-        // OOP fetch had no flag src; later fetch did) — keep them
-        // independently NULL-only so each field upgrades the moment
-        // its source value appears.
-        if (
-          existing.pair1_player1_name === null &&
-          d.team1_player1_name != null
-        )
-          patch.pair1_player1_name = d.team1_player1_name;
-        if (
-          existing.pair1_player2_name === null &&
-          d.team1_player2_name != null
-        )
-          patch.pair1_player2_name = d.team1_player2_name;
-        if (
-          existing.pair2_player1_name === null &&
-          d.team2_player1_name != null
-        )
-          patch.pair2_player1_name = d.team2_player1_name;
-        if (
-          existing.pair2_player2_name === null &&
-          d.team2_player2_name != null
-        )
-          patch.pair2_player2_name = d.team2_player2_name;
-
-        if (
-          existing.pair1_player1_country === null &&
-          d.team1_player1_country != null
-        )
-          patch.pair1_player1_country = d.team1_player1_country;
-        if (
-          existing.pair1_player2_country === null &&
-          d.team1_player2_country != null
-        )
-          patch.pair1_player2_country = d.team1_player2_country;
-        if (
-          existing.pair2_player1_country === null &&
-          d.team2_player1_country != null
-        )
-          patch.pair2_player1_country = d.team2_player1_country;
-        if (
-          existing.pair2_player2_country === null &&
-          d.team2_player2_country != null
-        )
-          patch.pair2_player2_country = d.team2_player2_country;
-      }
+      // Per-slot NULL-only gap-fill. If THIS run resolved the player,
+      // fill the FK; otherwise fall back to filling name + country.
+      // Country may land on a later run than the name (e.g. earlier
+      // OOP fetch had no flag src; later fetch did) — keep each field
+      // independently NULL-only so it upgrades the moment its source
+      // value appears.
+      const fillSlot = (
+        fk: string | null,
+        existingFk: string | null,
+        fkCol: string,
+        name: string | null,
+        existingName: string | null,
+        nameCol: string,
+        country: string | null,
+        existingCountry: string | null,
+        countryCol: string,
+      ): void => {
+        if (fk !== null) {
+          if (existingFk === null) patch[fkCol] = fk;
+          return;
+        }
+        if (name != null && existingName === null) patch[nameCol] = name;
+        if (country != null && existingCountry === null) patch[countryCol] = country;
+      };
+      fillSlot(
+        resolved.p1p1, existing.pair1_player1_id, 'pair1_player1_id',
+        d.team1_player1_name, existing.pair1_player1_name, 'pair1_player1_name',
+        d.team1_player1_country, existing.pair1_player1_country, 'pair1_player1_country',
+      );
+      fillSlot(
+        resolved.p1p2, existing.pair1_player2_id, 'pair1_player2_id',
+        d.team1_player2_name, existing.pair1_player2_name, 'pair1_player2_name',
+        d.team1_player2_country, existing.pair1_player2_country, 'pair1_player2_country',
+      );
+      fillSlot(
+        resolved.p2p1, existing.pair2_player1_id, 'pair2_player1_id',
+        d.team2_player1_name, existing.pair2_player1_name, 'pair2_player1_name',
+        d.team2_player1_country, existing.pair2_player1_country, 'pair2_player1_country',
+      );
+      fillSlot(
+        resolved.p2p2, existing.pair2_player2_id, 'pair2_player2_id',
+        d.team2_player2_name, existing.pair2_player2_name, 'pair2_player2_name',
+        d.team2_player2_country, existing.pair2_player2_country, 'pair2_player2_country',
+      );
 
       // Seeds — gap-fill regardless of resolved/thin path. Pairs go from
       // null → seeded as the FIP draw page publishes seed numbers; once
@@ -938,7 +921,7 @@ export async function runFipDrawPopulator(
 async function upsertTournamentDraws(
   supabase: SupabaseClient,
   d: DrawRow,
-  resolved: { p1p1: string; p1p2: string; p2p1: string; p2p2: string } | null,
+  resolved: ResolvedFour,
   dryRun: boolean,
   result: FipDrawPopulatorResult,
   logger: Logger | undefined,
@@ -1006,18 +989,38 @@ async function upsertTournamentDraws(
 
 // ── Helpers (exported for testing) ─────────────────────────────────────
 
+export interface ResolvedFour {
+  p1p1: string | null;
+  p1p2: string | null;
+  p2p1: string | null;
+  p2p2: string | null;
+}
+
+export function resolvedCount(r: ResolvedFour): number {
+  return (
+    (r.p1p1 ? 1 : 0) +
+    (r.p1p2 ? 1 : 0) +
+    (r.p2p1 ? 1 : 0) +
+    (r.p2p2 ? 1 : 0)
+  );
+}
+
+/**
+ * Resolve up to 4 player UUIDs from a draw row's parsed names.
+ *
+ * Returns a `ResolvedFour` where each slot is independently a player UUID
+ * (resolved) or `null` (unresolved). Callers decide how to act on partial
+ * resolution — in steady state we want partial FK fills (3-of-4 still
+ * means 3 real profile links on the match card), with the unresolved
+ * slot left NULL until the entry list catches up.
+ */
 export function resolveFourPlayers(
   d: DrawRow,
   nameToFipId: Map<string, string>,
   shortFormToFipId: Map<string, string | null>,
   fipIdToPlayerId: Map<string, string>,
   logger?: Logger
-): {
-  p1p1: string;
-  p1p2: string;
-  p2p1: string;
-  p2p2: string;
-} | null {
+): ResolvedFour {
   const lookup = (name: string | null): string | null => {
     if (!name) return null;
     const norm = normalizeName(name);
@@ -1087,13 +1090,12 @@ export function resolveFourPlayers(
     return null;
   };
 
-  const p1p1 = lookup(d.team1_player1_name);
-  const p1p2 = lookup(d.team1_player2_name);
-  const p2p1 = lookup(d.team2_player1_name);
-  const p2p2 = lookup(d.team2_player2_name);
-
-  if (!p1p1 || !p1p2 || !p2p1 || !p2p2) return null;
-  return { p1p1, p1p2, p2p1, p2p2 };
+  return {
+    p1p1: lookup(d.team1_player1_name),
+    p1p2: lookup(d.team1_player2_name),
+    p2p1: lookup(d.team2_player1_name),
+    p2p2: lookup(d.team2_player2_name),
+  };
 }
 
 // ── DB helpers ─────────────────────────────────────────────────────────
