@@ -22,6 +22,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import posthog from 'posthog-js'
 import { Link } from '@/i18n/navigation'
 import type { Prediction } from '@/lib/predictions/types'
 import { classifyResult } from '@/lib/predictions/scoring'
@@ -631,6 +632,7 @@ export function MatchCard({
                 <LateHintPill
                   hint={match.late_hint}
                   courtName={match.court ?? ''}
+                  matchId={match.id}
                   tMatch={tMatch}
                 />
               )}
@@ -948,17 +950,27 @@ function cornerPillStyle(bg: string, color: string, borderStyle: 'solid' | 'dash
 interface LateHintPillProps {
   hint: 'may_be_late' | 'starting_soon'
   courtName: string
+  matchId: string
   tMatch: ReturnType<typeof useTranslations>
 }
 
-function LateHintPill({ hint, courtName, tMatch }: LateHintPillProps) {
+function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
   const [open, setOpen] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Fire 'shown' once per mount
+  useEffect(() => {
+    posthog.capture('schedule_late_hint_shown', { matchId, hint })
+  }, [matchId, hint])
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setOpen((prev) => !prev)
+    // Fire 'tapped' only on OPEN (not on close)
+    if (!open) {
+      posthog.capture('schedule_late_hint_tapped', { matchId, hint })
+    }
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     if (!open) {
       dismissTimerRef.current = setTimeout(() => setOpen(false), 3500)
