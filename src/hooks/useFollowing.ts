@@ -165,6 +165,13 @@ export function useFollowing() {
               localStorage.setItem(migrationFlagKey, '1')
             } catch {}
           }
+
+          // Also migrate the device's anon push subscriptions (Spec 2). This is
+          // independent of the bookmark migration above — even if no localStorage
+          // follows existed, the device might still have an anon_push_subscriptions
+          // row from a previous browse session. The endpoint is a no-op when no
+          // device_id is set.
+          void anonPush.migrateToUser()
         }
 
         const dbMatches = new Set<string>()
