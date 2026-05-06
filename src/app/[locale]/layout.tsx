@@ -6,6 +6,7 @@ import { routing } from '@/i18n/routing'
 import { BookmarkToastProvider } from '@/components/BookmarkToast'
 import { LoginSheetProvider } from '@/components/LoginSheetProvider'
 import { buildLocaleRootMetadata } from '@/lib/seo-metadata'
+import { ConsentBanner } from '@/components/consent/ConsentBanner'
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
@@ -43,6 +44,7 @@ export default async function LocaleLayout({
       <LoginSheetProvider>
         <BookmarkToastProvider>
           {children}
+          <ConsentBanner />
         </BookmarkToastProvider>
       </LoginSheetProvider>
     </NextIntlClientProvider>
