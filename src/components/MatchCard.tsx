@@ -39,6 +39,8 @@ const BG_ELEV = '#1A1A1A'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
 
+const LATE_HINTS_ENABLED = process.env.NEXT_PUBLIC_LATE_HINTS_ENABLED !== 'false'
+
 const CHUNKY = {
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
@@ -382,7 +384,7 @@ export function MatchCard({
               {status.label}
             </Chip>
           )}
-          {!isPredictionEnabled && (
+          {LATE_HINTS_ENABLED && !isPredictionEnabled && (
             <span
               title={tMatch('lateHint.estChipAria')}
               aria-label={tMatch('lateHint.estChipAria')}
@@ -625,7 +627,7 @@ export function MatchCard({
                   TBD
                 </span>
               )}
-              {timeStr && (match.late_hint === 'may_be_late' || match.late_hint === 'starting_soon') && (
+              {LATE_HINTS_ENABLED && timeStr && (match.late_hint === 'may_be_late' || match.late_hint === 'starting_soon') && (
                 <LateHintPill
                   hint={match.late_hint}
                   courtName={match.court ?? ''}
