@@ -55,6 +55,10 @@ const PULSE_KEYFRAMES = `
   60%  { transform: translateX(0);     opacity: 1; }
   100% { transform: translateX(110%);  opacity: 0; }
 }
+@keyframes mc-locked-pop {
+  0%   { opacity: 0; transform: translateY(-4px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
 `
 
 // Module-level prev-score map keyed by match.id — survives card remounts
@@ -846,12 +850,6 @@ function LockedPill({ tPred }: { tPred: ReturnType<typeof useTranslations> }) {
 
   return (
     <>
-      <style>{`
-        @keyframes mc-locked-pop {
-          0%   { opacity: 0; transform: translateY(-4px) scale(0.95); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
       <button
         type="button"
         onClick={handleClick}
@@ -946,6 +944,13 @@ function LateHintPill({ hint, courtName, tMatch }: LateHintPillProps) {
 
   useEffect(() => () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current) }, [])
 
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
   const isLate = hint === 'may_be_late'
   const accent = isLate ? ORANGE : GREEN
   const labelKey = isLate ? 'lateHint.mayBeLate' : 'lateHint.startingSoon'
@@ -961,7 +966,7 @@ function LateHintPill({ hint, courtName, tMatch }: LateHintPillProps) {
         aria-expanded={open}
         style={{
           marginTop: 2,
-          padding: 0,
+          padding: '4px 0',
           border: 0,
           background: 'transparent',
           color: accent,
@@ -969,7 +974,6 @@ function LateHintPill({ hint, courtName, tMatch }: LateHintPillProps) {
           fontSize: 9,
           fontWeight: 600,
           letterSpacing: 0.2,
-          textTransform: 'lowercase',
           cursor: 'pointer',
           borderBottom: `1px dotted ${accent}66`,
           lineHeight: 1.2,
