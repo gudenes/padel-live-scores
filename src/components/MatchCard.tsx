@@ -973,7 +973,7 @@ function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
     }
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     if (!open) {
-      dismissTimerRef.current = setTimeout(() => setOpen(false), 3500)
+      dismissTimerRef.current = setTimeout(() => setOpen(false), 4500)
     }
   }
 
@@ -1026,21 +1026,52 @@ function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
             right: 12,
             bottom: 6,
             zIndex: 4,
-            maxWidth: 240,
-            padding: '8px 10px',
-            background: BG_ELEV,
-            border: `0.5px solid rgba(255,255,255,0.12)`,
+            maxWidth: 260,
+            padding: '10px 12px 10px 14px',
+            background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)',
             clipPath: CHUNKY.badge,
-            color: '#E5E7EB',
-            fontSize: 11,
-            fontWeight: 500,
-            lineHeight: 1.35,
-            boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+            boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 0 24px ${accent}10`,
             cursor: 'pointer',
-            animation: 'mc-locked-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+            animation: 'mc-locked-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
           }}
         >
-          {tMatch(sheetKey, { court: courtName })}
+          <span style={{ flexShrink: 0, marginTop: 1, display: 'inline-flex' }}>
+            {isLate ? (
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+            ) : (
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M5 12h14" />
+                <path d="M13 6l6 6-6 6" />
+              </svg>
+            )}
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontSize: 9,
+              fontWeight: 800,
+              color: accent,
+              letterSpacing: 0.5,
+              textTransform: 'uppercase',
+              marginBottom: 3,
+              lineHeight: 1.2,
+            }}>
+              {tMatch(labelKey)}
+            </div>
+            <div style={{
+              color: '#D8D8DD',
+              fontSize: 11,
+              fontWeight: 500,
+              lineHeight: 1.4,
+            }}>
+              {tMatch(sheetKey, { court: courtName })}
+            </div>
+          </div>
         </div>
       )}
     </>
