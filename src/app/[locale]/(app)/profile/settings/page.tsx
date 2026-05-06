@@ -8,6 +8,8 @@ import { useTranslations } from 'next-intl'
 import { signOut as nextAuthSignOut } from 'next-auth/react'
 import { useRouter, Link } from '@/i18n/navigation'
 import { useAuth } from '@/components/AuthProvider'
+import { useConsent } from '@/hooks/useConsent'
+import { initAnalyticsIfAllowed } from '@/lib/analytics-init'
 import { supabase } from '@/lib/supabase'
 import CountryPicker from '@/components/CountryPicker'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
@@ -157,7 +159,7 @@ export default function SettingsPage() {
   const [countryDraft, setCountryDraft] = useState<string>('')
   const [savingCountry, setSavingCountry] = useState(false)
 
-  const [analyticsOptOut, setAnalyticsOptOut] = useState(false)
+  const { consent, setConsent } = useConsent()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -195,10 +197,10 @@ export default function SettingsPage() {
     return () => { cancelled = true }
   }, [user])
 
-  // Read the analytics opt-out flag from localStorage on mount.
-  useEffect(() => {
-    setAnalyticsOptOut(localStorage.getItem('pn_analytics_opt_out') === '1')
-  }, [])
+  // Analytics opt-out is now derived from `pn_consent.analytics`. The
+  // useConsent hook handles SSR safety (defaults to no consent until
+  // localStorage is read post-mount) and legacy migration.
+  const analyticsOptOut = consent ? consent.analytics === false : true
 
   // Auto-dismiss toasts.
   useEffect(() => {
@@ -222,13 +224,27 @@ export default function SettingsPage() {
   }
 
   function toggleAnalytics(next: boolean) {
-    // "next=true" here means "share data" (opt IN). Flip the localStorage key.
-    const optOut = !next
-    setAnalyticsOptOut(optOut)
-    if (optOut) {
-      localStorage.setItem('pn_analytics_opt_out', '1')
-    } else {
-      localStorage.removeItem('pn_analytics_opt_out')
+    // "next=true" means "share data" (opt IN). Persist via the central
+    // consent state so the banner / boot init / GatedAnalytics all see
+    // the change. Preserves the existing `push` setting; if no consent
+    // has been recorded yet (legacy user, or settings opened before the
+    // banner has been seen) we initialise with push=false.
+    setConsent({
+      analytics: next,
+      push: consent?.push ?? false,
+      decided_at: new Date().toISOString(),
+    })
+    // Mirror to the legacy flag so any code path that still reads it
+    // (e.g., the analytics-init.ts boot fallback) stays in sync. Removing
+    // entirely is a follow-up cleanup once the legacy reads are gone.
+    try {
+      if (next) localStorage.removeItem('pn_analytics_opt_out')
+      else localStorage.setItem('pn_analytics_opt_out', '1')
+    } catch {}
+    // Light up tracking immediately if user just opted in — same pattern
+    // as the banner's Save handler.
+    if (next) {
+      initAnalyticsIfAllowed()
     }
   }
 
