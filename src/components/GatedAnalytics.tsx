@@ -1,23 +1,18 @@
 'use client'
 // src/components/GatedAnalytics.tsx
-// Renders <Analytics /> from @vercel/analytics/react only when the user has
-// NOT opted out. Opt-out state lives in localStorage under the key
-// `pn_analytics_opt_out` — value `'1'` means opted out, anything else
-// (including absent) means opted in. See spec §2.4 for rationale.
+// Renders <Analytics /> from @vercel/analytics/react only when the user
+// has consented to analytics via the cookie banner.
 //
-// Important: initial useState(true) means NO tracker on the first client
-// render. After the effect reads localStorage, we flip to the real value.
-// Server-rendered HTML never contains tracker markup, so there's no
-// hydration mismatch either way.
+// SSR + initial-render safety: useConsent's hasDecided defaults to false
+// on the server and on the first client render before the localStorage
+// read effect runs. So we never render the tracker before consent state
+// is known — server-rendered HTML never includes tracker markup.
 
-import { useEffect, useState } from 'react'
 import { Analytics } from '@vercel/analytics/react'
+import { useConsent } from '@/hooks/useConsent'
 
 export function GatedAnalytics() {
-  const [optOut, setOptOut] = useState(true)
-  useEffect(() => {
-    setOptOut(localStorage.getItem('pn_analytics_opt_out') === '1')
-  }, [])
-  if (optOut) return null
+  const { isAnalyticsAllowed } = useConsent()
+  if (!isAnalyticsAllowed()) return null
   return <Analytics />
 }
