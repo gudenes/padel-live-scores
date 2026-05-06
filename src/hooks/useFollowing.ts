@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { BOOKMARK_EVENT, type BookmarkEventDetail } from '@/components/BookmarkToast'
+import { useAnonPush } from '@/hooks/useAnonPush'
 
 export type FollowType = 'match' | 'player' | 'tournament' | 'news_source'
 
@@ -104,6 +105,7 @@ const DB_TYPES: FollowType[] = ['match', 'player', 'tournament']
 
 export function useFollowing() {
   const { user } = useAuth()
+  const anonPush = useAnonPush()
 
   // Per-type Sets for O(1) lookups
   const [store, setStore] = useState<Record<FollowType, Set<string>>>({
@@ -226,6 +228,41 @@ export function useFollowing() {
 
         return next
       })
+
+      // Anonymous push side-effect: keep the server-side anon_bookmarks list
+      // in sync with the user's localStorage follows so the push sender can
+      // reach them. First follow with consent fires the permission prompt +
+      // subscription register; subsequent toggles are PATCHes.
+      if (!user && (type === 'player' || type === 'match')) {
+        const bookmark = { type, target_id: targetId }
+        if (isCurrently) {
+          // unfollow → remove server-side
+          void anonPush.removeBookmark(bookmark)
+        } else {
+          // follow → ensure subscription if first time, then add bookmark
+          if (anonPush.pushAllowed && anonPush.supported) {
+            // Read updated localStorage follows so the initial bookmark set
+            // includes the entry we just added.
+            const local = readLocalStorage()
+            const initial: { type: 'player' | 'match'; target_id: string }[] = [
+              ...local.players.map(id => ({ type: 'player' as const, target_id: id })),
+              ...local.matches.map(id => ({ type: 'match' as const, target_id: id })),
+            ]
+            // ensureSubscription is idempotent — it returns immediately if
+            // a subscription already exists. addBookmark fires after, in case
+            // the subscription was already there.
+            void (async () => {
+              await anonPush.ensureSubscription(initial)
+              await anonPush.addBookmark(bookmark)
+            })()
+          } else {
+            // No push consent / unsupported browser → still try to add the
+            // bookmark in case a subscription is already registered (rare
+            // but possible if user revokes-then-re-grants consent).
+            void anonPush.addBookmark(bookmark)
+          }
+        }
+      }
 
       // Fire bookmark feedback toast (skip news_source — not a user-facing bookmark)
       // Suppressed entirely when `silent: true` — used by the picker which writes
