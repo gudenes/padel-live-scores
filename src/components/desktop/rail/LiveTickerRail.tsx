@@ -45,13 +45,15 @@ export default function LiveTickerRail() {
     }
     load()
 
-    // Reload on any live-match insert/update/delete. Coarse but cheap —
-    // ticker is small, no need for surgical row diffs.
+    // Reload on any match insert/update/delete. No filter here — Realtime
+    // only supports eq/neq/lt/lte/gt/gte, not in.(). Dropping the filter
+    // means any match row change triggers a reload, but load() already
+    // scopes the SELECT to ['live','on_court'] so the displayed set is always correct.
     const channel = supabase
       .channel('desktop-live-ticker')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'matches', filter: 'status=in.(live,on_court)' },
+        { event: '*', schema: 'public', table: 'matches' },
         () => {
           load()
         },
@@ -130,9 +132,7 @@ export default function LiveTickerRail() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const tour = ((m as any).tournament as { name?: string } | null)?.name ?? ''
         const round = m.round ?? ''
-        const currentSet = m.sets?.find(s => s.is_current) ?? m.sets?.[m.sets.length - 1]
-        const games1 = currentSet?.pair1_games ?? 0
-        const games2 = currentSet?.pair2_games ?? 0
+        const sets = (m.sets ?? []).slice().sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
         return (
           <Link
             key={m.id}
@@ -155,12 +155,16 @@ export default function LiveTickerRail() {
                 marginBottom: 7,
               }}
             >
-              {tour}
-              {tour && round ? ' · ' : ''}
-              {round}
+              {tour}{tour && round ? ' · ' : ''}{round}
             </div>
-            <TickerRow names={[m.pair1_player1, m.pair1_player2]} score={games1} isLive />
-            <TickerRow names={[m.pair2_player1, m.pair2_player2]} score={games2} isLive />
+            <TickerRow
+              names={[m.pair1_player1, m.pair1_player2]}
+              sets={sets.map(s => ({ games: s.pair1_games ?? 0, isCurrent: s.is_current ?? false }))}
+            />
+            <TickerRow
+              names={[m.pair2_player1, m.pair2_player2]}
+              sets={sets.map(s => ({ games: s.pair2_games ?? 0, isCurrent: s.is_current ?? false }))}
+            />
           </Link>
         )
       })}
@@ -170,12 +174,10 @@ export default function LiveTickerRail() {
 
 function TickerRow({
   names,
-  score,
-  isLive,
+  sets,
 }: {
   names: Array<{ display_name?: string | null; name?: string | null } | null | undefined>
-  score: number
-  isLive: boolean
+  sets: Array<{ games: number; isCurrent: boolean }>
 }) {
   const display = names
     .map(p => p && toShortName(p.display_name?.trim() || p.name || ''))
@@ -183,18 +185,23 @@ function TickerRow({
     .join(' / ')
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '2px 0' }}>
-      <div style={{ flex: 1, fontSize: 12, fontWeight: 600 }}>{display}</div>
-      <div
-        style={{
-          fontSize: 14,
-          fontWeight: 900,
-          color: isLive ? 'var(--break)' : '#fff',
-          width: 16,
-          textAlign: 'center',
-          fontFamily: 'var(--font-mono, ui-monospace, "SF Mono", monospace)',
-        }}
-      >
-        {score}
+      <div style={{ flex: 1, fontSize: 12, fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{display}</div>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        {sets.map((s, i) => (
+          <div
+            key={i}
+            style={{
+              fontSize: 14,
+              fontWeight: 900,
+              color: s.isCurrent ? 'var(--break)' : 'var(--text-primary, #fff)',
+              minWidth: 14,
+              textAlign: 'center',
+              fontFamily: 'var(--font-mono, ui-monospace, "SF Mono", monospace)',
+            }}
+          >
+            {s.games}
+          </div>
+        ))}
       </div>
     </div>
   )
