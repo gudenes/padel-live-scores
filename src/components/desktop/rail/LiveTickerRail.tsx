@@ -45,19 +45,19 @@ export default function LiveTickerRail() {
     }
     load()
 
-    // Reload on any match insert/update/delete. No filter here — Realtime
-    // only supports eq/neq/lt/lte/gt/gte, not in.(). Dropping the filter
-    // means any match row change triggers a reload, but load() already
-    // scopes the SELECT to ['live','on_court'] so the displayed set is always correct.
+    // Reload when a match transitions to/from live or on_court. We use two
+    // separate .on() calls with eq filters — Realtime supports eq/neq/lt/lte/gt/gte
+    // but NOT in.(). Two filtered subscriptions instead of one unfiltered
+    // call prevents ~80 reloads/min per connected desktop user during a
+    // live tournament where the relay writes per-point updates on every row.
     const channel = supabase
       .channel('desktop-live-ticker')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'matches' },
-        () => {
-          load()
-        },
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: 'status=eq.live' }, () => {
+        load()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: 'status=eq.on_court' }, () => {
+        load()
+      })
       .subscribe()
 
     return () => {

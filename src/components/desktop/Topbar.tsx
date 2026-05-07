@@ -30,6 +30,7 @@ export default function Topbar() {
 
   return (
     <header
+      role="banner"
       style={{
         height: 96,
         display: 'flex',
@@ -65,7 +66,7 @@ export default function Topbar() {
           />
         </Link>
 
-        <nav style={{ flex: 1, display: 'flex', gap: 6, marginLeft: 16 }}>
+        <nav aria-label="Primary" style={{ flex: 1, display: 'flex', gap: 6, marginLeft: 16 }}>
           {NAV_ITEMS.map(item => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
@@ -108,6 +109,7 @@ export default function Topbar() {
           <button
             type="button"
             onClick={() => router.push('/search')}
+            aria-label={t('search.placeholder')}
             style={{
               width: 280,
               height: 40,

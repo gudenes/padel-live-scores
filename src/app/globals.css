@@ -471,3 +471,12 @@ button:focus { outline: none; }
   border: 0;
 }
 
+/* Desktop Topbar focus-visible — restores keyboard focus indicators
+   that the global `button:focus { outline: none }` rule strips off.
+   Only applies to buttons inside the desktop topbar. */
+header[role="banner"] button:focus-visible,
+header[role="banner"] a:focus-visible {
+  outline: 2px solid var(--green) !important;
+  outline-offset: 2px;
+}
+

@@ -1,9 +1,10 @@
 // src/components/desktop/DesktopShell.tsx
-// The shared 2-column desktop layout. Renders the global Topbar at the
-// top, then a 1280px-max-width grid below: main content (flex) on the
-// left, fixed 360px rail on the right.
+// The shared 2-column desktop layout. Renders a 1280px-max-width grid:
+// flexible main column on the left, fixed 360px rail on the right.
 //
-// Each desktop page composes this with its own page-specific rail content:
+// The global <Topbar/> is mounted by (app)/layout.tsx for ALL desktop
+// pages (including those that haven't been converted yet) — this shell
+// is only responsible for the per-page main + rail composition.
 //
 //   <DesktopShell rail={<><LiveTickerRail /><WatchTonightRail /></>}>
 //     {/* main column content */}
@@ -14,7 +15,6 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import Topbar from './Topbar'
 
 interface DesktopShellProps {
   children: ReactNode
@@ -24,7 +24,6 @@ interface DesktopShellProps {
 export default function DesktopShell({ children, rail }: DesktopShellProps) {
   return (
     <div style={{ minHeight: '100vh' }}>
-      <Topbar />
       <div
         style={{
           maxWidth: 1280,
