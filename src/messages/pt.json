@@ -957,5 +957,18 @@
       "maybeLater": "Talvez depois",
       "gotIt": "Entendi"
     }
+  },
+  "desktop": {
+    "nav": {
+      "home": "Início",
+      "matches": "Partidas",
+      "ranking": "Ranking",
+      "tournaments": "Torneios",
+      "feed": "Notícias"
+    },
+    "search": {
+      "placeholder": "Procurar jogadores, torneios…"
+    },
+    "signIn": "Entrar"
   }
 }

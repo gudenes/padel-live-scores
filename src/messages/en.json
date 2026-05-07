@@ -978,5 +978,18 @@
       "maybeLater": "Maybe later",
       "gotIt": "Got it"
     }
+  },
+  "desktop": {
+    "nav": {
+      "home": "Home",
+      "matches": "Matches",
+      "ranking": "Ranking",
+      "tournaments": "Tournaments",
+      "feed": "Feed"
+    },
+    "search": {
+      "placeholder": "Search players, tournaments…"
+    },
+    "signIn": "Sign in"
   }
 }
