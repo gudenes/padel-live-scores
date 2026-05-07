@@ -7,10 +7,11 @@ import createMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { parseUserAgentDeviceClass } from '@/lib/device-class'
 
 const handleI18nRouting = createMiddleware(routing)
 
-export default async function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
 
   // ── Pre-i18n: short-circuit routes ─────────────────────────────
@@ -213,7 +214,6 @@ export default async function proxy(request: NextRequest) {
   // Read by src/hooks/useIsDesktop.ts to avoid a hydration-mismatch flicker
   // on first paint. Client confirms via window.matchMedia after mount.
   const ua = request.headers.get('user-agent') ?? ''
-  const { parseUserAgentDeviceClass } = await import('@/lib/device-class')
   const deviceClass = parseUserAgentDeviceClass(ua)
   if (deviceClass !== 'unknown') {
     response.cookies.set('device-class', deviceClass, {
