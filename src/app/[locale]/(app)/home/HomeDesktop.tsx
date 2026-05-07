@@ -14,11 +14,13 @@
 import { Suspense } from 'react'
 import DesktopShell from '@/components/desktop/DesktopShell'
 import LiveTickerRail from '@/components/desktop/rail/LiveTickerRail'
+import DesktopRouteMarker from '@/components/desktop/DesktopRouteMarker'
 import HomeMobile from './HomeMobile'
 
 export default function HomeDesktop() {
   return (
     <DesktopShell rail={<LiveTickerRail />}>
+      <DesktopRouteMarker />
       <Suspense fallback={null}>
         {/* Wave 1: reuse the existing mobile home tree as the main column.
             It already fetches data and renders the right sections; the

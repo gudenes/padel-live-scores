@@ -410,6 +410,50 @@ button:focus { outline: none; }
     height: auto !important;
     contain: none !important;
   }
+
+  /* ── Desktop-route opt-out ────────────────────────────────────────
+     Routes that have shipped a <*Desktop> variant mount
+     <DesktopRouteMarker/> which sets [data-desktop-route] on <html>.
+     When that attribute is present, all the phone-frame chrome turns
+     into a no-op so the desktop layout renders edge-to-edge with the
+     full viewport. Removed automatically when the marker unmounts (i.e.
+     when the user navigates to a route that doesn't have a desktop
+     variant yet) — those routes keep the phone-frame.
+     ─────────────────────────────────────────────────────────────── */
+  :root[data-desktop-route] .app-canvas {
+    background: var(--bg-base) !important;
+    padding: 0 !important;
+    display: block !important;
+    min-height: 100dvh;
+    overflow: visible !important;
+  }
+  :root[data-desktop-route] .app-canvas::before {
+    display: none !important;
+  }
+  :root[data-desktop-route] .app-frame {
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    box-shadow: none !important;
+  }
+  :root[data-desktop-route] .app-screen {
+    border-radius: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+    contain: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    max-width: none !important;
+    min-height: 100dvh !important;
+  }
+  :root[data-desktop-route] .app-screen > nav {
+    /* BottomNav suppression handled by (app)/layout.tsx instead */
+    display: none !important;
+  }
 }
 
 /* Visually-hidden but readable by screen readers and search engines.
