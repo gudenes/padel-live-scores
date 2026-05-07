@@ -25,17 +25,18 @@ describe('shouldOverwrite', () => {
   // ── Priority ordering ──────────────────────────────────────
 
   it('allows higher-priority source to overwrite lower-priority', () => {
-    // player.name = ['padelapi', 'fip', 'manual'] — padelapi wins over fip
-    expect(shouldOverwrite('player.name', 'fip', 'padelapi')).toBe(true)
+    // player.name = ['fip', 'padelapi', 'manual'] — fip wins over padelapi
+    // (flipped 2026-05-07: FIP is now canonical for player identity)
+    expect(shouldOverwrite('player.name', 'padelapi', 'fip')).toBe(true)
   })
 
   it('rejects lower-priority source from overwriting higher', () => {
-    expect(shouldOverwrite('player.name', 'padelapi', 'fip')).toBe(false)
+    expect(shouldOverwrite('player.name', 'fip', 'padelapi')).toBe(false)
   })
 
   it('treats equal-priority sources as winners (ties go to attempt)', () => {
     // shouldOverwrite returns true when attempting index ≤ current index
-    expect(shouldOverwrite('player.name', 'padelapi', 'padelapi')).toBe(true)
+    expect(shouldOverwrite('player.name', 'fip', 'fip')).toBe(true)
   })
 
   // ── Ranking fields are FIP-authoritative ───────────────────
@@ -108,27 +109,43 @@ describe('shouldOverwrite', () => {
 describe('primarySourceFor', () => {
   it('returns the first source in the priority list', () => {
     expect(primarySourceFor('player.ranking')).toBe('fip_official')
-    expect(primarySourceFor('player.name')).toBe('padelapi')
+    // FIP is now canonical for player identity (flipped 2026-05-07).
+    expect(primarySourceFor('player.name')).toBe('fip')
     expect(primarySourceFor('tournament.logo_url')).toBe('fip')
     expect(primarySourceFor('match.sets')).toBe('padelapi')
+  })
+
+  it('keeps padelapi-primary on enrichment fields where padelapi is authoritative', () => {
+    // avatar_url: padelapi-hosted on Supabase Storage, higher quality
+    expect(primarySourceFor('player.avatar_url')).toBe('padelapi')
+    // career stats: FIP doesn't compute these
+    expect(primarySourceFor('player.win_rate')).toBe('padelapi')
+    expect(primarySourceFor('player.total_matches')).toBe('padelapi')
+    expect(primarySourceFor('player.titles')).toBe('padelapi')
   })
 })
 
 describe('prioritiesFor', () => {
   it('returns the full list in order', () => {
-    expect(prioritiesFor('player.name')).toEqual(['padelapi', 'fip', 'manual'])
+    // FIP-primary for identity (flipped 2026-05-07).
+    expect(prioritiesFor('player.name')).toEqual(['fip', 'padelapi', 'manual'])
+    expect(prioritiesFor('player.country')).toEqual(['fip', 'padelapi', 'manual'])
     expect(prioritiesFor('tournament.draw_size_md')).toEqual(['fip', 'padelapi'])
   })
 })
 
 describe('isPrimaryOwner', () => {
   it('returns true for the top of the priority list', () => {
-    expect(isPrimaryOwner('player.name', 'padelapi')).toBe(true)
+    // After the FIP-canonical flip (2026-05-07): FIP owns identity.
+    expect(isPrimaryOwner('player.name', 'fip')).toBe(true)
     expect(isPrimaryOwner('player.ranking', 'fip_official')).toBe(true)
     expect(isPrimaryOwner('tournament.logo_url', 'fip')).toBe(true)
+    // padelapi still primary for enrichment fields it authoritatively owns
+    expect(isPrimaryOwner('player.avatar_url', 'padelapi')).toBe(true)
+    expect(isPrimaryOwner('player.win_rate', 'padelapi')).toBe(true)
   })
   it('returns false for non-primary sources', () => {
-    expect(isPrimaryOwner('player.name', 'fip')).toBe(false)
+    expect(isPrimaryOwner('player.name', 'padelapi')).toBe(false)
     expect(isPrimaryOwner('tournament.logo_url', 'padelapi')).toBe(false)
   })
 })
@@ -146,10 +163,12 @@ describe('isListedSource', () => {
 })
 
 describe('filterUpdateByPriority', () => {
-  it('strict mode: keeps only fields where source is the primary owner', () => {
-    // FIP trying to update a player — only the fields FIP owns should pass
+  it('strict mode: keeps fields where source is the primary owner — FIP-primary for identity', () => {
+    // FIP trying to update a player — after the 2026-05-07 flip, FIP is
+    // primary for identity fields and can write them in strict mode.
     const fipPayload = {
-      name: 'Player Name',         // primary: padelapi → STRIPPED
+      name: 'Player Name',         // primary: fip → KEPT
+      country: 'ES',               // primary: fip → KEPT
       ranking: 5,                  // primary: fip_official → STRIPPED
       birthdate: '2000-01-01',     // primary: fip → KEPT
       birthplace: 'Madrid',        // primary: fip → KEPT
@@ -157,31 +176,37 @@ describe('filterUpdateByPriority', () => {
     }
     const result = filterUpdateByPriority(fipPayload, 'player', 'fip')
     expect(result).toEqual({
+      name: 'Player Name',
+      country: 'ES',
       birthdate: '2000-01-01',
       birthplace: 'Madrid',
     })
   })
 
-  it('strict mode: padelapi keeps most player fields', () => {
+  it('strict mode: padelapi keeps only enrichment fields, NOT identity', () => {
+    // After the FIP-canonical flip, padelapi can no longer overwrite name /
+    // country / category — those belong to FIP. Padelapi keeps avatar (better
+    // hosting), win_rate, total_matches, titles, finals.
     const payload = {
-      name: 'Name',
-      avatar_url: 'x.png',
-      ranking: 5,
-      win_rate: 80,
+      name: 'Name',          // primary: fip → STRIPPED
+      country: 'AR',         // primary: fip → STRIPPED
+      avatar_url: 'x.png',   // primary: padelapi → KEPT
+      ranking: 5,            // primary: fip_official → STRIPPED
+      win_rate: 80,          // primary: padelapi → KEPT
+      total_matches: 100,    // primary: padelapi → KEPT
     }
     const result = filterUpdateByPriority(payload, 'player', 'padelapi')
     expect(result).toEqual({
-      name: 'Name',
       avatar_url: 'x.png',
       win_rate: 80,
-      // ranking excluded — fip_official is primary
+      total_matches: 100,
     })
   })
 
   it('writable mode: keeps fields where source is listed anywhere', () => {
     const payload = {
-      name: 'Name',        // fip is listed (second) → KEPT
-      ranking: 5,          // fip is listed (second) → KEPT
+      name: 'Name',        // fip is primary now → KEPT
+      ranking: 5,          // fip is listed → KEPT
       win_rate: 80,        // fip not listed → STRIPPED
     }
     const result = filterUpdateByPriority(payload, 'player', 'fip', 'writable')
@@ -199,9 +224,11 @@ describe('filterUpdateByPriority', () => {
   })
 
   it('passes unknown field keys through unchanged', () => {
-    const payload = { name: 'Name', made_up_field: 'whatever' }
+    // Use a non-primary field to demonstrate stripping; after the FIP-canonical
+    // flip, 'name' is fip-primary so it survives and isn't useful here.
+    const payload = { win_rate: 80, made_up_field: 'whatever' }
     const result = filterUpdateByPriority(payload, 'player', 'fip')
-    // 'name' stripped (fip isn't primary), 'made_up_field' passes through
+    // 'win_rate' stripped (padelapi-primary), 'made_up_field' passes through
     expect(result).toEqual({ made_up_field: 'whatever' })
   })
 

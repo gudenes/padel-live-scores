@@ -113,16 +113,32 @@ export type FieldKey =
 
 export const SOURCE_PRIORITY: Record<FieldKey, PriorityList> = {
   // ── Players ──────────────────────────────────────────────────
-  // padelapi owns core identity + profile.
-  'player.name':           ['padelapi', 'fip', 'manual'],
-  'player.country':        ['padelapi', 'fip', 'manual'],
-  'player.category':       ['padelapi', 'fip'],
-  'player.avatar_url':     ['padelapi', 'fip', 'manual'],
-  'player.birthdate':      ['fip', 'padelapi', 'manual'],    // FIP collects birthdate, padelapi often lacks it
+  // POLICY: FIP (via padelgod ingestion) is the canonical truth for player
+  // identity. padelapi enriches with operational data (career stats, hosted
+  // avatars). When both sources have a value, FIP wins on identity fields.
+  //
+  // Why FIP-primary for identity (changed 2026-05-07): FIP carries full legal
+  // names (used by tournament draws + entry lists), ISO-2 country codes, and
+  // is the official body — padelapi's name format is sometimes a stage name
+  // ("Marta Borrero") that loses information vs. FIP's full form ("Marta
+  // Borrero Fernández de la Puente"). The 2026-04 slug-style padelapi_id
+  // incident showed that letting padelapi own identity creates duplicates
+  // when the two name forms diverge. Primary stays with whoever has the
+  // most authoritative version of the field.
+  'player.name':           ['fip', 'padelapi', 'manual'],
+  'player.country':        ['fip', 'padelapi', 'manual'],
+  'player.category':       ['fip', 'padelapi'],
+  'player.birthdate':      ['fip', 'padelapi', 'manual'],
   'player.birthplace':     ['fip', 'padelapi', 'manual'],
   'player.height':         ['fip', 'padelapi', 'manual'],
-  'player.hand':           ['padelapi', 'fip', 'manual'],
-  'player.side':           ['padelapi', 'fip', 'manual'],
+  'player.hand':           ['fip', 'padelapi', 'manual'],
+  'player.side':           ['fip', 'padelapi', 'manual'],
+
+  // Avatar stays padelapi-primary — padelapi avatars are hosted on Supabase
+  // Storage (higher quality, never breaks); FIP avatars are 150×150 thumbs
+  // hot-linked from padelfip.com. FIP is the fallback when we have no
+  // padelapi avatar.
+  'player.avatar_url':     ['padelapi', 'fip', 'manual'],
 
   // FIP is the authoritative ranking body — their feed wins over everything.
   'player.ranking':        ['fip_official', 'fip', 'padelapi'],

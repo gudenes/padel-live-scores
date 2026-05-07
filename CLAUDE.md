@@ -190,14 +190,21 @@ const ids = await listSourceIds(supabase, 'player', playerId)
 ### Source priority — `src/lib/source-priority.ts`
 When multiple sources carry the same field, priority rules decide who wins. These are **code-based config** (not a DB table) because they're data-correctness rules that should go through PR review.
 
+**Policy (2026-05-07): FIP is canonical for player identity. Padelapi enriches.** The padelgod ingestion pipeline (Railway workers writing FIP-sourced data) defines who a player is — name, country, category, birthdate. Padelapi adds operational/profile data that FIP doesn't publish: career stats, hosted avatars, win rate. When both sources have a value on a field FIP owns, FIP wins. This was flipped from the inverse (padelapi-primary on identity) after the 2026-04 slug-style padelapi_id incident showed that letting padelapi own identity created duplicates whenever the two sources' name forms diverged ("Marta Borrero" vs. "Marta Borrero Fernández de la Puente").
+
 Per-field priority lists (top = most authoritative):
 
 | Field | Primary | Fallbacks |
 |---|---|---|
-| `player.name` | padelapi | fip, manual |
-| `player.ranking` | fip_official | fip, padelapi |
-| `player.avatar_url` | padelapi | fip, manual |
+| `player.name` | **fip** | padelapi, manual |
+| `player.country` | **fip** | padelapi, manual |
+| `player.category` | **fip** | padelapi |
 | `player.birthdate` | fip | padelapi, manual |
+| `player.ranking` | fip_official | fip, padelapi |
+| `player.avatar_url` | padelapi | fip, manual *(padelapi-hosted on Supabase Storage, higher quality)* |
+| `player.win_rate` | padelapi | *(FIP doesn't compute career stats)* |
+| `player.total_matches` | padelapi | |
+| `player.titles` | padelapi | |
 | `tournament.name` | padelapi | fip, manual |
 | `tournament.logo_url` | fip | padelapi, manual |
 | `tournament.draw_size_md` | fip | padelapi |
@@ -210,7 +217,9 @@ Full list in `src/lib/source-priority.ts`. Helpers:
 - `isPrimaryOwner(field, source)` — is this source the top of the list?
 - `filterUpdateByPriority(payload, entityType, source, mode)` — strip fields a source can't own from an update payload
 
-**Sync jobs should use `filterUpdateByPriority` when updating existing rows** so secondary sources can't clobber primary data. The padelgod `fip-event-page-enricher` worker is the canonical example (retired Vercel route: `src/app/api/cron/fip-tournaments/route.ts` → 410 Gone since 2026-04-28).
+**Sync jobs should use `filterUpdateByPriority` when updating existing rows** so secondary sources can't clobber primary data. Wired in:
+- `src/app/api/cron/sync/route.ts` — padelapi player sync now filters payload through `filterUpdateByPriority(payload, 'player', 'padelapi')` before UPDATE. After the FIP-canonical flip, this strips `name`/`country`/`ranking` from the padelapi payload, leaving only `avatar_url` / `win_rate` / `total_matches` / `gender`.
+- `padelgod/src/workers/fip-event-page-enricher.ts` — canonical example for tournaments. (Retired Vercel route: `src/app/api/cron/fip-tournaments/route.ts` → 410 Gone since 2026-04-28.)
 
 ### Tournament entity resolution (cross-source dedup)
 Same real-world tournament can exist under multiple sources with different IDs + names. Matching rule used by the defending-champion lookup, Phase 2 dedup script, and any future merging tool:
