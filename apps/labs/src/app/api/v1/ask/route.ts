@@ -9,7 +9,7 @@ import {
   loadConversationWithMessages,
   appendMessage,
 } from '@/lib/conversations'
-import { checkAndRecordUsage } from '@/lib/usage'
+import { checkUsage, recordUsage } from '@/lib/usage'
 import { PADEL_LABS_MODEL } from '@/lib/ai/client'
 
 const MAX_HISTORY_TURNS = 12
@@ -30,8 +30,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'question too long (max 2000 chars)' }, { status: 400 })
   }
 
-  // Rate limit
-  const usage = await checkAndRecordUsage({ userId: session.user.id })
+  // Gate check — no insert yet. Quota is only consumed after a successful LLM response.
+  const usage = await checkUsage({ userId: session.user.id })
   if (!usage.allowed) {
     return NextResponse.json(
       {
@@ -44,12 +44,21 @@ export async function POST(req: Request) {
     )
   }
 
-  // Load or create conversation; load prior history if existing.
-  const conversation = await getOrCreateConversation({
-    userId: session.user.id,
-    conversationId,
-    firstUserMessage: question,
-  })
+  // Load or create conversation; 404 if provided id doesn't exist/belong to user.
+  let conversation
+  try {
+    conversation = await getOrCreateConversation({
+      userId: session.user.id,
+      conversationId,
+      firstUserMessage: question,
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (msg.includes('conversation not found')) {
+      return NextResponse.json({ error: 'conversation_not_found' }, { status: 404 })
+    }
+    throw e
+  }
 
   let priorMessages: PriorMessage[] = []
   if (conversationId) {
@@ -77,11 +86,15 @@ export async function POST(req: Request) {
   try {
     result = await runChat({ priorMessages, userMessage: question })
   } catch (e) {
+    // Do NOT record usage — the user got no answer.
     return NextResponse.json(
       { error: 'chat_failed', message: e instanceof Error ? e.message : String(e) },
       { status: 500 },
     )
   }
+
+  // Record usage only on success (after the LLM responded).
+  await recordUsage({ userId: session.user.id })
 
   // Persist assistant message.
   await appendMessage({
@@ -98,7 +111,7 @@ export async function POST(req: Request) {
     answer: result.answer,
     citations: result.citations,
     cost: result.cost,
-    used: usage.used,
+    used: usage.used + 1,
     quota: usage.quota,
   })
 }
