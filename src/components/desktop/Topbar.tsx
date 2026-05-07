@@ -121,7 +121,7 @@ export default function Topbar() {
               color: 'var(--text-dim)',
               fontSize: 13,
               fontFamily: 'inherit',
-              cursor: 'text',
+              cursor: 'pointer',
               textAlign: 'left',
             }}
           >
