@@ -75,6 +75,8 @@ html, body {
 button { font-family: var(--font-sans); cursor: pointer; }
 button:focus { outline: none; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+/* pulse: same shape as blink — used by LiveTickerRail live indicator dot */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
 /* ── Live match animations ─────────────────────────────────────────────── */
 /* Sweep Flash — pair row highlight when a point is scored */
