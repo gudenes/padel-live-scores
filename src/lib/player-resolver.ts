@@ -457,14 +457,20 @@ export class PlayerResolver {
     for (const k of Object.keys(insertData)) {
       if (insertData[k] === null) delete insertData[k]
     }
-    // Always need name and external_id
-    if (!insertData.external_id) insertData.external_id = normalize(input.name).replace(/\s+/g, '-')
 
-    const { data, error } = await this.supabase
-      .from('players')
-      .upsert(insertData, { onConflict: 'external_id' })
-      .select('id')
-      .single()
+    // If we have an external_id, upsert on it for cross-call dedup. Otherwise
+    // just insert — Postgres assigns a fresh UUID id and external_id stays
+    // NULL. The OLD code here synthesized
+    //   external_id = normalize(name).replace(/\s+/g, '-')
+    // which a DB trigger mirrored into padelapi_id, minting 838 fake
+    // "padelapi" IDs in 2026-03/04 (the `marta-borrero-fernandez-de-la-puente`
+    // class of duplicates). Aliases on canonical records — not synthetic
+    // source IDs — are how we close the variant-name gap.
+    const playersTable = this.supabase.from('players')
+    const writer = insertData.external_id
+      ? playersTable.upsert(insertData, { onConflict: 'external_id' })
+      : playersTable.insert(insertData)
+    const { data, error } = await writer.select('id').single()
 
     if (error || !data) {
       console.error(`[PlayerResolver] Failed to create player ${input.name}:`, error?.message)

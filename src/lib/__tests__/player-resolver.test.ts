@@ -5,7 +5,69 @@ import {
   normalizeCountry,
   subsetSimilarity,
   typoTolerantSimilarity,
+  PlayerResolver,
 } from '../player-resolver'
+
+// Minimal SupabaseClient fake. The real client builds chainable query
+// objects; we just record the .from() table + the terminal action +
+// payload. Defaults to "no rows / no error" for selects so PlayerResolver
+// loads an empty cache and falls through to the create branch — that's
+// the path we want to exercise.
+function makeFake() {
+  const calls: Array<{ table: string; op: string; data?: unknown; opts?: unknown }> = []
+  const PlayerInsertId = 'new-player-uuid'
+
+  function chainable(table: string) {
+    const finalThenable = (op: string, data?: unknown, opts?: unknown) => {
+      calls.push({ table, op, data, opts })
+      const payload =
+        op === 'insert' || op === 'upsert'
+          ? { data: { id: PlayerInsertId }, error: null }
+          : { data: [], error: null }
+      // Build a chainable result that supports .select('id').single() AND
+      // the eq/in/is filter chain, all terminating in payload.
+      const node: Record<string, unknown> = {}
+      const term = () => Promise.resolve(payload)
+      const fns = ['select', 'eq', 'in', 'is', 'or', 'range', 'limit', 'order', 'maybeSingle', 'single']
+      for (const f of fns) node[f] = (..._args: unknown[]) => (f === 'single' || f === 'maybeSingle' ? term() : node)
+      // Make the node itself awaitable (covers select() chains that don't
+      // terminate in single()).
+      node.then = (resolve: (v: unknown) => unknown) => term().then(resolve)
+      return node
+    }
+
+    const node: Record<string, unknown> = {
+      select: (..._args: unknown[]) => node,
+      eq: (..._args: unknown[]) => node,
+      in: (..._args: unknown[]) => node,
+      is: (..._args: unknown[]) => node,
+      or: (..._args: unknown[]) => node,
+      range: (..._args: unknown[]) => node,
+      limit: (..._args: unknown[]) => node,
+      order: (..._args: unknown[]) => node,
+      maybeSingle: () => Promise.resolve({ data: null, error: null }),
+      single: () => Promise.resolve({ data: null, error: null }),
+      insert: (data: unknown) => finalThenable('insert', data),
+      upsert: (data: unknown, opts?: unknown) => finalThenable('upsert', data, opts),
+      update: (data: unknown) => {
+        calls.push({ table, op: 'update', data })
+        return node
+      },
+      delete: () => {
+        calls.push({ table, op: 'delete' })
+        return node
+      },
+    }
+    // Selects are awaited directly (no .single()) — make node awaitable.
+    node.then = (resolve: (v: unknown) => unknown) =>
+      Promise.resolve({ data: [], error: null }).then(resolve)
+    return node
+  }
+
+  const client = { from: (table: string) => chainable(table) }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { client: client as any, calls }
+}
 
 describe('normalize', () => {
   it('lowercases and strips accents', () => {
@@ -160,5 +222,32 @@ describe('typoTolerantSimilarity', () => {
     expect(typoTolerantSimilarity('Cleo Carvalho', 'Cleo Carvelho')).toBe(1)
     // "Carvalho" vs "Carvelhu" = 2 edits → no match
     expect(typoTolerantSimilarity('Cleo Carvalho', 'Cleo Carvelhu')).toBeLessThan(1)
+  })
+})
+
+describe('PlayerResolver.resolve — slug-style external_id synthesis (regression)', () => {
+  it('does NOT mint a slug-style external_id when input has no externalId/fipId', async () => {
+    const { client, calls } = makeFake()
+    const resolver = new PlayerResolver(client)
+
+    await resolver.resolve({
+      name: 'Marta Borrero Fernandez De La Puente',
+      category: 'women',
+      country: 'ES',
+    })
+
+    // Find the players write that the resolver issued for the new row.
+    const playerWrite = calls.find(
+      (c) => c.table === 'players' && (c.op === 'insert' || c.op === 'upsert'),
+    )
+    expect(playerWrite, 'expected players write to occur').toBeTruthy()
+
+    const data = playerWrite!.data as Record<string, unknown>
+    // The bug: PlayerResolver synthesized
+    //   external_id = "marta-borrero-fernandez-de-la-puente"
+    // which a DB trigger then mirrored into padelapi_id, polluting the
+    // padelapi_id namespace with slug-style fakes. The fix is to leave
+    // external_id NULL when no source supplied one.
+    expect(data.external_id ?? null).toBeNull()
   })
 })

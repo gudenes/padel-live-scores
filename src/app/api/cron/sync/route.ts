@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js'
 import { PlayerResolver } from '@/lib/player-resolver'
 import { logOpsEvent } from '@/lib/ops-logger'
 import { padelapiPausedResponse } from '@/lib/padelapi-pause'
+import { filterUpdateByPriority } from '@/lib/source-priority'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -917,21 +918,38 @@ async function syncPlayers(): Promise<{ synced: number; redirects: number }> {
     }
 
     // Normal player update — refresh rankings, stats and gender
+    //
+    // Source-priority gate: padelapi can only write fields where it's the
+    // primary owner per src/lib/source-priority.ts. After the 2026-05-07
+    // FIP-canonical flip, that means avatar_url, win_rate, total_matches
+    // get through; name / country / ranking are FIP-owned and stripped.
+    // gender + updated_at aren't in the priority list → permissive default.
     try {
       const playerData = await result.res.json()
 
+      const rawPayload = {
+        name: playerData.name ?? player.name,
+        country: playerData.country ?? null,
+        ranking: playerData.ranking ?? null,
+        win_rate: playerData.win_rate ?? null,
+        total_matches: playerData.total_matches ?? null,
+        avatar_url: playerData.avatar_url ?? null,
+        gender: playerData.gender ?? null,
+      }
+      const filtered = filterUpdateByPriority(rawPayload, 'player', 'padelapi')
+      // updated_at is metadata, not subject to source priority — always set.
+      const update = { ...filtered, updated_at: new Date().toISOString() }
+
+      // Skip if nothing material to write (filtered + updated_at would be a
+      // no-op timestamp bump).
+      if (Object.keys(filtered).length === 0) {
+        synced++
+        continue
+      }
+
       await supabase
         .from('players')
-        .update({
-          name: playerData.name ?? player.name,
-          country: playerData.country ?? null,
-          ranking: playerData.ranking ?? null,
-          win_rate: playerData.win_rate ?? null,
-          total_matches: playerData.total_matches ?? null,
-          avatar_url: playerData.avatar_url ?? null,
-          gender: playerData.gender ?? null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(update)
         .eq('id', player.id)
 
       synced++
