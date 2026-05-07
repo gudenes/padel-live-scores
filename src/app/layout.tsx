@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { getLocale } from "next-intl/server";
 import { GatedAnalytics } from "@/components/GatedAnalytics";
+import { GatedGoogleAds } from "@/components/GatedGoogleAds";
 import { AuthProvider } from "@/components/AuthProvider";
 import { PostHogIdentify } from "@/components/PostHogIdentify";
 import { buildAlternates } from "@/lib/seo-helpers";
@@ -151,6 +152,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <PostHogIdentify />
             </AuthProvider>
             <GatedAnalytics />
+            <GatedGoogleAds />
           </div>
         </div>
       </div>
