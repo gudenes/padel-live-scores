@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
     "@auth/pg-adapter": "^1.11.2",
     "@supabase/supabase-js": "^2.99.3",
     "@types/pg": "^8.20.0",
