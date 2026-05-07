@@ -10,7 +10,7 @@ import type { NextRequest } from 'next/server'
 
 const handleI18nRouting = createMiddleware(routing)
 
-export default function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
 
   // ── Pre-i18n: short-circuit routes ─────────────────────────────
@@ -202,6 +202,21 @@ export default function proxy(request: NextRequest) {
   const timezone = request.headers.get('x-vercel-ip-timezone') ?? ''
   if (timezone) {
     response.cookies.set('geo-timezone', timezone, {
+      path: '/',
+      httpOnly: false,
+      sameSite: 'lax',
+      maxAge: 86400,
+    })
+  }
+
+  // Device-class cookie — coarse mobile/desktop hint from User-Agent.
+  // Read by src/hooks/useIsDesktop.ts to avoid a hydration-mismatch flicker
+  // on first paint. Client confirms via window.matchMedia after mount.
+  const ua = request.headers.get('user-agent') ?? ''
+  const { parseUserAgentDeviceClass } = await import('@/lib/device-class')
+  const deviceClass = parseUserAgentDeviceClass(ua)
+  if (deviceClass !== 'unknown') {
+    response.cookies.set('device-class', deviceClass, {
       path: '/',
       httpOnly: false,
       sameSite: 'lax',
