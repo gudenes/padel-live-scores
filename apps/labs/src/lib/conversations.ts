@@ -41,8 +41,9 @@ export async function getOrCreateConversation(args: {
       .select('*')
       .eq('id', args.conversationId)
       .eq('user_id', args.userId)
-      .single()
+      .maybeSingle()
     if (error) throw new Error(`getOrCreateConversation lookup: ${error.message}`)
+    if (!data) throw new Error('conversation not found')
     return data as ConversationRow
   }
 

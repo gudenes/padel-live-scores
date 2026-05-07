@@ -8,12 +8,15 @@ import type { MatchSummary } from './types'
 import { rowToMatchSummary } from './player-recent-matches'
 
 const TERMINAL_STATUSES = ['finished', 'retired', 'walkover'] as const
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function getHeadToHead(
   playerAId: string,
   playerBId: string,
   opts: { limit?: number } = {},
 ): Promise<MatchSummary[]> {
+  if (!UUID_RE.test(playerAId)) throw new Error('invalid playerAId')
+  if (!UUID_RE.test(playerBId)) throw new Error('invalid playerBId')
   const limit = Math.min(Math.max(opts.limit ?? 25, 1), 100)
   if (playerAId === playerBId) return []
   const supabase = supabaseService()

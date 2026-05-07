@@ -6,11 +6,13 @@ import { supabaseService } from '@/lib/db'
 import type { MatchSummary } from './types'
 
 const TERMINAL_STATUSES = ['finished', 'retired', 'walkover'] as const
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function getPlayerRecentMatches(
   playerId: string,
   opts: { limit?: number } = {},
 ): Promise<MatchSummary[]> {
+  if (!UUID_RE.test(playerId)) throw new Error('invalid playerId')
   const limit = Math.min(Math.max(opts.limit ?? 5, 1), 25)
   const supabase = supabaseService()
 
