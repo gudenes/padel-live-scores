@@ -26,3 +26,29 @@ describe('phase 1 smoke', () => {
     expect(typeof mod.handlers.POST).toBe('function')
   })
 })
+
+// --- Phase 2 smoke ---
+import { describe as describeP2, it as itP2, expect as expectP2 } from 'vitest'
+
+describeP2('phase 2 wiring', () => {
+  itP2('imports the chat module without crashing', async () => {
+    const mod = await import('../src/lib/ai/chat')
+    expectP2(typeof mod.runChat).toBe('function')
+  })
+
+  itP2('imports each data skill without crashing', async () => {
+    const sp = await import('../src/lib/data/search-player')
+    const rm = await import('../src/lib/data/player-recent-matches')
+    const h2h = await import('../src/lib/data/head-to-head')
+    expectP2(typeof sp.searchPlayer).toBe('function')
+    expectP2(typeof rm.getPlayerRecentMatches).toBe('function')
+    expectP2(typeof h2h.getHeadToHead).toBe('function')
+  })
+
+  itP2('exposes the 3 tool definitions', async () => {
+    const { PADEL_LABS_TOOLS } = await import('../src/lib/ai/tools')
+    expectP2(PADEL_LABS_TOOLS.length).toBe(3)
+    const names = PADEL_LABS_TOOLS.map((t) => t.name).sort()
+    expectP2(names).toEqual(['get_head_to_head', 'get_player_recent_matches', 'search_player'])
+  })
+})
