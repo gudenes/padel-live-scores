@@ -13,7 +13,7 @@ export function parseUserAgentDeviceClass(userAgent: string): DeviceClass {
   if (!userAgent) return 'unknown'
   const ua = userAgent.toLowerCase()
   // Tablets count as mobile per spec — we don't ship a tablet hybrid.
-  if (/iphone|ipad|ipod|android.*mobile|android|mobile|opera mini|iemobile|blackberry|webos/.test(ua)) {
+  if (/iphone|ipad|ipod|android|mobile|opera mini|iemobile|blackberry|webos/.test(ua)) {
     return 'mobile'
   }
   if (/macintosh|windows|x11|linux/.test(ua)) {
