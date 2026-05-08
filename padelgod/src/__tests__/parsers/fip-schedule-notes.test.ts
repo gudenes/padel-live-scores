@@ -125,6 +125,21 @@ MAIN DRAW : FINAL
     const result = parseScheduleNotes(notes, '2026-05-03', '2026-05-10');
     expect(result.f).toBe('2026-05-10');
   });
+
+  it('accepts full ISO timestamps as startsAt/endsAt (callers may pass DB timestamps)', () => {
+    // Reproducer for the Asuncion P2 production bug — startsAt='2026-05-03T00:00:00+00:00'
+    // (full timestamp from DB) instead of '2026-05-03' (date-only) caused
+    // string-comparison failures, dropping the tournament-first-day Q1
+    // entry. Defensive slice in parseScheduleNotes normalizes both forms.
+    const notes = `Q1 Sun 3 Start time : 10.00 am
+Q1 Mon 4 Start time : 10.00 am`;
+    const result = parseScheduleNotes(
+      notes,
+      '2026-05-03T00:00:00+00:00',  // full timestamp, not date-only
+      '2026-05-10T00:00:00+00:00',
+    );
+    expect(result.q1).toBe('2026-05-03'); // earliest-wins picks Sunday
+  });
 });
 
 describe('parseScheduleNotes — day-of-week format', () => {

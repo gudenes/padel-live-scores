@@ -515,8 +515,9 @@ function _resolveDayOfWeek(dayName: string, startsAt: string, endsAt: string): s
   const key = dayName.trim().toLowerCase()
   if (!(key in _DAY_NAMES)) return null
   const target = _DAY_NAMES[key]
-  const start = new Date(`${startsAt}T00:00:00Z`)
-  const end = new Date(`${endsAt}T00:00:00Z`)
+  // Slice to YYYY-MM-DD; tolerate full ISO timestamps from callers.
+  const start = new Date(`${startsAt.slice(0, 10)}T00:00:00Z`)
+  const end = new Date(`${endsAt.slice(0, 10)}T00:00:00Z`)
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
   for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
     if (d.getUTCDay() === target) return d.toISOString().slice(0, 10)
@@ -630,9 +631,16 @@ function _parseDayOfWeekLines(notes: string, startsAt: string, endsAt: string): 
 
 function parseScheduleNotes(notes: string | null, startsAt: string, endsAt: string): RoundSchedule {
   if (!notes) return {}
+  // Defensive: callers may pass full ISO timestamps ("2026-05-03T00:00:00+00:00")
+  // instead of date-only strings ("2026-05-03"). String comparisons in the
+  // helpers below assume the date-only form — slice to 10 chars to normalize.
+  // Without this, '2026-05-03' >= '2026-05-03T...' is FALSE (shorter string
+  // with same prefix loses), and tournament-first-day dates get dropped.
+  const start = startsAt.slice(0, 10)
+  const end = endsAt.slice(0, 10)
   const result: RoundSchedule = {}
-  Object.assign(result, _parsePremierBlocks(notes, startsAt, endsAt))
-  Object.assign(result, _parseDayOfWeekLines(notes, startsAt, endsAt))
+  Object.assign(result, _parsePremierBlocks(notes, start, end))
+  Object.assign(result, _parseDayOfWeekLines(notes, start, end))
   const finalsMatch = /Date\s+Finals\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(notes)
   if (finalsMatch) {
     result.f = `${finalsMatch[3]}-${finalsMatch[2]!.padStart(2, '0')}-${finalsMatch[1]!.padStart(2, '0')}`
