@@ -709,7 +709,8 @@
     "shareApp": "Share PadelNachos",
     "changeLanguage": "Change language",
     "tbd": "TBD",
-    "_tbd_context": "Abbreviation for \"To Be Determined\" — used when a player slot in a draw isn't known yet. Keep abbreviation if natural; otherwise translate to a short phrase."
+    "_tbd_context": "Abbreviation for \"To Be Determined\" — used when a player slot in a draw isn't known yet. Keep abbreviation if natural; otherwise translate to a short phrase.",
+    "news_link": "News"
   },
   "about": {
     "title": "About Padel Nachos",
@@ -754,6 +755,36 @@
     "bodyWithCount": "{count, plural, one {You're following 1 player. Sign in to keep them across devices.} other {You're following {count} items. Sign in to keep them across devices.}}",
     "later": "Maybe later",
     "signIn": "Sign in"
+  },
+  "news": {
+    "section_label": "News",
+    "rail_label": "From PadelNachos",
+    "rail_see_all": "See all",
+    "byline": "By PadelNachos",
+    "category_all": "All",
+    "category_announcements": "Announcements",
+    "category_product": "Product",
+    "more_from_padelnachos": "More from PadelNachos",
+    "empty_index_title": "Nothing here yet",
+    "empty_index_subtitle": "Check back soon for partnership and product news.",
+    "ops_tab_label": "News",
+    "ops_new_post": "New post",
+    "ops_field_title": "Title",
+    "ops_field_slug": "Slug",
+    "ops_field_category": "Category",
+    "ops_field_cover": "Cover image",
+    "ops_field_body": "Body (Markdown)",
+    "ops_field_status": "Status",
+    "ops_status_draft": "Draft",
+    "ops_status_published": "Published",
+    "ops_btn_save_draft": "Save draft",
+    "ops_btn_publish": "Publish",
+    "ops_btn_preview": "Preview",
+    "ops_publishing": "Publishing & translating…",
+    "ops_translation_pending": "pending",
+    "ops_translation_translated": "translated",
+    "ops_translation_error": "error",
+    "ops_btn_retry_translation": "Retry translation"
   },
   "notificationPrompt": {
     "title": "Never miss a match",

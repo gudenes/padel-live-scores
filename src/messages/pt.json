@@ -688,7 +688,8 @@
     "apply": "Aplicar",
     "shareApp": "Partilhar PadelNachos",
     "changeLanguage": "Alterar idioma",
-    "tbd": "A DEFINIR"
+    "tbd": "A DEFINIR",
+    "news_link": "Notícias"
   },
   "about": {
     "title": "Sobre o Padel Nachos",
@@ -733,6 +734,36 @@
     "bodyWithCount": "{count, plural, one {Você está seguindo 1 jogador. Faça login para mantê-lo em todos os dispositivos.} other {Você está seguindo {count} itens. Faça login para mantê-los em todos os dispositivos.}}",
     "later": "Talvez depois",
     "signIn": "Entrar"
+  },
+  "news": {
+    "section_label": "Notícias",
+    "rail_label": "Da PadelNachos",
+    "rail_see_all": "Ver todas",
+    "byline": "Por PadelNachos",
+    "category_all": "Todas",
+    "category_announcements": "Anúncios",
+    "category_product": "Produto",
+    "more_from_padelnachos": "Mais da PadelNachos",
+    "empty_index_title": "Ainda nada por aqui",
+    "empty_index_subtitle": "Volte em breve para notícias de parceiros e produto.",
+    "ops_tab_label": "Notícias",
+    "ops_new_post": "Nova publicação",
+    "ops_field_title": "Título",
+    "ops_field_slug": "Slug",
+    "ops_field_category": "Categoria",
+    "ops_field_cover": "Imagem de capa",
+    "ops_field_body": "Corpo (Markdown)",
+    "ops_field_status": "Estado",
+    "ops_status_draft": "Rascunho",
+    "ops_status_published": "Publicado",
+    "ops_btn_save_draft": "Guardar rascunho",
+    "ops_btn_publish": "Publicar",
+    "ops_btn_preview": "Pré-visualizar",
+    "ops_publishing": "A publicar e traduzir…",
+    "ops_translation_pending": "pendente",
+    "ops_translation_translated": "traduzido",
+    "ops_translation_error": "erro",
+    "ops_btn_retry_translation": "Repetir tradução"
   },
   "notificationPrompt": {
     "title": "Não perca nenhuma partida",
