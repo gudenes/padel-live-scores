@@ -3,6 +3,7 @@
 // Public hub. Server component, force-dynamic (counters change frequently;
 // AppHeader project rule).
 
+import React from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { getTranslations } from 'next-intl/server'
 import GlobalHeader from '@/components/nav/GlobalHeader'
@@ -14,6 +15,7 @@ import DecisionMakersDossier from '@/components/road-to-olympics/DecisionMakersD
 import ActionHub from '@/components/road-to-olympics/ActionHub'
 import PledgeInline from '@/components/road-to-olympics/PledgeInline'
 import DisclosureFooter from '@/components/road-to-olympics/DisclosureFooter'
+import Term from '@/components/road-to-olympics/Term'
 import {
   computeDaysUntil,
   derivePillStatus,
@@ -28,12 +30,19 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata() {
   const t = await getTranslations('roadToOlympics')
+  // heroSubtitle uses rich-text tags; strip them to plain string for metadata
+  const heroSubtitlePlain = String(
+    t.rich('heroSubtitle', {
+      ioc: (chunks) => String(chunks),
+      brisbane: (chunks) => String(chunks),
+    })
+  )
   return {
     title: `${t('heroTitleLine1')} — PadelNachos`,
-    description: t('heroSubtitle'),
+    description: heroSubtitlePlain,
     openGraph: {
       title: `${t('heroTitleLine1')} — PadelNachos`,
-      description: t('heroSubtitle'),
+      description: heroSubtitlePlain,
       url: 'https://padelnachos.com/road-to-olympics',
     },
   }
@@ -43,6 +52,7 @@ export default async function RoadToOlympicsPage() {
   const t = await getTranslations('roadToOlympics')
   const tCountdown = await getTranslations('roadToOlympics.countdown')
   const tScore = await getTranslations('roadToOlympics.scorecard')
+  const tGlossary = await getTranslations('roadToOlympics.glossary')
 
   const state = getState()
   const criteria = getCriteria()
@@ -59,8 +69,10 @@ export default async function RoadToOlympicsPage() {
     .select('*', { count: 'exact', head: true })
 
   // Map criteria rows to pill statuses + pill text from state counters
-  const labelByKey: Record<string, string> = {
-    compliance: tScore('complianceLabel'),
+  const labelByKey: Record<string, React.ReactNode> = {
+    compliance: tScore.rich('complianceLabel', {
+      wada: (chunks) => <Term short={String(chunks)} definition={tGlossary('wada')} />,
+    }),
     continents: tScore('continentsLabel'),
     federations: tScore('federationsLabel'),
     gender: tScore('genderLabel'),

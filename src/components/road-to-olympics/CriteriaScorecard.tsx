@@ -1,12 +1,13 @@
 // src/components/road-to-olympics/CriteriaScorecard.tsx
 
+import React from 'react'
 import { useTranslations } from 'next-intl'
 import type { CriteriaStatus } from '@/types/road-to-olympics'
 import { GREEN, ORANGE, BG_CARD, BORDER, MUTED, CHUNKY, SectionTitle } from '@/components/home/shared'
 
 interface Row {
   key: string
-  label: string
+  label: React.ReactNode
   pillStatus: CriteriaStatus
   pillText: string
 }
