@@ -24,4 +24,9 @@ describe('resolveDayOfWeek', () => {
     expect(resolveDayOfWeek('Quintday', '2026-05-03', '2026-05-10')).toBeNull();
     expect(resolveDayOfWeek('', '2026-05-03', '2026-05-10')).toBeNull();
   });
+
+  it('resolves Saturday in Italian and French (multilingual sanity)', () => {
+    expect(resolveDayOfWeek('sabato', '2026-05-03', '2026-05-10')).toBe('2026-05-09');
+    expect(resolveDayOfWeek('samedi', '2026-05-03', '2026-05-10')).toBe('2026-05-09');
+  });
 });

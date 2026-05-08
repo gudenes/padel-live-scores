@@ -24,7 +24,9 @@ const DAY_NAMES: Record<string, number> = {
   giovedi: 4, giovedì: 4, venerdi: 5, venerdì: 5,
   // French
   dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6,
-  // Italian "sabato" — registered after Spanish "sabado" so both work
+  // Saturday — Spanish/Italian/Portuguese share spellings (sabado/sabato),
+  // mapped to the same numeric value; Italian "sabato" listed explicitly
+  // to make multilingual coverage visible.
   sabato: 6,
 };
 
