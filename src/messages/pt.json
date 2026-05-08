@@ -1010,84 +1010,84 @@
   },
   "roadToOlympics": {
     "hashtag": "#PadelOlympics",
-    "heroTitleLine1": "Padel's Road to the Olympics.",
-    "heroSubtitle": "Tracking padel's path to Olympic inclusion. Next milestone: the IOC's Brisbane 2032 sports decision on June 24, 2026.",
+    "heroTitleLine1": "O caminho do padel para as Olimpíadas.",
+    "heroSubtitle": "Acompanhando o caminho do padel para inclusão olímpica. Próximo marco: a decisão do IOC sobre Brisbane 2032 em 24 de junho de 2026.",
     "countdown": {
-      "labelDefault": "Until IOC Session · Brisbane 2032 decision",
-      "daysUnit": "days",
-      "todayLabel": "Today"
+      "labelDefault": "Até Sessão do IOC · decisão Brisbane 2032",
+      "daysUnit": "dias",
+      "todayLabel": "Hoje"
     },
     "scorecard": {
-      "title": "The Path In — IOC Criteria",
-      "pillDone": "Done",
-      "pillOnTrack": "On track",
-      "pillBuilding": "Building",
-      "complianceLabel": "Compliance (Charter, WADA)",
-      "continentsLabel": "Continents played",
-      "federationsLabel": "National federations",
-      "genderLabel": "Women's padel",
-      "eliteLabel": "Elite-level countries"
+      "title": "O Caminho para Dentro — Critérios do IOC",
+      "pillDone": "Completo",
+      "pillOnTrack": "Em curso",
+      "pillBuilding": "Em desenvolvimento",
+      "complianceLabel": "Conformidade (Carta, WADA)",
+      "continentsLabel": "Continentes onde se joga",
+      "federationsLabel": "Federações nacionais",
+      "genderLabel": "Padel feminino",
+      "eliteLabel": "Países de elite"
     },
     "beats": {
-      "tabWins": "Wins",
-      "tabWatchlist": "Watchlist",
-      "empty": "No recent beats. Check back soon."
+      "tabWins": "Vitórias",
+      "tabWatchlist": "Observação",
+      "empty": "Sem desenvolvimentos recentes. Volta mais tarde."
     },
     "dossier": {
-      "title": "Decision Makers"
+      "title": "Decisores"
     },
-    "actionsTitle": "Support the push",
+    "actionsTitle": "Apoia o avanço",
     "actions": {
-      "shareTitle": "Share #PadelOlympics",
-      "shareDesc": "Pre-filled tweet with current numbers",
-      "emailTitle": "Email your contacts",
-      "emailDesc": "NOC President + Sports Minister templates",
-      "alertsTitle": "Get IOC alerts",
-      "alertsDesc": "We email when something material happens",
-      "pledgeTitle": "Sign the pledge",
-      "pledgeDesc": "Add your name to the open letter"
+      "shareTitle": "Partilha #PadelOlympics",
+      "shareDesc": "Tweet pré-preenchido com números actuais",
+      "emailTitle": "Envia e-mail aos teus contactos",
+      "emailDesc": "Modelos para Presidente do NOC + Ministro do Desporto",
+      "alertsTitle": "Recebe alertas do IOC",
+      "alertsDesc": "Enviamos e-mail quando algo importante acontece",
+      "pledgeTitle": "Assina o manifesto",
+      "pledgeDesc": "Adiciona o teu nome à carta aberta"
     },
     "pledge": {
-      "inlineSuffix": "fans backing padel's Olympic push.",
-      "inlineSub": "Add your voice.",
-      "ctaPrimary": "I'M IN",
-      "modalTitle": "Sign the open letter",
-      "modalIntro": "Your name joins padel fans worldwide asking the IOC to include padel in the Brisbane 2032 Games.",
-      "fieldName": "Display name (optional)",
-      "fieldEmail": "Email (optional)",
-      "fieldCountry": "Country (optional)",
-      "subscribeOptIn": "Also email me when something material happens",
-      "submit": "Add my name",
-      "submitting": "Adding…",
-      "successTitle": "You're in.",
-      "successBody": "Thank you. You'll see your pledge counted on the hub immediately."
+      "inlineSuffix": "fãs apoiando o avanço do padel nas Olimpíadas.",
+      "inlineSub": "Adiciona a tua voz.",
+      "ctaPrimary": "QUERO PARTICIPAR",
+      "modalTitle": "Assina a carta aberta",
+      "modalIntro": "O teu nome junta-se aos fãs de padel de todo o mundo a pedir ao IOC que inclua o padel nos Jogos de Brisbane 2032.",
+      "fieldName": "Nome a mostrar (opcional)",
+      "fieldEmail": "E-mail (opcional)",
+      "fieldCountry": "País (opcional)",
+      "subscribeOptIn": "Envia-me também e-mail quando algo importante acontece",
+      "submit": "Adiciona o meu nome",
+      "submitting": "A adicionar…",
+      "successTitle": "Estás dentro.",
+      "successBody": "Obrigado. Vais ver o teu apoio contabilizado no hub imediatamente."
     },
     "subscribe": {
-      "modalTitle": "Get IOC alerts",
-      "modalIntro": "We'll email you each time something material happens — federation joins, IOC statements, scorecard changes.",
-      "fieldEmail": "Email",
-      "submit": "Subscribe",
-      "submitting": "Sending confirmation…",
-      "checkInbox": "Check your inbox to confirm — we just sent a one-click link."
+      "modalTitle": "Recebe alertas do IOC",
+      "modalIntro": "Enviamos-te e-mail sempre que algo importante acontece — uma federação adere, o IOC faz declarações, a tabela de pontuação muda.",
+      "fieldEmail": "E-mail",
+      "submit": "Subscrever",
+      "submitting": "A enviar confirmação…",
+      "checkInbox": "Verifica a tua caixa de entrada para confirmar — acabamos de enviar uma ligação com um clique."
     },
     "disclosure": {
-      "line1": "We support padel's inclusion in the Olympic Games.",
-      "line2": "We track the data honestly — and we're not neutral on the outcome.",
-      "readWhy": "Read why"
+      "line1": "Apoiamos a inclusão do padel nos Jogos Olímpicos.",
+      "line2": "Acompanhamos os dados com honestidade — e não somos neutros quanto ao resultado.",
+      "readWhy": "Descobre porquê"
     },
     "homeCard": {
-      "eyebrow": "ROAD TO THE OLYMPICS",
-      "title": "Padel's Olympic push is moving fast.",
-      "subtitle": "{days} days until the IOC decision. Track the path in.",
-      "cta": "Open the tracker"
+      "eyebrow": "CAMINHO PARA AS OLIMPÍADAS",
+      "title": "O avanço do padel nas Olimpíadas está em aceleração.",
+      "subtitle": "{days} dias até à decisão do IOC. Acompanha o caminho.",
+      "cta": "Abre o tracker"
     },
     "why": {
-      "title": "Why we're tracking padel's road to the Olympics",
-      "intro": "PadelNachos is a padel-first product. We are openly pro-inclusion. This page exists to help fans understand the path and to give them tools to support it.",
-      "stance": "Our stance",
-      "stanceBody": "We support padel's inclusion in the Olympic Games. We're not pretending to be a neutral journalism outlet — bias on the outcome is fine, sloppy on the facts is not.",
-      "rules": "Sourcing rules",
-      "rulesBody": "Every counter on the tracker is linked to a primary source. When FIP says it, we link to FIP. When critical voices push back, they go in the Watchlist tab — not silently dropped."
+      "title": "Porquê acompanhamos o caminho do padel para as Olimpíadas",
+      "intro": "PadelNachos é um produto focado em padel. Apoiamos abertamente a inclusão. Esta página existe para ajudar os fãs a compreender o caminho e para lhes dar ferramentas para o apoiar.",
+      "stance": "A nossa posição",
+      "stanceBody": "Apoiamos a inclusão do padel nos Jogos Olímpicos. Não estamos a fingir ser um meio de comunicação social neutro — ter viés no resultado é aceitável, ser negligente nos factos não é.",
+      "rules": "Regras de sourcing",
+      "rulesBody": "Cada contador no tracker tem uma ligação para uma fonte primária. Quando FIP o diz, ligamos a FIP. Quando vozes críticas contestam, aparecem no separador Observação — não são silenciosamente descartadas."
     }
   }
 }
