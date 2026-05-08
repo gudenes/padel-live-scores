@@ -7,6 +7,7 @@ import { classifyResult, computeReward } from '@/lib/predictions/scoring'
 import type { Prediction } from '@/lib/predictions/types'
 import { useMatchPrediction } from '@/hooks/useMatchPrediction'
 import { PredictionFlow } from './PredictionFlow'
+import { LoggedOutNudge } from './LoggedOutNudge'
 
 const GREEN = '#7ED321'
 const MUTED = '#6B7280'
@@ -157,13 +158,16 @@ export function PredictionPanel({ match, sponsorBrand, onLocked }: PredictionPan
     <div style={{ paddingTop: 8 }}>
       <style>{PANEL_KEYFRAMES}</style>
       {mode === 'prePick' && (
-        <PredictionFlow
-          match={match}
-          prediction={prediction}
-          onLockIn={(p) => setPrediction(p)}
-          onClear={clearPrediction}
-          onLocked={onLocked}
-        />
+        <>
+          <LoggedOutNudge />
+          <PredictionFlow
+            match={match}
+            prediction={prediction}
+            onLockIn={(p) => setPrediction(p)}
+            onClear={clearPrediction}
+            onLocked={onLocked}
+          />
+        </>
       )}
 
       {mode === 'live' && prediction && (

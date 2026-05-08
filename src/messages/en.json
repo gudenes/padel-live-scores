@@ -186,6 +186,10 @@
       "locked": "PICK"
     },
     "lockedTooltip": "Oops! This match is already live. Try predicting an upcoming match instead.",
+    "loggedOutNudge": {
+      "body": "Sign in to save your picks and join the leaderboard.",
+      "cta": "Sign in"
+    },
     "makeYourPick": "Make your pick",
     "rewardShown": "Reward shown",
     "favored": "{pct}% favored",

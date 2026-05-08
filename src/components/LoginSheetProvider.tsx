@@ -3,7 +3,7 @@
 // App-root provider exposing a global openLoginSheet() so any component
 // can trigger the sign-in sheet without owning its own local state.
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 
 const LoginSheet = dynamic(() => import('@/components/LoginSheet'), { ssr: false })
@@ -29,6 +29,12 @@ export function LoginSheetProvider({ children }: { children: ReactNode }) {
 
   const openLoginSheet = useCallback(() => setOpen(true), [])
   const closeLoginSheet = useCallback(() => setOpen(false), [])
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true)
+    window.addEventListener('pn:login-open', onOpen)
+    return () => window.removeEventListener('pn:login-open', onOpen)
+  }, [])
 
   const value = useMemo(
     () => ({ openLoginSheet, closeLoginSheet, isOpen }),
