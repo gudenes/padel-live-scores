@@ -30,6 +30,119 @@ const DAY_NAMES: Record<string, number> = {
   sabato: 6,
 };
 
+const MONTHS: Record<string, number> = {
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7,
+  august: 8, september: 9, october: 10, november: 11, december: 12,
+  jan: 1, feb: 2, mar: 3, apr: 4, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9,
+  oct: 10, nov: 11, dec: 12,
+};
+
+/**
+ * Resolve a "(D)D Month" string against a tournament range. Picks the
+ * year so the resulting date falls inside [startsAt, endsAt]; if both
+ * candidate years would land outside the range we still prefer the
+ * one closer to startsAt.
+ */
+function resolveDateInRange(
+  dayNum: number,
+  monthName: string,
+  startsAt: string,
+  endsAt: string,
+): string | null {
+  const month = MONTHS[monthName.toLowerCase()];
+  if (!month || dayNum < 1 || dayNum > 31) return null;
+  const startYear = parseInt(startsAt.slice(0, 4), 10);
+  const candidates = [startYear, startYear + 1];
+  for (const y of candidates) {
+    const iso = `${y}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    if (iso >= startsAt && iso <= endsAt) return iso;
+  }
+  // Out of range — return the startYear candidate as a fallback (shouldn't
+  // happen for well-formed FIP data; keeps the parser deterministic).
+  const iso = `${startYear}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+  return iso;
+}
+
+function labelToKey(label: string): RoundKey | null {
+  const u = label.toUpperCase();
+  if (u.includes('ROUND OF 64')) return 'r64';
+  if (u.includes('ROUND OF 32')) return 'r32';
+  if (u.includes('ROUND OF 16')) return 'r16';
+  if (u.includes('QUARTER')) return 'qf';
+  if (u.includes('SEMI')) return 'sf';
+  if (u.includes('FINAL')) return 'f';
+  return null;
+}
+
+/** Strategy 1: Premier "MAIN DRAW : <FULL ROUND NAME>" blocks. */
+function parsePremierBlocks(
+  notes: string,
+  startsAt: string,
+  endsAt: string,
+): RoundSchedule {
+  const out: RoundSchedule = {};
+  // Match a label line followed by a date line. The label is anchored to
+  // start-of-line OR after a previous newline; the date line picks up the
+  // first "<day> <Month>" pattern within the next 200 chars.
+  const re =
+    /(MAIN DRAW\s*:?\s*(?:ROUND OF 64|ROUND OF 32|ROUND OF 16|QUARTER-FINALS?|SEMI-FINALS?|FINALS?|1st ROUND|2nd ROUND|3rd ROUND))[\s\S]{0,200}?(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b/gi;
+  for (const m of notes.matchAll(re)) {
+    const label = m[1]!.toUpperCase();
+    const dayNum = parseInt(m[2]!, 10);
+    const monthName = m[3]!;
+    const iso = resolveDateInRange(dayNum, monthName, startsAt, endsAt);
+    if (!iso) continue;
+    const key = labelToKey(label);
+    if (key && !(key in out)) out[key] = iso;
+  }
+
+  // Qualifying lines: "Q1 Sun 3 Start time : ..." — capture the day number,
+  // then resolve via day-of-week + range.
+  const qualRe = /\b(Q[123])\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\s+(\d{1,2})\b/gi;
+  // For Q lines we don't always know the month from the line itself; use
+  // the most-recently-seen month above OR fall back to startsAt's month.
+  const startMonth = parseInt(startsAt.slice(5, 7), 10);
+  for (const m of notes.matchAll(qualRe)) {
+    const qKey = m[1]!.toLowerCase() as RoundKey;
+    const dayNum = parseInt(m[2]!, 10);
+    // Try same month as startsAt, then next month
+    const candidates = [
+      `${startsAt.slice(0, 4)}-${String(startMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`,
+      `${startsAt.slice(0, 4)}-${String(startMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`,
+    ];
+    for (const iso of candidates) {
+      if (iso >= startsAt && iso <= endsAt) {
+        // Earliest wins (men's qualifying typically comes before women's)
+        if (!(qKey in out) || iso < out[qKey]!) out[qKey] = iso;
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Parse a tournament's `schedule_notes` into a structured per-round map.
+ *
+ * Tries three strategies in order, merging results. Later strategies
+ * override earlier ones on conflict.
+ *   1. Premier "MAIN DRAW : ROUND OF 16" full-name blocks.
+ *   2. (Task 4) Day-of-week phrases — "Sunday – SF and Finals MD".
+ *   3. (Task 5) Final-date override — "Date Finals: 22/03/2026".
+ *
+ * Pure: no I/O, no DB. Returns {} for null/empty input.
+ */
+export function parseScheduleNotes(
+  notes: string | null,
+  startsAt: string,
+  endsAt: string,
+): RoundSchedule {
+  if (!notes) return {};
+  const result: RoundSchedule = {};
+  Object.assign(result, parsePremierBlocks(notes, startsAt, endsAt));
+  return result;
+}
+
 /**
  * Returns the first ISO date in [startsAt, endsAt] (inclusive) whose
  * weekday matches `dayName`. Day names are matched case-insensitively
