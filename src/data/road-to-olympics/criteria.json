@@ -1,0 +1,34 @@
+{
+  "rows": [
+    {
+      "key": "compliance",
+      "label": "Compliance (Charter, WADA)",
+      "description": "Olympic Charter, WADA Code, Olympic Movement Code on Manipulation of Competitions",
+      "derivation": "All three compliance flags must be true for 'done'."
+    },
+    {
+      "key": "continents",
+      "label": "Continents played",
+      "description": "Padel must be practised on at least 3 continents to meet IOC threshold.",
+      "derivation": "continentsCount >= 3 → 'done'."
+    },
+    {
+      "key": "federations",
+      "label": "National federations",
+      "description": "Number of national federations affiliated with the FIP.",
+      "derivation": "Static label 'on-track' until reaching 100; pill text shows count."
+    },
+    {
+      "key": "gender",
+      "label": "Women's padel",
+      "description": "Share of female players globally; benchmark target is parity (50%).",
+      "derivation": "genderPctFemale >= 35 → 'on-track'; >= 50 → 'done'; < 35 → 'building'."
+    },
+    {
+      "key": "elite",
+      "label": "Elite-level countries",
+      "description": "Number of countries with athletes capable of medalling at Olympic level.",
+      "derivation": "Manual label from eliteStatusLabel ('Building' / 'On track' / 'Done')."
+    }
+  ]
+}
