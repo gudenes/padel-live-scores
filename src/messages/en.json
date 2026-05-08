@@ -694,7 +694,8 @@
     "shareApp": "Share PadelNachos",
     "changeLanguage": "Change language",
     "tbd": "TBD",
-    "_tbd_context": "Abbreviation for \"To Be Determined\" — used when a player slot in a draw isn't known yet. Keep abbreviation if natural; otherwise translate to a short phrase."
+    "_tbd_context": "Abbreviation for \"To Be Determined\" — used when a player slot in a draw isn't known yet. Keep abbreviation if natural; otherwise translate to a short phrase.",
+    "news_link": "News"
   },
   "about": {
     "title": "About Padel Nachos",

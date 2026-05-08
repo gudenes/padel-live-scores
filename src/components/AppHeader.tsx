@@ -7,6 +7,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import ProfileButton from '@/components/ProfileButton'
+import { Link } from '@/i18n/navigation'
 
 import { useInvite } from '@/hooks/useInvite'
 import { useAuth } from '@/components/AuthProvider'
@@ -119,6 +120,15 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
           {searchHints[hintIdx]}
         </span>
       </div>
+
+      {/* News link */}
+      <Link
+        href="/news"
+        className="text-xs font-bold uppercase tracking-wider"
+        style={{ color: 'rgba(255,255,255,0.7)', flexShrink: 0, marginRight: 6 }}
+      >
+        {tCommon('news_link')}
+      </Link>
 
       {/* Share icon — always visible */}
       {mounted && (
