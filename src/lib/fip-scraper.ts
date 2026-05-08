@@ -480,7 +480,12 @@ export function parseDrawSizes(html: string): DrawSize {
 
 // ---------------------------------------------------------------------------
 // parseScheduleNotes — convert Play Order text → per-round ISO dates
-// (mirrors padelgod/src/parsers/fip-schedule-notes.ts; keep in sync)
+// Logic mirrors padelgod/src/parsers/fip-schedule-notes.ts. The padelgod
+// copy is the canonical implementation with 20 unit tests. This Next.js-
+// side copy exists because the project has no workspace setup — Next.js
+// can't import TypeScript source from the padelgod package. When updating
+// either copy, mirror the change to the other and run the padelgod tests
+// to catch regressions.
 // ---------------------------------------------------------------------------
 
 const _DAY_NAMES: Record<string, number> = {
@@ -541,6 +546,31 @@ function _labelToKey(label: string): RoundKey | null {
   return null
 }
 
+/**
+ * Map a free-text description of a tournament day's matches to round keys.
+ * Conservative — only emits keys for unambiguously named rounds.
+ *   Quarterfinals / Quarter Finals / QF      → qf
+ *   Semifinals / Semi Finals / SF            → sf
+ *   Finals / Final / F                       → f
+ *   1st (round of) Qualy / Q1                → q1   (and q2/q3)
+ * Combined phrases ("SF and Finals", "QF and SF", "2nd and 3rd qualy")
+ * emit multiple keys.
+ *
+ * Round labels are ENGLISH-ONLY. Real-world FIP overview text uses English
+ * round names even on Spanish/Italian/Portuguese-language tournaments
+ * (e.g. FIP Silver Mediolanum's notes say "Quarterfinals" / "Semifinals
+ * and Finals" despite being an Italian event). The connector set
+ * `(and|y|e|et|&)` IS multilingual to handle hybrid phrasings like
+ * "Semifinales and Finals" — but the round-name vocabulary itself is not.
+ *
+ * Deliberately NOT mapped: "1st round MD" / "2nd round MD" — ambiguous
+ * on draw size (R32 in 32-draw, R16 in 16-draw). See spec §Risks.
+ *
+ * Tests for the canonical implementation live in
+ * padelgod/src/__tests__/parsers/fip-schedule-notes.test.ts. This copy is
+ * a manually-mirrored duplicate (no workspace setup links the two
+ * codebases) — keep the regex logic in lock-step.
+ */
 function _descriptionToKeys(desc: string): RoundKey[] {
   const keys = new Set<RoundKey>()
   const lc = desc
