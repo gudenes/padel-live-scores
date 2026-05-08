@@ -16,7 +16,19 @@ type Filter = 'all' | 'matches' | 'badges'
 function dayBucket(iso: string, timezone: string | undefined, locale: string): string {
   const d = new Date(iso)
   const now = new Date()
-  const optTz = timezone ? { timeZone: timezone } : {}
+  // `timezone` may be undefined or a malformed IANA name (the cookie has
+  // bitten us with URL-encoded values before). Falling back to the
+  // browser default keeps the page from crashing when it's bad.
+  const safeTz = (() => {
+    if (!timezone) return undefined
+    try {
+      new Intl.DateTimeFormat('en-CA', { timeZone: timezone })
+      return timezone
+    } catch {
+      return undefined
+    }
+  })()
+  const optTz = safeTz ? { timeZone: safeTz } : {}
   const ymd = (x: Date) => new Intl.DateTimeFormat('en-CA', { ...optTz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(x)
   const today = ymd(now)
   const y = new Date(now); y.setDate(y.getDate() - 1); const yd = ymd(y)
@@ -127,9 +139,16 @@ export default function NotificationsPage() {
     }
   }, [items, fetchUnread])
 
-  // Bucket items by day
+  // Bucket items by day. Next.js URL-encodes cookie values when set
+  // server-side ("Europe/Madrid" → "Europe%2FMadrid"), so decode before
+  // handing to Intl.DateTimeFormat. dayBucket has its own validity
+  // fallback for any value that's still bad after decoding.
   const timezone = typeof document !== 'undefined'
-    ? (document.cookie.split('; ').find(c => c.startsWith('geo-timezone='))?.split('=')[1])
+    ? (() => {
+        const raw = document.cookie.split('; ').find(c => c.startsWith('geo-timezone='))?.split('=')[1]
+        if (!raw) return undefined
+        try { return decodeURIComponent(raw) } catch { return undefined }
+      })()
     : undefined
   const locale = typeof navigator !== 'undefined' ? navigator.language : 'en'
   const groups: Array<{ key: string; label: string; rows: NotificationRowData[] }> = []
