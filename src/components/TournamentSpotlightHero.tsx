@@ -291,11 +291,21 @@ export default function TournamentSpotlightHero({
           padding: '0 0 22px',
           position: 'relative',
           overflow: 'hidden',
+          cursor: 'pointer',
           opacity: inView ? 1 : 0,
           transform: inView ? 'scale(1)' : 'scale(0.96)',
           transition: 'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
+        {/* Whole-card link overlay — captures clicks anywhere on the card.
+            FollowButton row sits above this via z-index so the star stays interactive.
+            Inner CTA is rendered as a visual <div> (not a Link) to avoid duplicate links. */}
+        <Link
+          href={`/tournaments/${tournament.id}`}
+          aria-label={`${titleCase(tournament.name)} — ${t('viewEventDetails')}`}
+          style={{ position: 'absolute', inset: 0, zIndex: 1 }}
+        />
+
         {/* Green accent bar at top — chunky shape */}
         <div style={{
           height: 4,
@@ -307,8 +317,9 @@ export default function TournamentSpotlightHero({
         {/* Content with side padding */}
         <div style={{ padding: '0 18px' }}>
 
-        {/* ── Row 1: NEXT UP badge + level pill + follow star ── */}
-        <AnimateOnView className="sp-piece sp-piece-1" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, position: 'relative' }}>
+        {/* ── Row 1: NEXT UP badge + level pill + follow star ──
+            zIndex 2 keeps the FollowButton above the whole-card link overlay (zIndex 1). */}
+        <AnimateOnView className="sp-piece sp-piece-1" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, position: 'relative', zIndex: 2 }}>
           <div style={{
             background: isLive ? 'rgba(255,69,85,0.15)' : isOngoing ? 'rgba(245,166,35,0.15)' : 'rgba(126,211,33,0.2)',
             clipPath: CHUNKY.badge,
@@ -570,10 +581,9 @@ export default function TournamentSpotlightHero({
           </div>
         )}
 
-        {/* ── Row 8: CTA Button ── */}
+        {/* ── Row 8: CTA Button (visual only — whole card link handles navigation) ── */}
         <AnimateOnView className="sp-piece sp-piece-8">
-          <Link
-            href={`/tournaments/${tournament.id}`}
+          <div
             style={{
               display: 'block',
               textAlign: 'center',
@@ -582,13 +592,12 @@ export default function TournamentSpotlightHero({
               color: '#0d1f04',
               fontSize: 13,
               fontWeight: 800,
-              textDecoration: 'none',
               clipPath: CHUNKY.button,
               letterSpacing: 0.5,
             }}
           >
             {t('viewEventDetails')} →
-          </Link>
+          </div>
         </AnimateOnView>
         </div>{/* end content padding */}
       </div>
