@@ -61,6 +61,24 @@ const ROUND_ORDER: Record<string, number> = {
   'Finals': 1,
 }
 
+// Map round_schedule's compact keys to the canonical labels in ROUND_ORDER.
+const ROUND_KEY_TO_LABEL: Record<string, string> = {
+  q1: 'Q1',
+  q2: 'Q2',
+  q3: 'Q3',
+  r64: 'Round of 64',
+  r32: 'Round of 32',
+  r16: 'Round of 16',
+  qf: 'Quarterfinals',
+  sf: 'Semifinals',
+  f: 'Finals',
+}
+
+// And the inverse for finding a round_schedule date by canonical label.
+const ROUND_LABEL_TO_KEY: Record<string, string> = Object.fromEntries(
+  Object.entries(ROUND_KEY_TO_LABEL).map(([k, v]) => [v, k]),
+)
+
 // Collapse every alias the upstream feeds throw at us (FIP "SemiFinals",
 // padelapi "R16", widget "Final", "Quarter") into one canonical label
 // that matches a key in ROUND_ORDER. Without canonicalisation the
@@ -224,7 +242,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, round_schedule, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -310,8 +328,30 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       const r = m.round as string | null
       if (r) seen.add(normalizeRoundFull(r))
     }
-    return [...seen].sort((a, b) => (ROUND_ORDER[b] ?? 0) - (ROUND_ORDER[a] ?? 0))
-  }, [allMatches, activeTournament, genderFilter])
+    const real = [...seen]
+
+    // Per scope decision A — only show placeholders for rounds AFTER the
+    // most-advanced real round. If there are no real rounds yet (pre-
+    // tournament), we show nothing rather than guessing — keeps current
+    // behavior on empty tournaments and avoids the 16-draw "1st round MD"
+    // ambiguity (the parser might map it to r32 for a tournament that
+    // doesn't have an R32).
+    if (real.length === 0) {
+      return real.sort((a, b) => (ROUND_ORDER[b] ?? 0) - (ROUND_ORDER[a] ?? 0))
+    }
+
+    const sched = ((activeTournamentObj as any)?.round_schedule ?? {}) as Record<string, string>
+    const realMinOrder = Math.min(...real.map(r => ROUND_ORDER[r] ?? 99))
+    const placeholderRounds = Object.keys(sched)
+      .map(k => ROUND_KEY_TO_LABEL[k])
+      .filter((label): label is string => !!label)
+      .filter(label => (ROUND_ORDER[label] ?? 99) < realMinOrder)
+      .filter(label => !seen.has(label))   // never duplicate a real round
+
+    return [...real, ...placeholderRounds].sort(
+      (a, b) => (ROUND_ORDER[b] ?? 0) - (ROUND_ORDER[a] ?? 0),
+    )
+  }, [allMatches, activeTournament, activeTournamentObj, genderFilter])
 
   // ── Dates per round ──────────────────────────────────────────
   const roundDates = useMemo(() => {
@@ -330,8 +370,20 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       const fmt = (iso: string) => format.dateTime(new Date(iso), DATE_SHORT)
       map[round] = sorted.length === 1 ? fmt(sorted[0]) : `${fmt(sorted[0])} - ${fmt(sorted[sorted.length - 1])}`
     }
+
+    // Backfill placeholder rounds with their round_schedule date.
+    const sched = ((activeTournamentObj as any)?.round_schedule ?? {}) as Record<string, string>
+    for (const round of availableRounds) {
+      if (map[round]) continue   // already has a match-derived date
+      const key = ROUND_LABEL_TO_KEY[round]
+      const iso = key ? sched[key] : null
+      if (iso) {
+        map[round] = format.dateTime(new Date(`${iso}T00:00:00`), DATE_SHORT)
+      }
+    }
+
     return map
-  }, [allMatches, availableRounds, activeTournament, genderFilter])
+  }, [allMatches, availableRounds, activeTournament, activeTournamentObj, genderFilter])
 
   // ── Auto-select round: prefer live > today > most advanced ──
   useEffect(() => {
@@ -838,10 +890,17 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
                 {liveMatches.length === 0 && warmingUpMatches.length === 0 && scheduledMatches.length === 0 && finishedMatches.length === 0 && (
                   <div style={{ paddingTop: 24 }}>
-                    <EmptyState
-                      title={tTournament('noMatchesForStage')}
-                      subtitle={tTournament('tryDifferentRound')}
-                    />
+                    {(() => {
+                      const sched = ((activeTournamentObj as any)?.round_schedule ?? {}) as Record<string, string>
+                      const key = selectedRound ? ROUND_LABEL_TO_KEY[selectedRound] : null
+                      const isPlaceholder = !!(key && sched[key])
+                      return (
+                        <EmptyState
+                          title={tTournament(isPlaceholder ? 'placeholder.headline' : 'noMatchesForStage')}
+                          subtitle={tTournament(isPlaceholder ? 'placeholder.body' : 'tryDifferentRound')}
+                        />
+                      )
+                    })()}
                   </div>
                 )}
               </>
