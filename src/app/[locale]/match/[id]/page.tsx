@@ -462,7 +462,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         100% { transform: translateY(0); }
       }
     `}</style>
-    <main style={{ background: BG_BASE, minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64 }}>
+    <main style={{ background: BG_BASE, minHeight: '100vh', maxWidth: 500, margin: '0 auto', paddingBottom: 64, overflowX: 'hidden' }}>
 
       {/* ── Nav bar ───────────────────────────────────────────────────── */}
       <div style={{
@@ -962,14 +962,19 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           pair2PlayerIds={[match.pair2_player1?.id ?? null, match.pair2_player2?.id ?? null]}
           onGameClick={(setNum, gameNum) => {
             setSubTab('live')
+            // Wait for the SwipeTabView's 350ms transform animation to finish
+            // before scrolling. If we scroll while the LIVE panel is still
+            // mid-animation off-screen, scrollIntoView's inline-axis logic
+            // shifts the document horizontally and bleeds the next tab into
+            // view. inline: 'nearest' is the default but explicit is safer.
             setTimeout(() => {
               const el = document.getElementById(`game-s${setNum}-g${gameNum}`)
               if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
                 el.style.background = 'rgba(126,211,33,0.08)'
                 setTimeout(() => { el.style.background = '' }, 1500)
               }
-            }, 100)
+            }, 380)
           }}
         />
       )}
