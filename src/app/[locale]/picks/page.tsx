@@ -8,7 +8,11 @@ export default async function PicksPage({ params }: { params: Promise<{ locale: 
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'prediction.myPicks' })
   const session = await auth()
-  if (!session?.user) redirect({ href: '/home', locale })
+  if (!session?.user?.id) redirect({ href: '/home', locale })
+  // After redirect() the function never reaches here, but TS can't narrow
+  // `redirect`'s return type to `never`, so assert via the local user.
+  const user = session!.user!
+  const userId = user.id!
 
   const supabase = createServiceClient()
 
@@ -51,7 +55,6 @@ export default async function PicksPage({ params }: { params: Promise<{ locale: 
   }
 
   // Default tournament: the user's most-picked, otherwise the most-recent finished
-  const userId = session.user.id!
   const { data: userPicks } = await supabase
     .from('predictions')
     .select('match_id')
@@ -78,7 +81,7 @@ export default async function PicksPage({ params }: { params: Promise<{ locale: 
     <main style={{ background: '#0a0a0a', minHeight: '100vh', padding: '16px 14px', color: '#fff' }}>
       <h1 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>{t('title')}</h1>
       <ClientPicks
-        displayName={session.user.name ?? 'You'}
+        displayName={user.name ?? 'You'}
         seasonId={seasonId}
         tournaments={tournaments.map(t => ({ id: t.id, name: t.name, level: t.level }))}
         defaultTournamentId={defaultTournamentId}

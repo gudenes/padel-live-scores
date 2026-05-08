@@ -23,12 +23,12 @@ describe('isPickWindowOpen', () => {
   })
 
   it('closed when status is not scheduled', () => {
-    const m = { ...baseMatch, status: 'live' }
+    const m = { ...baseMatch, status: 'live' } as unknown as Match
     expect(isPickWindowOpen(m, new Date())).toBe(false)
   })
 
   it('closed when status is finished', () => {
-    const m = { ...baseMatch, status: 'finished' }
+    const m = { ...baseMatch, status: 'finished' } as unknown as Match
     expect(isPickWindowOpen(m, new Date())).toBe(false)
   })
 
