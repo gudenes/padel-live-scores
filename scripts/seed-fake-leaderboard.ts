@@ -18,10 +18,22 @@
  * Cleanup with: npx tsx scripts/clean-fake-leaderboard.ts
  */
 import { createClient } from '@supabase/supabase-js'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
 import { computeMatchProbability, computeMultiplier } from '../src/lib/predictions/probability'
 import { classifyResult, computeReward } from '../src/lib/predictions/scoring'
 import type { Match } from '../src/types/match'
 import type { Prediction } from '../src/lib/predictions/types'
+
+// Load .env.local manually (dotenv isn't installed in this project).
+// Mirrors the pattern in scripts/seed-player-equipment.ts.
+const envPath = resolve(process.cwd(), '.env.local')
+try {
+  for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+    const m = line.match(/^([^#=]+)=(.*)$/)
+    if (m) process.env[m[1].trim()] = m[2].trim()
+  }
+} catch { /* fallback to existing env */ }
 
 // ──────────────────────────────────────────────────────────────────
 // Name pool — mix of Spanish, Portuguese, Italian, French, Argentine

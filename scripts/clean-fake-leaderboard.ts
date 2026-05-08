@@ -8,6 +8,17 @@
  *   npx tsx scripts/clean-fake-leaderboard.ts [--dry-run]
  */
 import { createClient } from '@supabase/supabase-js'
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
+// Load .env.local manually (dotenv isn't installed in this project).
+const envPath = resolve(process.cwd(), '.env.local')
+try {
+  for (const line of readFileSync(envPath, 'utf-8').split('\n')) {
+    const m = line.match(/^([^#=]+)=(.*)$/)
+    if (m) process.env[m[1].trim()] = m[2].trim()
+  }
+} catch { /* fallback to existing env */ }
 
 async function main() {
   const dryRun = process.argv.includes('--dry-run')
