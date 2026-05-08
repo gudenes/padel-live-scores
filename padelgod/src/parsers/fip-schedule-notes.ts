@@ -212,6 +212,16 @@ function descriptionToKeys(desc: string): RoundKey[] {
   return [...keys];
 }
 
+/** Strategy 3: explicit "Date Finals: DD/MM/YYYY" override. */
+function parseDateFinals(notes: string): string | null {
+  const m = /Date\s+Finals\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(notes);
+  if (!m) return null;
+  const dd = m[1]!.padStart(2, '0');
+  const mm = m[2]!.padStart(2, '0');
+  const yyyy = m[3]!;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /**
  * Parse a tournament's `schedule_notes` into a structured per-round map.
  *
@@ -219,7 +229,7 @@ function descriptionToKeys(desc: string): RoundKey[] {
  * override earlier ones on conflict.
  *   1. Premier "MAIN DRAW : ROUND OF 16" full-name blocks.
  *   2. Day-of-week phrases — "Sunday – SF and Finals MD".
- *   3. (Task 5) Final-date override — "Date Finals: 22/03/2026".
+ *   3. Final-date override — "Date Finals: 22/03/2026".
  *
  * Pure: no I/O, no DB. Returns {} for null/empty input.
  */
@@ -231,8 +241,10 @@ export function parseScheduleNotes(
   if (!notes) return {};
   const result: RoundSchedule = {};
   Object.assign(result, parsePremierBlocks(notes, startsAt, endsAt));
-  // Strategy 2 wins on conflict per spec.
   Object.assign(result, parseDayOfWeekLines(notes, startsAt, endsAt));
+  // Strategy 3: explicit Date Finals overrides whatever strategies 1/2 set.
+  const finals = parseDateFinals(notes);
+  if (finals) result.f = finals;
   return result;
 }
 

@@ -184,3 +184,34 @@ Sunday: Semifinals and Finals`;
     expect(result.f ?? null).toBeNull();
   });
 });
+
+describe('parseScheduleNotes — Date Finals override', () => {
+  it('overrides any prior `f` entry with explicit Date Finals', () => {
+    // Day-of-week strategy would set sf+f to the same Sunday; Date Finals
+    // should override f if it points to a different day.
+    const notes = `* Saturday – SF MD.
+* Sunday – Finals MD.
+Date Finals: 06/06/2026`;
+    const result = parseScheduleNotes(notes, '2026-06-01', '2026-06-07');
+    expect(result.f).toBe('2026-06-06'); // override
+    expect(result.sf).toBe('2026-06-06'); // Saturday → Jun 6
+  });
+
+  it('sets f when no other strategy did (FIP Bronze Singapore-style)', () => {
+    const notes = `Date Finals: 08/03/2026
+Time Schedule SF and Finals: 10:00h (local time) and 16:00h (local time)`;
+    const result = parseScheduleNotes(notes, '2026-03-04', '2026-03-08');
+    expect(result.f).toBe('2026-03-08');
+  });
+
+  it('handles single-digit day/month', () => {
+    const notes = 'Date Finals: 7/6/2026';
+    const result = parseScheduleNotes(notes, '2026-06-01', '2026-06-07');
+    expect(result.f).toBe('2026-06-07');
+  });
+
+  it('returns {} when notes is empty/null', () => {
+    expect(parseScheduleNotes(null, '2026-06-01', '2026-06-07')).toEqual({});
+    expect(parseScheduleNotes('', '2026-06-01', '2026-06-07')).toEqual({});
+  });
+});
