@@ -42,6 +42,7 @@ export interface TournamentRow {
   venue_type: string | null;
   signup_fee_eur: number | null;
   schedule_notes: string | null;
+  round_schedule: Record<string, string> | null;
   draw_size_md: number | null;
   draw_size_qd: number | null;
   registration_status: string | null;
@@ -116,6 +117,7 @@ export async function runFipEventPageEnricher(
     .select(
       'id, slug, source, fip_id, matchscorer_url, starts_at, ends_at, ' +
         'venue, venue_address, venue_type, signup_fee_eur, schedule_notes, ' +
+        'round_schedule, ' +
         'draw_size_md, draw_size_qd, ' +
         'registration_status, prize_money_fip, prize_breakdown, level',
     )
@@ -151,7 +153,10 @@ export async function runFipEventPageEnricher(
       const dates = parseEventDates(html);
       const matchscorer = parseMatchscorerIds(html);
       const drawSize = parseDrawSizes(html);
-      const overview = parseOverviewFields(html);
+      const overview = parseOverviewFields(html, {
+        startsAt: t.starts_at ?? null,
+        endsAt: t.ends_at ?? null,
+      });
       const prizeBreakdown = parsePrizeBreakdown(html);
 
       const patch: Record<string, unknown> = {
@@ -241,6 +246,12 @@ export async function runFipEventPageEnricher(
       writeFromFip('venue_type', t.venue_type, overview.venueType)
       writeFromFip('signup_fee_eur', t.signup_fee_eur, overview.signupFeeEur)
       writeFromFip('schedule_notes', t.schedule_notes, overview.scheduleNotes)
+      // Only write when the parser produced something. Empty {} means the
+      // scrape didn't carry a parseable Play Order — keep the existing column
+      // value (might have been set by a prior run with better data).
+      if (Object.keys(overview.roundSchedule).length > 0) {
+        writeFromFip('round_schedule', t.round_schedule, overview.roundSchedule)
+      }
       writeFromFip('draw_size_md', t.draw_size_md, drawSize.mainDraw)
       writeFromFip('draw_size_qd', t.draw_size_qd, drawSize.qualifyingDraw)
       writeFromFip('prize_money_fip', t.prize_money_fip, drawSize.prizeMoney)

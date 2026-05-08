@@ -17,6 +17,7 @@ describe('needsEnrichment', () => {
     venue_type: null,
     signup_fee_eur: null,
     schedule_notes: null,
+    round_schedule: null,
     draw_size_md: null,
     draw_size_qd: null,
     registration_status: null,
@@ -127,6 +128,7 @@ describe('runFipEventPageEnricher — end to end', () => {
                       venue_type: null,
                       signup_fee_eur: null,
                       schedule_notes: null,
+                      round_schedule: null,
                       draw_size_md: null,
                       draw_size_qd: null,
                       registration_status: null,
@@ -206,6 +208,7 @@ describe('runFipEventPageEnricher — end to end', () => {
                       venue_type: null,
                       signup_fee_eur: null,
                       schedule_notes: null,
+                      round_schedule: null,
                       draw_size_md: null,
                       draw_size_qd: null,
                       registration_status: null,
@@ -285,6 +288,7 @@ describe('runFipEventPageEnricher — end to end', () => {
                       venue_type: null,
                       signup_fee_eur: null,
                       schedule_notes: null,
+                      round_schedule: null,
                       draw_size_md: null,
                       draw_size_qd: null,
                       registration_status: null,
@@ -387,6 +391,7 @@ describe('runFipEventPageEnricher — end to end', () => {
                       registration_status: null,
                       prize_money_fip: null,
                       prize_breakdown: null,
+                      round_schedule: null,
                       level: null,
                     },
                   ],
@@ -423,5 +428,160 @@ describe('runFipEventPageEnricher — end to end', () => {
     // KL fixture has no matchscorer code → no cache write
     expect(updates[0]!.patch.matchscorer_url).toBeUndefined();
     expect(cacheUpserts).toHaveLength(0);
+  });
+
+  describe('round_schedule (Task 7)', () => {
+    // Minimal HTML that contains a Play Order block with Premier-style
+    // "MAIN DRAW : SEMI-FINALS" and "MAIN DRAW : FINALS" label lines
+    // followed by date lines that parseScheduleNotes can resolve.
+    // starts_at='2026-05-03', ends_at='2026-05-10' on the tournament row
+    // supplies the context so the parser can anchor "9 May" → 2026-05-09.
+    const scheduleHtml = `
+      <html><body>
+        <div class="overview__contentBlock">
+          <span class="overview__title">Play Order</span>
+          <div class="overview__listText">
+            MAIN DRAW : SEMI-FINALS<br/>9 May<br/>
+            MAIN DRAW : FINALS<br/>10 May
+          </div>
+        </div>
+        <span class="overview__title">Venue</span>
+        <p class="overview__text">Test Club</p>
+      </body></html>
+    `;
+
+    it('writes round_schedule when parser finds Play Order text', async () => {
+      const updates: Array<{ id: string; patch: Record<string, unknown> }> = [];
+
+      const supabase = {
+        from: (table: string) => {
+          if (table !== 'tournaments') throw new Error(`unexpected: ${table}`);
+          return {
+            select: () => ({
+              or: () => ({
+                or: () => ({
+                  limit: async () => ({
+                    data: [
+                      {
+                        id: 'sched-id',
+                        slug: 'fip-gold-test-2026',
+                        source: 'fip',
+                        fip_id: 'fip-gold-test-2026',
+                        matchscorer_url: null,
+                        starts_at: '2026-05-03',
+                        ends_at: '2026-05-10',
+                        venue: null,
+                        venue_address: null,
+                        venue_type: null,
+                        signup_fee_eur: null,
+                        schedule_notes: null,
+                        draw_size_md: null,
+                        draw_size_qd: null,
+                        registration_status: null,
+                        prize_money_fip: null,
+                        prize_breakdown: null,
+                        round_schedule: null,
+                        level: null,
+                      },
+                    ],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: (patch: Record<string, unknown>) => ({
+              eq: async (_col: string, id: string) => {
+                updates.push({ id, patch });
+                return { error: null };
+              },
+            }),
+          };
+        },
+      } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['supabase'];
+
+      const httpClient = {
+        get: async () => ({ data: scheduleHtml, headers: {} }),
+      } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['httpClient'];
+
+      await runFipEventPageEnricher({ supabase, httpClient });
+
+      expect(updates).toHaveLength(1);
+      const patch = updates[0]!.patch;
+      // Parser should produce sf → 2026-05-09 and f → 2026-05-10
+      expect(patch.round_schedule).toBeDefined();
+      const rs = patch.round_schedule as Record<string, string>;
+      expect(rs.sf).toBe('2026-05-09');
+      expect(rs.f).toBe('2026-05-10');
+    });
+
+    it('does not write round_schedule when parser returns empty object', async () => {
+      // HTML with no Play Order block → parseOverviewFields returns
+      // roundSchedule = {} → enricher must skip writing the column.
+      const noScheduleHtml = `
+        <html><body>
+          <span class="overview__title">Venue</span>
+          <p class="overview__text">Empty Club</p>
+        </body></html>
+      `;
+
+      const updates: Array<{ id: string; patch: Record<string, unknown> }> = [];
+
+      const supabase = {
+        from: (table: string) => {
+          if (table !== 'tournaments') throw new Error(`unexpected: ${table}`);
+          return {
+            select: () => ({
+              or: () => ({
+                or: () => ({
+                  limit: async () => ({
+                    data: [
+                      {
+                        id: 'nosched-id',
+                        slug: 'fip-gold-nosched-2026',
+                        source: 'fip',
+                        fip_id: 'fip-gold-nosched-2026',
+                        matchscorer_url: null,
+                        starts_at: '2026-05-03',
+                        ends_at: '2026-05-10',
+                        venue: null,
+                        venue_address: null,
+                        venue_type: null,
+                        signup_fee_eur: null,
+                        schedule_notes: null,
+                        draw_size_md: null,
+                        draw_size_qd: null,
+                        registration_status: null,
+                        prize_money_fip: null,
+                        prize_breakdown: null,
+                        round_schedule: null,
+                        level: null,
+                      },
+                    ],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: (patch: Record<string, unknown>) => ({
+              eq: async (_col: string, id: string) => {
+                updates.push({ id, patch });
+                return { error: null };
+              },
+            }),
+          };
+        },
+      } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['supabase'];
+
+      const httpClient = {
+        get: async () => ({ data: noScheduleHtml, headers: {} }),
+      } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['httpClient'];
+
+      await runFipEventPageEnricher({ supabase, httpClient });
+
+      // The venue write still fires so there IS an update
+      expect(updates).toHaveLength(1);
+      // But round_schedule must NOT be in the patch
+      expect(updates[0]!.patch.round_schedule).toBeUndefined();
+    });
   });
 });
