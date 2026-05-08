@@ -34,8 +34,8 @@ async function main() {
   const stop = new Set(['fip', 'bronze', 'silver', 'gold', 'premier', 'p1', 'p2', '2026', 'padel', 'open', 'tournament', 'masters', 'i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'])
   const tToks = new Set(['prishtina'])
   const realDupes = (all ?? []).filter((t) => {
-    const toks = t.name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ').filter((x) => x && !stop.has(x))
-    return toks.some((x) => tToks.has(x))
+    const toks: string[] = String(t.name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ').filter((x: string) => x && !stop.has(x))
+    return toks.some((x: string) => tToks.has(x))
   })
   console.log('REAL CROSS-SOURCE DUPES (filtered):')
   if (realDupes.length === 0) console.log('  none')
