@@ -4,6 +4,7 @@
 // .superpowers/brainstorm/97613-1778261304/content/hub-layout-v3-1.html
 
 import { useTranslations } from 'next-intl'
+import { GREEN, CHUNKY } from '@/components/home/shared'
 
 export default function HubHero() {
   const t = useTranslations('roadToOlympics')
@@ -12,11 +13,11 @@ export default function HubHero() {
       <span style={{
         display: 'inline-block',
         background: 'rgba(126,211,33,0.12)',
-        color: '#7ed321',
+        color: GREEN,
         fontWeight: 700,
         fontSize: 11,
         padding: '4px 10px',
-        borderRadius: 999,
+        clipPath: CHUNKY.badge,
         letterSpacing: 0.6,
         marginBottom: 14,
       }}>

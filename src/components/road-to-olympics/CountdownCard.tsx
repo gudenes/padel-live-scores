@@ -4,6 +4,8 @@
 // the page (computed server-side). When countdownLabel is set on state.json
 // (override e.g. "Decision postponed"), the override label replaces the unit.
 
+import { GREEN, CHUNKY } from '@/components/home/shared'
+
 interface Props {
   daysUntil: number
   label: string                  // e.g. "Until IOC Session · Brisbane 2032 decision"
@@ -17,7 +19,7 @@ export default function CountdownCard({ daysUntil, label, unit, override }: Prop
     <div style={{
       background: 'linear-gradient(135deg, rgba(126,211,33,0.18), rgba(126,211,33,0.04))',
       border: '1px solid rgba(126,211,33,0.4)',
-      borderRadius: 8,
+      clipPath: CHUNKY.card,
       padding: 16,
       marginBottom: 14,
       textAlign: 'center',
@@ -25,7 +27,7 @@ export default function CountdownCard({ daysUntil, label, unit, override }: Prop
       <div style={{
         fontSize: 32,
         fontWeight: 800,
-        color: '#7ed321',
+        color: GREEN,
         letterSpacing: -1,
         lineHeight: 1,
       }}>

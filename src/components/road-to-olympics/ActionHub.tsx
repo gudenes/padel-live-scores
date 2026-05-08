@@ -12,6 +12,7 @@ import { Link } from '@/i18n/navigation'
 import { MegaphoneIcon, MailIcon, BellIcon, PenIcon } from './icons'
 import PledgeFormModal from './PledgeFormModal'
 import SubscribeFormModal from './SubscribeFormModal'
+import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared'
 
 interface Props {
   tweetIntentUrl: string
@@ -24,9 +25,9 @@ export default function ActionHub({ tweetIntentUrl, daysUntil }: Props) {
   const [subOpen, setSubOpen] = useState(false)
 
   const cardStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 6,
+    background: BG_CARD,
+    border: `1px solid ${BORDER}`,
+    clipPath: CHUNKY.button,
     padding: '12px 8px 10px',
     textAlign: 'center',
     cursor: 'pointer',
@@ -35,7 +36,7 @@ export default function ActionHub({ tweetIntentUrl, daysUntil }: Props) {
     display: 'block',
   }
   const iconStyle: React.CSSProperties = {
-    color: '#7ed321',
+    color: GREEN,
     marginBottom: 6,
   }
   const titleStyle: React.CSSProperties = {
@@ -46,7 +47,7 @@ export default function ActionHub({ tweetIntentUrl, daysUntil }: Props) {
   }
   const descStyle: React.CSSProperties = {
     fontSize: 10,
-    color: '#888',
+    color: MUTED,
     lineHeight: 1.3,
     marginTop: 3,
   }

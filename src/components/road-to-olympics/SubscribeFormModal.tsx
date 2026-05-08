@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
+import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared'
 
 interface Props {
   onClose: () => void
@@ -43,19 +44,19 @@ export default function SubscribeFormModal({ onClose }: Props) {
       zIndex: 1000, padding: 16,
     }}>
       <div onClick={(e) => e.stopPropagation()} style={{
-        background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 12, padding: 22, maxWidth: 380, width: '100%',
+        background: BG_CARD, border: `1px solid ${BORDER}`,
+        clipPath: CHUNKY.card, padding: 22, maxWidth: 380, width: '100%',
       }}>
         {done ? (
           <>
-            <h2 style={{ color: '#7ed321', fontSize: 20, fontWeight: 800, margin: '0 0 12px' }}>{t('checkInbox')}</h2>
+            <h2 style={{ color: GREEN, fontSize: 20, fontWeight: 800, margin: '0 0 12px' }}>{t('checkInbox')}</h2>
             <button type="button" onClick={onClose} style={ctaStyle}>OK</button>
           </>
         ) : (
           <form onSubmit={submit}>
             <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>{t('modalTitle')}</h2>
             <p style={{ color: '#ccc', fontSize: 13, lineHeight: 1.5, margin: '0 0 18px' }}>{t('modalIntro')}</p>
-            <label style={{ display: 'block', fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>
               {t('fieldEmail')}
               <input
                 type="email" required
@@ -81,6 +82,6 @@ export default function SubscribeFormModal({ onClose }: Props) {
 }
 
 const ctaStyle: React.CSSProperties = {
-  background: '#7ed321', color: '#0a0a0a', fontWeight: 800, fontSize: 13,
-  padding: '10px 18px', borderRadius: 999, border: 0, cursor: 'pointer',
+  background: GREEN, color: '#0a0a0a', fontWeight: 800, fontSize: 13,
+  padding: '10px 18px', clipPath: CHUNKY.button, border: 0, cursor: 'pointer',
 }

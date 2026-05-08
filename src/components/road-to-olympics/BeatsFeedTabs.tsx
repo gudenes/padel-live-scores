@@ -1,6 +1,8 @@
 // src/components/road-to-olympics/BeatsFeedTabs.tsx
 'use client'
 
+import { GREEN, MUTED } from '@/components/home/shared'
+
 interface Props {
   winsLabel: string
   watchlistLabel: string
@@ -23,8 +25,8 @@ export default function BeatsFeedTabs({ winsLabel, watchlistLabel }: Props) {
         letterSpacing: 1,
         fontWeight: 700,
         paddingBottom: 4,
-        color: '#7ed321',
-        borderBottom: '2px solid #7ed321',
+        color: GREEN,
+        borderBottom: `2px solid ${GREEN}`,
         marginBottom: -7,
       }}>
         {winsLabel}
@@ -37,7 +39,7 @@ export default function BeatsFeedTabs({ winsLabel, watchlistLabel }: Props) {
           letterSpacing: 1,
           fontWeight: 700,
           paddingBottom: 4,
-          color: '#555',
+          color: MUTED,
           cursor: 'not-allowed',
         }}
       >

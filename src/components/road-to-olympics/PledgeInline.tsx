@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import PledgeFormModal from './PledgeFormModal'
+import { GREEN, GREEN_DIM, CHUNKY } from '@/components/home/shared'
 
 interface Props {
   initialCount: number
@@ -32,9 +33,9 @@ export default function PledgeInline({ initialCount }: Props) {
   return (
     <>
       <div style={{
-        background: 'rgba(126,211,33,0.06)',
+        background: GREEN_DIM,
         border: '1px solid rgba(126,211,33,0.25)',
-        borderRadius: 8,
+        clipPath: CHUNKY.card,
         padding: '12px 14px',
         display: 'flex',
         justifyContent: 'space-between',
@@ -43,7 +44,7 @@ export default function PledgeInline({ initialCount }: Props) {
         marginBottom: 12,
       }}>
         <div style={{ fontSize: 13, color: '#ccc', lineHeight: 1.4 }}>
-          <strong style={{ color: '#7ed321', fontWeight: 800 }}>
+          <strong style={{ color: GREEN, fontWeight: 800 }}>
             {count.toLocaleString('en-US')}
           </strong>{' '}
           {t('inlineSuffix')}
@@ -54,8 +55,8 @@ export default function PledgeInline({ initialCount }: Props) {
           type="button"
           onClick={() => setOpen(true)}
           style={{
-            background: '#7ed321', color: '#0a0a0a', fontWeight: 800,
-            fontSize: 11, padding: '7px 14px', borderRadius: 999,
+            background: GREEN, color: '#0a0a0a', fontWeight: 800,
+            fontSize: 11, padding: '7px 14px', clipPath: CHUNKY.button,
             letterSpacing: 0.5, border: 0, whiteSpace: 'nowrap', cursor: 'pointer',
           }}
         >

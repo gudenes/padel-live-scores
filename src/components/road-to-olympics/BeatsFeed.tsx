@@ -10,6 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 import { fetchOlympicBeats } from '@/lib/road-to-olympics/beats'
 import { getTranslations } from 'next-intl/server'
 import BeatsFeedTabs from './BeatsFeedTabs'
+import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared'
 
 interface Props {
   /** Override fetch limit. Defaults to 6. */
@@ -26,16 +27,16 @@ export default async function BeatsFeed({ limit = 6 }: Props) {
 
   return (
     <section style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 8,
+      background: BG_CARD,
+      border: `1px solid ${BORDER}`,
+      clipPath: CHUNKY.card,
       padding: 14,
       marginBottom: 12,
     }}>
       <BeatsFeedTabs winsLabel={t('tabWins')} watchlistLabel={t('tabWatchlist')} />
 
       {beats.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#888', padding: '8px 0' }}>
+        <div style={{ fontSize: 12, color: MUTED, padding: '8px 0' }}>
           {t('empty')}
         </div>
       ) : beats.map((beat, i) => (
@@ -48,16 +49,16 @@ export default async function BeatsFeed({ limit = 6 }: Props) {
             display: 'block',
             fontSize: 12,
             padding: '8px 0',
-            borderTop: i === 0 ? 'none' : '1px dashed rgba(255,255,255,0.08)',
+            borderTop: i === 0 ? 'none' : `1px dashed ${BORDER}`,
             color: '#ccc',
             textDecoration: 'none',
           }}
         >
-          <span style={{ color: '#7ed321', fontWeight: 700, marginRight: 6 }}>
+          <span style={{ color: GREEN, fontWeight: 700, marginRight: 6 }}>
             {new Date(beat.published_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
           </span>
           <span>{beat.title}</span>
-          <span style={{ color: '#888', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, marginLeft: 6 }}>
+          <span style={{ color: MUTED, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.8, marginLeft: 6 }}>
             {beat.source_name}
           </span>
         </a>

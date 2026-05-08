@@ -9,6 +9,7 @@
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import stateJson from '@/data/road-to-olympics/state.json'
+import { GREEN, CHUNKY } from '@/components/home/shared'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -25,7 +26,7 @@ export default function RoadToOlympicsHomeCard() {
         display: 'block',
         background: 'linear-gradient(135deg, rgba(126,211,33,0.16), rgba(126,211,33,0.04))',
         border: '1px solid rgba(126,211,33,0.4)',
-        borderRadius: 12,
+        clipPath: CHUNKY.card,
         padding: 18,
         margin: '14px 0',
         color: '#fff',
@@ -33,7 +34,7 @@ export default function RoadToOlympicsHomeCard() {
       }}
     >
       <div style={{
-        fontSize: 10, letterSpacing: 1.4, color: '#7ed321',
+        fontSize: 10, letterSpacing: 1.4, color: GREEN,
         fontWeight: 700, marginBottom: 6,
       }}>
         {t('eyebrow')}
@@ -45,8 +46,8 @@ export default function RoadToOlympicsHomeCard() {
         {t('subtitle', { days })}
       </div>
       <span style={{
-        background: '#7ed321', color: '#0a0a0a', fontWeight: 800,
-        fontSize: 11, padding: '6px 14px', borderRadius: 999,
+        background: GREEN, color: '#0a0a0a', fontWeight: 800,
+        fontSize: 11, padding: '6px 14px', clipPath: CHUNKY.button,
         letterSpacing: 0.5, display: 'inline-block',
       }}>
         {t('cta')}

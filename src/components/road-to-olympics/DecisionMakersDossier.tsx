@@ -6,6 +6,7 @@
 
 import { useTranslations } from 'next-intl'
 import type { DecisionMaker } from '@/types/road-to-olympics'
+import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY, SectionTitle } from '@/components/home/shared'
 
 interface Props {
   cards: DecisionMaker[]
@@ -22,22 +23,13 @@ export default function DecisionMakersDossier({ cards }: Props) {
   const t = useTranslations('roadToOlympics.dossier')
   return (
     <section style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 8,
+      background: BG_CARD,
+      border: `1px solid ${BORDER}`,
+      clipPath: CHUNKY.card,
       padding: 14,
       marginBottom: 12,
     }}>
-      <h2 style={{
-        fontSize: 11,
-        letterSpacing: 1.2,
-        textTransform: 'uppercase',
-        color: '#888',
-        margin: '0 0 10px',
-        fontWeight: 700,
-      }}>
-        {t('title')}
-      </h2>
+      <SectionTitle>{t('title')}</SectionTitle>
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
@@ -46,16 +38,16 @@ export default function DecisionMakersDossier({ cards }: Props) {
         {cards.map((c) => (
           <div key={c.key} style={{
             background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 6,
+            border: `1px solid ${BORDER}`,
+            clipPath: CHUNKY.card,
             padding: 10,
           }}>
             <div style={{
               width: 28,
               height: 28,
-              borderRadius: 999,
+              clipPath: CHUNKY.badge,
               background: 'rgba(126,211,33,0.15)',
-              color: '#7ed321',
+              color: GREEN,
               fontSize: 11,
               fontWeight: 800,
               display: 'flex',
@@ -69,7 +61,7 @@ export default function DecisionMakersDossier({ cards }: Props) {
               fontSize: 9,
               textTransform: 'uppercase',
               letterSpacing: 0.8,
-              color: '#7ed321',
+              color: GREEN,
               fontWeight: 700,
               marginBottom: 4,
             }}>
@@ -78,7 +70,7 @@ export default function DecisionMakersDossier({ cards }: Props) {
             <div style={{ fontSize: 12, color: '#fff', fontWeight: 700, lineHeight: 1.2 }}>
               {c.name}
             </div>
-            <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
               {c.org}
             </div>
           </div>

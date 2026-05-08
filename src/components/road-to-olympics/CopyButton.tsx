@@ -2,6 +2,7 @@
 'use client'
 
 import { useState } from 'react'
+import { GREEN, CHUNKY } from '@/components/home/shared'
 
 export default function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false)
@@ -16,8 +17,8 @@ export default function CopyButton({ text, label }: { text: string; label: strin
         } catch { /* clipboard API unavailable — leave the textarea visible */ }
       }}
       style={{
-        background: '#7ed321', color: '#0a0a0a', fontWeight: 800,
-        fontSize: 11, padding: '6px 12px', borderRadius: 999,
+        background: GREEN, color: '#0a0a0a', fontWeight: 800,
+        fontSize: 11, padding: '6px 12px', clipPath: CHUNKY.button,
         letterSpacing: 0.5, border: 0, cursor: 'pointer',
       }}
     >
