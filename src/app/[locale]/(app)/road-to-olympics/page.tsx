@@ -22,6 +22,7 @@ import {
   getState,
 } from '@/lib/road-to-olympics/state'
 import { buildTweetIntentUrl } from '@/lib/road-to-olympics/share-copy'
+import { BG_BASE, MUTED, SectionTitle } from '@/components/home/shared'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,7 +109,7 @@ export default async function RoadToOlympicsPage() {
         maxWidth: 600,
         margin: '0 auto',
         padding: '20px 16px 40px',
-        background: '#0a0a0a',
+        background: BG_BASE,
         minHeight: '100vh',
         color: '#fff',
       }}>
@@ -123,12 +124,7 @@ export default async function RoadToOlympicsPage() {
         <BeatsFeed limit={6} />
         <DecisionMakersDossier cards={dossier} />
 
-        <div style={{
-          fontSize: 11, color: '#555', textTransform: 'uppercase',
-          letterSpacing: 1.2, fontWeight: 700, margin: '18px 0 8px',
-        }}>
-          {t('actionsTitle')}
-        </div>
+        <SectionTitle>{t('actionsTitle')}</SectionTitle>
         <ActionHub tweetIntentUrl={tweetIntentUrl} daysUntil={daysUntil} />
         <PledgeInline initialCount={pledgeCount ?? 0} />
 

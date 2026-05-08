@@ -12,6 +12,7 @@ import {
   buildEmailToNocBody,
   buildEmailToSportsMinisterBody,
 } from '@/lib/road-to-olympics/share-copy'
+import { BG_BASE, BG_CARD, BORDER, GREEN, CHUNKY } from '@/components/home/shared'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,9 +33,9 @@ export default async function EmailTemplatesPage() {
       <GlobalHeader />
       <main style={{
         maxWidth: 600, margin: '0 auto', padding: '20px 16px 40px',
-        color: '#fff', minHeight: '100vh', background: '#0a0a0a',
+        color: '#fff', minHeight: '100vh', background: BG_BASE,
       }}>
-        <Link href="/road-to-olympics" style={{ fontSize: 12, color: '#7ed321', textDecoration: 'none' }}>
+        <Link href="/road-to-olympics" style={{ fontSize: 12, color: GREEN, textDecoration: 'none' }}>
           ← Road to the Olympics
         </Link>
         <h1 style={{ fontSize: 28, fontWeight: 800, margin: '12px 0 8px', lineHeight: 1.2 }}>
@@ -51,9 +52,10 @@ export default async function EmailTemplatesPage() {
           { title: 'Email your Sports Minister', body: minBody },
         ].map((tpl) => (
           <section key={tpl.title} style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 8, padding: 16, marginBottom: 16,
+            background: BG_CARD,
+            border: `1px solid ${BORDER}`,
+            clipPath: CHUNKY.card,
+            padding: 16, marginBottom: 16,
           }}>
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -63,7 +65,7 @@ export default async function EmailTemplatesPage() {
               <CopyButton text={tpl.body} label="Copy" />
             </div>
             <pre style={{
-              background: '#0f0f0f', border: '1px solid rgba(255,255,255,0.06)',
+              background: '#0f0f0f', border: `1px solid ${BORDER}`,
               borderRadius: 6, padding: 12, fontSize: 12, color: '#ddd',
               lineHeight: 1.55, whiteSpace: 'pre-wrap', margin: 0,
               fontFamily: 'ui-monospace, monospace',
