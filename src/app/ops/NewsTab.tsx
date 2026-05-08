@@ -6,6 +6,8 @@
 //   - 'editor' — create/edit form
 
 import { useEffect, useState, useCallback, type ChangeEvent } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 const NON_EN: ('es' | 'pt' | 'it' | 'fr')[] = ['es', 'pt', 'it', 'fr']
 
@@ -279,8 +281,22 @@ function Editor({ postId, onClose }: EditorProps) {
           >Preview</button>
         </div>
         {showPreview ? (
-          <div className="bg-black/40 border border-white/10 p-3 prose prose-invert max-w-none min-h-[300px]">
-            <pre className="text-xs whitespace-pre-wrap">{body}</pre>
+          <div
+            className="bg-[#1A1A1A] border border-white/10 p-6 min-h-[300px]
+              prose prose-invert max-w-none
+              prose-headings:text-white prose-headings:font-bold
+              prose-p:text-white prose-p:leading-relaxed
+              prose-a:text-[#7ED321] prose-a:no-underline hover:prose-a:underline
+              prose-strong:text-white
+              prose-img:my-6
+              prose-li:text-white
+              prose-blockquote:text-white/80 prose-blockquote:border-l-[#7ED321]"
+          >
+            {body.trim() ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+            ) : (
+              <p className="text-white/40 italic">Nothing to preview yet — switch back to Edit and add some content.</p>
+            )}
           </div>
         ) : (
           <textarea
@@ -288,6 +304,19 @@ function Editor({ postId, onClose }: EditorProps) {
             rows={20}
             value={body}
             onChange={(e) => setBody(e.target.value)}
+            placeholder="Write your post in Markdown.
+
+# Heading 1
+## Heading 2
+
+**Bold** and *italic* text.
+
+- Bullet list
+- Another item
+
+[Link text](https://example.com)
+
+> Blockquote"
           />
         )}
       </label>
