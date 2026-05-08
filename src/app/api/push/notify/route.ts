@@ -42,7 +42,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!,
 )
 
-interface PlayerLite { id: string; name: string | null }
+interface PlayerLite { id: string; name: string | null; display_name: string | null }
 interface SetLite {
   set_number: number | null
   set_score: string | null
@@ -74,9 +74,19 @@ function lastName(fullName: string | null | undefined): string {
   return parts[parts.length - 1] ?? ''
 }
 
+// Last token of the player's preferred name. Reads display_name when set
+// (e.g. "Gemma Triay Pons" → display_name "Gemma Triay" → "Triay") so push
+// titles like "<player> won" use the form fans recognize, not the canonical
+// double-surname tail. Falls back to canonical name when display_name is null.
+function playerLastName(p: PlayerLite | null | undefined): string {
+  if (!p) return ''
+  return lastName(p.display_name?.trim() || p.name)
+}
+
 function buildBody(m: MatchRow): string {
   const lastNames = (a: PlayerLite | null, b: PlayerLite | null) =>
-    [a?.name, b?.name].filter(Boolean).map(n => lastName(n)).join('/')
+    [a, b].filter((p): p is PlayerLite => !!p && !!(p.display_name || p.name))
+      .map(p => playerLastName(p)).join('/')
   const team1 = lastNames(m.pair1_player1, m.pair1_player2)
   const team2 = lastNames(m.pair2_player1, m.pair2_player2)
   const tournament = m.tournament?.name ?? ''
@@ -116,7 +126,7 @@ function winnerPairName(m: MatchRow): string | null {
     ? [m.pair1_player1, m.pair1_player2]
     : [m.pair2_player1, m.pair2_player2]
   const names = pair
-    .map(p => (p?.name ? lastName(p.name) : null))
+    .map(p => (p?.display_name || p?.name ? playerLastName(p) : null))
     .filter((n): n is string => !!n)
   if (names.length === 0) return null
   return names.join('/')
@@ -184,7 +194,7 @@ function buildFinishedContent(
       ? [m.pair2_player1, m.pair2_player2]
       : [m.pair1_player1, m.pair1_player2]
     const oppNames = opp
-      .map(p => (p?.name ? lastName(p.name) : null))
+      .map(p => (p?.display_name || p?.name ? playerLastName(p) : null))
       .filter((n): n is string => !!n)
       .join('/')
     const body = [
@@ -235,10 +245,10 @@ export async function POST(request: Request) {
       id, status, round, winner_pair,
       pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id,
       tournament:tournaments(name),
-      pair1_player1:players!matches_pair1_player1_id_fkey(id, name),
-      pair1_player2:players!matches_pair1_player2_id_fkey(id, name),
-      pair2_player1:players!matches_pair2_player1_id_fkey(id, name),
-      pair2_player2:players!matches_pair2_player2_id_fkey(id, name),
+      pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name),
+      pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name),
+      pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name),
+      pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name),
       sets(set_number, set_score, pair1_games, pair2_games)
     `)
     .eq('id', matchId)
@@ -269,7 +279,7 @@ export async function POST(request: Request) {
 
   const playerNameById = new Map<string, string>()
   for (const p of [match.pair1_player1, match.pair1_player2, match.pair2_player1, match.pair2_player2]) {
-    if (p?.id && p.name) playerNameById.set(p.id, lastName(p.name))
+    if (p?.id && (p.display_name || p.name)) playerNameById.set(p.id, playerLastName(p))
   }
 
   if (playerIds.length > 0) {
