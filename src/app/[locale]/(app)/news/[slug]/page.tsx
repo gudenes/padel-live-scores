@@ -21,7 +21,7 @@ const CATEGORY_COLOR: Record<'announcements' | 'product', string> = {
   product: GREEN,
 }
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ locale: NewsLocale; slug: string }>
