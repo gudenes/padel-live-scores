@@ -1011,7 +1011,7 @@
   "roadToOlympics": {
     "hashtag": "#PadelOlympics",
     "heroTitleLine1": "La strada del padel verso le Olimpiadi.",
-    "heroSubtitle": "Seguiamo il percorso del padel verso l'inclusione olimpica. Prossimo traguardo: la decisione dell'IOC su Brisbane 2032 il 24 giugno 2026.",
+    "heroSubtitle": "Seguiamo il percorso del padel verso l'inclusione olimpica. Prossimo traguardo: la decisione dell'<ioc>IOC</ioc> su <brisbane>Brisbane 2032</brisbane> il 24 giugno 2026.",
     "countdown": {
       "labelDefault": "Fino alla sessione IOC · Decisione Brisbane 2032",
       "daysUnit": "giorni",
@@ -1022,7 +1022,7 @@
       "pillDone": "Completato",
       "pillOnTrack": "In corso",
       "pillBuilding": "In sviluppo",
-      "complianceLabel": "Conformità (Carta, WADA)",
+      "complianceLabel": "Conformità (Carta, <wada>WADA</wada>)",
       "continentsLabel": "Continenti dove si pratica",
       "federationsLabel": "Federazioni nazionali",
       "genderLabel": "Padel femminile",
@@ -1078,8 +1078,16 @@
     "homeCard": {
       "eyebrow": "STRADA VERSO LE OLIMPIADI",
       "title": "La spinta olimpica del padel si sta muovendo rapidamente.",
-      "subtitle": "{days} giorni fino alla decisione dell'IOC. Segui il percorso.",
+      "subtitle": "{days} giorni fino alla decisione dell'<ioc>IOC</ioc>. Segui il percorso.",
       "cta": "Apri il tracker"
+    },
+    "glossary": {
+      "ioc": "Comitato Olimpico Internazionale — decide quali sport sono inclusi nei Giochi Olimpici.",
+      "fip": "Federazione Internazionale di Padel — l'organo di governo mondiale del padel.",
+      "wada": "Agenzia Mondiale Antidoping — stabilisce gli standard antidoping che ogni sport olimpico deve rispettare.",
+      "noc": "Comitato Olimpico Nazionale — l'organismo del tuo paese affiliato all'IOC. Votano sulle decisioni olimpiche.",
+      "aimag": "Giochi Asiatici degli Sport al Coperto e delle Arti Marziali — evento multisportivo a Riyadh, dicembre 2026, dove il padel è ora sport di medaglia.",
+      "brisbane2032": "I Giochi Olimpici Estivi del 2032 a Brisbane, Australia — la prossima opportunità per l'inclusione olimpica del padel."
     },
     "why": {
       "title": "Perché seguiamo la strada del padel verso le Olimpiadi",
