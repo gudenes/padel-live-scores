@@ -19,12 +19,9 @@ export default async function NewsRail({ locale }: { locale: NewsLocale }) {
   return (
     <section className="mb-6">
       <div className="flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🌮</span>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-            {t('rail_label')}
-          </h2>
-        </div>
+        <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+          {t('rail_label')}
+        </h2>
         <Link href="/news" className="text-xs font-semibold" style={{ color: MUTED }}>
           {t('rail_see_all')} →
         </Link>
