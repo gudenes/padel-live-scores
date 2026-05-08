@@ -42,6 +42,10 @@ CREATE INDEX IF NOT EXISTS idx_rto_subs_confirmed
   ON road_to_olympics_subscribers (confirmed_at)
   WHERE confirmed_at IS NOT NULL AND unsubscribed_at IS NULL;
 
+CREATE INDEX IF NOT EXISTS idx_rto_subs_confirm_token
+  ON road_to_olympics_subscribers (confirm_token)
+  WHERE confirm_token IS NOT NULL;
+
 COMMENT ON TABLE road_to_olympics_pledges IS
   'Fans signing the open-letter pledge for padel''s Olympic inclusion. One row per pledge.';
 COMMENT ON TABLE road_to_olympics_subscribers IS
