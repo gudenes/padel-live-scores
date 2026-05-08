@@ -30,6 +30,10 @@ const DAY_NAMES: Record<string, number> = {
   sabato: 6,
 };
 
+// English month names only — Strategy 1 targets Premier P1/P2/Major schedule_notes
+// which are always in English. FIP Bronze/Silver/Gold/Platinum events using
+// other languages are covered by Strategy 2's day-of-week resolver, which
+// runs against the same notes string and doesn't need month names.
 const MONTHS: Record<string, number> = {
   january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7,
   august: 8, september: 9, october: 10, november: 11, december: 12,
@@ -37,11 +41,17 @@ const MONTHS: Record<string, number> = {
   oct: 10, nov: 11, dec: 12,
 };
 
+/** Build an ISO date string from year+month+day, rolling month=13 to year+1. */
+function buildIsoDate(year: number, month: number, day: number): string {
+  const adjustedYear = year + Math.floor((month - 1) / 12);
+  const adjustedMonth = ((month - 1) % 12) + 1;
+  return `${adjustedYear}-${String(adjustedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 /**
  * Resolve a "(D)D Month" string against a tournament range. Picks the
  * year so the resulting date falls inside [startsAt, endsAt]; if both
- * candidate years would land outside the range we still prefer the
- * one closer to startsAt.
+ * candidate years would land outside the range we drop the entry.
  */
 function resolveDateInRange(
   dayNum: number,
@@ -57,10 +67,10 @@ function resolveDateInRange(
     const iso = `${y}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
     if (iso >= startsAt && iso <= endsAt) return iso;
   }
-  // Out of range — return the startYear candidate as a fallback (shouldn't
-  // happen for well-formed FIP data; keeps the parser deterministic).
-  const iso = `${startYear}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-  return iso;
+  // Out of range — drop the entry rather than emit an obviously-wrong date.
+  // Better to have a missing key (handled gracefully by the placeholder UI)
+  // than a December final on a May tournament.
+  return null;
 }
 
 function labelToKey(label: string): RoundKey | null {
@@ -101,14 +111,15 @@ function parsePremierBlocks(
   const qualRe = /\b(Q[123])\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\s+(\d{1,2})\b/gi;
   // For Q lines we don't always know the month from the line itself; use
   // the most-recently-seen month above OR fall back to startsAt's month.
+  const startYear = parseInt(startsAt.slice(0, 4), 10);
   const startMonth = parseInt(startsAt.slice(5, 7), 10);
   for (const m of notes.matchAll(qualRe)) {
     const qKey = m[1]!.toLowerCase() as RoundKey;
     const dayNum = parseInt(m[2]!, 10);
-    // Try same month as startsAt, then next month
+    // Try same month as startsAt, then next month (buildIsoDate handles Dec→Jan rollover)
     const candidates = [
-      `${startsAt.slice(0, 4)}-${String(startMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`,
-      `${startsAt.slice(0, 4)}-${String(startMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`,
+      buildIsoDate(startYear, startMonth, dayNum),
+      buildIsoDate(startYear, startMonth + 1, dayNum),
     ];
     for (const iso of candidates) {
       if (iso >= startsAt && iso <= endsAt) {
