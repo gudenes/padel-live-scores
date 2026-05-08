@@ -404,6 +404,10 @@
     "women": "Mujeres",
     "noMatchesForStage": "No hay partidos en esta fase",
     "tryDifferentRound": "Prueba a seleccionar otra ronda",
+    "placeholder": {
+      "headline": "Programación pendiente",
+      "body": "Esta ronda se confirmará cuando termine la ronda anterior."
+    },
     "results": "Resultados",
     "live": "En directo",
     "warmingUp": "Calentando",

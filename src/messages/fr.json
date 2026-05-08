@@ -404,6 +404,10 @@
     "women": "Femmes",
     "noMatchesForStage": "Aucun match pour cette phase",
     "tryDifferentRound": "Essaie de sélectionner un autre tour",
+    "placeholder": {
+      "headline": "Programmation à confirmer",
+      "body": "Ce tour sera confirmé une fois le tour précédent terminé."
+    },
     "results": "Résultats",
     "live": "En direct",
     "warmingUp": "Échauffement",

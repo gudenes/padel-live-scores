@@ -420,6 +420,10 @@
     "women": "Women",
     "noMatchesForStage": "No matches for this stage",
     "tryDifferentRound": "Try selecting a different round",
+    "placeholder": {
+      "headline": "Schedule pending",
+      "body": "This round will be confirmed once the previous round wraps up."
+    },
     "results": "Results",
     "live": "Live",
     "warmingUp": "Warming Up",
