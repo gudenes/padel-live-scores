@@ -378,7 +378,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       const key = ROUND_LABEL_TO_KEY[round]
       const iso = key ? sched[key] : null
       if (iso) {
-        map[round] = format.dateTime(new Date(`${iso}T00:00:00`), DATE_SHORT)
+        map[round] = format.dateTime(new Date(`${iso}T00:00:00Z`), DATE_SHORT)
       }
     }
 
