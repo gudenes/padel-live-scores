@@ -1007,5 +1007,87 @@
       "maybeLater": "Quizá más tarde",
       "gotIt": "Entendido"
     }
+  },
+  "roadToOlympics": {
+    "hashtag": "#PadelOlympics",
+    "heroTitleLine1": "El camino del pádel hacia los Juegos Olímpicos.",
+    "heroSubtitle": "Siguiendo el camino del pádel hacia la inclusión olímpica. Próximo hito: la decisión del COI sobre Brisbane 2032 el 24 de junio de 2026.",
+    "countdown": {
+      "labelDefault": "Hasta la Sesión del COI · decisión Brisbane 2032",
+      "daysUnit": "días",
+      "todayLabel": "Hoy"
+    },
+    "scorecard": {
+      "title": "El camino de entrada — Criterios del COI",
+      "pillDone": "Completado",
+      "pillOnTrack": "En camino",
+      "pillBuilding": "En desarrollo",
+      "complianceLabel": "Cumplimiento (Carta Olímpica, WADA)",
+      "continentsLabel": "Continentes donde se juega",
+      "federationsLabel": "Federaciones nacionales",
+      "genderLabel": "Pádel femenino",
+      "eliteLabel": "Países de élite"
+    },
+    "beats": {
+      "tabWins": "Victorias",
+      "tabWatchlist": "Seguimiento",
+      "empty": "Sin noticias recientes. Vuelve pronto."
+    },
+    "dossier": {
+      "title": "Tomadores de decisiones"
+    },
+    "actionsTitle": "Apoya el impulso",
+    "actions": {
+      "shareTitle": "Comparte #PadelOlympics",
+      "shareDesc": "Tweet precargado con los números actuales",
+      "emailTitle": "Contacta por correo",
+      "emailDesc": "Plantillas del Presidente del CON y Ministro de Deportes",
+      "alertsTitle": "Recibe alertas del COI",
+      "alertsDesc": "Te avisaremos por correo cuando suceda algo importante",
+      "pledgeTitle": "Firma el compromiso",
+      "pledgeDesc": "Añade tu nombre a la carta abierta"
+    },
+    "pledge": {
+      "inlineSuffix": "aficionados apoyando el impulso olímpico del pádel.",
+      "inlineSub": "Añade tu voz.",
+      "ctaPrimary": "CUENTO",
+      "modalTitle": "Firma la carta abierta",
+      "modalIntro": "Tu nombre se suma a aficionados del pádel de todo el mundo pidiendo al COI que incluya el pádel en los Juegos de Brisbane 2032.",
+      "fieldName": "Nombre para mostrar (opcional)",
+      "fieldEmail": "Correo electrónico (opcional)",
+      "fieldCountry": "País (opcional)",
+      "subscribeOptIn": "También envíame un correo cuando suceda algo importante",
+      "submit": "Añade mi nombre",
+      "submitting": "Añadiendo…",
+      "successTitle": "Estás dentro.",
+      "successBody": "Gracias. Verás tu compromiso contabilizado en el hub inmediatamente."
+    },
+    "subscribe": {
+      "modalTitle": "Recibe alertas del COI",
+      "modalIntro": "Te enviaremos un correo cada vez que suceda algo importante — nuevas federaciones, declaraciones del COI, cambios en el marcador.",
+      "fieldEmail": "Correo electrónico",
+      "submit": "Suscribirse",
+      "submitting": "Enviando confirmación…",
+      "checkInbox": "Revisa tu bandeja de entrada para confirmar — acabamos de enviarte un enlace de un clic."
+    },
+    "disclosure": {
+      "line1": "Apoyamos la inclusión del pádel en los Juegos Olímpicos.",
+      "line2": "Rastreamos los datos honestamente — y no somos neutrales sobre el resultado.",
+      "readWhy": "Saber por qué"
+    },
+    "homeCard": {
+      "eyebrow": "CAMINO HACIA LOS JUEGOS OLÍMPICOS",
+      "title": "El impulso olímpico del pádel avanza rápido.",
+      "subtitle": "{days} días hasta la decisión del COI. Sigue el camino.",
+      "cta": "Abre el rastreador"
+    },
+    "why": {
+      "title": "Por qué rastreamos el camino del pádel hacia los Juegos Olímpicos",
+      "intro": "PadelNachos es un producto enfocado en el pádel. Somos abiertamente a favor de la inclusión. Esta página existe para ayudar a los aficionados a entender el camino y darles herramientas para apoyarlo.",
+      "stance": "Nuestra posición",
+      "stanceBody": "Apoyamos la inclusión del pádel en los Juegos Olímpicos. No fingimos ser un medio de comunicación neutral — el sesgo sobre el resultado está bien, ser descuidado con los hechos no.",
+      "rules": "Reglas de procedencia",
+      "rulesBody": "Cada contador en el rastreador está vinculado a una fuente primaria. Cuando la FIP lo dice, enlazamos a la FIP. Cuando voces críticas protestan, van en la pestaña de Seguimiento — no se descartan silenciosamente."
+    }
   }
 }

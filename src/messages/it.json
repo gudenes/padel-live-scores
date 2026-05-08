@@ -1007,5 +1007,87 @@
       "maybeLater": "Forse più tardi",
       "gotIt": "Ho capito"
     }
+  },
+  "roadToOlympics": {
+    "hashtag": "#PadelOlympics",
+    "heroTitleLine1": "La strada del padel verso le Olimpiadi.",
+    "heroSubtitle": "Seguiamo il percorso del padel verso l'inclusione olimpica. Prossimo traguardo: la decisione dell'IOC su Brisbane 2032 il 24 giugno 2026.",
+    "countdown": {
+      "labelDefault": "Fino alla sessione IOC · Decisione Brisbane 2032",
+      "daysUnit": "giorni",
+      "todayLabel": "Oggi"
+    },
+    "scorecard": {
+      "title": "Il percorso — Criteri IOC",
+      "pillDone": "Completato",
+      "pillOnTrack": "In corso",
+      "pillBuilding": "In sviluppo",
+      "complianceLabel": "Conformità (Carta, WADA)",
+      "continentsLabel": "Continenti dove si pratica",
+      "federationsLabel": "Federazioni nazionali",
+      "genderLabel": "Padel femminile",
+      "eliteLabel": "Paesi di élite"
+    },
+    "beats": {
+      "tabWins": "Vittorie",
+      "tabWatchlist": "Osservati speciali",
+      "empty": "Nessun aggiornamento recente. Torna presto."
+    },
+    "dossier": {
+      "title": "Chi decide"
+    },
+    "actionsTitle": "Sostieni la spinta",
+    "actions": {
+      "shareTitle": "Condividi #PadelOlympics",
+      "shareDesc": "Tweet precompilato con i numeri attuali",
+      "emailTitle": "Scrivi ai tuoi contatti",
+      "emailDesc": "Modelli per il Presidente del NOC e il Ministro dello Sport",
+      "alertsTitle": "Ricevi gli avvisi IOC",
+      "alertsDesc": "Ti mandiamo un'email quando succede qualcosa di importante",
+      "pledgeTitle": "Firma l'appello",
+      "pledgeDesc": "Aggiungi il tuo nome alla lettera aperta"
+    },
+    "pledge": {
+      "inlineSuffix": "fan che sostengono la spinta olimpica del padel.",
+      "inlineSub": "Dai la tua voce.",
+      "ctaPrimary": "SÌ, SONO DENTRO",
+      "modalTitle": "Firma la lettera aperta",
+      "modalIntro": "Il tuo nome si unisce ai fan di padel di tutto il mondo che chiedono all'IOC di includere il padel nei Giochi di Brisbane 2032.",
+      "fieldName": "Nome da mostrare (facoltativo)",
+      "fieldEmail": "Email (facoltativa)",
+      "fieldCountry": "Paese (facoltativo)",
+      "subscribeOptIn": "Scrivimi anche un'email quando succede qualcosa di importante",
+      "submit": "Aggiungi il mio nome",
+      "submitting": "Aggiungendo…",
+      "successTitle": "Sei dentro.",
+      "successBody": "Grazie. Vedrai il tuo impegno conteggiato sull'hub immediatamente."
+    },
+    "subscribe": {
+      "modalTitle": "Ricevi gli avvisi IOC",
+      "modalIntro": "Ti manderemo un'email ogni volta che succede qualcosa di importante — una federazione si unisce, comunicati dell'IOC, cambiamenti della scorecard.",
+      "fieldEmail": "Email",
+      "submit": "Iscriviti",
+      "submitting": "Invio conferma…",
+      "checkInbox": "Controlla la tua inbox per confermare — ti abbiamo appena inviato un link con un clic."
+    },
+    "disclosure": {
+      "line1": "Sosteniamo l'inclusione del padel nei Giochi Olimpici.",
+      "line2": "Tracciamo i dati onestamente — e non siamo neutrali sull'esito.",
+      "readWhy": "Scopri perché"
+    },
+    "homeCard": {
+      "eyebrow": "STRADA VERSO LE OLIMPIADI",
+      "title": "La spinta olimpica del padel si sta muovendo rapidamente.",
+      "subtitle": "{days} giorni fino alla decisione dell'IOC. Segui il percorso.",
+      "cta": "Apri il tracker"
+    },
+    "why": {
+      "title": "Perché seguiamo la strada del padel verso le Olimpiadi",
+      "intro": "PadelNachos è un prodotto incentrato sul padel. Siamo apertamente pro-inclusione. Questa pagina esiste per aiutare i fan a comprendere il percorso e fornire loro gli strumenti per sostenerlo.",
+      "stance": "La nostra posizione",
+      "stanceBody": "Sosteniamo l'inclusione del padel nei Giochi Olimpici. Non fingiamo di essere un mezzo di giornalismo neutrale — il pregiudizio sull'esito va bene, la sciatteria sui fatti no.",
+      "rules": "Regole di sourcing",
+      "rulesBody": "Ogni contatore sul tracker è collegato a una fonte primaria. Quando la FIP lo dice, colleghiamo alla FIP. Quando voci critiche si oppongono, vanno nella scheda Osservati speciali — non vengono silenziosamente eliminate."
+    }
   }
 }

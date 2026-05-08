@@ -1,0 +1,70 @@
+{
+  "cards": [
+    {
+      "key": "carraro",
+      "role": "FIP President",
+      "name": "Luigi Carraro",
+      "org": "Int'l Padel Federation",
+      "country": "IT",
+      "photoPath": null,
+      "blurb": "Drives FIP's globalisation programme and the public Olympic-track lobbying.",
+      "lastQuote": "Padel in another major multisport event confirms the project we are all advancing together.",
+      "lastQuoteUrl": "https://www.padelfip.com/2026/04/padel-to-be-a-medal-sport-at-the-2026-asian-indoor-and-martial-arts-games-carraro-padel-in-another-major-multisport-event-confirms-the-project-we-are-all-advancing-together/"
+    },
+    {
+      "key": "ioc-president",
+      "role": "IOC President",
+      "name": "Successor TBD",
+      "org": "International Olympic Committee",
+      "country": null,
+      "photoPath": null,
+      "blurb": "Bach's successor (term began 2025) holds the casting vote on Brisbane 2032 sports.",
+      "lastQuote": null,
+      "lastQuoteUrl": null
+    },
+    {
+      "key": "mcconnell",
+      "role": "Brisbane 2032 CSO",
+      "name": "Kit McConnell",
+      "org": "Brisbane 2032 Organising Committee",
+      "country": "AU",
+      "photoPath": null,
+      "blurb": "Sets the Brisbane sports vision: 'more youth, more urban, more women.'",
+      "lastQuote": "We had a very clear vision about the games being more youth, more urban, more women.",
+      "lastQuoteUrl": "https://www.olympics.com/ioc/news/brisbane-2032-initial-sports-programme-to-be-decided-next-year"
+    },
+    {
+      "key": "samaranch",
+      "role": "IOC Vice President",
+      "name": "Juan Antonio Samaranch Jr.",
+      "org": "IOC",
+      "country": "ES",
+      "photoPath": null,
+      "blurb": "Spanish IOC Vice President; cultural alignment with padel's heartland.",
+      "lastQuote": null,
+      "lastQuoteUrl": null
+    },
+    {
+      "key": "buenaventura",
+      "role": "Hexagon Cup Founder",
+      "name": "Enrique Buenaventura",
+      "org": "Hexagon Cup",
+      "country": "ES",
+      "photoPath": null,
+      "blurb": "Architect of the FIP + Premier + Hexagon Olympic-partnership signed February 2025.",
+      "lastQuote": "Together, we have the goal of globalising the sport and achieving its Olympic inclusion at the earliest opportunity.",
+      "lastQuoteUrl": "https://www.padelfip.com/2025/02/premier-padel-hexagon-cup-and-fip-strike-strategic-partnership-as-padel-targets-olympic-inclusion/"
+    },
+    {
+      "key": "al-khelaifi",
+      "role": "Premier Padel Chairman",
+      "name": "Nasser Al-Khelaifi",
+      "org": "QSI · Premier Padel",
+      "country": "QA",
+      "photoPath": null,
+      "blurb": "Qatar Sports Investments backs the Premier Padel tour — primary commercial vehicle for global growth.",
+      "lastQuote": null,
+      "lastQuoteUrl": null
+    }
+  ]
+}

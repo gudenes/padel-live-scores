@@ -1007,5 +1007,87 @@
       "maybeLater": "Talvez depois",
       "gotIt": "Entendi"
     }
+  },
+  "roadToOlympics": {
+    "hashtag": "#PadelOlympics",
+    "heroTitleLine1": "O caminho do padel para as Olimpíadas.",
+    "heroSubtitle": "Acompanhando o caminho do padel para inclusão olímpica. Próximo marco: a decisão do IOC sobre Brisbane 2032 em 24 de junho de 2026.",
+    "countdown": {
+      "labelDefault": "Até Sessão do IOC · decisão Brisbane 2032",
+      "daysUnit": "dias",
+      "todayLabel": "Hoje"
+    },
+    "scorecard": {
+      "title": "O Caminho para Dentro — Critérios do IOC",
+      "pillDone": "Completo",
+      "pillOnTrack": "Em curso",
+      "pillBuilding": "Em desenvolvimento",
+      "complianceLabel": "Conformidade (Carta, WADA)",
+      "continentsLabel": "Continentes onde se joga",
+      "federationsLabel": "Federações nacionais",
+      "genderLabel": "Padel feminino",
+      "eliteLabel": "Países de elite"
+    },
+    "beats": {
+      "tabWins": "Vitórias",
+      "tabWatchlist": "Observação",
+      "empty": "Sem desenvolvimentos recentes. Volta mais tarde."
+    },
+    "dossier": {
+      "title": "Decisores"
+    },
+    "actionsTitle": "Apoia o avanço",
+    "actions": {
+      "shareTitle": "Partilha #PadelOlympics",
+      "shareDesc": "Tweet pré-preenchido com números actuais",
+      "emailTitle": "Envia e-mail aos teus contactos",
+      "emailDesc": "Modelos para Presidente do NOC + Ministro do Desporto",
+      "alertsTitle": "Recebe alertas do IOC",
+      "alertsDesc": "Enviamos e-mail quando algo importante acontece",
+      "pledgeTitle": "Assina o manifesto",
+      "pledgeDesc": "Adiciona o teu nome à carta aberta"
+    },
+    "pledge": {
+      "inlineSuffix": "fãs apoiando o avanço do padel nas Olimpíadas.",
+      "inlineSub": "Adiciona a tua voz.",
+      "ctaPrimary": "QUERO PARTICIPAR",
+      "modalTitle": "Assina a carta aberta",
+      "modalIntro": "O teu nome junta-se aos fãs de padel de todo o mundo a pedir ao IOC que inclua o padel nos Jogos de Brisbane 2032.",
+      "fieldName": "Nome a mostrar (opcional)",
+      "fieldEmail": "E-mail (opcional)",
+      "fieldCountry": "País (opcional)",
+      "subscribeOptIn": "Envia-me também e-mail quando algo importante acontece",
+      "submit": "Adiciona o meu nome",
+      "submitting": "A adicionar…",
+      "successTitle": "Estás dentro.",
+      "successBody": "Obrigado. Vais ver o teu apoio contabilizado no hub imediatamente."
+    },
+    "subscribe": {
+      "modalTitle": "Recebe alertas do IOC",
+      "modalIntro": "Enviamos-te e-mail sempre que algo importante acontece — uma federação adere, o IOC faz declarações, a tabela de pontuação muda.",
+      "fieldEmail": "E-mail",
+      "submit": "Subscrever",
+      "submitting": "A enviar confirmação…",
+      "checkInbox": "Verifica a tua caixa de entrada para confirmar — acabamos de enviar uma ligação com um clique."
+    },
+    "disclosure": {
+      "line1": "Apoiamos a inclusão do padel nos Jogos Olímpicos.",
+      "line2": "Acompanhamos os dados com honestidade — e não somos neutros quanto ao resultado.",
+      "readWhy": "Descobre porquê"
+    },
+    "homeCard": {
+      "eyebrow": "CAMINHO PARA AS OLIMPÍADAS",
+      "title": "O avanço do padel nas Olimpíadas está em aceleração.",
+      "subtitle": "{days} dias até à decisão do IOC. Acompanha o caminho.",
+      "cta": "Abre o tracker"
+    },
+    "why": {
+      "title": "Porquê acompanhamos o caminho do padel para as Olimpíadas",
+      "intro": "PadelNachos é um produto focado em padel. Apoiamos abertamente a inclusão. Esta página existe para ajudar os fãs a compreender o caminho e para lhes dar ferramentas para o apoiar.",
+      "stance": "A nossa posição",
+      "stanceBody": "Apoiamos a inclusão do padel nos Jogos Olímpicos. Não estamos a fingir ser um meio de comunicação social neutro — ter viés no resultado é aceitável, ser negligente nos factos não é.",
+      "rules": "Regras de sourcing",
+      "rulesBody": "Cada contador no tracker tem uma ligação para uma fonte primária. Quando FIP o diz, ligamos a FIP. Quando vozes críticas contestam, aparecem no separador Observação — não são silenciosamente descartadas."
+    }
   }
 }

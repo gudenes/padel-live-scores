@@ -1,0 +1,22 @@
+{
+  "iocSessionAt": "2026-06-24T08:00:00Z",
+  "countdownLabel": null,
+  "counters": {
+    "federationsCount": 87,
+    "federationsSourceUrl": "https://www.padelfip.com/category/fip/",
+    "continentsCount": 5,
+    "continentsSourceUrl": "https://www.padelfip.com/category/fip/",
+    "genderPctFemale": 40,
+    "genderSourceUrl": "https://www.padelfip.com/2025/03/fip-looks-to-the-future-president-carraro-at-the-european-olympic-committees-eoc-assembly/",
+    "eliteCountriesCount": 2,
+    "eliteStatusLabel": "Building",
+    "eliteSourceUrl": "https://8258038.fs1.hubspotusercontent-na1.net/hubfs/8258038/Global%20Padel%20Report/PLAYTOMIC_GLOBAL%20_PADEL%20REPORT_2025.pdf",
+    "compliance": {
+      "charter": true,
+      "wada": true,
+      "manipulation": true,
+      "sourceUrl": "https://www.padelfip.com/category/fip/"
+    }
+  },
+  "lastUpdatedAt": "2026-05-08T00:00:00Z"
+}

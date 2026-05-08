@@ -1007,5 +1007,87 @@
       "maybeLater": "Plus tard",
       "gotIt": "Compris"
     }
+  },
+  "roadToOlympics": {
+    "hashtag": "#PadelOlympics",
+    "heroTitleLine1": "La route du padel vers les Olympiques.",
+    "heroSubtitle": "Suivi de la trajectoire du padel vers l'inclusion olympique. Prochain jalon : la décision du IOC sur Brisbane 2032 le 24 juin 2026.",
+    "countdown": {
+      "labelDefault": "Jusqu'à la session du IOC · décision Brisbane 2032",
+      "daysUnit": "jours",
+      "todayLabel": "Aujourd'hui"
+    },
+    "scorecard": {
+      "title": "Le chemin vers l'inclusion — Critères du IOC",
+      "pillDone": "Validé",
+      "pillOnTrack": "En bonne voie",
+      "pillBuilding": "En construction",
+      "complianceLabel": "Conformité (Charte, WADA)",
+      "continentsLabel": "Continents couverts",
+      "federationsLabel": "Fédérations nationales",
+      "genderLabel": "Padel féminin",
+      "eliteLabel": "Pays de haut niveau"
+    },
+    "beats": {
+      "tabWins": "Succès",
+      "tabWatchlist": "À suivre",
+      "empty": "Pas de mise à jour récente. Revenez bientôt."
+    },
+    "dossier": {
+      "title": "Les décideurs"
+    },
+    "actionsTitle": "Soutenir le mouvement",
+    "actions": {
+      "shareTitle": "Partager #PadelOlympics",
+      "shareDesc": "Tweet prérempli avec les derniers chiffres",
+      "emailTitle": "Contactez vos connaissances",
+      "emailDesc": "Modèles pour le Président du NOC et le Ministre des Sports",
+      "alertsTitle": "Recevoir les alertes du IOC",
+      "alertsDesc": "On vous envoie un mail quand c'est du concret",
+      "pledgeTitle": "Signez l'appel",
+      "pledgeDesc": "Ajoutez votre nom à la lettre ouverte"
+    },
+    "pledge": {
+      "inlineSuffix": "fans soutenant la poussée olympique du padel.",
+      "inlineSub": "Ajoutez votre voix.",
+      "ctaPrimary": "JE SUIS PARTANT",
+      "modalTitle": "Signez la lettre ouverte",
+      "modalIntro": "Votre nom rejoint les fans de padel du monde entier qui demandent au IOC d'inclure le padel aux Jeux de Brisbane 2032.",
+      "fieldName": "Nom d'affichage (optionnel)",
+      "fieldEmail": "Email (optionnel)",
+      "fieldCountry": "Pays (optionnel)",
+      "subscribeOptIn": "Envoyez-moi aussi un email quand quelque chose d'important se passe",
+      "submit": "Ajouter mon nom",
+      "submitting": "Ajout en cours…",
+      "successTitle": "C'est bon.",
+      "successBody": "Merci. Vous verrez votre signature comptabilisée sur le hub immédiatement."
+    },
+    "subscribe": {
+      "modalTitle": "Recevoir les alertes du IOC",
+      "modalIntro": "On vous envoie un email à chaque fois que quelque chose de matériel se passe — une fédération qui rejoint, des déclarations du IOC, des changements au tableau de bord.",
+      "fieldEmail": "Email",
+      "submit": "S'abonner",
+      "submitting": "Envoi de la confirmation…",
+      "checkInbox": "Vérifiez votre boîte de réception pour confirmer — on vient de vous envoyer un lien à un clic."
+    },
+    "disclosure": {
+      "line1": "On soutient l'inclusion du padel aux Jeux Olympiques.",
+      "line2": "On suit les données honnêtement — et on n'est pas neutre sur le résultat.",
+      "readWhy": "Découvrez pourquoi"
+    },
+    "homeCard": {
+      "eyebrow": "ROUTE VERS LES OLYMPIQUES",
+      "title": "La poussée olympique du padel avance vite.",
+      "subtitle": "{days} jours avant la décision du IOC. Suivez la trajectoire.",
+      "cta": "Ouvrir le tracker"
+    },
+    "why": {
+      "title": "Pourquoi on suit la route du padel vers les Olympiques",
+      "intro": "PadelNachos est un produit pensé pour les fans de padel. On est ouvertement pro-inclusion. Cette page existe pour aider les fans à comprendre le chemin et leur donner les outils pour le soutenir.",
+      "stance": "Notre position",
+      "stanceBody": "On soutient l'inclusion du padel aux Jeux Olympiques. On ne prétend pas être une source d'information neutre — avoir un parti pris sur le résultat, c'est acceptable, être imprécis sur les faits, ça ne l'est pas.",
+      "rules": "Règles de sourçage",
+      "rulesBody": "Chaque chiffre du tracker est lié à une source primaire. Quand la FIP le dit, on le linke vers la FIP. Quand les voix critiques se font entendre, elles vont dans l'onglet À suivre — pas silencieusement ignorées."
+    }
   }
 }
