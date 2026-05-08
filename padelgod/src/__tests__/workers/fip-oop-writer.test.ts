@@ -96,13 +96,39 @@ function fakeSupabase(opts: Options) {
     }),
   });
 
+  // Mocks `.from('oop_snapshots').select(...).eq(...).order(...).range(start, end)` —
+  // the writer now paginates this read (Asuncion P2 2026-05-08 incident:
+  // unbounded select silently truncated past PostgREST's 10k cap and
+  // skipped every QF widget's latest snapshot). The fake honours
+  // `.range()` slicing so tests can also exercise the pagination loop
+  // by seeding more rows than the helper's pageSize.
   const oopSnapshotsTable = () => ({
     select: (_cols: string) => ({
       eq: (col: string, val: string) => {
-        const data = oopRows.filter(
+        const filtered = oopRows.filter(
           (r) => col !== 'tournament_id' || r.tournament_id === val
         );
-        return Promise.resolve({ data, error: null });
+        return {
+          order: (
+            orderCol: string,
+            opts: { ascending?: boolean } = {},
+          ) => {
+            const sorted = [...filtered].sort((a, b) => {
+              const av = (a as Record<string, unknown>)[orderCol] as string;
+              const bv = (b as Record<string, unknown>)[orderCol] as string;
+              if (av === bv) return 0;
+              const cmp = av < bv ? -1 : 1;
+              return opts.ascending === false ? -cmp : cmp;
+            });
+            return {
+              range: (start: number, end: number) =>
+                Promise.resolve({
+                  data: sorted.slice(start, end + 1),
+                  error: null,
+                }),
+            };
+          },
+        };
       },
     }),
   });
@@ -411,6 +437,57 @@ describe('runFipOopWriter', () => {
     expect(result.updated).toBe(0);
     expect(result.skippedNothingToChange).toBe(1);
     expect(supabase.updated).toHaveLength(0);
+  });
+
+  it('picks the latest captured_at per widget when multiple snapshots exist (paginated)', async () => {
+    // Regression for the Asuncion P2 2026-05-08 incident: when the
+    // oop_snapshots read isn't paginated, PostgREST silently truncates
+    // past `db_max_rows` (10k) and returns a non-deterministic slice
+    // that often excludes each widget's latest capture. The writer
+    // would then dedup against stale data (or skip widgets entirely)
+    // and leave matches stuck with court=null / scheduled_at=null.
+    //
+    // We seed THREE captures for the same widget — older two with bad
+    // court ('OLD-A', 'OLD-B'), newest with the real court — and
+    // verify the writer applies the newest. This locks in both the
+    // dedup-latest-wins behaviour and the new desc-ordered + paginated
+    // read. The fake's `.range()` honours pagination, so this also
+    // exercises the pagination loop on the writer side.
+    const olderA: OopSeed = {
+      ...md017Snapshot,
+      court: 'OLD-A',
+      captured_at: '2026-04-23T10:00:00Z',
+    };
+    const olderB: OopSeed = {
+      ...md017Snapshot,
+      court: 'OLD-B',
+      captured_at: '2026-04-23T22:00:00Z',
+    };
+    const newest: OopSeed = {
+      ...md017Snapshot,
+      court: 'CLUB, PISTA OMEYA',
+      captured_at: '2026-04-24T10:00:00Z',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      // Insertion order intentionally NOT chronological — proves the
+      // writer's dedup logic doesn't rely on input ordering.
+      oopRows: [olderB, newest, olderA],
+      existingMatches: [md017Existing],
+    });
+
+    const result = await runFipOopWriter({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.updated).toBe(1);
+    expect(supabase.updated).toHaveLength(1);
+    expect(supabase.updated[0].patch).toEqual({
+      court: 'CLUB, PISTA OMEYA',
+      court_order: 1,
+    });
   });
 
   it('does NOT touch matches outside the composite prefix (legacy reconciler rows)', async () => {

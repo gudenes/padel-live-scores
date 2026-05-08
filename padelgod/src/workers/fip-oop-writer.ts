@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
+import { paginatedSelect } from '../lib/db-paginate.js';
 import {
   parseOopScheduledAtBatch,
   type OopScheduleRow,
@@ -495,19 +496,36 @@ async function loadLatestOopRows(
   supabase: SupabaseClient,
   tournamentId: string
 ): Promise<OopRow[]> {
-  const { data, error } = await supabase
-    .schema('padelgod')
-    .from('oop_snapshots')
-    .select(
-      'tournament_id, match_widget_id, category, round_label, court, court_position, scheduled_label, day_date, captured_at'
-    )
-    .eq('tournament_id', tournamentId);
-  if (error) {
-    throw new Error(
-      `oop_snapshots read failed (tournament=${tournamentId}): ${error.message}`
-    );
-  }
-  const rows = (data ?? []) as unknown as OopRow[];
+  // Pagination is required: per-tournament `oop_snapshots` rows accumulate
+  // at ~75 widgets × 96 ticks/day, so any tournament past ~1.4 days of
+  // running blows past PostgREST's `db_max_rows` cap (10k) and the
+  // unranged read silently truncates to a non-deterministic 10k slice.
+  // For tournaments with >10k rows the slice often does NOT contain
+  // each widget's latest capture — the dedup-by-widget Map below comes
+  // back stale or missing and the writer iterates over a fossilised set.
+  // Asuncion P2 hit this on QF day 2026-05-08 (table at 20k+ rows; the
+  // unordered slice covered a 35-second window from the previous
+  // morning, missed every May 8 widget). See CLAUDE.md → "PostgREST 1k
+  // cap" for the project policy. `paginatedSelect` walks pages until
+  // PostgREST returns a partial page; ordering by captured_at desc just
+  // makes the latest-per-widget dedup early-exit-friendly for future
+  // optimisations — the dedup itself is order-independent.
+  const rows = await paginatedSelect<OopRow>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('oop_snapshots')
+        .select(
+          'tournament_id, match_widget_id, category, round_label, court, court_position, scheduled_label, day_date, captured_at'
+        )
+        .eq('tournament_id', tournamentId)
+        .order('captured_at', { ascending: false })
+        .range(start, end),
+    {
+      what: `oop_snapshots (tournament=${tournamentId})`,
+      pageSize: 10_000,
+    },
+  );
 
   const latest = new Map<string, OopRow>();
   for (const r of rows) {
