@@ -373,6 +373,14 @@ export class LivePollerLoop {
   private readonly opts: LivePollerLoopOptions;
   private readonly states: Map<string, LiveMatchState> = new Map();
   private readonly resolvedPlayersCache: Map<string, ResolvedPlayers> = new Map();
+  /**
+   * Tracks matches we've already cold-start-probed for a stale terminal
+   * state since this poller process started. The probe runs at most once
+   * per match per process — first sighting where the widget shows live but
+   * we have no cached `prev`. After the probe (regardless of outcome), the
+   * match is in `this.states` and the in-process flip-back path takes over.
+   */
+  private readonly coldStartProbed: Set<string> = new Set();
   private readonly setTimeoutFn: (fn: () => void, ms: number) => unknown;
   private readonly clearTimeoutFn: (handle: unknown) => void;
 
@@ -621,6 +629,19 @@ export class LivePollerLoop {
 
     const curr = buildLiveMatchState(parsed, matchId);
     const prev = this.states.get(matchId) ?? null;
+
+    // Case C: Crionet flipped a match back from terminal → live. Symmetric
+    // recovery for the close path: closeMatch fires on a single `Completed`
+    // tick from Crionet, so a transient false `Completed` (or any close that
+    // turned out to be premature) leaves us stuck `finished` while play
+    // continues. If the widget now reports live and our cached prev (or DB
+    // for cold-start) carries finished, revert the close. Runs before
+    // applyDiff so the matches row is in the correct status when set games
+    // get written. Canonical mode only — shadow mode never mutates canonical
+    // status.
+    if (this.mode === 'canonical') {
+      await this.maybeReopenMatch(matchId, curr, prev);
+    }
 
     const diff = diffLiveState(prev, curr, { logger: this.opts.logger });
     const resolvedPlayers = await this.getResolvedPlayers(matchId);
@@ -893,6 +914,115 @@ export class LivePollerLoop {
       this.logCtx({ matchId, target }),
       `stamp ${target} status: applied`,
     );
+  }
+
+  /**
+   * Decide whether to reopen a match closed in error and apply the revert.
+   *
+   * Symmetric counterpart to `closeMatch`. Two paths:
+   *
+   *   - In-process flip-back: cached `prev.status === 'finished'` AND the
+   *     current parsed widget tick reports `live` / `on_court`. Means
+   *     closeMatch fired on this poller process and Crionet is now
+   *     showing the match alive again — almost always because the
+   *     `Completed` label that triggered the close was transient.
+   *
+   *   - Cold start: `prev === null` AND we haven't probed this match yet
+   *     in this process. Read `matches.status` once. If finished AND the
+   *     widget shows live, the row is a stale terminal state from a prior
+   *     run that never got recovered — flip it back. After the probe,
+   *     mark the match in `coldStartProbed` so we never re-probe it.
+   *
+   * Both paths only act when `curr.status` is `'live'` or `'on_court'`.
+   * If Crionet still reports finished, the close was correct and the row
+   * stays terminal.
+   */
+  private async maybeReopenMatch(
+    matchId: string,
+    curr: LiveMatchState,
+    prev: LiveMatchState | null,
+  ): Promise<void> {
+    // Only flip when the widget itself currently shows the match alive.
+    // Walkover / retired never appear on the live widget, so this check
+    // also implicitly excludes those.
+    if (curr.status !== 'live' && curr.status !== 'on_court') return;
+
+    // In-process flip-back — no DB read needed.
+    if (prev?.status === 'finished') {
+      await this.reopenMatch(matchId, 'cache_finished_to_live');
+      return;
+    }
+
+    // Cold-start probe — at most once per match per process.
+    if (prev !== null) return;
+    if (this.coldStartProbed.has(matchId)) return;
+    this.coldStartProbed.add(matchId);
+
+    const { data, error } = await this.opts.supabase
+      .from('matches')
+      .select('status, padelapi_id')
+      .eq('id', matchId)
+      .maybeSingle();
+
+    if (error) {
+      this.opts.logger.warn(
+        this.logCtx({ matchId, err: error.message }),
+        'reopen-probe: matches read failed',
+      );
+      return;
+    }
+
+    if (data?.status === 'finished' && data?.padelapi_id === null) {
+      await this.reopenMatch(matchId, 'cold_start_db_finished');
+    }
+  }
+
+  /**
+   * Revert a (probably-false) close: status → 'live', NULL out
+   * winner_pair / finished_at / duration. Idempotent via the SQL filters:
+   *
+   *   - `.eq('status', 'finished')` so we never regress a non-terminal row.
+   *   - `.is('padelapi_id', null)` so we never overwrite a row owned by
+   *     padelapi. Padelapi tracks its own match closure independently;
+   *     reopening a row it closed could trigger a flip-flop fight.
+   *
+   * Sets are intentionally NOT touched — if `closeMatch`'s
+   * `buildFinalSets` extrapolated bogus games, the next live applyDiff
+   * tick rewrites them from real widget state. Keeping reopen scoped to
+   * match-level fields means it's easy to reason about and roll back.
+   */
+  private async reopenMatch(matchId: string, reason: string): Promise<void> {
+    const nowIso = new Date().toISOString();
+    const { data: updated, error } = await this.opts.supabase
+      .from('matches')
+      .update({
+        status: 'live',
+        winner_pair: null,
+        finished_at: null,
+        duration: null,
+        updated_at: nowIso,
+      })
+      .eq('id', matchId)
+      .eq('status', 'finished')
+      .is('padelapi_id', null)
+      .select('id');
+
+    if (error) {
+      this.opts.logger.warn(
+        this.logCtx({ matchId, reason, err: error.message }),
+        'reopen-match: update failed',
+      );
+      return;
+    }
+
+    if (Array.isArray(updated) && updated.length > 0) {
+      this.opts.logger.info(
+        this.logCtx({ matchId, reason }),
+        'reopen-match: applied (widget reverted to live after close)',
+      );
+    }
+    // 0 rows updated = no-op (status already non-finished, or padelapi_id
+    // is set). Quiet path — nothing to log.
   }
 
   /**

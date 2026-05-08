@@ -95,7 +95,21 @@ interface SetsUpsertCall {
   opts: Record<string, unknown>;
 }
 
-function fakeSupabase(opts: { matchId: string }): any {
+function fakeSupabase(opts: {
+  matchId: string;
+  /**
+   * Value returned for the cold-start reopen probe (and getResolvedPlayers,
+   * which destructures the same response). Defaults to 'live' so the probe
+   * is a no-op for existing tests.
+   */
+  dbStatus?: 'scheduled' | 'on_court' | 'live' | 'finished';
+  /**
+   * `padelapi_id` value returned alongside `status` for the cold-start probe.
+   * The reopen UPDATE is gated on `padelapi_id IS NULL` to avoid clobbering
+   * matches owned by padelapi.
+   */
+  dbPadelapiId?: string | null;
+}): any {
   const matchesUpdateCalls: MatchesUpdateCall[] = [];
   const setsUpsertCalls: SetsUpsertCall[] = [];
 
@@ -202,6 +216,8 @@ function fakeSupabase(opts: { matchId: string }): any {
                   pair1_player2_id: null,
                   pair2_player1_id: null,
                   pair2_player2_id: null,
+                  status: opts.dbStatus ?? 'live',
+                  padelapi_id: opts.dbPadelapiId ?? null,
                 },
                 error: null,
               }),
@@ -281,10 +297,12 @@ function createFakeTimers() {
     // Execute — the tick is async via `void this.runTick()` inside the loop;
     // we need a microtask drain after calling.
     last.fn();
-    // Drain microtasks. runScrapeJob + findOrCreateMatch + applyDiff all use
-    // awaits; a handful of microtask turns should be enough to let them
-    // settle. A tiny setTimeout(0) loop drains reliably.
-    for (let i = 0; i < 20; i++) {
+    // Drain microtasks. runScrapeJob + findOrCreateMatch + maybeReopenMatch
+    // (cold-start DB probe) + getResolvedPlayers + stampMatchTimes +
+    // stampObservedStatus + applyDiff + (sometimes) closeMatch all use
+    // awaits. Bumped from 20 to 50 turns when the cold-start probe was
+    // added — was at the boundary of the previous count.
+    for (let i = 0; i < 50; i++) {
       await Promise.resolve();
     }
     return last;
@@ -1596,5 +1614,232 @@ describe('LivePollerLoop.stampObservedStatus — canonical mode on_court', () =>
 
     parseSpy.mockRestore();
     await loop.stop();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// reopenMatch — Case C: widget reverts to live after a (possibly false) close
+// ---------------------------------------------------------------------------
+//
+// closeMatch fires whenever the parser tags a match as `'finished'` — including
+// when Crionet emits a transient `Completed` label that doesn't reflect actual
+// match end. Once closed, no writer ever reverts the row, so the match stays
+// stuck `finished` while play continues. This block locks in the symmetric
+// recovery: if Crionet flips back to `live`, we flip our row back too.
+//
+// Two trigger paths covered:
+//   1. In-process (same poller instance saw the close, then sees live): the
+//      cached `prev` carries `status='finished'`, no DB read needed.
+//   2. Cold-start (process restarted; cache empty but DB still finished):
+//      probe `matches.status` once on first sight.
+//
+// Gated on `padelapi_id IS NULL` to avoid clobbering padelapi-owned rows.
+
+describe('LivePollerLoop.reopenMatch — Case C: widget reverts to live after close', () => {
+  it('reopens the match on the next tick when Crionet flips finished → live', async () => {
+    // Tick 1: parser reports status='finished' with decisive sets → closeMatch
+    //         fires, matches.status='finished' in cache.
+    // Tick 2: parser reports status='live' (Crionet reverted) → reopen fires.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi.spyOn(mod, 'parseCrionetTournamentLive');
+
+    parseSpy
+      .mockReturnValueOnce({
+        matches: [
+          {
+            ...parsedMatchFixture({
+              team1SetGames: ['6', '6', '-'],
+              team2SetGames: ['4', '2', '-'],
+            }),
+            status: 'finished' as const,
+            durationMinutes: 90,
+          },
+        ],
+      })
+      .mockReturnValueOnce({
+        matches: [
+          parsedMatchFixture({
+            team1Points: '15',
+            team2Points: '0',
+            team1SetGames: ['6', '6', '0'],
+            team2SetGames: ['4', '2', '1'],
+          }),
+        ],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest(); // tick 1: closeMatch
+    await timers.fireLatest(); // tick 2: reopenMatch
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as MatchesUpdateCall[];
+    const reopenCall = matchCalls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'finished' &&
+        c.filters['is:padelapi_id'] === null &&
+        c.patch.status === 'live',
+    );
+    expect(reopenCall, 'expected a reopen UPDATE on tick 2').toBeDefined();
+    expect(reopenCall!.patch.winner_pair).toBeNull();
+    expect(reopenCall!.patch.finished_at).toBeNull();
+    expect(reopenCall!.patch.duration).toBeNull();
+    expect(typeof reopenCall!.patch.updated_at).toBe('string');
+
+    parseSpy.mockRestore();
+  });
+
+  it('does NOT reopen when curr.status is still finished (cache idempotence)', async () => {
+    // Tick 1: closeMatch fires.
+    // Tick 2: parser still reports finished. No reopen — only the close path
+    //         is exercised, and even that is a no-op because cached prev
+    //         already carries status='finished'.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [
+          {
+            ...parsedMatchFixture({
+              team1SetGames: ['6', '6', '-'],
+              team2SetGames: ['4', '2', '-'],
+            }),
+            status: 'finished' as const,
+            durationMinutes: 90,
+          },
+        ],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+    await timers.fireLatest();
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as MatchesUpdateCall[];
+    const reopenCall = matchCalls.find(
+      (c) =>
+        c.patch.status === 'live' &&
+        c.patch.winner_pair === null &&
+        c.filters['eq:status'] === 'finished',
+    );
+    expect(reopenCall, 'reopen must NOT fire when curr is finished').toBeUndefined();
+
+    parseSpy.mockRestore();
+  });
+});
+
+describe('LivePollerLoop.reopenMatch — Case D: cold-start with stale finished DB row', () => {
+  it('issues a reopen UPDATE on first tick when DB.status=finished but widget shows live', async () => {
+    // Process restart scenario: poller in-memory cache is empty, but DB
+    // still holds a stale terminal state from a previous run that an admin
+    // or another writer never cleared. The first time we see the match in
+    // a live tick, probe matches.status; reopen if finished.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [parsedMatchFixture({ team1Points: '15', team2Points: '0' })],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({
+      matchId: 'match-uuid-1',
+      dbStatus: 'finished',
+      dbPadelapiId: null,
+    });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as MatchesUpdateCall[];
+    const reopenCall = matchCalls.find(
+      (c) =>
+        c.filters['eq:id'] === 'match-uuid-1' &&
+        c.filters['eq:status'] === 'finished' &&
+        c.filters['is:padelapi_id'] === null &&
+        c.patch.status === 'live',
+    );
+    expect(reopenCall, 'cold-start probe should issue reopen').toBeDefined();
+    expect(reopenCall!.patch.winner_pair).toBeNull();
+    expect(reopenCall!.patch.finished_at).toBeNull();
+
+    parseSpy.mockRestore();
+  });
+
+  it('does NOT issue a reopen on cold start when DB.status is already live', async () => {
+    // Normal scheduled-or-live match starting: probe sees status='live' (or
+    // 'on_court' / 'scheduled') and skips the UPDATE. Asserts the
+    // application-level gate, not just the SQL filter.
+    const mod = await import('../../parsers/crionet-tournamentlive.js');
+    const parseSpy = vi
+      .spyOn(mod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [parsedMatchFixture({ team1Points: '15', team2Points: '0' })],
+      });
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({
+      matchId: 'match-uuid-1',
+      dbStatus: 'live',
+      dbPadelapiId: null,
+    });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+    await loop.stop();
+
+    const matchCalls = (supabase as any).__matchesUpdateCalls as MatchesUpdateCall[];
+    const reopenCall = matchCalls.find(
+      (c) =>
+        c.patch.status === 'live' &&
+        c.patch.winner_pair === null &&
+        c.filters['eq:status'] === 'finished',
+    );
+    expect(reopenCall, 'reopen must NOT fire when DB is already live').toBeUndefined();
+
+    parseSpy.mockRestore();
   });
 });
