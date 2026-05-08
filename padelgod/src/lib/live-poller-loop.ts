@@ -604,6 +604,17 @@ export class LivePollerLoop {
         category: parsed.category,
         roundLabel: parsed.roundLabel,
         court: parsed.court || null,
+        // Pass parsed widget names + countries through. When the lookup
+        // chain misses on every step and we fall through to INSERT, these
+        // get written into pair*_player*_name / pair*_player*_country so
+        // the row renders names instead of "TBD" until fip-draw-populator
+        // backfills the FKs. Pre-fix (before 2026-05-08), live-poller
+        // calls without names produced ghost rows on FIP Bronze qualifying
+        // brackets — see the FIP Bronze Prishtina 2026-05-07 incident.
+        pair1PlayerNames: [parsed.team1.player1Name || null, parsed.team1.player2Name || null],
+        pair2PlayerNames: [parsed.team2.player1Name || null, parsed.team2.player2Name || null],
+        pair1PlayerCountries: [parsed.team1.player1Country, parsed.team1.player2Country],
+        pair2PlayerCountries: [parsed.team2.player1Country, parsed.team2.player2Country],
       },
       { logger: this.opts.logger },
     );

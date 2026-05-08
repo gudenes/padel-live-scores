@@ -42,6 +42,17 @@ interface State {
       pair1_player2_id: string | null;
       pair2_player1_id: string | null;
       pair2_player2_id: string | null;
+      // Snapshot name + country columns. Live-poller path supplies these
+      // as a fallback when player FK resolution hasn't happened yet, so
+      // the match still renders names instead of "TBD" on the UI.
+      pair1_player1_name?: string | null;
+      pair1_player2_name?: string | null;
+      pair2_player1_name?: string | null;
+      pair2_player2_name?: string | null;
+      pair1_player1_country?: string | null;
+      pair1_player2_country?: string | null;
+      pair2_player1_country?: string | null;
+      pair2_player2_country?: string | null;
       // Optional — only set on padelapi-sync'd rows; used by the padelapi-twin
       // fallback lookup (added in PR #2).
       padelapi_id?: string | null;
@@ -255,6 +266,14 @@ function matchesBuilder(state: State) {
         pair1_player2_id: row.pair1_player2_id ?? null,
         pair2_player1_id: row.pair2_player1_id ?? null,
         pair2_player2_id: row.pair2_player2_id ?? null,
+        pair1_player1_name: row.pair1_player1_name ?? null,
+        pair1_player2_name: row.pair1_player2_name ?? null,
+        pair2_player1_name: row.pair2_player1_name ?? null,
+        pair2_player2_name: row.pair2_player2_name ?? null,
+        pair1_player1_country: row.pair1_player1_country ?? null,
+        pair1_player2_country: row.pair1_player2_country ?? null,
+        pair2_player1_country: row.pair2_player1_country ?? null,
+        pair2_player2_country: row.pair2_player2_country ?? null,
       };
       state.matches.set(id, full);
       return {
@@ -397,6 +416,62 @@ describe('findOrCreateMatch', () => {
     expect(m.pair2_player2_id).toBe('p-D');
   });
 
+  it('writes pair*_player*_name and country snapshot columns when caller supplies names without FKs', async () => {
+    // Reproduces FIP Bronze Prishtina ghost matches (2026-05-07): the
+    // live-poller observes a Q1 widget on a tournament where the populator
+    // hasn't created a row yet AND no entry list resolved player FKs. The
+    // poller has the names parsed from the live widget; without a name
+    // pass-through, the inserted row had every pair*_player*_id null AND
+    // every pair*_player*_name null — invisible to the public.matches→
+    // players join, rendered as "TBD / TBD vs TBD / TBD" on the tournament
+    // page. With names written into the snapshot columns,
+    // hydrateThinPlayers on the UI synthesizes thin Player objects so the
+    // row renders properly even without resolved FKs.
+    const state = makeState();
+    const supabase = fakeSupabase(state);
+
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      pair1PlayerNames: ['Lorik Rexhepi', 'Osman Recica'],
+      pair2PlayerNames: ['Atdhe Ibisi', 'Edon Ymeri'],
+      pair1PlayerCountries: ['XK', 'XK'],
+      pair2PlayerCountries: ['XK', 'XK'],
+    });
+
+    expect(result.created).toBe(true);
+    const m = state.matches.get(result.matchId)!;
+    expect(m.pair1_player1_name).toBe('Lorik Rexhepi');
+    expect(m.pair1_player2_name).toBe('Osman Recica');
+    expect(m.pair2_player1_name).toBe('Atdhe Ibisi');
+    expect(m.pair2_player2_name).toBe('Edon Ymeri');
+    expect(m.pair1_player1_country).toBe('XK');
+    expect(m.pair2_player2_country).toBe('XK');
+    // FKs stay null — that's the point: row is "thin" but renderable.
+    expect(m.pair1_player1_id).toBeNull();
+    expect(m.pair2_player2_id).toBeNull();
+  });
+
+  it('refuses to create a ghost row when caller supplies neither FKs nor names', async () => {
+    // Defense-in-depth. The live-poller always has names from the parsed
+    // widget, so this path should never fire in production — but if a
+    // future caller forgets to pass names and the lookup chain misses, we
+    // do NOT want to silently create a row with no identification (that's
+    // exactly what produced the Prishtina ghosts before the names
+    // pass-through landed). Throw so the caller skips the tick.
+    const state = makeState();
+    const supabase = fakeSupabase(state);
+
+    await expect(
+      findOrCreateMatch(supabase as any, {
+        ...BASE_INPUT,
+        // No pair1PlayerIds, no pair1PlayerNames — nothing to identify the row.
+      }),
+    ).rejects.toThrow(/cannot create match/i);
+    // Nothing was inserted.
+    expect(state.matches.size).toBe(0);
+    expect(state.eids.size).toBe(0);
+  });
+
   it('pair-based fallback links a pre-existing draw-only match (no widget id yet)', async () => {
     const state = makeState();
     // Seed a draw-only match: has player UUIDs, no entity_external_ids row
@@ -522,7 +597,13 @@ describe('findOrCreateMatch', () => {
     };
 
     const supabase = fakeSupabase(state);
-    const result = await findOrCreateMatch(supabase as any, BASE_INPUT);
+    // Names supplied so the insert-guard lets us reach the race path —
+    // identical to what the live-poller passes from the parsed widget.
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      pair1PlayerNames: ['Lorik Rexhepi', 'Osman Recica'],
+      pair2PlayerNames: ['Atdhe Ibisi', 'Edon Ymeri'],
+    });
 
     expect(result.matchId).toBe(winnerId);
     expect(result.created).toBe(false);
@@ -753,9 +834,14 @@ describe('findOrCreateMatch', () => {
     const result = await findOrCreateMatch(supabase as any, {
       ...BASE_INPUT,
       court: null,
+      // The insert-guard now requires identification — names from the
+      // parsed live widget are enough. The twin fallback should still be
+      // skipped (court=null) and we fall through to step 5 (INSERT).
+      pair1PlayerNames: ['Lorik Rexhepi', 'Osman Recica'],
+      pair2PlayerNames: ['Atdhe Ibisi', 'Edon Ymeri'],
     });
 
-    // Falls through to step 4 (INSERT) since no court → no twin lookup.
+    // Falls through to step 5 (INSERT) since no court → no twin lookup.
     expect(result.created).toBe(true);
     expect(result.matchId).toBe('new-match-1');
     expect(state.matches.size).toBe(2);

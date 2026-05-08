@@ -44,6 +44,17 @@ export interface MatchIdentifierInput {
   court?: string | null;
   pair1PlayerIds?: [string | null, string | null];
   pair2PlayerIds?: [string | null, string | null];
+  // Optional snapshot names + countries from the parsed live widget.
+  // Written into pair*_player*_name / pair*_player*_country on the
+  // freshly-INSERTed row when the FK couldn't be resolved. The UI's
+  // hydrateThinPlayers helper turns these into synthetic Player
+  // objects so the row renders names instead of "TBD" until a later
+  // run of fip-draw-populator backfills the FKs. Order matches
+  // pair1PlayerIds / pair2PlayerIds.
+  pair1PlayerNames?: [string | null, string | null];
+  pair2PlayerNames?: [string | null, string | null];
+  pair1PlayerCountries?: [string | null, string | null];
+  pair2PlayerCountries?: [string | null, string | null];
 }
 
 export interface MatchIdentifierResult {
@@ -386,12 +397,39 @@ async function findPadelapiTwin(
 
 /**
  * Insert a new `matches` row with the available fields.
- * Player UUIDs may all be null (thin row — draws not processed yet).
+ *
+ * Player UUIDs may all be null (thin row — draws not processed yet),
+ * but in that case we require at least ONE pair*_player*_name to be set.
+ * A row with neither FKs nor names is a "ghost": invisible to the public
+ * matches→players join AND has no fallback strings, so it renders as
+ * "TBD / TBD vs TBD / TBD" on the UI. This guard refuses to create such
+ * rows — callers without identification must skip the tick instead. See
+ * the FIP Bronze Prishtina 2026-05-07 incident in the spec.
  */
 async function insertMatch(
   supabase: SupabaseClient,
   input: MatchIdentifierInput
 ): Promise<string> {
+  const fkValues = [
+    input.pair1PlayerIds?.[0],
+    input.pair1PlayerIds?.[1],
+    input.pair2PlayerIds?.[0],
+    input.pair2PlayerIds?.[1],
+  ];
+  const nameValues = [
+    input.pair1PlayerNames?.[0],
+    input.pair1PlayerNames?.[1],
+    input.pair2PlayerNames?.[0],
+    input.pair2PlayerNames?.[1],
+  ];
+  const hasAnyFk = fkValues.some((v) => v != null);
+  const hasAnyName = nameValues.some((v) => v != null && v !== '');
+  if (!hasAnyFk && !hasAnyName) {
+    throw new Error(
+      `match-identifier: cannot create match with no player FKs and no player names (composite=${buildComposite(input.tournamentWidgetId, input.matchWidgetId)})`
+    );
+  }
+
   const row: Record<string, unknown> = {
     tournament_id: input.tournamentId,
     category: input.category,
@@ -401,6 +439,14 @@ async function insertMatch(
     pair1_player2_id: input.pair1PlayerIds?.[1] ?? null,
     pair2_player1_id: input.pair2PlayerIds?.[0] ?? null,
     pair2_player2_id: input.pair2PlayerIds?.[1] ?? null,
+    pair1_player1_name: input.pair1PlayerNames?.[0] ?? null,
+    pair1_player2_name: input.pair1PlayerNames?.[1] ?? null,
+    pair2_player1_name: input.pair2PlayerNames?.[0] ?? null,
+    pair2_player2_name: input.pair2PlayerNames?.[1] ?? null,
+    pair1_player1_country: input.pair1PlayerCountries?.[0] ?? null,
+    pair1_player2_country: input.pair1PlayerCountries?.[1] ?? null,
+    pair2_player1_country: input.pair2PlayerCountries?.[0] ?? null,
+    pair2_player2_country: input.pair2PlayerCountries?.[1] ?? null,
   };
 
   const { data, error } = await supabase
