@@ -8,6 +8,8 @@
 // (link-premier, backfill-fip-overview). Cleanup of the Vercel
 // duplicate is a follow-up PR.
 
+import { parseScheduleNotes, type RoundSchedule } from './fip-schedule-notes.js';
+
 export interface EventDates {
   startsAt: string | null; // ISO date YYYY-MM-DD
   endsAt: string | null;
@@ -130,6 +132,12 @@ export interface OverviewFields {
   venueAddress: string | null;
   venueType: string | null; // 'covered' | 'outdoor'
   scheduleNotes: string | null;
+  roundSchedule: RoundSchedule; // empty {} when no parse
+}
+
+export interface OverviewContext {
+  startsAt: string | null;
+  endsAt: string | null;
 }
 
 export interface PrizeBreakdown {
@@ -199,7 +207,7 @@ function findOverviewValue(html: string, label: string): string | null {
   return text || null;
 }
 
-export function parseOverviewFields(html: string): OverviewFields {
+export function parseOverviewFields(html: string, ctx?: OverviewContext): OverviewFields {
   const regRe = /overview__title[^>]*>\s*Registration\s+([A-Za-z]+)\s*<\/span>/i;
   const regMatch = regRe.exec(html);
   const registrationStatus = regMatch ? regMatch[1]!.toLowerCase() : null;
@@ -234,6 +242,11 @@ export function parseOverviewFields(html: string): OverviewFields {
         .join('\n') || null;
   }
 
+  const roundSchedule: RoundSchedule =
+    scheduleNotes && ctx?.startsAt && ctx?.endsAt
+      ? parseScheduleNotes(scheduleNotes, ctx.startsAt, ctx.endsAt)
+      : {};
+
   return {
     registrationStatus,
     signupFeeEur,
@@ -241,6 +254,7 @@ export function parseOverviewFields(html: string): OverviewFields {
     venueAddress,
     venueType,
     scheduleNotes,
+    roundSchedule,
   };
 }
 

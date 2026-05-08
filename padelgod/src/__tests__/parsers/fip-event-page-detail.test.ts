@@ -157,6 +157,7 @@ describe('parseOverviewFields', () => {
       venueAddress: null,
       venueType: null,
       scheduleNotes: null,
+      roundSchedule: {},
     });
   });
 });
@@ -252,5 +253,46 @@ describe('parseMatchscorerIds — Singapore fixture (FIP Beyond B3)', () => {
     expect(result!.code).toBe('FIP-2026-B0118');
     expect(result!.widget).toBe('oopbyday');
     expect(result!.totalDays).toBe(4);
+  });
+});
+
+describe('parseOverviewFields — roundSchedule', () => {
+  it('parses round_schedule from Play Order text', () => {
+    // Synthetic overview HTML carrying a Premier-style Play Order block.
+    const html = `
+<span class="overview__title">Play Order:</span>
+<div class="overview__listText">
+MAIN DRAW: SEMI-FINALS<br>
+9 May<br>
+Start time : 2.00 pm<br>
+MAIN DRAW : FINAL<br>
+10 May<br>
+Start time : 4.00 pm
+</div>`;
+    const result = parseOverviewFields(html, { startsAt: '2026-05-03', endsAt: '2026-05-10' });
+    expect(result.roundSchedule).toEqual({
+      sf: '2026-05-09',
+      f: '2026-05-10',
+    });
+  });
+
+  it('returns empty roundSchedule when no schedule notes present', () => {
+    const html = '<div></div>';
+    const result = parseOverviewFields(html, { startsAt: '2026-05-03', endsAt: '2026-05-10' });
+    expect(result.roundSchedule).toEqual({});
+  });
+
+  it('returns empty roundSchedule when context is omitted (backwards-compat)', () => {
+    // Existing callers that pass no context still work — they get an empty
+    // roundSchedule and the rest of the OverviewFields shape unchanged.
+    const html = `
+<span class="overview__title">Play Order:</span>
+<div class="overview__listText">
+MAIN DRAW : FINAL<br>10 May
+</div>`;
+    const result = parseOverviewFields(html);
+    expect(result.roundSchedule).toEqual({});
+    // Other fields unaffected — schedule_notes still parsed (sanity check)
+    expect(result.scheduleNotes).toMatch(/MAIN DRAW/);
   });
 });
