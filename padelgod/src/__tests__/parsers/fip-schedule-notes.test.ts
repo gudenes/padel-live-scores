@@ -29,6 +29,13 @@ describe('resolveDayOfWeek', () => {
     expect(resolveDayOfWeek('sabato', '2026-05-03', '2026-05-10')).toBe('2026-05-09');
     expect(resolveDayOfWeek('samedi', '2026-05-03', '2026-05-10')).toBe('2026-05-09');
   });
+
+  it('Portuguese hyphenated day forms ("quinta-feira") match via the short prefix', () => {
+    // The line regex in parseDayOfWeekLines stops at the hyphen, so the
+    // captured day name is "quinta" — the short form must be in DAY_NAMES.
+    expect(resolveDayOfWeek('quinta', '2026-05-04', '2026-05-10')).toBe('2026-05-07');
+    expect(resolveDayOfWeek('segunda', '2026-05-04', '2026-05-10')).toBe('2026-05-04');
+  });
 });
 
 describe('parseScheduleNotes — Premier structured format', () => {

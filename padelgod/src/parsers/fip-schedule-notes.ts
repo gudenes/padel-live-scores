@@ -16,9 +16,9 @@ const DAY_NAMES: Record<string, number> = {
   sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
   // Spanish
   domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3, jueves: 4, viernes: 5, sabado: 6, sábado: 6,
-  // Portuguese (segunda/terça/etc.; full "segunda-feira" forms also accepted)
-  segunda: 1, 'segunda-feira': 1, terca: 2, terça: 2, 'terca-feira': 2, 'terça-feira': 2,
-  quarta: 3, 'quarta-feira': 3, quinta: 4, 'quinta-feira': 4, sexta: 5, 'sexta-feira': 5,
+  // Portuguese — short forms only; the line regex strips at the hyphen
+  // so "quinta-feira" matches as "quinta" via this entry.
+  segunda: 1, terca: 2, terça: 2, quarta: 3, quinta: 4, sexta: 5,
   // Italian
   domenica: 0, lunedi: 1, lunedì: 1, martedi: 2, martedì: 2, mercoledi: 3, mercoledì: 3,
   giovedi: 4, giovedì: 4, venerdi: 5, venerdì: 5,
@@ -170,6 +170,13 @@ function parseDayOfWeekLines(
  *   1st (round of) Qualy / Q1                → q1   (and q2/q3)
  * Combined phrases ("SF and Finals", "QF and SF", "2nd and 3rd qualy")
  * emit multiple keys.
+ *
+ * Round labels are ENGLISH-ONLY. Real-world FIP overview text uses English
+ * round names even on Spanish/Italian/Portuguese-language tournaments
+ * (e.g. FIP Silver Mediolanum's notes say "Quarterfinals" / "Semifinals
+ * and Finals" despite being an Italian event). The connector set
+ * `(and|y|e|et|&)` IS multilingual to handle hybrid phrasings like
+ * "Semifinales and Finals" — but the round-name vocabulary itself is not.
  *
  * Deliberately NOT mapped: "1st round MD" / "2nd round MD" — ambiguous
  * on draw size (R32 in 32-draw, R16 in 16-draw). See spec §Risks.
