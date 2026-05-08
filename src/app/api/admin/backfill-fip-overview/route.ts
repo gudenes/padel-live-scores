@@ -252,7 +252,10 @@ export async function GET(req: NextRequest) {
         }
 
         try {
-          const pageData = await fetchEventPageData(wpSlug)
+          const pageData = await fetchEventPageData(wpSlug, {
+            startsAt: t.starts_at,
+            endsAt: t.ends_at,
+          })
 
           // Build the update payload. Only include fields the page
           // actually exposed — null values would clobber rows that
@@ -281,6 +284,9 @@ export async function GET(req: NextRequest) {
           if (ov.venueAddress) update.venue_address = ov.venueAddress
           if (ov.venueType) update.venue_type = ov.venueType
           if (ov.scheduleNotes) update.schedule_notes = ov.scheduleNotes
+          if (Object.keys(ov.roundSchedule).length > 0) {
+            update.round_schedule = ov.roundSchedule
+          }
 
           if (pageData.prizeBreakdown) {
             update.prize_breakdown = pageData.prizeBreakdown

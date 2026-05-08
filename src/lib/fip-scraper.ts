@@ -183,6 +183,16 @@ export interface PrizeBreakdown {
  * "overview__title" / "overview__text" pairs at the top of every event
  * page). Everything is optional — the page omits fields freely.
  */
+/** Per-round ISO dates parsed from the "Play Order" overview block. */
+export type RoundKey = 'q1' | 'q2' | 'q3' | 'r64' | 'r32' | 'r16' | 'qf' | 'sf' | 'f'
+export type RoundSchedule = Partial<Record<RoundKey, string>>
+
+/** Tournament date range needed to resolve day-of-week / month references. */
+export interface OverviewContext {
+  startsAt: string | null
+  endsAt: string | null
+}
+
 export interface OverviewFields {
   registrationStatus: string | null   // 'open' | 'closed' | 'upcoming' | …
   signupFeeEur: number | null
@@ -190,6 +200,7 @@ export interface OverviewFields {
   venueAddress: string | null
   venueType: string | null            // 'covered' | 'outdoor' (lowercased)
   scheduleNotes: string | null        // multiline play-order text
+  roundSchedule: RoundSchedule        // empty {} when no parse / no context
 }
 
 export interface ParsedMatch {
@@ -468,6 +479,138 @@ export function parseDrawSizes(html: string): DrawSize {
 }
 
 // ---------------------------------------------------------------------------
+// parseScheduleNotes — convert Play Order text → per-round ISO dates
+// (mirrors padelgod/src/parsers/fip-schedule-notes.ts; keep in sync)
+// ---------------------------------------------------------------------------
+
+const _DAY_NAMES: Record<string, number> = {
+  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+  domingo: 0, lunes: 1, martes: 2, miercoles: 3, miércoles: 3, jueves: 4, viernes: 5, sabado: 6, sábado: 6,
+  segunda: 1, terca: 2, terça: 2, quarta: 3, quinta: 4, sexta: 5,
+  domenica: 0, lunedi: 1, lunedì: 1, martedi: 2, martedì: 2, mercoledi: 3, mercoledì: 3,
+  giovedi: 4, giovedì: 4, venerdi: 5, venerdì: 5,
+  dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6,
+  sabato: 6,
+}
+
+const _MONTHS: Record<string, number> = {
+  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7,
+  august: 8, september: 9, october: 10, november: 11, december: 12,
+  jan: 1, feb: 2, mar: 3, apr: 4, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9,
+  oct: 10, nov: 11, dec: 12,
+}
+
+function _buildIsoDate(year: number, month: number, day: number): string {
+  const y = year + Math.floor((month - 1) / 12)
+  const m = ((month - 1) % 12) + 1
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function _resolveDayOfWeek(dayName: string, startsAt: string, endsAt: string): string | null {
+  const key = dayName.trim().toLowerCase()
+  if (!(key in _DAY_NAMES)) return null
+  const target = _DAY_NAMES[key]
+  const start = new Date(`${startsAt}T00:00:00Z`)
+  const end = new Date(`${endsAt}T00:00:00Z`)
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
+  for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (d.getUTCDay() === target) return d.toISOString().slice(0, 10)
+  }
+  return null
+}
+
+function _resolveDateInRange(day: number, monthName: string, startsAt: string, endsAt: string): string | null {
+  const month = _MONTHS[monthName.toLowerCase()]
+  if (!month || day < 1 || day > 31) return null
+  const startYear = parseInt(startsAt.slice(0, 4), 10)
+  for (const y of [startYear, startYear + 1]) {
+    const iso = `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    if (iso >= startsAt && iso <= endsAt) return iso
+  }
+  return null
+}
+
+function _labelToKey(label: string): RoundKey | null {
+  const u = label.toUpperCase()
+  if (u.includes('ROUND OF 64')) return 'r64'
+  if (u.includes('ROUND OF 32')) return 'r32'
+  if (u.includes('ROUND OF 16')) return 'r16'
+  if (u.includes('QUARTER')) return 'qf'
+  if (u.includes('SEMI')) return 'sf'
+  if (u.includes('FINAL')) return 'f'
+  return null
+}
+
+function _descriptionToKeys(desc: string): RoundKey[] {
+  const keys = new Set<RoundKey>()
+  const lc = desc
+  if (/(?:semi[-\s]?final[s]?|sf)\s*(?:and|y|e|et|&)\s*final[s]?/i.test(lc)) { keys.add('sf'); keys.add('f') }
+  else if (/(?:quarter[-\s]?final[s]?|qf)\s*(?:and|y|e|et|&)\s*(?:semi[-\s]?final[s]?|sf)/i.test(lc)) { keys.add('qf'); keys.add('sf') }
+  else {
+    if (/\b(?:quarter[-\s]?final[s]?|qf|1\/4)\b/i.test(lc)) keys.add('qf')
+    if (/\b(?:semi[-\s]?final[s]?|sf|1\/2)\b/i.test(lc)) keys.add('sf')
+    if (/\b(?:final[s]?|^f$)\b/i.test(lc) && !/(semi|quarter)/i.test(lc)) keys.add('f')
+  }
+  if (/\b(?:1st\s+(?:round\s+)?qual|q1\b|1st\s+qualy\b)/i.test(lc)) keys.add('q1')
+  if (/\b(?:2nd\s+(?:round\s+)?qual|q2\b|2nd\s+qualy\b)/i.test(lc)) keys.add('q2')
+  if (/\b(?:3rd\s+(?:round\s+)?qual|q3\b|3rd\s+qualy\b|final\s+round\s+qual)/i.test(lc)) keys.add('q3')
+  if (/\b2nd\s+and\s+3rd\s+(?:round\s+)?qual/i.test(lc)) { keys.add('q2'); keys.add('q3') }
+  return [...keys]
+}
+
+function _parsePremierBlocks(notes: string, startsAt: string, endsAt: string): RoundSchedule {
+  const out: RoundSchedule = {}
+  const re =
+    /(MAIN DRAW\s*:?\s*(?:ROUND OF 64|ROUND OF 32|ROUND OF 16|QUARTER-FINALS?|SEMI-FINALS?|FINALS?|1st ROUND|2nd ROUND|3rd ROUND))[\s\S]{0,200}?(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b/gi
+  for (const m of notes.matchAll(re)) {
+    const label = m[1]!.toUpperCase()
+    const iso = _resolveDateInRange(parseInt(m[2]!, 10), m[3]!, startsAt, endsAt)
+    if (!iso) continue
+    const key = _labelToKey(label)
+    if (key && !(key in out)) out[key] = iso
+  }
+  const startYear = parseInt(startsAt.slice(0, 4), 10)
+  const startMonth = parseInt(startsAt.slice(5, 7), 10)
+  const qualRe = /\b(Q[123])\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\s+(\d{1,2})\b/gi
+  for (const m of notes.matchAll(qualRe)) {
+    const qKey = m[1]!.toLowerCase() as RoundKey
+    const dayNum = parseInt(m[2]!, 10)
+    for (const iso of [_buildIsoDate(startYear, startMonth, dayNum), _buildIsoDate(startYear, startMonth + 1, dayNum)]) {
+      if (iso >= startsAt && iso <= endsAt) {
+        if (!(qKey in out) || iso < out[qKey]!) out[qKey] = iso
+        break
+      }
+    }
+  }
+  return out
+}
+
+function _parseDayOfWeekLines(notes: string, startsAt: string, endsAt: string): RoundSchedule {
+  const out: RoundSchedule = {}
+  const lineRe = /^[\s*\-•·]*([A-Za-zçéëèêîïôûáàèéíìóòúù]+)\s*(?:[-–—:]+)\s*(.+)$/gm
+  for (const m of notes.matchAll(lineRe)) {
+    const date = _resolveDayOfWeek(m[1]!, startsAt, endsAt)
+    if (!date) continue
+    for (const k of _descriptionToKeys(m[2]!.toLowerCase())) {
+      if (!(k in out) || date < out[k]!) out[k] = date
+    }
+  }
+  return out
+}
+
+function parseScheduleNotes(notes: string | null, startsAt: string, endsAt: string): RoundSchedule {
+  if (!notes) return {}
+  const result: RoundSchedule = {}
+  Object.assign(result, _parsePremierBlocks(notes, startsAt, endsAt))
+  Object.assign(result, _parseDayOfWeekLines(notes, startsAt, endsAt))
+  const finalsMatch = /Date\s+Finals\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(notes)
+  if (finalsMatch) {
+    result.f = `${finalsMatch[3]}-${finalsMatch[2]!.padStart(2, '0')}-${finalsMatch[1]!.padStart(2, '0')}`
+  }
+  return result
+}
+
+// ---------------------------------------------------------------------------
 // parseOverviewFields — extract the labelled overview__title/text pairs
 // ---------------------------------------------------------------------------
 
@@ -504,7 +647,7 @@ function findOverviewValue(html: string, label: string): string | null {
  *   - "Venue" / "Address"
  *   - "Play Order" → multi-line schedule text (kept as-is, line-broken)
  */
-export function parseOverviewFields(html: string): OverviewFields {
+export function parseOverviewFields(html: string, ctx?: OverviewContext): OverviewFields {
   // Registration status — the word IS the label. Match "Registration Open"
   // or "Registration Closed" (and any other word FIP introduces) on the
   // title element itself.
@@ -547,6 +690,11 @@ export function parseOverviewFields(html: string): OverviewFields {
         .join('\n') || null
   }
 
+  const roundSchedule: RoundSchedule =
+    scheduleNotes && ctx?.startsAt && ctx?.endsAt
+      ? parseScheduleNotes(scheduleNotes, ctx.startsAt, ctx.endsAt)
+      : {}
+
   return {
     registrationStatus,
     signupFeeEur,
@@ -554,6 +702,7 @@ export function parseOverviewFields(html: string): OverviewFields {
     venueAddress,
     venueType,
     scheduleNotes,
+    roundSchedule,
   }
 }
 
@@ -574,14 +723,14 @@ export function parseOverviewFields(html: string): OverviewFields {
  * Amounts can be decimals (€ 111.56€) — kept as floating euros.
  * Returns null if nothing matched (page omits the breakdown entirely).
  */
-type RoundKey = 'r32' | 'r16' | 'qf' | 'sf' | 'finalist' | 'winner'
+type _PrizeRoundKey = 'r32' | 'r16' | 'qf' | 'sf' | 'finalist' | 'winner'
 
 export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
   // Each row: capture the round label and the euro amount cell.
   const rowRe =
     /<th[^>]*scope="row"[^>]*>\s*([^<]+?)\s*<\/th>\s*<td[^>]*>\s*€?\s*([0-9][\d.,]*)\s*€?\s*<\/td>/gi
 
-  const rounds: Partial<Record<RoundKey, number>> = {}
+  const rounds: Partial<Record<_PrizeRoundKey, number>> = {}
   let hits = 0
 
   let m: RegExpExecArray | null
@@ -609,7 +758,7 @@ export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
   }
 }
 
-function roundLabelToKey(label: string): RoundKey | null {
+function roundLabelToKey(label: string): _PrizeRoundKey | null {
   // label is already upper-case, single-spaced.
   if (label === 'R32' || label === 'ROUND 32') return 'r32'
   if (label === 'R16' || label === 'ROUND 16') return 'r16'
@@ -947,9 +1096,13 @@ export async function fetchFipEvents(level?: string): Promise<FipTournament[]> {
 
 /**
  * Fetch event page HTML from padelfip.com and extract dates + matchscorer IDs.
+ *
+ * Pass `ctx` (tournament starts_at / ends_at) to enable round_schedule parsing
+ * from the "Play Order" overview block. Without ctx, overview.roundSchedule is {}.
  */
 export async function fetchEventPageData(
-  slug: string
+  slug: string,
+  ctx?: OverviewContext,
 ): Promise<{
   dates: EventDates
   matchscorer: MatchscorerIds | null
@@ -965,11 +1118,19 @@ export async function fetchEventPageData(
   if (!resp.ok) throw new Error(`Failed to fetch event page: ${resp.status} ${url}`)
 
   const html = await resp.text()
+  const dates = parseEventDates(html)
+  // If caller didn't supply context, fall back to the dates we just parsed
+  // from the page itself. This lets the backfill endpoint work even for rows
+  // that didn't already have starts_at/ends_at in the DB.
+  const resolvedCtx: OverviewContext = ctx ?? {
+    startsAt: dates.startsAt,
+    endsAt: dates.endsAt,
+  }
   return {
-    dates: parseEventDates(html),
+    dates,
     matchscorer: parseMatchscorerIds(html),
     drawSize: parseDrawSizes(html),
-    overview: parseOverviewFields(html),
+    overview: parseOverviewFields(html, resolvedCtx),
     prizeBreakdown: parsePrizeBreakdown(html),
   }
 }
