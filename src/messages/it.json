@@ -181,6 +181,10 @@
       "locked": "SCEGLI"
     },
     "lockedTooltip": "Ops! Questa partita è già in corso. Prova a pronosticare una prossima partita.",
+    "loggedOutNudge": {
+      "body": "Accedi per salvare i tuoi pronostici e unirti alla classifica.",
+      "cta": "Accedi"
+    },
     "makeYourPick": "Fai la tua scelta",
     "rewardShown": "Premio mostrato",
     "favored": "{pct}% favorito",
@@ -236,7 +240,18 @@
       "filterWon": "Vinte",
       "filterLost": "Perse",
       "noPicks": "Non hai ancora scelto nessuna partita",
-      "noPicksSub": "Tocca SCEGLI su qualsiasi partita programmata per giocare."
+      "noPicksSub": "Tocca SCEGLI su qualsiasi partita programmata per giocare.",
+      "tabs": {
+        "mine": "I miei pronostici",
+        "season": "Stagione",
+        "tournaments": "Tornei"
+      },
+      "leaderboard": {
+        "emptyTitle": "Nessuno ancora in classifica",
+        "emptyBody": "Pronostica una partita per iniziare a guadagnare guacas.",
+        "errorBody": "Impossibile caricare la classifica. Riprova.",
+        "noTournaments": "Ancora nessun torneo da classificare."
+      }
     }
   },
   "profileMenu": {

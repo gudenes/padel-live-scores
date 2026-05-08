@@ -245,7 +245,18 @@
       "filterWon": "Won",
       "filterLost": "Lost",
       "noPicks": "You haven't picked any matches yet",
-      "noPicksSub": "Tap PICK on any scheduled match to play."
+      "noPicksSub": "Tap PICK on any scheduled match to play.",
+      "tabs": {
+        "mine": "My picks",
+        "season": "Season",
+        "tournaments": "Tournaments"
+      },
+      "leaderboard": {
+        "emptyTitle": "Nobody's on the board yet",
+        "emptyBody": "Predict on any match to start earning guacas.",
+        "errorBody": "Couldn't load the leaderboard. Try again.",
+        "noTournaments": "No tournaments to rank yet."
+      }
     }
   },
   "profileMenu": {

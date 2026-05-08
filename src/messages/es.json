@@ -181,6 +181,10 @@
       "locked": "ELIGE"
     },
     "lockedTooltip": "¡Ups! Este partido ya está en vivo. Prueba a predecir un próximo partido.",
+    "loggedOutNudge": {
+      "body": "Inicia sesión para guardar tus picks y unirte al ranking.",
+      "cta": "Inicia sesión"
+    },
     "makeYourPick": "Haz tu elección",
     "rewardShown": "Recompensa mostrada",
     "favored": "{pct}% favorito",
@@ -236,7 +240,18 @@
       "filterWon": "Ganadas",
       "filterLost": "Perdidas",
       "noPicks": "Aún no has elegido ningún partido",
-      "noPicksSub": "Toca ELIGE en cualquier partido programado para jugar."
+      "noPicksSub": "Toca ELIGE en cualquier partido programado para jugar.",
+      "tabs": {
+        "mine": "Mis picks",
+        "season": "Temporada",
+        "tournaments": "Torneos"
+      },
+      "leaderboard": {
+        "emptyTitle": "Aún no hay nadie en el ranking",
+        "emptyBody": "Haz un pick en cualquier partido para empezar a ganar guacas.",
+        "errorBody": "No se pudo cargar el ranking. Inténtalo de nuevo.",
+        "noTournaments": "Aún no hay torneos para clasificar."
+      }
     }
   },
   "profileMenu": {
