@@ -62,6 +62,11 @@ const nextConfig: NextConfig = {
         hostname: 'www.padelfip.com',
         pathname: '/wp-content/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+        pathname: '/9.x/**',
+      },
     ],
   },
 };
