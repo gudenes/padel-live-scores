@@ -119,3 +119,61 @@ MAIN DRAW : FINAL
     expect(result.f).toBe('2026-05-10');
   });
 });
+
+describe('parseScheduleNotes — day-of-week format', () => {
+  it('resolves combined "SF and Finals MD" to a single Sunday date', () => {
+    const notes = `* Wednesday – 1st round qualification.
+* Thursday – 2nd and 3rd round qualification.
+* Friday – 1st round MD.
+* Saturday – 2nd round and QF MD.
+* Sunday – SF and Finals MD.
+Date Finals: 07/06/2026`;
+    // FIP Bronze Oporto: Wed 3 → Sun 7 June 2026
+    const result = parseScheduleNotes(notes, '2026-06-01', '2026-06-07');
+    // Strategy 2 emits qf for Saturday (Jun 6) and sf+f for Sunday (Jun 7).
+    // Strategy 3's "Date Finals" override (Task 5) keeps f at Jun 7 too.
+    expect(result.qf).toBe('2026-06-06');
+    expect(result.sf).toBe('2026-06-07');
+    expect(result.q1).toBe('2026-06-03'); // Wed
+    expect(result.q2).toBe('2026-06-04'); // Thu
+    expect(result.q3).toBe('2026-06-04'); // Thu (combined "2nd and 3rd")
+  });
+
+  it('handles colon-separated day-of-week format (Italian-style)', () => {
+    const notes = `Tuesday: 1st Qualy
+Wednesday: 2nd and 3rd Qualy
+Thursday: 1st Round Main Draw
+Friday: 2nd Round Main Draw
+Saturday: Quarterfinals
+Sunday: Semifinals and Finals`;
+    // FIP Silver Mediolanum 2026-03-17 → 2026-03-22 (Tue → Sun)
+    const result = parseScheduleNotes(notes, '2026-03-17', '2026-03-22');
+    expect(result.q1).toBe('2026-03-17');
+    expect(result.q2).toBe('2026-03-18');
+    expect(result.q3).toBe('2026-03-18');
+    expect(result.qf).toBe('2026-03-21');
+    expect(result.sf).toBe('2026-03-22');
+  });
+
+  it('handles separate "Quarter Finals" / "Semi Finals" / "Finals" days (FIP Beyond)', () => {
+    const notes = `Beyond 18-39
+– Quarter Finals – 7th, April
+– Semi Finals & Finals – 8th, April`;
+    // Strategy 1 catches "QUARTER FINAL" / "SEMI FINAL" via labelToKey
+    // when followed by a full-month date — this format uses ordinals
+    // ("7th") that the strict regex doesn't match. Day-of-week strategy
+    // doesn't apply (no day name). Should fall through gracefully.
+    // For V1 we accept this is unparsed.
+    const result = parseScheduleNotes(notes, '2026-04-06', '2026-04-08');
+    // Best-effort: nothing here is required to match. No crash, no entries.
+    expect(result.qf ?? null).toBeNull();
+  });
+
+  it('emits nothing when no day matches the tournament range', () => {
+    // Tournament range Wed-Fri but schedule mentions Sunday
+    const notes = '* Sunday – SF and Finals MD.';
+    const result = parseScheduleNotes(notes, '2026-05-04', '2026-05-06');
+    expect(result.sf ?? null).toBeNull();
+    expect(result.f ?? null).toBeNull();
+  });
+});

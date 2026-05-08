@@ -132,13 +132,86 @@ function parsePremierBlocks(
   return out;
 }
 
+/** Strategy 2: day-of-week phrases like "Sunday – SF and Finals MD". */
+function parseDayOfWeekLines(
+  notes: string,
+  startsAt: string,
+  endsAt: string,
+): RoundSchedule {
+  const out: RoundSchedule = {};
+  // Match each line that starts with a day name (after optional bullet
+  // markers like "*", "-", whitespace) and capture the description after
+  // the dash/colon.
+  const lineRe =
+    /^[\s*\-•·]*([A-Za-zçéëèêîïôûáàèéíìóòúù]+)\s*(?:[-–—:]+)\s*(.+)$/gm;
+  for (const m of notes.matchAll(lineRe)) {
+    const dayName = m[1]!;
+    const desc = m[2]!.toLowerCase();
+    const date = resolveDayOfWeek(dayName, startsAt, endsAt);
+    if (!date) continue;
+
+    // Map descriptions to round keys. Combined phrases ("SF and Finals",
+    // "QF and SF", "2nd and 3rd round qualy") emit multiple keys.
+    const keys = descriptionToKeys(desc);
+    for (const k of keys) {
+      // Earliest-wins on conflict (consistent with Q1 men/women rule).
+      if (!(k in out) || date < out[k]!) out[k] = date;
+    }
+  }
+  return out;
+}
+
+/**
+ * Map a free-text description of a tournament day's matches to round keys.
+ * Conservative — only emits keys for unambiguously named rounds.
+ *   Quarterfinals / Quarter Finals / QF      → qf
+ *   Semifinals / Semi Finals / SF            → sf
+ *   Finals / Final / F                       → f
+ *   1st (round of) Qualy / Q1                → q1   (and q2/q3)
+ * Combined phrases ("SF and Finals", "QF and SF", "2nd and 3rd qualy")
+ * emit multiple keys.
+ *
+ * Deliberately NOT mapped: "1st round MD" / "2nd round MD" — ambiguous
+ * on draw size (R32 in 32-draw, R16 in 16-draw). See spec §Risks.
+ */
+function descriptionToKeys(desc: string): RoundKey[] {
+  const keys = new Set<RoundKey>();
+  const lc = desc;
+
+  // Order matters: check combined phrases first.
+  if (/(?:semi[-\s]?final[s]?|sf)\s*(?:and|y|e|et|&)\s*final[s]?/i.test(lc)) {
+    keys.add('sf');
+    keys.add('f');
+  } else if (/(?:quarter[-\s]?final[s]?|qf)\s*(?:and|y|e|et|&)\s*(?:semi[-\s]?final[s]?|sf)/i.test(lc)) {
+    keys.add('qf');
+    keys.add('sf');
+  } else {
+    if (/\b(?:quarter[-\s]?final[s]?|qf|1\/4)\b/i.test(lc)) keys.add('qf');
+    if (/\b(?:semi[-\s]?final[s]?|sf|1\/2)\b/i.test(lc)) keys.add('sf');
+    if (/\b(?:final[s]?|^f$)\b/i.test(lc) && !/(semi|quarter)/i.test(lc)) keys.add('f');
+  }
+
+  // Qualifying — handle "1st round qualification", "2nd and 3rd round qualy", "Q1", etc.
+  // Note: no trailing \b after "qual" prefix — "qual" is a prefix that matches
+  // "qualy", "qualification", etc. Word boundary only at the start.
+  if (/\b(?:1st\s+(?:round\s+)?qual|q1\b|1st\s+qualy\b)/i.test(lc)) keys.add('q1');
+  if (/\b(?:2nd\s+(?:round\s+)?qual|q2\b|2nd\s+qualy\b)/i.test(lc)) keys.add('q2');
+  if (/\b(?:3rd\s+(?:round\s+)?qual|q3\b|3rd\s+qualy\b|final\s+round\s+qual)/i.test(lc)) keys.add('q3');
+  // Combined: "2nd and 3rd round qualification" — emit both
+  if (/\b2nd\s+and\s+3rd\s+(?:round\s+)?qual/i.test(lc)) {
+    keys.add('q2');
+    keys.add('q3');
+  }
+  return [...keys];
+}
+
 /**
  * Parse a tournament's `schedule_notes` into a structured per-round map.
  *
  * Tries three strategies in order, merging results. Later strategies
  * override earlier ones on conflict.
  *   1. Premier "MAIN DRAW : ROUND OF 16" full-name blocks.
- *   2. (Task 4) Day-of-week phrases — "Sunday – SF and Finals MD".
+ *   2. Day-of-week phrases — "Sunday – SF and Finals MD".
  *   3. (Task 5) Final-date override — "Date Finals: 22/03/2026".
  *
  * Pure: no I/O, no DB. Returns {} for null/empty input.
@@ -151,6 +224,8 @@ export function parseScheduleNotes(
   if (!notes) return {};
   const result: RoundSchedule = {};
   Object.assign(result, parsePremierBlocks(notes, startsAt, endsAt));
+  // Strategy 2 wins on conflict per spec.
+  Object.assign(result, parseDayOfWeekLines(notes, startsAt, endsAt));
   return result;
 }
 
