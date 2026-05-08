@@ -5,7 +5,10 @@
 // src/lib/email/welcome.ts. Resend idempotency key prevents duplicate sends
 // on retry.
 
-const HUB_URL = 'https://padelnachos.com/road-to-olympics'
+// Confirmation lands on the API route handler (which sets confirmed_at and
+// then redirects to /road-to-olympics?subscribed=1). The bare hub URL
+// would 404 — there is no /road-to-olympics/subscribe/confirm page route.
+const CONFIRM_URL_BASE = 'https://padelnachos.com/api/road-to-olympics/subscribe/confirm'
 
 export interface SendSubscribeConfirmOpts {
   email: string
@@ -22,7 +25,7 @@ export async function sendSubscribeConfirmEmail(
     return
   }
   const confirmUrl =
-    `${HUB_URL}/subscribe/confirm?token=${encodeURIComponent(opts.confirmToken)}`
+    `${CONFIRM_URL_BASE}?token=${encodeURIComponent(opts.confirmToken)}`
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
