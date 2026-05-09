@@ -15,7 +15,7 @@ export async function generateMetadata() {
   const pageTitle = `${t('title')} — PadelNachos`
   const description = t('intro')
   const heroAlt = tHub('heroImageAlt')
-  const ogImageUrl = 'https://padelnachos.com/road-to-olympics/og/hero.png'
+  const ogImageUrl = 'https://padelnachos.com/road-to-olympics/og/hero.webp'
   return {
     title: pageTitle,
     description,

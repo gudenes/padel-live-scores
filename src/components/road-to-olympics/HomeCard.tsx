@@ -38,7 +38,7 @@ export default function RoadToOlympicsHomeCard() {
       }}
     >
       <Image
-        src="/road-to-olympics/og/hero.png"
+        src="/road-to-olympics/og/hero.webp"
         alt={tHub('heroImageAlt')}
         width={1200}
         height={630}

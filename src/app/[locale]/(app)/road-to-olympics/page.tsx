@@ -40,7 +40,7 @@ export async function generateMetadata() {
   )
   const pageTitle = `${t('heroTitleLine1')} — PadelNachos`
   const heroAlt = t('heroImageAlt')
-  const ogImageUrl = 'https://padelnachos.com/road-to-olympics/og/hero.png'
+  const ogImageUrl = 'https://padelnachos.com/road-to-olympics/og/hero.webp'
   return {
     title: pageTitle,
     description: heroSubtitlePlain,
@@ -145,7 +145,7 @@ export default async function RoadToOlympicsPage() {
       }}>
         <div style={{ position: 'relative', marginBottom: 14, clipPath: CHUNKY.section, overflow: 'hidden' }}>
           <Image
-            src="/road-to-olympics/og/hero.png"
+            src="/road-to-olympics/og/hero.webp"
             alt={t('heroImageAlt')}
             width={1200}
             height={630}
