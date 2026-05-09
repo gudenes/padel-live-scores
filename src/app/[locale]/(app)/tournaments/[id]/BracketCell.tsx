@@ -48,8 +48,10 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
 
   const opacity = highlight === 'dim' ? 0.4 : 1
 
-  // BYE — show the seeded pair walking the bye, with a [BYE] badge so
-  // the user knows who advances unopposed.
+  // BYE — render as a regular two-row match cell so the bracket reads
+  // consistently top-to-bottom: top row = seeded pair (with W badge,
+  // they advance unopposed), bottom row = BYE placeholder. Mirrors how
+  // FIP and ATP/WTA render byes.
   if (node.isBye && !m) {
     const bye = node.byePair
     if (!bye) {
@@ -64,40 +66,55 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
     }
     return (
       <div style={{
-        padding: '7px 10px', marginBottom: 4, background: '#141414',
-        clipPath: CELL_CLIP, opacity, color: '#fff', fontSize: 12,
-        display: 'flex', alignItems: 'center', gap: 8,
+        display: 'block', padding: '7px 10px', marginBottom: 4, background: '#141414',
+        clipPath: CELL_CLIP, opacity, color: '#fff', position: 'relative',
       }}>
-        {/* Stacked flags, matching the regular pair-row treatment. */}
-        <span style={{ position: 'relative', display: 'inline-block', width: 18, height: 16, flexShrink: 0 }}>
-          <span style={{ position: 'absolute', left: 0, top: 0 }}>
-            <FlagImage country={bye.player1.country ?? null} size={11} />
-          </span>
-          <span style={{ position: 'absolute', left: 6, top: 4 }}>
-            <FlagImage country={bye.player2.country ?? null} size={11} />
-          </span>
-        </span>
-        <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {`${toShortName(bye.player1.name ?? '')}/${toShortName(bye.player2.name ?? '')}`}
-          </span>
-          {bye.seed != null && (
-            <span style={{
-              fontSize: 9, color: '#9CA3AF', minWidth: 18, textAlign: 'center',
-              padding: '2px 4px', background: 'rgba(255,255,255,0.04)', fontWeight: 700,
-              flexShrink: 0,
-            }}>
-              {bye.seed}
+        {/* Top row: seeded pair, treated as the winner of this slot. */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '3px 0', fontSize: 12, fontWeight: 700, color: '#fff',
+        }}>
+          <span style={{ position: 'relative', display: 'inline-block', width: 18, height: 16, flexShrink: 0 }}>
+            <span style={{ position: 'absolute', left: 0, top: 0 }}>
+              <FlagImage country={bye.player1.country ?? null} size={11} />
             </span>
-          )}
-        </span>
-        <span style={{
-          fontSize: 9, fontWeight: 800, color: ORANGE, letterSpacing: '0.08em',
-          padding: '2px 6px', background: 'rgba(245,166,35,0.10)',
-          flexShrink: 0,
+            <span style={{ position: 'absolute', left: 6, top: 4 }}>
+              <FlagImage country={bye.player2.country ?? null} size={11} />
+            </span>
+          </span>
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {`${toShortName(bye.player1.name ?? '')}/${toShortName(bye.player2.name ?? '')}`}
+            </span>
+            {bye.seed != null && (
+              <span style={{
+                fontSize: 9, color: '#9CA3AF', minWidth: 18, textAlign: 'center',
+                padding: '2px 4px', background: 'rgba(255,255,255,0.04)', fontWeight: 700,
+                flexShrink: 0,
+              }}>
+                {bye.seed}
+              </span>
+            )}
+          </span>
+          <span style={{
+            width: 14, height: 14, background: GREEN, color: '#000',
+            fontSize: 9, fontWeight: 800, display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            clipPath: 'polygon(3% 5%,97% 0%,100% 95%,0% 100%)',
+          }}>
+            W
+          </span>
+        </div>
+        {/* Divider — same as regular match cells. */}
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '1px 0' }} />
+        {/* Bottom row: BYE placeholder where the opponent would be. */}
+        <div style={{
+          display: 'flex', alignItems: 'center',
+          padding: '3px 0', fontSize: 11, color: MUTED,
+          fontStyle: 'italic', letterSpacing: '0.06em',
         }}>
           {t('byeLabel')}
-        </span>
+        </div>
       </div>
     )
   }
