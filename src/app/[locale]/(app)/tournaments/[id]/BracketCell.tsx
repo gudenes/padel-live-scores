@@ -165,25 +165,32 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair }: PairRowPr
           <FlagImage country={p2?.country ?? null} size={11} />
         </span>
       </span>
-      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {pairLabel(match, side)}
+      {/* Name + seed + marker stay glued together so the seed reads as
+          part of the team identity, not as a column-aligned chip on the
+          right. The whole group flexes; the inner name truncates. */}
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {pairLabel(match, side)}
+        </span>
+        {seed != null && (
+          <span style={{
+            fontSize: 9, color: '#9CA3AF', minWidth: 18, textAlign: 'center',
+            padding: '2px 4px', background: 'rgba(255,255,255,0.04)', fontWeight: 700,
+            flexShrink: 0,
+          }}>
+            {seed}
+          </span>
+        )}
+        {marker && (
+          <span style={{
+            fontSize: 9, color: ORANGE, minWidth: 22, textAlign: 'center',
+            padding: '2px 4px', background: 'rgba(245,166,35,0.10)', fontWeight: 700,
+            flexShrink: 0,
+          }}>
+            {marker}
+          </span>
+        )}
       </span>
-      {seed != null && (
-        <span style={{
-          fontSize: 9, color: '#9CA3AF', minWidth: 18, textAlign: 'center',
-          padding: '2px 4px', background: 'rgba(255,255,255,0.04)', fontWeight: 700,
-        }}>
-          {seed}
-        </span>
-      )}
-      {marker && (
-        <span style={{
-          fontSize: 9, color: ORANGE, minWidth: 22, textAlign: 'center',
-          padding: '2px 4px', background: 'rgba(245,166,35,0.10)', fontWeight: 700,
-        }}>
-          {marker}
-        </span>
-      )}
       {isWinner && (
         <span style={{
           width: 14, height: 14, background: GREEN, color: '#000',
