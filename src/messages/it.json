@@ -1110,6 +1110,29 @@
       "stanceBody": "Sosteniamo l'inclusione del padel nei Giochi Olimpici. Non fingiamo di essere un mezzo di giornalismo neutrale — il pregiudizio sull'esito va bene, la sciatteria sui fatti no.",
       "rules": "Regole di sourcing",
       "rulesBody": "Ogni contatore sul tracker è collegato a una fonte primaria. Quando la FIP lo dice, colleghiamo alla FIP. Quando voci critiche si oppongono, vanno nella scheda Osservati speciali — non vengono silenziosamente eliminate."
+    },
+    "corrections": {
+      "cardTitle": "Vedi qualcosa di sbagliato? Hai informazioni da aggiungere?",
+      "cardBody": "Tracciamo questo con onestà — ma siamo un team piccolo e a volte ci sfugge qualcosa. Mandaci una nota veloce e correggiamo.",
+      "cardCta": "Invia messaggio",
+      "modalTitle": "Inviaci un messaggio",
+      "modalIntro": "Hai notato un errore fattuale, hai nuove informazioni o vuoi condividere un'idea? Leggiamo ogni messaggio.",
+      "fieldType": "Di cosa si tratta?",
+      "type_correction": "Correzione",
+      "type_information": "Nuove info",
+      "type_other": "Altro",
+      "fieldName": "Il tuo nome (opzionale)",
+      "fieldEmail": "Email (per poterti rispondere)",
+      "fieldMessage": "Messaggio",
+      "submit": "Invia",
+      "submitting": "Invio in corso…",
+      "successTitle": "Ricevuto.",
+      "successBody": "Grazie per la nota — leggiamo ogni messaggio e ti risponderemo se richiede risposta.",
+      "error_invalid_email": "Quell'email non sembra corretta. Riprova?",
+      "error_message_too_short": "Dacci qualche dettaglio in più — almeno 5 caratteri.",
+      "error_rate_limited": "Hai già inviato alcuni messaggi. Riprova tra un'ora.",
+      "error_server_error": "Qualcosa è andato storto da parte nostra. Riprova tra un momento?",
+      "error_email_disabled": "I messaggi sono temporaneamente disabilitati. Scrivici direttamente a hello@padelnachos.com."
     }
   }
 }

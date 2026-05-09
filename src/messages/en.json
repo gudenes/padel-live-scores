@@ -1131,6 +1131,29 @@
       "stanceBody": "We support padel's inclusion in the Olympic Games. We're not pretending to be a neutral journalism outlet — bias on the outcome is fine, sloppy on the facts is not.",
       "rules": "Sourcing rules",
       "rulesBody": "Every counter on the tracker is linked to a primary source. When FIP says it, we link to FIP. When critical voices push back, they go in the Watchlist tab — not silently dropped."
+    },
+    "corrections": {
+      "cardTitle": "See something wrong? Have info to add?",
+      "cardBody": "We track this honestly — but we're a small team and we miss things. Send us a quick note and we'll fix it.",
+      "cardCta": "Send a message",
+      "modalTitle": "Send us a message",
+      "modalIntro": "Spotted a factual error, have new information, or just want to share a thought? We read every message.",
+      "fieldType": "What's this about?",
+      "type_correction": "Correction",
+      "type_information": "New info",
+      "type_other": "Other",
+      "fieldName": "Your name (optional)",
+      "fieldEmail": "Email (so we can reply)",
+      "fieldMessage": "Message",
+      "submit": "Send",
+      "submitting": "Sending…",
+      "successTitle": "Got it.",
+      "successBody": "Thanks for the note — we read every message and we'll get back to you if it needs a reply.",
+      "error_invalid_email": "That email doesn't look right. Try again?",
+      "error_message_too_short": "Tell us a little more — at least 5 characters.",
+      "error_rate_limited": "You've sent a few messages already. Try again in an hour.",
+      "error_server_error": "Something went wrong on our side. Try again in a moment?",
+      "error_email_disabled": "Messaging is temporarily off. Email hello@padelnachos.com directly."
     }
   }
 }

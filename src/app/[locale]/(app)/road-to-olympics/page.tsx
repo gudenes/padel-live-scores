@@ -13,6 +13,7 @@ import CriteriaScorecard from '@/components/road-to-olympics/CriteriaScorecard'
 import BeatsFeed from '@/components/road-to-olympics/BeatsFeed'
 import DecisionMakersDossier from '@/components/road-to-olympics/DecisionMakersDossier'
 import ActionHub from '@/components/road-to-olympics/ActionHub'
+import CorrectionsCTA from '@/components/road-to-olympics/CorrectionsCTA'
 import DisclosureFooter from '@/components/road-to-olympics/DisclosureFooter'
 import Term from '@/components/road-to-olympics/Term'
 import { SectionTitle } from '@/components/home/shared'
@@ -182,6 +183,7 @@ export default async function RoadToOlympicsPage() {
 
         <SectionTitle>{t('actionsTitle')}</SectionTitle>
         <ActionHub tweetIntentUrl={tweetIntentUrl} daysUntil={daysUntil} />
+        <CorrectionsCTA />
         <DisclosureFooter />
       </main>
     </>

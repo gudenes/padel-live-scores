@@ -1110,6 +1110,29 @@
       "stanceBody": "On soutient l'inclusion du padel aux Jeux Olympiques. On ne prétend pas être une source d'information neutre — avoir un parti pris sur le résultat, c'est acceptable, être imprécis sur les faits, ça ne l'est pas.",
       "rules": "Règles de sourçage",
       "rulesBody": "Chaque chiffre du tracker est lié à une source primaire. Quand la FIP le dit, on le linke vers la FIP. Quand les voix critiques se font entendre, elles vont dans l'onglet À suivre — pas silencieusement ignorées."
+    },
+    "corrections": {
+      "cardTitle": "Vous voyez quelque chose qui cloche ? Vous avez des infos à ajouter ?",
+      "cardBody": "Nous suivons cela honnêtement — mais nous sommes une petite équipe et parfois quelque chose nous échappe. Envoyez-nous une note rapide et nous corrigerons.",
+      "cardCta": "Envoyer un message",
+      "modalTitle": "Envoyez-nous un message",
+      "modalIntro": "Vous avez repéré une erreur factuelle, vous avez de nouvelles informations, ou vous voulez partager une idée ? Nous lisons chaque message.",
+      "fieldType": "De quoi s'agit-il ?",
+      "type_correction": "Correction",
+      "type_information": "Nouvelle info",
+      "type_other": "Autre",
+      "fieldName": "Votre nom (optionnel)",
+      "fieldEmail": "Email (pour qu'on puisse répondre)",
+      "fieldMessage": "Message",
+      "submit": "Envoyer",
+      "submitting": "Envoi en cours…",
+      "successTitle": "Bien reçu.",
+      "successBody": "Merci pour la note — nous lisons chaque message et nous répondrons s'il appelle une réponse.",
+      "error_invalid_email": "Cet email ne semble pas correct. Vous réessayez ?",
+      "error_message_too_short": "Dites-nous-en un peu plus — au moins 5 caractères.",
+      "error_rate_limited": "Vous avez déjà envoyé quelques messages. Réessayez dans une heure.",
+      "error_server_error": "Quelque chose s'est mal passé de notre côté. Vous réessayez dans un moment ?",
+      "error_email_disabled": "Les messages sont temporairement désactivés. Écrivez-nous directement à hello@padelnachos.com."
     }
   }
 }
