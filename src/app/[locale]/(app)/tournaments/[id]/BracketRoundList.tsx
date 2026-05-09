@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import BracketCell from './BracketCell'
 import type { BracketNode, RoundCode, PairPath } from './bracket-builder'
 import { ROUND_ORDER, ROUND_SLOTS, pairKeyFor } from './bracket-builder'
@@ -64,6 +64,46 @@ export default function BracketRoundList({
     if (!firstRound) return 0
     return ROUND_SLOTS[firstRound] * CELL_SLOT_PX
   }, [rounds])
+
+  // Measured cell centers, keyed by round → array indexed by
+  // positionInRound. We can't use the (2k+0.5)/N percentage math for
+  // connector endpoints because cells are intrinsically taller than
+  // the per-cell slot we allocate (CELL_SLOT_PX is chosen for a dense
+  // visual, but actual cells render ~68-69px tall with two pair rows
+  // + scheduled time + padding). When cells overflow their slots,
+  // `space-around` can't distribute them evenly and they stack tightly
+  // — leaving the percentage-based connector endpoints pointing at
+  // empty space. Measuring after layout fixes this without forcing
+  // cells into a slot they don't fit in.
+  const [cellCenters, setCellCenters] = useState<Map<RoundCode, number[]>>(new Map())
+  // Use bracket.length as a dep proxy — the bracket object identity
+  // changes every render but the structure (cell count per round) only
+  // changes when the underlying tournament data changes. Measuring on
+  // mount and on data changes is enough; we don't need to re-measure
+  // on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const next = new Map<RoundCode, number[]>()
+    let changed = false
+    for (const r of rounds) {
+      const col = columnRefs.current.get(r)
+      if (!col) continue
+      const colTop = col.getBoundingClientRect().top
+      const arr: number[] = []
+      for (const c of col.querySelectorAll('[data-pos]')) {
+        const pos = parseInt((c as HTMLElement).dataset.pos ?? '', 10)
+        if (Number.isNaN(pos)) continue
+        const cr = (c as HTMLElement).getBoundingClientRect()
+        arr[pos] = cr.top - colTop + cr.height / 2
+      }
+      next.set(r, arr)
+      const prev = cellCenters.get(r)
+      if (!prev || prev.length !== arr.length || prev.some((v, i) => v !== arr[i])) {
+        changed = true
+      }
+    }
+    if (changed || next.size !== cellCenters.size) setCellCenters(next)
+  }, [bracket.length, rounds.join(',')])
 
   // One ref per round column so chip-clicks can scrollIntoView and the
   // observer can attach. Stable across renders.
@@ -324,20 +364,31 @@ export default function BracketRoundList({
                   style={{
                     position: 'absolute',
                     right: -CONNECTOR_PX,
-                    // Match the cells-area which starts below the label
-                    // band, so connector Y math (which uses
-                    // (2k+0.5)/N * height) hits cell centers exactly.
-                    top: LABEL_PX,
-                    width: CONNECTOR_PX, height: bracketHeight,
+                    // Span the FULL column (label band included) so the
+                    // SVG coordinate system matches the column's own
+                    // coordinate system. Connector y values come from
+                    // measured cell centers in column-local coords.
+                    top: 0,
+                    width: CONNECTOR_PX,
+                    height: bracketHeight + LABEL_PX,
+                    overflow: 'visible',
                     pointerEvents: 'none',
                   }}
-                  viewBox={`0 0 ${CONNECTOR_PX} ${bracketHeight}`}
+                  viewBox={`0 0 ${CONNECTOR_PX} ${bracketHeight + LABEL_PX}`}
                   preserveAspectRatio="none"
                 >
                   {Array.from({ length: nextN }).map((_, j) => {
-                    const yTop = ((2 * j + 0.5) / N) * bracketHeight
-                    const yBot = ((2 * j + 1.5) / N) * bracketHeight
-                    const yMid = ((2 * j + 1) / N) * bracketHeight
+                    const sourcePositions = cellCenters.get(r)
+                    const dstPositions = cellCenters.get(rounds[ri + 1])
+                    // Prefer measured positions; fall back to even
+                    // distribution if the measurement hasn't run yet
+                    // (first paint before useLayoutEffect commits).
+                    const fallbackTop = ((2 * j + 0.5) / N) * bracketHeight + LABEL_PX
+                    const fallbackBot = ((2 * j + 1.5) / N) * bracketHeight + LABEL_PX
+                    const fallbackMid = ((2 * j + 1) / N) * bracketHeight + LABEL_PX
+                    const yTop = sourcePositions?.[2 * j] ?? fallbackTop
+                    const yBot = sourcePositions?.[2 * j + 1] ?? fallbackBot
+                    const yMid = dstPositions?.[j] ?? fallbackMid
                     const xMid = CONNECTOR_PX / 2
                     const topNode = cells.find(c => c.positionInRound === 2 * j) ?? null
                     const botNode = cells.find(c => c.positionInRound === 2 * j + 1) ?? null
