@@ -272,18 +272,23 @@ export default function BracketRoundList({
                 flexShrink: 0,
                 width: '88%',
                 scrollSnapAlign: 'start',
-                height: bracketHeight,
+                // Total column height = bracket cells height + label
+                // band, so the label gets its own breathing room above
+                // the first cell instead of overlapping it.
+                height: bracketHeight + LABEL_PX,
+                paddingTop: LABEL_PX,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-around',
                 position: 'relative',
               }}
             >
-              {/* Tiny round label pinned to the top of the column for
-                  orientation when scrolling. */}
+              {/* Round label pinned to the top of the column. Lives in
+                  the column's padding-top band so it doesn't squeeze
+                  the first cell. */}
               <div style={{
-                position: 'absolute', top: 0, left: 2,
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                position: 'absolute', top: 4, left: 2,
+                fontSize: 10, fontWeight: 800, letterSpacing: '0.08em',
                 color: MUTED, textTransform: 'uppercase',
               }}>
                 {r}
@@ -318,7 +323,11 @@ export default function BracketRoundList({
                 <svg
                   style={{
                     position: 'absolute',
-                    right: -CONNECTOR_PX, top: 0,
+                    right: -CONNECTOR_PX,
+                    // Match the cells-area which starts below the label
+                    // band, so connector Y math (which uses
+                    // (2k+0.5)/N * height) hits cell centers exactly.
+                    top: LABEL_PX,
                     width: CONNECTOR_PX, height: bracketHeight,
                     pointerEvents: 'none',
                   }}

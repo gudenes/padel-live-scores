@@ -71,8 +71,12 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
     }
     return (
       <div style={{
-        display: 'block', padding: '7px 10px', marginBottom: 4, background: '#141414',
-        clipPath: CELL_CLIP, opacity, color: '#fff', position: 'relative',
+        display: 'block', padding: '7px 10px', marginBottom: 4,
+        // Use the same highlight treatment as a regular match cell so
+        // the bye gets the green border + glow when the seeded pair is
+        // the tracked pair.
+        background: bg,
+        clipPath: CELL_CLIP, boxShadow, opacity, color: '#fff', position: 'relative',
       }}>
         {/* Top row: seeded pair, treated as the winner of this slot. */}
         <div style={{

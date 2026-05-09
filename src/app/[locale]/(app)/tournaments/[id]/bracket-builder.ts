@@ -240,21 +240,34 @@ export function tracePairPath(
   const nodes: BracketNode[] = []
   for (const node of bracket) {
     const m = node.match
-    if (!m) continue
-    const p1Key = m.pair1_player1?.id && m.pair1_player2?.id
-      ? pairKeyFor(m.pair1_player1.id, m.pair1_player2.id)
-      : null
-    const p2Key = m.pair2_player1?.id && m.pair2_player2?.id
-      ? pairKeyFor(m.pair2_player1.id, m.pair2_player2.id)
-      : null
-    if (p1Key === pairKey || p2Key === pairKey) {
-      nodes.push(node)
+    if (m) {
+      const p1Key = m.pair1_player1?.id && m.pair1_player2?.id
+        ? pairKeyFor(m.pair1_player1.id, m.pair1_player2.id)
+        : null
+      const p2Key = m.pair2_player1?.id && m.pair2_player2?.id
+        ? pairKeyFor(m.pair2_player1.id, m.pair2_player2.id)
+        : null
+      if (p1Key === pairKey || p2Key === pairKey) {
+        nodes.push(node)
+      }
+    } else if (node.isBye && node.byePair) {
+      // The bye slot is a "match" the seeded pair won unopposed — count
+      // it on the tracked path so the UI highlights it like any other
+      // round the pair walked through.
+      const byeKey = pairKeyFor(node.byePair.player1.id, node.byePair.player2.id)
+      if (byeKey === pairKey) {
+        nodes.push(node)
+      }
     }
   }
 
   if (nodes.length === 0) return { nodes: [], eliminatedAt: null }
 
   const last = nodes[nodes.length - 1]
+  // Bye nodes don't have a real match — but they always represent the
+  // seed advancing unopposed, so treat the last node like a "win" and
+  // wait to see if a later round shows the pair.
+  if (last.isBye) return { nodes, eliminatedAt: null }
   const m = last.match!
   const wonLast =
     m.winner_pair === 1
