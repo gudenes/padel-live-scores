@@ -253,6 +253,7 @@ Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and do
 | `/api/cron/premier-stats` | Hourly at :13 | Sync per-set stats from Premier Padel API |
 | `/api/cron/social-drafts` | Mon 8am UTC | Generate social media post drafts via Claude API → `social_posts` table |
 | `/api/cron/oop-monitor` | Every 2h at :30 | Monitor Order of Play changes on matchscorerlive.com for active tournaments |
+| `/api/cron/recompute-earnings` | Mon 6am UTC | Recompute `player_tournament_earnings` for tournaments ended in last 30 days. Idempotent UPSERT — only changed values get touched. For full backfills (rulebook changes, schema migration) run `scripts/backfill-player-earnings.ts --apply` instead. |
 
 ## Padelgod Workers (Railway)
 

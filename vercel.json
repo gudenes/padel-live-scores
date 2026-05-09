@@ -63,6 +63,10 @@
     {
       "path": "/api/cron/resolve-predictions",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/recompute-earnings",
+      "schedule": "0 6 * * 1"
     }
   ]
 }
