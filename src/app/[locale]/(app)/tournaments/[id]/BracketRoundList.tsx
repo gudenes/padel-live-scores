@@ -163,13 +163,28 @@ export default function BracketRoundList({
     const cellEl = colEl.querySelector(`[data-pos="${trackedNode.positionInRound}"]`)
     if (!(cellEl instanceof HTMLElement)) return
     // Defer a tick so the horizontal smooth-scroll has settled and the
-    // sticky header is in its final position; otherwise `block: center`
-    // computes against an in-flight viewport.
+    // sticky header is in its final position; otherwise the centering
+    // math computes against an in-flight viewport.
     const t = window.setTimeout(() => {
-      cellEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+      // We can't use scrollIntoView({ block: 'center' }) because it
+      // centers the cell in the SCROLL CONTAINER's full viewport — but
+      // our sticky page header + pill + chip strip eat ~150px of that,
+      // so the cell ends up visually too high. Compute the target
+      // manually: center the cell in the AVAILABLE area (container
+      // viewport minus sticky-header heights).
+      const scrollAncestor = findScrollAncestor(cellEl)
+      if (!scrollAncestor) return
+      const myHeaderHeight = stickyHeaderRef.current?.getBoundingClientRect().height ?? 0
+      const totalSticky = stickyTop + myHeaderHeight
+      const containerRect = scrollAncestor.getBoundingClientRect()
+      const cellRect = cellEl.getBoundingClientRect()
+      const availableHeight = scrollAncestor.clientHeight - totalSticky
+      const desiredCellTop = containerRect.top + totalSticky + (availableHeight - cellRect.height) / 2
+      const delta = cellRect.top - desiredCellTop
+      scrollAncestor.scrollTo({ top: scrollAncestor.scrollTop + delta, behavior: 'smooth' })
     }, needsHScroll ? 350 : 0)
     return () => window.clearTimeout(t)
-  }, [activeRound, trackedPairKey, trackedPath])
+  }, [activeRound, trackedPairKey, trackedPath, stickyTop])
 
   return (
     <>
@@ -296,6 +311,7 @@ export default function BracketRoundList({
                       onTrackPair={onTrackPair}
                       pairKey={pairKeyFor}
                       markersByPair={markersByPair}
+                      trackedPairKey={trackedPairKey}
                     />
                   </div>
                 )
@@ -376,5 +392,20 @@ export default function BracketRoundList({
       </div>
     </>
   )
+}
+
+/**
+ * Walk up from `el` to find the nearest ancestor with a vertical scroll.
+ * Falls back to `document.scrollingElement` (the page's root scroll
+ * container) when nothing in the chain has overflow:auto/scroll.
+ */
+function findScrollAncestor(el: Element): HTMLElement | null {
+  let cur: HTMLElement | null = el.parentElement
+  while (cur) {
+    const cs = getComputedStyle(cur)
+    if (cs.overflowY === 'auto' || cs.overflowY === 'scroll') return cur
+    cur = cur.parentElement
+  }
+  return (document.scrollingElement ?? document.documentElement) as HTMLElement
 }
 

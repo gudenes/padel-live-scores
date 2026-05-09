@@ -23,9 +23,13 @@ type Props = {
   /** Map from pairKey → 'Q' | 'WC' | 'LL'. Markers persist across rounds because
    *  they describe how a pair entered the draw, not which cell they're in. */
   markersByPair: Map<string, 'Q' | 'WC' | 'LL'>
+  /** When the cell contains the tracked pair, this is the pair's key.
+   *  Used by PairRow to highlight the SPECIFIC row (top or bottom) the
+   *  user is following — and dim the opponent row in the same cell. */
+  trackedPairKey: string | null
 }
 
-export default function BracketCell({ node, highlight, onTrackPair, pairKey, markersByPair }: Props) {
+export default function BracketCell({ node, highlight, onTrackPair, pairKey, markersByPair, trackedPairKey }: Props) {
   const t = useTranslations('draw')
   const format = useFormatter()
   const m = node.match
@@ -149,9 +153,9 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
         opacity, color: '#fff', position: 'relative',
       }}
     >
-      <PairRow match={m} side={1} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} />
+      <PairRow match={m} side={1} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} trackedPairKey={trackedPairKey} />
       <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '1px 0' }} />
-      <PairRow match={m} side={2} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} />
+      <PairRow match={m} side={2} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} trackedPairKey={trackedPairKey} />
       {m.status === 'scheduled' && m.scheduled_at && (
         <div style={{ color: MUTED, fontStyle: 'italic', fontSize: 10, padding: '1px 0 0' }}>
           {format.dateTime(new Date(m.scheduled_at), TIME_24H)}
@@ -169,9 +173,10 @@ type PairRowProps = {
   onTrackPair: (pairKey: string) => void
   pairKey: (a: string, b: string) => string
   markersByPair: Map<string, 'Q' | 'WC' | 'LL'>
+  trackedPairKey: string | null
 }
 
-function PairRow({ match, side, onTrackPair, pairKey, markersByPair }: PairRowProps) {
+function PairRow({ match, side, onTrackPair, pairKey, markersByPair, trackedPairKey }: PairRowProps) {
   const p1 = side === 1 ? match.pair1_player1 : match.pair2_player1
   const p2 = side === 1 ? match.pair1_player2 : match.pair2_player2
   const seed = side === 1 ? match.pair1_seed : match.pair2_seed
@@ -186,7 +191,25 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair }: PairRowPr
     return games == null ? '' : String(games)
   }
 
-  const marker = p1?.id && p2?.id ? markersByPair.get(pairKey(p1.id, p2.id)) ?? null : null
+  const ownPairKey = p1?.id && p2?.id ? pairKey(p1.id, p2.id) : null
+  const marker = ownPairKey ? markersByPair.get(ownPairKey) ?? null : null
+  // Spotlight logic: when SOME pair is being tracked AND it sits on
+  // this cell, exactly one row is the tracked pair and the other is
+  // the opponent. We light up the tracked row (slim green left bar +
+  // green tint behind name) and dim the opponent so the user sees
+  // which specific team they tapped on.
+  const isThisRowTracked = trackedPairKey != null && ownPairKey === trackedPairKey
+  const isOpponentRow = trackedPairKey != null
+    && ownPairKey !== trackedPairKey
+    // …but only when the tracked pair is actually IN this match.
+    && (
+      (() => {
+        const otherP1 = side === 1 ? match.pair2_player1 : match.pair1_player1
+        const otherP2 = side === 1 ? match.pair2_player2 : match.pair1_player2
+        if (!otherP1?.id || !otherP2?.id) return false
+        return pairKey(otherP1.id, otherP2.id) === trackedPairKey
+      })()
+    )
 
   const onClick: React.MouseEventHandler = e => {
     e.preventDefault()
@@ -201,10 +224,19 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair }: PairRowPr
       tabIndex={0}
       style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        padding: '3px 0', fontSize: 12,
-        fontWeight: isWinner ? 700 : 400,
-        color: isLoser ? MUTED : '#fff',
+        padding: '3px 0 3px 6px', fontSize: 12,
+        fontWeight: isThisRowTracked ? 800 : isWinner ? 700 : 400,
+        color: isOpponentRow ? MUTED : isLoser ? MUTED : '#fff',
+        opacity: isOpponentRow ? 0.5 : 1,
         cursor: 'pointer',
+        // Slim green accent + faint background when this row is the
+        // tracked pair. Sits inside the cell's existing highlight
+        // ribbon so the spotlight nests visually.
+        boxShadow: isThisRowTracked ? `inset 3px 0 0 ${GREEN}` : 'none',
+        background: isThisRowTracked
+          ? 'linear-gradient(90deg, rgba(126,211,33,0.18), rgba(126,211,33,0))'
+          : 'transparent',
+        transition: 'opacity 120ms ease',
       }}
     >
       {isLive && side === 1 && (
