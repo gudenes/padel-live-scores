@@ -63,6 +63,7 @@ export function buildPlayerProfileUpdate(
     if (parsed.birthDate) updates.birthdate = parsed.birthDate;
     if (parsed.birthPlace) updates.birthplace = parsed.birthPlace;
     if (parsed.heightCm) updates.height = parsed.heightCm;
+    if (parsed.side) updates.side = parsed.side;
     // Coaches: ALWAYS overwrite (even with empty array) so stale names from a
     // previous sync don't linger when a player switches coaches. The FIP page
     // is the source of truth — if the parser returns [] today, the player

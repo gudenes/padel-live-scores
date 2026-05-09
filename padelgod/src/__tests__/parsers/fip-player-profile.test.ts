@@ -144,6 +144,36 @@ describe('parseFipPlayerProfile', () => {
     expect(parseFipPlayerProfile(html).heightCm).toBe(180);
   });
 
+  it("extracts side ('Playing Position') from JSON-LD description", () => {
+    const html = `<script type="application/ld+json">{
+      "@context": "https://schema.org",
+      "@graph": [{
+        "@type": ["WebPage", "ProfilePage"],
+        "mainEntity": {
+          "@type": "Person",
+          "description": "Maximiliano Arce Simo - Points: 1319; Ranking: 45; Personal Informations: Height: 1.75; Place of Birth: Salta; Birth Date: 27/01/1998; Playing Position: Right;"
+        }
+      }]
+    }</script>`;
+    expect(parseFipPlayerProfile(html).side).toBe('Right');
+  });
+
+  it("extracts side from HTML overview when JSON-LD doesn't have it", () => {
+    const html = `
+      <html><body>
+        <div class="overview__mirror overview__mirror--half">
+          <span class="overview__title">Playing Position</span>
+          <p class="overview__text">Left</p>
+        </div>
+      </body></html>
+    `;
+    expect(parseFipPlayerProfile(html).side).toBe('Left');
+  });
+
+  it('returns null side when neither source has it', () => {
+    expect(parseFipPlayerProfile('<html><body></body></html>').side).toBeNull();
+  });
+
   it('rejects garbage height values', () => {
     expect(parseFipPlayerProfile(
       `<script type="application/ld+json">{"@type":"Person","height":"unknown"}</script>`
