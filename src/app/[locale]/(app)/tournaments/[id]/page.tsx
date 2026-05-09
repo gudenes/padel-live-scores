@@ -586,29 +586,22 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // ── Gender accent color ───────────────────────────────────────
   const genderColor = genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE
 
-  // Draw-tab gating: tier check + ≥80% of canonical-round matches are main draw.
-  // Denominator is matches with round_canonical SET (any value including
-  // Q1/Q2/Q3) — NOT all matches with `round` populated. Otherwise tournaments
-  // with qualifying rounds in the DB skew the ratio below 80% even when
-  // the main draw is fully populated.
+  // Draw-tab gating: tier check only. The Draw tab itself handles its
+  // own empty states — when no main-draw matches exist it shows "Main
+  // draw not yet released" (Asuncion P2 with only Q1 round_canonical),
+  // and when partial data exists the bracket builder renders placeholder
+  // slots for missing matches.
+  //
+  // (An earlier version of this gate did a "≥80% completeness" check
+  // against round_canonical, but the denominator naturally included
+  // qualifying rounds and pushed the ratio below threshold for
+  // tournaments with full main-draw data — Kuala Lumpur 31/51 = 61%.
+  // Just trust the tier and let the tab render; the empty states cover
+  // the rest.)
   const showDrawTab = useMemo(() => {
     if (!activeTournamentObj) return false
-    if (!DRAW_TIERS.has(activeTournamentObj.level ?? '')) return false
-    const mainDrawMatches = allMatches.filter(m =>
-      (m as any).category === genderFilter &&
-      ['R64', 'R32', 'R16', 'QF', 'SF', 'F'].includes((m as any).round_canonical ?? ''),
-    )
-    if (mainDrawMatches.length === 0) {
-      // No main-draw matches yet — show the tab anyway (we display a "draw not released" empty state)
-      return true
-    }
-    const allCanonical = allMatches.filter(m =>
-      (m as any).category === genderFilter && (m as any).round_canonical != null,
-    )
-    if (allCanonical.length === 0) return true
-    const completeness = mainDrawMatches.length / allCanonical.length
-    return completeness >= 0.8
-  }, [activeTournamentObj, allMatches, genderFilter])
+    return DRAW_TIERS.has(activeTournamentObj.level ?? '')
+  }, [activeTournamentObj])
 
   // ══════════════════════════════════════════════════════════════
   // ── RENDER ────────────────────────────────────────────────────
