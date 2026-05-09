@@ -11,9 +11,31 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata() {
   const t = await getTranslations('roadToOlympics.why')
+  const tHub = await getTranslations('roadToOlympics')
+  const pageTitle = `${t('title')} — PadelNachos`
+  const description = t('intro')
+  const heroAlt = tHub('heroImageAlt')
+  const ogImageUrl = 'https://padelnachos.com/road-to-olympics/og/hero.png'
   return {
-    title: `${t('title')} — PadelNachos`,
-    description: t('intro'),
+    title: pageTitle,
+    description,
+    openGraph: {
+      title: pageTitle,
+      description,
+      url: 'https://padelnachos.com/road-to-olympics/why',
+      images: [{
+        url: ogImageUrl,
+        width: 1200,
+        height: 630,
+        alt: heroAlt,
+      }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: pageTitle,
+      description,
+      images: [ogImageUrl],
+    },
   }
 }
 

@@ -5,9 +5,11 @@
 
 import { useTranslations } from 'next-intl'
 import { GREEN, CHUNKY } from '@/components/home/shared'
+import Term from './Term'
 
 export default function HubHero() {
   const t = useTranslations('roadToOlympics')
+  const tg = useTranslations('roadToOlympics.glossary')
   return (
     <section style={{ marginBottom: 18 }}>
       <span style={{
@@ -39,7 +41,10 @@ export default function HubHero() {
         lineHeight: 1.5,
         margin: 0,
       }}>
-        {t('heroSubtitle')}
+        {t.rich('heroSubtitle', {
+          ioc: (chunks) => <Term short={String(chunks)} definition={tg('ioc')} />,
+          brisbane: (chunks) => <Term short={String(chunks)} definition={tg('brisbane2032')} />,
+        })}
       </p>
     </section>
   )

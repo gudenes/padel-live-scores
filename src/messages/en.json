@@ -1032,7 +1032,7 @@
   "roadToOlympics": {
     "hashtag": "#PadelOlympics",
     "heroTitleLine1": "Padel's Road to the Olympics.",
-    "heroSubtitle": "Tracking padel's path to Olympic inclusion. Next milestone: the IOC's Brisbane 2032 sports decision on June 24, 2026.",
+    "heroSubtitle": "Tracking padel's path to Olympic inclusion. Next milestone: the <ioc>IOC</ioc>'s <brisbane>Brisbane 2032</brisbane> sports decision on June 24, 2026.",
     "countdown": {
       "labelDefault": "Until IOC Session · Brisbane 2032 decision",
       "daysUnit": "days",
@@ -1043,7 +1043,7 @@
       "pillDone": "Done",
       "pillOnTrack": "On track",
       "pillBuilding": "Building",
-      "complianceLabel": "Compliance (Charter, WADA)",
+      "complianceLabel": "Compliance (Charter, <wada>WADA</wada>)",
       "continentsLabel": "Continents played",
       "federationsLabel": "National federations",
       "genderLabel": "Women's padel",
@@ -1099,8 +1099,17 @@
     "homeCard": {
       "eyebrow": "ROAD TO THE OLYMPICS",
       "title": "Padel's Olympic push is moving fast.",
-      "subtitle": "{days} days until the IOC decision. Track the path in.",
+      "subtitle": "{days} days until the <ioc>IOC</ioc> decision. Track the path in.",
       "cta": "Open the tracker"
+    },
+    "heroImageAlt": "Padel court at dusk overlooking a modern city skyline, with five glowing green orbs rising into the sky",
+    "glossary": {
+      "ioc": "International Olympic Committee — decides which sports are in the Olympic Games.",
+      "fip": "Fédération Internationale de Padel — padel's world governing body.",
+      "wada": "World Anti-Doping Agency — sets the anti-doping standards every Olympic sport must follow.",
+      "noc": "National Olympic Committee — your country's IOC-affiliated body. They vote on Olympic decisions.",
+      "aimag": "Asian Indoor and Martial Arts Games — multi-sport event in Riyadh, December 2026, where padel is now a medal sport.",
+      "brisbane2032": "The 2032 Summer Olympics in Brisbane, Australia — the next opportunity for padel's Olympic inclusion."
     },
     "why": {
       "title": "Why we're tracking padel's road to the Olympics",

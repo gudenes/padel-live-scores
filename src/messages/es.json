@@ -1011,7 +1011,7 @@
   "roadToOlympics": {
     "hashtag": "#PadelOlympics",
     "heroTitleLine1": "El camino del pádel hacia los Juegos Olímpicos.",
-    "heroSubtitle": "Siguiendo el camino del pádel hacia la inclusión olímpica. Próximo hito: la decisión del COI sobre Brisbane 2032 el 24 de junio de 2026.",
+    "heroSubtitle": "Siguiendo el camino del pádel hacia la inclusión olímpica. Próximo hito: la decisión del <ioc>IOC</ioc> sobre <brisbane>Brisbane 2032</brisbane> el 24 de junio de 2026.",
     "countdown": {
       "labelDefault": "Hasta la Sesión del COI · decisión Brisbane 2032",
       "daysUnit": "días",
@@ -1022,7 +1022,7 @@
       "pillDone": "Completado",
       "pillOnTrack": "En camino",
       "pillBuilding": "En desarrollo",
-      "complianceLabel": "Cumplimiento (Carta Olímpica, WADA)",
+      "complianceLabel": "Cumplimiento (Carta Olímpica, <wada>WADA</wada>)",
       "continentsLabel": "Continentes donde se juega",
       "federationsLabel": "Federaciones nacionales",
       "genderLabel": "Pádel femenino",
@@ -1078,8 +1078,17 @@
     "homeCard": {
       "eyebrow": "CAMINO HACIA LOS JUEGOS OLÍMPICOS",
       "title": "El impulso olímpico del pádel avanza rápido.",
-      "subtitle": "{days} días hasta la decisión del COI. Sigue el camino.",
+      "subtitle": "{days} días hasta la decisión del <ioc>IOC</ioc>. Sigue el camino.",
       "cta": "Abre el rastreador"
+    },
+    "heroImageAlt": "Cancha de pádel al anochecer con vistas al skyline de una ciudad moderna, con cinco esferas verdes brillantes ascendiendo en el cielo",
+    "glossary": {
+      "ioc": "Comité Olímpico Internacional — decide qué deportes están en los Juegos Olímpicos.",
+      "fip": "Federación Internacional de Pádel — organismo rector mundial del pádel.",
+      "wada": "Agencia Mundial Antidopaje — establece los estándares antidopaje que deben seguir todos los deportes olímpicos.",
+      "noc": "Comité Olímpico Nacional — el organismo afiliado al IOC de tu país. Votan en las decisiones olímpicas.",
+      "aimag": "Juegos Asiáticos de Deportes de Interior y Artes Marciales — evento multideportivo en Riad, diciembre de 2026, donde el pádel es ahora deporte de medalla.",
+      "brisbane2032": "Los Juegos Olímpicos de Verano de 2032 en Brisbane, Australia — la próxima oportunidad para la inclusión olímpica del pádel."
     },
     "why": {
       "title": "Por qué rastreamos el camino del pádel hacia los Juegos Olímpicos",
