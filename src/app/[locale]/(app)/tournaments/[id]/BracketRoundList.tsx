@@ -14,6 +14,9 @@ import { ROUND_ORDER, ROUND_SLOTS, pairKeyFor } from './bracket-builder'
 // The result is the classic bracket-tree pyramid where later rounds
 // converge toward the vertical center.
 const CELL_SLOT_PX = 70  // approx height of one cell + breathing room
+// Width of the SVG connector overlay between columns. Drawn into the
+// space between columns to link two source cells to one destination cell.
+const CONNECTOR_PX = 14
 
 const GREEN = '#7ED321'
 const MUTED = '#6B7280'
@@ -170,10 +173,18 @@ export default function BracketRoundList({
           paddingRight: 12,
         }}
       >
-        {rounds.map(r => {
+        {rounds.map((r, ri) => {
           const cells = bracket
             .filter(n => n.round === r)
             .sort((a, b) => a.positionInRound - b.positionInRound)
+          const isLast = ri === rounds.length - 1
+          const N = ROUND_SLOTS[r]
+          const nextN = isLast ? 0 : ROUND_SLOTS[rounds[ri + 1]]
+          // For each pair (2j, 2j+1) feeding cell j in the next round,
+          // figure out whether the connector should glow green (the
+          // tracked pair walked along that segment) or stay grey.
+          const trackedNodeAt = (rr: RoundCode, pos: number) =>
+            trackedPath.nodes.find(n => n.round === rr && n.positionInRound === pos) ?? null
           return (
             <div
               key={r}
@@ -201,7 +212,11 @@ export default function BracketRoundList({
               </div>
               {cells.map(node => {
                 const isTrackedHere = trackedPairKey != null && trackedPath.nodes.includes(node)
-                const dim = trackedPath.eliminatedAt != null && !isTrackedHere && trackedPairKey != null
+                const isTracking = trackedPairKey != null
+                // Dim non-tracked cells whenever the user is following a
+                // pair, so the highlighted cell really stands out — not
+                // only when the pair is eliminated.
+                const dim = isTracking && !isTrackedHere
                 const highlight = isTrackedHere
                   ? trackingVariant === 'defendingChamp' ? 'defendingChamp' : 'tracking'
                   : dim ? 'dim' : 'none'
@@ -216,6 +231,53 @@ export default function BracketRoundList({
                   />
                 )
               })}
+              {/* Bracket-tree connectors between this column and the next.
+                  Each pair (cell 2j, cell 2j+1) of THIS round is linked to
+                  cell j of the NEXT round via a stub-vertical-stub line. */}
+              {!isLast && (
+                <svg
+                  style={{
+                    position: 'absolute',
+                    right: -CONNECTOR_PX, top: 0,
+                    width: CONNECTOR_PX, height: bracketHeight,
+                    pointerEvents: 'none',
+                  }}
+                  viewBox={`0 0 ${CONNECTOR_PX} ${bracketHeight}`}
+                  preserveAspectRatio="none"
+                >
+                  {Array.from({ length: nextN }).map((_, j) => {
+                    const yTop = ((2 * j + 0.5) / N) * bracketHeight
+                    const yBot = ((2 * j + 1.5) / N) * bracketHeight
+                    const yMid = ((2 * j + 1) / N) * bracketHeight
+                    const xMid = CONNECTOR_PX / 2
+                    const topNode = cells.find(c => c.positionInRound === 2 * j) ?? null
+                    const botNode = cells.find(c => c.positionInRound === 2 * j + 1) ?? null
+                    const dstNode = trackedNodeAt(rounds[ri + 1], j)
+                    // Top stub turns green only when both the source cell
+                    // and the destination cell are on the tracked path —
+                    // i.e. the pair actually walked from 2j → j.
+                    const topGlow = topNode != null && dstNode != null &&
+                      trackedPath.nodes.includes(topNode) && trackedPath.nodes.includes(dstNode)
+                    const botGlow = botNode != null && dstNode != null &&
+                      trackedPath.nodes.includes(botNode) && trackedPath.nodes.includes(dstNode)
+                    const verticalGlow = topGlow || botGlow
+                    const dstGlow = topGlow || botGlow
+                    const lineProps = (glow: boolean) => ({
+                      stroke: glow ? GREEN : 'rgba(255,255,255,0.18)',
+                      strokeWidth: glow ? 2 : 1,
+                      fill: 'none',
+                    })
+                    return (
+                      <g key={j}>
+                        <line x1={0} y1={yTop} x2={xMid} y2={yTop} {...lineProps(topGlow)} />
+                        <line x1={0} y1={yBot} x2={xMid} y2={yBot} {...lineProps(botGlow)} />
+                        <line x1={xMid} y1={yTop} x2={xMid} y2={yBot} {...lineProps(verticalGlow)} />
+                        <line x1={xMid} y1={yMid} x2={CONNECTOR_PX} y2={yMid} {...lineProps(dstGlow)} />
+                      </g>
+                    )
+                  })}
+                </svg>
+              )}
             </div>
           )
         })}

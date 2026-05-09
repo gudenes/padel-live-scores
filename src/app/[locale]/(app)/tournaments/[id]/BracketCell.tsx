@@ -32,19 +32,21 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
 
   const bg =
     highlight === 'tracking'
-      ? 'linear-gradient(90deg, rgba(126,211,33,0.14), rgba(126,211,33,0.02))'
+      ? 'linear-gradient(90deg, rgba(126,211,33,0.28), rgba(126,211,33,0.06))'
       : highlight === 'defendingChamp'
-      ? 'linear-gradient(90deg, rgba(245,166,35,0.14), rgba(245,166,35,0.02))'
+      ? 'linear-gradient(90deg, rgba(245,166,35,0.28), rgba(245,166,35,0.06))'
       : '#141414'
 
-  const borderInset =
+  // Tracked cell gets a thicker accent border + a soft outer glow so it
+  // really pops against the dimmed surrounding cells.
+  const boxShadow =
     highlight === 'tracking'
-      ? `inset 3px 0 0 ${GREEN}`
+      ? `inset 4px 0 0 ${GREEN}, 0 0 0 1px ${GREEN}`
       : highlight === 'defendingChamp'
-      ? `inset 3px 0 0 ${ORANGE}`
+      ? `inset 4px 0 0 ${ORANGE}, 0 0 0 1px ${ORANGE}`
       : 'none'
 
-  const opacity = highlight === 'dim' ? 0.55 : 1
+  const opacity = highlight === 'dim' ? 0.4 : 1
 
   // BYE placeholder
   if (node.isBye && !m) {
@@ -84,7 +86,7 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
       style={{
         display: 'block', textDecoration: 'none',
         padding: '7px 10px', marginBottom: 4, background: bg,
-        clipPath: CELL_CLIP, boxShadow: borderInset,
+        clipPath: CELL_CLIP, boxShadow,
         opacity, color: '#fff', position: 'relative',
       }}
     >
