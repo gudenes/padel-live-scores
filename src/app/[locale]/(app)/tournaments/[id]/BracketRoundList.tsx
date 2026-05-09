@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import BracketCell from './BracketCell'
 import type { BracketNode, RoundCode, PairPath } from './bracket-builder'
 import { ROUND_ORDER, ROUND_SLOTS, pairKeyFor } from './bracket-builder'
@@ -31,11 +31,16 @@ type Props = {
   trackingVariant: 'tracking' | 'defendingChamp' | null
   onTrackPair: (pairKey: string) => void
   markersByPair: Map<string, 'Q' | 'WC' | 'LL'>
+  /** Optional content rendered above the round chip strip inside the
+   *  sticky header — typically the FollowingPill, so the tracked-pair
+   *  context bar travels with the chips during page scroll. */
+  stickyHeader?: React.ReactNode
 }
 
 export default function BracketRoundList({
   bracket, rounds, activeRound, setActiveRound,
   trackedPairKey, trackedPath, trackingVariant, onTrackPair, markersByPair,
+  stickyHeader,
 }: Props) {
   const trackedRoundSet = new Set(trackedPath.nodes.map(n => n.round))
   const lastTrackedIdx =
@@ -57,6 +62,37 @@ export default function BracketRoundList({
   // observer can attach. Stable across renders.
   const columnRefs = useRef<Map<RoundCode, HTMLDivElement | null>>(new Map())
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const stickyHeaderRef = useRef<HTMLDivElement | null>(null)
+
+  // Stack our sticky header below any preceding sticky element (the
+  // tournament page's own sticky header carrying Tournament Detail +
+  // banner + page tabs). We can't know its height at build time and
+  // it can vary per viewport, so we measure once on mount and on
+  // viewport resize.
+  const [stickyTop, setStickyTop] = useState(0)
+  useEffect(() => {
+    const measure = () => {
+      const ours = stickyHeaderRef.current
+      if (!ours) return
+      let total = 0
+      for (const el of document.querySelectorAll('*')) {
+        if (el === ours) continue
+        const cs = getComputedStyle(el)
+        if (cs.position !== 'sticky' || cs.top !== '0px') continue
+        // Only count sticky elements that come BEFORE ours in the
+        // document — otherwise we'd pick up sticky footers etc.
+        const order = ours.compareDocumentPosition(el)
+        if (!(order & Node.DOCUMENT_POSITION_PRECEDING)) continue
+        total += el.getBoundingClientRect().height
+      }
+      setStickyTop(total)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(document.body)
+    window.addEventListener('resize', measure)
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+  }, [])
   // Track whether the current scroll was triggered programmatically (chip
   // click) so we don't fight ourselves: the observer still updates
   // activeRound during smooth scroll, but we suppress it until the
@@ -114,15 +150,23 @@ export default function BracketRoundList({
 
   return (
     <>
-      {/* Round chip strip — sticks to the top of the page scroll
-          container so it stays visible while the user scrolls through
-          a tall column of cells. */}
-      <div style={{
-        display: 'flex', gap: 6, padding: '6px 0 10px',
-        overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
-        position: 'sticky', top: 0, zIndex: 5, background: '#1A1A1A',
+      {/* Sticky header — the FollowingPill (when present) and the round
+          chip strip travel together as one block during page scroll, so
+          the user never loses sight of which pair they're tracking or
+          which round is active.
+          Top offset = ref'd at runtime against the tournament page's
+          existing sticky header (Tournament Detail + banner + page tabs)
+          so this sticky stacks below it instead of overlapping. */}
+      <div ref={stickyHeaderRef} style={{
+        position: 'sticky', top: stickyTop, zIndex: 5, background: '#1A1A1A',
+        paddingTop: 4,
       }}>
-        {rounds.map(r => {
+        {stickyHeader}
+        <div style={{
+          display: 'flex', gap: 6, padding: '6px 0 10px',
+          overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
+        }}>
+          {rounds.map(r => {
           const isActive = r === activeRound
           const isPassed = trackedRoundSet.has(r) && r !== activeRound
           const isLast = ROUND_ORDER.indexOf(r) === lastTrackedIdx && !trackedPath.eliminatedAt && trackedPath.nodes.length > 0
@@ -152,6 +196,7 @@ export default function BracketRoundList({
             </button>
           )
         })}
+        </div>
       </div>
 
       {/* Horizontal scrollable rounds. Each column snaps to the start of

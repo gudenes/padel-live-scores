@@ -178,16 +178,19 @@ export default function DrawTab({
     return `${toShortName(p1.name ?? '')}/${toShortName(p2.name ?? '')}`
   })()
 
-  return (
-    <div style={{ padding: '12px 12px 16px 12px' }}>
-      {trackedPairKey && trackedPairLabel && variant && (
+  const followingPill = trackedPairKey && trackedPairLabel && variant
+    ? (
         <FollowingPill
           pairLabel={trackedPairLabel}
           variant={variant}
           eliminatedAt={trackedPath.eliminatedAt}
           onDismiss={() => { setTrackedPairKey(null); setVariant(null) }}
         />
-      )}
+      )
+    : null
+
+  return (
+    <div style={{ padding: '12px 12px 16px 12px' }}>
       <BracketRoundList
         bracket={bracket}
         rounds={rounds}
@@ -201,6 +204,7 @@ export default function DrawTab({
           setVariant('tracking')
         }}
         markersByPair={markersByPair}
+        stickyHeader={followingPill}
       />
       <div style={{
         fontSize: 9, color: MUTED, paddingTop: 10,
