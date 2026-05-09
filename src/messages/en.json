@@ -1097,7 +1097,9 @@
     "subscribe": {
       "modalTitle": "Get IOC alerts",
       "modalIntro": "We'll email you each time something material happens — federation joins, IOC statements, scorecard changes.",
+      "fieldName": "Display name (optional)",
       "fieldEmail": "Email",
+      "fieldCountry": "Country (optional)",
       "submit": "Subscribe",
       "submitting": "Sending confirmation…",
       "checkInbox": "Check your inbox to confirm — we just sent a one-click link."

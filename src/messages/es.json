@@ -1076,7 +1076,9 @@
     "subscribe": {
       "modalTitle": "Recibe alertas del COI",
       "modalIntro": "Te enviaremos un correo cada vez que suceda algo importante — nuevas federaciones, declaraciones del COI, cambios en el marcador.",
+      "fieldName": "Nombre para mostrar (opcional)",
       "fieldEmail": "Correo electrónico",
+      "fieldCountry": "País (opcional)",
       "submit": "Suscribirse",
       "submitting": "Enviando confirmación…",
       "checkInbox": "Revisa tu bandeja de entrada para confirmar — acabamos de enviarte un enlace de un clic."

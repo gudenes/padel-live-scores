@@ -1076,7 +1076,9 @@
     "subscribe": {
       "modalTitle": "Recevoir les alertes du IOC",
       "modalIntro": "On vous envoie un email à chaque fois que quelque chose de matériel se passe — une fédération qui rejoint, des déclarations du IOC, des changements au tableau de bord.",
+      "fieldName": "Nom d'affichage (optionnel)",
       "fieldEmail": "Email",
+      "fieldCountry": "Pays (optionnel)",
       "submit": "S'abonner",
       "submitting": "Envoi de la confirmation…",
       "checkInbox": "Vérifiez votre boîte de réception pour confirmer — on vient de vous envoyer un lien à un clic."

@@ -1076,7 +1076,9 @@
     "subscribe": {
       "modalTitle": "Recebe alertas do IOC",
       "modalIntro": "Enviamos-te e-mail sempre que algo importante acontece — uma federação adere, o IOC faz declarações, a tabela de pontuação muda.",
+      "fieldName": "Nome a mostrar (opcional)",
       "fieldEmail": "E-mail",
+      "fieldCountry": "País (opcional)",
       "submit": "Subscrever",
       "submitting": "A enviar confirmação…",
       "checkInbox": "Verifica a tua caixa de entrada para confirmar — acabamos de enviar uma ligação com um clique."

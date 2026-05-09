@@ -11,7 +11,9 @@ interface Props {
 export default function SubscribeFormModal({ onClose }: Props) {
   const t = useTranslations('roadToOlympics.subscribe')
   const locale = useLocale()
+  const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
+  const [country, setCountry] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +26,12 @@ export default function SubscribeFormModal({ onClose }: Props) {
       const res = await fetch('/api/road-to-olympics/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, locale }),
+        body: JSON.stringify({
+          email,
+          locale,
+          displayName: displayName || undefined,
+          country: country || undefined,
+        }),
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
@@ -56,20 +63,31 @@ export default function SubscribeFormModal({ onClose }: Props) {
           <form onSubmit={submit}>
             <h2 style={{ color: '#fff', fontSize: 20, fontWeight: 800, margin: '0 0 8px' }}>{t('modalTitle')}</h2>
             <p style={{ color: '#ccc', fontSize: 13, lineHeight: 1.5, margin: '0 0 18px' }}>{t('modalIntro')}</p>
-            <label style={{ display: 'block', fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 }}>
-              {t('fieldEmail')}
+            <Field label={t('fieldName')}>
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                maxLength={80}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label={`${t('fieldEmail')} *`}>
               <input
                 type="email" required
                 value={email} onChange={(e) => setEmail(e.target.value)}
                 maxLength={254}
-                style={{
-                  width: '100%', background: '#1a1a1a',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 6, padding: '8px 10px', color: '#fff',
-                  fontSize: 13, marginTop: 4,
-                }}
+                style={inputStyle}
               />
-            </label>
+            </Field>
+            <Field label={t('fieldCountry')}>
+              <input
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                maxLength={2}
+                placeholder="ES"
+                style={inputStyle}
+              />
+            </Field>
             {error && <div style={{ color: '#ff7878', fontSize: 12, marginBottom: 10 }}>{error}</div>}
             <button type="submit" disabled={submitting} style={ctaStyle}>
               {submitting ? t('submitting') : t('submit')}
@@ -81,7 +99,20 @@ export default function SubscribeFormModal({ onClose }: Props) {
   )
 }
 
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)',
+  borderRadius: 6, padding: '8px 10px', color: '#fff', fontSize: 13, marginTop: 4,
+}
 const ctaStyle: React.CSSProperties = {
   background: GREEN, color: '#0a0a0a', fontWeight: 800, fontSize: 13,
   padding: '10px 18px', clipPath: CHUNKY.button, border: 0, cursor: 'pointer',
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'block', fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>
+      {label}
+      {children}
+    </label>
+  )
 }
