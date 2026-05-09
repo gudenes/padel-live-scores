@@ -46,6 +46,10 @@ const SOURCES: ArticleSource[] = [
     key: 'google-news-br', name: 'Google News', icon: 'G', language: 'pt', weight: 1.0,
     type: 'rss', url: 'https://news.google.com/rss/search?q=padel+premier+padel&hl=pt-BR&gl=BR&ceid=BR:pt-419',
   },
+  {
+    key: 'google-news-olympics-en', name: 'Google News', icon: 'G', language: 'en', weight: 1.0,
+    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+(olympic+OR+olympics+OR+ioc+OR+%22brisbane+2032%22+OR+aichi-nagoya+OR+aimag)&hl=en&gl=US&ceid=US:en',
+  },
   // Dedicated padel sites
   {
     key: 'padel-addict', name: 'Padel Addict', icon: 'PA', language: 'es', weight: 1.2,
