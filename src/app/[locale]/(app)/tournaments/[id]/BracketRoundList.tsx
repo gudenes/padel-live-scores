@@ -253,26 +253,49 @@ export default function BracketRoundList({
                     const topNode = cells.find(c => c.positionInRound === 2 * j) ?? null
                     const botNode = cells.find(c => c.positionInRound === 2 * j + 1) ?? null
                     const dstNode = trackedNodeAt(rounds[ri + 1], j)
-                    // Top stub turns green only when both the source cell
-                    // and the destination cell are on the tracked path —
-                    // i.e. the pair actually walked from 2j → j.
-                    const topGlow = topNode != null && dstNode != null &&
-                      trackedPath.nodes.includes(topNode) && trackedPath.nodes.includes(dstNode)
-                    const botGlow = botNode != null && dstNode != null &&
-                      trackedPath.nodes.includes(botNode) && trackedPath.nodes.includes(dstNode)
-                    const verticalGlow = topGlow || botGlow
+                    // A side is "feeding" only when the source slot
+                    // actually represents a played match. Bye slots
+                    // (top seeds skipping a round) are NOT feeding
+                    // anything — the seeded player walks straight to
+                    // the next round's cell on their own. Drawing a
+                    // line from the bye slot makes it look like there
+                    // was a match there when there wasn't.
+                    const topFeeds = topNode != null && !topNode.isBye
+                    const botFeeds = botNode != null && !botNode.isBye
+                    const topGlow = topFeeds && dstNode != null &&
+                      trackedPath.nodes.includes(topNode!) && trackedPath.nodes.includes(dstNode)
+                    const botGlow = botFeeds && dstNode != null &&
+                      trackedPath.nodes.includes(botNode!) && trackedPath.nodes.includes(dstNode)
                     const dstGlow = topGlow || botGlow
                     const lineProps = (glow: boolean) => ({
                       stroke: glow ? GREEN : 'rgba(255,255,255,0.18)',
                       strokeWidth: glow ? 2 : 1,
                       fill: 'none',
                     })
+                    // Vertical bar geometry depends on which sides feed:
+                    // - both feed: full bar from yTop to yBot
+                    // - only top feeds: half bar from yTop down to yMid
+                    // - only bot feeds: half bar from yMid down to yBot
+                    // - neither feeds: skip entirely (rare — both byes)
+                    let vY1: number | null = null
+                    let vY2: number | null = null
+                    if (topFeeds && botFeeds) { vY1 = yTop; vY2 = yBot }
+                    else if (topFeeds) { vY1 = yTop; vY2 = yMid }
+                    else if (botFeeds) { vY1 = yMid; vY2 = yBot }
                     return (
                       <g key={j}>
-                        <line x1={0} y1={yTop} x2={xMid} y2={yTop} {...lineProps(topGlow)} />
-                        <line x1={0} y1={yBot} x2={xMid} y2={yBot} {...lineProps(botGlow)} />
-                        <line x1={xMid} y1={yTop} x2={xMid} y2={yBot} {...lineProps(verticalGlow)} />
-                        <line x1={xMid} y1={yMid} x2={CONNECTOR_PX} y2={yMid} {...lineProps(dstGlow)} />
+                        {topFeeds && (
+                          <line x1={0} y1={yTop} x2={xMid} y2={yTop} {...lineProps(topGlow)} />
+                        )}
+                        {botFeeds && (
+                          <line x1={0} y1={yBot} x2={xMid} y2={yBot} {...lineProps(botGlow)} />
+                        )}
+                        {vY1 != null && vY2 != null && (
+                          <line x1={xMid} y1={vY1} x2={xMid} y2={vY2} {...lineProps(topGlow || botGlow)} />
+                        )}
+                        {(topFeeds || botFeeds) && (
+                          <line x1={xMid} y1={yMid} x2={CONNECTOR_PX} y2={yMid} {...lineProps(dstGlow)} />
+                        )}
                       </g>
                     )
                   })}
