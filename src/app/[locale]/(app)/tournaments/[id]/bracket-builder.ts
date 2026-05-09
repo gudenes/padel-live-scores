@@ -2,6 +2,7 @@
 // Pure-logic bracket-tree helpers. No React, no Supabase.
 
 import type { Match } from '@/types/match'
+import { roundCanonical } from '@/lib/round-canonical'
 
 export type RoundCode = 'R64' | 'R32' | 'R16' | 'QF' | 'SF' | 'F'
 
@@ -38,8 +39,6 @@ export function pairKeyFor(player1Id: string, player2Id: string): string {
     : `${player2Id}::${player1Id}`
 }
 
-import { roundCanonical } from '@/lib/round-canonical'
-
 /**
  * Build a structured bracket tree from a flat list of matches.
  *
@@ -57,12 +56,11 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
   const rounds = ROUND_ORDER.slice(startIdx)
 
   // Index matches by (round, position) for O(1) lookup.
-  type Key = string
-  const matchByKey = new Map<Key, Match>()
+  const matchByKey = new Map<string, Match>()
   for (const m of matches) {
     const r = roundCanonical(m.round) as RoundCode | null
     if (!r || !rounds.includes(r)) continue
-    const pos = (m as any).draw_position
+    const pos = m.draw_position
     if (typeof pos !== 'number') continue
     matchByKey.set(`${r}::${pos}`, m)
   }
@@ -92,6 +90,11 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
   // its corresponding next-round cell has a real pair on its side but
   // no match here. We detect this by checking whether the next-round
   // cell's match has player IDs assigned to the side this cell feeds.
+  //
+  // Convention: even pos (0, 2, 4…) feeds pair1 of the next-round cell,
+  // odd pos feeds pair2. This mirrors padelgod's fip-draw-populator,
+  // which assigns Crionet's team1 → pair1 and team2 → pair2, and Crionet
+  // lists the top-feeding team first in each draw row.
   const firstRound = rounds[0]
   const nextRound = rounds[1]
   if (nextRound) {

@@ -113,4 +113,33 @@ describe('buildBracket', () => {
     const r32top = bracket.find(n => n.round === 'R32' && n.positionInRound === 0)!
     expect(r32top.isBye).toBe(true)
   })
+
+  it('marks a bye on the bottom-feed (odd pos) side when pair2 of next round is populated', () => {
+    // R16 match where pair2 is a seeded pair; the bottom-feeding R32 slot (pos 1) is a bye
+    const matches: Match[] = [
+      fakeMatch({
+        id: 'r16-0', round: 'R16', draw_position: 0,
+        pair2_player1: { id: 'seed-2' } as any,
+        pair2_player2: { id: 'seed-2-partner' } as any,
+      }),
+    ]
+    const bracket = buildBracket(matches, 32)
+    const r32bot = bracket.find(n => n.round === 'R32' && n.positionInRound === 1)!
+    expect(r32bot.isBye).toBe(true)
+  })
+
+  it('does NOT mark a bye when the next-round cell has no pair on the relevant side', () => {
+    // R16 match exists but has no pair1 — R32 pos 0 (top feed) should NOT be a bye
+    const matches: Match[] = [
+      fakeMatch({
+        id: 'r16-0', round: 'R16', draw_position: 0,
+        pair2_player1: { id: 'someone' } as any,
+        pair2_player2: { id: 'partner' } as any,
+        // pair1 left null
+      }),
+    ]
+    const bracket = buildBracket(matches, 32)
+    const r32top = bracket.find(n => n.round === 'R32' && n.positionInRound === 0)!
+    expect(r32top.isBye).toBe(false)
+  })
 })
