@@ -3,7 +3,8 @@
 import React from 'react'
 import { useTranslations } from 'next-intl'
 import type { CriteriaStatus } from '@/types/road-to-olympics'
-import { GREEN, ORANGE, BG_CARD, BORDER, MUTED, CHUNKY, SectionTitle } from '@/components/home/shared'
+import { GREEN, ORANGE, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared-constants'
+import { SectionTitle } from '@/components/home/shared'
 
 interface Row {
   key: string

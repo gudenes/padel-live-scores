@@ -4,7 +4,7 @@
 // the page (computed server-side). When countdownLabel is set on state.json
 // (override e.g. "Decision postponed"), the override label replaces the unit.
 
-import { GREEN, CHUNKY } from '@/components/home/shared'
+import { GREEN, CHUNKY } from '@/components/home/shared-constants'
 
 interface Props {
   daysUntil: number

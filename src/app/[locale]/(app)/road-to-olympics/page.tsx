@@ -17,6 +17,8 @@ import ActionHub from '@/components/road-to-olympics/ActionHub'
 import PledgeInline from '@/components/road-to-olympics/PledgeInline'
 import DisclosureFooter from '@/components/road-to-olympics/DisclosureFooter'
 import Term from '@/components/road-to-olympics/Term'
+import { SectionTitle } from '@/components/home/shared'
+import { BG_BASE, CHUNKY, MUTED } from '@/components/home/shared-constants'
 import {
   computeDaysUntil,
   derivePillStatus,
@@ -25,7 +27,6 @@ import {
   getState,
 } from '@/lib/road-to-olympics/state'
 import { buildTweetIntentUrl } from '@/lib/road-to-olympics/share-copy'
-import { BG_BASE, CHUNKY, MUTED, SectionTitle } from '@/components/home/shared'
 
 export const dynamic = 'force-dynamic'
 
