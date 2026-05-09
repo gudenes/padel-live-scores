@@ -6,7 +6,6 @@ import { DATE_SHORT } from '@/lib/format-patterns'
 import { supabase } from '@/lib/supabase'
 import { useFollowing } from '@/hooks/useFollowing'
 import EmptyState from '@/components/EmptyState'
-import BracketMap from './BracketMap'
 import BracketRoundList from './BracketRoundList'
 import FollowingPill from './FollowingPill'
 import { roundCanonical } from '@/lib/round-canonical'
@@ -181,14 +180,6 @@ export default function DrawTab({
 
   return (
     <div style={{ padding: '12px 12px 16px 12px' }}>
-      <BracketMap
-        rounds={rounds}
-        bracket={bracket}
-        trackedPath={trackedPath}
-        trackedPairLabel={trackedPairLabel}
-        activeRound={activeRound}
-        onJumpToRound={r => setActiveRound(r)}
-      />
       {trackedPairKey && trackedPairLabel && variant && (
         <FollowingPill
           pairLabel={trackedPairLabel}

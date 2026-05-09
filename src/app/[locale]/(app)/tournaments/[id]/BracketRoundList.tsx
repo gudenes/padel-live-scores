@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import BracketCell from './BracketCell'
 import type { BracketNode, RoundCode, PairPath } from './bracket-builder'
 import { ROUND_ORDER, pairKeyFor } from './bracket-builder'
@@ -29,16 +30,74 @@ export default function BracketRoundList({
       ? ROUND_ORDER.indexOf(trackedPath.nodes[trackedPath.nodes.length - 1].round)
       : -1
 
-  const cellsForActive = bracket
-    .filter(n => n.round === activeRound)
-    .sort((a, b) => a.positionInRound - b.positionInRound)
+  // One ref per round column so chip-clicks can scrollIntoView and the
+  // observer can attach. Stable across renders.
+  const columnRefs = useRef<Map<RoundCode, HTMLDivElement | null>>(new Map())
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  // Track whether the current scroll was triggered programmatically (chip
+  // click) so we don't fight ourselves: the observer still updates
+  // activeRound during smooth scroll, but we suppress it until the
+  // programmatic scroll finishes by ignoring observer events for ~400ms.
+  const programmaticScrollUntil = useRef<number>(0)
+
+  // IntersectionObserver: whichever column is most visible becomes the
+  // active round. Threshold 0.55 = column is more-than-half visible.
+  useEffect(() => {
+    const root = scrollContainerRef.current
+    if (!root || rounds.length === 0) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (Date.now() < programmaticScrollUntil.current) return
+        // Pick the entry with the highest intersection ratio that's at
+        // least 0.55 visible.
+        let best: { round: RoundCode; ratio: number } | null = null
+        for (const entry of entries) {
+          if (entry.intersectionRatio < 0.55) continue
+          const round = (entry.target as HTMLElement).dataset.round as RoundCode | undefined
+          if (!round) continue
+          if (!best || entry.intersectionRatio > best.ratio) {
+            best = { round, ratio: entry.intersectionRatio }
+          }
+        }
+        if (best && best.round !== activeRound) {
+          setActiveRound(best.round)
+        }
+      },
+      { root, threshold: [0.55, 0.75, 0.95] },
+    )
+    for (const r of rounds) {
+      const el = columnRefs.current.get(r)
+      if (el) observer.observe(el)
+    }
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rounds.join(','), activeRound])
+
+  // When activeRound changes (chip click or external trigger), pan the
+  // horizontal scroll container to the matching column. Use scrollTo on
+  // the container directly so we never affect vertical page scroll —
+  // scrollIntoView would also yank the page up to the column's top.
+  useEffect(() => {
+    const containerEl = scrollContainerRef.current
+    const colEl = columnRefs.current.get(activeRound)
+    if (!containerEl || !colEl) return
+    const containerRect = containerEl.getBoundingClientRect()
+    const colRect = colEl.getBoundingClientRect()
+    const targetLeft = containerEl.scrollLeft + (colRect.left - containerRect.left)
+    if (Math.abs(containerEl.scrollLeft - targetLeft) < 4) return
+    programmaticScrollUntil.current = Date.now() + 500
+    containerEl.scrollTo({ left: targetLeft, behavior: 'smooth' })
+  }, [activeRound])
 
   return (
     <>
-      {/* Round chip strip */}
+      {/* Round chip strip — sticks to the top of the page scroll
+          container so it stays visible while the user scrolls through
+          a tall column of cells. */}
       <div style={{
-        display: 'flex', gap: 6, padding: '4px 0 12px',
+        display: 'flex', gap: 6, padding: '6px 0 10px',
         overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
+        position: 'sticky', top: 0, zIndex: 5, background: '#1A1A1A',
       }}>
         {rounds.map(r => {
           const isActive = r === activeRound
@@ -72,42 +131,87 @@ export default function BracketRoundList({
         })}
       </div>
 
-      {/* Cell list — paired with bracket-stub between every two cells */}
-      <div>
-        {chunkPairs(cellsForActive).map((pair, i) => (
-          <div key={i} style={{ position: 'relative', marginBottom: 10 }}>
-            {pair.map((node, j) => {
-              const isTrackedHere = trackedPairKey != null && trackedPath.nodes.includes(node)
-              const dim = trackedPath.eliminatedAt != null && !isTrackedHere && trackedPairKey != null
-              const highlight = isTrackedHere
-                ? trackingVariant === 'defendingChamp' ? 'defendingChamp' : 'tracking'
-                : dim ? 'dim' : 'none'
-              return (
-                <div key={node.positionInRound} style={{ marginTop: j === 0 ? 0 : 4 }}>
-                  <BracketCell
-                    node={node}
-                    highlight={highlight}
-                    onTrackPair={onTrackPair}
-                    pairKey={pairKeyFor}
-                    markersByPair={markersByPair}
-                  />
-                </div>
-              )
-            })}
-            {/* Bracket-stub on the right edge — shows pair feeding into next round */}
-            {pair.length === 2 && (
+      {/* Horizontal scrollable rounds. Each column snaps to the start of
+          the viewport. The next column peeks in (~12% by virtue of the
+          88% column width) so the user knows there's more bracket to swipe to. */}
+      <div
+        ref={scrollContainerRef}
+        style={{
+          display: 'flex',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          scrollSnapType: 'x mandatory',
+          gap: 8,
+          // Negative margin so the right edge of the last column can sit
+          // under the page padding, instead of clipping the peek of an
+          // earlier column.
+          marginRight: -12,
+          paddingRight: 12,
+        }}
+      >
+        {rounds.map(r => {
+          const cells = bracket
+            .filter(n => n.round === r)
+            .sort((a, b) => a.positionInRound - b.positionInRound)
+          return (
+            <div
+              key={r}
+              ref={el => { columnRefs.current.set(r, el) }}
+              data-round={r}
+              style={{
+                flexShrink: 0,
+                width: '88%',
+                scrollSnapAlign: 'start',
+              }}
+            >
+              {/* Tiny round label inside the column for orientation when
+                  scrolling — the chip strip on top is the primary control. */}
               <div style={{
-                position: 'absolute', right: -12, top: 0, bottom: 0, width: 12,
-                pointerEvents: 'none',
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
+                color: MUTED, padding: '0 2px 6px', textTransform: 'uppercase',
               }}>
-                <svg viewBox="0 0 12 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-                  <path d="M 0 25 H 6 V 75 H 0" stroke="rgba(255,255,255,0.18)" fill="none" strokeWidth="1" />
-                  <path d="M 6 50 H 12" stroke="rgba(255,255,255,0.18)" fill="none" strokeWidth="1" />
-                </svg>
+                {r}
               </div>
-            )}
-          </div>
-        ))}
+              {chunkPairs(cells).map((pair, i) => (
+                <div key={i} style={{ position: 'relative', marginBottom: 8 }}>
+                  {pair.map((node, j) => {
+                    const isTrackedHere = trackedPairKey != null && trackedPath.nodes.includes(node)
+                    const dim = trackedPath.eliminatedAt != null && !isTrackedHere && trackedPairKey != null
+                    const highlight = isTrackedHere
+                      ? trackingVariant === 'defendingChamp' ? 'defendingChamp' : 'tracking'
+                      : dim ? 'dim' : 'none'
+                    return (
+                      <div key={node.positionInRound} style={{ marginTop: j === 0 ? 0 : 3 }}>
+                        <BracketCell
+                          node={node}
+                          highlight={highlight}
+                          onTrackPair={onTrackPair}
+                          pairKey={pairKeyFor}
+                          markersByPair={markersByPair}
+                        />
+                      </div>
+                    )
+                  })}
+                  {/* Bracket-stub on the right edge — visual hint that
+                      these two cells feed into the next round (which is
+                      peeking in from the right). */}
+                  {pair.length === 2 && (
+                    <div style={{
+                      position: 'absolute', right: -8, top: 0, bottom: 0, width: 8,
+                      pointerEvents: 'none',
+                    }}>
+                      <svg viewBox="0 0 8 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+                        <path d="M 0 25 H 4 V 75 H 0" stroke="rgba(255,255,255,0.18)" fill="none" strokeWidth="1" />
+                        <path d="M 4 50 H 8" stroke="rgba(255,255,255,0.18)" fill="none" strokeWidth="1" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        })}
       </div>
     </>
   )

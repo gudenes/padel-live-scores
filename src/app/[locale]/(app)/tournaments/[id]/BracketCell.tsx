@@ -83,16 +83,16 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
       href={`/match/${m.id}`}
       style={{
         display: 'block', textDecoration: 'none',
-        padding: '10px 12px', marginBottom: 6, background: bg,
+        padding: '7px 10px', marginBottom: 4, background: bg,
         clipPath: CELL_CLIP, boxShadow: borderInset,
         opacity, color: '#fff', position: 'relative',
       }}
     >
       <PairRow match={m} side={1} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} />
-      <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '2px 0' }} />
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '1px 0' }} />
       <PairRow match={m} side={2} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} />
       {m.status === 'scheduled' && m.scheduled_at && (
-        <div style={{ color: MUTED, fontStyle: 'italic', fontSize: 11, padding: '2px 0 0' }}>
+        <div style={{ color: MUTED, fontStyle: 'italic', fontSize: 10, padding: '1px 0 0' }}>
           {format.dateTime(new Date(m.scheduled_at), TIME_24H)}
         </div>
       )}
