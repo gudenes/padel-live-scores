@@ -1059,8 +1059,7 @@
       "blockerExplanation": "This row is the single biggest obstacle to padel's Olympic inclusion. Every other criteria is met or on track — closing this gap is what padel needs most."
     },
     "beats": {
-      "tabWins": "Wins",
-      "tabWatchlist": "Watchlist",
+      "sectionTitle": "Latest beats",
       "empty": "No recent beats. Check back soon."
     },
     "dossier": {

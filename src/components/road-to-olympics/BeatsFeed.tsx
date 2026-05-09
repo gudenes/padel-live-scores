@@ -1,15 +1,14 @@
 // src/components/road-to-olympics/BeatsFeed.tsx
 //
-// Server component — fetches Olympic-keyword articles via the lib helper.
-// Renders the 'Wins' tab by default. The Watchlist split (negative-tone
-// articles) lands in the Hardening Wave when articles.tone is populated;
-// at Soft Launch we show all matches in 'Wins' and the Watchlist tab is
-// disabled with an "Available soon" hint.
+// Server component — fetches Olympic-keyword articles via the lib helper
+// and renders them as a single chronological feed. The previous
+// Wins / Watchlist tab split was retired post-Soft-Launch — see the
+// "drop watchlist" PR for rationale (low real volume + curation cost
+// outweighed the editorial value).
 
 import { createClient } from '@supabase/supabase-js'
 import { fetchOlympicBeats } from '@/lib/road-to-olympics/beats'
 import { getTranslations } from 'next-intl/server'
-import BeatsFeedTabs from './BeatsFeedTabs'
 import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared-constants'
 
 interface Props {
@@ -33,7 +32,18 @@ export default async function BeatsFeed({ limit = 6 }: Props) {
       padding: 14,
       marginBottom: 12,
     }}>
-      <BeatsFeedTabs winsLabel={t('tabWins')} watchlistLabel={t('tabWatchlist')} />
+      <div style={{
+        fontSize: 11,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        fontWeight: 700,
+        color: GREEN,
+        paddingBottom: 6,
+        marginBottom: 10,
+        borderBottom: `1px solid ${BORDER}`,
+      }}>
+        {t('sectionTitle')}
+      </div>
 
       {beats.length === 0 ? (
         <div style={{ fontSize: 12, color: MUTED, padding: '8px 0' }}>
