@@ -152,9 +152,25 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair }: PairRowPr
           borderRadius: '50%',
         }} />
       )}
+      {/* Stacked flags: p1 on top-left, p2 offset right + slightly lower so
+          both countries are visible at a glance even when the pair is mixed. */}
+      <span style={{
+        position: 'relative', display: 'inline-block',
+        width: 18, height: 16, flexShrink: 0,
+      }}>
+        <span style={{ position: 'absolute', left: 0, top: 0 }}>
+          <FlagImage country={p1?.country ?? null} size={11} />
+        </span>
+        <span style={{ position: 'absolute', left: 6, top: 4 }}>
+          <FlagImage country={p2?.country ?? null} size={11} />
+        </span>
+      </span>
+      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {pairLabel(match, side)}
+      </span>
       {seed != null && (
         <span style={{
-          fontSize: 9, color: '#9CA3AF', minWidth: 22, textAlign: 'center',
+          fontSize: 9, color: '#9CA3AF', minWidth: 18, textAlign: 'center',
           padding: '2px 4px', background: 'rgba(255,255,255,0.04)', fontWeight: 700,
         }}>
           {seed}
@@ -168,15 +184,6 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair }: PairRowPr
           {marker}
         </span>
       )}
-      <FlagImage country={p1?.country ?? null} size={11} />
-      <span style={{ flex: 1 }}>{pairLabel(match, side)}</span>
-      <span style={{ display: 'flex', gap: 4, fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
-        {[1, 2, 3].map(sn => (
-          <span key={sn} style={{ minWidth: 14, textAlign: 'center', color: isWinner ? '#fff' : MUTED }}>
-            {setScore(sn)}
-          </span>
-        ))}
-      </span>
       {isWinner && (
         <span style={{
           width: 14, height: 14, background: GREEN, color: '#000',
@@ -187,6 +194,13 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair }: PairRowPr
           W
         </span>
       )}
+      <span style={{ display: 'flex', gap: 4, fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
+        {[1, 2, 3].map(sn => (
+          <span key={sn} style={{ minWidth: 14, textAlign: 'center', color: isWinner ? '#fff' : MUTED }}>
+            {setScore(sn)}
+          </span>
+        ))}
+      </span>
     </div>
   )
 }
