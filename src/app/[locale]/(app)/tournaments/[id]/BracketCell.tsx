@@ -1,7 +1,7 @@
 'use client'
 
 import { useFormatter, useTranslations } from 'next-intl'
-import { Link } from '@/i18n/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { TIME_24H } from '@/lib/format-patterns'
 import { FlagImage } from '@/components/FlagImage'
 import { toShortName } from '@/types/match'
@@ -32,6 +32,7 @@ type Props = {
 export default function BracketCell({ node, highlight, onTrackPair, pairKey, markersByPair, trackedPairKey }: Props) {
   const t = useTranslations('draw')
   const format = useFormatter()
+  const router = useRouter()
   const m = node.match
 
   const bg =
@@ -143,14 +144,26 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
     )
   }
 
+  // Navigate to the match detail when the cell background is clicked.
+  // Use a div + router.push instead of <Link> so the inner pair-row
+  // buttons (which call stopPropagation) reliably suppress navigation
+  // — Next.js Link's anchor default doesn't always honor preventDefault
+  // from a child handler in React 19, so taps on a player name were
+  // bubbling through and yanking the user to /match/<id>.
+  const onCellClick: React.MouseEventHandler = () => {
+    router.push(`/match/${m.id}`)
+  }
+
   return (
-    <Link
-      href={`/match/${m.id}`}
+    <div
+      onClick={onCellClick}
+      role="link"
+      tabIndex={0}
       style={{
         display: 'block', textDecoration: 'none',
         padding: '7px 10px', marginBottom: 4, background: bg,
         clipPath: CELL_CLIP, boxShadow,
-        opacity, color: '#fff', position: 'relative',
+        opacity, color: '#fff', position: 'relative', cursor: 'pointer',
       }}
     >
       <PairRow match={m} side={1} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} trackedPairKey={trackedPairKey} />
@@ -161,7 +174,7 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
           {format.dateTime(new Date(m.scheduled_at), TIME_24H)}
         </div>
       )}
-    </Link>
+    </div>
   )
 }
 

@@ -164,14 +164,8 @@ export default function BracketRoundList({
     if (!(cellEl instanceof HTMLElement)) return
     // Defer a tick so the horizontal smooth-scroll has settled and the
     // sticky header is in its final position; otherwise the centering
-    // math computes against an in-flight viewport.
+    // computes against an in-flight viewport.
     const t = window.setTimeout(() => {
-      // We can't use scrollIntoView({ block: 'center' }) because it
-      // centers the cell in the SCROLL CONTAINER's full viewport — but
-      // our sticky page header + pill + chip strip eat ~150px of that,
-      // so the cell ends up visually too high. Compute the target
-      // manually: center the cell in the AVAILABLE area (container
-      // viewport minus sticky-header heights).
       const scrollAncestor = findScrollAncestor(cellEl)
       if (!scrollAncestor) return
       const myHeaderHeight = stickyHeaderRef.current?.getBoundingClientRect().height ?? 0
@@ -181,10 +175,11 @@ export default function BracketRoundList({
       const availableHeight = scrollAncestor.clientHeight - totalSticky
       const desiredCellTop = containerRect.top + totalSticky + (availableHeight - cellRect.height) / 2
       const delta = cellRect.top - desiredCellTop
-      scrollAncestor.scrollTo({ top: scrollAncestor.scrollTop + delta, behavior: 'smooth' })
+      const newTop = Math.max(0, scrollAncestor.scrollTop + delta)
+      scrollAncestor.scrollTo({ top: newTop, behavior: 'smooth' })
     }, needsHScroll ? 350 : 0)
     return () => window.clearTimeout(t)
-  }, [activeRound, trackedPairKey, trackedPath, stickyTop])
+  }, [activeRound, trackedPairKey, stickyTop])
 
   return (
     <>
@@ -395,15 +390,32 @@ export default function BracketRoundList({
 }
 
 /**
- * Walk up from `el` to find the nearest ancestor with a vertical scroll.
- * Falls back to `document.scrollingElement` (the page's root scroll
- * container) when nothing in the chain has overflow:auto/scroll.
+ * Find the page-level vertical scroll container that the user actually
+ * sees scroll when they swipe. In this layout it's `.app-screen` (the
+ * mobile-frame wrapper). We can't naively walk up looking for the first
+ * ancestor with `overflow-y: auto` because:
+ *   1. The horizontal-scroll container has `overflow-x: auto` and CSS
+ *      implicitly resolves `overflow-y` to `auto`, even though the
+ *      author meant for it to stay `visible` vertically.
+ *   2. Cells in a flex column with explicit height can overflow the
+ *      box by a few pixels (rounding / line-height quirks), giving
+ *      that container a tiny scrollHeight > clientHeight gap that's
+ *      not the scroll the user is doing.
+ *
+ * Querying `.app-screen` directly is the most reliable resolution for
+ * this app. Fallback walks up if the layout ever changes.
  */
 function findScrollAncestor(el: Element): HTMLElement | null {
+  const appScreen = el.closest('.app-screen')
+  if (appScreen instanceof HTMLElement) return appScreen
   let cur: HTMLElement | null = el.parentElement
   while (cur) {
     const cs = getComputedStyle(cur)
-    if (cs.overflowY === 'auto' || cs.overflowY === 'scroll') return cur
+    const yScrollable = cs.overflowY === 'auto' || cs.overflowY === 'scroll'
+    const xScrollable = cs.overflowX === 'auto' || cs.overflowX === 'scroll'
+    // Skip horizontal-only scroll containers (CSS spec quirk implicitly
+    // sets overflow-y: auto when overflow-x is set).
+    if (yScrollable && !xScrollable && cur.scrollHeight > cur.clientHeight) return cur
     cur = cur.parentElement
   }
   return (document.scrollingElement ?? document.documentElement) as HTMLElement
