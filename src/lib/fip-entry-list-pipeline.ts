@@ -60,7 +60,9 @@ export interface PipelineStats {
  * downstream reconcilers and match pages can link to a real player record.
  */
 export interface PipelineNewPlayer {
-  fipId: string                 // "fip-P100312" — our canonical convention
+  fipId: string                 // "P100312" — raw FIP id (no prefix). Legacy
+                                // "fip-" prefix was unwound in the
+                                // merge-duplicate-players PR.
   category: Category
   name: string                  // "Cleo Carvalho" (from FIP)
   country: string               // 2-letter ISO ("BR") — normalized from FIP's 3-letter
@@ -239,7 +241,9 @@ async function resolvePlayer(
   })
   if (hit) {
     return {
-      fipId: `fip-${hit.playerId}`,
+      // Raw FIP id (no prefix). Legacy "fip-" prefix unwound in the
+      // merge-duplicate-players PR.
+      fipId: hit.playerId,
       name: hit.fullName,
       country: hit.nationality,
       source: 'fip_search',

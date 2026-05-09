@@ -174,14 +174,22 @@ export async function runFipEntryListPopulator(
   //    women's), the same fip_id can appear twice (player listed once
   //    on their own row, once as someone else's partner) so dedup is
   //    real, not theoretical.
+  //
+  //    Normalize the legacy "fip-Pxxx" prefix to "Pxxx" before keying the
+  //    map and before writing to public.players. Old snapshots from
+  //    before the merge-duplicate-players PR still carry the prefix; we
+  //    treat them as the same canonical id as their unprefixed twin.
   const byFipId = new Map<string, EntryListSnapshotRow>();
   for (const r of latestRows) {
     if (!r.fip_id) {
       result.playersSkippedNoFipId += 1;
       continue;
     }
-    if (byFipId.has(r.fip_id)) continue;
-    byFipId.set(r.fip_id, r);
+    const normalized = r.fip_id.replace(/^fip-/, '');
+    if (byFipId.has(normalized)) continue;
+    // Use a normalized copy so downstream INSERT/UPDATE paths write the
+    // canonical no-prefix form.
+    byFipId.set(normalized, { ...r, fip_id: normalized });
   }
 
   if (byFipId.size === 0) {

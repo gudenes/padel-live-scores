@@ -115,12 +115,18 @@ The top 2 sources have dedicated indexed columns for zero-cost lookups on hot pa
 | Table | Column | Source | Format example |
 |---|---|---|---|
 | `players` | `padelapi_id` | padelapi.org | `"432"` |
-| `players` | `fip_id` | FIP official | `"fip-P200038"` |
+| `players` | `fip_id` | FIP official | `"P200038"` |
 | `tournaments` | `padelapi_id` | padelapi.org | `"778"` |
 | `tournaments` | `fip_id` | FIP scraper | `"fip-gold-ponta-delgada-2026"` |
 | `matches` | `padelapi_id` | padelapi.org | (numeric) |
 
 All hot columns have `UNIQUE` constraints (partial, `WHERE NOT NULL`) and dedicated indexes.
+
+#### Player `fip_id` format — no prefix (2026-05-09)
+
+`players.fip_id` is the **raw FIP id** (e.g. `"P200038"`) — same form upstream FIP exposes on padelfip.com and consistent with `padelapi_id` (which has no `padelapi-` prefix). Earlier code prefixed it with `"fip-"` as a namespacing convention; the [merge-duplicate-players PR](docs/superpowers/plans/2026-05-09-merge-duplicate-players.md) unwound that. Tournament `fip_id` keeps its `"fip-"` prefix because it's a slug, not a numeric id, and removing the prefix could collide with arbitrary slug strings.
+
+If you encounter `fip-Pxxx` in older snapshots or pre-2026-05-09 code, normalize via `.replace(/^fip-/, '')` before comparison or write. The entry-list-populator already does this for legacy snapshots.
 
 ### Legacy columns (deprecated, kept for back-compat)
 `players.external_id`, `tournaments.external_id`, `tournaments.fip_slug`, `matches.external_id` still exist and are **kept in sync with the new columns via Postgres triggers**. All existing code paths (40+ call sites) keep working unchanged. New code should write to the new columns; old code can stay as-is until it's touched naturally.

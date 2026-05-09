@@ -193,7 +193,9 @@ export async function GET(req: NextRequest) {
 
       for (const p of officials) {
         const fullName = fipFullName(p)
-        const fipId = `fip-${p.player_id}`
+        // Raw FIP id (no prefix). Legacy "fip-" prefix unwound in
+        // merge-duplicate-players PR.
+        const fipId = p.player_id
         const country2 = fipCountryToIso2(p.country_name)
 
         try {
@@ -226,7 +228,8 @@ export async function GET(req: NextRequest) {
 
       for (const p of races) {
         const fullName = fipFullName(p)
-        const fipId = `fip-${p.player_id}`
+        // Raw FIP id (no prefix). See note in officials loop above.
+        const fipId = p.player_id
 
         try {
           const { action } = await resolver.resolveAndEnrich({
