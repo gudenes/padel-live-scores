@@ -14,7 +14,9 @@ describe('buildPlayerProfileUpdate', () => {
       coaches: ['Coach A'],
     };
     const u = buildPlayerProfileUpdate(parsed, 'ok');
-    expect(u.fip_id).toBe('P200038');
+    // fip_id is intentionally NOT written — parser returns raw 'P200038'
+    // but the DB stores prefixed 'fip-P200038'. See worker comment.
+    expect(u.fip_id).toBeUndefined();
     expect(u.birthdate).toBe('1999-08-22');
     expect(u.birthplace).toBe('Madrid');
     expect(u.height).toBe(184);

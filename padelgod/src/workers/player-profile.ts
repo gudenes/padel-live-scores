@@ -55,7 +55,11 @@ export function buildPlayerProfileUpdate(
 
   if (parsed && status === 'ok') {
     updates.profile_fetched_at = now;
-    if (parsed.fipId) updates.fip_id = parsed.fipId;
+    // DO NOT write parsed.fipId. The parser returns the raw FIP id
+    // ('P203884') but the DB stores the padelgod-prefixed form
+    // ('fip-P203884') — overwriting would mutate the join key the
+    // queue uses. fip_id is set authoritatively by the entry-list
+    // populator and rankings worker; the profile worker only enriches.
     if (parsed.birthDate) updates.birthdate = parsed.birthDate;
     if (parsed.birthPlace) updates.birthplace = parsed.birthPlace;
     if (parsed.heightCm) updates.height = parsed.heightCm;
