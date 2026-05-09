@@ -72,6 +72,7 @@ export type FieldKey =
   | 'player.height'
   | 'player.hand'
   | 'player.side'
+  | 'player.equipment'
   | 'player.win_rate'
   | 'player.total_matches'
   | 'player.titles'
@@ -133,6 +134,7 @@ export const SOURCE_PRIORITY: Record<FieldKey, PriorityList> = {
   'player.height':         ['fip', 'padelapi', 'manual'],
   'player.hand':           ['fip', 'padelapi', 'manual'],
   'player.side':           ['fip', 'padelapi', 'manual'],
+  'player.equipment':      ['fip', 'padelapi', 'manual'],
 
   // Avatar stays padelapi-primary — padelapi avatars are hosted on Supabase
   // Storage (higher quality, never breaks); FIP avatars are 150×150 thumbs
