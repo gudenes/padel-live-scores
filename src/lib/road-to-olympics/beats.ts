@@ -39,14 +39,25 @@ export async function fetchOlympicBeats(
   source_name: string
   published_at: string
 }>> {
-  // We can't push the regex into Postgres easily, so we over-fetch and filter
-  // in JS. ~50 candidates × 6 weeks of news is a few KB; well within budget.
+  // Push the filter into Postgres so we don't lose Olympic stories in the
+  // tail of "most recent N articles" — daily match coverage dominates the
+  // top of the table, Olympic news is sparser and older. Two paths:
+  //   1. Articles from dedicated Olympic feeds (source_key match)
+  //   2. Articles from any other feed whose title contains an Olympic keyword
+  // Then a final regex pass in JS as a safety net (ilike has no word boundary,
+  // so it could surface false positives like "metropolis" — the regex catches them).
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from('articles')
-    .select('id, title, summary, source_url, source_name, published_at')
-    .gte('published_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+    .select('id, title, summary, source_url, source_name, published_at, source_key')
+    .gte('published_at', cutoff)
+    .or(
+      'source_key.in.(google-news-olympics-en,google-news-ioc-en),' +
+      'title.ilike.%olympic%,title.ilike.%IOC%,title.ilike.%Brisbane 2032%,' +
+      'title.ilike.%Aichi-Nagoya%,title.ilike.%AIMAG%,title.ilike.%FISU%',
+    )
     .order('published_at', { ascending: false })
-    .limit(50)
+    .limit(limit * 3) // small over-fetch; regex pass below narrows to true matches
   if (error) {
     console.error('[road-to-olympics] fetchOlympicBeats failed:', error.message)
     return []
