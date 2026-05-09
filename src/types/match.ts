@@ -79,8 +79,10 @@ export interface Match {
   pair1_seed?: number | null
   pair2_seed?: number | null
   /** 0-based position of this match within its round (0 = top of bracket).
-   *  Sourced from padelgod's fip-draw-populator and used to render the
-   *  bracket tree on the Draw tab. NULL on padelapi-only matches. */
+   *  Optional — most rows don't carry this field today; the bracket
+   *  builder falls back to sorting matches by widget_id_composite +
+   *  external_id when missing. Reserved for future use if a future
+   *  migration adds a dedicated column. */
   draw_position?: number | null
   sets?: Set[]
   viewer_count?: number

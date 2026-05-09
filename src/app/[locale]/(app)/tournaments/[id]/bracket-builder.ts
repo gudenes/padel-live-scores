@@ -55,26 +55,45 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
   const startIdx = drawSize === 64 ? 0 : drawSize === 32 ? 1 : 2
   const rounds = ROUND_ORDER.slice(startIdx)
 
-  // Index matches by (round, position) for O(1) lookup.
-  const matchByKey = new Map<string, Match>()
+  // Group matches by canonical round. Position within a round is derived
+  // by sorting on a stable signal: prefer `draw_position` when set
+  // (FIP-populated rows), then `widget_id_composite` (Crionet
+  // brackets carry the canonical order in their widget code, e.g.
+  // WD006 < WD007), then `external_id` as a last resort. The matches
+  // table has no dedicated `draw_position` column today.
+  const matchesByRound = new Map<RoundCode, Match[]>()
   for (const m of matches) {
     const r = roundCanonical(m.round) as RoundCode | null
     if (!r || !rounds.includes(r)) continue
-    const pos = m.draw_position
-    if (typeof pos !== 'number') continue
-    matchByKey.set(`${r}::${pos}`, m)
+    const list = matchesByRound.get(r) ?? []
+    list.push(m)
+    matchesByRound.set(r, list)
+  }
+  for (const list of matchesByRound.values()) {
+    list.sort((a, b) => {
+      const ap = a.draw_position
+      const bp = b.draw_position
+      if (typeof ap === 'number' && typeof bp === 'number') return ap - bp
+      if (typeof ap === 'number') return -1
+      if (typeof bp === 'number') return 1
+      const aw = (a as { widget_id_composite?: string | null }).widget_id_composite ?? ''
+      const bw = (b as { widget_id_composite?: string | null }).widget_id_composite ?? ''
+      if (aw && bw && aw !== bw) return aw < bw ? -1 : 1
+      return (a.external_id ?? '').localeCompare(b.external_id ?? '')
+    })
   }
 
   // Build nodes round by round so we can wire feedFromTop/Bottom on the fly.
   const nodesByRound = new Map<RoundCode, BracketNode[]>()
   for (const round of rounds) {
     const slotCount = ROUND_SLOTS[round]
+    const sorted = matchesByRound.get(round) ?? []
     const nodes: BracketNode[] = []
     const prevRound = ROUND_ORDER[ROUND_ORDER.indexOf(round) - 1]
     const prevNodes = prevRound ? nodesByRound.get(prevRound) ?? [] : []
 
     for (let pos = 0; pos < slotCount; pos++) {
-      const match = matchByKey.get(`${round}::${pos}`) ?? null
+      const match = sorted[pos] ?? null
       const feedFromTop = prevNodes[pos * 2] ?? null
       const feedFromBottom = prevNodes[pos * 2 + 1] ?? null
       nodes.push({
