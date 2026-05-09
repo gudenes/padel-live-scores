@@ -46,9 +46,17 @@ const SOURCES: ArticleSource[] = [
     key: 'google-news-br', name: 'Google News', icon: 'G', language: 'pt', weight: 1.0,
     type: 'rss', url: 'https://news.google.com/rss/search?q=padel+premier+padel&hl=pt-BR&gl=BR&ceid=BR:pt-419',
   },
+  // Olympic-track padel news for /road-to-olympics BeatsFeed.
+  // Google News doesn't honor compound OR queries, so we run two simple
+  // single-keyword feeds and let the BeatsFeed regex (in src/lib/road-to-
+  // olympics/beats.ts) do the rest of the filtering.
   {
     key: 'google-news-olympics-en', name: 'Google News', icon: 'G', language: 'en', weight: 1.0,
-    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+(olympic+OR+olympics+OR+ioc+OR+%22brisbane+2032%22+OR+aichi-nagoya+OR+aimag)&hl=en&gl=US&ceid=US:en',
+    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+olympic&hl=en-US&gl=US&ceid=US:en',
+  },
+  {
+    key: 'google-news-ioc-en', name: 'Google News', icon: 'G', language: 'en', weight: 1.0,
+    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+ioc&hl=en-US&gl=US&ceid=US:en',
   },
   // Dedicated padel sites
   {
