@@ -14,6 +14,12 @@ export interface ParsedPlayerProfile {
    * Empty array when the page has no coaches section or lists no names.
    */
   coaches: string[];
+  /**
+   * "Playing Position" per FIP — which side of the court the player plays
+   * ("Right" or "Left"). Distinct from handedness. Sourced from JSON-LD
+   * description (regex) first, HTML overview block as fallback.
+   */
+  side: string | null;
 }
 
 const FIP_ID_REGEX = /\bP\d{4,7}\b/;
@@ -120,11 +126,29 @@ export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
   let birthPlace: string | null = null;
   let heightCm: number | null = null;
   let affiliation: string | null = null;
+  let side: string | null = null;
   if (person) {
     birthDate = typeof person.birthDate === 'string' ? person.birthDate.slice(0, 10) : null;
     birthPlace = person.birthPlace?.name ?? null;
     heightCm = parseHeightCm(person.height);
     affiliation = person.affiliation?.name ?? null;
+    // Playing Position is embedded in the description string, e.g.
+    // "...Playing Position: Right;". Pluck it with a regex.
+    if (typeof person.description === 'string') {
+      const m = person.description.match(/Playing Position:\s*([A-Za-z]+)/i);
+      if (m && m[1]) side = m[1];
+    }
+  }
+  // HTML fallback when JSON-LD didn't surface side (older page formats).
+  if (!side) {
+    $('.overview__mirror').each((_, el) => {
+      if (side) return;
+      const title = $(el).find('.overview__title').first().text().trim().toLowerCase();
+      if (title === 'playing position') {
+        const value = $(el).find('.overview__text').first().text().trim();
+        if (value) side = value;
+      }
+    });
   }
 
   // Equipment
@@ -140,5 +164,5 @@ export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
     if (name) coaches.push(name);
   });
 
-  return { fipId, birthDate, birthPlace, heightCm, affiliation, racketBrand, racketModel, coaches };
+  return { fipId, birthDate, birthPlace, heightCm, affiliation, racketBrand, racketModel, coaches, side };
 }
