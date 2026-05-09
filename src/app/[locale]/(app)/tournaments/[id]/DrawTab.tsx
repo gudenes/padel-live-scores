@@ -9,6 +9,7 @@ import EmptyState from '@/components/EmptyState'
 import BracketMap from './BracketMap'
 import BracketRoundList from './BracketRoundList'
 import FollowingPill from './FollowingPill'
+import { roundCanonical } from '@/lib/round-canonical'
 import {
   buildBracket, tracePairPath, defaultTrackedPair, pairKeyFor,
   ROUND_ORDER,
@@ -64,20 +65,27 @@ export default function DrawTab({
     return () => { cancelled = true }
   }, [tournamentId, category])
 
-  // Filter to main-draw rounds only (no Q1/Q2/Q3 in v1).
+  // Filter to main-draw rounds only (no Q1/Q2/Q3 in v1). Prefer the
+  // backfilled `round_canonical` column, fall back to mapping the raw
+  // `round` string at runtime via `roundCanonical()` so tournaments with
+  // partially-backfilled data (e.g. Asuncion P2 — round set, round_canonical
+  // null on main-draw rows) still render the bracket.
   const mainDrawMatches = useMemo(
     () => matches.filter(m => {
-      const rc = (m as any).round_canonical as string | null
+      const rc = ((m as any).round_canonical as string | null) ?? roundCanonical(m.round)
       return rc != null && ROUND_ORDER.includes(rc as RoundCode)
     }),
     [matches],
   )
 
-  // Determine drawSize from R64 / R32 / R16 presence.
+  // Determine drawSize from R64 / R32 / R16 presence (using the same
+  // canonical fallback so `round_canonical=null` rows still count).
   const drawSize = useMemo(() => {
-    const hasR64 = mainDrawMatches.some(m => (m as any).round_canonical === 'R64')
+    const canonOf = (m: Match) =>
+      ((m as any).round_canonical as string | null) ?? roundCanonical(m.round)
+    const hasR64 = mainDrawMatches.some(m => canonOf(m) === 'R64')
     if (hasR64) return 64
-    const hasR32 = mainDrawMatches.some(m => (m as any).round_canonical === 'R32')
+    const hasR32 = mainDrawMatches.some(m => canonOf(m) === 'R32')
     if (hasR32) return 32
     return 16
   }, [mainDrawMatches])
