@@ -1,3 +1,6 @@
+// src/app/[locale]/(app)/tournaments/[id]/bracket-builder.ts
+// Pure-logic bracket-tree helpers. No React, no Supabase.
+
 import type { Match } from '@/types/match'
 
 export type RoundCode = 'R64' | 'R32' | 'R16' | 'QF' | 'SF' | 'F'

@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest'
+// src/app/[locale]/(app)/tournaments/[id]/bracket-builder.test.ts
+import { describe, expect, it } from 'vitest'
 import { pairKeyFor } from './bracket-builder'
 
 describe('pairKeyFor', () => {
