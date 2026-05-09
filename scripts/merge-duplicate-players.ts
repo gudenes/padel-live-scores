@@ -266,7 +266,6 @@ async function main() {
     category: string
     survivor: PlayerRow
     losers: PlayerRow[]
-    fkCounts: Record<string, number>
     extActions: ExtAction[]
     updates: Record<string, unknown>
     reason: string
@@ -275,6 +274,9 @@ async function main() {
   const plans: Plan[] = []
   const reviewClusters: Array<{ key: string; reason: string; rows: PlayerRow[] }> = []
 
+  // First pass: classify each cluster (auto vs review). No DB queries — pure
+  // logic. This is the visible phase where the operator wants to see how
+  // many clusters there are.
   for (const [key, rows] of groups) {
     if (rows.length < 2) continue
     const result = selectSurvivor(rows)
@@ -285,64 +287,86 @@ async function main() {
 
     const { survivor, losers } = result
     const updates = buildMergePayload(survivor, losers)
-    const loserIds = losers.map(l => l.id)
-
-    // FK redirect counts per table
-    const fkCounts: Record<string, number> = {}
-    for (const t of FK_TABLES) {
-      const { count } = await fk(t)
-        .select('*', { count: 'exact', head: true })
-        .in(t.col, loserIds)
-      fkCounts[`${t.table}.${t.col}`] = count ?? 0
-    }
-
-    // entity_external_ids — figure out per-row redirect vs drop
-    const extActions: ExtAction[] = []
-    const { data: loserExt } = await supabase
-      .from('entity_external_ids')
-      .select('id, source, external_id, entity_id')
-      .eq('entity_type', 'player')
-      .in('entity_id', loserIds)
-    if (loserExt && loserExt.length > 0) {
-      const { data: survivorExt } = await supabase
-        .from('entity_external_ids')
-        .select('source, external_id')
-        .eq('entity_type', 'player')
-        .eq('entity_id', survivor.id)
-      const survivorKeys = new Set(
-        (survivorExt ?? []).map(r => `${r.source}|${r.external_id}`),
-      )
-      for (const r of loserExt) {
-        const k = `${r.source}|${r.external_id}`
-        if (survivorKeys.has(k)) {
-          extActions.push({
-            kind: 'drop',
-            rowId: r.id,
-            source: r.source,
-            externalId: r.external_id,
-            reason: 'survivor already has this (source, external_id)',
-          })
-        } else {
-          extActions.push({
-            kind: 'redirect',
-            rowId: r.id,
-            source: r.source,
-            externalId: r.external_id,
-          })
-        }
-      }
-    }
 
     plans.push({
       name: survivor.name ?? '(no name)',
       category: survivor.category ?? '(no category)',
       survivor,
       losers,
-      fkCounts,
-      extActions,
+      extActions: [],
       updates,
       reason: result.reason,
     })
+  }
+
+  console.log(`Identified ${plans.length} auto-merge clusters and ${reviewClusters.length} review clusters\n`)
+
+  // Second pass: bulk-fetch entity_external_ids for ALL losers and ALL
+  // survivors in ONE round-trip each, then attach extActions to each plan.
+  // This replaces N×2 round-trips with 2 total — drops planning time from
+  // O(clusters × 2) to O(2).
+  const allLoserIds = plans.flatMap(p => p.losers.map(l => l.id))
+  const allSurvivorIds = plans.map(p => p.survivor.id)
+
+  if (allLoserIds.length > 0) {
+    process.stdout.write('Fetching entity_external_ids for all losers + survivors...')
+    const { data: loserExt } = await supabase
+      .from('entity_external_ids')
+      .select('id, source, external_id, entity_id')
+      .eq('entity_type', 'player')
+      .in('entity_id', allLoserIds)
+      .limit(20000)
+    const { data: survivorExt } = await supabase
+      .from('entity_external_ids')
+      .select('source, external_id, entity_id')
+      .eq('entity_type', 'player')
+      .in('entity_id', allSurvivorIds)
+      .limit(20000)
+    console.log(` got ${loserExt?.length ?? 0} loser rows, ${survivorExt?.length ?? 0} survivor rows`)
+
+    // Index loser ext rows by entity_id (= a loser id)
+    const loserExtByEntity = new Map<string, Array<{ id: string; source: string; external_id: string }>>()
+    for (const r of loserExt ?? []) {
+      if (!loserExtByEntity.has(r.entity_id)) loserExtByEntity.set(r.entity_id, [])
+      loserExtByEntity.get(r.entity_id)!.push({ id: r.id, source: r.source, external_id: r.external_id })
+    }
+
+    // Index survivor's existing (source, external_id) keys by survivor id
+    const survivorKeysByEntity = new Map<string, Set<string>>()
+    for (const r of survivorExt ?? []) {
+      if (!survivorKeysByEntity.has(r.entity_id)) survivorKeysByEntity.set(r.entity_id, new Set())
+      survivorKeysByEntity.get(r.entity_id)!.add(`${r.source}|${r.external_id}`)
+    }
+
+    // Attach extActions to each plan
+    for (const p of plans) {
+      const survivorKeys = survivorKeysByEntity.get(p.survivor.id) ?? new Set<string>()
+      for (const loserId of p.losers.map(l => l.id)) {
+        const rows = loserExtByEntity.get(loserId) ?? []
+        for (const r of rows) {
+          const k = `${r.source}|${r.external_id}`
+          if (survivorKeys.has(k)) {
+            p.extActions.push({
+              kind: 'drop',
+              rowId: r.id,
+              source: r.source,
+              externalId: r.external_id,
+              reason: 'survivor already has this (source, external_id)',
+            })
+          } else {
+            p.extActions.push({
+              kind: 'redirect',
+              rowId: r.id,
+              source: r.source,
+              externalId: r.external_id,
+            })
+            // Mark the key as taken so a subsequent loser with the same
+            // (source, external_id) gets dropped instead of conflicting.
+            survivorKeys.add(k)
+          }
+        }
+      }
+    }
   }
 
   // Print review clusters first
@@ -366,11 +390,6 @@ async function main() {
     for (const l of p.losers) {
       console.log(`   delete: ${l.id} fip_id=${l.fip_id ?? 'NULL'}`)
     }
-    const fkSummary = Object.entries(p.fkCounts)
-      .filter(([, n]) => n > 0)
-      .map(([k, n]) => `${k}=${n}`)
-      .join(', ')
-    if (fkSummary) console.log(`   FK redirects: ${fkSummary}`)
     if (p.extActions.length > 0) {
       console.log(`   external IDs:`)
       for (const a of p.extActions) {
@@ -404,9 +423,8 @@ async function main() {
   for (const p of plans) {
     const loserIds = p.losers.map(l => l.id)
     try {
-      // 1. FK redirects
+      // 1. FK redirects — always run the UPDATE; rows-not-matching is cheap.
       for (const t of FK_TABLES) {
-        if ((p.fkCounts[`${t.table}.${t.col}`] ?? 0) === 0) continue
         const { error: fkErr } = await fk(t)
           .update({ [t.col]: p.survivor.id })
           .in(t.col, loserIds)
