@@ -1,6 +1,6 @@
 // src/app/[locale]/(app)/tournaments/[id]/bracket-builder.test.ts
 import { describe, expect, it } from 'vitest'
-import { buildBracket, pairKeyFor, tracePairPath } from './bracket-builder'
+import { buildBracket, defaultTrackedPair, pairKeyFor, tracePairPath } from './bracket-builder'
 import type { Match } from '@/types/match'
 
 describe('pairKeyFor', () => {
@@ -226,5 +226,61 @@ describe('tracePairPath', () => {
     const path = tracePairPath(bracket, null)
     expect(path.nodes).toEqual([])
     expect(path.eliminatedAt).toBe(null)
+  })
+})
+
+describe('defaultTrackedPair', () => {
+  function makeBracket() {
+    const matches: Match[] = [
+      // R16-0: bookmark-player + partner (seed 5)
+      fakeMatch({
+        id: 'r16-0', round: 'R16', draw_position: 0,
+        pair1_player1: { id: 'bookmark-player', name: 'Andy Smith' } as any,
+        pair1_player2: { id: 'partner-1', name: 'Bob Jones' } as any,
+        pair1_seed: 5,
+        pair2_player1: { id: 'opp-1', name: 'Charlie Lee' } as any,
+        pair2_player2: { id: 'opp-2', name: 'Dan Park' } as any,
+      }) as any,
+      // R16-1: champ-1 + champ-2 (defending champs, seed 1)
+      fakeMatch({
+        id: 'r16-1', round: 'R16', draw_position: 1,
+        pair1_player1: { id: 'champ-1', name: 'Eli Wood' } as any,
+        pair1_player2: { id: 'champ-2', name: 'Fred Lake' } as any,
+        pair1_seed: 1,
+      }) as any,
+    ]
+    return buildBracket(matches, 16)
+  }
+
+  it('returns the bookmarked pair when one exists in the draw', () => {
+    const bracket = makeBracket()
+    const key = defaultTrackedPair(bracket, ['bookmark-player'], null)
+    expect(key).toBe(pairKeyFor('bookmark-player', 'partner-1'))
+  })
+
+  it('returns the defending champ pair when no bookmark applies', () => {
+    const bracket = makeBracket()
+    const key = defaultTrackedPair(bracket, [], { player1Id: 'champ-1', player2Id: 'champ-2' })
+    expect(key).toBe(pairKeyFor('champ-1', 'champ-2'))
+  })
+
+  it('falls through to defending champ when bookmarked player is not in this draw', () => {
+    const bracket = makeBracket()
+    const key = defaultTrackedPair(bracket, ['ghost-player'], { player1Id: 'champ-1', player2Id: 'champ-2' })
+    expect(key).toBe(pairKeyFor('champ-1', 'champ-2'))
+  })
+
+  it('returns null when neither bookmark nor defending champ applies', () => {
+    const bracket = makeBracket()
+    const key = defaultTrackedPair(bracket, ['ghost-player'], null)
+    expect(key).toBe(null)
+  })
+
+  it('falls through when only one defending champion appears (split partnerships)', () => {
+    const bracket = makeBracket()
+    // champ-1 is in the draw (with champ-2) but if we ask for a different
+    // partner combination that doesn't exist, fall through to null.
+    const key = defaultTrackedPair(bracket, [], { player1Id: 'champ-1', player2Id: 'someone-else' })
+    expect(key).toBe(null)
   })
 })

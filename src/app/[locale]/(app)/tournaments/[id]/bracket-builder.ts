@@ -171,3 +171,67 @@ export function tracePairPath(
   // Otherwise they lost their last match → eliminated at that round.
   return { nodes, eliminatedAt: last.round }
 }
+
+/**
+ * Resolve the default tracked pair for a draw.
+ *
+ * Priority:
+ * 1. A pair containing one of `bookmarkedPlayerIds`. If multiple pairs
+ *    qualify, prefer the one with the lowest seed number (most-seeded).
+ *    If none of the candidate pairs are seeded, prefer the pair whose
+ *    first player has the alphabetically-first surname (deterministic).
+ * 2. The pair containing both `defendingChampPair` players (exact match).
+ * 3. null.
+ */
+export function defaultTrackedPair(
+  bracket: BracketNode[],
+  bookmarkedPlayerIds: string[],
+  defendingChampPair: DefendingChampPair | null,
+): string | null {
+  // Collect every distinct pair that appears in the bracket and what we
+  // know about them (seed and lastname).
+  type PairInfo = {
+    key: string
+    playerIds: string[]
+    seed: number | null
+    sortName: string  // for the deterministic tiebreak
+  }
+  const seen = new Map<string, PairInfo>()
+  for (const node of bracket) {
+    const m = node.match
+    if (!m) continue
+    for (const side of [1, 2] as const) {
+      const p1 = side === 1 ? m.pair1_player1 : m.pair2_player1
+      const p2 = side === 1 ? m.pair1_player2 : m.pair2_player2
+      const seed = side === 1 ? m.pair1_seed : m.pair2_seed
+      if (!p1?.id || !p2?.id) continue
+      const key = pairKeyFor(p1.id, p2.id)
+      if (seen.has(key)) continue
+      const sortName = (p1.name ?? '').toLowerCase()
+      seen.set(key, { key, playerIds: [p1.id, p2.id], seed: seed ?? null, sortName })
+    }
+  }
+
+  // 1. Bookmarked-player match
+  const bookmarked = new Set(bookmarkedPlayerIds)
+  const bookmarkCandidates = [...seen.values()].filter(p =>
+    p.playerIds.some(id => bookmarked.has(id)),
+  )
+  if (bookmarkCandidates.length > 0) {
+    bookmarkCandidates.sort((a, b) => {
+      const aSeed = a.seed ?? Number.POSITIVE_INFINITY
+      const bSeed = b.seed ?? Number.POSITIVE_INFINITY
+      if (aSeed !== bSeed) return aSeed - bSeed
+      return a.sortName.localeCompare(b.sortName)
+    })
+    return bookmarkCandidates[0].key
+  }
+
+  // 2. Defending champion (exact pair match)
+  if (defendingChampPair) {
+    const champKey = pairKeyFor(defendingChampPair.player1Id, defendingChampPair.player2Id)
+    if (seen.has(champKey)) return champKey
+  }
+
+  return null
+}
