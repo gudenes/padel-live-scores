@@ -938,6 +938,24 @@
     "inRegion": "En {region}",
     "freeBadge": "GRATUIT"
   },
+  "draw": {
+    "tab": "Tableau",
+    "following": "Vous suivez",
+    "defendingChamp": "Tenant du titre",
+    "roadToTrophy": "chemin vers le titre",
+    "outInRound": "éliminé en {round}",
+    "byeLabel": "BYE",
+    "winnerOf": "Vainqueur de {feed}",
+    "tbd": "TBD",
+    "preMainDrawTitle": "Tableau principal pas encore publié",
+    "preMainDrawBody": "Le tableau principal commence le {date}. Voir les matchs dans l'onglet Matchs.",
+    "preMainDrawNoDate": "Tableau principal pas encore publié. Voir les matchs dans l'onglet Matchs.",
+    "goToMatches": "Voir tous les matchs",
+    "legendQ": "Qualifié",
+    "legendWc": "Wild card",
+    "legendLl": "Lucky loser",
+    "legendSeed": "Tête de série"
+  },
   "email": {
     "welcome": {
       "subject": "Bienvenue sur PadelNachos 🎾",
