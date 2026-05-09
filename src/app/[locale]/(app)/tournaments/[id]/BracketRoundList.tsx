@@ -13,11 +13,18 @@ import { ROUND_ORDER, ROUND_SLOTS, pairKeyFor } from './bracket-builder'
 //   - QF with 4 cells, SF with 2, F with 1 — same relationship continues
 // The result is the classic bracket-tree pyramid where later rounds
 // converge toward the vertical center.
-const CELL_SLOT_PX = 56  // approx height of one cell + breathing room
-                          // (smaller value = denser bracket; columns
-                          // shrink proportionally so R16/QF/SF/F still
-                          // align to the midpoints of their feeding
-                          // pairs, just with less wasted space)
+// Per-cell vertical slot. MUST be >= the actual rendered cell height
+// or `justify-content: space-around` can't distribute cells evenly —
+// they overflow and stack tight at the top, while R16/QF/SF/F columns
+// (with fewer cells, no overflow) keep the spread layout. The mismatch
+// makes connector lines from low-R32 cells point ~180px above where
+// R16 cells actually land.
+//
+// Cells render ~68px tall (two pair rows + scheduled time + padding).
+// 72 gives 4px breathing room per slot — enough that space-around
+// produces stable, even distribution across all rounds, so the
+// midpoint of two R32 cells lines up exactly with their R16 destination.
+const CELL_SLOT_PX = 72
 // Width of the SVG connector overlay between columns. Drawn into the
 // space between columns to link two source cells to one destination cell.
 const CONNECTOR_PX = 14
