@@ -2,6 +2,7 @@
   "cards": [
     {
       "key": "carraro",
+      "group": "padel-advocates",
       "role": "FIP President",
       "name": "Luigi Carraro",
       "org": "Int'l Padel Federation",
@@ -13,6 +14,7 @@
     },
     {
       "key": "ioc-president",
+      "group": "olympic-committee",
       "role": "IOC President",
       "name": "Successor TBD",
       "org": "International Olympic Committee",
@@ -24,6 +26,7 @@
     },
     {
       "key": "mcconnell",
+      "group": "olympic-committee",
       "role": "Brisbane 2032 CSO",
       "name": "Kit McConnell",
       "org": "Brisbane 2032 Organising Committee",
@@ -35,6 +38,7 @@
     },
     {
       "key": "samaranch",
+      "group": "olympic-committee",
       "role": "IOC Vice President",
       "name": "Juan Antonio Samaranch Jr.",
       "org": "IOC",
@@ -46,6 +50,7 @@
     },
     {
       "key": "buenaventura",
+      "group": "padel-advocates",
       "role": "Hexagon Cup Founder",
       "name": "Enrique Buenaventura",
       "org": "Hexagon Cup",
@@ -57,6 +62,7 @@
     },
     {
       "key": "al-khelaifi",
+      "group": "padel-advocates",
       "role": "Premier Padel Chairman",
       "name": "Nasser Al-Khelaifi",
       "org": "QSI · Premier Padel",

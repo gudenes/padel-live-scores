@@ -1043,7 +1043,9 @@
       "empty": "Pas de mise à jour récente. Revenez bientôt."
     },
     "dossier": {
-      "title": "Les décideurs"
+      "title": "Les décideurs",
+      "groupOlympicCommittee": "Comité Olympique",
+      "groupPadelAdvocates": "Soutiens du Padel"
     },
     "actionsTitle": "Soutenir le mouvement",
     "actions": {

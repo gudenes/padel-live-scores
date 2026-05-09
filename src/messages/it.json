@@ -1043,7 +1043,9 @@
       "empty": "Nessun aggiornamento recente. Torna presto."
     },
     "dossier": {
-      "title": "Chi decide"
+      "title": "Chi decide",
+      "groupOlympicCommittee": "Comitato Olimpico",
+      "groupPadelAdvocates": "Sostenitori del Padel"
     },
     "actionsTitle": "Sostieni la spinta",
     "actions": {

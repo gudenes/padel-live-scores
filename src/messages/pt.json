@@ -1043,7 +1043,9 @@
       "empty": "Sem desenvolvimentos recentes. Volta mais tarde."
     },
     "dossier": {
-      "title": "Decisores"
+      "title": "Decisores",
+      "groupOlympicCommittee": "Comité Olímpico",
+      "groupPadelAdvocates": "Defensores do Padel"
     },
     "actionsTitle": "Apoia o avanço",
     "actions": {

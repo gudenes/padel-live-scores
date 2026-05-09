@@ -1064,7 +1064,9 @@
       "empty": "No recent beats. Check back soon."
     },
     "dossier": {
-      "title": "Decision Makers"
+      "title": "Decision Makers",
+      "groupOlympicCommittee": "Olympic Committee",
+      "groupPadelAdvocates": "Padel Supporters"
     },
     "actionsTitle": "Support the push",
     "actions": {
