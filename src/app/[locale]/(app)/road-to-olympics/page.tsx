@@ -123,7 +123,18 @@ export default async function RoadToOlympicsPage() {
         pillStatus = 'building' as const
         pillText = '—'
     }
-    return { key: row.key, label: labelByKey[row.key]!, pillStatus, pillText }
+    const isBlocker = pillStatus === 'building'
+    const pillExplanation = tScore(`explanations.${row.key}` as Parameters<typeof tScore>[0])
+    return {
+      key: row.key,
+      label: labelByKey[row.key]!,
+      pillStatus,
+      pillText,
+      pillExplanation,
+      isBlocker,
+      blockerBadge: tScore('blockerBadge'),
+      blockerExplanation: tScore('blockerExplanation'),
+    }
   })
 
   const tweetIntentUrl = buildTweetIntentUrl({
