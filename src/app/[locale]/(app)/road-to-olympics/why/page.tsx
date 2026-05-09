@@ -5,7 +5,7 @@
 import { getTranslations } from 'next-intl/server'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import { Link } from '@/i18n/navigation'
-import { GREEN, BG_BASE, MUTED } from '@/components/home/shared'
+import { GREEN, BG_BASE, MUTED } from '@/components/home/shared-constants'
 
 export const dynamic = 'force-dynamic'
 

@@ -34,24 +34,47 @@ export async function fetchOlympicBeats(
 ): Promise<Array<{
   id: string
   title: string
-  summary: string | null
-  source_url: string
+  summary: string | null   // sourced from the `articles.snippet` column
+  source_url: string       // sourced from the `articles.url` column
   source_name: string
   published_at: string
 }>> {
-  // We can't push the regex into Postgres easily, so we over-fetch and filter
-  // in JS. ~50 candidates × 6 weeks of news is a few KB; well within budget.
+  // Push the filter into Postgres so we don't lose Olympic stories in the
+  // tail of "most recent N articles" — daily match coverage dominates the
+  // top of the table, Olympic news is sparser and older. Two paths:
+  //   1. Articles from dedicated Olympic feeds (source_key match)
+  //   2. Articles from any other feed whose title contains an Olympic keyword
+  // Then a final regex pass in JS as a safety net (ilike has no word boundary,
+  // so it could surface false positives like "metropolis" — the regex catches them).
+  //
+  // Note: the actual articles table columns are `snippet` (not `summary`) and
+  // `url` (not `source_url`). Aliasing in the select keeps the public return
+  // type stable for the BeatsFeed component.
+  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from('articles')
-    .select('id, title, summary, source_url, source_name, published_at')
-    .gte('published_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+    .select('id, title, snippet, url, source_name, published_at, source_key')
+    .gte('published_at', cutoff)
+    .or(
+      'source_key.in.(google-news-olympics-en,google-news-ioc-en),' +
+      'title.ilike.%olympic%,title.ilike.%IOC%,title.ilike.%Brisbane 2032%,' +
+      'title.ilike.%Aichi-Nagoya%,title.ilike.%AIMAG%,title.ilike.%FISU%',
+    )
     .order('published_at', { ascending: false })
-    .limit(50)
+    .limit(limit * 3) // small over-fetch; regex pass below narrows to true matches
   if (error) {
     console.error('[road-to-olympics] fetchOlympicBeats failed:', error.message)
     return []
   }
   return (data ?? [])
-    .filter((row) => isOlympicArticle({ title: row.title, summary: row.summary }))
+    .filter((row) => isOlympicArticle({ title: row.title, summary: row.snippet }))
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      summary: row.snippet,
+      source_url: row.url,
+      source_name: row.source_name,
+      published_at: row.published_at,
+    }))
     .slice(0, limit)
 }

@@ -1,7 +1,7 @@
 // src/components/road-to-olympics/BeatsFeedTabs.tsx
 'use client'
 
-import { GREEN, MUTED } from '@/components/home/shared'
+import { GREEN, MUTED } from '@/components/home/shared-constants'
 
 interface Props {
   winsLabel: string

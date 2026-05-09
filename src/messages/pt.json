@@ -1026,7 +1026,16 @@
       "continentsLabel": "Continentes onde se joga",
       "federationsLabel": "Federações nacionais",
       "genderLabel": "Padel feminino",
-      "eliteLabel": "Países de elite"
+      "eliteLabel": "Países de elite",
+      "explanations": {
+        "compliance": "O padel cumpre os três quadros de conformidade do IOC: a Carta Olímpica, o Código da WADA (antidoping) e o Código do Movimento Olímpico sobre Manipulação de Competições. É um requisito obrigatório e estamos solidamente acima do limite.",
+        "continents": "O IOC exige que um desporto seja praticado em pelo menos três continentes. O padel já é jogado em cinco (Europa, América, Ásia, África, Oceânia), confortavelmente acima do limite.",
+        "federations": "87 países têm uma federação nacional de padel afiliada à FIP. O limite geral do IOC para alcance global ronda as 75 federações — estamos acima e a crescer todos os trimestres.",
+        "gender": "40% dos jogadores de padel a nível mundial são mulheres. O IOC pressiona fortemente pela paridade de género (50/50). Estamos no caminho certo para esse objetivo — fechar esses últimos 10 pontos reforça consideravelmente o argumento.",
+        "elite": "Apenas dois países — Espanha e Argentina — têm atualmente atletas capazes de conquistar medalhas a nível olímpico. O IOC normalmente exige quatro ou mais países genuinamente competitivos no topo antes de adicionar um desporto. Esta é a maior lacuna individual no caso olímpico do padel."
+      },
+      "blockerBadge": "PRINCIPAL OBSTÁCULO",
+      "blockerExplanation": "Esta linha é o maior obstáculo individual à inclusão olímpica do padel. Todos os outros critérios estão cumpridos ou no bom caminho — fechar esta lacuna é o que o padel mais precisa."
     },
     "beats": {
       "tabWins": "Vitórias",
@@ -1034,7 +1043,9 @@
       "empty": "Sem desenvolvimentos recentes. Volta mais tarde."
     },
     "dossier": {
-      "title": "Decisores"
+      "title": "Decisores",
+      "groupOlympicCommittee": "Comité Olímpico",
+      "groupPadelAdvocates": "Defensores do Padel"
     },
     "actionsTitle": "Apoia o avanço",
     "actions": {
@@ -1065,7 +1076,9 @@
     "subscribe": {
       "modalTitle": "Recebe alertas do IOC",
       "modalIntro": "Enviamos-te e-mail sempre que algo importante acontece — uma federação adere, o IOC faz declarações, a tabela de pontuação muda.",
+      "fieldName": "Nome a mostrar (opcional)",
       "fieldEmail": "E-mail",
+      "fieldCountry": "País (opcional)",
       "submit": "Subscrever",
       "submitting": "A enviar confirmação…",
       "checkInbox": "Verifica a tua caixa de entrada para confirmar — acabamos de enviar uma ligação com um clique."
@@ -1097,6 +1110,29 @@
       "stanceBody": "Apoiamos a inclusão do padel nos Jogos Olímpicos. Não estamos a fingir ser um meio de comunicação social neutro — ter viés no resultado é aceitável, ser negligente nos factos não é.",
       "rules": "Regras de sourcing",
       "rulesBody": "Cada contador no tracker tem uma ligação para uma fonte primária. Quando FIP o diz, ligamos a FIP. Quando vozes críticas contestam, aparecem no separador Observação — não são silenciosamente descartadas."
+    },
+    "corrections": {
+      "cardTitle": "Vês algo errado? Tens informação para adicionar?",
+      "cardBody": "Acompanhamos isto honestamente — mas somos uma equipa pequena e às vezes falha-nos algo. Envia-nos uma nota rápida e corrigimos.",
+      "cardCta": "Enviar mensagem",
+      "modalTitle": "Envia-nos uma mensagem",
+      "modalIntro": "Detectaste um erro factual, tens nova informação, ou queres partilhar uma ideia? Lemos todas as mensagens.",
+      "fieldType": "Sobre o que é?",
+      "type_correction": "Correção",
+      "type_information": "Nova info",
+      "type_other": "Outro",
+      "fieldName": "O teu nome (opcional)",
+      "fieldEmail": "Email (para podermos responder)",
+      "fieldMessage": "Mensagem",
+      "submit": "Enviar",
+      "submitting": "A enviar…",
+      "successTitle": "Recebido.",
+      "successBody": "Obrigado pela nota — lemos todas as mensagens e responderemos se for caso disso.",
+      "error_invalid_email": "Esse email não parece correto. Tentas de novo?",
+      "error_message_too_short": "Conta-nos um pouco mais — pelo menos 5 caracteres.",
+      "error_rate_limited": "Já enviaste algumas mensagens. Tenta novamente dentro de uma hora.",
+      "error_server_error": "Algo correu mal do nosso lado. Tentas daqui a pouco?",
+      "error_email_disabled": "As mensagens estão temporariamente desativadas. Escreve-nos diretamente para hello@padelnachos.com."
     }
   }
 }

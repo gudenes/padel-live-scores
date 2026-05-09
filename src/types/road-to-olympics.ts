@@ -51,6 +51,8 @@ export interface CriteriaRow {
 
 export interface DecisionMaker {
   key: string
+  /** Which side of the Olympic equation this person represents. */
+  group: 'olympic-committee' | 'padel-advocates'
   role: string                 // "FIP President"
   name: string                 // "Luigi Carraro"
   org: string                  // "Int'l Padel Federation"

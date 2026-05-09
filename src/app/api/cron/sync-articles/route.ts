@@ -26,6 +26,10 @@ interface ArticleSource {
   weight: number
   type: 'rss' | 'wp-api'
   url: string
+  /** How far back to ingest articles for this source. Defaults to 14 days.
+   *  Niche / low-volume sources (e.g. Olympic-track padel news) widen this
+   *  so the BeatsFeed has enough signal to look alive. */
+  lookbackDays?: number
 }
 
 const SOURCES: ArticleSource[] = [
@@ -45,6 +49,20 @@ const SOURCES: ArticleSource[] = [
   {
     key: 'google-news-br', name: 'Google News', icon: 'G', language: 'pt', weight: 1.0,
     type: 'rss', url: 'https://news.google.com/rss/search?q=padel+premier+padel&hl=pt-BR&gl=BR&ceid=BR:pt-419',
+  },
+  // Olympic-track padel news for /road-to-olympics BeatsFeed.
+  // Google News doesn't honor compound OR queries, so we run two simple
+  // single-keyword feeds and let the BeatsFeed regex (in src/lib/road-to-
+  // olympics/beats.ts) do the rest of the filtering.
+  {
+    key: 'google-news-olympics-en', name: 'Google News', icon: 'G', language: 'en', weight: 1.0,
+    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+olympic&hl=en-US&gl=US&ceid=US:en',
+    lookbackDays: 90,
+  },
+  {
+    key: 'google-news-ioc-en', name: 'Google News', icon: 'G', language: 'en', weight: 1.0,
+    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+ioc&hl=en-US&gl=US&ceid=US:en',
+    lookbackDays: 90,
   },
   // Dedicated padel sites
   {
@@ -248,7 +266,7 @@ async function fetchRSS(source: ArticleSource): Promise<ArticleRow[]> {
     isGoogleNews ? fetchGoogleNewsSourceMap(source.url) : Promise.resolve(new Map<string, string>()),
   ])
 
-  const cutoff = Date.now() - 14 * 86400000 // last 14 days
+  const cutoff = Date.now() - (source.lookbackDays ?? 14) * 86400000
   const rows: ArticleRow[] = []
 
   for (const item of (feed.items ?? []).slice(0, 20)) {

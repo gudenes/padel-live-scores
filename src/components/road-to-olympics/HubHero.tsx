@@ -4,7 +4,7 @@
 // .superpowers/brainstorm/97613-1778261304/content/hub-layout-v3-1.html
 
 import { useTranslations } from 'next-intl'
-import { GREEN, CHUNKY } from '@/components/home/shared'
+import { GREEN, CHUNKY } from '@/components/home/shared-constants'
 import Term from './Term'
 
 export default function HubHero() {

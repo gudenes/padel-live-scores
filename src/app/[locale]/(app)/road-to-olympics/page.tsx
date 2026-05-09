@@ -5,7 +5,6 @@
 
 import React from 'react'
 import Image from 'next/image'
-import { createClient } from '@supabase/supabase-js'
 import { getTranslations } from 'next-intl/server'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import HubHero from '@/components/road-to-olympics/HubHero'
@@ -14,9 +13,11 @@ import CriteriaScorecard from '@/components/road-to-olympics/CriteriaScorecard'
 import BeatsFeed from '@/components/road-to-olympics/BeatsFeed'
 import DecisionMakersDossier from '@/components/road-to-olympics/DecisionMakersDossier'
 import ActionHub from '@/components/road-to-olympics/ActionHub'
-import PledgeInline from '@/components/road-to-olympics/PledgeInline'
+import CorrectionsCTA from '@/components/road-to-olympics/CorrectionsCTA'
 import DisclosureFooter from '@/components/road-to-olympics/DisclosureFooter'
 import Term from '@/components/road-to-olympics/Term'
+import { SectionTitle } from '@/components/home/shared'
+import { BG_BASE, CHUNKY, MUTED } from '@/components/home/shared-constants'
 import {
   computeDaysUntil,
   derivePillStatus,
@@ -25,7 +26,6 @@ import {
   getState,
 } from '@/lib/road-to-olympics/state'
 import { buildTweetIntentUrl } from '@/lib/road-to-olympics/share-copy'
-import { BG_BASE, CHUNKY, MUTED, SectionTitle } from '@/components/home/shared'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,15 +75,6 @@ export default async function RoadToOlympicsPage() {
   const dossier = getDecisionMakers()
   const daysUntil = computeDaysUntil(state.iocSessionAt)
 
-  // Initial pledge count for SSR (refreshed client-side after mount)
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-  )
-  const { count: pledgeCount } = await supabase
-    .from('road_to_olympics_pledges')
-    .select('*', { count: 'exact', head: true })
-
   // Map criteria rows to pill statuses + pill text from state counters
   const labelByKey: Record<string, React.ReactNode> = {
     compliance: tScore.rich('complianceLabel', {
@@ -122,7 +113,18 @@ export default async function RoadToOlympicsPage() {
         pillStatus = 'building' as const
         pillText = '—'
     }
-    return { key: row.key, label: labelByKey[row.key]!, pillStatus, pillText }
+    const isBlocker = pillStatus === 'building'
+    const pillExplanation = tScore(`explanations.${row.key}` as Parameters<typeof tScore>[0])
+    return {
+      key: row.key,
+      label: labelByKey[row.key]!,
+      pillStatus,
+      pillText,
+      pillExplanation,
+      isBlocker,
+      blockerBadge: tScore('blockerBadge'),
+      blockerExplanation: tScore('blockerExplanation'),
+    }
   })
 
   const tweetIntentUrl = buildTweetIntentUrl({
@@ -181,8 +183,7 @@ export default async function RoadToOlympicsPage() {
 
         <SectionTitle>{t('actionsTitle')}</SectionTitle>
         <ActionHub tweetIntentUrl={tweetIntentUrl} daysUntil={daysUntil} />
-        <PledgeInline initialCount={pledgeCount ?? 0} />
-
+        <CorrectionsCTA />
         <DisclosureFooter />
       </main>
     </>

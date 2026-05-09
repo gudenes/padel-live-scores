@@ -1,16 +1,15 @@
 // src/components/road-to-olympics/ActionHub.tsx
 //
-// Four mini-cards. Share opens twitter intent in a new tab. Email goes to
-// /road-to-olympics/email. Alerts opens SubscribeFormModal. Pledge opens
-// PledgeFormModal.
+// Three mini-cards. Share opens twitter intent in a new tab. Email goes to
+// /road-to-olympics/email. Alerts opens SubscribeFormModal (the only signup
+// CTA — the pledge card was removed; pledge code kept for Hardening Wave cleanup).
 
 'use client'
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
-import { MegaphoneIcon, MailIcon, BellIcon, PenIcon } from './icons'
-import PledgeFormModal from './PledgeFormModal'
+import { MegaphoneIcon, MailIcon, BellIcon } from './icons'
 import SubscribeFormModal from './SubscribeFormModal'
 import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared'
 
@@ -21,7 +20,6 @@ interface Props {
 
 export default function ActionHub({ tweetIntentUrl, daysUntil }: Props) {
   const t = useTranslations('roadToOlympics.actions')
-  const [pledgeOpen, setPledgeOpen] = useState(false)
   const [subOpen, setSubOpen] = useState(false)
 
   const cardStyle: React.CSSProperties = {
@@ -84,18 +82,8 @@ export default function ActionHub({ tweetIntentUrl, daysUntil }: Props) {
           <div style={titleStyle}>{t('alertsTitle')}</div>
           <div style={descStyle}>{t('alertsDesc')}</div>
         </button>
-        <button
-          type="button"
-          onClick={() => setPledgeOpen(true)}
-          style={{ ...cardStyle, border: cardStyle.border, font: 'inherit' }}
-        >
-          <PenIcon style={iconStyle} />
-          <div style={titleStyle}>{t('pledgeTitle')}</div>
-          <div style={descStyle}>{t('pledgeDesc')}</div>
-        </button>
       </div>
 
-      {pledgeOpen && <PledgeFormModal onClose={() => setPledgeOpen(false)} />}
       {subOpen && <SubscribeFormModal onClose={() => setSubOpen(false)} />}
     </>
   )

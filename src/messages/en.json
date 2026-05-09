@@ -1047,7 +1047,16 @@
       "continentsLabel": "Continents played",
       "federationsLabel": "National federations",
       "genderLabel": "Women's padel",
-      "eliteLabel": "Elite-level countries"
+      "eliteLabel": "Elite-level countries",
+      "explanations": {
+        "compliance": "Padel meets all three IOC compliance frameworks: the Olympic Charter, the WADA Code (anti-doping), and the Olympic Movement Code on Manipulation of Competitions. This is a hard requirement and we're solidly past it.",
+        "continents": "The IOC requires a sport to be practised on at least three continents. Padel is now played on five (Europe, Americas, Asia, Africa, Oceania), comfortably past the threshold.",
+        "federations": "87 countries have a national padel federation affiliated with the FIP. The IOC's general benchmark for global reach is around 75 federations — we're past that and growing every quarter.",
+        "gender": "40% of padel players globally are women. The IOC pushes hard for gender parity (50/50). We're on track toward that target — closing the last 10 points strengthens the case considerably.",
+        "elite": "Only two countries — Spain and Argentina — currently have athletes capable of medalling at Olympic level. The IOC typically wants four or more countries genuinely competitive at the top before adding a sport. This is the biggest single gap in padel's Olympic case."
+      },
+      "blockerBadge": "MAIN BLOCKER",
+      "blockerExplanation": "This row is the single biggest obstacle to padel's Olympic inclusion. Every other criteria is met or on track — closing this gap is what padel needs most."
     },
     "beats": {
       "tabWins": "Wins",
@@ -1055,7 +1064,9 @@
       "empty": "No recent beats. Check back soon."
     },
     "dossier": {
-      "title": "Decision Makers"
+      "title": "Decision Makers",
+      "groupOlympicCommittee": "Olympic Committee",
+      "groupPadelAdvocates": "Padel Supporters"
     },
     "actionsTitle": "Support the push",
     "actions": {
@@ -1086,7 +1097,9 @@
     "subscribe": {
       "modalTitle": "Get IOC alerts",
       "modalIntro": "We'll email you each time something material happens — federation joins, IOC statements, scorecard changes.",
+      "fieldName": "Display name (optional)",
       "fieldEmail": "Email",
+      "fieldCountry": "Country (optional)",
       "submit": "Subscribe",
       "submitting": "Sending confirmation…",
       "checkInbox": "Check your inbox to confirm — we just sent a one-click link."
@@ -1118,6 +1131,29 @@
       "stanceBody": "We support padel's inclusion in the Olympic Games. We're not pretending to be a neutral journalism outlet — bias on the outcome is fine, sloppy on the facts is not.",
       "rules": "Sourcing rules",
       "rulesBody": "Every counter on the tracker is linked to a primary source. When FIP says it, we link to FIP. When critical voices push back, they go in the Watchlist tab — not silently dropped."
+    },
+    "corrections": {
+      "cardTitle": "See something wrong? Have info to add?",
+      "cardBody": "We track this honestly — but we're a small team and we miss things. Send us a quick note and we'll fix it.",
+      "cardCta": "Send a message",
+      "modalTitle": "Send us a message",
+      "modalIntro": "Spotted a factual error, have new information, or just want to share a thought? We read every message.",
+      "fieldType": "What's this about?",
+      "type_correction": "Correction",
+      "type_information": "New info",
+      "type_other": "Other",
+      "fieldName": "Your name (optional)",
+      "fieldEmail": "Email (so we can reply)",
+      "fieldMessage": "Message",
+      "submit": "Send",
+      "submitting": "Sending…",
+      "successTitle": "Got it.",
+      "successBody": "Thanks for the note — we read every message and we'll get back to you if it needs a reply.",
+      "error_invalid_email": "That email doesn't look right. Try again?",
+      "error_message_too_short": "Tell us a little more — at least 5 characters.",
+      "error_rate_limited": "You've sent a few messages already. Try again in an hour.",
+      "error_server_error": "Something went wrong on our side. Try again in a moment?",
+      "error_email_disabled": "Messaging is temporarily off. Email hello@padelnachos.com directly."
     }
   }
 }

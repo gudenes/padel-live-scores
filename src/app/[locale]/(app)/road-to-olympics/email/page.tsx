@@ -12,7 +12,7 @@ import {
   buildEmailToNocBody,
   buildEmailToSportsMinisterBody,
 } from '@/lib/road-to-olympics/share-copy'
-import { BG_BASE, BG_CARD, BORDER, GREEN, CHUNKY } from '@/components/home/shared'
+import { BG_BASE, BG_CARD, BORDER, GREEN, CHUNKY } from '@/components/home/shared-constants'
 
 export const dynamic = 'force-dynamic'
 

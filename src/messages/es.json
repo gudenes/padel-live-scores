@@ -1026,7 +1026,16 @@
       "continentsLabel": "Continentes donde se juega",
       "federationsLabel": "Federaciones nacionales",
       "genderLabel": "Pádel femenino",
-      "eliteLabel": "Países de élite"
+      "eliteLabel": "Países de élite",
+      "explanations": {
+        "compliance": "El pádel cumple con los tres marcos de cumplimiento del COI: la Carta Olímpica, el Código WADA (antidopaje) y el Código del Movimiento Olímpico sobre Manipulación de Competiciones. Es un requisito imprescindible y lo superamos con holgura.",
+        "continents": "El COI exige que un deporte se practique en al menos tres continentes. El pádel se juega ya en cinco (Europa, América, Asia, África, Oceanía), muy por encima del umbral.",
+        "federations": "87 países tienen una federación nacional de pádel afiliada a la FIP. El umbral general del COI para alcance global ronda las 75 federaciones — lo superamos y crecemos cada trimestre.",
+        "gender": "El 40% de los jugadores de pádel a nivel mundial son mujeres. El COI impulsa con fuerza la paridad de género (50/50). Vamos por buen camino hacia ese objetivo — cerrar esos últimos 10 puntos refuerza considerablemente el expediente.",
+        "elite": "Solo dos países — España y Argentina — tienen actualmente atletas con capacidad de medallar a nivel olímpico. El COI suele exigir cuatro o más países genuinamente competitivos en lo más alto antes de añadir un deporte. Esta es la mayor brecha individual en el expediente olímpico del pádel."
+      },
+      "blockerBadge": "PRINCIPAL OBSTÁCULO",
+      "blockerExplanation": "Esta fila es el mayor obstáculo individual para la inclusión olímpica del pádel. Todos los demás criterios están cumplidos o en buen camino — cerrar esta brecha es lo que el pádel más necesita."
     },
     "beats": {
       "tabWins": "Victorias",
@@ -1034,7 +1043,9 @@
       "empty": "Sin noticias recientes. Vuelve pronto."
     },
     "dossier": {
-      "title": "Tomadores de decisiones"
+      "title": "Tomadores de decisiones",
+      "groupOlympicCommittee": "Comité Olímpico",
+      "groupPadelAdvocates": "Defensores del Pádel"
     },
     "actionsTitle": "Apoya el impulso",
     "actions": {
@@ -1065,7 +1076,9 @@
     "subscribe": {
       "modalTitle": "Recibe alertas del COI",
       "modalIntro": "Te enviaremos un correo cada vez que suceda algo importante — nuevas federaciones, declaraciones del COI, cambios en el marcador.",
+      "fieldName": "Nombre para mostrar (opcional)",
       "fieldEmail": "Correo electrónico",
+      "fieldCountry": "País (opcional)",
       "submit": "Suscribirse",
       "submitting": "Enviando confirmación…",
       "checkInbox": "Revisa tu bandeja de entrada para confirmar — acabamos de enviarte un enlace de un clic."
@@ -1097,6 +1110,29 @@
       "stanceBody": "Apoyamos la inclusión del pádel en los Juegos Olímpicos. No fingimos ser un medio de comunicación neutral — el sesgo sobre el resultado está bien, ser descuidado con los hechos no.",
       "rules": "Reglas de procedencia",
       "rulesBody": "Cada contador en el rastreador está vinculado a una fuente primaria. Cuando la FIP lo dice, enlazamos a la FIP. Cuando voces críticas protestan, van en la pestaña de Seguimiento — no se descartan silenciosamente."
+    },
+    "corrections": {
+      "cardTitle": "¿Ves algo mal? ¿Tienes información que añadir?",
+      "cardBody": "Hacemos un seguimiento honesto — pero somos un equipo pequeño y a veces se nos escapan cosas. Mándanos una nota rápida y lo arreglamos.",
+      "cardCta": "Enviar mensaje",
+      "modalTitle": "Envíanos un mensaje",
+      "modalIntro": "¿Detectaste un error de hecho, tienes nueva información, o quieres compartir una idea? Leemos cada mensaje.",
+      "fieldType": "¿De qué se trata?",
+      "type_correction": "Corrección",
+      "type_information": "Nueva info",
+      "type_other": "Otro",
+      "fieldName": "Tu nombre (opcional)",
+      "fieldEmail": "Email (para poder responder)",
+      "fieldMessage": "Mensaje",
+      "submit": "Enviar",
+      "submitting": "Enviando…",
+      "successTitle": "Recibido.",
+      "successBody": "Gracias por la nota — leemos cada mensaje y te responderemos si requiere respuesta.",
+      "error_invalid_email": "Ese email no parece correcto. ¿Lo intentas de nuevo?",
+      "error_message_too_short": "Cuéntanos un poco más — al menos 5 caracteres.",
+      "error_rate_limited": "Ya has enviado varios mensajes. Inténtalo de nuevo en una hora.",
+      "error_server_error": "Algo salió mal de nuestro lado. ¿Lo intentas en un momento?",
+      "error_email_disabled": "Los mensajes están temporalmente desactivados. Escríbenos directamente a hello@padelnachos.com."
     }
   }
 }

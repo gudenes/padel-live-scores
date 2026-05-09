@@ -1,23 +1,25 @@
 'use client'
-// src/components/road-to-olympics/Term.tsx
+// src/components/road-to-olympics/BlockerBadge.tsx
 //
-// Inline tap-to-define tooltip for acronyms on Road-to-Olympics surfaces.
-// Renders the abbreviation as a dotted-underlined button. Tap opens a small
-// popover anchored above (or below if near the top of the viewport) the term.
+// Inline "MAIN BLOCKER" badge rendered next to the label on any scorecard row
+// where isBlocker === true. Tapping it opens a short popover explaining why
+// this row is the critical gap in padel's Olympic case.
 //
-// Dismiss: outside click, Escape key, or second tap on the button.
-// The 50ms listener delay mirrors BadgeTooltip.tsx so the opening tap
-// doesn't immediately close the popover.
+// Dismiss: outside click, Escape key, or second tap.
 
 import { useRef, useState, useEffect, useCallback, useId } from 'react'
 import { BG_CARD, BORDER, CHUNKY } from '@/components/home/shared-constants'
 
-interface TermProps {
-  short: string
-  definition: string
+// Warm alert red-orange, distinct from the ORANGE warning colour
+const BLOCKER_BG = 'rgba(245, 90, 70, 0.18)'
+const BLOCKER_COLOR = '#FF6F4A'
+
+interface BlockerBadgeProps {
+  label: string
+  explanation: string
 }
 
-export default function Term({ short, definition }: TermProps) {
+export default function BlockerBadge({ label, explanation }: BlockerBadgeProps) {
   const [open, setOpen] = useState(false)
   const [positionAbove, setPositionAbove] = useState(true)
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -25,11 +27,9 @@ export default function Term({ short, definition }: TermProps) {
 
   const close = useCallback(() => setOpen(false), [])
 
-  // Position check: if button is near top of viewport, show below
   const checkPosition = useCallback(() => {
     if (!buttonRef.current) return
     const rect = buttonRef.current.getBoundingClientRect()
-    // If less than 120px from top, show below; otherwise show above
     setPositionAbove(rect.top > 120)
   }, [])
 
@@ -38,7 +38,6 @@ export default function Term({ short, definition }: TermProps) {
     setOpen((prev) => !prev)
   }
 
-  // Dismiss on outside click + Escape key
   useEffect(() => {
     if (!open) return
     const onClick = (e: MouseEvent) => {
@@ -49,7 +48,6 @@ export default function Term({ short, definition }: TermProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close()
     }
-    // 50ms delay — mirrors BadgeTooltip so opening tap doesn't dismiss immediately
     const t = setTimeout(() => {
       document.addEventListener('click', onClick)
       document.addEventListener('keydown', onKey)
@@ -62,23 +60,29 @@ export default function Term({ short, definition }: TermProps) {
   }, [open, close])
 
   return (
-    <span style={{ position: 'relative', display: 'inline' }}>
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
       <button
         ref={buttonRef}
         onClick={handleToggle}
         aria-expanded={open}
         aria-describedby={open ? popoverId : undefined}
         style={{
-          all: 'unset',
-          textDecoration: 'underline dotted',
-          textUnderlineOffset: 2,
+          border: 0,
+          background: BLOCKER_BG,
+          color: BLOCKER_COLOR,
           cursor: 'help',
-          color: 'inherit',
           font: 'inherit',
-          display: 'inline',
+          fontSize: 9,
+          padding: '2px 7px',
+          clipPath: CHUNKY.badge,
+          fontWeight: 800,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+          marginLeft: 6,
+          display: 'inline-block',
         }}
       >
-        {short}
+        {label}
       </button>
 
       {open && (
@@ -88,13 +92,12 @@ export default function Term({ short, definition }: TermProps) {
           style={{
             position: 'absolute',
             ...(positionAbove
-              ? { bottom: '100%', marginBottom: 6 }
-              : { top: '100%', marginTop: 6 }),
-            left: '50%',
-            transform: 'translateX(-50%)',
+              ? { bottom: '100%', marginBottom: 8 }
+              : { top: '100%', marginTop: 8 }),
+            left: 0,
             zIndex: 50,
-            width: 240,
-            maxWidth: '80vw',
+            width: 250,
+            maxWidth: '85vw',
             background: BG_CARD,
             border: `1px solid ${BORDER}`,
             clipPath: CHUNKY.card,
@@ -104,11 +107,10 @@ export default function Term({ short, definition }: TermProps) {
             color: '#d0d0d0',
             boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
             pointerEvents: 'none',
-            // Prevent clipping by overflow:hidden ancestors by staying in flow
             whiteSpace: 'normal',
           }}
         >
-          {definition}
+          {explanation}
         </span>
       )}
     </span>
