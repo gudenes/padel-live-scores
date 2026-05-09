@@ -13,7 +13,13 @@ export interface PlayerProfileDeps {
 
 export interface PlayerProfileTask {
   playerId: string;
-  slug: string;
+  /**
+   * Full profile URL (e.g. `https://www.padelfip.com/player/firstname-lastname/`).
+   * The DB stores this in `players.profile_url`. If only `slug` is provided,
+   * the worker falls back to building the URL from it (legacy callers).
+   */
+  profileUrl?: string;
+  slug?: string;
 }
 
 export type ProfileStatus =
@@ -83,7 +89,7 @@ export async function runPlayerProfile(
   deps: PlayerProfileDeps,
   task: PlayerProfileTask,
 ): Promise<PlayerProfileResult> {
-  const targetUrl = `https://www.padelfip.com/player/${task.slug}/`;
+  const targetUrl = task.profileUrl ?? `https://www.padelfip.com/player/${task.slug}/`;
   let parsed: ParsedPlayerProfile | null = null;
   let status: ProfileStatus = 'ok';
 
@@ -153,12 +159,11 @@ export async function runPlayerProfileBatch(
   let failed = 0;
 
   for (const row of batch) {
-    // FIP slugs follow `firstname-lastname` derived from the canonical name,
-    // but the FIP profile page also accepts `fip_id` directly. We use fip_id
-    // as the slug since it's the only thing we store reliably.
-    const slug = row.fip_id;
     try {
-      const result = await runPlayerProfile(deps, { playerId: row.id, slug });
+      const result = await runPlayerProfile(deps, {
+        playerId: row.id,
+        profileUrl: row.profile_url,
+      });
       if (result.status === 'ok') succeeded++;
       else failed++;
     } catch {

@@ -50,10 +50,10 @@ describe('computeRetryCutoffIso', () => {
 describe('rankAndSliceByTier', () => {
   it('sorts by tier rank, then attempt_at NULLS FIRST, then slices to limit', () => {
     const rows: QueueRow[] = [
-      { id: 'a', fip_id: 'P1', profile_attempt_at: '2026-04-01' },
-      { id: 'b', fip_id: 'P2', profile_attempt_at: null },
-      { id: 'c', fip_id: 'P3', profile_attempt_at: '2026-03-01' },
-      { id: 'd', fip_id: 'P4', profile_attempt_at: null },
+      { id: 'a', fip_id: 'P1', profile_url: 'u1', profile_attempt_at: '2026-04-01' },
+      { id: 'b', fip_id: 'P2', profile_url: 'u2', profile_attempt_at: null },
+      { id: 'c', fip_id: 'P3', profile_url: 'u3', profile_attempt_at: '2026-03-01' },
+      { id: 'd', fip_id: 'P4', profile_url: 'u4', profile_attempt_at: null },
     ];
     const tierByFipId = new Map<string, number>([
       ['P1', 1], // premier — should come first
@@ -69,8 +69,8 @@ describe('rankAndSliceByTier', () => {
 
   it('puts NULL attempt_at before any non-null within the same tier', () => {
     const rows: QueueRow[] = [
-      { id: 'a', fip_id: 'P1', profile_attempt_at: '2026-04-01' },
-      { id: 'b', fip_id: 'P2', profile_attempt_at: null },
+      { id: 'a', fip_id: 'P1', profile_url: 'u1', profile_attempt_at: '2026-04-01' },
+      { id: 'b', fip_id: 'P2', profile_url: 'u2', profile_attempt_at: null },
     ];
     const tier = new Map([['P1', 1], ['P2', 1]]);
     expect(rankAndSliceByTier(rows, tier, 10).map(r => r.fip_id)).toEqual(['P2', 'P1']);
@@ -80,6 +80,7 @@ describe('rankAndSliceByTier', () => {
     const rows: QueueRow[] = Array.from({ length: 50 }, (_, i) => ({
       id: `x${i}`,
       fip_id: `P${i}`,
+      profile_url: `u${i}`,
       profile_attempt_at: null,
     }));
     const tier = new Map(rows.map(r => [r.fip_id, 1] as [string, number]));

@@ -12,6 +12,7 @@ export interface QueueOptions {
 export interface QueueRow {
   id: string;
   fip_id: string;
+  profile_url: string;
   profile_attempt_at: string | null;
 }
 
@@ -112,8 +113,9 @@ export async function fetchProfileQueueBatch(
 
     const { data: players, error: playersErr } = await supabase
       .from('players')
-      .select('id, fip_id, profile_attempt_at')
+      .select('id, fip_id, profile_url, profile_attempt_at')
       .in('fip_id', fipIds)
+      .not('profile_url', 'is', null)
       .or(`profile_status.is.null,profile_status.neq.permanent_failure`)
       .or(`profile_attempt_at.is.null,profile_attempt_at.lt.${cutoff}`)
       .limit(opts.limit * 3);
@@ -126,8 +128,9 @@ export async function fetchProfileQueueBatch(
     const cap = opts.rankCap ?? 1000;
     const { data, error } = await supabase
       .from('players')
-      .select('id, fip_id, profile_attempt_at')
+      .select('id, fip_id, profile_url, profile_attempt_at')
       .not('fip_id', 'is', null)
+      .not('profile_url', 'is', null)
       .not('ranking', 'is', null)
       .lte('ranking', cap)
       .or(`profile_status.is.null,profile_status.neq.permanent_failure`)
@@ -141,8 +144,9 @@ export async function fetchProfileQueueBatch(
   // mode === 'all'
   const { data, error } = await supabase
     .from('players')
-    .select('id, fip_id, profile_attempt_at')
+    .select('id, fip_id, profile_url, profile_attempt_at')
     .not('fip_id', 'is', null)
+    .not('profile_url', 'is', null)
     .or(`profile_status.is.null,profile_status.neq.permanent_failure`)
     .or(`profile_attempt_at.is.null,profile_attempt_at.lt.${cutoff}`)
     .order('profile_attempt_at', { ascending: true, nullsFirst: true })
