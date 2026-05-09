@@ -1,8 +1,9 @@
 // scripts/merge-duplicate-players.ts
 //
 // Merges duplicate rows in public.players. Same player exists multiple times:
-// fip-Pxxx (padelgod canonical) + Pxxx (legacy sync) + sometimes NULL fip_id.
-// Mirrors the design of merge-tournament-duplicates.ts:
+// Pxxx (canonical, matches upstream FIP) + fip-Pxxx (legacy padelgod prefix)
+// + sometimes NULL fip_id. Mirrors the design of
+// merge-tournament-duplicates.ts:
 //
 //   - --dry-run is default; --apply mutates.
 //   - Per-cluster failures are isolated; final summary reports merged/failed.
@@ -10,9 +11,12 @@
 //     unit-tested.
 //
 // Survivor selection (see selectSurvivor):
-//   - Prefix variants (fip-Pxxx + Pxxx) → prefixed survives.
-//   - 3-row dupe (prefix + no-prefix + null fip_id) → prefixed survives, both
-//     others lose.
+//   - Prefix variants (Pxxx + fip-Pxxx) → NON-PREFIXED survives. The raw
+//     FIP id matches upstream and is consistent with padelapi_id (which
+//     also has no prefix). The fip- prefix was a one-off padelgod
+//     namespacing decision being unwound by this PR.
+//   - 3-row dupe (prefix + no-prefix + null fip_id) → non-prefixed
+//     survives, both others lose.
 //   - Two NULL fip_id rows → most-populated survives, oldest id wins ties.
 //   - Distinct non-prefix-variant fip_ids → REFUSED (human review report).
 //
@@ -129,24 +133,30 @@ export function selectSurvivor(rows: PlayerRow[]): SurvivorResult {
 
   if (byNormalized.size === 1) {
     const sameIdRows = [...byNormalized.values()][0]
-    const prefixed = sameIdRows.find(r => r.fip_id?.startsWith('fip-'))
     const nonPrefixed = sameIdRows.filter(r => !r.fip_id?.startsWith('fip-'))
-    if (!prefixed) {
+    const prefixed = sameIdRows.filter(r => r.fip_id?.startsWith('fip-'))
+    if (nonPrefixed.length === 0) {
+      // Only prefixed rows — pick most-populated. The dedup is still a win
+      // even though we'll temporarily keep a prefixed survivor; the writer
+      // changes in this PR will stop new prefixed rows from being created.
       const survivor = pickMostPopulated([...sameIdRows, ...nullFipRows])
       const losers = [...sameIdRows, ...nullFipRows].filter(r => r.id !== survivor.id)
       return {
         kind: 'auto',
         survivor,
         losers,
-        reason: 'no prefixed row; chose most-populated non-prefixed survivor',
+        reason: 'only prefixed rows available; chose most-populated as survivor',
       }
     }
-    const losers = [...nonPrefixed, ...nullFipRows]
+    // Non-prefixed survives. If multiple non-prefixed rows exist (rare),
+    // pick the most-populated one.
+    const survivor = pickMostPopulated([...nonPrefixed, ...nullFipRows])
+    const losers = [...sameIdRows, ...nullFipRows].filter(r => r.id !== survivor.id)
     return {
       kind: 'auto',
-      survivor: prefixed,
+      survivor,
       losers,
-      reason: 'prefixed fip_id is canonical',
+      reason: 'non-prefixed fip_id is canonical (matches upstream FIP)',
     }
   }
 

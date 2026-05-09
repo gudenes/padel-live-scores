@@ -278,7 +278,10 @@ async function resolveTeamPlayer(
   });
   if (!hit) return null;
   return {
-    fipId: `fip-${hit.playerId}`,
+    // Use the raw FIP id (e.g. "P203884"). The legacy "fip-" prefix
+    // convention was unwound in the merge-duplicate-players PR — see
+    // CLAUDE.md "Player fip_id format" section.
+    fipId: hit.playerId,
     name: hit.fullName,
     country: hit.nationality,
   };

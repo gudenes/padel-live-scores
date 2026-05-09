@@ -48,26 +48,26 @@ const row = (overrides: Partial<PlayerRow>): PlayerRow => ({
 });
 
 describe('selectSurvivor', () => {
-  it('case 1: prefix vs no-prefix → prefixed survives', () => {
+  it('case 1: prefix vs no-prefix → NON-PREFIXED survives', () => {
     const a = row({ id: 'a', fip_id: 'fip-P203884' });
     const b = row({ id: 'b', fip_id: 'P203884' });
     const r = selectSurvivor([a, b]);
     expect(r.kind).toBe('auto');
     if (r.kind === 'auto') {
-      expect(r.survivor.id).toBe('a');
-      expect(r.losers.map(l => l.id)).toEqual(['b']);
+      expect(r.survivor.id).toBe('b');
+      expect(r.losers.map(l => l.id)).toEqual(['a']);
     }
   });
 
-  it('case 2: prefix + no-prefix + null fip_id → prefixed survives, both others lose', () => {
+  it('case 2: prefix + no-prefix + null fip_id → non-prefixed survives, both others lose', () => {
     const a = row({ id: 'a', fip_id: 'fip-P203884' });
     const b = row({ id: 'b', fip_id: 'P203884' });
     const c = row({ id: 'c', fip_id: null });
     const r = selectSurvivor([a, b, c]);
     expect(r.kind).toBe('auto');
     if (r.kind === 'auto') {
-      expect(r.survivor.id).toBe('a');
-      expect(r.losers.map(l => l.id).sort()).toEqual(['b', 'c']);
+      expect(r.survivor.id).toBe('b');
+      expect(r.losers.map(l => l.id).sort()).toEqual(['a', 'c']);
     }
   });
 
@@ -101,6 +101,17 @@ describe('selectSurvivor', () => {
 
   it('case 6: only non-prefixed rows + a null → most-populated non-prefixed survives', () => {
     const a = row({ id: 'a', fip_id: 'P203884', ranking: 45 });
+    const b = row({ id: 'b', fip_id: null });
+    const r = selectSurvivor([a, b]);
+    expect(r.kind).toBe('auto');
+    if (r.kind === 'auto') {
+      expect(r.survivor.id).toBe('a');
+      expect(r.losers.map(l => l.id)).toEqual(['b']);
+    }
+  });
+
+  it('case 7: only PREFIXED rows + a null → most-populated prefixed survives (legacy fallback)', () => {
+    const a = row({ id: 'a', fip_id: 'fip-P203884', ranking: 45 });
     const b = row({ id: 'b', fip_id: null });
     const r = selectSurvivor([a, b]);
     expect(r.kind).toBe('auto');
