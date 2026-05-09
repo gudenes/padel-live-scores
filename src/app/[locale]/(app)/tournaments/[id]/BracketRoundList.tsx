@@ -1,9 +1,19 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import BracketCell from './BracketCell'
 import type { BracketNode, RoundCode, PairPath } from './bracket-builder'
-import { ROUND_ORDER, pairKeyFor } from './bracket-builder'
+import { ROUND_ORDER, ROUND_SLOTS, pairKeyFor } from './bracket-builder'
+
+// Each column shares the same fixed height. Within a column, cells are
+// laid out with `justify-content: space-around` so that:
+//   - R32 with 16 cells distributes them evenly top-to-bottom
+//   - R16 with 8 cells lands each cell at the vertical midpoint of its
+//     two feeding R32 cells (math works out exactly with space-around)
+//   - QF with 4 cells, SF with 2, F with 1 — same relationship continues
+// The result is the classic bracket-tree pyramid where later rounds
+// converge toward the vertical center.
+const CELL_SLOT_PX = 70  // approx height of one cell + breathing room
 
 const GREEN = '#7ED321'
 const MUTED = '#6B7280'
@@ -29,6 +39,16 @@ export default function BracketRoundList({
     trackedPath.nodes.length > 0
       ? ROUND_ORDER.indexOf(trackedPath.nodes[trackedPath.nodes.length - 1].round)
       : -1
+
+  // Shared height for every column. Driven by the first round (most cells)
+  // so all rounds align to the same vertical extent — this is what makes
+  // `justify-content: space-around` produce the bracket-tree midpoint
+  // alignment.
+  const bracketHeight = useMemo(() => {
+    const firstRound = rounds[0]
+    if (!firstRound) return 0
+    return ROUND_SLOTS[firstRound] * CELL_SLOT_PX
+  }, [rounds])
 
   // One ref per round column so chip-clicks can scrollIntoView and the
   // observer can attach. Stable across renders.
@@ -163,52 +183,39 @@ export default function BracketRoundList({
                 flexShrink: 0,
                 width: '88%',
                 scrollSnapAlign: 'start',
+                height: bracketHeight,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-around',
+                position: 'relative',
               }}
             >
-              {/* Tiny round label inside the column for orientation when
-                  scrolling — the chip strip on top is the primary control. */}
+              {/* Tiny round label pinned to the top of the column for
+                  orientation when scrolling. */}
               <div style={{
+                position: 'absolute', top: 0, left: 2,
                 fontSize: 9, fontWeight: 700, letterSpacing: '0.08em',
-                color: MUTED, padding: '0 2px 6px', textTransform: 'uppercase',
+                color: MUTED, textTransform: 'uppercase',
               }}>
                 {r}
               </div>
-              {chunkPairs(cells).map((pair, i) => (
-                <div key={i} style={{ position: 'relative', marginBottom: 8 }}>
-                  {pair.map((node, j) => {
-                    const isTrackedHere = trackedPairKey != null && trackedPath.nodes.includes(node)
-                    const dim = trackedPath.eliminatedAt != null && !isTrackedHere && trackedPairKey != null
-                    const highlight = isTrackedHere
-                      ? trackingVariant === 'defendingChamp' ? 'defendingChamp' : 'tracking'
-                      : dim ? 'dim' : 'none'
-                    return (
-                      <div key={node.positionInRound} style={{ marginTop: j === 0 ? 0 : 3 }}>
-                        <BracketCell
-                          node={node}
-                          highlight={highlight}
-                          onTrackPair={onTrackPair}
-                          pairKey={pairKeyFor}
-                          markersByPair={markersByPair}
-                        />
-                      </div>
-                    )
-                  })}
-                  {/* Bracket-stub on the right edge — visual hint that
-                      these two cells feed into the next round (which is
-                      peeking in from the right). */}
-                  {pair.length === 2 && (
-                    <div style={{
-                      position: 'absolute', right: -8, top: 0, bottom: 0, width: 8,
-                      pointerEvents: 'none',
-                    }}>
-                      <svg viewBox="0 0 8 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-                        <path d="M 0 25 H 4 V 75 H 0" stroke="rgba(255,255,255,0.18)" fill="none" strokeWidth="1" />
-                        <path d="M 4 50 H 8" stroke="rgba(255,255,255,0.18)" fill="none" strokeWidth="1" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              ))}
+              {cells.map(node => {
+                const isTrackedHere = trackedPairKey != null && trackedPath.nodes.includes(node)
+                const dim = trackedPath.eliminatedAt != null && !isTrackedHere && trackedPairKey != null
+                const highlight = isTrackedHere
+                  ? trackingVariant === 'defendingChamp' ? 'defendingChamp' : 'tracking'
+                  : dim ? 'dim' : 'none'
+                return (
+                  <BracketCell
+                    key={node.positionInRound}
+                    node={node}
+                    highlight={highlight}
+                    onTrackPair={onTrackPair}
+                    pairKey={pairKeyFor}
+                    markersByPair={markersByPair}
+                  />
+                )
+              })}
             </div>
           )
         })}
@@ -217,10 +224,3 @@ export default function BracketRoundList({
   )
 }
 
-function chunkPairs<T>(arr: T[]): T[][] {
-  const out: T[][] = []
-  for (let i = 0; i < arr.length; i += 2) {
-    out.push(arr.slice(i, i + 2))
-  }
-  return out
-}
