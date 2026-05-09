@@ -152,12 +152,14 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair }: PairRowPr
           borderRadius: '50%',
         }} />
       )}
-      <span style={{
-        fontSize: 9, color: '#9CA3AF', minWidth: 22, textAlign: 'center',
-        padding: '2px 4px', background: 'rgba(255,255,255,0.04)', fontWeight: 700,
-      }}>
-        {seed ?? ''}
-      </span>
+      {seed != null && (
+        <span style={{
+          fontSize: 9, color: '#9CA3AF', minWidth: 22, textAlign: 'center',
+          padding: '2px 4px', background: 'rgba(255,255,255,0.04)', fontWeight: 700,
+        }}>
+          {seed}
+        </span>
+      )}
       {marker && (
         <span style={{
           fontSize: 9, color: ORANGE, minWidth: 22, textAlign: 'center',

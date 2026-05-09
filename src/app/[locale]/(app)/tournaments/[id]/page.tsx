@@ -586,7 +586,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // ── Gender accent color ───────────────────────────────────────
   const genderColor = genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE
 
-  // Draw-tab gating: tier check + ≥80% of main-draw matches have round_canonical
+  // Draw-tab gating: tier check + ≥80% of canonical-round matches are main draw.
+  // Denominator is matches with round_canonical SET (any value including
+  // Q1/Q2/Q3) — NOT all matches with `round` populated. Otherwise tournaments
+  // with qualifying rounds in the DB skew the ratio below 80% even when
+  // the main draw is fully populated.
   const showDrawTab = useMemo(() => {
     if (!activeTournamentObj) return false
     if (!DRAW_TIERS.has(activeTournamentObj.level ?? '')) return false
@@ -598,13 +602,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       // No main-draw matches yet — show the tab anyway (we display a "draw not released" empty state)
       return true
     }
-    // Inverse check: if there's any match with `round` populated but no
-    // round_canonical, the data is incomplete.
-    const allMatchesWithRound = allMatches.filter(m =>
-      (m as any).category === genderFilter && m.round != null,
+    const allCanonical = allMatches.filter(m =>
+      (m as any).category === genderFilter && (m as any).round_canonical != null,
     )
-    if (allMatchesWithRound.length === 0) return true
-    const completeness = mainDrawMatches.length / allMatchesWithRound.length
+    if (allCanonical.length === 0) return true
+    const completeness = mainDrawMatches.length / allCanonical.length
     return completeness >= 0.8
   }, [activeTournamentObj, allMatches, genderFilter])
 
@@ -969,7 +971,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         </div>
 
         {/* ── Draw Tab ── */}
-        {pageTab === 'draw' && activeTournamentObj && (
+        {pageTab === 'draw' && activeTournamentObj && showDrawTab && (
           <DrawTab
             tournamentId={tournamentId}
             matches={allMatches.filter(m => (m as any).category === genderFilter)}

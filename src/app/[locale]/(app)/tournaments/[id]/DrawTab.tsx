@@ -101,15 +101,12 @@ export default function DrawTab({
     if (bracket.length === 0) return
     const key = defaultTrackedPair(bracket, bookmarkedPlayerIds, defendingChamp)
     if (key) {
-      // If the resolved key matches a bookmarked player → 'tracking', else champ.
-      const bookmarkedPair = bookmarkedPlayerIds.length > 0 &&
-        bracket.some(n => {
-          const m = n.match
-          if (!m) return false
-          const ids = [m.pair1_player1?.id, m.pair1_player2?.id, m.pair2_player1?.id, m.pair2_player2?.id].filter(Boolean) as string[]
-          return ids.some(id => bookmarkedPlayerIds.includes(id))
-        })
-      setVariant(bookmarkedPair ? 'tracking' : 'defendingChamp')
+      // Variant matches the priority that produced this key: if either player
+      // in the resolved pair is bookmarked → 'tracking' (the bookmarked-player
+      // branch fired). Otherwise it must be the defending champion.
+      const [aId, bId] = key.split('::')
+      const isBookmarkedPair = bookmarkedPlayerIds.includes(aId) || bookmarkedPlayerIds.includes(bId)
+      setVariant(isBookmarkedPair ? 'tracking' : 'defendingChamp')
     }
     setTrackedPairKey(key)
     // eslint-disable-next-line react-hooks/exhaustive-deps
