@@ -1038,8 +1038,7 @@
       "blockerExplanation": "Esta fila es el mayor obstáculo individual para la inclusión olímpica del pádel. Todos los demás criterios están cumplidos o en buen camino — cerrar esta brecha es lo que el pádel más necesita."
     },
     "beats": {
-      "tabWins": "Victorias",
-      "tabWatchlist": "Seguimiento",
+      "sectionTitle": "Últimas novedades",
       "empty": "Sin noticias recientes. Vuelve pronto."
     },
     "dossier": {

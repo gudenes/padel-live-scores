@@ -1038,8 +1038,7 @@
       "blockerExplanation": "Cette ligne est le plus grand obstacle unique à l'inclusion olympique du padel. Tous les autres critères sont remplis ou en bonne voie — combler cet écart est ce dont le padel a le plus besoin."
     },
     "beats": {
-      "tabWins": "Succès",
-      "tabWatchlist": "À suivre",
+      "sectionTitle": "Dernières nouvelles",
       "empty": "Pas de mise à jour récente. Revenez bientôt."
     },
     "dossier": {

@@ -1038,8 +1038,7 @@
       "blockerExplanation": "Questa riga è il più grande ostacolo singolo all'inclusione olimpica del padel. Tutti gli altri criteri sono soddisfatti o sulla buona strada — chiudere questo divario è ciò di cui il padel ha più bisogno."
     },
     "beats": {
-      "tabWins": "Vittorie",
-      "tabWatchlist": "Osservati speciali",
+      "sectionTitle": "Ultime novità",
       "empty": "Nessun aggiornamento recente. Torna presto."
     },
     "dossier": {

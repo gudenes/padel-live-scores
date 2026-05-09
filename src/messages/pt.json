@@ -1038,8 +1038,7 @@
       "blockerExplanation": "Esta linha é o maior obstáculo individual à inclusão olímpica do padel. Todos os outros critérios estão cumpridos ou no bom caminho — fechar esta lacuna é o que o padel mais precisa."
     },
     "beats": {
-      "tabWins": "Vitórias",
-      "tabWatchlist": "Observação",
+      "sectionTitle": "Últimas novidades",
       "empty": "Sem desenvolvimentos recentes. Volta mais tarde."
     },
     "dossier": {
