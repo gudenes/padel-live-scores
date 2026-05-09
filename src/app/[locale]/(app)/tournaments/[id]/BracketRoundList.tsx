@@ -342,15 +342,16 @@ export default function BracketRoundList({
                     const topNode = cells.find(c => c.positionInRound === 2 * j) ?? null
                     const botNode = cells.find(c => c.positionInRound === 2 * j + 1) ?? null
                     const dstNode = trackedNodeAt(rounds[ri + 1], j)
-                    // A side is "feeding" only when the source slot
-                    // actually represents a played match. Bye slots
-                    // (top seeds skipping a round) are NOT feeding
-                    // anything — the seeded player walks straight to
-                    // the next round's cell on their own. Drawing a
-                    // line from the bye slot makes it look like there
-                    // was a match there when there wasn't.
-                    const topFeeds = topNode != null && !topNode.isBye
-                    const botFeeds = botNode != null && !botNode.isBye
+                    // A position "feeds" the next round when there's
+                    // SOMETHING in it — either a real match (winner
+                    // advances) or a bye (the seed walks through). The
+                    // earlier "skip byes" check was wrong: it left the
+                    // seeded pair's bye cell visually disconnected from
+                    // their R16 cell, which broke the bracket-tree
+                    // illusion. Empty placeholder slots (no match, no
+                    // bye) still skip — those are TBD upcoming rounds.
+                    const topFeeds = topNode != null && (topNode.match != null || topNode.isBye)
+                    const botFeeds = botNode != null && (botNode.match != null || botNode.isBye)
                     const topGlow = topFeeds && dstNode != null &&
                       trackedPath.nodes.includes(topNode!) && trackedPath.nodes.includes(dstNode)
                     const botGlow = botFeeds && dstNode != null &&
