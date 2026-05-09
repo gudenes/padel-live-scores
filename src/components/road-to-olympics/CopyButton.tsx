@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { GREEN, CHUNKY } from '@/components/home/shared'
+import { GREEN, CHUNKY } from '@/components/home/shared-constants'
 
 export default function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false)

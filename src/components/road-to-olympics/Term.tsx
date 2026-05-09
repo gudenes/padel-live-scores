@@ -10,7 +10,7 @@
 // doesn't immediately close the popover.
 
 import { useRef, useState, useEffect, useCallback, useId } from 'react'
-import { BG_CARD, BORDER, CHUNKY } from '@/components/home/shared'
+import { BG_CARD, BORDER, CHUNKY } from '@/components/home/shared-constants'
 
 interface TermProps {
   short: string

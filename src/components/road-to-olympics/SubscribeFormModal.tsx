@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
-import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared'
+import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared-constants'
 
 interface Props {
   onClose: () => void

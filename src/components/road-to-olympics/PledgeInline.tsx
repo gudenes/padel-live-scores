@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import PledgeFormModal from './PledgeFormModal'
-import { GREEN, GREEN_DIM, CHUNKY } from '@/components/home/shared'
+import { GREEN, GREEN_DIM, CHUNKY } from '@/components/home/shared-constants'
 
 interface Props {
   initialCount: number

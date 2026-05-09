@@ -10,7 +10,7 @@ import { createClient } from '@supabase/supabase-js'
 import { fetchOlympicBeats } from '@/lib/road-to-olympics/beats'
 import { getTranslations } from 'next-intl/server'
 import BeatsFeedTabs from './BeatsFeedTabs'
-import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared'
+import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared-constants'
 
 interface Props {
   /** Override fetch limit. Defaults to 6. */

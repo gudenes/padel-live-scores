@@ -10,7 +10,7 @@ import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import stateJson from '@/data/road-to-olympics/state.json'
-import { GREEN, CHUNKY } from '@/components/home/shared'
+import { GREEN, CHUNKY } from '@/components/home/shared-constants'
 import Term from './Term'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000

@@ -4,7 +4,7 @@
 
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
-import { GREEN, MUTED } from '@/components/home/shared'
+import { GREEN, MUTED } from '@/components/home/shared-constants'
 
 export default function DisclosureFooter() {
   const t = useTranslations('roadToOlympics.disclosure')
