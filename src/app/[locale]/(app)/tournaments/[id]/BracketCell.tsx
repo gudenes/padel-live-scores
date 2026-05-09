@@ -48,14 +48,56 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
 
   const opacity = highlight === 'dim' ? 0.4 : 1
 
-  // BYE placeholder
+  // BYE — show the seeded pair walking the bye, with a [BYE] badge so
+  // the user knows who advances unopposed.
   if (node.isBye && !m) {
+    const bye = node.byePair
+    if (!bye) {
+      return (
+        <div style={{
+          padding: '7px 10px', marginBottom: 4, background: '#141414',
+          clipPath: CELL_CLIP, opacity, color: MUTED, fontSize: 11, fontStyle: 'italic',
+        }}>
+          — {t('byeLabel')} —
+        </div>
+      )
+    }
     return (
       <div style={{
-        padding: '10px 12px', marginBottom: 6, background: '#141414',
-        clipPath: CELL_CLIP, opacity, color: MUTED, fontSize: 11, fontStyle: 'italic',
+        padding: '7px 10px', marginBottom: 4, background: '#141414',
+        clipPath: CELL_CLIP, opacity, color: '#fff', fontSize: 12,
+        display: 'flex', alignItems: 'center', gap: 8,
       }}>
-        — {t('byeLabel')} —
+        {/* Stacked flags, matching the regular pair-row treatment. */}
+        <span style={{ position: 'relative', display: 'inline-block', width: 18, height: 16, flexShrink: 0 }}>
+          <span style={{ position: 'absolute', left: 0, top: 0 }}>
+            <FlagImage country={bye.player1.country ?? null} size={11} />
+          </span>
+          <span style={{ position: 'absolute', left: 6, top: 4 }}>
+            <FlagImage country={bye.player2.country ?? null} size={11} />
+          </span>
+        </span>
+        <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {`${toShortName(bye.player1.name ?? '')}/${toShortName(bye.player2.name ?? '')}`}
+          </span>
+          {bye.seed != null && (
+            <span style={{
+              fontSize: 9, color: '#9CA3AF', minWidth: 18, textAlign: 'center',
+              padding: '2px 4px', background: 'rgba(255,255,255,0.04)', fontWeight: 700,
+              flexShrink: 0,
+            }}>
+              {bye.seed}
+            </span>
+          )}
+        </span>
+        <span style={{
+          fontSize: 9, fontWeight: 800, color: ORANGE, letterSpacing: '0.08em',
+          padding: '2px 6px', background: 'rgba(245,166,35,0.10)',
+          flexShrink: 0,
+        }}>
+          {t('byeLabel')}
+        </span>
       </div>
     )
   }

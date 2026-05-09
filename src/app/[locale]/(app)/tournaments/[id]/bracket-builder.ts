@@ -20,6 +20,15 @@ export type BracketNode = {
   feedFromTop: BracketNode | null     // previous-round cell feeding top pair
   feedFromBottom: BracketNode | null  // previous-round cell feeding bottom pair
   isBye: boolean                      // true when this slot is a bye (one pair advances unopposed)
+  /** When `isBye`, this is the seeded pair walking the bye — resolved
+   *  from the corresponding next-round cell so the UI can show
+   *  "Coello/Tapia [BYE]" instead of an opaque "— BYE —" placeholder.
+   *  Null for non-bye slots. */
+  byePair: {
+    player1: NonNullable<Match['pair1_player1']>
+    player2: NonNullable<Match['pair1_player2']>
+    seed: number | null
+  } | null
 }
 
 export type PairPath = {
@@ -136,13 +145,16 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
         round, positionInRound: pos, match,
         feedFromTop, feedFromBottom,
         isBye: false,
+        byePair: null,
       })
     }
     nodesByRound.set(round, nodes)
   }
 
   // Mark byes: a slot in the FIRST round is a bye when its corresponding
-  // next-round cell has a real pair on its side but no match here.
+  // next-round cell has a real pair on its side but no match here. Pull
+  // the seeded pair off the next-round cell so the UI can render
+  // "Coello/Tapia [BYE]" instead of "— BYE —".
   if (nextRound) {
     const firstNodes = nodesByRound.get(firstRound)!
     const nextNodes = nodesByRound.get(nextRound)!
@@ -152,10 +164,13 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
       const nextCell = nextNodes[Math.floor(pos / 2)]
       if (!nextCell?.match) continue
       const isTopFeed = pos % 2 === 0
-      const sideHasPair = isTopFeed
-        ? nextCell.match.pair1_player1 != null
-        : nextCell.match.pair2_player1 != null
-      if (sideHasPair) node.isBye = true
+      const p1 = isTopFeed ? nextCell.match.pair1_player1 : nextCell.match.pair2_player1
+      const p2 = isTopFeed ? nextCell.match.pair1_player2 : nextCell.match.pair2_player2
+      const seed = isTopFeed ? nextCell.match.pair1_seed : nextCell.match.pair2_seed
+      if (p1 && p2) {
+        node.isBye = true
+        node.byePair = { player1: p1, player2: p2, seed: seed ?? null }
+      }
     }
   }
 
