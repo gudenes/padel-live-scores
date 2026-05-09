@@ -24,6 +24,7 @@ import { runShadowDiffFinalizer } from './workers/shadow-diff-finalizer.js';
 import { runShadowDiffLive } from './workers/shadow-diff-live.js';
 import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
 import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
+import { runPlayerProfileBatch } from './workers/player-profile.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -166,8 +167,30 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'widget-code-lookup':       return (deps) => runWidgetCodeLookup(deps);
     case 'player-rankings':      return (deps) => runPlayerRankings(deps);
     case 'player-profile':       return async (deps) => {
-      deps.logger.info('player-profile worker has no batch driver yet (V1.5)');
-      return { stub: true };
+      const tournamentResult = await runPlayerProfileBatch(
+        { supabase: deps.supabase, httpClient: deps.httpClient },
+        { mode: 'tournament', limit: 40, retryAfterDays: 30, throttleMs: 750 },
+      );
+      deps.logger.info(
+        { worker: 'player-profile', phase: 'tournament', ...tournamentResult },
+        `tournament batch attempted=${tournamentResult.attempted} ok=${tournamentResult.succeeded} fail=${tournamentResult.failed}`,
+      );
+
+      // Top up with ranked-fallback if we had spare quota.
+      const spare = 40 - tournamentResult.attempted;
+      if (spare > 0) {
+        const fallbackResult = await runPlayerProfileBatch(
+          { supabase: deps.supabase, httpClient: deps.httpClient },
+          { mode: 'ranked', limit: spare, retryAfterDays: 30, throttleMs: 750 },
+        );
+        deps.logger.info(
+          { worker: 'player-profile', phase: 'ranked-fallback', ...fallbackResult },
+          `ranked-fallback attempted=${fallbackResult.attempted} ok=${fallbackResult.succeeded} fail=${fallbackResult.failed}`,
+        );
+        return { tournament: tournamentResult, fallback: fallbackResult };
+      }
+
+      return { tournament: tournamentResult };
     };
     case 'entry-list-fetcher':   return (deps) => runEntryListFetcher(deps);
     case 'draw-fetcher':         return (deps) => runDrawFetcher(deps);
