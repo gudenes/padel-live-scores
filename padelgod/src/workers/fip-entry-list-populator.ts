@@ -267,6 +267,12 @@ export async function runFipEntryListPopulator(
         category: snap.category,
         last_updated_by: 'padelgod',
         updated_at: now,
+        // Push hook — fresh players jump to the front of the player-profile
+        // worker queue. Sentinel timestamp is older than any realistic
+        // attempt, so the queue's `profile_attempt_at NULLS FIRST` ordering
+        // picks these rows right after any NULL-attempt rows.
+        profile_attempt_at: '1970-01-01T00:00:00Z',
+        profile_status: null,
       };
       if (snap.country != null) insert.country = snap.country;
 
