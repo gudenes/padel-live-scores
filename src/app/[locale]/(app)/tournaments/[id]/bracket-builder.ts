@@ -115,3 +115,59 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
 
   return rounds.flatMap(r => nodesByRound.get(r)!)
 }
+
+/**
+ * Walk the bracket and return every node where the given pair appears,
+ * in round order, plus the round where they were eliminated.
+ *
+ * - A pair is "in" a node when both of its player IDs appear in either
+ *   the pair1 or pair2 slot of that node's match.
+ * - eliminatedAt is null when the pair won the tournament OR is still active.
+ *   To distinguish: if the last node has winner_pair set AND winner_pair's
+ *   players match the tracked pair, they're a champion. Otherwise they
+ *   were eliminated at the last node's round.
+ */
+export function tracePairPath(
+  bracket: BracketNode[],
+  pairKey: string | null,
+): PairPath {
+  if (!pairKey) return { nodes: [], eliminatedAt: null }
+
+  const nodes: BracketNode[] = []
+  for (const node of bracket) {
+    const m = node.match
+    if (!m) continue
+    const p1Key = m.pair1_player1?.id && m.pair1_player2?.id
+      ? pairKeyFor(m.pair1_player1.id, m.pair1_player2.id)
+      : null
+    const p2Key = m.pair2_player1?.id && m.pair2_player2?.id
+      ? pairKeyFor(m.pair2_player1.id, m.pair2_player2.id)
+      : null
+    if (p1Key === pairKey || p2Key === pairKey) {
+      nodes.push(node)
+    }
+  }
+
+  if (nodes.length === 0) return { nodes: [], eliminatedAt: null }
+
+  const last = nodes[nodes.length - 1]
+  const m = last.match!
+  const wonLast =
+    m.winner_pair === 1
+      ? m.pair1_player1?.id && m.pair1_player2?.id &&
+        pairKeyFor(m.pair1_player1.id, m.pair1_player2.id) === pairKey
+      : m.winner_pair === 2
+      ? m.pair2_player1?.id && m.pair2_player2?.id &&
+        pairKeyFor(m.pair2_player1.id, m.pair2_player2.id) === pairKey
+      : null
+
+  // If they won the final, no elimination round.
+  if (last.round === 'F' && wonLast) return { nodes, eliminatedAt: null }
+  // If they won their last node but it wasn't the final, they're still
+  // active (next round hasn't happened yet) — no elimination.
+  if (wonLast) return { nodes, eliminatedAt: null }
+  // If winner_pair is null (match not finished), they're still active.
+  if (m.winner_pair == null) return { nodes, eliminatedAt: null }
+  // Otherwise they lost their last match → eliminated at that round.
+  return { nodes, eliminatedAt: last.round }
+}

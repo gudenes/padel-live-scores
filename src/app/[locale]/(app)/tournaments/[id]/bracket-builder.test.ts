@@ -1,7 +1,6 @@
 // src/app/[locale]/(app)/tournaments/[id]/bracket-builder.test.ts
 import { describe, expect, it } from 'vitest'
-import { pairKeyFor } from './bracket-builder'
-import { buildBracket } from './bracket-builder'
+import { buildBracket, pairKeyFor, tracePairPath } from './bracket-builder'
 import type { Match } from '@/types/match'
 
 describe('pairKeyFor', () => {
@@ -141,5 +140,91 @@ describe('buildBracket', () => {
     const bracket = buildBracket(matches, 32)
     const r32top = bracket.find(n => n.round === 'R32' && n.positionInRound === 0)!
     expect(r32top.isBye).toBe(false)
+  })
+})
+
+describe('tracePairPath', () => {
+  // Helper: build a 16-pair bracket where pair "winner" wins every match,
+  // and pair "loser-qf" loses in QF.
+  function build16WithWinnerAndLoserAtQF() {
+    const winnerPair = { p1: 'w1', p2: 'w2' }
+    const loserPair = { p1: 'l1', p2: 'l2' }
+    const matches: Match[] = [
+      // R16: winner beats opponent-1 (positions 0..7 = 8 cells)
+      fakeMatch({
+        id: 'r16-0', round: 'R16', draw_position: 0, winner_pair: 1,
+        pair1_player1: { id: winnerPair.p1 } as any,
+        pair1_player2: { id: winnerPair.p2 } as any,
+        pair2_player1: { id: 'opp-r16' } as any,
+        pair2_player2: { id: 'opp-r16-2' } as any,
+      }),
+      fakeMatch({
+        id: 'r16-1', round: 'R16', draw_position: 1, winner_pair: 1,
+        pair1_player1: { id: loserPair.p1 } as any,
+        pair1_player2: { id: loserPair.p2 } as any,
+        pair2_player1: { id: 'opp-r16-3' } as any,
+        pair2_player2: { id: 'opp-r16-4' } as any,
+      }),
+      // QF: winner beats loser-qf
+      fakeMatch({
+        id: 'qf-0', round: 'QF', draw_position: 0, winner_pair: 1,
+        pair1_player1: { id: winnerPair.p1 } as any,
+        pair1_player2: { id: winnerPair.p2 } as any,
+        pair2_player1: { id: loserPair.p1 } as any,
+        pair2_player2: { id: loserPair.p2 } as any,
+      }),
+      // SF: winner beats opponent-sf
+      fakeMatch({
+        id: 'sf-0', round: 'SF', draw_position: 0, winner_pair: 1,
+        pair1_player1: { id: winnerPair.p1 } as any,
+        pair1_player2: { id: winnerPair.p2 } as any,
+        pair2_player1: { id: 'opp-sf' } as any,
+        pair2_player2: { id: 'opp-sf-2' } as any,
+      }),
+      // F: winner wins the tournament
+      fakeMatch({
+        id: 'f-0', round: 'F', draw_position: 0, winner_pair: 1,
+        pair1_player1: { id: winnerPair.p1 } as any,
+        pair1_player2: { id: winnerPair.p2 } as any,
+        pair2_player1: { id: 'opp-f' } as any,
+        pair2_player2: { id: 'opp-f-2' } as any,
+      }),
+    ]
+    return { matches, winnerPair, loserPair }
+  }
+
+  it('returns 4 nodes with eliminatedAt=null for the champion', () => {
+    const { matches, winnerPair } = build16WithWinnerAndLoserAtQF()
+    const bracket = buildBracket(matches, 16)
+    const key = pairKeyFor(winnerPair.p1, winnerPair.p2)
+    const path = tracePairPath(bracket, key)
+    expect(path.nodes.map(n => n.round)).toEqual(['R16', 'QF', 'SF', 'F'])
+    expect(path.eliminatedAt).toBe(null)
+  })
+
+  it('returns 2 nodes with eliminatedAt=QF for the QF loser', () => {
+    const { matches, loserPair } = build16WithWinnerAndLoserAtQF()
+    const bracket = buildBracket(matches, 16)
+    const key = pairKeyFor(loserPair.p1, loserPair.p2)
+    const path = tracePairPath(bracket, key)
+    expect(path.nodes.map(n => n.round)).toEqual(['R16', 'QF'])
+    expect(path.eliminatedAt).toBe('QF')
+  })
+
+  it('returns empty array for a pair not in the draw', () => {
+    const { matches } = build16WithWinnerAndLoserAtQF()
+    const bracket = buildBracket(matches, 16)
+    const key = pairKeyFor('ghost-1', 'ghost-2')
+    const path = tracePairPath(bracket, key)
+    expect(path.nodes).toEqual([])
+    expect(path.eliminatedAt).toBe(null)
+  })
+
+  it('returns empty path for null pairKey', () => {
+    const { matches } = build16WithWinnerAndLoserAtQF()
+    const bracket = buildBracket(matches, 16)
+    const path = tracePairPath(bracket, null)
+    expect(path.nodes).toEqual([])
+    expect(path.eliminatedAt).toBe(null)
   })
 })
