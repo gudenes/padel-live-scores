@@ -215,15 +215,32 @@ export default function BracketRoundList({
     const t = window.setTimeout(() => {
       const scrollAncestor = findScrollAncestor(cellEl)
       if (!scrollAncestor) return
+      // The visible scroll surface is either an element (desktop bezel
+      // mode where .app-screen scrolls internally) or the document
+      // (mobile / narrow viewports where the page itself scrolls). The
+      // centering math has to use viewport-relative dimensions in the
+      // document case — `.getBoundingClientRect().top` on <html> returns
+      // -scrollY, and `clientHeight` on <html> returns the full content
+      // height, neither of which we want.
+      const isDocument =
+        scrollAncestor === document.scrollingElement ||
+        scrollAncestor === document.documentElement ||
+        scrollAncestor === document.body
       const myHeaderHeight = stickyHeaderRef.current?.getBoundingClientRect().height ?? 0
       const totalSticky = stickyTop + myHeaderHeight
-      const containerRect = scrollAncestor.getBoundingClientRect()
       const cellRect = cellEl.getBoundingClientRect()
-      const availableHeight = scrollAncestor.clientHeight - totalSticky
-      const desiredCellTop = containerRect.top + totalSticky + (availableHeight - cellRect.height) / 2
+      const containerTop = isDocument ? 0 : scrollAncestor.getBoundingClientRect().top
+      const containerHeight = isDocument ? window.innerHeight : scrollAncestor.clientHeight
+      const availableHeight = containerHeight - totalSticky
+      const desiredCellTop = containerTop + totalSticky + (availableHeight - cellRect.height) / 2
       const delta = cellRect.top - desiredCellTop
-      const newTop = Math.max(0, scrollAncestor.scrollTop + delta)
-      scrollAncestor.scrollTo({ top: newTop, behavior: 'smooth' })
+      if (isDocument) {
+        const newTop = Math.max(0, window.scrollY + delta)
+        window.scrollTo({ top: newTop, behavior: 'smooth' })
+      } else {
+        const newTop = Math.max(0, scrollAncestor.scrollTop + delta)
+        scrollAncestor.scrollTo({ top: newTop, behavior: 'smooth' })
+      }
     }, needsHScroll ? 350 : 0)
     return () => window.clearTimeout(t)
   }, [activeRound, trackedPairKey, stickyTop])
@@ -459,23 +476,38 @@ export default function BracketRoundList({
 
 /**
  * Find the page-level vertical scroll container that the user actually
- * sees scroll when they swipe. In this layout it's `.app-screen` (the
- * mobile-frame wrapper). We can't naively walk up looking for the first
- * ancestor with `overflow-y: auto` because:
- *   1. The horizontal-scroll container has `overflow-x: auto` and CSS
+ * sees scroll when they swipe. Two layouts are possible:
+ *
+ *   1. Desktop bezel mode (≥1100px viewport): `.app-screen` has
+ *      `overflow-y: auto` and IS the scroll container. The document
+ *      itself doesn't scroll.
+ *   2. Mobile / narrow viewports: `.app-screen` is just a passthrough
+ *      div with `overflow: visible` — the document scrolls. Calling
+ *      `scrollTo()` on `.app-screen` here is a silent no-op.
+ *
+ * Naively walking up looking for the first ancestor with `overflow-y:
+ * auto` is also wrong because:
+ *   a. The horizontal-scroll container has `overflow-x: auto` and CSS
  *      implicitly resolves `overflow-y` to `auto`, even though the
  *      author meant for it to stay `visible` vertically.
- *   2. Cells in a flex column with explicit height can overflow the
+ *   b. Cells in a flex column with explicit height can overflow the
  *      box by a few pixels (rounding / line-height quirks), giving
  *      that container a tiny scrollHeight > clientHeight gap that's
  *      not the scroll the user is doing.
  *
- * Querying `.app-screen` directly is the most reliable resolution for
- * this app. Fallback walks up if the layout ever changes.
+ * So: prefer `.app-screen` only when it's actually scrolling, otherwise
+ * walk up looking for a genuine vertical-only scroller, otherwise fall
+ * back to the document scrolling element (mobile viewport scroll).
  */
 function findScrollAncestor(el: Element): HTMLElement | null {
   const appScreen = el.closest('.app-screen')
-  if (appScreen instanceof HTMLElement) return appScreen
+  if (appScreen instanceof HTMLElement) {
+    const cs = getComputedStyle(appScreen)
+    const yScrollable = cs.overflowY === 'auto' || cs.overflowY === 'scroll'
+    if (yScrollable && appScreen.scrollHeight > appScreen.clientHeight) {
+      return appScreen
+    }
+  }
   let cur: HTMLElement | null = el.parentElement
   while (cur) {
     const cs = getComputedStyle(cur)
