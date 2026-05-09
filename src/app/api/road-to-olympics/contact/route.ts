@@ -12,12 +12,14 @@
 //   honeypot?: string (must be empty — bots fill it in)
 // }
 //
-// Rate limit: 3 submissions per IP-hash per hour, in-memory (resets on
+// Rate limit: 3 submissions per client IP per hour, in-memory (resets on
 // process restart — fine for Soft Launch; Hardening Wave can move to Redis
 // or a DB-backed counter).
+//
+// IPs are used as the rate-limit key only — they're not stored anywhere
+// persistent and not included in the email. No salt needed.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash } from 'node:crypto'
 import { sendContactEmail } from '@/lib/road-to-olympics/contact-email'
 
 export const runtime = 'nodejs'
@@ -29,25 +31,20 @@ const MAX_MESSAGE = 4000
 const VALID_TYPES = new Set(['correction', 'information', 'other'])
 const VALID_LOCALES = new Set(['en', 'es', 'pt', 'it', 'fr'])
 
-// Simple in-memory rate limiter — keyed by ip_hash, resets each hour.
+// Simple in-memory rate limiter — keyed by client IP, resets each hour.
 // For Soft Launch this is enough; switch to Redis/DB in Hardening Wave.
 const RATE_LIMIT = 3
 const RATE_WINDOW_MS = 60 * 60 * 1000
 const submissions = new Map<string, number[]>()
 
-function isRateLimited(ipHash: string): boolean {
+function isRateLimited(ip: string): boolean {
   const now = Date.now()
   const cutoff = now - RATE_WINDOW_MS
-  const past = (submissions.get(ipHash) ?? []).filter(t => t > cutoff)
+  const past = (submissions.get(ip) ?? []).filter(t => t > cutoff)
   if (past.length >= RATE_LIMIT) return true
   past.push(now)
-  submissions.set(ipHash, past)
+  submissions.set(ip, past)
   return false
-}
-
-function hashIp(ip: string): string {
-  const salt = process.env.RTO_IP_SALT ?? 'dev-salt-change-me'
-  return createHash('sha256').update(ip + salt).digest('hex')
 }
 
 interface ContactBody {
@@ -90,9 +87,8 @@ export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || req.headers.get('x-real-ip')
     || '0.0.0.0'
-  const ipHash = hashIp(ip)
 
-  if (isRateLimited(ipHash)) {
+  if (isRateLimited(ip)) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
   }
 
@@ -102,7 +98,6 @@ export async function POST(req: NextRequest) {
     message,
     type,
     locale: safeLocale,
-    ipHash,
   })
 
   if (!result.ok) {

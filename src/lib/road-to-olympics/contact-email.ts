@@ -16,7 +16,6 @@ export interface SendContactEmailOpts {
   message: string                // required
   type: 'correction' | 'information' | 'other'
   locale: string
-  ipHash: string                 // for spam-pattern detection later
 }
 
 export async function sendContactEmail(opts: SendContactEmailOpts): Promise<{ ok: boolean; error?: string }> {
@@ -39,7 +38,6 @@ export async function sendContactEmail(opts: SendContactEmailOpts): Promise<{ ok
         <tr><td style="padding: 6px 0; color: #6b7280;">Name</td><td style="padding: 6px 0;">${escapeHtml(opts.visitorName ?? '(not given)')}</td></tr>
         <tr><td style="padding: 6px 0; color: #6b7280;">Email</td><td style="padding: 6px 0;"><a href="mailto:${escapeAttr(opts.visitorEmail)}" style="color: #7ED321; text-decoration: none;">${escapeHtml(opts.visitorEmail)}</a></td></tr>
         <tr><td style="padding: 6px 0; color: #6b7280;">Locale</td><td style="padding: 6px 0;">${escapeHtml(opts.locale)}</td></tr>
-        <tr><td style="padding: 6px 0; color: #6b7280; vertical-align: top;">IP-hash</td><td style="padding: 6px 0; font-family: ui-monospace, monospace; font-size: 11px; color: #6b7280;">${escapeHtml(opts.ipHash.slice(0, 16))}…</td></tr>
       </table>
       <div style="background: #f9fafb; border-left: 3px solid #7ED321; padding: 16px 20px; margin: 20px 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap; color: #111;">
 ${escapeHtml(opts.message)}
@@ -59,7 +57,7 @@ ${escapeHtml(opts.message)}
       subject,
       html,
     }, {
-      idempotencyKey: `road-to-olympics-contact-${opts.ipHash.slice(0, 16)}-${Date.now()}`,
+      idempotencyKey: `road-to-olympics-contact-${opts.visitorEmail}-${Date.now()}`,
     })
     return { ok: true }
   } catch (err) {
