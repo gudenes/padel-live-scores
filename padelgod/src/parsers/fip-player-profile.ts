@@ -30,10 +30,75 @@ function extractJsonLd(html: string): Record<string, unknown> | null {
   }
 }
 
+/**
+ * FIP exposes height in three forms across Person and meta tags:
+ *   - "180 cm"  (legacy / explicit centimeters)
+ *   - "1.75"    (decimal meters — what padelfip.com Yoast schema returns today)
+ *   - "1,75"    (decimal meters with comma separator, observed on locale pages)
+ *   - "175"     (bare integer assumed to be centimeters)
+ *
+ * Returns centimeters, or null when the value is missing / nonsense.
+ * Sanity-bounded to 100..250 cm so noise like "0.5" or "50" gets rejected.
+ */
 function parseHeightCm(value: unknown): number | null {
-  if (typeof value !== 'string') return null;
-  const m = value.match(/(\d+)\s*cm/i);
-  return m && m[1] ? parseInt(m[1], 10) : null;
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // "180 cm" → 180 (existing form)
+  const cmMatch = str.match(/(\d+)\s*cm/i);
+  if (cmMatch && cmMatch[1]) {
+    const cm = parseInt(cmMatch[1], 10);
+    return cm >= 100 && cm <= 250 ? cm : null;
+  }
+
+  // "1.75" or "1,75" (decimal meters)
+  const decimalMatch = str.match(/^(\d)[.,](\d{1,2})$/);
+  if (decimalMatch) {
+    const meters = parseFloat(`${decimalMatch[1]}.${decimalMatch[2]}`);
+    const cm = Math.round(meters * 100);
+    return cm >= 100 && cm <= 250 ? cm : null;
+  }
+
+  // "175" (bare integer assumed to be cm)
+  const intMatch = str.match(/^(\d{2,3})$/);
+  if (intMatch && intMatch[1]) {
+    const cm = parseInt(intMatch[1], 10);
+    return cm >= 100 && cm <= 250 ? cm : null;
+  }
+
+  return null;
+}
+
+/**
+ * Walk a JSON-LD value to find the Person node carrying bio fields.
+ *
+ * padelfip.com uses Yoast SEO, which emits an `@graph` array containing a
+ * WebPage node whose `mainEntity` is the Person. Older / simpler pages may
+ * have a top-level `@type: "Person"` node directly. Try both shapes.
+ */
+function findPersonNode(ld: unknown): Record<string, any> | null {
+  if (!ld || typeof ld !== 'object') return null;
+  const obj = ld as Record<string, any>;
+
+  // Direct Person at top level (legacy shape used by tests + older pages)
+  if (obj['@type'] === 'Person') return obj;
+
+  // Yoast @graph: search nodes for a Person, either directly or via mainEntity.
+  if (Array.isArray(obj['@graph'])) {
+    for (const node of obj['@graph']) {
+      if (!node || typeof node !== 'object') continue;
+      if (node['@type'] === 'Person') return node;
+      const me = node.mainEntity;
+      if (me && typeof me === 'object' && me['@type'] === 'Person') return me;
+    }
+  }
+
+  // Top-level mainEntity → Person (uncommon but seen in some shapes)
+  const me = obj.mainEntity;
+  if (me && typeof me === 'object' && me['@type'] === 'Person') return me;
+
+  return null;
 }
 
 export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
@@ -46,18 +111,20 @@ export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
     fipId = match ? match[0] : null;
   }
 
-  // JSON-LD Person fields
+  // JSON-LD Person fields. Walk the graph to find the Person node — Yoast
+  // SEO nests it under @graph[].mainEntity, older pages put it at the top
+  // level. See findPersonNode for the shapes we support.
   const ld = extractJsonLd(html);
+  const person = findPersonNode(ld);
   let birthDate: string | null = null;
   let birthPlace: string | null = null;
   let heightCm: number | null = null;
   let affiliation: string | null = null;
-  if (ld && typeof ld === 'object') {
-    const obj = ld as Record<string, any>;
-    birthDate = typeof obj.birthDate === 'string' ? obj.birthDate.slice(0, 10) : null;
-    birthPlace = obj.birthPlace?.name ?? null;
-    heightCm = parseHeightCm(obj.height);
-    affiliation = obj.affiliation?.name ?? null;
+  if (person) {
+    birthDate = typeof person.birthDate === 'string' ? person.birthDate.slice(0, 10) : null;
+    birthPlace = person.birthPlace?.name ?? null;
+    heightCm = parseHeightCm(person.height);
+    affiliation = person.affiliation?.name ?? null;
   }
 
   // Equipment

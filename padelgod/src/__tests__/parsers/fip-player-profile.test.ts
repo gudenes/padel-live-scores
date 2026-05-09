@@ -80,4 +80,81 @@ describe('parseFipPlayerProfile', () => {
     const result = parseFipPlayerProfile(html);
     expect(result.coaches).toEqual(['Gustavo Pratto']);
   });
+
+  // The current production padelfip.com pages use Yoast SEO's @graph schema
+  // (verified against /player/maximiliano-arce-simo/ on 2026-05-09). The
+  // Person bio fields are nested under graph[].mainEntity, not at the top
+  // level. Height is a decimal meters string ("1.75"), not "180 cm".
+  it("extracts Person fields from Yoast's @graph schema (real FIP shape)", () => {
+    const html = `
+      <html><head>
+        <script type="application/ld+json" class="yoast-schema-graph">{
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": ["WebPage", "ProfilePage"],
+              "@id": "https://www.padelfip.com/player/maximiliano-arce-simo/",
+              "mainEntity": {
+                "@type": "Person",
+                "name": "Maximiliano Arce Simo",
+                "birthDate": "1998-01-27",
+                "birthPlace": { "@type": "Place", "name": "Salta" },
+                "height": "1.75",
+                "affiliation": { "@type": "Organization", "name": "FIP" }
+              }
+            },
+            { "@type": "WebSite" },
+            { "@type": "Organization" }
+          ]
+        }</script>
+      </head><body></body></html>
+    `;
+    const result = parseFipPlayerProfile(html);
+    expect(result.birthDate).toBe('1998-01-27');
+    expect(result.birthPlace).toBe('Salta');
+    expect(result.heightCm).toBe(175);
+    expect(result.affiliation).toBe('FIP');
+  });
+
+  it('parses height in decimal meters (1.75 → 175 cm)', () => {
+    const html = `<script type="application/ld+json">{
+      "@type": "Person", "height": "1.75"
+    }</script>`;
+    expect(parseFipPlayerProfile(html).heightCm).toBe(175);
+  });
+
+  it('parses height with comma decimal (1,80 → 180 cm)', () => {
+    const html = `<script type="application/ld+json">{
+      "@type": "Person", "height": "1,80"
+    }</script>`;
+    expect(parseFipPlayerProfile(html).heightCm).toBe(180);
+  });
+
+  it('parses height as raw cm integer (175 → 175 cm)', () => {
+    const html = `<script type="application/ld+json">{
+      "@type": "Person", "height": "175"
+    }</script>`;
+    expect(parseFipPlayerProfile(html).heightCm).toBe(175);
+  });
+
+  it('keeps backwards-compat height in "180 cm" form', () => {
+    const html = `<script type="application/ld+json">{
+      "@type": "Person", "height": "180 cm"
+    }</script>`;
+    expect(parseFipPlayerProfile(html).heightCm).toBe(180);
+  });
+
+  it('rejects garbage height values', () => {
+    expect(parseFipPlayerProfile(
+      `<script type="application/ld+json">{"@type":"Person","height":"unknown"}</script>`
+    ).heightCm).toBeNull();
+    // Decimal too small to be a real human height
+    expect(parseFipPlayerProfile(
+      `<script type="application/ld+json">{"@type":"Person","height":"0.5"}</script>`
+    ).heightCm).toBeNull();
+    // Integer too small
+    expect(parseFipPlayerProfile(
+      `<script type="application/ld+json">{"@type":"Person","height":"50"}</script>`
+    ).heightCm).toBeNull();
+  });
 });
