@@ -34,8 +34,8 @@ export async function fetchOlympicBeats(
 ): Promise<Array<{
   id: string
   title: string
-  summary: string | null
-  source_url: string
+  summary: string | null   // sourced from the `articles.snippet` column
+  source_url: string       // sourced from the `articles.url` column
   source_name: string
   published_at: string
 }>> {
@@ -46,10 +46,14 @@ export async function fetchOlympicBeats(
   //   2. Articles from any other feed whose title contains an Olympic keyword
   // Then a final regex pass in JS as a safety net (ilike has no word boundary,
   // so it could surface false positives like "metropolis" — the regex catches them).
+  //
+  // Note: the actual articles table columns are `snippet` (not `summary`) and
+  // `url` (not `source_url`). Aliasing in the select keeps the public return
+  // type stable for the BeatsFeed component.
   const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
   const { data, error } = await supabase
     .from('articles')
-    .select('id, title, summary, source_url, source_name, published_at, source_key')
+    .select('id, title, snippet, url, source_name, published_at, source_key')
     .gte('published_at', cutoff)
     .or(
       'source_key.in.(google-news-olympics-en,google-news-ioc-en),' +
@@ -63,6 +67,14 @@ export async function fetchOlympicBeats(
     return []
   }
   return (data ?? [])
-    .filter((row) => isOlympicArticle({ title: row.title, summary: row.summary }))
+    .filter((row) => isOlympicArticle({ title: row.title, summary: row.snippet }))
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      summary: row.snippet,
+      source_url: row.url,
+      source_name: row.source_name,
+      published_at: row.published_at,
+    }))
     .slice(0, limit)
 }
