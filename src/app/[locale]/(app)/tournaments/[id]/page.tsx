@@ -22,6 +22,7 @@ import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
 import { levelLabel } from '@/lib/tournament-labels'
+import DrawTab from './DrawTab'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -43,6 +44,13 @@ const CHUNKY = {
 
 // ── Coverage levels with live point-by-point scoring ──────────
 const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platinum'])
+
+// Tiers that get the Draw tab. Lower tiers (fip_other, padelapi-only)
+// don't have reliable bracket data and skip this UI.
+const DRAW_TIERS = new Set([
+  'major', 'p1', 'p2', 'finals',
+  'fip_bronze', 'fip_silver', 'fip_gold', 'fip_platinum',
+])
 
 // ── Stage ordering ────────────────────────────────────────────
 // Keys are the canonical labels produced by `normalizeRoundFull`. The
@@ -177,10 +185,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'story'>(
+  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'story' | 'draw'>(
     // Map the legacy `?tab=recap` URL param to the new 'story' tab so old
     // share links and bookmarks keep working.
-    paramTab === 'story' || paramTab === 'recap'
+    paramTab === 'draw'
+      ? 'draw'
+      : paramTab === 'story' || paramTab === 'recap'
       ? 'story'
       : paramTab === 'matches'
       ? 'matches'
@@ -576,6 +586,28 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // ── Gender accent color ───────────────────────────────────────
   const genderColor = genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE
 
+  // Draw-tab gating: tier check + ≥80% of main-draw matches have round_canonical
+  const showDrawTab = useMemo(() => {
+    if (!activeTournamentObj) return false
+    if (!DRAW_TIERS.has(activeTournamentObj.level ?? '')) return false
+    const mainDrawMatches = allMatches.filter(m =>
+      (m as any).category === genderFilter &&
+      ['R64', 'R32', 'R16', 'QF', 'SF', 'F'].includes((m as any).round_canonical ?? ''),
+    )
+    if (mainDrawMatches.length === 0) {
+      // No main-draw matches yet — show the tab anyway (we display a "draw not released" empty state)
+      return true
+    }
+    // Inverse check: if there's any match with `round` populated but no
+    // round_canonical, the data is incomplete.
+    const allMatchesWithRound = allMatches.filter(m =>
+      (m as any).category === genderFilter && m.round != null,
+    )
+    if (allMatchesWithRound.length === 0) return true
+    const completeness = mainDrawMatches.length / allMatchesWithRound.length
+    return completeness >= 0.8
+  }, [activeTournamentObj, allMatches, genderFilter])
+
   // ══════════════════════════════════════════════════════════════
   // ── RENDER ────────────────────────────────────────────────────
   // ══════════════════════════════════════════════════════════════
@@ -743,7 +775,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               post-event, and renders the winner card below the editorial
               once the tournament is finished. */}
           <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-            {(['overview', 'story', 'matches'] as const).map(tab => {
+            {(['overview', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => {
               const active = pageTab === tab
               return (
                 <button
@@ -935,6 +967,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             userTz={userTz}
           />
         </div>
+
+        {/* ── Draw Tab ── */}
+        {pageTab === 'draw' && activeTournamentObj && (
+          <DrawTab
+            tournamentId={tournamentId}
+            matches={allMatches.filter(m => (m as any).category === genderFilter)}
+            category={genderFilter}
+            defendingChamp={null}
+            preMainDrawDate={(activeTournamentObj as any).round_schedule?.r32 ?? (activeTournamentObj as any).round_schedule?.r16 ?? null}
+            onSwitchToMatchesTab={() => setPageTab('matches')}
+          />
+        )}
       </main>
 
       {/* Keyframes */}
