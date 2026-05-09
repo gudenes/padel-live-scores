@@ -113,14 +113,35 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
     }
   }
 
-  // Fallback: any first-round matches we couldn't link via player IDs
-  // (next round empty, or players not yet resolved) fill the remaining
-  // empty slots in sort order. This preserves the old behavior on
-  // tournaments where the next round hasn't been drawn yet.
-  let fallbackPos = 0
+  // Fallback for first-round matches that couldn't be linked via
+  // players (most often: next round hasn't been drawn yet, OR upstream
+  // dedup left duplicate player records and the name-pass missed too).
+  //
+  // CRITICAL: only fill positions that aren't already byes. A "bye"
+  // here is a position whose corresponding next-round cell has a real
+  // pair on the relevant side (top or bottom). Filling those would
+  // overwrite a seed's bye walk-through with the wrong R32 match.
+  //
+  // When the next round isn't drawn at all, every empty slot is fair
+  // game — that's the original "no bracket yet" path.
   const firstSlotCount = ROUND_SLOTS[firstRound]
+  const isLikelyBye = (pos: number): boolean => {
+    if (!nextRound) return false
+    const nextMatches = matchesByRound.get(nextRound) ?? []
+    const nextCell = nextMatches[Math.floor(pos / 2)]
+    if (!nextCell) return false
+    const isTopFeed = pos % 2 === 0
+    const sidePlayer = isTopFeed ? nextCell.pair1_player1 : nextCell.pair2_player1
+    return sidePlayer != null
+  }
+  let fallbackPos = 0
   for (const m of firstRoundUnplaced) {
-    while (fallbackPos < firstSlotCount && firstRoundByPos.has(fallbackPos)) fallbackPos++
+    while (
+      fallbackPos < firstSlotCount &&
+      (firstRoundByPos.has(fallbackPos) || isLikelyBye(fallbackPos))
+    ) {
+      fallbackPos++
+    }
     if (fallbackPos >= firstSlotCount) break
     firstRoundByPos.set(fallbackPos, m)
     fallbackPos++
@@ -191,33 +212,78 @@ function stableMatchSort(a: Match, b: Match): number {
 }
 
 /**
- * Find the match in `pool` whose pair1 or pair2 matches the given pair
- * (both player IDs present on the same side). Returns the first match
- * found; pool is iterated in insertion order.
+ * Find the match in `pool` whose pair1 or pair2 matches the given pair.
+ * First tries exact ID match (the common case), then falls back to a
+ * name-token match — a defensive workaround for player records that
+ * got duplicated across rounds (e.g., "Nuria Rodriguez" with one fip_id
+ * in R32 and "Nuria Camacho" with a different fip_id in R16, both
+ * referring to the same person Nuria Rodriguez Camacho).
  *
  * Used to derive first-round bracket positions from next-round
  * matchups: a next-round match at position j has pair1 fed by the
- * winner of the first-round match at position 2j, etc. Matching by
- * player IDs is robust even when widget order doesn't reflect bracket
- * order (e.g., bye-induced gaps in widget IDs).
+ * winner of the first-round match at position 2j, etc. Matching only
+ * via player UUIDs would silently misplace matches whenever upstream
+ * dedup hasn't merged a duplicate player.
  */
+type PlayerLike = { id?: string | null; name?: string | null } | null | undefined
+
 function findFeedingMatch(
   pool: Iterable<Match>,
-  p1: { id?: string | null } | null | undefined,
-  p2: { id?: string | null } | null | undefined,
+  p1: PlayerLike,
+  p2: PlayerLike,
 ): Match | undefined {
   const id1 = p1?.id, id2 = p2?.id
-  if (!id1 || !id2) return undefined
+  // Pass 1: exact UUID match on either side of an R32 match.
+  if (id1 && id2) {
+    for (const m of pool) {
+      const a1 = m.pair1_player1?.id, a2 = m.pair1_player2?.id
+      const b1 = m.pair2_player1?.id, b2 = m.pair2_player2?.id
+      const inPair1 =
+        ((id1 === a1 && id2 === a2) || (id1 === a2 && id2 === a1))
+      const inPair2 =
+        ((id1 === b1 && id2 === b2) || (id1 === b2 && id2 === b1))
+      if (inPair1 || inPair2) return m
+    }
+  }
+  // Pass 2: name-token fallback. Each target must have at least one
+  // distinctive name token (>= 4 chars) that overlaps with a different
+  // candidate's tokens. Two different targets must match two different
+  // candidates so a single shared first name (e.g. "Nuria") doesn't
+  // collapse a pair.
+  const t1 = nameTokens(p1?.name)
+  const t2 = nameTokens(p2?.name)
+  if (t1.size === 0 || t2.size === 0) return undefined
   for (const m of pool) {
-    const a1 = m.pair1_player1?.id, a2 = m.pair1_player2?.id
-    const b1 = m.pair2_player1?.id, b2 = m.pair2_player2?.id
-    const inPair1 =
-      ((id1 === a1 && id2 === a2) || (id1 === a2 && id2 === a1))
-    const inPair2 =
-      ((id1 === b1 && id2 === b2) || (id1 === b2 && id2 === b1))
-    if (inPair1 || inPair2) return m
+    for (const side of [1, 2] as const) {
+      const c1 = side === 1 ? m.pair1_player1 : m.pair2_player1
+      const c2 = side === 1 ? m.pair1_player2 : m.pair2_player2
+      const ct1 = nameTokens(c1?.name)
+      const ct2 = nameTokens(c2?.name)
+      if (ct1.size === 0 || ct2.size === 0) continue
+      // Try both orderings — pair members aren't intrinsically ordered.
+      const a = hasOverlap(t1, ct1) && hasOverlap(t2, ct2)
+      const b = hasOverlap(t1, ct2) && hasOverlap(t2, ct1)
+      if (a || b) return m
+    }
   }
   return undefined
+}
+
+function nameTokens(name: string | null | undefined): Set<string> {
+  if (!name) return new Set()
+  return new Set(
+    name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .split(/[\s\-']+/)
+      .filter(t => t.length >= 4),
+  )
+}
+
+function hasOverlap(a: Set<string>, b: Set<string>): boolean {
+  for (const t of a) if (b.has(t)) return true
+  return false
 }
 
 /**
