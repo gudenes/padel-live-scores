@@ -13,10 +13,17 @@ import { ROUND_ORDER, ROUND_SLOTS, pairKeyFor } from './bracket-builder'
 //   - QF with 4 cells, SF with 2, F with 1 — same relationship continues
 // The result is the classic bracket-tree pyramid where later rounds
 // converge toward the vertical center.
-const CELL_SLOT_PX = 70  // approx height of one cell + breathing room
+const CELL_SLOT_PX = 56  // approx height of one cell + breathing room
+                          // (smaller value = denser bracket; columns
+                          // shrink proportionally so R16/QF/SF/F still
+                          // align to the midpoints of their feeding
+                          // pairs, just with less wasted space)
 // Width of the SVG connector overlay between columns. Drawn into the
 // space between columns to link two source cells to one destination cell.
 const CONNECTOR_PX = 14
+// Height of the per-column sticky round label that pins below the
+// chip strip while the user scrolls through a tall column.
+const LABEL_PX = 26
 
 const GREEN = '#7ED321'
 const MUTED = '#6B7280'
@@ -133,9 +140,11 @@ export default function BracketRoundList({
   }, [rounds.join(','), activeRound])
 
   // When activeRound changes (chip click or external trigger), pan the
-  // horizontal scroll container to the matching column. Use scrollTo on
-  // the container directly so we never affect vertical page scroll —
-  // scrollIntoView would also yank the page up to the column's top.
+  // horizontal scroll container to the matching column AND, if a pair
+  // is tracked, scroll vertically so the tracked cell in the new round
+  // sits in the middle of the viewport. Otherwise the user lands on
+  // the column but might have to hunt for the matchup — especially in
+  // QF/SF/F where the tracked cell can be hundreds of pixels down.
   useEffect(() => {
     const containerEl = scrollContainerRef.current
     const colEl = columnRefs.current.get(activeRound)
@@ -143,10 +152,24 @@ export default function BracketRoundList({
     const containerRect = containerEl.getBoundingClientRect()
     const colRect = colEl.getBoundingClientRect()
     const targetLeft = containerEl.scrollLeft + (colRect.left - containerRect.left)
-    if (Math.abs(containerEl.scrollLeft - targetLeft) < 4) return
-    programmaticScrollUntil.current = Date.now() + 500
-    containerEl.scrollTo({ left: targetLeft, behavior: 'smooth' })
-  }, [activeRound])
+    const needsHScroll = Math.abs(containerEl.scrollLeft - targetLeft) >= 4
+    if (needsHScroll) {
+      programmaticScrollUntil.current = Date.now() + 500
+      containerEl.scrollTo({ left: targetLeft, behavior: 'smooth' })
+    }
+    // Auto-focus the tracked pair's cell in this round, if any.
+    const trackedNode = trackedPath.nodes.find(n => n.round === activeRound)
+    if (!trackedNode) return
+    const cellEl = colEl.querySelector(`[data-pos="${trackedNode.positionInRound}"]`)
+    if (!(cellEl instanceof HTMLElement)) return
+    // Defer a tick so the horizontal smooth-scroll has settled and the
+    // sticky header is in its final position; otherwise `block: center`
+    // computes against an in-flight viewport.
+    const t = window.setTimeout(() => {
+      cellEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
+    }, needsHScroll ? 350 : 0)
+    return () => window.clearTimeout(t)
+  }, [activeRound, trackedPairKey, trackedPath])
 
   return (
     <>
@@ -266,14 +289,15 @@ export default function BracketRoundList({
                   ? trackingVariant === 'defendingChamp' ? 'defendingChamp' : 'tracking'
                   : dim ? 'dim' : 'none'
                 return (
-                  <BracketCell
-                    key={node.positionInRound}
-                    node={node}
-                    highlight={highlight}
-                    onTrackPair={onTrackPair}
-                    pairKey={pairKeyFor}
-                    markersByPair={markersByPair}
-                  />
+                  <div key={node.positionInRound} data-pos={node.positionInRound}>
+                    <BracketCell
+                      node={node}
+                      highlight={highlight}
+                      onTrackPair={onTrackPair}
+                      pairKey={pairKeyFor}
+                      markersByPair={markersByPair}
+                    />
+                  </div>
                 )
               })}
               {/* Bracket-tree connectors between this column and the next.
