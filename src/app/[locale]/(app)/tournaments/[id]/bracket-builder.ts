@@ -70,17 +70,51 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
     matchesByRound.set(r, list)
   }
   for (const list of matchesByRound.values()) {
-    list.sort((a, b) => {
-      const ap = a.draw_position
-      const bp = b.draw_position
-      if (typeof ap === 'number' && typeof bp === 'number') return ap - bp
-      if (typeof ap === 'number') return -1
-      if (typeof bp === 'number') return 1
-      const aw = (a as { widget_id_composite?: string | null }).widget_id_composite ?? ''
-      const bw = (b as { widget_id_composite?: string | null }).widget_id_composite ?? ''
-      if (aw && bw && aw !== bw) return aw < bw ? -1 : 1
-      return (a.external_id ?? '').localeCompare(b.external_id ?? '')
-    })
+    list.sort(stableMatchSort)
+  }
+
+  // Determine bracket position for each first-round match. This is the
+  // crucial bit for tournaments with byes: we can't use the sort index
+  // directly (that packs matches into 0..N-1 and leaves the byes
+  // dangling at the bottom), so instead we walk the NEXT round and place
+  // each first-round match at the slot whose pair it feeds.
+  //
+  // Convention: even pos (0, 2, 4…) feeds pair1 of the next-round cell,
+  // odd pos feeds pair2. This mirrors padelgod's fip-draw-populator,
+  // which assigns Crionet's team1 → pair1 and team2 → pair2.
+  const firstRound = rounds[0]
+  const nextRound = rounds[1]
+  const firstRoundByPos = new Map<number, Match>()
+  const firstRoundUnplaced = new Set<Match>(matchesByRound.get(firstRound) ?? [])
+
+  if (nextRound) {
+    const nextMatches = matchesByRound.get(nextRound) ?? []
+    for (let j = 0; j < nextMatches.length; j++) {
+      const m = nextMatches[j]
+      const topFeed = findFeedingMatch(firstRoundUnplaced, m.pair1_player1, m.pair1_player2)
+      if (topFeed) {
+        firstRoundByPos.set(2 * j, topFeed)
+        firstRoundUnplaced.delete(topFeed)
+      }
+      const botFeed = findFeedingMatch(firstRoundUnplaced, m.pair2_player1, m.pair2_player2)
+      if (botFeed) {
+        firstRoundByPos.set(2 * j + 1, botFeed)
+        firstRoundUnplaced.delete(botFeed)
+      }
+    }
+  }
+
+  // Fallback: any first-round matches we couldn't link via player IDs
+  // (next round empty, or players not yet resolved) fill the remaining
+  // empty slots in sort order. This preserves the old behavior on
+  // tournaments where the next round hasn't been drawn yet.
+  let fallbackPos = 0
+  const firstSlotCount = ROUND_SLOTS[firstRound]
+  for (const m of firstRoundUnplaced) {
+    while (fallbackPos < firstSlotCount && firstRoundByPos.has(fallbackPos)) fallbackPos++
+    if (fallbackPos >= firstSlotCount) break
+    firstRoundByPos.set(fallbackPos, m)
+    fallbackPos++
   }
 
   // Build nodes round by round so we can wire feedFromTop/Bottom on the fly.
@@ -93,7 +127,9 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
     const prevNodes = prevRound ? nodesByRound.get(prevRound) ?? [] : []
 
     for (let pos = 0; pos < slotCount; pos++) {
-      const match = sorted[pos] ?? null
+      const match = round === firstRound
+        ? firstRoundByPos.get(pos) ?? null
+        : sorted[pos] ?? null
       const feedFromTop = prevNodes[pos * 2] ?? null
       const feedFromBottom = prevNodes[pos * 2 + 1] ?? null
       nodes.push({
@@ -105,17 +141,8 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
     nodesByRound.set(round, nodes)
   }
 
-  // Mark byes: a slot in the FIRST round of this bracket is a bye when
-  // its corresponding next-round cell has a real pair on its side but
-  // no match here. We detect this by checking whether the next-round
-  // cell's match has player IDs assigned to the side this cell feeds.
-  //
-  // Convention: even pos (0, 2, 4…) feeds pair1 of the next-round cell,
-  // odd pos feeds pair2. This mirrors padelgod's fip-draw-populator,
-  // which assigns Crionet's team1 → pair1 and team2 → pair2, and Crionet
-  // lists the top-feeding team first in each draw row.
-  const firstRound = rounds[0]
-  const nextRound = rounds[1]
+  // Mark byes: a slot in the FIRST round is a bye when its corresponding
+  // next-round cell has a real pair on its side but no match here.
   if (nextRound) {
     const firstNodes = nodesByRound.get(firstRound)!
     const nextNodes = nodesByRound.get(nextRound)!
@@ -133,6 +160,49 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
   }
 
   return rounds.flatMap(r => nodesByRound.get(r)!)
+}
+
+/** Stable per-round match ordering — see comment in buildBracket. */
+function stableMatchSort(a: Match, b: Match): number {
+  const ap = a.draw_position
+  const bp = b.draw_position
+  if (typeof ap === 'number' && typeof bp === 'number') return ap - bp
+  if (typeof ap === 'number') return -1
+  if (typeof bp === 'number') return 1
+  const aw = (a as { widget_id_composite?: string | null }).widget_id_composite ?? ''
+  const bw = (b as { widget_id_composite?: string | null }).widget_id_composite ?? ''
+  if (aw && bw && aw !== bw) return aw < bw ? -1 : 1
+  return (a.external_id ?? '').localeCompare(b.external_id ?? '')
+}
+
+/**
+ * Find the match in `pool` whose pair1 or pair2 matches the given pair
+ * (both player IDs present on the same side). Returns the first match
+ * found; pool is iterated in insertion order.
+ *
+ * Used to derive first-round bracket positions from next-round
+ * matchups: a next-round match at position j has pair1 fed by the
+ * winner of the first-round match at position 2j, etc. Matching by
+ * player IDs is robust even when widget order doesn't reflect bracket
+ * order (e.g., bye-induced gaps in widget IDs).
+ */
+function findFeedingMatch(
+  pool: Iterable<Match>,
+  p1: { id?: string | null } | null | undefined,
+  p2: { id?: string | null } | null | undefined,
+): Match | undefined {
+  const id1 = p1?.id, id2 = p2?.id
+  if (!id1 || !id2) return undefined
+  for (const m of pool) {
+    const a1 = m.pair1_player1?.id, a2 = m.pair1_player2?.id
+    const b1 = m.pair2_player1?.id, b2 = m.pair2_player2?.id
+    const inPair1 =
+      ((id1 === a1 && id2 === a2) || (id1 === a2 && id2 === a1))
+    const inPair2 =
+      ((id1 === b1 && id2 === b2) || (id1 === b2 && id2 === b1))
+    if (inPair1 || inPair2) return m
+  }
+  return undefined
 }
 
 /**
