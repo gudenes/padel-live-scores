@@ -1026,7 +1026,16 @@
       "continentsLabel": "Continents couverts",
       "federationsLabel": "Fédérations nationales",
       "genderLabel": "Padel féminin",
-      "eliteLabel": "Pays de haut niveau"
+      "eliteLabel": "Pays de haut niveau",
+      "explanations": {
+        "compliance": "Le padel respecte les trois cadres de conformité du CIO : la Charte olympique, le Code AMA (antidopage) et le Code du Mouvement olympique sur la manipulation des compétitions. C'est une exigence incontournable et nous la dépassons solidement.",
+        "continents": "Le CIO exige qu'un sport soit pratiqué sur au moins trois continents. Le padel se joue désormais sur cinq (Europe, Amériques, Asie, Afrique, Océanie), confortablement au-delà du seuil.",
+        "federations": "87 pays ont une fédération nationale de padel affiliée à la FIP. Le seuil général du CIO pour la portée mondiale est d'environ 75 fédérations — nous sommes au-dessus et en croissance chaque trimestre.",
+        "gender": "40% des joueurs de padel dans le monde sont des femmes. Le CIO pousse fortement pour la parité de genre (50/50). Nous sommes sur la bonne voie vers cet objectif — combler ces derniers 10 points renforce considérablement le dossier.",
+        "elite": "Seuls deux pays — l'Espagne et l'Argentine — ont actuellement des athlètes capables de remporter des médailles au niveau olympique. Le CIO exige généralement quatre pays ou plus véritablement compétitifs au plus haut niveau avant d'ajouter un sport. C'est le plus grand écart unique dans le dossier olympique du padel."
+      },
+      "blockerBadge": "OBSTACLE PRINCIPAL",
+      "blockerExplanation": "Cette ligne est le plus grand obstacle unique à l'inclusion olympique du padel. Tous les autres critères sont remplis ou en bonne voie — combler cet écart est ce dont le padel a le plus besoin."
     },
     "beats": {
       "tabWins": "Succès",

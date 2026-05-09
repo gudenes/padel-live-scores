@@ -1047,7 +1047,16 @@
       "continentsLabel": "Continents played",
       "federationsLabel": "National federations",
       "genderLabel": "Women's padel",
-      "eliteLabel": "Elite-level countries"
+      "eliteLabel": "Elite-level countries",
+      "explanations": {
+        "compliance": "Padel meets all three IOC compliance frameworks: the Olympic Charter, the WADA Code (anti-doping), and the Olympic Movement Code on Manipulation of Competitions. This is a hard requirement and we're solidly past it.",
+        "continents": "The IOC requires a sport to be practised on at least three continents. Padel is now played on five (Europe, Americas, Asia, Africa, Oceania), comfortably past the threshold.",
+        "federations": "87 countries have a national padel federation affiliated with the FIP. The IOC's general benchmark for global reach is around 75 federations — we're past that and growing every quarter.",
+        "gender": "40% of padel players globally are women. The IOC pushes hard for gender parity (50/50). We're on track toward that target — closing the last 10 points strengthens the case considerably.",
+        "elite": "Only two countries — Spain and Argentina — currently have athletes capable of medalling at Olympic level. The IOC typically wants four or more countries genuinely competitive at the top before adding a sport. This is the biggest single gap in padel's Olympic case."
+      },
+      "blockerBadge": "MAIN BLOCKER",
+      "blockerExplanation": "This row is the single biggest obstacle to padel's Olympic inclusion. Every other criteria is met or on track — closing this gap is what padel needs most."
     },
     "beats": {
       "tabWins": "Wins",

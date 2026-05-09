@@ -1026,7 +1026,16 @@
       "continentsLabel": "Continentes donde se juega",
       "federationsLabel": "Federaciones nacionales",
       "genderLabel": "Pádel femenino",
-      "eliteLabel": "Países de élite"
+      "eliteLabel": "Países de élite",
+      "explanations": {
+        "compliance": "El pádel cumple con los tres marcos de cumplimiento del COI: la Carta Olímpica, el Código WADA (antidopaje) y el Código del Movimiento Olímpico sobre Manipulación de Competiciones. Es un requisito imprescindible y lo superamos con holgura.",
+        "continents": "El COI exige que un deporte se practique en al menos tres continentes. El pádel se juega ya en cinco (Europa, América, Asia, África, Oceanía), muy por encima del umbral.",
+        "federations": "87 países tienen una federación nacional de pádel afiliada a la FIP. El umbral general del COI para alcance global ronda las 75 federaciones — lo superamos y crecemos cada trimestre.",
+        "gender": "El 40% de los jugadores de pádel a nivel mundial son mujeres. El COI impulsa con fuerza la paridad de género (50/50). Vamos por buen camino hacia ese objetivo — cerrar esos últimos 10 puntos refuerza considerablemente el expediente.",
+        "elite": "Solo dos países — España y Argentina — tienen actualmente atletas con capacidad de medallar a nivel olímpico. El COI suele exigir cuatro o más países genuinamente competitivos en lo más alto antes de añadir un deporte. Esta es la mayor brecha individual en el expediente olímpico del pádel."
+      },
+      "blockerBadge": "PRINCIPAL OBSTÁCULO",
+      "blockerExplanation": "Esta fila es el mayor obstáculo individual para la inclusión olímpica del pádel. Todos los demás criterios están cumplidos o en buen camino — cerrar esta brecha es lo que el pádel más necesita."
     },
     "beats": {
       "tabWins": "Victorias",
