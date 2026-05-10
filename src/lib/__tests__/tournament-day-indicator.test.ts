@@ -142,29 +142,29 @@ describe('shouldShowDayIndicator', () => {
 })
 
 describe('formatDayChipLabel', () => {
-  it('returns localised short weekday + day + month in tournament tz (en)', () => {
+  it('returns localised compact day + short month in tournament tz (en)', () => {
     // 2026-05-10T02:00:00Z = Saturday 9 May at 23:00 ART
     const label = formatDayChipLabel({
       timestamp: FINISHED_AT_AS_SF,
       tournamentTimezone: ASUNCION_TZ,
       locale: 'en',
     })
-    expect(label).toMatch(/Sat/)
     expect(label).toMatch(/9/)
     expect(label).toMatch(/May/)
+    // Weekday should NOT be present — compact format drops it.
+    expect(label).not.toMatch(/Sat/)
   })
 
-  it('returns localised short weekday + day + month in tournament tz (pt)', () => {
+  it('returns localised compact day + short month in tournament tz (pt)', () => {
     const label = formatDayChipLabel({
       timestamp: FINISHED_AT_AS_SF,
       tournamentTimezone: ASUNCION_TZ,
       locale: 'pt',
     })
-    // Portuguese short weekday for Saturday is "sáb" or "Sáb"
-    expect(label!.toLowerCase()).toMatch(/sáb|sab/)
     expect(label).toMatch(/9/)
-    // Portuguese short month for May is "mai"
     expect(label!.toLowerCase()).toMatch(/mai/)
+    // Weekday should NOT be present.
+    expect(label!.toLowerCase()).not.toMatch(/sáb|sab/)
   })
 
   it('returns null when timestamp is null', () => {

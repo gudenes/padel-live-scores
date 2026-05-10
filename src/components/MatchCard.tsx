@@ -64,6 +64,10 @@ const PULSE_KEYFRAMES = `
   0%   { opacity: 0; transform: translateY(-4px) scale(0.95); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
+@keyframes mc-day-tip-pop {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-4px) scale(0.95); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
 `
 
 // Module-level prev-score map keyed by match.id — survives card remounts
@@ -392,7 +396,7 @@ export function MatchCard({
         }
       })()
     : null
-  // Close on outside tap or Escape.
+  // Close on outside tap, Escape, or after a 4.5s auto-dismiss.
   useEffect(() => {
     if (!dayTipOpen) return
     const onPointerDown = (e: Event) => {
@@ -404,11 +408,13 @@ export function MatchCard({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setDayTipOpen(false)
     }
+    const dismissTimer = setTimeout(() => setDayTipOpen(false), 4500)
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('keydown', onKeyDown, true)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown, true)
       document.removeEventListener('keydown', onKeyDown, true)
+      clearTimeout(dismissTimer)
     }
   }, [dayTipOpen])
 
@@ -480,66 +486,34 @@ export function MatchCard({
           {round && <Chip>{round}</Chip>}
           {courtRaw && <Chip>{courtRaw.toUpperCase()}</Chip>}
           {showDayChip && dayChipLabel && (
-            <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <button
-                ref={dayChipRef}
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setDayTipOpen(o => !o)
-                }}
-                aria-expanded={dayTipOpen}
-                aria-label={dayChipLabel}
-                style={{
-                  fontSize: 9,
-                  fontWeight: 800,
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase',
-                  color: ORANGE,
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(245,166,35,0.30)',
-                  padding: '3px 7px',
-                  clipPath: CHUNKY.badge,
-                  lineHeight: 1.2,
-                  whiteSpace: 'nowrap',
-                  cursor: 'pointer',
-                  font: 'inherit',
-                }}
-              >
-                {dayChipLabel}
-              </button>
-              {dayTipOpen && dayChipTooltip && (
-                <span
-                  role="tooltip"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 6px)',
-                    left: 0,
-                    width: 220,
-                    padding: '10px 12px',
-                    background: BG_ELEV,
-                    border: '1px solid rgba(245,166,35,0.30)',
-                    color: 'rgba(255,255,255,0.85)',
-                    fontSize: 10.5,
-                    fontWeight: 500,
-                    letterSpacing: 0.1,
-                    lineHeight: 1.45,
-                    textTransform: 'none',
-                    borderRadius: 8,
-                    zIndex: 30,
-                    boxShadow: '0 12px 24px rgba(0,0,0,0.45)',
-                  }}
-                >
-                  {tMatch('dayIndicator.tooltip', {
-                    weekday: dayChipTooltip.tournamentWeekday,
-                    location: dayChipTooltip.location,
-                    userWeekday: dayChipTooltip.userWeekday,
-                  })}
-                </span>
-              )}
-            </span>
+            <button
+              ref={dayChipRef}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setDayTipOpen(o => !o)
+              }}
+              aria-expanded={dayTipOpen}
+              aria-label={dayChipLabel}
+              style={{
+                fontFamily: 'inherit',
+                fontSize: 8,
+                fontWeight: 800,
+                letterSpacing: '0.4px',
+                textTransform: 'uppercase',
+                color: ORANGE,
+                background: 'rgba(245,166,35,0.10)',
+                border: '1px solid rgba(245,166,35,0.30)',
+                padding: '2px 5px',
+                clipPath: CHUNKY.badge,
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}
+            >
+              {dayChipLabel}
+            </button>
           )}
           {status && (
             <Chip bg={status.bg} color={status.color} bold>
@@ -800,6 +774,70 @@ export function MatchCard({
             </div>
           )}
         </div>
+
+        {/* Day-indicator tooltip — anchored to the bottom-center of the
+            card body so the chunky popover frames the match without
+            overlapping the title row. Click anywhere on the popover (or
+            outside the card, or after 4.5s) to dismiss. Mirrors the
+            LateHintPill visual treatment. */}
+        {dayTipOpen && dayChipTooltip && (
+          <div
+            role="tooltip"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDayTipOpen(false) }}
+            style={{
+              position: 'absolute',
+              left: '50%',
+              bottom: 8,
+              transform: 'translateX(-50%)',
+              zIndex: 4,
+              maxWidth: 260,
+              width: 'calc(100% - 24px)',
+              padding: '10px 12px 10px 14px',
+              background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)',
+              clipPath: CHUNKY.badge,
+              boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 0 24px ${ORANGE}10`,
+              cursor: 'pointer',
+              animation: 'mc-day-tip-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <span style={{ flexShrink: 0, marginTop: 1, display: 'inline-flex' }}>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M3 10h18" />
+                <path d="M8 3v4" />
+                <path d="M16 3v4" />
+              </svg>
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                fontSize: 9,
+                fontWeight: 800,
+                color: ORANGE,
+                letterSpacing: 0.5,
+                textTransform: 'uppercase',
+                marginBottom: 3,
+                lineHeight: 1.2,
+              }}>
+                {dayChipLabel}
+              </div>
+              <div style={{
+                color: '#D8D8DD',
+                fontSize: 11,
+                fontWeight: 500,
+                lineHeight: 1.4,
+              }}>
+                {tMatch('dayIndicator.tooltip', {
+                  weekday: dayChipTooltip.tournamentWeekday,
+                  location: dayChipTooltip.location,
+                  userWeekday: dayChipTooltip.userWeekday,
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Expandable insights panel — only mounted on prediction-enabled
             (Premier-tier) matches. */}

@@ -61,8 +61,11 @@ export interface FormatDayChipLabelInput {
 }
 
 /**
- * Localised short label for the chip — "Sáb 9 mai." (pt), "Sat 9 May" (en).
- * Returns null when inputs are insufficient, so the caller can render
+ * Localised compact chip label — "9 mai" (pt), "9 May" (en). Just
+ * day + short month; the tooltip carries the full weekday + location
+ * explanation when the user taps for context.
+ *
+ * Returns null when inputs are insufficient so callers can render
  * nothing without an extra guard.
  */
 export function formatDayChipLabel(input: FormatDayChipLabelInput): string | null {
@@ -70,7 +73,6 @@ export function formatDayChipLabel(input: FormatDayChipLabelInput): string | nul
   if (!timestamp || !tournamentTimezone) return null
   try {
     return new Intl.DateTimeFormat(locale, {
-      weekday: 'short',
       day: 'numeric',
       month: 'short',
       timeZone: tournamentTimezone,
