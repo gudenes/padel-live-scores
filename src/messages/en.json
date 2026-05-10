@@ -98,6 +98,17 @@
       "tooltip": "Played on {weekday} in the tournament's local time ({location}). It appears on this day because the match finished on {userWeekday} in your timezone.",
       "_tooltip_context": "Tooltip on a finished-match chip on the matches-by-date list. Surfaced when the match's tournament-local date differs from the user-selected day-tab. {weekday} = full localised weekday name in the tournament's timezone (e.g. 'Saturday'), produced by Intl.DateTimeFormat with weekday:'long'. {userWeekday} = same, in the user's timezone. {location} = short tournament city/country (e.g. 'Asunción P2'). Both weekday placeholders are bare standalone words — translators should NOT prepend articles or prepositions that assume a particular grammatical gender (e.g. PT 'no' fails on feminine days like 'terça-feira'). Use neutral phrasing or commas instead."
     },
+    "stageChip": {
+      "final": "Final",
+      "semifinals": "Semifinals",
+      "quarterfinals": "Quarterfinals",
+      "r16": "R16",
+      "r32": "R32",
+      "r64": "R64",
+      "r128": "R128",
+      "qualifying": "Qualifying",
+      "_context": "Chip on each tournament group header on the matches-by-date list, showing the most-advanced round happening on the selected day. Each tournament gets exactly one chip (Final wins over Semifinals if both are scheduled today). Qualifying covers Q1/Q2/Q3 collectively. Keep labels short — they sit next to a status pill (LIVE/ONGOING/etc.) and the chunky badge has limited width."
+    },
     "lateHint": {
       "mayBeLate": "may be late",
       "mayBeLateAria": "Match may be late — tap for details",

@@ -97,6 +97,16 @@
     "dayIndicator": {
       "tooltip": "Disputé le {weekday}, heure locale du tournoi ({location}). Apparaît ce jour car dans votre fuseau le match s'est terminé le {userWeekday}."
     },
+    "stageChip": {
+      "final": "Finale",
+      "semifinals": "Demi-finales",
+      "quarterfinals": "Quarts",
+      "r16": "R16",
+      "r32": "R32",
+      "r64": "R64",
+      "r128": "R128",
+      "qualifying": "Qualifications"
+    },
     "lateHint": {
       "mayBeLate": "peut être en retard",
       "mayBeLateAria": "Le match peut être en retard — touchez pour plus d'infos",

@@ -97,6 +97,16 @@
     "dayIndicator": {
       "tooltip": "Disputado el {weekday}, hora local del torneo ({location}). Aparece este día porque en tu zona horaria terminó ya el {userWeekday}."
     },
+    "stageChip": {
+      "final": "Final",
+      "semifinals": "Semifinales",
+      "quarterfinals": "Cuartos",
+      "r16": "R16",
+      "r32": "R32",
+      "r64": "R64",
+      "r128": "R128",
+      "qualifying": "Clasificación"
+    },
     "lateHint": {
       "mayBeLate": "podría retrasarse",
       "mayBeLateAria": "Este partido podría retrasarse — toca para más información",

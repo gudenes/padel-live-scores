@@ -27,7 +27,12 @@ import type { ReactNode } from 'react'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
 import { MatchCard } from '@/components/MatchCard'
-import { levelLabel } from '@/lib/tournament-labels'
+import {
+  levelLabel,
+  mostAdvancedRoundEntry,
+  stageChipKey,
+} from '@/lib/tournament-labels'
+import { useTranslations } from 'next-intl'
 import type { Match } from '@/types/match'
 
 const GREEN = '#7ED321'
@@ -191,6 +196,8 @@ function tournamentStatusBadge(
 // ── Component ───────────────────────────────────────────────────────────
 
 export default function MatchesTournamentGroup({ group }: { group: TournamentGroupData }) {
+  const tStage = useTranslations('match.stageChip')
+
   // Aggregate counts for the tournament-level status pill (LIVE / ONGOING
   // / UPCOMING / FINAL). Same buckets the old layout exposed as sub-
   // sections — we just don't render them as sections anymore.
@@ -245,6 +252,28 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
 
   const [expanded, setExpanded] = useState(true)
   const tournamentStatusPill = tournamentStatusBadge(counts, group.tournamentStatus)
+
+  // Stage chip — surfaces today's most-advanced round (Final / Semifinals /
+  // Quarterfinals / R16 / R32 / R64 / R128 / Qualifying). Drives the
+  // group sort already (in fetch-matches-day.ts) and the chip here is the
+  // visual surface of the same signal: climactic content reads as
+  // climactic. Skipped when no round is recognised.
+  const stageEntry = mostAdvancedRoundEntry(group.matches)
+  const stageKey = stageChipKey(stageEntry.round)
+  const stageChip = stageKey
+    ? (() => {
+        // Color-code by stage intensity. Final → red, Semifinals → orange,
+        // earlier main draw → green, Qualifying → muted. Matches the
+        // visual hierarchy users expect from the matches list.
+        const isFinal = stageKey === 'final'
+        const isSemi = stageKey === 'semifinals'
+        const isQual = stageKey === 'qualifying'
+        if (isFinal) return { label: tStage('final'), color: LIVE_RED, bg: 'rgba(255,70,85,0.18)' }
+        if (isSemi) return { label: tStage('semifinals'), color: ONGOING_ORANGE, bg: 'rgba(245,166,35,0.15)' }
+        if (isQual) return { label: tStage('qualifying'), color: MUTED, bg: 'rgba(255,255,255,0.06)' }
+        return { label: tStage(stageKey as 'quarterfinals'|'r16'|'r32'|'r64'|'r128'), color: GREEN, bg: 'rgba(126,211,33,0.12)' }
+      })()
+    : null
   const dataLeague = group.isPremier ? 'premier' : 'fip'
   const levelText = group.tournamentLevel ? levelLabel(group.tournamentLevel) : null
   const dateText = formatDateRange(
@@ -337,6 +366,24 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
                 }}
               >
                 {tournamentStatusPill.label}
+              </span>
+            )}
+            {stageChip && (
+              <span
+                style={{
+                  fontSize: 8,
+                  fontWeight: 800,
+                  letterSpacing: 0.5,
+                  padding: '2px 6px',
+                  clipPath: CHUNKY.badge,
+                  color: stageChip.color,
+                  background: stageChip.bg,
+                  flexShrink: 0,
+                  lineHeight: '12px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {stageChip.label}
               </span>
             )}
           </div>

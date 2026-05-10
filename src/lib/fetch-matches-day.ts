@@ -15,7 +15,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { localDayRangeUtc, isIsoDate, formatIsoInTz } from './locale-time'
 import { hydrateThinPlayers } from './thin-match-player'
-import { isPremierLevel, levelTierWeight } from './tournament-labels'
+import {
+  isPremierLevel,
+  levelTierWeight,
+  mostAdvancedRoundEntry,
+} from './tournament-labels'
 
 const ONE_DAY_MS = 86_400_000
 
@@ -274,10 +278,28 @@ export async function fetchMatchesDay(
   }
 
   const groups = Array.from(groupMap.values())
-  groups.sort(
-    (a, b) =>
-      levelTierWeight(a.tournamentLevel) - levelTierWeight(b.tournamentLevel),
-  )
+
+  // Combined sort: Premier-first + progression.
+  //
+  //   1. Hard tier bucket — Premier (Major/P1/P2/Finals) always above
+  //      FIP-tier tournaments. No progression on a Bronze final can
+  //      leapfrog a Premier event still in qualifying.
+  //   2. Inside each bucket — sort by today's most-advanced round
+  //      (Final → SF → QF → R16 → R32 → R64 → R128 → Q3 → Q2 → Q1).
+  //      Climactic content surfaces above earlier-stage content within
+  //      the same tier bucket.
+  //   3. Sub-tiebreaker — existing tier weight (P1 above P2 above
+  //      Major-by-numeric-tier; Bronze above Promises etc. inside FIP).
+  //      Keeps stable ordering when stage + bucket are equal.
+  groups.sort((a, b) => {
+    const aPrem = isPremierLevel(a.tournamentLevel) ? 0 : 1
+    const bPrem = isPremierLevel(b.tournamentLevel) ? 0 : 1
+    if (aPrem !== bPrem) return aPrem - bPrem
+    const aRank = mostAdvancedRoundEntry(a.matches).rank
+    const bRank = mostAdvancedRoundEntry(b.matches).rank
+    if (aRank !== bRank) return aRank - bRank
+    return levelTierWeight(a.tournamentLevel) - levelTierWeight(b.tournamentLevel)
+  })
 
   return { iso, groups, totalMatches: dayMatches.length }
 }
