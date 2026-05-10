@@ -94,6 +94,9 @@
       "metaLive": "En direct · {viewers} regardent",
       "metaScheduled": "Prévu · commence à {time}"
     },
+    "dayIndicator": {
+      "tooltip": "Disputé le {weekday}, heure locale du tournoi ({location}). Apparaît ce jour car dans votre fuseau le match s'est terminé le {userWeekday}."
+    },
     "lateHint": {
       "mayBeLate": "peut être en retard",
       "mayBeLateAria": "Le match peut être en retard — touchez pour plus d'infos",

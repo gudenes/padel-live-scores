@@ -94,6 +94,9 @@
       "metaLive": "En vivo · {viewers} viendo",
       "metaScheduled": "Programado · empieza a las {time}"
     },
+    "dayIndicator": {
+      "tooltip": "Disputado el {weekday}, hora local del torneo ({location}). Aparece este día porque en tu zona horaria terminó ya el {userWeekday}."
+    },
     "lateHint": {
       "mayBeLate": "podría retrasarse",
       "mayBeLateAria": "Este partido podría retrasarse — toca para más información",

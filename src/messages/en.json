@@ -94,6 +94,9 @@
       "metaLive": "Live now · {viewers} watching",
       "metaScheduled": "Scheduled · starts at {time}"
     },
+    "dayIndicator": {
+      "tooltip": "Played on {weekday} in the tournament's local time ({location}). It appears on this day because the match finished on {userWeekday} in your timezone."
+    },
     "lateHint": {
       "mayBeLate": "may be late",
       "mayBeLateAria": "Match may be late — tap for details",

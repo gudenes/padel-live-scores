@@ -94,6 +94,9 @@
       "metaLive": "Ao vivo · {viewers} assistindo",
       "metaScheduled": "Agendado · começa às {time}"
     },
+    "dayIndicator": {
+      "tooltip": "Disputada no {weekday}, hora local do torneio ({location}). Aparece neste dia porque no seu fuso a partida terminou já no {userWeekday}."
+    },
     "lateHint": {
       "mayBeLate": "pode atrasar",
       "mayBeLateAria": "O jogo pode atrasar — toca para mais detalhes",
