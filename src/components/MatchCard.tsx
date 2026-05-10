@@ -159,11 +159,12 @@ function formatScheduledTime(
 
 function tournamentLocationLabel(match: Match): string {
   const t = (match as { tournament?: { name?: string | null; country?: string | null } }).tournament
+  if (t?.country) return t.country
   const name = t?.name ?? ''
-  // Strip trailing level tokens: " P1" / " P2" / " Major" / " Mens" / " Womens" / " Premier"
-  const stripped = name.replace(/\s+(P[12]|Major|Mens|Womens|Premier)\b.*$/i, '').trim()
-  if (stripped) return stripped
-  return t?.country ?? ''
+  // Last-resort name-based fallback. Strip a trailing level/suffix
+  // token only when it terminates the string — anchored end avoids
+  // the false-positives a greedy mid-string match would create.
+  return name.replace(/\s+(P[12]|Major|Mens|Womens|Premier(?:\s+Padel)?)\s*$/i, '').trim()
 }
 
 // ── Component ───────────────────────────────────────────────────────────
@@ -350,7 +351,27 @@ export function MatchCard({
     : null
   const [dayTipOpen, setDayTipOpen] = useState(false)
   const dayChipRef = useRef<HTMLButtonElement | null>(null)
-  // Close on outside tap.
+  // Lift tooltip data alongside dayChipLabel so it's computed once per
+  // render (only when the chip is actually shown) rather than inside an
+  // IIFE in the JSX.
+  const dayChipTooltip = showDayChip && dayChipLabel
+    ? (() => {
+        const ts = match.finished_at ?? match.scheduled_at
+        if (!ts || !tournamentTz) return null
+        return {
+          tournamentWeekday: new Intl.DateTimeFormat(locale, {
+            weekday: 'long',
+            timeZone: tournamentTz,
+          }).format(new Date(ts)),
+          userWeekday: new Intl.DateTimeFormat(locale, {
+            weekday: 'long',
+            timeZone: userTz,
+          }).format(new Date(ts)),
+          location: tournamentLocationLabel(match),
+        }
+      })()
+    : null
+  // Close on outside tap or Escape.
   useEffect(() => {
     if (!dayTipOpen) return
     const onPointerDown = (e: Event) => {
@@ -359,8 +380,15 @@ export function MatchCard({
         setDayTipOpen(false)
       }
     }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setDayTipOpen(false)
+    }
     document.addEventListener('pointerdown', onPointerDown, true)
-    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown, true)
+    }
   }, [dayTipOpen])
 
   const borderColor = isLive ? 'rgba(255,70,85,0.22)' : BORDER
@@ -460,48 +488,36 @@ export function MatchCard({
               >
                 {dayChipLabel}
               </button>
-              {dayTipOpen && (() => {
-                const ts = match.finished_at ?? match.scheduled_at
-                if (!ts || !tournamentTz) return null
-                const userWeekday = new Intl.DateTimeFormat(locale, {
-                  weekday: 'long',
-                  timeZone: userTz,
-                }).format(new Date(ts))
-                const tournamentWeekday = new Intl.DateTimeFormat(locale, {
-                  weekday: 'long',
-                  timeZone: tournamentTz,
-                }).format(new Date(ts))
-                return (
-                  <span
-                    role="tooltip"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 6px)',
-                      left: 0,
-                      width: 220,
-                      padding: '10px 12px',
-                      background: BG_ELEV,
-                      border: '1px solid rgba(245,166,35,0.30)',
-                      color: 'rgba(255,255,255,0.85)',
-                      fontSize: 10.5,
-                      fontWeight: 500,
-                      letterSpacing: 0.1,
-                      lineHeight: 1.45,
-                      textTransform: 'none',
-                      borderRadius: 8,
-                      zIndex: 30,
-                      boxShadow: '0 12px 24px rgba(0,0,0,0.45)',
-                    }}
-                  >
-                    {tMatch('dayIndicator.tooltip', {
-                      weekday: tournamentWeekday,
-                      location: tournamentLocationLabel(match),
-                      userWeekday,
-                    })}
-                  </span>
-                )
-              })()}
+              {dayTipOpen && dayChipTooltip && (
+                <span
+                  role="tooltip"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    left: 0,
+                    width: 220,
+                    padding: '10px 12px',
+                    background: BG_ELEV,
+                    border: '1px solid rgba(245,166,35,0.30)',
+                    color: 'rgba(255,255,255,0.85)',
+                    fontSize: 10.5,
+                    fontWeight: 500,
+                    letterSpacing: 0.1,
+                    lineHeight: 1.45,
+                    textTransform: 'none',
+                    borderRadius: 8,
+                    zIndex: 30,
+                    boxShadow: '0 12px 24px rgba(0,0,0,0.45)',
+                  }}
+                >
+                  {tMatch('dayIndicator.tooltip', {
+                    weekday: dayChipTooltip.tournamentWeekday,
+                    location: dayChipTooltip.location,
+                    userWeekday: dayChipTooltip.userWeekday,
+                  })}
+                </span>
+              )}
             </span>
           )}
           {status && (
