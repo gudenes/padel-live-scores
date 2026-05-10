@@ -95,7 +95,7 @@
       "metaScheduled": "Agendado · começa às {time}"
     },
     "dayIndicator": {
-      "tooltip": "Disputada no {weekday}, hora local do torneio ({location}). Aparece neste dia porque no seu fuso a partida terminou já no {userWeekday}."
+      "tooltip": "Disputada em {weekday}, hora local do torneio ({location}). Aparece neste dia porque no seu fuso a partida terminou em {userWeekday}."
     },
     "lateHint": {
       "mayBeLate": "pode atrasar",
