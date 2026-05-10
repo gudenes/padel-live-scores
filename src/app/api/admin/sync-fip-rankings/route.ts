@@ -32,6 +32,7 @@ type SnapshotRow = {
   source: 'vercel-fip'
 }
 
+/** Best-effort historical ranking write. Never throws — logs to console.error on failure. */
 async function writeSnapshot(row: SnapshotRow) {
   const { error } = await supabase
     .from('player_ranking_snapshots')
@@ -210,7 +211,7 @@ export async function GET(req: NextRequest) {
   // Cron path can split work across 4 invocations (one per gender × type) to
   // stay under Vercel's 120s maxDuration budget. Per-player resolver round
   // trips (2-3 each × 4000 players) blow past 120s on the unsplit path.
-  const ALL_GENDERS: Array<{ fip: 'male' | 'female'; db: string }> = [
+  const ALL_GENDERS: Array<{ fip: 'male' | 'female'; db: 'men' | 'women' }> = [
     { fip: 'male', db: 'men' },
     { fip: 'female', db: 'women' },
   ]
@@ -225,6 +226,9 @@ export async function GET(req: NextRequest) {
     // ── Official rankings ──────────────────────────────────────────────
     if (!typeFilter || typeFilter === 'official') {
       const { players: officials, rankingDate } = await fetchOfficialRankings(fip, top)
+      // FIP labels rankings by ISO 8601 year/week (its WP endpoint takes year+week
+      // params). We re-derive (year, week, monday) from the FIP-returned Monday via
+      // isoYearWeek so storage stays canonical-ISO at year boundaries.
       const officialYearWeek = isoYearWeek(new Date(rankingDate))
       console.log(`[sync-fip] official ${fip}: ${officials.length} players fetched (ranking date: ${rankingDate})`)
 
@@ -255,7 +259,7 @@ export async function GET(req: NextRequest) {
           await writeSnapshot({
             player_id: resolveResult.playerId,
             type: 'official',
-            gender: db as 'men' | 'women',
+            gender: db,
             year: officialYearWeek.year,
             week: officialYearWeek.week,
             ranking_date: officialYearWeek.mondayIso,
@@ -298,7 +302,7 @@ export async function GET(req: NextRequest) {
           await writeSnapshot({
             player_id: resolveResult.playerId,
             type: 'race',
-            gender: db as 'men' | 'women',
+            gender: db,
             year: raceYearWeek.year,
             week: raceYearWeek.week,
             ranking_date: raceYearWeek.mondayIso,
