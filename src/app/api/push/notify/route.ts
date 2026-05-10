@@ -36,13 +36,14 @@ import { createClient } from '@supabase/supabase-js'
 import { sendPush } from '@/lib/push'
 import { sendPushToFcmTokens } from '@/lib/push-fcm'
 import { resolvePrefs, type ChannelPrefs } from '@/lib/notification-categories'
+import { resolveNotificationIcon } from '@/lib/notification-icon'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!,
 )
 
-interface PlayerLite { id: string; name: string | null; display_name: string | null }
+interface PlayerLite { id: string; name: string | null; display_name: string | null; avatar_url: string | null }
 interface SetLite {
   set_number: number | null
   set_score: string | null
@@ -58,7 +59,7 @@ interface MatchRow {
   pair1_player2_id: string | null
   pair2_player1_id: string | null
   pair2_player2_id: string | null
-  tournament: { name: string | null } | null
+  tournament: { name: string | null; level: string | null } | null
   pair1_player1: PlayerLite | null
   pair1_player2: PlayerLite | null
   pair2_player1: PlayerLite | null
@@ -244,11 +245,11 @@ export async function POST(request: Request) {
     .select(`
       id, status, round, winner_pair,
       pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id,
-      tournament:tournaments(name),
-      pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name),
-      pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name),
-      pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name),
-      pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name),
+      tournament:tournaments(name, level),
+      pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name, avatar_url),
+      pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name, avatar_url),
+      pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name, avatar_url),
+      pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name, avatar_url),
       sets(set_number, set_score, pair1_games, pair2_games)
     `)
     .eq('id', matchId)
@@ -278,9 +279,12 @@ export async function POST(request: Request) {
   ].filter((id): id is string => !!id)
 
   const playerNameById = new Map<string, string>()
+  const playerAvatarById = new Map<string, string>()
   for (const p of [match.pair1_player1, match.pair1_player2, match.pair2_player1, match.pair2_player2]) {
     if (p?.id && (p.display_name || p.name)) playerNameById.set(p.id, playerLastName(p))
+    if (p?.id && p.avatar_url) playerAvatarById.set(p.id, p.avatar_url)
   }
+  const tournamentLevel = match.tournament?.level ?? null
 
   if (playerIds.length > 0) {
     const { data: playerFollows } = await supabase
@@ -382,13 +386,13 @@ export async function POST(request: Request) {
     url: string
     metadata: Record<string, unknown>
   }> = []
-  type PushJob = { sub: { id: string; endpoint: string; keys: unknown }; title: string; body: string; url: string; tag: string }
+  type PushJob = { sub: { id: string; endpoint: string; keys: unknown }; title: string; body: string; url: string; tag: string; icon: string }
   const pushJobs: PushJob[] = []
   // Track reason-per-sub for per-reason counters
   const reasonBySubId = new Map<string, 'bookmark' | 'follow'>()
   // Per-user payload, used by the FCM branch below so the SAME payload
   // we built for Web Push gets reused for native devices.
-  type UserFcmPayload = { title: string; body: string; url: string; tag: string }
+  type UserFcmPayload = { title: string; body: string; url: string; tag: string; icon: string }
   const fcmPayloadByUser = new Map<string, UserFcmPayload>()
 
   for (const [userId, reason] of recipientReason) {
@@ -429,6 +433,17 @@ export async function POST(request: Request) {
     }
 
     if (resolved.push) {
+      // Resolve the icon URL once per recipient (same for web push + FCM):
+      // follow → followed player's avatar (fallback to circuit logo if no avatar)
+      // bookmark → circuit logo based on tournament.level
+      const icon = resolveNotificationIcon({
+        reason: reason.kind,
+        tournamentLevel,
+        followedPlayerAvatarUrl: reason.followedPlayerId
+          ? playerAvatarById.get(reason.followedPlayerId) ?? null
+          : null,
+      })
+
       const subs = subsByUser.get(userId) ?? []
       for (const sub of subs) {
         const subId = sub.id as string
@@ -439,6 +454,7 @@ export async function POST(request: Request) {
           body,
           url: `/match/${matchId}`,
           tag: `match-${matchId}`,
+          icon,
         })
       }
       // Mirror the same payload for the FCM branch (native devices).
@@ -448,6 +464,7 @@ export async function POST(request: Request) {
         body,
         url: `/match/${matchId}`,
         tag: `match-${matchId}`,
+        icon,
       })
     }
   }
@@ -476,7 +493,7 @@ export async function POST(request: Request) {
         pushJobs.map(async (job) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const success = await sendPush({ endpoint: job.sub.endpoint, keys: job.sub.keys as any }, {
-            title: job.title, body: job.body, url: job.url, tag: job.tag,
+            title: job.title, body: job.body, url: job.url, tag: job.tag, icon: job.icon,
           })
           if (success) {
             pushSent++
@@ -627,6 +644,12 @@ export async function POST(request: Request) {
     const anonContent = isFinishedEvent
       ? buildFinishedContent(match, { kind: 'bookmark' }, null)
       : { title: 'Match is Live! 🟢', body: buildBody(match) }
+    // Anon users have no follow concept — always circuit logo per
+    // tournament.level. Skips the avatar branch in resolveNotificationIcon.
+    const anonIcon = resolveNotificationIcon({
+      reason: 'bookmark',
+      tournamentLevel,
+    })
 
     const anonResults = await Promise.allSettled(
       anonSubs.map(s =>
@@ -640,6 +663,7 @@ export async function POST(request: Request) {
             body: anonContent.body,
             url: `/match/${matchId}`,
             tag: `match-${matchId}`,
+            icon: anonIcon,
           },
         ),
       ),

@@ -6,9 +6,12 @@ self.addEventListener('push', (event) => {
 
   const data = event.data.json()
 
+  // data.icon is an absolute URL (player avatar or circuit logo) set by
+  // the notify route. Falls back to the brand logo when omitted —
+  // happens for legacy pushes still in flight after the rollout.
   const options = {
     body: data.body ?? '',
-    icon: '/padelnachos-logo-v2.png',
+    icon: data.icon || '/padelnachos-logo-v2.png',
     badge: '/padelnachos-logo-v2.png',
     data: { url: data.url ?? '/v3' },
     vibrate: [100, 50, 100],
