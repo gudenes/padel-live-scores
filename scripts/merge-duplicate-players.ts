@@ -221,6 +221,7 @@ const FK_TABLES: Array<{ table: string; col: string; schema?: string }> = [
   { table: 'tournament_draws', col: 'player2_id' },
   { table: 'player_equipment', col: 'player_id' },
   { table: 'racket_clicks', col: 'player_id' },
+  { table: 'player_ranking_snapshots', col: 'player_id' },
 ]
 
 // ── main ──────────────────────────────────────────────────────
