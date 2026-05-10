@@ -20,7 +20,7 @@
 // stacked dual country flags, monospace per-set scores, muted loser
 // styling.
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import posthog from 'posthog-js'
 import { Link } from '@/i18n/navigation'
@@ -192,11 +192,11 @@ export interface MatchCardProps {
    *  built from the OOP "Followed by" chain. Shown in orange when no real
    *  scheduled time is available. */
   estimatedLabel?: string
-  /** Tournament level (e.g. 'p1', 'major', 'fip_silver'). Required to gate
-   *  the prediction game UI — only Premier-tier matches (where we receive
-   *  point-by-point live data via the relay) get the PICK CTA, the
-   *  expandable insights panel, and the result badge. Non-Premier cards
-   *  fall back to a plain link to the match detail page. */
+  /** Tournament level (e.g. 'p1', 'major', 'fip_silver'). Currently
+   *  unused on MatchCard itself — kept so callers
+   *  (MatchesTournamentGroup) can keep their existing prop signature
+   *  unchanged. Safe to remove in a follow-up cleanup once nothing
+   *  in MatchCard reads it. */
   tournamentLevel?: string | null
   /** Optional. ISO date (YYYY-MM-DD) of the matches-list day-tab the
    *  user has selected. When provided AND the match's tournament-local
@@ -211,7 +211,6 @@ export function MatchCard({
   locale,
   userTz,
   estimatedLabel,
-  tournamentLevel,
   dayBucketIso,
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
