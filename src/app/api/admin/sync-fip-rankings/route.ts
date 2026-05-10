@@ -19,6 +19,42 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 )
 
+type SnapshotRow = {
+  player_id: string
+  type: 'official' | 'race'
+  gender: 'men' | 'women'
+  year: number
+  week: number
+  ranking_date: string  // ISO date "YYYY-MM-DD"
+  ranking: number
+  points: number | null
+  ranking_move: number | null
+  source: 'vercel-fip'
+}
+
+async function writeSnapshot(row: SnapshotRow) {
+  const { error } = await supabase
+    .from('player_ranking_snapshots')
+    .upsert(row, {
+      onConflict: 'player_id,type,year,week',
+      ignoreDuplicates: false,
+    })
+  if (error) console.error('[sync-fip] snapshot upsert failed:', error.message, row)
+}
+
+// ISO 8601 week numbering: Thursday's year decides the week's year; week 1 contains Jan 4.
+function isoYearWeek(d: Date): { year: number; week: number; mondayIso: string } {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const dayNum = (date.getUTCDay() + 6) % 7 // Mon=0..Sun=6
+  date.setUTCDate(date.getUTCDate() - dayNum + 3) // shift to Thursday of this week
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4))
+  const diff = (date.getTime() - firstThursday.getTime()) / 86400000
+  const week = 1 + Math.round((diff - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7)
+  const monday = new Date(date)
+  monday.setUTCDate(date.getUTCDate() - 3)
+  return { year: date.getUTCFullYear(), week, mondayIso: monday.toISOString().slice(0, 10) }
+}
+
 const FIP_BASE = 'https://www.padelfip.com/es/wp-json/fip/v1'
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -189,6 +225,7 @@ export async function GET(req: NextRequest) {
     // ── Official rankings ──────────────────────────────────────────────
     if (!typeFilter || typeFilter === 'official') {
       const { players: officials, rankingDate } = await fetchOfficialRankings(fip, top)
+      const officialYearWeek = isoYearWeek(new Date(rankingDate))
       console.log(`[sync-fip] official ${fip}: ${officials.length} players fetched (ranking date: ${rankingDate})`)
 
       for (const p of officials) {
@@ -199,7 +236,7 @@ export async function GET(req: NextRequest) {
         const country2 = fipCountryToIso2(p.country_name)
 
         try {
-          const { action } = await resolver.resolveAndEnrich({
+          const resolveResult = await resolver.resolveAndEnrich({
             name: fullName,
             fipId,
             category: db,
@@ -212,8 +249,21 @@ export async function GET(req: NextRequest) {
             rankingDate,
           })
 
-          if (action === 'created') results.official.created++
+          if (resolveResult.action === 'created') results.official.created++
           else results.official.updated++
+
+          await writeSnapshot({
+            player_id: resolveResult.playerId,
+            type: 'official',
+            gender: db as 'men' | 'women',
+            year: officialYearWeek.year,
+            week: officialYearWeek.week,
+            ranking_date: officialYearWeek.mondayIso,
+            ranking: p.rank,
+            points: p.points,
+            ranking_move: p.move,
+            source: 'vercel-fip',
+          })
         } catch (err: any) {
           console.error(`[sync-fip] error for ${fullName}:`, err.message)
           results.official.unmatched++
@@ -224,6 +274,7 @@ export async function GET(req: NextRequest) {
     // ── Race rankings ──────────────────────────────────────────────────
     if (!typeFilter || typeFilter === 'race') {
       const races = await fetchRaceRankings(fip, top)
+      const raceYearWeek = isoYearWeek(new Date())
       console.log(`[sync-fip] race ${fip}: ${races.length} players fetched`)
 
       for (const p of races) {
@@ -232,7 +283,7 @@ export async function GET(req: NextRequest) {
         const fipId = p.player_id
 
         try {
-          const { action } = await resolver.resolveAndEnrich({
+          const resolveResult = await resolver.resolveAndEnrich({
             name: fullName,
             fipId,
             category: db,
@@ -241,8 +292,21 @@ export async function GET(req: NextRequest) {
             raceMove: p.race_move,
           })
 
-          if (action === 'created') results.race.created++
+          if (resolveResult.action === 'created') results.race.created++
           else results.race.updated++
+
+          await writeSnapshot({
+            player_id: resolveResult.playerId,
+            type: 'race',
+            gender: db as 'men' | 'women',
+            year: raceYearWeek.year,
+            week: raceYearWeek.week,
+            ranking_date: raceYearWeek.mondayIso,
+            ranking: p.race_rank,
+            points: p.race_points,
+            ranking_move: p.race_move,
+            source: 'vercel-fip',
+          })
         } catch {
           results.race.unmatched++
         }
