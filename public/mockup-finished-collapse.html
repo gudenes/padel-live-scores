@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Matches — Finished collapse mockup</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --green-dim: rgba(126,211,33,0.12);
+    --live: #FF4655;
+    --live-dim: rgba(255,70,85,0.18);
+    --orange: #F5A623;
+    --orange-dim: rgba(245,166,35,0.15);
+    --bg-base: #0A0A0A;
+    --bg-card: #141414;
+    --bg-elev: #1A1A1A;
+    --muted: #6B7280;
+    --muted-2: #8a8f99;
+    --border: rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --women: #D966FF;
+    --men: #4A9EFF;
+    --chunky-card: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --chunky-pill: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    --chunky-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    --chunky-button: polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #1f1f23; }
+  body {
+    margin: 0;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 80px;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(245,166,35,0.06) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 90%, rgba(126,211,33,0.05) 0%, transparent 55%),
+      #1f1f23;
+  }
+
+  .stage-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  .stage-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.65);
+    margin: 0 0 18px;
+    text-align: center;
+    max-width: 420px;
+  }
+
+  /* mode toggle */
+  .modes {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    clip-path: var(--chunky-pill);
+    margin-bottom: 22px;
+  }
+  .modes button {
+    border: 0;
+    padding: 9px 18px;
+    background: transparent;
+    color: var(--muted-2);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    clip-path: var(--chunky-pill);
+  }
+  .modes button.active {
+    background: var(--green);
+    color: #0A0A0A;
+  }
+
+  /* phone */
+  .phone {
+    width: 390px;
+    background: var(--bg-base);
+    border-radius: 36px;
+    border: 10px solid #000;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 30px 60px -10px rgba(0,0,0,0.6);
+    height: 844px;
+    display: flex;
+    flex-direction: column;
+  }
+  .phone .scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .phone .scroll::-webkit-scrollbar { display: none; }
+
+  /* header */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 14px 10px;
+    background: var(--bg-base);
+  }
+  .logo {
+    font-family: 'Arial Black', system-ui;
+    font-style: italic;
+    font-weight: 900;
+    line-height: 0.92;
+    color: var(--green);
+    text-shadow:
+      -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000,
+      -1.5px 1.5px 0 #000, 1.5px 1.5px 0 #000;
+    letter-spacing: -0.5px;
+    flex-shrink: 0;
+    transform: skewX(-6deg);
+    padding-right: 4px;
+  }
+  .logo .pn-top { font-size: 13px; display: block; color: var(--orange); }
+  .logo .pn-bot { font-size: 13px; display: block; margin-top: -2px; color: var(--green); }
+  .search {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .icon-btn {
+    width: 38px; height: 38px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff; flex-shrink: 0;
+  }
+  .avatar {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--green), #56a015);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #0A0A0A; font-weight: 800; font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  /* day pills */
+  .day-pills {
+    display: flex; gap: 6px;
+    padding: 6px 12px 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--bg-base);
+  }
+  .day-pills::-webkit-scrollbar { display: none; }
+  .day-pill {
+    flex-shrink: 0;
+    width: 56px; height: 56px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 2px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-pill);
+    color: #fff;
+    cursor: pointer;
+    position: relative;
+  }
+  .day-pill .wd {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--muted); line-height: 1;
+  }
+  .day-pill .dy { font-size: 17px; font-weight: 800; line-height: 1.05; }
+  .day-pill.is-today { background: var(--green); border-color: var(--green); }
+  .day-pill.is-today .wd { color: rgba(0,0,0,0.7); }
+  .day-pill.is-today .dy { color: #0A0A0A; }
+
+  /* filters bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px 14px;
+    background: var(--bg-base);
+    justify-content: flex-end;
+  }
+  .filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    clip-path: var(--chunky-button);
+  }
+  .filter-btn .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--live);
+    box-shadow: 0 0 4px var(--live);
+  }
+
+  /* tournament group */
+  .tour-group {
+    margin: 0 12px 14px;
+  }
+  .tour-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-card);
+    cursor: pointer;
+  }
+  .tour-flag {
+    width: 22px; height: 16px; border-radius: 2px;
+    flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .tour-flag.ar {
+    background: linear-gradient(to bottom, #74acdf 0 33%, #fff 33% 66%, #74acdf 66%);
+  }
+  .tour-flag.py {
+    background: linear-gradient(to bottom, #d52b1e 0 33%, #fff 33% 66%, #0038a8 66%);
+  }
+  .tour-info { flex: 1; min-width: 0; }
+  .tour-name {
+    font-size: 14px; font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+  .tour-meta {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .tour-pill {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    clip-path: var(--chunky-badge);
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tour-pill.upcoming { background: var(--green-dim); color: var(--green); }
+  .tour-pill.ongoing { background: var(--orange-dim); color: var(--orange); }
+  .tour-count {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.7);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .caret {
+    color: var(--muted);
+    font-size: 14px;
+    margin-left: 6px;
+  }
+
+  /* match card */
+  .match {
+    margin-top: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-card);
+    padding: 10px 12px 12px;
+    position: relative;
+  }
+  .match::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 6px; bottom: 6px;
+    width: 3px;
+    background: var(--women);
+    border-radius: 2px;
+  }
+  .match.men::before { background: var(--men); }
+  .match-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .match-meta .left {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--muted-2);
+  }
+  .match-meta .left .court {
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .pill-finished {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    background: var(--green-dim);
+    color: var(--green);
+    clip-path: var(--chunky-badge);
+  }
+  .pill-prev-day {
+    display: none;
+    position: relative;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    background: rgba(255,255,255,0.06);
+    color: var(--orange);
+    border: 1px solid rgba(245,166,35,0.30);
+    clip-path: var(--chunky-badge);
+    margin-right: 6px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .show-day-indicator .pill-prev-day { display: inline-flex; align-items: center; }
+  .pill-prev-day .tip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: -6px;
+    width: 220px;
+    padding: 10px 12px;
+    background: #1a1a1a;
+    border: 1px solid rgba(245,166,35,0.30);
+    color: rgba(255,255,255,0.85);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+    line-height: 1.45;
+    text-transform: none;
+    border-radius: 8px;
+    z-index: 30;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.45);
+  }
+  .pill-prev-day .tip::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 14px;
+    width: 10px; height: 10px;
+    background: #1a1a1a;
+    border-top: 1px solid rgba(245,166,35,0.30);
+    border-left: 1px solid rgba(245,166,35,0.30);
+    transform: rotate(45deg);
+  }
+  .pill-prev-day .tip strong { color: var(--orange); font-weight: 700; }
+  .pill-prev-day.tip-open .tip { display: block; }
+  .pill-predict {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    background: var(--green);
+    color: #0A0A0A;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    clip-path: var(--chunky-badge);
+  }
+  .pair-row {
+    display: flex; align-items: center;
+    gap: 7px;
+    padding: 4px 0;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .pair-row .flag {
+    width: 16px; height: 12px; border-radius: 2px; flex-shrink: 0;
+  }
+  .flag.es { background: linear-gradient(to bottom, #aa151b 0 33%, #f1bf00 33% 66%, #aa151b 66%); }
+  .pair-row .seed {
+    color: var(--muted-2);
+    font-size: 9px;
+    font-weight: 800;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 6px;
+    border-radius: 6px;
+    margin-left: 4px;
+  }
+  .pair-row .names { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pair-row .winner {
+    background: var(--green);
+    color: #0A0A0A;
+    font-size: 10px;
+    font-weight: 900;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+  }
+  .pair-row .scores {
+    display: inline-flex;
+    gap: 18px;
+    color: rgba(255,255,255,0.78);
+    font-weight: 800;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+  }
+  .scores .losing { color: var(--muted); }
+
+  .schedule-right {
+    display: flex; flex-direction: column;
+    align-items: flex-end;
+    margin-left: 8px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+  .schedule-right .date {
+    font-size: 9.5px;
+    color: var(--muted);
+    letter-spacing: 0.4px;
+    text-transform: lowercase;
+    line-height: 1.1;
+  }
+  .schedule-right .time {
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--green);
+    line-height: 1.05;
+    margin-top: 1px;
+    letter-spacing: 0.3px;
+  }
+
+  /* finished match — dimmed presentation in B+A */
+  .match.finished-dim {
+    opacity: 0.78;
+  }
+  .match.finished-dim::before { opacity: 0.4; }
+
+  /* collapsed-finished trigger row */
+  .collapse-row {
+    margin-top: 8px;
+    padding: 11px 12px;
+    background: var(--bg-card);
+    border: 1px dashed rgba(255,255,255,0.10);
+    clip-path: var(--chunky-card);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    color: var(--muted-2);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    user-select: none;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .collapse-row:hover {
+    border-color: var(--green);
+    color: rgba(255,255,255,0.85);
+  }
+  .collapse-row .lhs {
+    display: flex; align-items: center; gap: 9px;
+  }
+  .collapse-row .check-icon {
+    width: 16px; height: 16px;
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 900;
+  }
+  .collapse-row .caret-down {
+    transition: transform 0.2s ease;
+  }
+  .collapse-row.expanded .caret-down {
+    transform: rotate(180deg);
+  }
+
+  /* hidden state */
+  .finished-bucket { transition: max-height 0.3s ease, opacity 0.2s ease; overflow: hidden; }
+  .finished-bucket.collapsed { max-height: 0; opacity: 0; pointer-events: none; }
+
+  /* bottom nav placeholder */
+  .nav {
+    height: 70px;
+    background: var(--bg-base);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .nav .item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 8px; }
+  .nav .item.active { color: var(--green); }
+  .nav .dot {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .nav .item.active .dot { background: var(--green-dim); border: 1px solid var(--green); }
+
+  /* annotation */
+  .note {
+    margin-top: 18px;
+    color: rgba(255,255,255,0.55);
+    font-size: 12px;
+    max-width: 420px;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .note strong { color: rgba(255,255,255,0.85); font-weight: 700; }
+
+  /* legend below */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    justify-content: center;
+    margin-top: 16px;
+    max-width: 420px;
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+  }
+  .legend span::before {
+    content: '';
+    display: inline-block;
+    width: 10px; height: 10px;
+    margin-right: 6px;
+    vertical-align: middle;
+    border-radius: 2px;
+  }
+  .legend .l-up::before { background: var(--green); }
+  .legend .l-fin::before { background: var(--muted); }
+  .legend .l-dim::before { background: rgba(126,211,33,0.4); }
+</style>
+</head>
+<body>
+  <div class="stage-title">HOJE 10 mai · ASUNCIÓN P2 — sessions clarity</div>
+  <p class="stage-sub">Same data on the same tab. Toggle to feel the difference between today's mixed list and the proposed B+A (collapse + dim).</p>
+
+  <div class="modes">
+    <button id="m-before" class="active">Before (current)</button>
+    <button id="m-after">B+A · collapse</button>
+    <button id="m-day">C · day indicator</button>
+  </div>
+
+  <div class="phone">
+    <div class="scroll">
+      <div class="header">
+        <div class="logo"><span class="pn-top">PADEL</span><span class="pn-bot">NACHOS</span></div>
+        <div class="search">
+          <span style="opacity:0.7">⌕</span>
+          <span>Tente "Partidas ao vivo"</span>
+        </div>
+        <div class="icon-btn">↑</div>
+        <div class="avatar">G</div>
+      </div>
+
+      <div class="day-pills">
+        <div class="day-pill"><span class="wd">Sex</span><span class="dy">8</span></div>
+        <div class="day-pill"><span class="wd">Ontem</span><span class="dy">9</span></div>
+        <div class="day-pill is-today"><span class="wd">Hoje</span><span class="dy">10</span></div>
+        <div class="day-pill"><span class="wd">Amanhã</span><span class="dy">11</span></div>
+        <div class="day-pill"><span class="wd">Ter</span><span class="dy">12</span></div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-btn"><span class="live-dot"></span>Ao vivo</div>
+        <div class="filter-btn">≡ Filtros</div>
+      </div>
+
+      <!-- BUENOS AIRES P1 (collapsed group) -->
+      <div class="tour-group">
+        <div class="tour-head">
+          <div class="tour-flag ar"></div>
+          <div class="tour-info">
+            <div class="tour-name">BUENOS AIRES P1<span class="tour-pill upcoming">Upcoming</span></div>
+            <div class="tour-meta">P1 · 10 de mai. — 17 de mai.</div>
+          </div>
+          <div class="tour-count">16</div>
+          <div class="caret">▸</div>
+        </div>
+      </div>
+
+      <!-- ASUNCION P2 group expanded -->
+      <div class="tour-group">
+        <div class="tour-head">
+          <div class="tour-flag py"></div>
+          <div class="tour-info">
+            <div class="tour-name">ASUNCION P2<span class="tour-pill ongoing">Ongoing</span></div>
+            <div class="tour-meta">P2 · 3 de mai. — 10 de mai.</div>
+          </div>
+          <div class="tour-count">4</div>
+          <div class="caret">▾</div>
+        </div>
+
+        <!-- UPCOMING (always visible) -->
+        <div class="match">
+          <div class="match-meta">
+            <div class="left">
+              <span>Finals</span>
+              <span class="court">Court Central</span>
+            </div>
+            <div class="pill-predict">◉ Escolhe</div>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">G. Triay / D. Brea</span>
+            <span class="seed">1</span>
+            <div class="schedule-right">
+              <div class="date">10 de mai.</div>
+              <div class="time">21:00</div>
+            </div>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">P. Josemaria / B. Gonzalez</span>
+            <span class="seed">2</span>
+          </div>
+        </div>
+
+        <div class="match">
+          <div class="match-meta">
+            <div class="left">
+              <span>Finals</span>
+              <span class="court">Court Central</span>
+            </div>
+            <div class="pill-predict">◉ Escolhe</div>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">A. Tapia / A. Coello</span>
+            <span class="seed">1</span>
+            <div class="schedule-right">
+              <div class="date">10 de mai.</div>
+              <div class="time">22:30*</div>
+            </div>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">A. Galan / F. Chingotto</span>
+            <span class="seed">2</span>
+          </div>
+        </div>
+
+        <!-- COLLAPSE TRIGGER (only in AFTER mode) -->
+        <div id="collapse-trigger" class="collapse-row" style="display:none">
+          <div class="lhs">
+            <span class="check-icon">✓</span>
+            <span><strong style="color:rgba(255,255,255,0.85);font-weight:700">2 partidas finalizadas</strong> hoje</span>
+          </div>
+          <span class="caret-down">▾</span>
+        </div>
+
+        <!-- FINISHED bucket -->
+        <div id="finished-bucket" class="finished-bucket">
+          <div id="m-fin-1" class="match">
+            <div class="match-meta">
+              <div class="left">
+                <span>Semifinals</span>
+                <span class="court">Court Central</span>
+              </div>
+              <div style="display:flex;align-items:center">
+                <span class="pill-prev-day">Sáb 9 mai.<span class="tip">Disputada no <strong>sábado</strong>, hora local do torneio (Assunção). Aparece neste dia porque no seu fuso a partida terminou já no domingo.</span></span>
+                <span class="pill-finished">Finished</span>
+              </div>
+            </div>
+            <div class="pair-row">
+              <span class="flag es"></span>
+              <span class="names">E. Alonso / A. Goñi</span>
+              <span class="scores"><span class="losing">1</span><span class="losing">5</span></span>
+            </div>
+            <div class="pair-row">
+              <span class="flag es"></span>
+              <span class="names">A. Galan / F. Chingotto</span>
+              <span class="seed">2</span>
+              <span class="winner">W</span>
+              <span class="scores"><span>6</span><span>7</span></span>
+            </div>
+          </div>
+
+          <div id="m-fin-2" class="match">
+            <div class="match-meta">
+              <div class="left">
+                <span>Semifinals</span>
+                <span class="court">Court Central</span>
+              </div>
+              <div style="display:flex;align-items:center">
+                <span class="pill-prev-day">Sáb 9 mai.<span class="tip">Disputada no <strong>sábado</strong>, hora local do torneio (Assunção). Aparece neste dia porque no seu fuso a partida terminou já no domingo.</span></span>
+                <span class="pill-finished">Finished</span>
+              </div>
+            </div>
+            <div class="pair-row">
+              <span class="flag es"></span>
+              <span class="names">G. Triay / D. Brea</span>
+              <span class="seed">1</span>
+              <span class="winner">W</span>
+              <span class="scores"><span>6</span><span>6</span></span>
+            </div>
+            <div class="pair-row">
+              <span class="flag es"></span>
+              <span class="names">A. Sanchez / D. Gutiérrez</span>
+              <span class="scores"><span class="losing">3</span><span class="losing">2</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="nav">
+      <div class="item"><div class="dot"></div>Início</div>
+      <div class="item active"><div class="dot"></div>Partidas</div>
+      <div class="item"><div class="dot"></div>Seguindo</div>
+      <div class="item"><div class="dot"></div>Eventos</div>
+      <div class="item"><div class="dot"></div>Ranking</div>
+    </div>
+  </div>
+
+  <p class="note" id="note">
+    <strong>BEFORE.</strong> Today's tab mixes Asunción's morning semifinals (already played) with tonight's finals — same visual weight, easy to scroll past the upcoming ones.
+  </p>
+
+  <div class="legend">
+    <span class="l-up">Upcoming today</span>
+    <span class="l-dim">Finished — dimmed</span>
+    <span class="l-fin">Finished — collapsed</span>
+  </div>
+
+<script>
+  const beforeBtn = document.getElementById('m-before')
+  const afterBtn = document.getElementById('m-after')
+  const dayBtn = document.getElementById('m-day')
+  const trigger = document.getElementById('collapse-trigger')
+  const bucket = document.getElementById('finished-bucket')
+  const fin1 = document.getElementById('m-fin-1')
+  const fin2 = document.getElementById('m-fin-2')
+  const note = document.getElementById('note')
+  const phone = document.querySelector('.phone')
+
+  function clearAll() {
+    [beforeBtn, afterBtn, dayBtn].forEach(b => b.classList.remove('active'))
+    trigger.style.display = 'none'
+    bucket.classList.remove('collapsed')
+    fin1.classList.remove('finished-dim')
+    fin2.classList.remove('finished-dim')
+    phone.classList.remove('show-day-indicator')
+  }
+
+  function applyBefore() {
+    clearAll()
+    beforeBtn.classList.add('active')
+    note.innerHTML = "<strong>BEFORE.</strong> Today's tab mixes Asunción's morning semifinals (already played) with tonight's finals — same visual weight, easy to scroll past the upcoming ones."
+  }
+  function applyAfter() {
+    clearAll()
+    afterBtn.classList.add('active')
+    trigger.style.display = 'flex'
+    trigger.classList.remove('expanded')
+    bucket.classList.add('collapsed')
+    fin1.classList.add('finished-dim')
+    fin2.classList.add('finished-dim')
+    note.innerHTML = "<strong>B+A. Collapse + dim.</strong> Finished-today collapsed by default; tap to expand. Once open, finished cards drop in opacity so tonight's finals stay the anchor."
+  }
+  function applyDay() {
+    clearAll()
+    dayBtn.classList.add('active')
+    phone.classList.add('show-day-indicator')
+    note.innerHTML = "<strong>C. Day indicator.</strong> Nothing collapses or hides — finished matches just gain a small <em style='color:#F5A623;font-style:normal'>Sáb 9 mai.</em> chip showing the tournament-local day they belong to. Only appears when the tournament-local date differs from your selected calendar day."
+  }
+
+  beforeBtn.onclick = applyBefore
+  afterBtn.onclick = applyAfter
+  dayBtn.onclick = applyDay
+  trigger.onclick = () => {
+    const expanded = trigger.classList.toggle('expanded')
+    if (expanded) bucket.classList.remove('collapsed')
+    else bucket.classList.add('collapsed')
+  }
+
+  // tooltip click-to-toggle (mobile-friendly)
+  document.querySelectorAll('.pill-prev-day').forEach(chip => {
+    chip.addEventListener('click', e => {
+      e.stopPropagation()
+      const wasOpen = chip.classList.contains('tip-open')
+      document.querySelectorAll('.pill-prev-day.tip-open').forEach(c => c.classList.remove('tip-open'))
+      if (!wasOpen) chip.classList.add('tip-open')
+    })
+  })
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.pill-prev-day.tip-open').forEach(c => c.classList.remove('tip-open'))
+  })
+
+  // start on the new approach so the user feels it immediately
+  applyDay()
+</script>
+</body>
+</html>
