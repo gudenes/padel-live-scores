@@ -31,6 +31,7 @@ import { FlagImage } from '@/components/FlagImage'
 import { PredictionPanel } from '@/components/prediction/PredictionPanel'
 import { pairName, getMatchDisplay, type Match } from '@/types/match'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
+import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -154,6 +155,15 @@ function formatScheduledTime(
     hour12: false,
     timeZone: tz,
   }).format(d)
+}
+
+function tournamentLocationLabel(match: Match): string {
+  const t = (match as { tournament?: { name?: string | null; country?: string | null } }).tournament
+  const name = t?.name ?? ''
+  // Strip trailing level tokens: " P1" / " P2" / " Major" / " Mens" / " Womens" / " Premier"
+  const stripped = name.replace(/\s+(P[12]|Major|Mens|Womens|Premier)\b.*$/i, '').trim()
+  if (stripped) return stripped
+  return t?.country ?? ''
 }
 
 // ── Component ───────────────────────────────────────────────────────────
@@ -319,6 +329,40 @@ export function MatchCard({
   const dateStr = formatShortDate(match, locale, userTz)
   const timeStr = formatScheduledTime(match, locale, userTz)
 
+  // Tournament-day indicator (matches-list page only — gated on
+  // dayBucketIso prop). When the match's tournament-local date
+  // differs from the user-selected day-tab, surface a small chip
+  // with a tap-to-explain tooltip.
+  const tournamentTz = (match as { tournament?: { timezone?: string | null } }).tournament?.timezone ?? null
+  const showDayChip = shouldShowDayIndicator({
+    status: match.status as string,
+    finishedAt: match.finished_at,
+    scheduledAt: match.scheduled_at,
+    tournamentTimezone: tournamentTz,
+    dayBucketIso,
+  })
+  const dayChipLabel = showDayChip
+    ? formatDayChipLabel({
+        timestamp: match.finished_at ?? match.scheduled_at,
+        tournamentTimezone: tournamentTz,
+        locale,
+      })
+    : null
+  const [dayTipOpen, setDayTipOpen] = useState(false)
+  const dayChipRef = useRef<HTMLButtonElement | null>(null)
+  // Close on outside tap.
+  useEffect(() => {
+    if (!dayTipOpen) return
+    const onPointerDown = (e: Event) => {
+      const target = e.target as Node | null
+      if (dayChipRef.current && target && !dayChipRef.current.contains(target)) {
+        setDayTipOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [dayTipOpen])
+
   const borderColor = isLive ? 'rgba(255,70,85,0.22)' : BORDER
 
   // The whole card is always a <Link> to match detail. The corner pill
@@ -386,6 +430,80 @@ export function MatchCard({
         >
           {round && <Chip>{round}</Chip>}
           {courtRaw && <Chip>{courtRaw.toUpperCase()}</Chip>}
+          {showDayChip && dayChipLabel && (
+            <span style={{ position: 'relative', display: 'inline-flex' }}>
+              <button
+                ref={dayChipRef}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setDayTipOpen(o => !o)
+                }}
+                aria-expanded={dayTipOpen}
+                aria-label={dayChipLabel}
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase',
+                  color: ORANGE,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(245,166,35,0.30)',
+                  padding: '3px 7px',
+                  clipPath: CHUNKY.badge,
+                  lineHeight: 1.2,
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  font: 'inherit',
+                }}
+              >
+                {dayChipLabel}
+              </button>
+              {dayTipOpen && (() => {
+                const ts = match.finished_at ?? match.scheduled_at
+                if (!ts || !tournamentTz) return null
+                const userWeekday = new Intl.DateTimeFormat(locale, {
+                  weekday: 'long',
+                  timeZone: userTz,
+                }).format(new Date(ts))
+                const tournamentWeekday = new Intl.DateTimeFormat(locale, {
+                  weekday: 'long',
+                  timeZone: tournamentTz,
+                }).format(new Date(ts))
+                return (
+                  <span
+                    role="tooltip"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      left: 0,
+                      width: 220,
+                      padding: '10px 12px',
+                      background: BG_ELEV,
+                      border: '1px solid rgba(245,166,35,0.30)',
+                      color: 'rgba(255,255,255,0.85)',
+                      fontSize: 10.5,
+                      fontWeight: 500,
+                      letterSpacing: 0.1,
+                      lineHeight: 1.45,
+                      textTransform: 'none',
+                      borderRadius: 8,
+                      zIndex: 30,
+                      boxShadow: '0 12px 24px rgba(0,0,0,0.45)',
+                    }}
+                  >
+                    {tMatch('dayIndicator.tooltip', {
+                      weekday: tournamentWeekday,
+                      location: tournamentLocationLabel(match),
+                      userWeekday,
+                    })}
+                  </span>
+                )
+              })()}
+            </span>
+          )}
           {status && (
             <Chip bg={status.bg} color={status.color} bold>
               {status.label}
