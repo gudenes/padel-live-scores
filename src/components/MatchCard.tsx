@@ -24,11 +24,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import posthog from 'posthog-js'
 import { Link } from '@/i18n/navigation'
-import type { Prediction } from '@/lib/predictions/types'
-import { classifyResult } from '@/lib/predictions/scoring'
-import { isPremierLevel } from '@/lib/tournament-labels'
 import { FlagImage } from '@/components/FlagImage'
-import { PredictionPanel } from '@/components/prediction/PredictionPanel'
 import { pairName, getMatchDisplay, type Match } from '@/types/match'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
 import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
@@ -219,7 +215,6 @@ export function MatchCard({
   dayBucketIso,
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
-  const tPred = useTranslations('prediction')
   const tMatch = useTranslations('match')
 
   // Per-match realtime subscription. Only opens the channel when the
@@ -229,64 +224,6 @@ export function MatchCard({
   const isLiveStatus =
     matchProp.status === 'live' || (matchProp.status as string) === 'on_court'
   const match = useLiveMatch(matchProp.id, isLiveStatus, matchProp)
-
-  // Gate the entire prediction game on tournament tier. Only Premier-tier
-  // matches get full point-by-point coverage via padelapi.org's Pusher
-  // relay; everything else (FIP Bronze/Silver/Gold/Platinum/etc.) doesn't
-  // make sense for live-tracked predictions, so the card stays a plain
-  // link to the match detail page.
-  const isPredictionEnabled = isPremierLevel(tournamentLevel)
-
-  // ── Hydration-safe prediction read (unified for all card states) ─────
-  // Re-reads localStorage on mount AND every time the panel closes — the
-  // PredictionPanel writes via its own useMatchPrediction hook, which has
-  // a separate useState, so the corner needs an explicit resync after the
-  // user locks in.
-  const [prediction, setPredictionLocal] = useState<Prediction | null>(null)
-  const [isOpen, setIsOpen] = useState(false)
-  const closeTimer = useRef<NodeJS.Timeout | null>(null)
-
-  const refreshPrediction = useCallback(() => {
-    try {
-      const raw = localStorage.getItem('pn_match_predictions')
-      if (!raw) { setPredictionLocal(null); return }
-      const all = JSON.parse(raw)
-      const p = all[match.id]
-      if (!p) { setPredictionLocal(null); return }
-      if ('multiplier' in p && 'probability' in p) setPredictionLocal(p as Prediction)
-      else setPredictionLocal({
-        matchId: match.id, pair: p.pair, margin: p.margin,
-        probability: 0.5, multiplier: 2.0, isFallback: true,
-        createdAt: new Date(0).toISOString(),
-      })
-    } catch {}
-  }, [match.id])
-
-  useEffect(() => { refreshPrediction() }, [refreshPrediction])
-
-  // Resync after the panel closes — covers auto-collapse + manual close +
-  // any case where PredictionPanel wrote to storage while we were open.
-  useEffect(() => {
-    if (!isOpen) refreshPrediction()
-  }, [isOpen, refreshPrediction])
-
-  const toggleOpen = useCallback((e?: React.MouseEvent) => {
-    // The corner pill is inside the outer <Link>; preventDefault cancels
-    // the link navigation, stopPropagation keeps next-intl's Link click
-    // handler from firing too.
-    e?.preventDefault()
-    e?.stopPropagation()
-    setIsOpen(o => !o)
-  }, [])
-
-  const handleLocked = useCallback(() => {
-    if (closeTimer.current) clearTimeout(closeTimer.current)
-    // Delay accounts for the 700ms card flip + leaves ~2.2s for the user
-    // to read the green "Locked in · pair · margin" confirmation.
-    closeTimer.current = setTimeout(() => setIsOpen(false), 2900)
-  }, [])
-
-  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current) }, [])
 
   // ── Unified display calculation ──────────────────────────────────
   // Single helper used by every card surface (home, matches, tournament,
@@ -421,12 +358,11 @@ export function MatchCard({
 
   const borderColor = isLive ? 'rgba(255,70,85,0.22)' : BORDER
 
-  // The whole card is always a <Link> to match detail. The corner pill
-  // (PICK / YOUR PICK / result badge) is the ONLY thing that toggles the
-  // prediction panel — its onClick calls preventDefault which cancels the
-  // Link's navigation. Clicks anywhere else in the card body navigate as
-  // expected. Clicks inside the open panel call stopPropagation so they
-  // don't bubble up to the Link either.
+  // The whole card is always a <Link> to match detail. Interactive
+  // children (the bookmark star at top-right, the day-indicator chip,
+  // the FIP-stream button) all call preventDefault + stopPropagation
+  // in their own onClick handlers so taps on those don't navigate.
+  // Anywhere else in the card body navigates as expected.
   const wrapperStyle = { textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 8 } as const
   const cardInner = (
     <>
@@ -532,7 +468,7 @@ export function MatchCard({
               {status.label}
             </Chip>
           )}
-          {LATE_HINTS_ENABLED && !isPredictionEnabled && (
+          {LATE_HINTS_ENABLED && (
             <span
               title={tMatch('lateHint.estChipAria')}
               aria-label={tMatch('lateHint.estChipAria')}
@@ -885,212 +821,6 @@ function Chip({
       {children}
     </span>
   )
-}
-
-// ── CornerElement — prediction state machine ────────────────────────────
-
-function CornerElement({
-  match, prediction, isLive, isFinished, isOpen, onToggle, tPred,
-}: {
-  match: Match
-  prediction: Prediction | null
-  isLive: boolean
-  isFinished: boolean
-  isOpen: boolean
-  onToggle: (e?: React.MouseEvent) => void
-  tPred: ReturnType<typeof useTranslations>
-}) {
-  const isScheduled = match.status === 'scheduled'
-
-  // Finished + predicted → result badge
-  if (isFinished && prediction) {
-    // ⚠ NEW API: classifyResult returns { result, marginCorrect } | null
-    const classified = classifyResult(prediction, match)
-    if (!classified || classified.result === 'invalidated') return null
-    const result = classified.result
-    const isUpset = result === 'upset'
-    const isPositive = result === 'perfect' || result === 'right' || result === 'upset'
-    const bg = isUpset
-      ? 'linear-gradient(135deg, #7ED321, #FFD166)'
-      : isPositive ? GREEN : 'rgba(255,70,85,0.14)'
-    const color = isPositive ? '#0a0a0a' : '#FF4655'
-    const labelKey =
-      result === 'perfect' ? 'result.perfectBadge'
-      : result === 'right' ? 'result.rightBadge'
-      : result === 'upset' ? 'result.upsetBadge'
-      : 'result.wrongBadge'
-    return (
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          position: 'absolute', top: 10, right: 12, zIndex: 3,
-          background: bg, color, padding: '3px 8px', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 1,
-          clipPath: CHUNKY.badge, border: 0,
-        }}
-        aria-label={tPred(labelKey as any)}
-      >
-        <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', lineHeight: 1.2 }}>
-          {tPred(labelKey as any)}
-        </span>
-      </button>
-    )
-  }
-
-  // Live + predicted → "YOUR PICK" pill (read-only state)
-  if (isLive && prediction) {
-    return (
-      <button type="button" onClick={onToggle} style={cornerPillStyle('rgba(126,211,33,0.10)', GREEN)}>
-        <span style={cornerTopStyle}>{tPred('cta.yourPick')}</span>
-      </button>
-    )
-  }
-
-  // Live + no prediction → friendly "TOO LATE" pill that explains why
-  // when tapped (toast bubble pops out for ~3s). Doesn't open the
-  // prediction panel — there's nothing actionable for the user there.
-  if (isLive && !prediction) {
-    return <LockedPill tPred={tPred} />
-  }
-
-  // Scheduled + predicted → quieter "YOUR PICK" pill
-  if (isScheduled && prediction) {
-    return (
-      <button type="button" onClick={onToggle} style={cornerPillStyle('rgba(126,211,33,0.10)', GREEN)}>
-        <span style={cornerTopStyle}>{tPred('cta.yourPick')}</span>
-      </button>
-    )
-  }
-
-  // Scheduled + no prediction → green PICK CTA
-  if (isScheduled) {
-    return (
-      <button
-        type="button"
-        onClick={onToggle}
-        style={{
-          position: 'absolute', top: 10, right: 12, zIndex: 3,
-          background: GREEN, color: '#0a0a0a',
-          padding: '3px 8px', cursor: 'pointer', border: 0,
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase',
-          lineHeight: 1.2,
-          clipPath: CHUNKY.badge,
-          boxShadow: '0 1px 3px rgba(126,211,33,0.20)',
-          transform: isOpen ? 'scale(0.9)' : 'scale(1)',
-          opacity: isOpen ? 0 : 1,
-          pointerEvents: isOpen ? 'none' : 'auto',
-          transition: 'transform 200ms ease, opacity 200ms ease',
-        }}
-        aria-label={tPred('cta.pick')}
-      >
-        <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="10" r="8" /><path d="M8 18h8" /><path d="M7 21h10" />
-        </svg>
-        <span>{tPred('cta.pick')}</span>
-      </button>
-    )
-  }
-
-  return null
-}
-
-const cornerTopStyle: React.CSSProperties = {
-  fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase', lineHeight: 1.2,
-}
-
-// ── LockedPill — grayed-out PICK pill for live matches ──────────────────
-//
-// Mirrors the active green PICK pill (lightbulb icon + "PICK" label) but
-// rendered in muted gray to signal the prediction window is closed. On
-// tap, pops a small friendly tooltip below the pill:
-// "Oops! This match is already live. Try predicting an upcoming match."
-// Auto-dismisses after 3.5s. Tap again or anywhere on it to dismiss
-// earlier.
-//
-// Stays self-contained so MatchCard.CornerElement can still return a
-// single element from its state machine. Stops click propagation so
-// the surrounding <Link> doesn't navigate to match detail.
-
-function LockedPill({ tPred }: { tPred: ReturnType<typeof useTranslations> }) {
-  const [open, setOpen] = useState(false)
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setOpen((prev) => !prev)
-    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-    if (!open) {
-      dismissTimerRef.current = setTimeout(() => setOpen(false), 3500)
-    }
-  }
-
-  useEffect(() => () => { if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current) }, [])
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={handleClick}
-        style={{
-          position: 'absolute', top: 10, right: 12, zIndex: 3,
-          background: 'rgba(255,255,255,0.06)', color: MUTED,
-          padding: '3px 8px', cursor: 'pointer',
-          border: `0.5px dashed ${MUTED}40`,
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase',
-          lineHeight: 1.2,
-          clipPath: CHUNKY.badge,
-          opacity: 0.7,
-        }}
-        aria-expanded={open}
-        aria-label={tPred('cta.pick')}
-      >
-        <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="10" r="8" /><path d="M8 18h8" /><path d="M7 21h10" />
-        </svg>
-        <span>{tPred('cta.locked')}</span>
-      </button>
-      {open && (
-        <div
-          role="tooltip"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }}
-          style={{
-            position: 'absolute',
-            top: 36,           // just below the pill (pill is at top:10, h~22)
-            right: 12,
-            zIndex: 4,
-            maxWidth: 240,
-            padding: '8px 10px',
-            background: BG_ELEV,
-            border: `0.5px solid rgba(255,255,255,0.12)`,
-            clipPath: CHUNKY.badge,
-            color: '#E5E7EB',
-            fontSize: 11,
-            fontWeight: 500,
-            lineHeight: 1.35,
-            boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
-            cursor: 'pointer',
-            animation: 'mc-locked-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
-          }}
-        >
-          {tPred('lockedTooltip')}
-        </div>
-      )}
-    </>
-  )
-}
-
-function cornerPillStyle(bg: string, color: string, borderStyle: 'solid' | 'dashed' = 'solid'): React.CSSProperties {
-  return {
-    position: 'absolute', top: 10, right: 12, zIndex: 3,
-    background: bg, color, padding: '3px 8px', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', gap: 1,
-    clipPath: CHUNKY.badge,
-    border: `0.5px ${borderStyle} ${color}40`,
-  }
 }
 
 // ── LateHintPill — small dotted-underline tap target under the time ────────
