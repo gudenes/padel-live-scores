@@ -274,7 +274,13 @@ export default function TournamentsView({
           // Beyond, Bronze) often ship 100% scheduled placeholders that we
           // never receive results for; without this guard they sit in Ongoing
           // forever.
-          const tournamentEnded = new Date(t.ends_at) < now
+          //
+          // ends_at is UTC midnight of the final day, so compare to start-of-
+          // today UTC rather than `now` — otherwise a tournament whose final
+          // is being played at e.g. 19:00 UTC on its last day flips to "done"
+          // 19 hours before the day actually ends.
+          const startOfTodayUtc = new Date(now); startOfTodayUtc.setUTCHours(0, 0, 0, 0)
+          const tournamentEnded = new Date(t.ends_at) < startOfTodayUtc
           if (tournamentEnded) {
             confirmedDoneIds.add(t.id)
             continue

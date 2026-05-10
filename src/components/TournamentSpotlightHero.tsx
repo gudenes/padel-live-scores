@@ -237,7 +237,10 @@ export default function TournamentSpotlightHero({
     function tick() {
       const now = Date.now()
       const start = new Date(tournament.starts_at).getTime()
-      const end = new Date(tournament.ends_at).getTime()
+      // ends_at is stored as UTC midnight of the final day; treat the
+      // tournament as in-range through the end of that day so the LIVE/ONGOING
+      // pill stays correct on finals day.
+      const end = new Date(tournament.ends_at).getTime() + 86_400_000
 
       if (now >= start && now <= end) {
         setIsInDateRange(true)

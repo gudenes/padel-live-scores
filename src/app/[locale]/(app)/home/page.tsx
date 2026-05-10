@@ -269,7 +269,10 @@ function V3HomePageInner() {
         wrap(supabase.from('tournaments')
           .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url')
           .in('level', ['finals', 'major', 'p1', 'p2'])
-          .gte('ends_at', new Date().toISOString())
+          // ends_at is stored as UTC midnight of the final day, so comparing
+          // against `now` would drop the tournament for the entire day finals
+          // are played. Compare against start-of-today UTC instead.
+          .gte('ends_at', (() => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d.toISOString() })())
           .order('starts_at', { ascending: true })
           .limit(2) as any, 'home:tournaments'),
         wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'men').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topMen'),
