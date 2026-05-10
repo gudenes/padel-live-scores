@@ -13,7 +13,7 @@
 // and the client cache can hydrate without reprocessing.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { localDayRangeUtc, isIsoDate } from './locale-time'
+import { localDayRangeUtc, isIsoDate, formatIsoInTz } from './locale-time'
 import { hydrateThinPlayers } from './thin-match-player'
 import { isPremierLevel, levelTierWeight } from './tournament-labels'
 
@@ -150,6 +150,16 @@ export async function fetchMatchesDay(
   const startIso = startUtc.toISOString()
   const endIso = endUtc.toISOString()
 
+  // When the requested day is today (in the window TZ), include all
+  // currently-live matches regardless of scheduled_at. A match whose
+  // scheduled_at is on yesterday or tomorrow can be live right now —
+  // started late and crossed midnight, started early before its
+  // scheduled time, or has a default scheduled_at that lands outside
+  // the user-TZ day window. The home page's "Live now" carousel and
+  // the bottom-nav badge already include all live matches; this
+  // closes the gap so today's tab sees the same set.
+  const isToday = iso === formatIsoInTz(new Date(), tz)
+
   // Widen finished_at upper bound by 7 days to catch matches whose
   // finished_at got stamped late by a padelgod writer. The
   // `effectiveFinishedAt` clamp pulls those rows back to their
@@ -162,7 +172,8 @@ export async function fetchMatchesDay(
       `and(scheduled_at.gte.${startIso},scheduled_at.lt.${endIso}),` +
         `and(finished_at.gte.${startIso},finished_at.lt.${new Date(
           endUtc.getTime() + 7 * ONE_DAY_MS,
-        ).toISOString()})`,
+        ).toISOString()})` +
+        (isToday ? `,status.in.(live,on_court)` : ''),
     )
     .order('scheduled_at', { ascending: true })
     .limit(400)
@@ -197,7 +208,9 @@ export async function fetchMatchesDay(
   }
 
   const live = matches.filter(
-    (m) => (m.status === 'live' || m.status === 'on_court') && inWindow(m.scheduled_at),
+    (m) =>
+      (m.status === 'live' || m.status === 'on_court') &&
+      (isToday || inWindow(m.scheduled_at)),
   )
   const upcoming = matches.filter(
     (m) => m.status === 'scheduled' && inWindow(m.scheduled_at),
