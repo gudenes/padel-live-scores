@@ -716,7 +716,12 @@ export default function TournamentsView({
                   layout where the secondary ongoing events got buried.
                 - Otherwise (single ongoing, live hero, or upcoming
                   hero) keep the single big-card layout. */}
-          {!heroIsLive && ongoing.length >= 2 ? (
+          {live.length >= 2 ? (
+            <>
+              <SectionTitle>{tHome('liveNow')}</SectionTitle>
+              <OngoingCarousel tournaments={live} state="live" />
+            </>
+          ) : !heroIsLive && ongoing.length >= 2 ? (
             <>
               <SectionTitle>{tHome('ongoing')}</SectionTitle>
               <OngoingCarousel tournaments={ongoing} />
@@ -1217,7 +1222,7 @@ function BigTournamentCard({
 // gets full presence; users see the next card by swiping or waiting
 // for the auto-advance to roll forward. Scroll-snap mandatory keeps
 // finger swipes locked to whole-card increments.
-function OngoingCarousel({ tournaments }: { tournaments: TournamentWithWinners[] }) {
+function OngoingCarousel({ tournaments, state = 'ongoing' }: { tournaments: TournamentWithWinners[]; state?: 'live' | 'ongoing' }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const [activeIdx, setActiveIdx] = useState(0)
@@ -1318,7 +1323,7 @@ function OngoingCarousel({ tournaments }: { tournaments: TournamentWithWinners[]
               minWidth: 0,
             }}
           >
-            <BigTournamentCard tournament={t} state="ongoing" />
+            <BigTournamentCard tournament={t} state={state} />
           </div>
         ))}
       </div>
