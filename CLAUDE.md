@@ -245,7 +245,7 @@ Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and do
 | `/api/cron/scores` | Every 2 min | Poll live matches, upsert scores, reconcile finished matches, detect stale |
 | `/api/cron/sync?scope=matches` | Hourly at :00 | Sync match metadata for active tournaments |
 | `/api/cron/sync` | Mon 4am UTC | Full sync: tournaments, players, seasons, FIP logos |
-| `/api/cron/sync-fip-rankings` | Daily 5am UTC | FIP official + race rankings (top 1000, both genders) |
+| `/api/cron/sync-fip-rankings` | Daily 7am UTC | FIP official + race rankings (top 1000, both genders) |
 | `/api/cron/sync-articles` | Hourly at :40 | News from RSS feeds + FIP WordPress API |
 | `/api/cron/sync-highlights` | Hourly at :20 | YouTube highlights from padel channels |
 | `/api/cron/fip-streams-discover` | Every 15 min | Discover FIP YouTube livestreams, write to `fip_court_streams` or queue in `fip_streams_unresolved` |
@@ -295,7 +295,7 @@ Ordered by `:MM` so the hourly chain is easier to follow:
 | fip-oop-writer | every 15m :02/:17/:32/:47 | UPDATE `public.matches` court/round from OOP snapshots | `matches` (UPDATE) |
 | results-fetcher | every 5m :00/:05/... | Capture match-results snapshots from Crionet widget | `padelgod.results_snapshots` |
 | fip-results-writer | every 5m :02/:07/... | Write final scores from results snapshots | `matches`, `sets` |
-| player-rankings | daily 05:00 UTC | Sync FIP race + official rankings (top 1000, both genders) | `players` |
+| player-rankings | daily 07:00 UTC | Sync FIP race + official rankings (top 1000, both genders) | `players` |
 | live-poller-manager | every 1m | Spawn / supervise per-match live-poll loops | (orchestration only) |
 | shadow-diff-live | every 1m | Snapshot live-match latency vs padelapi for telemetry | (telemetry) |
 | close-stale-live-sweeper | every 5m | Close matches stuck at `live`/`ended` when poller can't | `matches` |

@@ -327,7 +327,7 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enablePlayerRankings) {
     entries.push({
       name: 'player-rankings',
-      cron: '0 5 * * *', // daily 05:00 UTC
+      cron: '0 7 * * *', // daily 07:00 UTC
       run: getWorkerRunner('player-rankings')!,
     });
   }
