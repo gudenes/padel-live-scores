@@ -32,6 +32,7 @@ import { PredictionPanel } from '@/components/prediction/PredictionPanel'
 import { pairName, getMatchDisplay, type Match } from '@/types/match'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
 import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
+import { countryToTimezone } from '@/lib/country-timezone'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -334,7 +335,15 @@ export function MatchCard({
   // dayBucketIso prop). When the match's tournament-local date
   // differs from the user-selected day-tab, surface a small chip
   // with a tap-to-explain tooltip.
-  const tournamentTz = (match as { tournament?: { timezone?: string | null } }).tournament?.timezone ?? null
+  // tournament.timezone is null on most padelapi-imported (Premier
+  // tour) rows and on FIP rows that haven't been hit by the hourly
+  // enricher yet. Fall back to a country-code lookup so the chip
+  // works for the entire calendar, not just the FIP-enriched subset.
+  const tournamentMeta = (match as {
+    tournament?: { timezone?: string | null; country?: string | null }
+  }).tournament
+  const tournamentTz =
+    tournamentMeta?.timezone ?? countryToTimezone(tournamentMeta?.country)
   const showDayChip = shouldShowDayIndicator({
     status: match.status as string,
     finishedAt: match.finished_at,
