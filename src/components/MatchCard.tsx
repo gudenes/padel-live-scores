@@ -173,6 +173,11 @@ export interface MatchCardProps {
    *  expandable insights panel, and the result badge. Non-Premier cards
    *  fall back to a plain link to the match detail page. */
   tournamentLevel?: string | null
+  /** Optional. ISO date (YYYY-MM-DD) of the matches-list day-tab the
+   *  user has selected. When provided AND the match's tournament-local
+   *  date differs, the card renders a small chip surfacing that date.
+   *  Undefined on tournament-detail / match-detail — chip never fires. */
+  dayBucketIso?: string
 }
 
 export function MatchCard({
@@ -182,6 +187,7 @@ export function MatchCard({
   userTz,
   estimatedLabel,
   tournamentLevel,
+  dayBucketIso,
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
   const tPred = useTranslations('prediction')

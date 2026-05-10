@@ -95,6 +95,10 @@ export interface TournamentGroupData {
   locale: string
   /** User timezone for date-range formatting. */
   userTz: string
+  /** Optional. ISO YYYY-MM-DD of the matches-list day-tab. When passed,
+   *  finished matches whose tournament-local date differs render the
+   *  day chip. */
+  dayBucketIso?: string
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -417,6 +421,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
                     locale={group.locale}
                     userTz={group.userTz}
                     tournamentLevel={group.tournamentLevel}
+                    dayBucketIso={group.dayBucketIso}
                   />
                 )
               })}
@@ -528,12 +533,14 @@ function MatchEntry({
   locale,
   userTz,
   tournamentLevel,
+  dayBucketIso,
 }: {
   match: GroupMatch
   status: 'live' | 'upcoming' | 'finished'
   locale: string
   userTz: string
   tournamentLevel: string | null
+  dayBucketIso: string | undefined
 }) {
   const matchAsFull = match as unknown as Match
   const genderColor = match.category === 'women' ? WOMEN_PURPLE : MEN_BLUE
@@ -552,6 +559,7 @@ function MatchEntry({
         locale={locale}
         userTz={userTz}
         tournamentLevel={tournamentLevel}
+        dayBucketIso={dayBucketIso}
       />
     </div>
   )

@@ -498,6 +498,7 @@ export default function MatchesDayShell({
                     isPremier: g.isPremier,
                     locale,
                     userTz,
+                    dayBucketIso: activeIso,
                   }}
                 />
               ))}
