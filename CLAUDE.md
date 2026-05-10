@@ -95,6 +95,7 @@ Auth users live in `public.users` (Auth.js v5 PostgresAdapter table — same as 
 | `match_stats` | Per-match + per-set stats (padelapi.org source, cached on first access) | `match_id` + `set_number` (composite PK, `set_number=0` is match aggregate), 34 stat columns (service/return/total), `source`, `source_match_id`, `raw_payload`, `computed_at` |
 | `match_stats_unresolved` | Queue for tournaments/matches the auto-matcher couldn't link | `source`, `source_kind`, `source_id`, `source_payload`, `reason`, `resolved_at`, `resolved_match_id`, `resolved_tournament_id` |
 | `social_posts` | Auto-generated social media post drafts | `title`, `caption`, `hashtags`, `platform`, `pillar`, `status` (draft/approved/posted), `source_data` |
+| `player_ranking_snapshots` | Append-only historical FIP rankings (forward-capture) | `player_id` + `type` (official/race) + `year` + `week` (composite unique), `ranking`, `points`, `ranking_move`, `ranking_date`, `gender`, `source` (vercel-fip/padelgod-fip), `captured_at` |
 
 ### Relationships
 - `matches` → `tournaments` (via `tournament_id`)
@@ -390,6 +391,30 @@ Player avatars hosted on Supabase Storage (bucket: `avatars`), not proxied from 
 
 ### Player Name Aliases
 When `PlayerResolver` matches a player via fuzzy match (token similarity ≥ 0.7), it auto-stores the raw name variant as an alias in `entity_external_ids` (source='alias'). Future lookups for the same variant hit the alias cache instantly instead of scanning all players. The `players` table also has a `normalized_name` column (indexed, auto-populated by trigger using `unaccent` extension).
+
+### Historical Rankings (2026-05-11)
+
+`player_ranking_snapshots` is an append-only history of FIP rankings keyed by `(player_id, type, year, week)`. Both writers (Vercel `sync-fip-rankings` cron and padelgod `player-rankings` worker) UPSERT on every run — last write wins for that ISO week, so re-running the sync the same week is idempotent.
+
+Writers:
+- **Vercel route** writes both `type='official'` (with upstream FIP year/week) and `type='race'` (ISO year/week of `now()` — Race endpoint exposes no week param). Tagged `source='vercel-fip'`. Captures `ranking_move`.
+- **padelgod worker** writes `type='official'` only (HTML ranking page, no move). Tagged `source='padelgod-fip'`. `ranking_move=null`.
+
+Both sources land on the same composite key, so duplicate rows aren't possible — the rich payload wins by virtue of running last in the day. Server-only table (no RLS by design).
+
+**Current scope:** forward-capture only. Backfill (walking FIP `year/week` back to 2020 for top 1000) and derived analytics (`player_ranking_stats` with `peak_rank`, `weeks_at_no1`, etc.) are planned future phases — see [docs/superpowers/plans/2026-05-10-ranking-history-capture.md](docs/superpowers/plans/2026-05-10-ranking-history-capture.md).
+
+Query examples once populated:
+```sql
+-- Peak rank ever for a player
+SELECT MIN(ranking) FROM player_ranking_snapshots
+  WHERE player_id = ? AND type = 'official';
+
+-- Top 20 women on a specific Monday
+SELECT player_id, ranking FROM player_ranking_snapshots
+  WHERE type = 'official' AND gender = 'women' AND ranking_date = '2025-08-25'
+  ORDER BY ranking LIMIT 20;
+```
 
 ### Scheduled Time Pipeline
 Match schedule times come from multiple sources with different quality:
