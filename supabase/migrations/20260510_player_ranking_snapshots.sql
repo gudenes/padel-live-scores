@@ -24,4 +24,4 @@ CREATE INDEX IF NOT EXISTS idx_prs_type_date_rank
   ON player_ranking_snapshots (type, ranking_date DESC, ranking);
 
 COMMENT ON TABLE player_ranking_snapshots IS
-  'Append-only historical FIP rankings (official + race). One row per (player, type, year, week). Written by Vercel sync-fip-rankings cron and padelgod player-rankings worker.';
+  'Append-only historical FIP rankings (official + race). One row per (player, type, year, week). Written by Vercel sync-fip-rankings cron and padelgod player-rankings worker. Conflict resolution: latest writer wins (supabase-js upsert with ignoreDuplicates: false on the UNIQUE composite key). Server-only access via service-role key — no RLS by design.';
