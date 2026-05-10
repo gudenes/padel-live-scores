@@ -54,6 +54,7 @@ export interface MatchesDayMatch {
     name: string
     level: string | null
     country: string | null
+    timezone: string | null
     starts_at: string | null
     ends_at: string | null
     status: string | null
@@ -116,7 +117,7 @@ const MATCH_SELECT = `
   schedule_label, winner_pair, late_hint, pair1_seed, pair2_seed,
   pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
   pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country,
-  tournament:tournaments(id, name, level, country, starts_at, ends_at, status),
+  tournament:tournaments(id, name, level, country, timezone, starts_at, ends_at, status),
   ${PLAYER_JOIN_FIELDS},
   sets(id, set_number, set_score, pair1_games, pair2_games, is_current,
        games(id, game_number, game_score, points, is_current, server_player_id))
