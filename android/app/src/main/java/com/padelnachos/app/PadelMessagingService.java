@@ -78,8 +78,16 @@ public class PadelMessagingService extends MessagingService {
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
+        // Small icon = pre-baked white paddle silhouette at
+        // res/drawable/ic_stat_padelnachos.png. setColor applies the lime
+        // brand accent (Android masks the silhouette to white, then tints
+        // with this color). Mirrors the FCM auto-display defaults in
+        // AndroidManifest meta-data — without it, we'd be setting the
+        // launcher icon as small-icon, which Android masks to a
+        // featureless solid square because the launcher art is full-bleed.
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(getApplicationInfo().icon)
+            .setSmallIcon(R.drawable.ic_stat_padelnachos)
+            .setColor(getResources().getColor(R.color.brand_lime, getTheme()))
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
