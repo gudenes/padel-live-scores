@@ -257,6 +257,16 @@ Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and do
 
 ## Padelgod Workers (Railway)
 
+**Padelgod is the primary integration powering padel data on
+padelnachos.com.** Tournament discovery, draws, entry lists, OOP
+schedules, live point-by-point scoring, match closing, results, player
+profiles, rankings, and the web-push notify fan-out (live + finished)
+all flow through it. Vercel crons (`/api/cron/scores`, `/api/cron/sync`,
+`/api/cron/premier-stats`) are secondary feeds and are currently paused
+behind `PADELAPI_PAUSED=true` — padelgod runs the show. When designing
+new data flows or debugging missing data, assume padelgod owns the
+write unless you've explicitly traced it to a Vercel cron.
+
 Padelgod runs on Railway alongside the relay service. The schedule lives
 in [`padelgod/src/scheduler.ts`](padelgod/src/scheduler.ts) — each worker
 gets its own `:MM` slot to avoid contention on the FIP / matchscorerlive
@@ -307,6 +317,32 @@ of the same puzzle — a human-in-the-loop UI that parses the
 `scheduled_label` strings from `oop_snapshots` ("Starting at 2:30 PM")
 into UTC timestamps on `public.matches.scheduled_at`. Not an automated
 worker; an operator clicks "Apply N Changes" per tournament.
+
+## Live match coverage scope
+
+**Live point-by-point coverage is only available for Premier-Padel-level
+tournaments** (P1, P2, Major, Premier Mens / Womens). Premier is where
+the upstream Crionet widget exposes a per-match score endpoint that
+padelgod's `live-poller-loop` can subscribe to, so we get real-time
+score, current game, server, and per-point updates.
+
+**Lower-level tournaments (FIP Bronze / Silver / Gold) can still flip to
+`status='live'`** via the OOP / results widget showing a match in
+progress, or padelapi's coarse status feed — **but no point-by-point
+data lands**. The live-poller doesn't subscribe to FIP-tier matches
+because the per-match endpoint isn't exposed at that tier. Final scores
+arrive later through `fip-results-writer` once the results widget
+publishes them.
+
+UI consequence: a FIP match can render the LIVE pill and a current-set
+score, but it won't have a live-game indicator, won't update set scores
+in real time, and won't power the momentum chart. Web-push live notify
+still fires (it only needs the `scheduled → live` edge, not the
+point-by-point feed) so users still get the "Match is Live" push.
+
+When designing live-only features, assume Premier as the floor and
+gracefully degrade for FIP. Don't surface live affordances on FIP
+matches that won't get the data to back them up.
 
 ## Relay Service (Railway)
 

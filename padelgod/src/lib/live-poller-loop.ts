@@ -60,6 +60,7 @@ import {
 import { applyDiff, type ResolvedPlayers } from './point-reconstruction.js';
 import { findOrCreateMatch } from './match-identifier.js';
 import { notifyLiveTransition } from './notify.js';
+import { recordSkipNotScheduled } from './notify-stats.js';
 import {
   computeBackstampedStartedAt,
   formatDurationHHMM,
@@ -869,6 +870,35 @@ export class LivePollerLoop {
         ? ['scheduled']
         : ['scheduled', 'on_court', 'live'];
 
+    // Capture prev status before the update so we can fire the web-push
+    // notify on the `scheduled → *` edge — mirrors flipShadowPublicStatus
+    // in point-reconstruction.ts. Without this, canonical-mode tournaments
+    // (the bulk of FIP + Premier) silently flipped status to live but
+    // never triggered the bookmark/follow notification fan-out, because
+    // the notify call previously lived only in the shadow path. Read
+    // failure is logged and we proceed without notify rather than aborting
+    // the status flip itself.
+    //
+    // Skipped entirely when `notify` isn't configured — no point burning a
+    // DB roundtrip on a value we wouldn't use. Tests + local dev runs
+    // typically omit notify; production sets it on Railway.
+    let prevStatus: string | null = null;
+    if (this.opts.notify) {
+      const { data: prevRow, error: prevErr } = await this.opts.supabase
+        .from('matches')
+        .select('status')
+        .eq('id', matchId)
+        .maybeSingle();
+      if (prevErr) {
+        this.opts.logger.warn(
+          this.logCtx({ matchId, err: prevErr.message }),
+          'stampObservedStatus: prev-status read failed; proceeding without notify',
+        );
+      } else {
+        prevStatus = (prevRow?.status as string | null) ?? null;
+      }
+    }
+
     this.opts.logger.info(
       this.logCtx({ matchId, target, hasScoringEvidence, currStatus: curr.status }),
       `stamp ${target} status: attempting`,
@@ -893,6 +923,20 @@ export class LivePollerLoop {
       this.logCtx({ matchId, target }),
       `stamp ${target} status: applied`,
     );
+
+    // Notify on the first transition out of `scheduled`. Heartbeats
+    // (live → live) and on_court → live progressions don't notify —
+    // those land with prevStatus !== 'scheduled'. The push-notify
+    // endpoint dedups finished events but not live ones, so each caller
+    // self-guards via prevStatus to avoid double-sends. Race with the
+    // Vercel scores/sync crons (when PADELAPI_PAUSED is off) is
+    // acceptable: both readers may see prevStatus='scheduled' if they
+    // hit the same window. Same tradeoff as flipShadowPublicStatus.
+    if (this.opts.notify && prevStatus === 'scheduled') {
+      notifyLiveTransition(matchId, this.opts.notify);
+    } else if (this.opts.notify && prevStatus !== null) {
+      recordSkipNotScheduled(matchId, prevStatus);
+    }
   }
 
   /**

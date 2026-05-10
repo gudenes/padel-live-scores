@@ -95,7 +95,7 @@ interface SetsUpsertCall {
   opts: Record<string, unknown>;
 }
 
-function fakeSupabase(opts: { matchId: string }): any {
+function fakeSupabase(opts: { matchId: string; prevDbStatus?: string }): any {
   const matchesUpdateCalls: MatchesUpdateCall[] = [];
   const setsUpsertCalls: SetsUpsertCall[] = [];
 
@@ -197,11 +197,15 @@ function fakeSupabase(opts: { matchId: string }): any {
           select: (_cols: string) => ({
             eq: (_c: string, _v: string) => ({
               maybeSingle: async () => ({
+                // Include `status` in the row so stampObservedStatus's
+                // prev-status read returns a stable value when tests opt
+                // into the notify path. getResolvedPlayers ignores it.
                 data: {
                   pair1_player1_id: null,
                   pair1_player2_id: null,
                   pair2_player1_id: null,
                   pair2_player2_id: null,
+                  status: opts.prevDbStatus ?? null,
                 },
                 error: null,
               }),
@@ -1593,6 +1597,162 @@ describe('LivePollerLoop.stampObservedStatus — canonical mode on_court', () =>
         (c.filters['in:status'] as string[])[0] === 'scheduled',
     );
     expect(stampCall, 'stampObservedStatus should not fire in shadow mode').toBeUndefined();
+
+    parseSpy.mockRestore();
+    await loop.stop();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stampObservedStatus — web-push notify on scheduled → live edge
+// ---------------------------------------------------------------------------
+//
+// Pre-fix (2026-05-10), the canonical-mode live transition silently flipped
+// `matches.status` to `live` / `on_court` but never called notify, so users
+// who bookmarked a match or followed one of its players got no push when
+// the match went live. Only the finished notification was firing (from
+// closeMatch), and only the shadow-mode path's flipShadowPublicStatus had
+// the live-edge notify wired up. This block locks in the canonical-mode
+// notify so the regression doesn't recur.
+
+describe('LivePollerLoop.stampObservedStatus — web-push notify on scheduled → live', () => {
+  const fakeNotifyDeps = {
+    baseUrl: 'https://padelnachos.com',
+    cronSecret: 'fake-secret',
+    logger: silentLogger(),
+  };
+
+  it('fires notifyLiveTransition when prev DB status was scheduled', async () => {
+    const parserMod = await import('../../parsers/crionet-tournamentlive.js');
+    const notifyMod = await import('../../lib/notify.js');
+
+    const parseSpy = vi
+      .spyOn(parserMod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        // Scoring evidence → target='live'
+        matches: [parsedMatchFixture({ team1Points: '15', team2Points: '0' })],
+      });
+    const notifySpy = vi
+      .spyOn(notifyMod, 'notifyLiveTransition')
+      .mockImplementation(() => {});
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({
+      matchId: 'match-uuid-1',
+      prevDbStatus: 'scheduled',
+    });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      mode: 'canonical',
+      notify: fakeNotifyDeps,
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    expect(notifySpy).toHaveBeenCalledTimes(1);
+    expect(notifySpy).toHaveBeenCalledWith('match-uuid-1', fakeNotifyDeps);
+
+    parseSpy.mockRestore();
+    notifySpy.mockRestore();
+    await loop.stop();
+  });
+
+  it('does NOT fire notify when prev DB status was already on_court (heartbeat)', async () => {
+    const parserMod = await import('../../parsers/crionet-tournamentlive.js');
+    const notifyMod = await import('../../lib/notify.js');
+
+    const parseSpy = vi
+      .spyOn(parserMod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [parsedMatchFixture({ team1Points: '15', team2Points: '0' })],
+      });
+    const notifySpy = vi
+      .spyOn(notifyMod, 'notifyLiveTransition')
+      .mockImplementation(() => {});
+
+    const timers = createFakeTimers();
+    const supabase = fakeSupabase({
+      matchId: 'match-uuid-1',
+      prevDbStatus: 'on_court',
+    });
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      mode: 'canonical',
+      notify: fakeNotifyDeps,
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    expect(notifySpy).not.toHaveBeenCalled();
+
+    parseSpy.mockRestore();
+    notifySpy.mockRestore();
+    await loop.stop();
+  });
+
+  it('does NOT read prev status when notify is not configured', async () => {
+    // When notify is undefined, the prev-status SELECT is skipped entirely
+    // (no point burning a roundtrip for a value we won't use). We assert
+    // this by tracking matches.select call count via a custom mock.
+    const parserMod = await import('../../parsers/crionet-tournamentlive.js');
+
+    const parseSpy = vi
+      .spyOn(parserMod, 'parseCrionetTournamentLive')
+      .mockReturnValue({
+        matches: [parsedMatchFixture({ team1Points: '15', team2Points: '0' })],
+      });
+
+    const baseSupabase = fakeSupabase({ matchId: 'match-uuid-1' });
+    let matchesSelectCallCount = 0;
+    const supabase: any = {
+      ...baseSupabase,
+      from: (table: string) => {
+        const inner = baseSupabase.from(table);
+        if (table === 'matches' && inner.select) {
+          const origSelect = inner.select;
+          return { ...inner, select: (cols: string) => {
+            matchesSelectCallCount++;
+            return origSelect(cols);
+          }};
+        }
+        return inner;
+      },
+    };
+    (supabase as any).__matchesUpdateCalls = (baseSupabase as any).__matchesUpdateCalls;
+
+    const timers = createFakeTimers();
+    const loop = new LivePollerLoop({
+      tournamentId: 'tour-uuid-1',
+      widgetId: 'FIP-2026-1701',
+      supabase,
+      httpClient: fakeHttp() as any,
+      logger: silentLogger(),
+      mode: 'canonical',
+      // notify intentionally omitted
+      setTimeoutFn: timers.setTimeoutFn,
+      clearTimeoutFn: timers.clearTimeoutFn,
+    });
+
+    await loop.start();
+    await timers.fireLatest();
+
+    // Without notify: only getResolvedPlayers reads matches (1 call). With
+    // notify (other tests above): stampObservedStatus would add a 2nd call.
+    expect(matchesSelectCallCount).toBe(1);
 
     parseSpy.mockRestore();
     await loop.stop();
