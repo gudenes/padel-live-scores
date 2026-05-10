@@ -486,14 +486,12 @@ export default function TournamentsView({
       (a, b) =>
         new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
     )[0] ?? null
-  const heroLive = pickByDate(live)
-  const heroOngoing = pickByDate(ongoing)
   const heroUpcoming = pickByDate(upcoming)
-  const hero = heroLive ?? heroOngoing ?? heroUpcoming
-  const heroIsLive = !!heroLive
-  const heroIsOngoing = !heroIsLive && !!heroOngoing
-  const restUpcoming = upcoming.filter(t => t.id !== hero?.id)
-  const restOngoing = ongoing.filter(t => t.id !== hero?.id)
+  // Upcoming gets a big hero only when nothing is live and nothing is
+  // ongoing — otherwise live/ongoing already fill that visual slot and
+  // every upcoming event belongs in the compact strip below.
+  const showUpcomingHero = live.length === 0 && ongoing.length === 0 && !!heroUpcoming
+  const restUpcoming = upcoming.filter(t => t.id !== (showUpcomingHero ? heroUpcoming?.id : undefined))
 
   return (
     <div>
@@ -706,17 +704,19 @@ export default function TournamentsView({
         <TournamentsViewSkeleton />
       ) : (
         <>
-          {/* ── Live / Ongoing / Upcoming hero(s) ────────────
-              Layout rules:
-                - When multiple tournaments are concurrently ongoing
-                  AND there's no live hero taking precedence, render
-                  ALL ongoing as full-width cards in a horizontal
-                  scroll-snap carousel that auto-advances every 5s.
-                  Better than the previous "one hero + tiny strip"
-                  layout where the secondary ongoing events got buried.
-                - Otherwise (single ongoing, live hero, or upcoming
-                  hero) keep the single big-card layout. */}
-          {live.length >= 2 ? (
+          {/* ── Live / Ongoing / Upcoming sections ────────────
+              Each bucket renders independently so concurrently active
+              tournaments (e.g. one in finals, another mid-week) both
+              stay visible. One event in a bucket → big hero card.
+              Two or more → full-width scroll-snap carousel that
+              auto-advances every 5s. */}
+          {live.length === 1 && (
+            <>
+              <SectionTitle>{tHome('liveNow')}</SectionTitle>
+              <BigTournamentCard tournament={live[0]} state="live" />
+            </>
+          )}
+          {live.length >= 2 && (
             <>
               <SectionTitle>{tHome('liveNow')}</SectionTitle>
               {/* Order by ends_at asc so the tournament closest to finishing
@@ -726,20 +726,25 @@ export default function TournamentsView({
                 state="live"
               />
             </>
-          ) : !heroIsLive && ongoing.length >= 2 ? (
+          )}
+          {ongoing.length === 1 && (
+            <>
+              <SectionTitle>{tHome('ongoing')}</SectionTitle>
+              <BigTournamentCard tournament={ongoing[0]} state="ongoing" />
+            </>
+          )}
+          {ongoing.length >= 2 && (
             <>
               <SectionTitle>{tHome('ongoing')}</SectionTitle>
               <OngoingCarousel tournaments={ongoing} />
             </>
-          ) : hero ? (
+          )}
+          {showUpcomingHero && heroUpcoming && (
             <>
-              <SectionTitle>{heroIsLive ? tHome('liveNow') : heroIsOngoing ? tHome('ongoing') : tHome('comingUp')}</SectionTitle>
-              <BigTournamentCard
-                tournament={hero}
-                state={heroIsLive ? 'live' : heroIsOngoing ? 'ongoing' : 'upcoming'}
-              />
+              <SectionTitle>{tHome('comingUp')}</SectionTitle>
+              <BigTournamentCard tournament={heroUpcoming} state="upcoming" />
             </>
-          ) : null}
+          )}
 
           {/* Remaining upcoming — compact horizontal strip. Rendered
               after the hero or carousel above. Hidden when nothing
