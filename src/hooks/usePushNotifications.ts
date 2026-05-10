@@ -1,12 +1,25 @@
 'use client'
 // src/hooks/usePushNotifications.ts
-// Manages Web Push subscription lifecycle.
-// - subscribe: requests permission, subscribes via Push API, saves to Supabase
-// - unsubscribe: removes from Push API and Supabase
-// - toggle: subscribes if not subscribed, unsubscribes if subscribed
+// Manages push subscription lifecycle across BOTH transports:
+//   - Web Push (browser PWA): pushManager + serviceWorker + push_subscriptions
+//   - Native FCM (Capacitor Android app): @capacitor/push-notifications +
+//     native_push_subscriptions table
+//
+// Why the split: Capacitor's Android WebView doesn't ship Web Push, so the
+// Web APIs (PushManager, Notification) report unsupported even when FCM is
+// happily delivering pushes via the native side. Pre-fix (2026-05-10), the
+// hook only knew about Web Push, so the settings master toggle was disabled
+// for users on the Play Store app even though they were receiving pushes.
+//
+// Public surface is unchanged: { enabled, supported, permission, toggle,
+// subscribe, unsubscribe }. Consumers don't need to know about transport.
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
+import { Capacitor } from '@capacitor/core'
+import { PushNotifications } from '@capacitor/push-notifications'
+
+const FCM_TOKEN_STORAGE_KEY = 'padelnachos:fcm-token'
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -15,38 +28,161 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from(rawData, (char) => char.charCodeAt(0))
 }
 
+// Capacitor's permission state uses a different vocabulary
+// ('granted' | 'denied' | 'prompt' | 'prompt-with-rationale') than the Web
+// Notification API ('granted' | 'denied' | 'default'). Map onto the Web shape
+// so the rest of the app (and the Web Push branch below) can treat them
+// uniformly. 'prompt' / 'prompt-with-rationale' both fold into 'default'.
+function mapNativePermission(
+  receive: 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale',
+): NotificationPermission {
+  if (receive === 'granted') return 'granted'
+  if (receive === 'denied') return 'denied'
+  return 'default'
+}
+
 export function usePushNotifications() {
   const { user } = useAuth()
   const [enabled, setEnabled] = useState(false)
-  const [supported, setSupported] = useState(false)
-  const [permission, setPermission] = useState<NotificationPermission>('default')
+  // Lazy-initialize all the synchronous values at first client render so
+  // we never call setState inside useEffect (`react-hooks/set-state-in-effect`)
+  // and keep SSR safe (typeof window check runs only on the client).
+  // Capacitor doesn't switch between native and web after boot, and the
+  // Web APIs we probe are present-or-absent at load time, so these values
+  // are stable for the session.
+  const [isNative] = useState(
+    () => typeof window !== 'undefined' && Capacitor.isNativePlatform(),
+  )
+  const [supported] = useState(() => {
+    if (typeof window === 'undefined') return false
+    // Native: FCM is delivered by Android — always supported on this transport.
+    if (Capacitor.isNativePlatform()) return true
+    // Web Push: requires the trio of APIs.
+    return (
+      'serviceWorker' in navigator &&
+      'PushManager' in window &&
+      'Notification' in window
+    )
+  })
+  // Initial permission value: sync-readable on web; native uses an async
+  // plugin call so it stays 'default' here and is updated in the effect.
+  // Both branches re-set permission later when the user clicks subscribe
+  // (Notification.requestPermission / PushNotifications.requestPermissions).
+  const [permission, setPermission] = useState<NotificationPermission>(() => {
+    if (typeof window === 'undefined') return 'default'
+    if (Capacitor.isNativePlatform()) return 'default'
+    if ('Notification' in window) return Notification.permission
+    return 'default'
+  })
 
   useEffect(() => {
-    const isSupported = typeof window !== 'undefined'
-      && 'serviceWorker' in navigator
-      && 'PushManager' in window
-      && 'Notification' in window
+    let cancelled = false
 
-    setSupported(isSupported)
-
-    if (isSupported) {
-      setPermission(Notification.permission)
-    }
-
-    // Check if already subscribed
-    if (isSupported && user) {
+    if (isNative) {
+      // ── Native (Capacitor / FCM) ──────────────────────────────────
+      // Permission state comes from Capacitor's plugin (which wraps the
+      // OS-level permission). Subscription state is queried from the
+      // server because the device token is opaque to JS until the next
+      // registration event fires.
+      void PushNotifications.checkPermissions().then((p) => {
+        if (cancelled) return
+        setPermission(mapNativePermission(p.receive))
+      })
+      if (user) {
+        void fetch('/api/user/native-push-subscriptions', { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : { subscribed: false }))
+          .then((b: { subscribed: boolean }) => {
+            if (!cancelled) setEnabled(!!b.subscribed)
+          })
+          .catch(() => { /* silent */ })
+      }
+    } else if (supported && user) {
+      // ── Web Push ─────────────────────────────────────────────────
+      // permission was already lazy-initialized from Notification.permission;
+      // here we only need to probe the active subscription.
       navigator.serviceWorker.ready.then(async (registration) => {
         const subscription = await registration.pushManager.getSubscription()
-        setEnabled(!!subscription)
+        if (!cancelled) setEnabled(!!subscription)
       })
+    }
+
+    return () => { cancelled = true }
+  }, [user, isNative, supported])
+
+  // ── Native subscribe/unsubscribe ────────────────────────────────────
+  // Subscribe: ask the OS for permission, then register() — the existing
+  // 'registration' listener in src/lib/native-init.ts owns the POST to
+  // /api/user/native-push-subscriptions and caches the token in localStorage.
+  // Calling register() multiple times re-fires the listener with the same
+  // (or refreshed) token, which is idempotent server-side via UPSERT.
+  const subscribeNative = useCallback(async () => {
+    if (!user) return false
+    try {
+      const perm = await PushNotifications.requestPermissions()
+      const mapped = mapNativePermission(perm.receive)
+      setPermission(mapped)
+      if (mapped !== 'granted') return false
+
+      // Optimistic flip — the registration event will land momentarily and
+      // the server-side row creation is idempotent, so worst case is a
+      // brief over-claim until the listener completes.
+      setEnabled(true)
+      await PushNotifications.register()
+      return true
+    } catch (e) {
+      console.error('[Push native] subscribe failed:', e)
+      setEnabled(false)
+      return false
     }
   }, [user])
 
-  const subscribe = useCallback(async () => {
+  // Unsubscribe: DELETE the cached token's row server-side. Capacitor's
+  // plugin doesn't expose an unregister method on Android, so we leave the
+  // OS-level FCM registration in place and just stop our fan-out from
+  // targeting it. Re-subscribing later re-creates the row via register().
+  // If the token isn't in localStorage (e.g. cache cleared), we fall back
+  // to a re-probe via GET — the user may need to toggle off again to fully
+  // clean up, but this won't lie about the state.
+  const unsubscribeNative = useCallback(async () => {
+    if (!user) return
+    setEnabled(false)
+    try {
+      const token = typeof window !== 'undefined'
+        ? window.localStorage.getItem(FCM_TOKEN_STORAGE_KEY)
+        : null
+      if (!token) {
+        // No cached token — server still owns the row but we can't target
+        // it specifically. Re-probe so UI matches reality.
+        const res = await fetch('/api/user/native-push-subscriptions', { cache: 'no-store' })
+        if (res.ok) {
+          const b = await res.json() as { subscribed: boolean }
+          setEnabled(!!b.subscribed)
+        }
+        return
+      }
+      await fetch('/api/user/native-push-subscriptions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceToken: token }),
+      })
+      try { window.localStorage.removeItem(FCM_TOKEN_STORAGE_KEY) } catch { /* non-fatal */ }
+    } catch (e) {
+      console.error('[Push native] unsubscribe failed:', e)
+      // Re-probe so we don't lie about a partial teardown.
+      try {
+        const res = await fetch('/api/user/native-push-subscriptions', { cache: 'no-store' })
+        if (res.ok) {
+          const b = await res.json() as { subscribed: boolean }
+          setEnabled(!!b.subscribed)
+        }
+      } catch { /* leave as false */ }
+    }
+  }, [user])
+
+  // ── Web Push subscribe/unsubscribe (unchanged from pre-fix) ─────────
+  const subscribeWeb = useCallback(async () => {
     if (!user || !supported) return false
 
-    // 1. Ask the browser for permission (blocking UX — must wait for the
-    //    user to interact with the native prompt).
     let perm: NotificationPermission
     try {
       perm = await Notification.requestPermission()
@@ -63,10 +199,6 @@ export function usePushNotifications() {
       return false
     }
 
-    // 2. Flip the toggle optimistically so the UI responds instantly.
-    //    The remaining steps (pushManager.subscribe + server persistence)
-    //    commonly take 300–2000ms because they involve a round-trip to
-    //    the browser's push service.
     setEnabled(true)
 
     try {
@@ -82,18 +214,15 @@ export function usePushNotifications() {
       })
       return true
     } catch (e) {
-      // Revert optimistic flip on failure so the UI reflects reality.
       console.error('[Push] Subscribe failed:', e)
       setEnabled(false)
       return false
     }
   }, [user, supported])
 
-  const unsubscribe = useCallback(async () => {
+  const unsubscribeWeb = useCallback(async () => {
     if (!user || !supported) return
 
-    // Flip off immediately — unsubscribing has no permission gate, so the
-    // UI can reflect the new state before the push-service round-trip.
     setEnabled(false)
 
     try {
@@ -109,8 +238,6 @@ export function usePushNotifications() {
         body: JSON.stringify({ endpoint }),
       })
     } catch (e) {
-      // Revert on failure: re-probe actual subscription state rather than
-      // assuming true, so we don't lie about a partial teardown.
       console.error('[Push] Unsubscribe failed:', e)
       try {
         const registration = await navigator.serviceWorker.ready
@@ -119,6 +246,17 @@ export function usePushNotifications() {
       } catch { /* leave as false */ }
     }
   }, [user, supported])
+
+  // ── Transport dispatch ──────────────────────────────────────────────
+  const subscribe = useCallback(
+    () => (isNative ? subscribeNative() : subscribeWeb()),
+    [isNative, subscribeNative, subscribeWeb],
+  )
+
+  const unsubscribe = useCallback(
+    () => (isNative ? unsubscribeNative() : unsubscribeWeb()),
+    [isNative, unsubscribeNative, unsubscribeWeb],
+  )
 
   const toggle = useCallback(async () => {
     if (enabled) {

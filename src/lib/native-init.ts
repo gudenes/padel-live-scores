@@ -96,6 +96,18 @@ export async function initNative(): Promise<void> {
 
     PushNotifications.addListener('registration', async (token) => {
       try {
+        // Cache the device token so usePushNotifications can DELETE the
+        // exact subscription when the user toggles push off in settings.
+        // Source of truth is still the DB; this is just so we know which
+        // token to target without a separate "list my devices" round-trip.
+        // Survives page reloads inside the WebView; cleared on app data
+        // wipe — both states are fine because the next register() event
+        // re-caches with the fresh token.
+        try {
+          window.localStorage.setItem('padelnachos:fcm-token', token.value)
+        } catch {
+          /* localStorage unavailable (private mode etc.) — non-fatal */
+        }
         await fetch('/api/user/native-push-subscriptions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

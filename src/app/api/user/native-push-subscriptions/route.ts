@@ -5,6 +5,24 @@
 
 import { getUserOrFail } from '../_auth'
 
+// GET — does the current user have at least one native push subscription
+// registered? Used by usePushNotifications on the Capacitor app to render
+// the master toggle's enabled state. Web Push has its own truth source
+// (pushManager.getSubscription()); native FCM has no client-side equivalent
+// because the device token is opaque to JS — server is the source of truth.
+export async function GET() {
+  const { user, supabase, error } = await getUserOrFail()
+  if (error) return error
+
+  const { count, error: dbErr } = await supabase
+    .from('native_push_subscriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+
+  if (dbErr) return Response.json({ error: dbErr.message }, { status: 500 })
+  return Response.json({ subscribed: (count ?? 0) > 0, count: count ?? 0 })
+}
+
 export async function POST(req: Request) {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
