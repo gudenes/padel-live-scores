@@ -33,6 +33,7 @@ import { pairName, getMatchDisplay, type Match } from '@/types/match'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
 import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
 import { countryToTimezone } from '@/lib/country-timezone'
+import FollowButton from '@/components/FollowButton'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -456,6 +457,17 @@ export function MatchCard({
           }}
         />
 
+        {/* Bookmark star — universal corner action. FollowButton handles
+            preventDefault + stopPropagation internally so taps don't
+            navigate the wrapping <Link> to match detail. */}
+        <FollowButton
+          type="match"
+          targetId={match.id}
+          variant="star"
+          size={20}
+          style={{ position: 'absolute', top: 10, right: 12, zIndex: 3 }}
+        />
+
         {/* Live glow halo */}
         {isLive && (
           <div
@@ -542,20 +554,6 @@ export function MatchCard({
             </span>
           )}
         </div>
-
-        {/* Corner CTA / pill / badge — only on Premier-tier matches where
-            we have point-by-point coverage. */}
-        {isPredictionEnabled && (
-          <CornerElement
-            match={match}
-            prediction={prediction}
-            isLive={isLive}
-            isFinished={isFinished}
-            isOpen={isOpen}
-            onToggle={toggleOpen}
-            tPred={tPred}
-          />
-        )}
 
         {/* Pair rows: [names col | optional stream button (Task 11) | scores col] + right-aligned date/time */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, position: 'relative', zIndex: 2 }}>
@@ -839,47 +837,6 @@ export function MatchCard({
           </div>
         )}
 
-        {/* Expandable insights panel — only mounted on prediction-enabled
-            (Premier-tier) matches. */}
-        {isPredictionEnabled && (
-          <div
-            style={{
-              maxHeight: isOpen ? 600 : 0,
-              opacity: isOpen ? 1 : 0,
-              overflow: 'hidden',
-              marginTop: isOpen ? 12 : 0,
-              paddingTop: isOpen ? 12 : 0,
-              borderTop: isOpen ? `0.5px solid ${BORDER}` : 'none',
-              transition: 'max-height 380ms ease, opacity 280ms ease, margin-top 380ms ease, padding-top 380ms ease',
-            }}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
-          >
-            {isOpen && (
-              <>
-                <PredictionPanel match={match} onLocked={handleLocked} />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setIsOpen(false)
-                }}
-                aria-label={tPred('tapToClose')}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  margin: '10px auto 0', padding: 8,
-                  background: 'transparent', border: 0, cursor: 'pointer',
-                  color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6,
-                }}
-              >
-                <span style={{ fontSize: 11, lineHeight: 1 }}>▴</span>
-                {tPred('tapToClose')}
-                <span style={{ fontSize: 11, lineHeight: 1 }}>▴</span>
-              </button>
-            </>
-            )}
-          </div>
-        )}
       </div>
     </>
   )
