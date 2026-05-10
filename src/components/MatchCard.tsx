@@ -359,9 +359,10 @@ export function MatchCard({
 
   // The whole card is always a <Link> to match detail. Interactive
   // children (the bookmark star at top-right, the day-indicator chip,
-  // the FIP-stream button) all call preventDefault + stopPropagation
-  // in their own onClick handlers so taps on those don't navigate.
-  // Anywhere else in the card body navigates as expected.
+  // the late-hint pill on scheduled cards) all call preventDefault +
+  // stopPropagation in their own onClick handlers so taps on those
+  // don't navigate. Anywhere else in the card body navigates as
+  // expected.
   const wrapperStyle = { textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: 8 } as const
   const cardInner = (
     <>
@@ -825,8 +826,8 @@ function Chip({
 // ── LateHintPill — small dotted-underline tap target under the time ────────
 //
 // Renders only on scheduled matches with a real timeStr and a non-null
-// late_hint. Tapping pops a tiny info sheet (mirrors LockedPill's pattern):
-// 3.5s auto-dismiss, click anywhere on the sheet to dismiss earlier.
+// late_hint. Tapping pops a tiny info sheet (3.5s auto-dismiss, or
+// tap the sheet again to close earlier):
 //
 // Two variants:
 //   may_be_late   → orange (#F5A623), "may be late"   → "...running long..."
