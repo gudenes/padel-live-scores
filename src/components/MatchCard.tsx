@@ -158,9 +158,21 @@ function formatScheduledTime(
   }).format(d)
 }
 
-function tournamentLocationLabel(match: Match): string {
+function tournamentLocationLabel(match: Match, locale: string): string {
   const t = (match as { tournament?: { name?: string | null; country?: string | null } }).tournament
-  if (t?.country) return t.country
+  // Prefer the localised country name (PY → "Paraguai" in pt, "Paraguay" in
+  // en). Falls back to the raw 2-letter code if Intl.DisplayNames can't
+  // resolve, and to a name-strip if no country is set at all.
+  if (t?.country) {
+    try {
+      const display = new Intl.DisplayNames([locale], { type: 'region' })
+      const resolved = display.of(t.country.toUpperCase())
+      if (resolved && resolved.toUpperCase() !== t.country.toUpperCase()) {
+        return resolved
+      }
+    } catch {}
+    return t.country
+  }
   const name = t?.name ?? ''
   // Last-resort name-based fallback. Strip a trailing level/suffix
   // token only when it terminates the string — anchored end avoids
@@ -376,7 +388,7 @@ export function MatchCard({
             weekday: 'long',
             timeZone: userTz,
           }).format(new Date(ts)),
-          location: tournamentLocationLabel(match),
+          location: tournamentLocationLabel(match, locale),
         }
       })()
     : null
