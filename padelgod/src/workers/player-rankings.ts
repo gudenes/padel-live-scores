@@ -114,6 +114,12 @@ export async function runPlayerRankings(
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
+  if (snapshotRows.length < all.length) {
+    console.warn(
+      `[player-rankings] ${all.length - snapshotRows.length} snapshot rows dropped (name collision after upsert)`
+    );
+  }
+
   if (snapshotRows.length > 0) {
     const { error: snapErr } = await deps.supabase
       .from('player_ranking_snapshots')
