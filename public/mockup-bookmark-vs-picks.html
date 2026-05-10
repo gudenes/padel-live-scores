@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MatchCard — bookmark vs picks corner</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --green-dim: rgba(126,211,33,0.15);
+    --live: #FF4655;
+    --live-dim: rgba(255,70,85,0.18);
+    --gold: #F5A623;
+    --orange-dim: rgba(245,166,35,0.15);
+    --bg-base: #0A0A0A;
+    --bg-card: #141414;
+    --muted: #6B7280;
+    --muted-2: #8a8f99;
+    --border: rgba(255,255,255,0.06);
+    --border-strong: rgba(255,255,255,0.10);
+    --men: #4A9EFF;
+    --women: #D966FF;
+    --chunky-card: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --chunky-pill: polygon(8% 12%, 92% 0%, 100% 88%, 0% 100%);
+    --chunky-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #1f1f23; }
+  body {
+    margin: 0;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 80px;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(245,166,35,0.06) 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 90%, rgba(126,211,33,0.05) 0%, transparent 55%),
+      #1f1f23;
+  }
+  .stage-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 6px;
+  }
+  .stage-sub {
+    font-size: 13px; color: rgba(255,255,255,0.65);
+    margin: 0 0 18px; text-align: center; max-width: 460px;
+  }
+  .modes {
+    display: flex; gap: 6px; padding: 4px;
+    background: var(--bg-card); border: 1px solid var(--border-strong);
+    clip-path: var(--chunky-pill);
+    margin-bottom: 22px;
+  }
+  .modes button {
+    border: 0; padding: 9px 18px;
+    background: transparent; color: var(--muted-2);
+    font-size: 11px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase; cursor: pointer;
+    clip-path: var(--chunky-pill);
+  }
+  .modes button.active {
+    background: var(--green); color: #0A0A0A;
+  }
+
+  .phone {
+    width: 390px;
+    background: var(--bg-base);
+    border-radius: 36px;
+    border: 10px solid #000;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 30px 60px -10px rgba(0,0,0,0.6);
+    height: 844px;
+    display: flex; flex-direction: column;
+  }
+  .scroll {
+    flex: 1; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  .header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 14px 10px;
+  }
+  .logo {
+    font-family: 'Arial Black', system-ui;
+    font-style: italic; font-weight: 900;
+    line-height: 0.92;
+    text-shadow:
+      -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000,
+      -1.5px 1.5px 0 #000, 1.5px 1.5px 0 #000;
+    letter-spacing: -0.5px;
+    flex-shrink: 0; transform: skewX(-6deg);
+    padding-right: 4px;
+  }
+  .logo .pn-top { font-size: 13px; display: block; color: var(--gold); }
+  .logo .pn-bot { font-size: 13px; display: block; margin-top: -2px; color: var(--green); }
+  .search {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    height: 38px; padding: 0 12px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--muted); font-size: 12px;
+  }
+  .icon-btn, .avatar { width: 38px; height: 38px; flex-shrink: 0; }
+  .icon-btn {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+  }
+  .avatar {
+    background: linear-gradient(135deg, var(--green), #56a015);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #0A0A0A; font-weight: 800; font-size: 14px;
+  }
+
+  /* ── Match cards ─────────────────────────────────────────────── */
+  .card-list {
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .match-card {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-card);
+    padding: 12px 14px 12px 16px;
+  }
+  .match-card.live {
+    border-color: rgba(255,70,85,0.22);
+  }
+  .match-card .accent {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .match-card.women .accent { background: var(--women); }
+  .match-card.men .accent { background: var(--men); }
+
+  .meta-row {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 6px; margin-bottom: 8px;
+  }
+  .chip {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+    text-transform: uppercase; color: var(--muted);
+    background: #1A1A1A; padding: 3px 7px;
+    clip-path: var(--chunky-badge); line-height: 1.2; white-space: nowrap;
+  }
+  .chip.live { background: var(--live-dim); color: var(--live); font-weight: 800; }
+  .chip.finished { background: var(--green-dim); color: var(--green); font-weight: 800; }
+
+  /* corner — top-right of card, absolute positioned */
+  .corner {
+    position: absolute;
+    top: 10px; right: 12px;
+    display: flex; align-items: center; justify-content: center;
+    height: 24px; min-width: 24px;
+  }
+
+  /* ── Star bookmark ──────────────────────────────────────────── */
+  .star-btn {
+    background: none; border: 0; padding: 2px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: inherit;
+  }
+  .star-btn svg { display: block; transition: fill 0.2s, stroke 0.2s; }
+
+  /* ── Old corner pills (the things bookmark replaces) ─────────── */
+  .pill-cta {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 800; letter-spacing: 0.3px;
+    text-transform: uppercase; padding: 4px 9px;
+    background: var(--green); color: #0A0A0A;
+    clip-path: var(--chunky-badge);
+  }
+  .pill-pick-locked {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.3px;
+    text-transform: uppercase; padding: 4px 9px;
+    background: rgba(126,211,33,0.10); color: var(--green);
+    border: 1px solid rgba(126,211,33,0.30);
+    clip-path: var(--chunky-badge);
+  }
+  .pill-result-correct {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9px; font-weight: 900; letter-spacing: 0.3px;
+    text-transform: uppercase; padding: 4px 9px;
+    background: var(--green); color: #0A0A0A;
+    clip-path: var(--chunky-badge);
+  }
+  .pill-result-wrong {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 9px; font-weight: 900; letter-spacing: 0.3px;
+    text-transform: uppercase; padding: 4px 9px;
+    background: var(--live); color: #fff;
+    clip-path: var(--chunky-badge);
+  }
+
+  /* ── Hide / show corner variants by mode + state ─────────────── */
+  /* Default: hide everything */
+  .corner > * { display: none !important; }
+
+  /* Strict mode: ALL cards show star */
+  .style-strict .corner .star-btn { display: inline-flex !important; }
+
+  /* Hybrid mode: scheduled/live show star, finished+pick show result */
+  .style-hybrid .match-card[data-state="scheduled-no-pick"] .corner .star-btn,
+  .style-hybrid .match-card[data-state="live-no-pick"] .corner .star-btn,
+  .style-hybrid .match-card[data-state="finished-no-pick"] .corner .star-btn {
+    display: inline-flex !important;
+  }
+  .style-hybrid .match-card[data-state="finished-correct"] .corner .pill-result-correct {
+    display: inline-flex !important;
+  }
+  .style-hybrid .match-card[data-state="finished-wrong"] .corner .pill-result-wrong {
+    display: inline-flex !important;
+  }
+
+  /* Pre-bookmarked indicator (purely demo) */
+
+  /* Pair rows */
+  .pair-row {
+    display: flex; align-items: center; gap: 7px;
+    padding: 4px 0; font-size: 13px; font-weight: 700;
+  }
+  .pair-row .flag {
+    width: 16px; height: 12px; border-radius: 2px; flex-shrink: 0;
+  }
+  .flag.es { background: linear-gradient(to bottom, #aa151b 0 33%, #f1bf00 33% 66%, #aa151b 66%); }
+  .flag.ar { background: linear-gradient(to bottom, #74acdf 0 33%, #fff 33% 66%, #74acdf 66%); }
+  .flag.it { background: linear-gradient(to right, #009246 0 33%, #fff 33% 66%, #ce2b37 66%); }
+  .pair-row .seed {
+    color: var(--muted-2); font-size: 9px; font-weight: 800;
+    background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 6px;
+    margin-left: 4px;
+  }
+  .pair-row .winner {
+    background: var(--green); color: #0A0A0A;
+    font-size: 10px; font-weight: 900;
+    padding: 1px 6px; border-radius: 4px; margin-left: 4px;
+  }
+  .pair-row .names { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pair-row .scores {
+    display: inline-flex; gap: 18px;
+    color: rgba(255,255,255,0.78);
+    font-weight: 800; font-size: 16px; letter-spacing: 0.5px; margin-left: 8px;
+  }
+  .scores .losing { color: var(--muted); }
+  .scores .live-pt {
+    color: var(--live); font-family: monospace;
+  }
+
+  .schedule-right {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-30%);
+    text-align: right;
+  }
+  .schedule-right .date {
+    font-size: 10px; color: var(--muted); line-height: 1.1;
+  }
+  .schedule-right .time {
+    font-size: 16px; font-weight: 900; color: var(--green);
+    line-height: 1.05; margin-top: 2px;
+  }
+
+  .case-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.3px;
+    text-transform: uppercase; color: var(--muted-2);
+    margin-bottom: 4px;
+    padding: 0 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .case-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .note {
+    margin-top: 18px;
+    color: rgba(255,255,255,0.6);
+    font-size: 12px; max-width: 460px;
+    text-align: center; line-height: 1.55;
+  }
+  .note strong { color: rgba(255,255,255,0.9); font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="stage-title">MatchCard corner — bookmark vs picks</div>
+  <p class="stage-sub">Same five cards in both modes. Toggle to compare. Two cards already have the star filled (gold) to show the bookmarked state; three are unfilled (grey outline).</p>
+
+  <div class="modes">
+    <button id="m-strict" class="active">Strict · always star</button>
+    <button id="m-hybrid">Hybrid · star + pick result</button>
+  </div>
+
+  <div class="phone">
+    <div class="scroll">
+      <div class="header">
+        <div class="logo"><span class="pn-top">PADEL</span><span class="pn-bot">NACHOS</span></div>
+        <div class="search"><span style="opacity:0.7">⌕</span><span>Tente "Tapia"</span></div>
+        <div class="icon-btn">↑</div>
+        <div class="avatar">G</div>
+      </div>
+
+      <div id="card-list" class="card-list">
+
+        <!-- Case 1: Scheduled Premier, no pick yet -->
+        <div class="case-label">Case 1 · scheduled · no pick</div>
+        <div class="match-card women" data-state="scheduled-no-pick">
+          <div class="accent"></div>
+          <div class="meta-row">
+            <span class="chip">Finals</span>
+            <span class="chip">Court Central</span>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">G. Triay / D. Brea</span>
+            <span class="seed">1</span>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">P. Josemaria / B. Gonzalez</span>
+            <span class="seed">2</span>
+          </div>
+          <div class="schedule-right">
+            <div class="date">10 mai.</div>
+            <div class="time">21:00</div>
+          </div>
+          <div class="corner">
+            <button class="star-btn" data-active="false" aria-label="Bookmark"></button>
+            <span class="pill-cta">◉ Escolhe</span>
+          </div>
+        </div>
+
+        <!-- Case 2: Live Premier, user has NOT picked -->
+        <div class="case-label">Case 2 · live · no pick</div>
+        <div class="match-card men live" data-state="live-no-pick">
+          <div class="accent"></div>
+          <div class="meta-row">
+            <span class="chip">Q1</span>
+            <span class="chip">Court 2</span>
+            <span class="chip live">● Live</span>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">E. Sanchez / A. Garcia Tr…</span>
+            <span class="scores"><span>6</span><span>3</span><span class="live-pt">3 · 30</span></span>
+          </div>
+          <div class="pair-row">
+            <span class="flag ar"></span>
+            <span class="names">A. Gutierrez / S. Oria</span>
+            <span class="seed">4</span>
+            <span class="scores"><span>3</span><span>6</span><span class="live-pt">4 · 30</span></span>
+          </div>
+          <div class="corner">
+            <button class="star-btn" data-active="true" aria-label="Bookmark"></button>
+            <span class="pill-cta">◉ Pick</span>
+          </div>
+        </div>
+
+        <!-- Case 3: Finished, user picked CORRECTLY -->
+        <div class="case-label">Case 3 · finished · pick correct</div>
+        <div class="match-card men" data-state="finished-correct">
+          <div class="accent"></div>
+          <div class="meta-row">
+            <span class="chip">Semifinals</span>
+            <span class="chip">Court Central</span>
+            <span class="chip finished">Finished</span>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">E. Alonso / A. Goñi</span>
+            <span class="scores"><span class="losing">1</span><span class="losing">5</span></span>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">A. Galan / F. Chingotto</span>
+            <span class="seed">2</span>
+            <span class="winner">W</span>
+            <span class="scores"><span>6</span><span>7</span></span>
+          </div>
+          <div class="corner">
+            <button class="star-btn" data-active="false" aria-label="Bookmark"></button>
+            <span class="pill-result-correct">✓ Correct</span>
+          </div>
+        </div>
+
+        <!-- Case 4: Finished, user picked WRONG -->
+        <div class="case-label">Case 4 · finished · pick wrong</div>
+        <div class="match-card women" data-state="finished-wrong">
+          <div class="accent"></div>
+          <div class="meta-row">
+            <span class="chip">Semifinals</span>
+            <span class="chip">Court Central</span>
+            <span class="chip finished">Finished</span>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">G. Triay / D. Brea</span>
+            <span class="seed">1</span>
+            <span class="winner">W</span>
+            <span class="scores"><span>6</span><span>6</span></span>
+          </div>
+          <div class="pair-row">
+            <span class="flag it"></span>
+            <span class="names">A. Sanchez / D. Gutiérrez</span>
+            <span class="scores"><span class="losing">3</span><span class="losing">2</span></span>
+          </div>
+          <div class="corner">
+            <button class="star-btn" data-active="true" aria-label="Bookmark"></button>
+            <span class="pill-result-wrong">✗ Wrong</span>
+          </div>
+        </div>
+
+        <!-- Case 5: Finished, user did NOT pick -->
+        <div class="case-label">Case 5 · finished · no pick made</div>
+        <div class="match-card men" data-state="finished-no-pick">
+          <div class="accent"></div>
+          <div class="meta-row">
+            <span class="chip">R16</span>
+            <span class="chip">Court 1</span>
+            <span class="chip finished">Finished</span>
+          </div>
+          <div class="pair-row">
+            <span class="flag es"></span>
+            <span class="names">A. Tapia / A. Coello</span>
+            <span class="seed">1</span>
+            <span class="winner">W</span>
+            <span class="scores"><span>6</span><span>6</span></span>
+          </div>
+          <div class="pair-row">
+            <span class="flag ar"></span>
+            <span class="names">L. Augsburger / J. Lebron</span>
+            <span class="seed">4</span>
+            <span class="scores"><span class="losing">2</span><span class="losing">1</span></span>
+          </div>
+          <div class="corner">
+            <button class="star-btn" data-active="false" aria-label="Bookmark"></button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <p class="note" id="note">
+    <strong>Strict.</strong> Every card has a star in the corner — uniform meaning. Two filled gold (bookmarked), three outlined grey (not). Pick result feedback only on detail page.
+  </p>
+
+<script>
+  const STAR_OUTLINE = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+  const STAR_FILLED  = '<svg width="20" height="20" viewBox="0 0 24 24" fill="#F5A623" stroke="#F5A623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+
+  // Inject the star SVGs
+  document.querySelectorAll('.star-btn').forEach(btn => {
+    btn.innerHTML = btn.dataset.active === 'true' ? STAR_FILLED : STAR_OUTLINE
+    btn.addEventListener('click', () => {
+      const next = btn.dataset.active !== 'true'
+      btn.dataset.active = String(next)
+      btn.innerHTML = next ? STAR_FILLED : STAR_OUTLINE
+    })
+  })
+
+  const phone = document.querySelector('.phone')
+  const strictBtn = document.getElementById('m-strict')
+  const hybridBtn = document.getElementById('m-hybrid')
+  const note = document.getElementById('note')
+
+  function setMode(mode) {
+    phone.classList.toggle('style-strict', mode === 'strict')
+    phone.classList.toggle('style-hybrid', mode === 'hybrid')
+    strictBtn.classList.toggle('active', mode === 'strict')
+    hybridBtn.classList.toggle('active', mode === 'hybrid')
+    if (mode === 'strict') {
+      note.innerHTML = "<strong>Strict.</strong> Every card has a star in the corner — uniform meaning. Tap to bookmark, tap again to remove. Two filled gold (already bookmarked), three outlined grey (not yet). Pick result feedback only on detail page."
+    } else {
+      note.innerHTML = "<strong>Hybrid.</strong> Scheduled/live/no-pick cards show the star. Finished cards where the user already picked keep their result badge in the corner — green CORRECT, red WRONG. Two different things share the corner spot depending on state."
+    }
+  }
+  strictBtn.onclick = () => setMode('strict')
+  hybridBtn.onclick = () => setMode('hybrid')
+  setMode('strict')
+</script>
+</body>
+</html>
