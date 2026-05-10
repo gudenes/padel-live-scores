@@ -468,7 +468,7 @@ export function MatchCard({
               {status.label}
             </Chip>
           )}
-          {LATE_HINTS_ENABLED && (
+          {LATE_HINTS_ENABLED && match.status === 'scheduled' && !timeStr && (
             <span
               title={tMatch('lateHint.estChipAria')}
               aria-label={tMatch('lateHint.estChipAria')}
