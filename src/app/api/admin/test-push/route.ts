@@ -18,9 +18,14 @@
 //     -d '{"email":"gudenes@gmail.com"}'
 //
 // Optional body fields:
-//   title   — override notification title (default "Test notification")
-//   body    — override notification body (default "If you see this, push works!")
-//   url     — deep link path (default "/")
+//   title    — override notification title (default "Test notification")
+//   body     — override notification body (default "If you see this, push works!")
+//   url      — deep link path (default "/")
+//   scenario — 'premier' | 'fip' | 'avatar' — picks the largeIcon URL.
+//              avatar requires `avatarUrl` (or falls back to circuit logo).
+//              Defaults to a sample copy when set so the test notification
+//              looks like a real match alert.
+//   avatarUrl — used by scenario='avatar' (e.g. a player.avatar_url URL)
 //
 // Response shape:
 //   {
@@ -38,6 +43,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { sendPush } from '@/lib/push'
 import { sendPushToFcmTokens } from '@/lib/push-fcm'
+import { resolveNotificationIcon } from '@/lib/notification-icon'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,12 +57,14 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const { email, userId, title, body: msgBody, url } = body as {
+  const { email, userId, title, body: msgBody, url, scenario, avatarUrl } = body as {
     email?: string
     userId?: string
     title?: string
     body?: string
     url?: string
+    scenario?: 'premier' | 'fip' | 'avatar'
+    avatarUrl?: string
   }
 
   if (!email && !userId) {
@@ -112,11 +120,37 @@ export async function POST(request: Request) {
     })
   }
 
+  // Scenario presets — easy way to validate the icon pipeline end-to-end
+  // for each combination (Premier circuit / FIP circuit / player avatar).
+  // When no scenario is passed we keep the legacy generic copy + no icon
+  // (matches pre-Path-B test behavior).
+  let scenarioTitle: string | null = null
+  let scenarioBody: string | null = null
+  let icon: string | undefined = undefined
+  if (scenario === 'premier') {
+    scenarioTitle = 'Match is live'
+    scenarioBody = 'Bela/Coello vs Galán/Lebrón — Milan P1 · Semifinal'
+    icon = resolveNotificationIcon({ reason: 'bookmark', tournamentLevel: 'P1' })
+  } else if (scenario === 'fip') {
+    scenarioTitle = 'Match is live'
+    scenarioBody = 'Allemand/Sainz vs Triay/Brea — FIP Gold Almaty · QF'
+    icon = resolveNotificationIcon({ reason: 'bookmark', tournamentLevel: 'fip_gold' })
+  } else if (scenario === 'avatar') {
+    scenarioTitle = 'Belasteguín is on court'
+    scenarioBody = 'Bela/Coello vs Galán/Lebrón — Milan P1 · Semifinal'
+    icon = resolveNotificationIcon({
+      reason: 'follow',
+      tournamentLevel: 'P1',
+      followedPlayerAvatarUrl: avatarUrl ?? null,
+    })
+  }
+
   const payload = {
-    title: title || 'Test notification',
-    body: msgBody || 'If you see this, push works!',
+    title: title || scenarioTitle || 'Test notification',
+    body: msgBody || scenarioBody || 'If you see this, push works!',
     url: url || '/',
     tag: `test-${Date.now()}`,
+    ...(icon ? { icon } : {}),
   }
 
   // ── Web Push fan-out ──────────────────────────────────────────────

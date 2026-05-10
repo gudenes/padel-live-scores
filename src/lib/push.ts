@@ -14,11 +14,16 @@ webpush.setVapidDetails(
   VAPID_PRIVATE_KEY,
 )
 
-interface PushPayload {
+export interface PushPayload {
   title: string
   body: string
   url?: string
   tag?: string
+  /** Absolute URL to a square image (player avatar or circuit logo).
+   *  Surfaced via NotificationOptions.icon — the round thumbnail browsers
+   *  render alongside the title/body. Falls back to the brand logo when
+   *  unset (see public/sw.js). */
+  icon?: string
 }
 
 interface PushSubscription {

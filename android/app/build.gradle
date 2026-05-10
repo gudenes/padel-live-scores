@@ -61,6 +61,11 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Pulled in transitively by @capacitor/push-notifications, but only on
+    // the plugin's classpath. We declare it explicitly here so our
+    // PadelMessagingService (which references FirebaseMessagingService +
+    // RemoteMessage) can compile against it.
+    implementation 'com.google.firebase:firebase-messaging:25.0.1'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

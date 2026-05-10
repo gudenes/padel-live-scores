@@ -811,3 +811,34 @@ Padelapi-imported tournament rows have `slug = null`. Padelgod's `tournament-dis
 Feature flagged behind `NEXT_PUBLIC_FIP_STREAMS_ENABLED`. Cron supports `FIP_STREAMS_DRY_RUN=true` for scan-only mode during initial rollout. Premier Padel matches are unaffected — they still use the existing `WhereToWatch` component.
 
 Spec: [docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md](docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md). Plan: [docs/superpowers/plans/2026-04-30-fip-youtube-streams.md](docs/superpowers/plans/2026-04-30-fip-youtube-streams.md). Mockup: [public/mockup-fip-stream.html](public/mockup-fip-stream.html).
+
+## Push notification icons (2026-05-10)
+
+Match notifications carry a per-recipient icon URL (Sofascore-style largeIcon). Resolution rule:
+- **Follow** (user follows a player) → that player's `avatar_url` from Supabase Storage. Falls back to the circuit logo if the player has no avatar.
+- **Bookmark** (user bookmarked the match) → circuit logo keyed off `tournament.level`: Premier-tier (P1/P2/Major/Premier_Mens/Premier_Womens) → Padel Star at [`public/branding/premier-padel-star.png`](public/branding/premier-padel-star.png), FIP-tier (fip_bronze/silver/gold) → Cupra FIP Tour at [`public/branding/fip-tour-icon.png`](public/branding/fip-tour-icon.png).
+
+Resolver: [src/lib/notification-icon.ts](src/lib/notification-icon.ts). Wired into [src/app/api/push/notify/route.ts](src/app/api/push/notify/route.ts) per recipient and into the anon fan-out (always circuit logo since anon has no follow concept).
+
+**Web Push** picks up `data.icon` in [public/sw.js](public/sw.js) and surfaces it via `NotificationOptions.icon`. Falls back to `/padelnachos-logo-v2.png` for legacy pushes still in flight.
+
+**Android FCM** required a custom `FirebaseMessagingService` because Firebase Admin SDK doesn't expose `largeIcon` as a URL — only `notification.image` (big-picture, expanded view only) and `notification.icon` (drawable resource name, not URL). Implementation:
+- [`android/app/src/main/java/com/padelnachos/app/PadelMessagingService.java`](android/app/src/main/java/com/padelnachos/app/PadelMessagingService.java) extends Capacitor's plugin MessagingService (so JS push events still fire for foreground listeners), then for every data-only message: downloads the `icon` URL on a background thread, builds a `NotificationCompat` with `setLargeIcon(bitmap)`, posts via `NotificationManager`. Click intent is a deep-link `https://padelnachos.com/match/{id}` that the existing intent filter routes to MainActivity.
+- AndroidManifest registers `.PadelMessagingService` and removes the Capacitor plugin's default service via `tools:node="remove"`.
+- FCM payload is **data-only** (no `notification` block) — required so FCM doesn't auto-display before our service runs. Trade-off: app builds shipped before this change won't render the data-only notifications. Acceptable because the user is the primary tester and we control the rollout.
+
+**Test loop:**
+```bash
+# Web push: nothing extra needed — restart the dev server and tap "Test push" in /admin or use:
+curl -X POST http://localhost:3002/api/admin/test-push \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"<your email>", "scenario":"premier"}'
+
+# Android FCM: rebuild + sync the native shell
+npx cap sync android
+npx cap run android       # or open Android Studio and run
+# Then fire the same curl above (scenario: 'premier' | 'fip' | 'avatar')
+```
+
+Scenarios: `premier` (Premier-tier circuit logo), `fip` (FIP Tour circuit logo), `avatar` (player avatar — pass `avatarUrl` to use a real one). Test endpoint: [src/app/api/admin/test-push/route.ts](src/app/api/admin/test-push/route.ts).

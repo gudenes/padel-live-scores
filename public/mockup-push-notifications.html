@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Push Notification Avatars — Final Design</title>
+<style>
+  :root{
+    --bg:#000; --bg-shade:#0E0E10; --bg-notif:#1F1F22; --bg-elev:#2A2A2E;
+    --green:#7ED321; --orange:#F5A623; --live-red:#FF4655;
+    --premier-bg:#0A1428; --premier-gold:#B8884C;
+    --fip-bg:#002C5C; --fip-accent:#FFFFFF;
+    --muted:#8E8E93; --text:#fff; --text-2:#B0B5BE;
+    --border:rgba(255,255,255,0.06);
+    --chunky-card:polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --chunky-badge:polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  body{padding:24px 16px 96px;max-width:520px;margin:0 auto}
+
+  /* ─── Page chrome ─── */
+  h1{font-size:22px;font-weight:800;margin:0 0 6px;letter-spacing:-0.3px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 28px;line-height:1.5}
+  .sub b{color:var(--text-2);font-weight:700}
+  h2{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+     color:var(--orange);margin:36px 0 4px}
+  .case-sub{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 14px}
+  .case-sub code{background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;
+    font-size:11px;color:var(--text-2)}
+  .label{display:inline-block;font-size:9px;font-weight:800;letter-spacing:0.6px;
+     padding:3px 8px;background:rgba(255,255,255,0.06);color:var(--muted);
+     clip-path:var(--chunky-badge);text-transform:uppercase;margin-bottom:6px}
+  .label.green{background:rgba(126,211,33,0.15);color:var(--green)}
+  .label.red{background:rgba(255,70,85,0.18);color:var(--live-red)}
+
+  /* ─── Variant header ─── */
+  .variant{display:flex;align-items:center;gap:8px;margin:14px 0 8px;
+    font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+    color:var(--text-2)}
+  .variant .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+  .variant .tag{font-weight:700;color:var(--muted);letter-spacing:0.4px;
+    text-transform:none;font-size:11px;margin-left:auto}
+
+  /* ─── Notification shade ─── */
+  .shade{background:linear-gradient(180deg,#0E0E10 0%,#1A1A1E 100%);
+    border-radius:18px;padding:10px;margin-bottom:6px;
+    border:1px solid rgba(255,255,255,0.04)}
+
+  /* ─── Single notification ─── */
+  .notif{background:var(--bg-notif);border-radius:14px;padding:12px 14px;
+    position:relative;display:grid;grid-template-columns:1fr auto;column-gap:12px;
+    align-items:start}
+  .notif + .notif{margin-top:6px}
+  .notif-state{font-size:9px;font-weight:700;letter-spacing:0.8px;color:var(--muted);
+    text-transform:uppercase;margin:8px 4px 4px}
+
+  .head{display:flex;align-items:center;gap:6px;margin-bottom:4px;
+    font-size:11px;color:var(--muted);font-weight:600;grid-column:1 / -1}
+  .head .app-icon{width:14px;height:14px;border-radius:3px;
+    background:linear-gradient(135deg,var(--green) 0%,#5BB91A 100%);
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:8px;font-weight:900;color:#000;letter-spacing:-0.5px}
+  .head .dot-sep{opacity:0.5}
+
+  .body{min-width:0;grid-column:1}
+  .title{font-size:14px;font-weight:700;color:var(--text);line-height:1.25;
+    margin:0 0 2px;letter-spacing:-0.1px}
+  .text{font-size:13px;color:var(--text-2);line-height:1.35;margin:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .notif.expanded .text{white-space:normal}
+
+  /* largeIcon (round on the right) */
+  .large-icon{width:44px;height:44px;border-radius:50%;flex-shrink:0;
+    background:var(--bg-elev);overflow:hidden;position:relative;
+    grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:800;letter-spacing:-0.5px;color:var(--text);
+    border:1.5px solid rgba(255,255,255,0.06)}
+  .large-icon.player{background:linear-gradient(135deg,#3B82F6 0%,#1E3A8A 100%)}
+  .large-icon.premier{background:var(--premier-bg);border-color:rgba(197,248,74,0.18)}
+  .large-icon.premier img{width:78%;height:78%;object-fit:contain;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4))}
+  .large-icon.fip{background:#fff;border-color:rgba(0,44,92,0.15)}
+  .large-icon.fip img{width:84%;height:84%;object-fit:contain}
+
+  /* Action chips at bottom */
+  .actions{grid-column:1 / -1;display:flex;gap:6px;margin-top:8px;
+    padding-top:8px;border-top:1px solid rgba(255,255,255,0.05)}
+  .actions .action{font-size:11px;font-weight:700;color:var(--green);
+    padding:4px 10px;letter-spacing:0.2px}
+
+  /* ─── Logo asset preview ─── */
+  .logos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 4px}
+  .logo-card{background:rgba(255,255,255,0.02);border:1px solid var(--border);
+    clip-path:var(--chunky-card);padding:14px 12px;text-align:center}
+  .logo-card .preview{width:60px;height:60px;border-radius:50%;margin:0 auto 8px;
+    display:flex;align-items:center;justify-content:center;
+    border:1.5px solid rgba(255,255,255,0.1)}
+  .logo-card .preview.premier{background:var(--premier-bg);overflow:hidden}
+  .logo-card .preview.premier img{width:80%;height:80%;object-fit:contain;
+    filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5))}
+  .logo-card .preview.fip{background:#fff;border-color:rgba(0,44,92,0.2);overflow:hidden}
+  .logo-card .preview.fip img{width:86%;height:86%;object-fit:contain}
+  .logo-card .name{font-size:11px;font-weight:800;color:var(--text);
+    letter-spacing:0.2px;margin-bottom:3px}
+  .logo-card .levels{font-size:10px;color:var(--muted);line-height:1.4}
+
+  /* ─── Recommendation box ─── */
+  .rec{background:rgba(126,211,33,0.06);border:1px solid rgba(126,211,33,0.18);
+    clip-path:var(--chunky-card);padding:14px 16px;margin:14px 0 4px;font-size:12px;
+    color:var(--text-2);line-height:1.55}
+  .rec b{color:var(--green)}
+  .rec .row{display:flex;gap:10px;margin:6px 0}
+  .rec .k{width:120px;font-weight:800;color:var(--green);font-size:10px;
+    letter-spacing:0.5px;text-transform:uppercase;flex-shrink:0;padding-top:2px}
+
+  /* Section divider */
+  .div{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent);
+    margin:36px 0 0}
+</style>
+</head>
+<body>
+
+<h1>Push notifications — final design</h1>
+<p class="sub">
+Four use cases. <b>largeIcon</b> on every notification (round avatar on the right,
+visible in both collapsed and expanded states). No big-picture hero — the avatar
+already does all the visual work.
+</p>
+
+<!-- ─── Logo asset preview ─── -->
+<div class="logos">
+  <div class="logo-card">
+    <div class="preview premier">
+      <img src="/padelNachos%20-%20Branding/premier-padel-star-256.png" alt="Premier Padel">
+    </div>
+    <div class="name">Premier Padel</div>
+    <div class="levels">P1 · P2 · Major<br>Premier Mens / Womens</div>
+  </div>
+  <div class="logo-card">
+    <div class="preview fip">
+      <img src="/padelNachos%20-%20Branding/fip-tour-icon-256.png" alt="Cupra FIP Tour">
+    </div>
+    <div class="name">Cupra FIP Tour</div>
+    <div class="levels">Bronze · Silver · Gold</div>
+  </div>
+</div>
+<p class="case-sub" style="margin-top:8px">
+Two circuit logos cover every tournament. Picker is trivial:
+<code>tournament.level</code> → Premier (P1/P2/Major/Premier_Mens/Premier_Womens)
+or FIP (fip_bronze/fip_silver/fip_gold).
+</p>
+
+<div class="div"></div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- USE CASE 1: MATCH LIVE — FOLLOW (player-specific)            -->
+<!-- ─────────────────────────────────────────────────────────── -->
+
+<div class="label red">1 · Match Live · Follow</div>
+<h2>“Belasteguín is on court”</h2>
+<p class="case-sub">User follows player. Trigger: match → <code>live</code>. Avatar: that player's headshot from Supabase Storage.</p>
+
+<div class="variant">
+  <span class="dot"></span> largeIcon · player avatar
+  <span class="tag">single player</span>
+</div>
+<div class="shade">
+  <div class="notif-state">Collapsed in shade</div>
+  <div class="notif">
+    <div class="head">
+      <span class="app-icon">PN</span> PadelNachos
+      <span class="dot-sep">·</span> now
+    </div>
+    <div class="body">
+      <div class="title">Belasteguín is on court</div>
+      <div class="text">Bela/Coello vs Galán/Lebrón — Milan P1 · Semifinal</div>
+    </div>
+    <div class="large-icon player">FB</div>
+  </div>
+  <div class="notif-state">Expanded</div>
+  <div class="notif expanded">
+    <div class="head">
+      <span class="app-icon">PN</span> PadelNachos
+      <span class="dot-sep">·</span> now
+    </div>
+    <div class="body">
+      <div class="title">Belasteguín is on court</div>
+      <div class="text">Bela/Coello vs Galán/Lebrón — Milan P1 · Semifinal</div>
+    </div>
+    <div class="large-icon player">FB</div>
+    <div class="actions"><span class="action">View match</span><span class="action">Mute</span></div>
+  </div>
+</div>
+
+<div class="div"></div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- USE CASE 2: MATCH FINISHED — FOLLOW                          -->
+<!-- ─────────────────────────────────────────────────────────── -->
+
+<div class="label green">2 · Match Finished · Follow</div>
+<h2>“Belasteguín won”</h2>
+<p class="case-sub">User follows player. Trigger: match → <code>finished</code>. Avatar: followed player.</p>
+
+<div class="variant">
+  <span class="dot"></span> largeIcon · player avatar
+  <span class="tag">single player</span>
+</div>
+<div class="shade">
+  <div class="notif-state">Collapsed</div>
+  <div class="notif">
+    <div class="head">
+      <span class="app-icon">PN</span> PadelNachos
+      <span class="dot-sep">·</span> 12m
+    </div>
+    <div class="body">
+      <div class="title">Belasteguín won</div>
+      <div class="text">6-3, 6-4 vs Galán/Lebrón — Milan P1 Semifinal</div>
+    </div>
+    <div class="large-icon player">FB</div>
+  </div>
+</div>
+
+<div class="div"></div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- USE CASE 3: MATCH LIVE — BOOKMARK                            -->
+<!-- ─────────────────────────────────────────────────────────── -->
+
+<div class="label red">3 · Match Live · Bookmark</div>
+<h2>“Match is Live”</h2>
+<p class="case-sub">User bookmarked the match itself, no single player to feature. Avatar: circuit logo based on <code>tournament.level</code>.</p>
+
+<div class="variant">
+  <span class="dot"></span> Premier circuit
+  <span class="tag">P1 / P2 / Major / Premier_Mens / Premier_Womens</span>
+</div>
+<div class="shade">
+  <div class="notif">
+    <div class="head">
+      <span class="app-icon">PN</span> PadelNachos
+      <span class="dot-sep">·</span> now
+    </div>
+    <div class="body">
+      <div class="title">Match is live</div>
+      <div class="text">Bela/Coello vs Galán/Lebrón — Milan P1 · Semifinal</div>
+    </div>
+    <div class="large-icon premier">
+      <img src="/padelNachos%20-%20Branding/premier-padel-star-256.png" alt="Premier Padel">
+    </div>
+  </div>
+</div>
+
+<div class="variant">
+  <span class="dot"></span> FIP Tour
+  <span class="tag">fip_bronze / fip_silver / fip_gold</span>
+</div>
+<div class="shade">
+  <div class="notif">
+    <div class="head">
+      <span class="app-icon">PN</span> PadelNachos
+      <span class="dot-sep">·</span> now
+    </div>
+    <div class="body">
+      <div class="title">Match is live</div>
+      <div class="text">Allemand/Sainz vs Triay/Brea — FIP Gold Almaty · QF</div>
+    </div>
+    <div class="large-icon fip">
+      <img src="/padelNachos%20-%20Branding/fip-tour-icon-256.png" alt="Cupra FIP Tour">
+    </div>
+  </div>
+</div>
+
+<div class="div"></div>
+
+<!-- ─────────────────────────────────────────────────────────── -->
+<!-- USE CASE 4: MATCH FINISHED — BOOKMARK                        -->
+<!-- ─────────────────────────────────────────────────────────── -->
+
+<div class="label green">4 · Match Finished · Bookmark</div>
+<h2>“Match finished”</h2>
+<p class="case-sub">Generic recap. Same circuit-logo rule as use case 3.</p>
+
+<div class="variant">
+  <span class="dot"></span> Premier circuit
+  <span class="tag">recap</span>
+</div>
+<div class="shade">
+  <div class="notif">
+    <div class="head">
+      <span class="app-icon">PN</span> PadelNachos
+      <span class="dot-sep">·</span> 1h
+    </div>
+    <div class="body">
+      <div class="title">Match finished</div>
+      <div class="text">Bela/Coello won 6-3, 6-4 — Milan P1 Semifinal</div>
+    </div>
+    <div class="large-icon premier">
+      <img src="/padelNachos%20-%20Branding/premier-padel-star-256.png" alt="Premier Padel">
+    </div>
+  </div>
+</div>
+
+<div class="variant">
+  <span class="dot"></span> FIP Tour
+  <span class="tag">recap</span>
+</div>
+<div class="shade">
+  <div class="notif">
+    <div class="head">
+      <span class="app-icon">PN</span> PadelNachos
+      <span class="dot-sep">·</span> 2h
+    </div>
+    <div class="body">
+      <div class="title">Match finished</div>
+      <div class="text">Triay/Brea won 7-5, 6-2 — FIP Gold Almaty QF</div>
+    </div>
+    <div class="large-icon fip">
+      <img src="/padelNachos%20-%20Branding/fip-tour-icon-256.png" alt="Cupra FIP Tour">
+    </div>
+  </div>
+</div>
+
+<div class="div"></div>
+
+<!-- ─── Implementation summary ─── -->
+<h2 style="color:var(--green);margin-top:36px">Implementation</h2>
+<div class="rec">
+  <div class="row"><span class="k">Avatar source</span><span><b>Follow</b>: <code>player.avatar_url</code> from Supabase Storage (already hosted) · <b>Bookmark</b>: 2 static circuit logos shipped with the app.</span></div>
+  <div class="row"><span class="k">FCM payload</span><span>Data-only message + custom <code>FirebaseMessagingService</code> on Android that downloads the URL and sets it as the notification's <code>largeIcon</code>.</span></div>
+  <div class="row"><span class="k">Web push</span><span>Native <code>icon</code> field in <code>NotificationOptions</code>. Same URL.</span></div>
+  <div class="row"><span class="k">iOS</span><span>Notification Service Extension that downloads the URL and attaches it.</span></div>
+  <div class="row"><span class="k">Failure mode</span><span>If the URL fails to load, notification still renders with text only — never blocks delivery.</span></div>
+</div>
+
+</body>
+</html>
