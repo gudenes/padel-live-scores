@@ -719,7 +719,12 @@ export default function TournamentsView({
           {live.length >= 2 ? (
             <>
               <SectionTitle>{tHome('liveNow')}</SectionTitle>
-              <OngoingCarousel tournaments={live} state="live" />
+              {/* Order by ends_at asc so the tournament closest to finishing
+                  (often the one playing the final today) leads the carousel. */}
+              <OngoingCarousel
+                tournaments={[...live].sort((a, b) => new Date(a.ends_at).getTime() - new Date(b.ends_at).getTime())}
+                state="live"
+              />
             </>
           ) : !heroIsLive && ongoing.length >= 2 ? (
             <>
