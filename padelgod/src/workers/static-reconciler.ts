@@ -11,6 +11,7 @@ import {
   findOrCreateMatch,
 } from '../lib/match-identifier.js';
 import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
+import { roundCanonical } from '../lib/round-canonical.js';
 
 export interface StaticReconcilerDeps {
   supabase: SupabaseClient;
@@ -1220,7 +1221,10 @@ async function reconcileOOP(
       last_updated_by: 'padelgod',
       updated_at: new Date().toISOString(),
     };
-    if (r.round_label != null) update.round = r.round_label;
+    if (r.round_label != null) {
+      update.round = r.round_label;
+      update.round_canonical = roundCanonical(r.round_label);
+    }
     // court_position is 0-based from the OOP widget; matches.court_order is
     // 1-based (matches padelapi convention). Historical snapshots may carry
     // NULL — leave court_order untouched in that case so we don't clobber a
@@ -1414,7 +1418,10 @@ async function reconcileResults(
       last_updated_by: 'padelgod',
       updated_at: nowIso,
     };
-    if (r.round_label != null) matchUpdate.round = r.round_label;
+    if (r.round_label != null) {
+      matchUpdate.round = r.round_label;
+      matchUpdate.round_canonical = roundCanonical(r.round_label);
+    }
     if (r.court != null) matchUpdate.court = r.court;
 
     // Regression guard: never overwrite a terminal status. The results

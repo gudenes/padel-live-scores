@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { roundCanonical } from './round-canonical.js';
 
 /**
  * match-identifier — resolves a Crionet widget match id to a canonical
@@ -434,6 +435,7 @@ async function insertMatch(
     tournament_id: input.tournamentId,
     category: input.category,
     round: input.roundLabel,
+    round_canonical: roundCanonical(input.roundLabel),
     court: input.court ?? null,
     pair1_player1_id: input.pair1PlayerIds?.[0] ?? null,
     pair1_player2_id: input.pair1PlayerIds?.[1] ?? null,

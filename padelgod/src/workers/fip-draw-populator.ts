@@ -5,6 +5,7 @@ import type { Logger } from 'pino';
 // (mirror of src/lib/db-paginate.ts) and CLAUDE.md → "PostgREST 1k cap"
 // for the project policy.
 import { paginatedSelect } from '../lib/db-paginate.js';
+import { roundCanonical } from '../lib/round-canonical.js';
 
 /**
  * fip-draw-populator — simplified-pipeline writer #1.
@@ -675,6 +676,7 @@ export async function runFipDrawPopulator(
           tournament_id: t.tournament_id,
           category: d.category,
           round: d.round_label,
+          round_canonical: roundCanonical(d.round_label),
         };
 
         const slot = (
