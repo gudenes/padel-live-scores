@@ -191,6 +191,27 @@ async function fetchRaceRankings(gender: 'male' | 'female', top: number): Promis
     offset += data.length
   }
 
+  // FIP's race endpoint concatenates multiple race series in a single
+  // response (Premier-circuit main race followed by what looks like a
+  // sub-tier — players with single-digit / low-double-digit points whose
+  // `race_rank` numbering RESETS back near 17 even though they appear
+  // at position 130+ in the response). Without trimming, those sub-tier
+  // players get written with race_rank values that collide with real
+  // top-circuit players and surface side-by-side on the public rankings
+  // page (e.g. Roper #25 with 22 pts next to Alfonso #25 with 556 pts).
+  //
+  // Detect the boundary as the first row whose race_rank drops more than
+  // 10 below the running max. Within a single series, ranks can step
+  // backward by ~6 due to secondary sort keys (head-to-head, country,
+  // etc.) — threshold of 10 tolerates that without splitting legit ties.
+  let maxRank = 0
+  for (let i = 0; i < all.length; i++) {
+    if (all[i].race_rank < maxRank - 10) {
+      console.log(`[sync-fip] race ${gender}: trimming at pos ${i} (rank ${all[i].race_rank} after max ${maxRank}) — keeping ${i} entries from ${all.length}`)
+      return all.slice(0, i)
+    }
+    if (all[i].race_rank > maxRank) maxRank = all[i].race_rank
+  }
   return all
 }
 
@@ -300,6 +321,16 @@ export async function GET(req: NextRequest) {
       const raceYearWeek = isoYearWeek(new Date())
       console.log(`[sync-fip] race ${fip}: ${races.length} players fetched`)
 
+      // Track which player UUIDs got a race row this run so we can NULL
+      // race_ranking/race_points/race_move on players who DROPPED OUT
+      // of the race since the previous sync. Without this, the page
+      // keeps showing stale leaderboard positions for players who are
+      // no longer in the current race series (e.g. the multi-series
+      // contamination we trim in fetchRaceRankings — players that used
+      // to be written from the second series stay stuck at race_rank=23
+      // forever otherwise).
+      const writtenPlayerIds = new Set<string>()
+
       for (const p of races) {
         const fullName = fipFullName(p)
         // Raw FIP id (no prefix). See note in officials loop above.
@@ -317,6 +348,7 @@ export async function GET(req: NextRequest) {
 
           if (resolveResult.action === 'created') results.race.created++
           else results.race.updated++
+          writtenPlayerIds.add(resolveResult.playerId)
 
           await writeSnapshot({
             player_id: resolveResult.playerId,
@@ -332,6 +364,32 @@ export async function GET(req: NextRequest) {
           })
         } catch {
           results.race.unmatched++
+        }
+      }
+
+      // NULL race fields for this category's players that we didn't
+      // write this run. Filtered to race_ranking IS NOT NULL so we only
+      // touch rows that actually need clearing. UUID list passed via
+      // `.not('id','in', ...)` would blow the URL cap at 1000+ ids, so
+      // we instead fetch the previously-ranked ids and diff in memory.
+      const { data: previouslyRanked } = await supabase
+        .from('players')
+        .select('id')
+        .eq('category', db)
+        .not('race_ranking', 'is', null)
+      const toClear = (previouslyRanked ?? [])
+        .map(r => r.id as string)
+        .filter(id => !writtenPlayerIds.has(id))
+      if (toClear.length > 0) {
+        console.log(`[sync-fip] race ${fip}: clearing race fields on ${toClear.length} players that dropped out of the race`)
+        // Chunk to avoid URL-length limits on the IN list.
+        const CHUNK = 200
+        for (let i = 0; i < toClear.length; i += CHUNK) {
+          const slice = toClear.slice(i, i + CHUNK)
+          await supabase
+            .from('players')
+            .update({ race_ranking: null, race_points: null, race_move: null })
+            .in('id', slice)
         }
       }
     }
