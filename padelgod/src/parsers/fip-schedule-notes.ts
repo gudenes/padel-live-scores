@@ -73,7 +73,13 @@ function resolveDateInRange(
   return null;
 }
 
-function labelToKey(label: string): RoundKey | null {
+// Premier tiers always use a 56-team men's main draw, so the ambiguous
+// FIP overview labels "1st ROUND" / "2nd ROUND" / "3rd ROUND" map cleanly
+// to R64 / R32 / R16. FIP Bronze/Silver/Gold (and Platinum) vary by event
+// and stay ambiguous — we drop those rather than risk a wrong mapping.
+const PREMIER_LEVELS = new Set(['p1', 'p2', 'major', 'finals']);
+
+function labelToKey(label: string, level?: string | null): RoundKey | null {
   const u = label.toUpperCase();
   if (u.includes('ROUND OF 64')) return 'r64';
   if (u.includes('ROUND OF 32')) return 'r32';
@@ -81,6 +87,11 @@ function labelToKey(label: string): RoundKey | null {
   if (u.includes('QUARTER')) return 'qf';
   if (u.includes('SEMI')) return 'sf';
   if (u.includes('FINAL')) return 'f';
+  if (level && PREMIER_LEVELS.has(level)) {
+    if (/\b1ST\s+ROUND\b/.test(u)) return 'r64';
+    if (/\b2ND\s+ROUND\b/.test(u)) return 'r32';
+    if (/\b3RD\s+ROUND\b/.test(u)) return 'r16';
+  }
   return null;
 }
 
@@ -89,6 +100,7 @@ function parsePremierBlocks(
   notes: string,
   startsAt: string,
   endsAt: string,
+  level?: string | null,
 ): RoundSchedule {
   const out: RoundSchedule = {};
   // Match a label line followed by a date line. The label is anchored to
@@ -102,7 +114,7 @@ function parsePremierBlocks(
     const monthName = m[3]!;
     const iso = resolveDateInRange(dayNum, monthName, startsAt, endsAt);
     if (!iso) continue;
-    const key = labelToKey(label);
+    const key = labelToKey(label, level);
     if (key && !(key in out)) out[key] = iso;
   }
 
@@ -237,6 +249,7 @@ export function parseScheduleNotes(
   notes: string | null,
   startsAt: string,
   endsAt: string,
+  opts?: { level?: string | null },
 ): RoundSchedule {
   if (!notes) return {};
   // Defensive: callers may pass full ISO timestamps ("2026-05-03T00:00:00+00:00")
@@ -247,7 +260,7 @@ export function parseScheduleNotes(
   const start = startsAt.slice(0, 10);
   const end = endsAt.slice(0, 10);
   const result: RoundSchedule = {};
-  Object.assign(result, parsePremierBlocks(notes, start, end));
+  Object.assign(result, parsePremierBlocks(notes, start, end, opts?.level));
   Object.assign(result, parseDayOfWeekLines(notes, start, end));
   // Strategy 3: explicit Date Finals overrides whatever strategies 1/2 set.
   const finals = parseDateFinals(notes);

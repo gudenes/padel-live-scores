@@ -191,6 +191,12 @@ export type RoundSchedule = Partial<Record<RoundKey, string>>
 export interface OverviewContext {
   startsAt: string | null
   endsAt: string | null
+  /**
+   * Tournament `level` (p1 / p2 / major / finals / fip_silver / ...).
+   * Used to disambiguate "1st ROUND" / "2nd ROUND" labels in FIP overview
+   * text — R64/R32 on Premier tiers (56-team mens MD), ambiguous otherwise.
+   */
+  level?: string | null
 }
 
 export interface OverviewFields {
@@ -536,7 +542,13 @@ function _resolveDateInRange(day: number, monthName: string, startsAt: string, e
   return null
 }
 
-function _labelToKey(label: string): RoundKey | null {
+// Premier tiers always use a 56-team men's main draw, so the ambiguous
+// FIP overview labels "1st ROUND" / "2nd ROUND" / "3rd ROUND" map cleanly
+// to R64 / R32 / R16. FIP Bronze/Silver/Gold (and Platinum) vary by event
+// and stay ambiguous — we drop those rather than risk a wrong mapping.
+const _PREMIER_LEVELS = new Set(['p1', 'p2', 'major', 'finals'])
+
+function _labelToKey(label: string, level?: string | null): RoundKey | null {
   const u = label.toUpperCase()
   if (u.includes('ROUND OF 64')) return 'r64'
   if (u.includes('ROUND OF 32')) return 'r32'
@@ -544,6 +556,11 @@ function _labelToKey(label: string): RoundKey | null {
   if (u.includes('QUARTER')) return 'qf'
   if (u.includes('SEMI')) return 'sf'
   if (u.includes('FINAL')) return 'f'
+  if (level && _PREMIER_LEVELS.has(level)) {
+    if (/\b1ST\s+ROUND\b/.test(u)) return 'r64'
+    if (/\b2ND\s+ROUND\b/.test(u)) return 'r32'
+    if (/\b3RD\s+ROUND\b/.test(u)) return 'r16'
+  }
   return null
 }
 
@@ -589,7 +606,7 @@ function _descriptionToKeys(desc: string): RoundKey[] {
   return [...keys]
 }
 
-function _parsePremierBlocks(notes: string, startsAt: string, endsAt: string): RoundSchedule {
+function _parsePremierBlocks(notes: string, startsAt: string, endsAt: string, level?: string | null): RoundSchedule {
   const out: RoundSchedule = {}
   const re =
     /(MAIN DRAW\s*:?\s*(?:ROUND OF 64|ROUND OF 32|ROUND OF 16|QUARTER-FINALS?|SEMI-FINALS?|FINALS?|1st ROUND|2nd ROUND|3rd ROUND))[\s\S]{0,200}?(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b/gi
@@ -597,7 +614,7 @@ function _parsePremierBlocks(notes: string, startsAt: string, endsAt: string): R
     const label = m[1]!.toUpperCase()
     const iso = _resolveDateInRange(parseInt(m[2]!, 10), m[3]!, startsAt, endsAt)
     if (!iso) continue
-    const key = _labelToKey(label)
+    const key = _labelToKey(label, level)
     if (key && !(key in out)) out[key] = iso
   }
   const startYear = parseInt(startsAt.slice(0, 4), 10)
@@ -629,7 +646,7 @@ function _parseDayOfWeekLines(notes: string, startsAt: string, endsAt: string): 
   return out
 }
 
-function parseScheduleNotes(notes: string | null, startsAt: string, endsAt: string): RoundSchedule {
+function parseScheduleNotes(notes: string | null, startsAt: string, endsAt: string, opts?: { level?: string | null }): RoundSchedule {
   if (!notes) return {}
   // Defensive: callers may pass full ISO timestamps ("2026-05-03T00:00:00+00:00")
   // instead of date-only strings ("2026-05-03"). String comparisons in the
@@ -639,7 +656,7 @@ function parseScheduleNotes(notes: string | null, startsAt: string, endsAt: stri
   const start = startsAt.slice(0, 10)
   const end = endsAt.slice(0, 10)
   const result: RoundSchedule = {}
-  Object.assign(result, _parsePremierBlocks(notes, start, end))
+  Object.assign(result, _parsePremierBlocks(notes, start, end, opts?.level))
   Object.assign(result, _parseDayOfWeekLines(notes, start, end))
   const finalsMatch = /Date\s+Finals\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(notes)
   if (finalsMatch) {
@@ -730,7 +747,7 @@ export function parseOverviewFields(html: string, ctx?: OverviewContext): Overvi
 
   const roundSchedule: RoundSchedule =
     scheduleNotes && ctx?.startsAt && ctx?.endsAt
-      ? parseScheduleNotes(scheduleNotes, ctx.startsAt, ctx.endsAt)
+      ? parseScheduleNotes(scheduleNotes, ctx.startsAt, ctx.endsAt, { level: ctx.level })
       : {}
 
   return {
