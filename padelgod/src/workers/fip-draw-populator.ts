@@ -283,17 +283,26 @@ export function shortenName(longName: string): string {
 /**
  * Build a short-form → fip_id lookup from the long-form nameToFipId map.
  *
- * Covers two Crionet short-form patterns observed in oop_snapshots:
+ * Covers three Crionet short-form patterns observed in oop_snapshots:
  *   1. Full-tail: "M. Negrete Oliva" ← "Matias Negrete Oliva"
  *      (first initial + dot + all tokens after first)
  *   2. Last-token: "A. Miranda" ← "Adrian Maria Miranda"
  *      (first initial + dot + last token only — Crionet drops middle given names
  *       when the "surname" is a single token)
+ *   3. Spanish paternal-surname (3-token only): "J. Ruiz" ← "Javier Ruiz Gonzalez"
+ *      (first initial + dot + second token only — Spanish convention shortens
+ *       "Nombre Apellido1 Apellido2" to "N. Apellido1", where Apellido1 is the
+ *       paternal surname). Without this, "Javier Ruiz Gonzalez" generates only
+ *       "j. ruiz gonzalez" and "j. gonzalez" — neither matches OOP's "J. Ruiz",
+ *       which would then resolve solely to "Jorge Nieto Ruiz" via Pattern 2,
+ *       mispairing the wrong player. Restricted to length === 3 to avoid
+ *       overgenerating on 4+ token names where token-2 is a middle given name.
  *
  * Collision rule: if two different long-forms produce the same short key
- * (e.g. "Mateo Alvarez" + "Marco Alvarez" → "m. alvarez"), the value is
- * set to null — we won't silently pick the wrong player. Callers treat
- * null as "ambiguous / not found".
+ * (e.g. "Mateo Alvarez" + "Marco Alvarez" → "m. alvarez", or "Jorge Nieto Ruiz"
+ * + "Javier Ruiz Gonzalez" → "j. ruiz"), the value is set to null — we won't
+ * silently pick the wrong player. Callers treat null as "ambiguous / not
+ * found" and the match keeps raw name strings until a stronger signal lands.
  */
 export function buildShortFormMap(
   nameToFipId: Map<string, string>
@@ -314,13 +323,20 @@ export function buildShortFormMap(
     // Pattern 1: full-tail short form ("M. Negrete Oliva")
     put(shortenName(longNorm), fipId);
 
-    // Pattern 2: last-token-only short form ("A. Miranda") — only useful for
-    // names with 3+ tokens where the middle token(s) are given middle names
-    // rather than part of a compound surname.
     const tokens = longNorm.split(' ').filter(Boolean);
     if (tokens.length >= 3) {
+      // Pattern 2: last-token-only short form ("A. Miranda") — only useful for
+      // names with 3+ tokens where the middle token(s) are given middle names
+      // rather than part of a compound surname.
       const lastOnly = `${tokens[0]!.charAt(0)}. ${tokens[tokens.length - 1]}`;
       put(lastOnly, fipId);
+    }
+    if (tokens.length === 3) {
+      // Pattern 3: Spanish paternal-surname short form ("J. Ruiz" from
+      // "Javier Ruiz Gonzalez"). Only fires for exactly 3 tokens — for
+      // 4+ tokens token-2 is usually a middle given name, not the surname.
+      const paternal = `${tokens[0]!.charAt(0)}. ${tokens[1]}`;
+      put(paternal, fipId);
     }
   }
 
