@@ -200,13 +200,19 @@ async function fetchRaceRankings(gender: 'male' | 'female', top: number): Promis
   // top-circuit players and surface side-by-side on the public rankings
   // page (e.g. Roper #25 with 22 pts next to Alfonso #25 with 556 pts).
   //
-  // Detect the boundary as the first row whose race_rank drops more than
-  // 10 below the running max. Within a single series, ranks can step
-  // backward by ~6 due to secondary sort keys (head-to-head, country,
-  // etc.) — threshold of 10 tolerates that without splitting legit ties.
+  // Detect the boundary as the first row whose race_rank drops by 50%
+  // or more relative to the running max. A "halving" of the rank is a
+  // far stronger signal than an absolute delta — within FIP's series 1
+  // ranks oscillate freely (men's 2026-05-11 data dips to rank 82 with
+  // max 100, women's dips to rank 79 with max 100, both still in the
+  // main race), so an absolute threshold of 10 false-trims those. The
+  // real boundaries are dramatic: men's series 2 starts at rank 17 vs
+  // max 100 (17*2 < 100), women's at rank 20 vs max 100 (20*2 < 100).
+  // Guard with `maxRank >= 30` to avoid early-iteration false positives
+  // when the running max hasn't grown yet.
   let maxRank = 0
   for (let i = 0; i < all.length; i++) {
-    if (all[i].race_rank < maxRank - 10) {
+    if (maxRank >= 30 && all[i].race_rank * 2 < maxRank) {
       console.log(`[sync-fip] race ${gender}: trimming at pos ${i} (rank ${all[i].race_rank} after max ${maxRank}) — keeping ${i} entries from ${all.length}`)
       return all.slice(0, i)
     }
