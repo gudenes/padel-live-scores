@@ -16,13 +16,14 @@ interface FakeSupabaseOptions {
   mappings: Array<{ entity_id: string; external_id: string }>;
   /** match ids whose status='finished' */
   finishedMatchIds: string[];
-  /** match ids that already have at least one match_stats row */
-  existingStatsMatchIds: string[];
+  /** match_stats rows that already exist (per match + source) */
+  existingStatsRows?: Array<{ match_id: string; source: string }>;
 }
 
 function fakeSupabase(opts: FakeSupabaseOptions) {
   const inserted: { table: string; rows: any[] }[] = [];
   const upserted: any[] = [];
+  const existingStatsRows = opts.existingStatsRows ?? [];
 
   // Public schema ops (matches, match_stats, entity_external_ids)
   const publicFrom = (t: string) => {
@@ -56,12 +57,16 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
     if (t === 'match_stats') {
       return {
         select: () => ({
-          in: async (_col: string, ids: string[]) => {
-            const filtered = ids
-              .filter((id) => opts.existingStatsMatchIds.includes(id))
-              .map((id) => ({ match_id: id }));
-            return { data: filtered, error: null };
-          },
+          in: (_col: string, ids: string[]) => ({
+            eq: async (_sourceCol: string, sourceVal: string) => {
+              const filtered = existingStatsRows
+                .filter(
+                  (row) => ids.includes(row.match_id) && row.source === sourceVal,
+                )
+                .map((row) => ({ match_id: row.match_id }));
+              return { data: filtered, error: null };
+            },
+          }),
         }),
         upsert: async (rows: any, _options: any) => {
           const arr = Array.isArray(rows) ? rows : [rows];
@@ -151,7 +156,6 @@ describe('runMatchStatsFetcher', () => {
     const supabase = fakeSupabase({
       mappings: [{ entity_id: matchId, external_id: 'FIP-2026-1701:MQ012' }],
       finishedMatchIds: [matchId],
-      existingStatsMatchIds: [],
     });
     const html = readFileSync(FIXTURE_PATH, 'utf-8');
     const httpClient = {
@@ -181,12 +185,105 @@ describe('runMatchStatsFetcher', () => {
     expect(agg.raw_payload.team2.totalPointsWonPct).toBe(71);
   });
 
-  it('skips matches that already have match_stats rows', async () => {
+  it('writes all schema columns (counts + percentage value/100 pairs) for the aggregate row', async () => {
+    // Brussels fixture period-0 (match aggregate). Values cross-referenced from
+    // the raw HTML — see the parseCrionetMatchStats test for the source of truth.
     const matchId = 'match-uuid-1';
     const supabase = fakeSupabase({
       mappings: [{ entity_id: matchId, external_id: 'FIP-2026-1701:MQ012' }],
       finishedMatchIds: [matchId],
-      existingStatsMatchIds: [matchId], // pre-existing stats
+    });
+    const html = readFileSync(FIXTURE_PATH, 'utf-8');
+    const httpClient = { post: vi.fn(async () => ({ data: html })) };
+
+    await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    const agg = supabase.upserted.find((r: any) => r.set_number === 0);
+    expect(agg).toBeDefined();
+
+    // Percentage stats are stored as (value, 100) pairs so the UI's
+    // `kind="percentage"` bars render correctly (same convention as
+    // /api/match-stats for padelapi-sourced rows).
+    expect(agg.team1_first_serve_won).toBe(23);
+    expect(agg.team1_first_serve_played).toBe(100);
+    expect(agg.team2_first_serve_won).toBe(72);
+    expect(agg.team2_first_serve_played).toBe(100);
+
+    expect(agg.team1_second_serve_won).toBe(45);
+    expect(agg.team1_second_serve_played).toBe(100);
+    expect(agg.team2_second_serve_won).toBe(60);
+    expect(agg.team2_second_serve_played).toBe(100);
+
+    expect(agg.team1_first_return_won).toBe(28);
+    expect(agg.team1_first_return_played).toBe(100);
+    expect(agg.team2_first_return_won).toBe(77);
+    expect(agg.team2_first_return_played).toBe(100);
+
+    expect(agg.team1_second_return_won).toBe(40);
+    expect(agg.team1_second_return_played).toBe(100);
+    expect(agg.team2_second_return_won).toBe(55);
+    expect(agg.team2_second_return_played).toBe(100);
+
+    // Match-aggregate-only totals (schema's `_total_/_serve_/_return_points_*`
+    // columns are commented "ONLY populated on set_number = 0" in the migration,
+    // but Crionet exposes them per-set too — we write them everywhere and let
+    // the UI gate by `isMatchTab` for display.)
+    expect(agg.team1_total_points_won).toBe(29);
+    expect(agg.team1_total_points_played).toBe(100);
+    expect(agg.team2_total_points_won).toBe(71);
+    expect(agg.team2_total_points_played).toBe(100);
+
+    expect(agg.team1_serve_points_won).toBe(29);
+    expect(agg.team1_serve_points_played).toBe(100);
+    expect(agg.team1_return_points_won).toBe(29);
+    expect(agg.team1_return_points_played).toBe(100);
+
+    // Count-native columns
+    expect(agg.team1_service_games).toBe(7);
+    expect(agg.team2_service_games).toBe(6);
+    expect(agg.team1_return_games).toBe(6);
+    expect(agg.team2_return_games).toBe(7);
+    expect(agg.team1_longest_streak).toBe(3);
+    expect(agg.team2_longest_streak).toBe(13);
+  });
+
+  it('writes the same percentage-pair columns to per-set rows too', async () => {
+    // Per-set rows (set_number=1/2) also get all 14 fields filled. The UI only
+    // displays the middle 6 on per-set tabs but the data lands in DB regardless.
+    const matchId = 'match-uuid-1';
+    const supabase = fakeSupabase({
+      mappings: [{ entity_id: matchId, external_id: 'FIP-2026-1701:MQ012' }],
+      finishedMatchIds: [matchId],
+    });
+    const html = readFileSync(FIXTURE_PATH, 'utf-8');
+    const httpClient = { post: vi.fn(async () => ({ data: html })) };
+
+    await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    const set1 = supabase.upserted.find((r: any) => r.set_number === 1);
+    expect(set1).toBeDefined();
+    // Set 1 fields just need to be populated — exact values vary by set but the
+    // shape (counts as numbers, percentages paired with 100) must hold.
+    expect(set1.team1_first_serve_played).toBe(100);
+    expect(set1.team1_second_serve_played).toBe(100);
+    expect(set1.team1_first_return_played).toBe(100);
+    expect(set1.team1_second_return_played).toBe(100);
+    expect(typeof set1.team1_first_serve_won).toBe('number');
+    expect(typeof set1.team1_service_games).toBe('number');
+  });
+
+  it('skips matches that already have a crionet_widget row', async () => {
+    const matchId = 'match-uuid-1';
+    const supabase = fakeSupabase({
+      mappings: [{ entity_id: matchId, external_id: 'FIP-2026-1701:MQ012' }],
+      finishedMatchIds: [matchId],
+      existingStatsRows: [{ match_id: matchId, source: 'crionet_widget' }],
     });
     const httpClient = { post: vi.fn() };
 
@@ -202,12 +299,34 @@ describe('runMatchStatsFetcher', () => {
     expect(supabase.upserted).toHaveLength(0);
   });
 
+  it('refreshes matches that only have legacy non-crionet rows (premierpadel, padelapi)', async () => {
+    // After Crionet became the canonical stats source, legacy rows from other
+    // sources should be overwritten so they pick up the full column coverage.
+    const matchId = 'match-uuid-1';
+    const supabase = fakeSupabase({
+      mappings: [{ entity_id: matchId, external_id: 'FIP-2026-1701:MQ012' }],
+      finishedMatchIds: [matchId],
+      existingStatsRows: [{ match_id: matchId, source: 'premierpadel' }],
+    });
+    const html = readFileSync(FIXTURE_PATH, 'utf-8');
+    const httpClient = { post: vi.fn(async () => ({ data: html })) };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+    expect(result.fetched).toBe(1);
+    expect(result.rowsUpserted).toBe(3);
+    expect(supabase.upserted[0].source).toBe('crionet_widget');
+  });
+
   it('skips synthetic draw widget ids that are not real match widgets', async () => {
     const matchId = 'draw-match-uuid';
     const supabase = fakeSupabase({
       mappings: [{ entity_id: matchId, external_id: 'draw:men:main_draw:F:1' }],
       finishedMatchIds: [matchId],
-      existingStatsMatchIds: [],
     });
     const httpClient = { post: vi.fn() };
 

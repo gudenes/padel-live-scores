@@ -1,19 +1,22 @@
 // match-stats-fetcher — polls Crionet's POST /screen/getmatchstats for finished
-// matches that already have a `crionet_widget` entity_external_ids mapping but
-// no rows in `public.match_stats` yet. Parses the 14 stat dimensions × (match
-// aggregate + per-set) tabs via parseCrionetMatchStats and caches structured
-// counts + raw parsed percentages in match_stats.
+// matches that have a `crionet_widget` entity_external_ids mapping and no
+// `source='crionet_widget'` row in `public.match_stats` yet. Parses the 14
+// stat dimensions × (match aggregate + per-set) tabs via parseCrionetMatchStats
+// and writes the full schema column set to match_stats.
 //
 // Design notes:
-// - Parser returns percentages (e.g. `totalPointsWonPct: 29`) but the
-//   match_stats table stores raw COUNTS (first_serve_won / first_serve_played /
-//   ...). We can't back out counts from percentages, so V1 populates ONLY the
-//   count-native columns the parser can fill 1:1 (service_games, return_games,
-//   longest_streak) and stores the full parsed row in `raw_payload` JSONB so
-//   downstream readers (marked source='crionet_widget') can use percentages
-//   directly.
-// - source='crionet_widget' distinguishes these rows from the premierpadel /
-//   padelapi.org-sourced stats that store counts.
+// - The parser returns 8 counts and 6 percentages. Counts (service_games,
+//   return_games, longest_streak) map 1:1 to count columns. Percentages
+//   (total_points_won, won_on_1st/2nd_serve, won_on_1st/2nd_return,
+//   total_won_on_serve, total_won_on_return) are stored as `(value, 100)`
+//   pairs — same convention `/api/match-stats` uses for padelapi-sourced
+//   rows, so the UI's `kind="percentage"` bars render identically regardless
+//   of source.
+// - aces / double_faults / break_points_converted / total_points have no
+//   schema columns and are dropped (the UI doesn't display them).
+// - source='crionet_widget' marks these rows. Legacy non-crionet rows
+//   (premierpadel, padelapi) are overwritten on the next run so they pick up
+//   the full column coverage.
 // - Batch size caps at MATCH_STATS_BATCH_SIZE per run so we don't hammer the
 //   Crionet widget endpoint.
 
@@ -111,18 +114,31 @@ async function fetchFinishedMatchIds(
   return new Set(rows.map((r) => r.id));
 }
 
-async function fetchMatchIdsWithExistingStats(
+async function fetchMatchIdsWithCrionetStats(
   supabase: SupabaseClient,
   matchIds: string[]
 ): Promise<Set<string>> {
   if (matchIds.length === 0) return new Set();
+  // Only skip matches that already have a crionet_widget row. Legacy rows from
+  // older sources (premierpadel, padelapi) DON'T block the fetcher — they get
+  // overwritten so the row picks up the full column coverage.
   const { data, error } = await supabase
     .from('match_stats')
     .select('match_id')
-    .in('match_id', matchIds);
+    .in('match_id', matchIds)
+    .eq('source', 'crionet_widget');
   if (error) throw new Error(`match_stats query failed: ${error.message}`);
   const rows = (data ?? []) as Array<{ match_id: string }>;
   return new Set(rows.map((r) => r.match_id));
+}
+
+/**
+ * Pair a percentage with `100` so it lands in a (won, played) column pair the
+ * UI can render as a percentage bar. `null` stays `null` on both sides — the
+ * bar renders as empty rather than 0%.
+ */
+function pct(value: number | null): { won: number | null; played: number | null } {
+  return value == null ? { won: null, played: null } : { won: value, played: 100 };
 }
 
 async function upsertParsedStats(
@@ -133,20 +149,77 @@ async function upsertParsedStats(
 ): Promise<number> {
   if (parsed.perSet.length === 0) return 0;
   const computedAt = new Date().toISOString();
-  const rows = parsed.perSet.map((entry) => ({
-    match_id: matchId,
-    set_number: entry.setNumber,
-    team1_service_games: entry.team1.serviceGames,
-    team2_service_games: entry.team2.serviceGames,
-    team1_return_games: entry.team1.returnGames,
-    team2_return_games: entry.team2.returnGames,
-    team1_longest_streak: entry.team1.longestStreak,
-    team2_longest_streak: entry.team2.longestStreak,
-    source: 'crionet_widget',
-    source_match_id: matchWidgetId,
-    raw_payload: { team1: entry.team1, team2: entry.team2 },
-    computed_at: computedAt,
-  }));
+
+  const rows = parsed.perSet.map((entry) => {
+    const t1 = entry.team1;
+    const t2 = entry.team2;
+
+    const t1FirstServe = pct(t1.wonOn1stServePct);
+    const t1SecondServe = pct(t1.wonOn2ndServePct);
+    const t1FirstReturn = pct(t1.wonOn1stReturnPct);
+    const t1SecondReturn = pct(t1.wonOn2ndReturnPct);
+    const t1TotalPoints = pct(t1.totalPointsWonPct);
+    const t1ServePoints = pct(t1.totalWonOnServe);
+    const t1ReturnPoints = pct(t1.totalWonOnReturn);
+
+    const t2FirstServe = pct(t2.wonOn1stServePct);
+    const t2SecondServe = pct(t2.wonOn2ndServePct);
+    const t2FirstReturn = pct(t2.wonOn1stReturnPct);
+    const t2SecondReturn = pct(t2.wonOn2ndReturnPct);
+    const t2TotalPoints = pct(t2.totalPointsWonPct);
+    const t2ServePoints = pct(t2.totalWonOnServe);
+    const t2ReturnPoints = pct(t2.totalWonOnReturn);
+
+    return {
+      match_id: matchId,
+      set_number: entry.setNumber,
+
+      // Service: 1st/2nd serve win % (as value/100), service games (count)
+      team1_first_serve_won: t1FirstServe.won,
+      team1_first_serve_played: t1FirstServe.played,
+      team1_second_serve_won: t1SecondServe.won,
+      team1_second_serve_played: t1SecondServe.played,
+      team1_service_games: t1.serviceGames,
+      team2_first_serve_won: t2FirstServe.won,
+      team2_first_serve_played: t2FirstServe.played,
+      team2_second_serve_won: t2SecondServe.won,
+      team2_second_serve_played: t2SecondServe.played,
+      team2_service_games: t2.serviceGames,
+
+      // Return: 1st/2nd return win % (as value/100), return games (count)
+      team1_first_return_won: t1FirstReturn.won,
+      team1_first_return_played: t1FirstReturn.played,
+      team1_second_return_won: t1SecondReturn.won,
+      team1_second_return_played: t1SecondReturn.played,
+      team1_return_games: t1.returnGames,
+      team2_first_return_won: t2FirstReturn.won,
+      team2_first_return_played: t2FirstReturn.played,
+      team2_second_return_won: t2SecondReturn.won,
+      team2_second_return_played: t2SecondReturn.played,
+      team2_return_games: t2.returnGames,
+
+      // Totals: total/serve/return points win % (as value/100), longest streak (count)
+      team1_total_points_won: t1TotalPoints.won,
+      team1_total_points_played: t1TotalPoints.played,
+      team1_serve_points_won: t1ServePoints.won,
+      team1_serve_points_played: t1ServePoints.played,
+      team1_return_points_won: t1ReturnPoints.won,
+      team1_return_points_played: t1ReturnPoints.played,
+      team1_longest_streak: t1.longestStreak,
+      team2_total_points_won: t2TotalPoints.won,
+      team2_total_points_played: t2TotalPoints.played,
+      team2_serve_points_won: t2ServePoints.won,
+      team2_serve_points_played: t2ServePoints.played,
+      team2_return_points_won: t2ReturnPoints.won,
+      team2_return_points_played: t2ReturnPoints.played,
+      team2_longest_streak: t2.longestStreak,
+
+      source: 'crionet_widget',
+      source_match_id: matchWidgetId,
+      raw_payload: { team1: t1, team2: t2 },
+      computed_at: computedAt,
+    };
+  });
 
   const { error } = await supabase
     .from('match_stats')
@@ -239,7 +312,7 @@ export async function runMatchStatsFetcher(
 
   const parseableIds = parseableForRun.map((c) => c.matchId);
   const finishedIds = await fetchFinishedMatchIds(deps.supabase, parseableIds);
-  const alreadyHaveStats = await fetchMatchIdsWithExistingStats(
+  const alreadyHaveStats = await fetchMatchIdsWithCrionetStats(
     deps.supabase,
     parseableIds
   );
