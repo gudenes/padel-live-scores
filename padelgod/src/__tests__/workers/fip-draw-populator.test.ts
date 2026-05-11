@@ -2036,6 +2036,74 @@ describe('runFipDrawPopulator', () => {
     )
   })
 
+  it('skips tournament_draws team-rows where player1_name is null (scaffolding cells)', async () => {
+    // public.tournament_draws has NOT NULL on player1_name. Pending
+    // qualifier rows have one team with null names ("winner of Q2 #X")
+    // and pure scaffolding cells (R16/QF/SF/F pre-tournament) have null
+    // names on BOTH teams. Per-team-row skip prevents constraint
+    // violations without losing the public.matches insert.
+    const pendingDraw: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD061',
+      round_label: 'R64',
+      // team2 entirely TBD — winner of qualifier match
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team2_fip_id: '1390580662',
+      team2_seed: null,
+      status: 'scheduled',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'BA P1', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [pendingDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    // public.matches gets the cell — pair2 stays null FK + null name.
+    expect(result.inserted).toBe(1);
+    // public.tournament_draws gets ONE row (team1 only); team2 skipped.
+    expect(result.tournamentDrawsWritten).toBe(1);
+    expect(supabase.tournamentDrawsUpserted).toHaveLength(1);
+    expect(supabase.tournamentDrawsUpserted[0].player1_name).toBe('Nuno Baptista');
+  });
+
+  it('skips tournament_draws entirely for pure scaffolding cells (all 4 names null)', async () => {
+    // R16/QF/SF/F cells pre-tournament — entirely TBD. public.matches
+    // gets the scaffolding row but tournament_draws gets nothing (no
+    // pair information to record).
+    const scaffoldDraw: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD081',
+      round_label: 'R16',
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team1_fip_id: '1390580663',
+      team2_fip_id: '1390580664',
+      team1_seed: null,
+      team2_seed: null,
+      status: 'scheduled',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'BA P1', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [scaffoldDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    expect(result.inserted).toBe(1);
+    expect(result.tournamentDrawsWritten).toBe(0);
+    expect(supabase.tournamentDrawsUpserted).toHaveLength(0);
+  });
+
   it('skips tournament_draws when draw_position is null (OOP-fallback shape)', async () => {
     // OOP-fallback rows always have draw_position null. They still go
     // into public.matches, just not the bracket table.

@@ -995,6 +995,15 @@ async function upsertTournamentDraws(
     },
   ];
   for (const teamRow of teamRows) {
+    // tournament_draws has NOT NULL on player1_name. Pending-qualifier
+    // and scaffolding cells (R16/QF/SF/F pre-tournament; "winner of Q2
+    // #X" R64 slots) have null names on one or both team rows. Skip
+    // those — tournament_draws is for resolved-pair markers (Q/WC/LL)
+    // and the public bracket UI doesn't need TBD-side rows. The
+    // companion match in public.matches still gets the cell.
+    if (teamRow.player1_name == null) {
+      continue;
+    }
     if (dryRun) {
       logger?.debug(
         { teamRow },
