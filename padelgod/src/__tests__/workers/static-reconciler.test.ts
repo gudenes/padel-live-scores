@@ -503,7 +503,7 @@ describe('runStaticReconciler — entry list phase (V1)', () => {
       {
         tournament_id: TOUR,
         category: 'men',
-        fip_id: 'fip-P1',
+        fip_id: 'P1',
         name: 'Arturo Coello',
         country: 'ESP',
         captured_at: T,
@@ -512,7 +512,7 @@ describe('runStaticReconciler — entry list phase (V1)', () => {
     const players: PlayerSeed[] = [
       {
         id: 'player-uuid-1',
-        fip_id: 'fip-P1',
+        fip_id: 'P1',
         name: 'A. Coello', // stale name
         country: null, // stale country
         category: 'men',
@@ -538,7 +538,7 @@ describe('runStaticReconciler — entry list phase (V1)', () => {
       {
         tournament_id: TOUR,
         category: 'women',
-        fip_id: 'fip-NEW',
+        fip_id: 'NEW',
         name: 'Bea Sanchez',
         country: 'ESP',
         captured_at: T,
@@ -554,7 +554,7 @@ describe('runStaticReconciler — entry list phase (V1)', () => {
     expect(supabase.updated).toHaveLength(0);
     expect(supabase.inserted).toHaveLength(1);
     const row = supabase.inserted[0];
-    expect(row.fip_id).toBe('fip-NEW');
+    expect(row.fip_id).toBe('NEW');
     expect(row.name).toBe('Bea Sanchez');
     expect(row.country).toBe('ESP');
     expect(row.category).toBe('women');
@@ -562,6 +562,63 @@ describe('runStaticReconciler — entry list phase (V1)', () => {
     // such column — see static-reconciler insert path. Removed.
     expect(row.source).toBeUndefined();
     expect(row.last_updated_by).toBe('padelgod');
+  });
+
+  it('normalizes legacy "fip-Pxxx" snapshots to canonical "Pxxx" on insert', async () => {
+    // Old draw_snapshots captured before 2026-05-09 still carry the
+    // 'fip-' prefix. The reconciler must strip it before writing to
+    // public.players, otherwise we create a parallel set of prefixed-id
+    // dupes alongside the canonical raw rows.
+    const snapshots: SnapshotSeed[] = [
+      {
+        tournament_id: TOUR,
+        category: 'men',
+        fip_id: 'fip-LEGACY',
+        name: 'Legacy Player',
+        country: 'ARG',
+        captured_at: T,
+      },
+    ];
+    const players: PlayerSeed[] = [];
+
+    const supabase = fakeSupabase(snapshots, players);
+    await runStaticReconciler({ supabase: supabase as any });
+
+    expect(supabase.inserted).toHaveLength(1);
+    expect(supabase.inserted[0].fip_id).toBe('LEGACY');
+  });
+
+  it('matches legacy "fip-Pxxx" snapshot against canonical "Pxxx" player row (no duplicate)', async () => {
+    // Defense-in-depth for the dupes-during-merge incident on 2026-05-11.
+    // Snapshot has the legacy prefix; DB has the canonical row. The
+    // reconciler must normalize before lookup, find the existing row,
+    // and UPDATE — never INSERT a parallel prefixed dupe.
+    const snapshots: SnapshotSeed[] = [
+      {
+        tournament_id: TOUR,
+        category: 'men',
+        fip_id: 'fip-EXISTING',
+        name: 'Updated Name',
+        country: 'ESP',
+        captured_at: T,
+      },
+    ];
+    const players: PlayerSeed[] = [
+      {
+        id: 'player-uuid-existing',
+        fip_id: 'EXISTING', // canonical raw form already in DB
+        name: 'Old Name',
+        country: null,
+        category: 'men',
+      },
+    ];
+
+    const supabase = fakeSupabase(snapshots, players);
+    await runStaticReconciler({ supabase: supabase as any });
+
+    expect(supabase.inserted).toHaveLength(0);
+    expect(supabase.updated).toHaveLength(1);
+    expect(supabase.updated[0].id).toBe('player-uuid-existing');
   });
 
   it('skips rows with a null fip_id', async () => {
@@ -626,50 +683,50 @@ describe('runStaticReconciler — draw phase (V2)', () => {
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P1',
+      fip_id: 'P1',
       name: TEAM1_P1,
       country: 'ESP',
-      partner_fip_id: 'fip-P2',
+      partner_fip_id: 'P2',
       partner_name: TEAM1_P2,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P2',
+      fip_id: 'P2',
       name: TEAM1_P2,
       country: 'ARG',
-      partner_fip_id: 'fip-P1',
+      partner_fip_id: 'P1',
       partner_name: TEAM1_P1,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P3',
+      fip_id: 'P3',
       name: TEAM2_P1,
       country: 'ESP',
-      partner_fip_id: 'fip-P4',
+      partner_fip_id: 'P4',
       partner_name: TEAM2_P2,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P4',
+      fip_id: 'P4',
       name: TEAM2_P2,
       country: 'ESP',
-      partner_fip_id: 'fip-P3',
+      partner_fip_id: 'P3',
       partner_name: TEAM2_P1,
       captured_at: T,
     },
   ];
 
   const rosterPlayers: PlayerSeed[] = [
-    { id: 'uuid-P1', fip_id: 'fip-P1', name: TEAM1_P1, country: 'ESP', category: 'men' },
-    { id: 'uuid-P2', fip_id: 'fip-P2', name: TEAM1_P2, country: 'ARG', category: 'men' },
-    { id: 'uuid-P3', fip_id: 'fip-P3', name: TEAM2_P1, country: 'ESP', category: 'men' },
-    { id: 'uuid-P4', fip_id: 'fip-P4', name: TEAM2_P2, country: 'ESP', category: 'men' },
+    { id: 'uuid-P1', fip_id: 'P1', name: TEAM1_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P2', fip_id: 'P2', name: TEAM1_P2, country: 'ARG', category: 'men' },
+    { id: 'uuid-P3', fip_id: 'P3', name: TEAM2_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P4', fip_id: 'P4', name: TEAM2_P2, country: 'ESP', category: 'men' },
   ];
 
   it('fully resolves a draw row: creates one match + two tournament_draws rows', async () => {
@@ -989,50 +1046,50 @@ describe('runStaticReconciler — OOP phase (V3)', () => {
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P1',
+      fip_id: 'P1',
       name: TEAM1_P1,
       country: 'ESP',
-      partner_fip_id: 'fip-P2',
+      partner_fip_id: 'P2',
       partner_name: TEAM1_P2,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P2',
+      fip_id: 'P2',
       name: TEAM1_P2,
       country: 'ARG',
-      partner_fip_id: 'fip-P1',
+      partner_fip_id: 'P1',
       partner_name: TEAM1_P1,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P3',
+      fip_id: 'P3',
       name: TEAM2_P1,
       country: 'ESP',
-      partner_fip_id: 'fip-P4',
+      partner_fip_id: 'P4',
       partner_name: TEAM2_P2,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P4',
+      fip_id: 'P4',
       name: TEAM2_P2,
       country: 'ESP',
-      partner_fip_id: 'fip-P3',
+      partner_fip_id: 'P3',
       partner_name: TEAM2_P1,
       captured_at: T,
     },
   ];
 
   const rosterPlayers: PlayerSeed[] = [
-    { id: 'uuid-P1', fip_id: 'fip-P1', name: TEAM1_P1, country: 'ESP', category: 'men' },
-    { id: 'uuid-P2', fip_id: 'fip-P2', name: TEAM1_P2, country: 'ARG', category: 'men' },
-    { id: 'uuid-P3', fip_id: 'fip-P3', name: TEAM2_P1, country: 'ESP', category: 'men' },
-    { id: 'uuid-P4', fip_id: 'fip-P4', name: TEAM2_P2, country: 'ESP', category: 'men' },
+    { id: 'uuid-P1', fip_id: 'P1', name: TEAM1_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P2', fip_id: 'P2', name: TEAM1_P2, country: 'ARG', category: 'men' },
+    { id: 'uuid-P3', fip_id: 'P3', name: TEAM2_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P4', fip_id: 'P4', name: TEAM2_P2, country: 'ESP', category: 'men' },
   ];
 
   it('resolves an OOP row and UPDATEs the match with court + round (findOrCreateMatch uses real widget id)', async () => {
@@ -1286,50 +1343,50 @@ describe('runStaticReconciler — results phase (V4)', () => {
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P1',
+      fip_id: 'P1',
       name: TEAM1_P1,
       country: 'ESP',
-      partner_fip_id: 'fip-P2',
+      partner_fip_id: 'P2',
       partner_name: TEAM1_P2,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P2',
+      fip_id: 'P2',
       name: TEAM1_P2,
       country: 'ARG',
-      partner_fip_id: 'fip-P1',
+      partner_fip_id: 'P1',
       partner_name: TEAM1_P1,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P3',
+      fip_id: 'P3',
       name: TEAM2_P1,
       country: 'ESP',
-      partner_fip_id: 'fip-P4',
+      partner_fip_id: 'P4',
       partner_name: TEAM2_P2,
       captured_at: T,
     },
     {
       tournament_id: TOUR,
       category: 'men',
-      fip_id: 'fip-P4',
+      fip_id: 'P4',
       name: TEAM2_P2,
       country: 'ESP',
-      partner_fip_id: 'fip-P3',
+      partner_fip_id: 'P3',
       partner_name: TEAM2_P1,
       captured_at: T,
     },
   ];
 
   const rosterPlayers: PlayerSeed[] = [
-    { id: 'uuid-P1', fip_id: 'fip-P1', name: TEAM1_P1, country: 'ESP', category: 'men' },
-    { id: 'uuid-P2', fip_id: 'fip-P2', name: TEAM1_P2, country: 'ARG', category: 'men' },
-    { id: 'uuid-P3', fip_id: 'fip-P3', name: TEAM2_P1, country: 'ESP', category: 'men' },
-    { id: 'uuid-P4', fip_id: 'fip-P4', name: TEAM2_P2, country: 'ESP', category: 'men' },
+    { id: 'uuid-P1', fip_id: 'P1', name: TEAM1_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P2', fip_id: 'P2', name: TEAM1_P2, country: 'ARG', category: 'men' },
+    { id: 'uuid-P3', fip_id: 'P3', name: TEAM2_P1, country: 'ESP', category: 'men' },
+    { id: 'uuid-P4', fip_id: 'P4', name: TEAM2_P2, country: 'ESP', category: 'men' },
   ];
 
   const widgets: WidgetIdCacheSeed[] = [

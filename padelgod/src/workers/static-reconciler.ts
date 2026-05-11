@@ -240,6 +240,12 @@ async function reconcileEntryLists(
 
   // Dedup by fip_id within the latest-snapshot rows. Keep the first
   // occurrence. Skip rows with null fip_id entirely.
+  //
+  // Normalize the legacy "fip-Pxxx" prefix to "Pxxx" before keying the
+  // map and before writing to public.players. Old draw_snapshots from
+  // before the 2026-05-09 merge-duplicate-players PR still carry the
+  // prefix; we treat them as the same canonical id as their unprefixed
+  // twin (matches what fip-entry-list-populator already does).
   const byFipId = new Map<string, EntryListSnapshotRow>();
   let playersSkipped = 0;
   for (const r of latestRows) {
@@ -247,8 +253,9 @@ async function reconcileEntryLists(
       playersSkipped += 1;
       continue;
     }
-    if (byFipId.has(r.fip_id)) continue;
-    byFipId.set(r.fip_id, r);
+    const normalized = r.fip_id.replace(/^fip-/, '');
+    if (byFipId.has(normalized)) continue;
+    byFipId.set(normalized, { ...r, fip_id: normalized });
   }
 
   if (byFipId.size === 0) {
@@ -542,13 +549,16 @@ async function reconcileDraws(
     const seenFipIds = new Set<string>();
     for (const r of latest) {
       if (!r.fip_id || !r.name) continue;
-      if (seenFipIds.has(r.fip_id)) continue;
-      seenFipIds.add(r.fip_id);
+      // Normalize legacy "fip-Pxxx" → "Pxxx" — see the dedup loop above.
+      const normFipId = r.fip_id.replace(/^fip-/, '');
+      const normPartnerFipId = r.partner_fip_id?.replace(/^fip-/, '') ?? null;
+      if (seenFipIds.has(normFipId)) continue;
+      seenFipIds.add(normFipId);
       dictPlayers.push({
-        fipId: r.fip_id,
+        fipId: normFipId,
         name: r.name,
         country: r.country,
-        partnerFipId: r.partner_fip_id ?? null,
+        partnerFipId: normPartnerFipId,
         partnerName: r.partner_name ?? null,
       });
     }
