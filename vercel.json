@@ -42,14 +42,6 @@
       "schedule": "0 4 * * 0"
     },
     {
-      "path": "/api/cron/premier-discovery",
-      "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/cron/premier-stats",
-      "schedule": "13 * * * *"
-    },
-    {
       "path": "/api/cron/oop-monitor",
       "schedule": "30 */2 * * *"
     },
