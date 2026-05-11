@@ -2258,6 +2258,95 @@ describe('buildShortFormMap', () => {
     // Only one player — no collision
     expect(m.get('m. alvarez')).toBe('fip-P1');
   });
+
+  it('builds Spanish paternal-surname short form for 3-token name ("J. Ruiz" from "Javier Ruiz Gonzalez")', () => {
+    // Pattern 3: Spanish "Nombre Apellido1 Apellido2" → "N. Apellido1".
+    // Without this, OOP shorthand "J. Ruiz" never resolves to Javier Ruiz Gonzalez.
+    const m = buildShortFormMap(new Map([['javier ruiz gonzalez', 'fip-P000021']]));
+    expect(m.get('j. ruiz gonzalez')).toBe('fip-P000021'); // Pattern 1
+    expect(m.get('j. gonzalez')).toBe('fip-P000021'); // Pattern 2
+    expect(m.get('j. ruiz')).toBe('fip-P000021'); // Pattern 3 (new)
+  });
+
+  it('marks "j. ruiz" ambiguous when both Javier Ruiz Gonzalez and Jorge Nieto Ruiz exist', () => {
+    // Real-world collision from BA P1 2026-05-12 R64. Before Pattern 3, only
+    // Jorge Nieto Ruiz registered "j. ruiz" (via Pattern 2 last-token), so OOP's
+    // "J. Ruiz" would silently resolve to him — even though the OOP partner is
+    // Gonzalo Rubio (Javier Ruiz Gonzalez's actual entry-list pair). With
+    // Pattern 3 both names produce "j. ruiz" → collision → null → unresolved.
+    const m = buildShortFormMap(
+      new Map([
+        ['javier ruiz gonzalez', 'fip-P000021'],
+        ['jorge nieto ruiz', 'fip-P000017'],
+      ])
+    );
+    expect(m.get('j. ruiz')).toBeNull();
+    // Each player's unambiguous keys still resolve correctly.
+    expect(m.get('j. ruiz gonzalez')).toBe('fip-P000021');
+    expect(m.get('j. gonzalez')).toBe('fip-P000021');
+    expect(m.get('j. nieto ruiz')).toBe('fip-P000017');
+    expect(m.get('j. nieto')).toBe('fip-P000017');
+  });
+
+  it('does NOT generate paternal-surname short form for 4-token names (token-2 is usually a middle given name)', () => {
+    // "Alejandro Valentino Lopez Barresi" — Valentino is a middle given name,
+    // not a surname. Generating "a. valentino" would create false-positive
+    // matches against players actually shortened that way.
+    const m = buildShortFormMap(new Map([['alejandro valentino lopez barresi', 'fip-P1']]));
+    expect(m.get('a. valentino lopez barresi')).toBe('fip-P1'); // Pattern 1
+    expect(m.get('a. barresi')).toBe('fip-P1'); // Pattern 2 last-token
+    expect(m.has('a. valentino')).toBe(false); // Pattern 3 must NOT fire
+    expect(m.has('a. lopez')).toBe(false); // and definitely not arbitrary middle tokens
+  });
+});
+
+// ── Regression: BA P1 2026-05-12 MD042 "J. Ruiz" mis-resolution ────────
+//
+// Before Pattern 3, OOP shorthand "J. Ruiz" silently resolved to Jorge Nieto
+// Ruiz (rank 10) because his Pattern-2 last-token form was the only registered
+// "j. ruiz" key. The actual OOP pair was J. Ruiz (Javier Ruiz Gonzalez, rank 41)
+// / G. Rubio (Gonzalo Rubio, rank 40). This produced an absurd pairing of a
+// world #10 with a #40 in an R64, visible on the live tournament site.
+//
+// With Pattern 3, both names register "j. ruiz" → collision → null. The slot
+// is left unresolved (raw name "J. Ruiz" preserved, no FK link). That's the
+// safe outcome: better unlinked than wrong-linked.
+
+describe('resolveFourPlayers — Spanish paternal-surname collision (BA P1 MD042)', () => {
+  it('leaves "J. Ruiz" unresolved when both Javier Ruiz Gonzalez and Jorge Nieto Ruiz are in the entry list', () => {
+    // 3-token entry-list names so OOP short-forms resolve cleanly via Pattern 1.
+    const nameToFipId = new Map<string, string>([
+      ['javier ruiz gonzalez', 'fip-P000021'],
+      ['jorge nieto ruiz', 'fip-P000017'],
+      ['gonzalo rubio', 'fip-P000029'],
+      ['santiago pineda cabello', 'fip-P100958'],
+      ['diego garcia garcia', 'fip-P101099'],
+    ]);
+    const shortFormToFipId = buildShortFormMap(nameToFipId);
+    const fipIdToPlayerId = new Map<string, string>([
+      ['fip-P000021', 'uuid-javier'],
+      ['fip-P000017', 'uuid-jorge'],
+      ['fip-P000029', 'uuid-gonzalo'],
+      ['fip-P100958', 'uuid-pineda'],
+      ['fip-P101099', 'uuid-diego'],
+    ]);
+    const draw = {
+      team1_player1_name: 'S. Pineda Cabello',
+      team1_player2_name: 'D. Garcia Garcia',
+      team2_player1_name: 'J. Ruiz',
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
+    // Pineda + Garcia resolve via Pattern 1 full-tail short form (no collision).
+    // Rubio resolves via Pattern 1 (2-token name).
+    // J. Ruiz is ambiguous → null (the regression — previously resolved to Jorge Nieto Ruiz).
+    expect(resolved).toEqual({
+      p1p1: 'uuid-pineda',
+      p1p2: 'uuid-diego',
+      p2p1: null,
+      p2p2: 'uuid-gonzalo',
+    });
+  });
 });
 
 // ── resolveFourPlayers — short-form and middle-name fallbacks ──────────
