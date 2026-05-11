@@ -2,479 +2,384 @@
 
 # PadelNacho — Padel Live Scores
 
-Mobile-first PWA for real-time padel score tracking, rankings, news, and tournament info. Data sourced from padelapi.org (FIP/Premier Padel).
+Mobile-first PWA for real-time padel score tracking, rankings, news, and tournament info. Data sourced from padelapi.org (FIP/Premier Padel) and direct FIP scraping via the padelgod Railway workers.
 
 ## Tech Stack
 
 - **Frontend:** Next.js 16.2.0, React 19, Tailwind CSS 4, TypeScript 5
 - **Database:** Supabase (PostgreSQL) with Realtime subscriptions
 - **Real-time:** Pusher WebSocket (via padelapi.org) → Railway relay → Supabase
-- **Deployment:** Vercel (app + cron jobs), Railway (relay service)
-- **External APIs:** padelapi.org (matches/players/tournaments), Premier Padel beforeauth API (stats/broadcasters), YouTube Data API, FIP WordPress API, matchscorerlive.com (OOP/draws), Google News RSS, Anthropic Claude API (social drafts + AI dedup)
+- **Deployment:** Vercel (app + cron jobs), Railway (relay service, padelgod workers)
+- **External APIs:** padelapi.org, Premier Padel beforeauth API, YouTube Data API, FIP WordPress API, matchscorerlive.com (OOP/draws), Google News RSS, Anthropic Claude API
 
 ## Project Structure
 
 ```
 src/
   app/
-    v2/                    # Active UI pages (home, matches, ranking, tournaments, feed)
-    match/[id]/            # Match detail + momentum chart
-    player/[id]/           # Player profile
+    [locale]/(app)/        # User-facing i18n pages (home, matches, ranking, tournaments, feed, player, match)
     api/
-      cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings, premier-discovery, premier-stats, social-drafts, oop-monitor)
-      admin/               # Protected maintenance endpoints (resync, backfill, seed, migrate)
-      ops/                 # Ops dashboard APIs (seed-entry-list, parse-draw, seed-draw, schedule-review, duplicate-scan, search-players, players)
+      cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings, premier-*, social-drafts, oop-monitor, fip-streams-discover)
+      admin/               # Protected maintenance endpoints
+      ops/                 # Ops dashboard APIs
       feed/                # Article click tracking, video reporting
-      match-stats/         # GET endpoint for the Stats tab (reads from match_stats table)
-    components/            # Shared components (MatchCard, CompactMatchCard, BottomNav, Spinner, MatchStatsView, MatchStatsBar, MatchStatsSetTabs)
+      match-stats/         # GET endpoint for Stats tab
+    components/            # Shared (MatchCard, BottomNav, MatchStatsView, …)
   lib/
-    supabase.ts            # Client factory (browser anon + server service key)
+    supabase.ts            # Client factory
     score-inference.ts     # Final score inference from point data
-    player-resolver.ts     # Player deduplication (5-tier: fip_id → external_id → alias → name → fuzzy, auto-stores aliases)
-    genius-engine.ts       # PadelGenius game engine: question selection, scoring, difficulty adjustment
-    draw-parser.ts         # FIP draw PDF text parser (pure function)
-    feed-scoring.ts        # Feed ranking engine (personalization, dedup, quality signals)
-    premier-api.ts         # REST client for premierpadel.com beforeauth API (fetch + retry + throttle)
-    premier-stats-parser.ts  # Pure parser: PremierMatchDetail → MatchStatsRow[] (tested)
-    source-matcher.ts      # Token-subset tournament matcher + round normalizer (tested)
-    fip-scraper.ts         # FIP tournament/match scraping + OOP (Order of Play) parser
-    external-id-registry.ts  # Unified lookup API for source IDs (hot columns + sidecar)
-  data/
-    genius-questions.json   # PadelGenius 50-question bank
-    genius-avatars.ts       # Avatar definitions (icons, colors, names)
-    genius-levels.ts        # Level thresholds and titles
-    genius-themes.ts        # Daily theme schedule
-  types/
-    match.ts               # Core interfaces (Match, Set, Game, Player) + utility functions
-  hooks/
-    useBookmarks.ts        # localStorage bookmarks (future: Supabase auth)
-    useHiddenFeedItems.ts  # localStorage hidden feed items (videos + news)
-    useFeedPreferences.ts  # localStorage feed preferences (language, category, channel)
-    useInViewOnce.ts       # IntersectionObserver hook for scroll-triggered animations (honors prefers-reduced-motion)
-    useGeniusProgress.ts   # PadelGenius localStorage progress (streak, XP, level, avatar)
-    useMatchPrediction.ts  # Match prediction localStorage (pair + margin)
-relay/
-  index.js                 # Railway Node.js service — persistent Pusher WebSocket relay
-supabase/
-  migrations/              # SQL migrations (applied via Supabase dashboard)
+    player-resolver.ts     # 5-tier player dedup, auto-stores aliases
+    external-id-registry.ts  # Unified lookup API for source IDs
+    source-priority.ts     # Per-field source-of-truth rules
+    feed-scoring.ts        # Feed ranking + personalization
+    notification-icon.ts   # Push notification icon resolver
+  proxy.ts                 # Next.js 16 proxy (redirects, auth, geo cookies, i18n composition)
+relay/                     # Railway Node.js Pusher → Supabase relay
+padelgod/                  # Railway workers (see "Padelgod Workers" below) — PRIMARY data integration
+apps/labs/                 # Padel Labs (padellabs.tech) — separate Next.js app, shared Supabase
+supabase/migrations/       # SQL migrations
 ```
 
-## Padel Labs (apps/labs/) — B2B prosumer SaaS
+## Padel Labs (apps/labs/)
 
-Padel Labs is a separate Next.js app at `apps/labs/` deployed to `padellabs.tech`. It productizes the same data Padel Nachos collects, sold to padel content creators (analysts, YouTubers, coaches) as a chat + templates + exports product. Independent npm package (no workspaces), separate Vercel project with `Root Directory = apps/labs/`. Shares the same Supabase project — reads from public tables, writes to `labs_*` tables. See [v1 design](docs/superpowers/specs/2026-05-06-padel-labs-v1-design.md) and [Phase 1 plan](docs/superpowers/plans/2026-05-06-padel-labs-v1-phase-1-foundation.md).
-
-### Padel Labs DB tables
-
-All prefixed `labs_*`:
-
-| Table | Purpose |
-|---|---|
-| `labs_subscriptions` | Stripe subscription state (tier, status, period_end) per user |
-| `labs_conversations` | Chat session container (title, locale, timestamps) |
-| `labs_messages` | Individual chat turns (role, content, citations, cost tokens) |
-| `labs_saved_queries` | User-saved questions for re-running |
-| `labs_usage_events` | Per-question metering for rate limits + analytics |
-| `labs_template_runs` | Template execution log |
-
-Auth users live in `public.users` (Auth.js v5 PostgresAdapter table — same as Padel Nachos).
+Separate B2B SaaS Next.js app at `apps/labs/`, deployed to `padellabs.tech`. Shares the Supabase project — reads from public tables, writes to `labs_*` tables (`labs_subscriptions`, `labs_conversations`, `labs_messages`, `labs_saved_queries`, `labs_usage_events`, `labs_template_runs`). Independent npm package (no workspaces). See [v1 design](docs/superpowers/specs/2026-05-06-padel-labs-v1-design.md).
 
 ## Database Tables
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `matches` | Match data | `padelapi_id` (+`external_id` legacy), `status`, `coverage`, `winner_pair`, `pusher_channel`, `round`, `court` |
+| `matches` | Match data | `padelapi_id`, `status`, `coverage`, `winner_pair`, `pusher_channel`, `round`, `court`, `scheduled_at` |
 | `sets` | Set scores | `match_id`, `set_number`, `set_score`, `pair1_games`, `pair2_games`, `is_current`, `score_source` |
 | `games` | Game-level data | `set_id`, `match_id`, `game_number`, `game_score`, `points[]`, `is_current` |
-| `players` | Player profiles | `padelapi_id` (+`external_id` legacy), `fip_id`, `name`, `country`, `avatar_url` (Supabase Storage), `ranking`, `category` |
-| `tournaments` | Tournament info | `padelapi_id` (+`external_id` legacy), `fip_id` (+`fip_slug` legacy), `name`, `level`, `country`, `logo_url`, `starts_at`, `ends_at`, `source` |
+| `players` | Player profiles | `padelapi_id`, `fip_id`, `name`, `country`, `avatar_url`, `ranking`, `category`, `normalized_name` |
+| `tournaments` | Tournament info | `padelapi_id`, `fip_id`, `name`, `level`, `country`, `logo_url`, `starts_at`, `ends_at`, `source`, `status` |
 | `seasons` | Season grouping | `external_id`, `name`, `year` |
-| `articles` | News feed | `source_url`, `source_name`, `published_at`, `click_count`, `source_weight`, `favicon_url` |
-| `highlights` | YouTube videos | `youtube_id`, `channel_name`, `view_count`, `like_count`, `comment_count`, `description`, `channel_quality_score` |
-| `tournament_draws` | Parsed draw brackets | `tournament_id`, `category`, `draw_position`, `seed`, `marker`, `player1/2_name`, `player1/2_id` |
-| `entity_external_ids` | Sidecar for non-primary source IDs | `entity_type`, `entity_id`, `source`, `external_id`, `metadata` |
-| `match_stats` | Per-match + per-set stats (padelapi.org source, cached on first access) | `match_id` + `set_number` (composite PK, `set_number=0` is match aggregate), 34 stat columns (service/return/total), `source`, `source_match_id`, `raw_payload`, `computed_at` |
-| `match_stats_unresolved` | Queue for tournaments/matches the auto-matcher couldn't link | `source`, `source_kind`, `source_id`, `source_payload`, `reason`, `resolved_at`, `resolved_match_id`, `resolved_tournament_id` |
-| `social_posts` | Auto-generated social media post drafts | `title`, `caption`, `hashtags`, `platform`, `pillar`, `status` (draft/approved/posted), `source_data` |
-| `player_ranking_snapshots` | Append-only historical FIP rankings (forward-capture) | `player_id` + `type` (official/race) + `year` + `week` (composite unique), `ranking`, `points`, `ranking_move`, `ranking_date`, `gender`, `source` (vercel-fip/padelgod-fip), `captured_at` |
+| `articles` | News feed | `source_url`, `published_at`, `click_count`, `source_weight`, `favicon_url` |
+| `highlights` | YouTube videos | `youtube_id`, `channel_name`, `view_count`, `channel_quality_score` |
+| `tournament_draws` | Parsed draws | `tournament_id`, `category`, `draw_position`, `seed`, `marker`, `player1/2_name/id` |
+| `entity_external_ids` | Sidecar for non-hot source IDs | `entity_type`, `entity_id`, `source`, `external_id`, `metadata` |
+| `match_stats` | Per-match + per-set stats (Crionet canonical) | `(match_id, set_number)` PK (`set_number=0` is aggregate), 34 stat columns, `source`, `raw_payload` |
+| `match_stats_unresolved` | Queue for unlinkable Premier match stats | `source`, `source_id`, `reason`, `resolved_at` |
+| `social_posts` | Auto-generated draft posts | `title`, `caption`, `hashtags`, `platform`, `pillar`, `status` |
+| `player_ranking_snapshots` | Append-only FIP ranking history | `(player_id, type, year, week)` unique, `ranking`, `points`, `ranking_move`, `source` |
+| `fip_court_streams` / `fip_streams_unresolved` | FIP YouTube stream mapping + ops queue | (see "FIP YouTube streams") |
 
 ### Relationships
-- `matches` → `tournaments` (via `tournament_id`)
-- `sets` → `matches` (via `match_id`)
-- `games` → `sets` (via `set_id`) + `matches` (via `match_id`)
+- `matches` → `tournaments`, `sets` → `matches`, `games` → `sets` + `matches`
 - `matches` has 4 player FKs: `pair1_player1_id`, `pair1_player2_id`, `pair2_player1_id`, `pair2_player2_id`
 
 ## Data Model: Canonical IDs & Source Identity
 
-PadelNachos aggregates data from multiple upstream sources (padelapi.org, FIP site, YouTube, etc). The schema uses a **"hot columns + sidecar"** pattern to handle identity across sources without sacrificing lookup speed.
+Every entity has a `id UUID` primary key — the **canonical PadelNachos ID**. External source IDs are secondary identifiers.
 
-### The canonical ID
-Every entity (player, tournament, match) has a `id UUID` primary key — that's the **canonical PadelNachos ID**. All foreign keys point at it. External source IDs are secondary identifiers that can be looked up to resolve a canonical `id`.
+### Hot columns (top 2 sources per entity, indexed unique)
 
-### Hot columns (top 2 sources)
-The top 2 sources have dedicated indexed columns for zero-cost lookups on hot paths:
-
-| Table | Column | Source | Format example |
+| Table | Column | Source | Format |
 |---|---|---|---|
 | `players` | `padelapi_id` | padelapi.org | `"432"` |
-| `players` | `fip_id` | FIP official | `"P200038"` |
+| `players` | `fip_id` | FIP official | `"P200038"` (raw, no `fip-` prefix) |
 | `tournaments` | `padelapi_id` | padelapi.org | `"778"` |
-| `tournaments` | `fip_id` | FIP scraper | `"fip-gold-ponta-delgada-2026"` |
-| `matches` | `padelapi_id` | padelapi.org | (numeric) |
+| `tournaments` | `fip_id` | FIP scraper | `"fip-gold-ponta-delgada-2026"` (slug, prefix kept to avoid collisions) |
+| `matches` | `padelapi_id` | padelapi.org | numeric |
 
-All hot columns have `UNIQUE` constraints (partial, `WHERE NOT NULL`) and dedicated indexes.
-
-#### Player `fip_id` format — no prefix (2026-05-09)
-
-`players.fip_id` is the **raw FIP id** (e.g. `"P200038"`) — same form upstream FIP exposes on padelfip.com and consistent with `padelapi_id` (which has no `padelapi-` prefix). Earlier code prefixed it with `"fip-"` as a namespacing convention; the [merge-duplicate-players PR](docs/superpowers/plans/2026-05-09-merge-duplicate-players.md) unwound that. Tournament `fip_id` keeps its `"fip-"` prefix because it's a slug, not a numeric id, and removing the prefix could collide with arbitrary slug strings.
-
-If you encounter `fip-Pxxx` in older snapshots or pre-2026-05-09 code, normalize via `.replace(/^fip-/, '')` before comparison or write. The entry-list-populator already does this for legacy snapshots.
-
-### Legacy columns (deprecated, kept for back-compat)
-`players.external_id`, `tournaments.external_id`, `tournaments.fip_slug`, `matches.external_id` still exist and are **kept in sync with the new columns via Postgres triggers**. All existing code paths (40+ call sites) keep working unchanged. New code should write to the new columns; old code can stay as-is until it's touched naturally.
-
-Migration path (for future cleanup, not urgent):
-1. Migrate remaining reads to new columns one file at a time
-2. Migrate UPSERT `onConflict` targets from `external_id` → `padelapi_id`
-3. Ship a "drop legacy columns" migration once all code is clean
+Legacy columns (`external_id`, `fip_slug`) still exist and are trigger-synced to the new columns. New code writes to the new columns. Player `fip_id` is the **raw** form — normalize legacy `fip-Pxxx` via `.replace(/^fip-/, '')` if you encounter it in old snapshots.
 
 ### Sidecar: `entity_external_ids`
-For **any source beyond the top 2** (ATP, Whoscored, future feeds, etc.), external IDs go into the `entity_external_ids` polymorphic table instead of adding yet another column. Schema:
 
-```sql
-entity_external_ids (
-  entity_type  TEXT,           -- 'player' | 'tournament' | 'match' | 'season'
-  entity_id    UUID,
-  source       TEXT,
-  external_id  TEXT,
-  metadata     JSONB,
-  first_seen_at TIMESTAMPTZ,
-  last_seen_at  TIMESTAMPTZ,
-  UNIQUE (source, entity_type, external_id),
-  UNIQUE (entity_type, entity_id, source)
-)
-```
-
-Adding a new source = zero schema changes.
-
-### Premier Padel source (stats only)
-
-`premierpadel` is a tertiary source added in 2026-04 that provides per-set
-service/return/points match statistics. It's scoped to `match.stats` only —
-Premier doesn't own any canonical fields like names or rankings.
-
-- **Storage:** `entity_external_ids` sidecar (no hot column)
-- **Table:** `match_stats` (composite PK `(match_id, set_number)`)
-- **Queue:** `match_stats_unresolved` for manual linking
-- **Crons:** `/api/cron/premier-discovery` (weekly) + `/api/cron/premier-stats` (hourly)
-- **UI:** `<MatchStatsView>` on the match detail Stats tab
-- **Launch:** 2026-04-13 (NewGiza P2)
-
-See `docs/superpowers/specs/2026-04-08-premier-stats-2026-backfill-design.md` and `docs/superpowers/plans/2026-04-08-premier-stats-2026-backfill.md` for design + implementation.
+For **any source beyond the top 2** (Premier Padel stats, ATP, future feeds), external IDs go in the polymorphic `entity_external_ids` table. Adding a new source = zero schema changes.
 
 ### Unified lookup API — `src/lib/external-id-registry.ts`
-Hides the hot-column vs sidecar split so callers don't need to know where each source lives:
+
+Hides the hot-column vs sidecar split:
 
 ```ts
 import { findEntityBySourceId, registerSourceId, listSourceIds } from '@/lib/external-id-registry'
 
-// Lookup — works for any source, hot path + sidecar fallback
-const playerId = await findEntityBySourceId(supabase, 'player', 'padelapi', '432')      // hot column
-const playerId = await findEntityBySourceId(supabase, 'player', 'atp',      'abc-123')  // sidecar
-
-// Register — routes to the right storage automatically
-await registerSourceId(supabase, {
-  entityType: 'tournament',
-  entityId: someUuid,
-  source: 'whoscored',
-  externalId: 'ws-42',
-})
-
-// List all known IDs for an entity (combines hot + sidecar)
-const ids = await listSourceIds(supabase, 'player', playerId)
-// → [{ source: 'padelapi', externalId: '432', isHot: true }, ...]
+await findEntityBySourceId(supabase, 'player', 'padelapi', '432')      // hot column
+await findEntityBySourceId(supabase, 'player', 'atp',      'abc-123')  // sidecar
+await registerSourceId(supabase, { entityType: 'tournament', entityId, source: 'whoscored', externalId: 'ws-42' })
 ```
 
 ### Source priority — `src/lib/source-priority.ts`
-When multiple sources carry the same field, priority rules decide who wins. These are **code-based config** (not a DB table) because they're data-correctness rules that should go through PR review.
 
-**Policy (2026-05-07): FIP is canonical for player identity. Padelapi enriches.** The padelgod ingestion pipeline (Railway workers writing FIP-sourced data) defines who a player is — name, country, category, birthdate. Padelapi adds operational/profile data that FIP doesn't publish: career stats, hosted avatars, win rate. When both sources have a value on a field FIP owns, FIP wins. This was flipped from the inverse (padelapi-primary on identity) after the 2026-04 slug-style padelapi_id incident showed that letting padelapi own identity created duplicates whenever the two sources' name forms diverged ("Marta Borrero" vs. "Marta Borrero Fernández de la Puente").
+**FIP is canonical for player identity. Padelapi enriches.** Padelgod (FIP-sourced) defines who a player is — name, country, category, birthdate. Padelapi adds career stats, hosted avatars, win rate.
 
-Per-field priority lists (top = most authoritative):
+Per-field priority lists (top wins):
 
 | Field | Primary | Fallbacks |
 |---|---|---|
-| `player.name` | **fip** | padelapi, manual |
-| `player.country` | **fip** | padelapi, manual |
-| `player.category` | **fip** | padelapi |
-| `player.birthdate` | fip | padelapi, manual |
+| `player.name` / `country` / `category` | **fip** | padelapi, manual |
 | `player.ranking` | fip_official | fip, padelapi |
-| `player.avatar_url` | padelapi | fip, manual *(padelapi-hosted on Supabase Storage, higher quality)* |
-| `player.win_rate` | padelapi | *(FIP doesn't compute career stats)* |
-| `player.total_matches` | padelapi | |
-| `player.titles` | padelapi | |
-| `tournament.name` | padelapi | fip, manual |
-| `tournament.logo_url` | fip | padelapi, manual |
-| `tournament.draw_size_md` | fip | padelapi |
-| `tournament.prize_money` | padelapi | manual |
-| `match.sets` | padelapi | simulated (fip NOT listed — no live scoring) |
-| `match.status` | padelapi | simulated |
+| `player.avatar_url` | padelapi | fip, manual *(padelapi-hosted on Supabase Storage)* |
+| `player.win_rate` / `total_matches` / `titles` | padelapi | *(FIP doesn't compute)* |
+| `tournament.name` | padelapi | fip |
+| `tournament.logo_url` / `draw_size_md` | fip | padelapi |
+| `match.sets` / `status` | padelapi | simulated *(FIP doesn't do live scoring)* |
+| `match_stats` | **crionet** (padelgod) | padelapi, premierpadel |
 
-Full list in `src/lib/source-priority.ts`. Helpers:
-- `shouldOverwrite(field, currentSource, attemptingSource)` — runtime gate (needs per-field source tracking columns, not used yet)
-- `isPrimaryOwner(field, source)` — is this source the top of the list?
-- `filterUpdateByPriority(payload, entityType, source, mode)` — strip fields a source can't own from an update payload
-
-**Sync jobs should use `filterUpdateByPriority` when updating existing rows** so secondary sources can't clobber primary data. Wired in:
-- `src/app/api/cron/sync/route.ts` — padelapi player sync now filters payload through `filterUpdateByPriority(payload, 'player', 'padelapi')` before UPDATE. After the FIP-canonical flip, this strips `name`/`country`/`ranking` from the padelapi payload, leaving only `avatar_url` / `win_rate` / `total_matches` / `gender`.
-- `padelgod/src/workers/fip-event-page-enricher.ts` — canonical example for tournaments. (Retired Vercel route: `src/app/api/cron/fip-tournaments/route.ts` → 410 Gone since 2026-04-28.)
+Full list in `src/lib/source-priority.ts`. Use `filterUpdateByPriority(payload, entityType, source)` when updating from a secondary source — it strips fields that source can't own. Wired into padelapi sync routes and padelgod's `fip-event-page-enricher`.
 
 ### Tournament entity resolution (cross-source dedup)
-Same real-world tournament can exist under multiple sources with different IDs + names. Matching rule used by the defending-champion lookup, Phase 2 dedup script, and any future merging tool:
 
-1. **Normalize name**: strip diacritics, strip 4-digit years, lowercase, split on non-alphanumerics
-2. **Filter noise tokens**: drop `premier`, `padel`, `tour`, `open`, `season`, `championship`, etc.
-3. **Token subset match**: candidate matches when every current token is present in the candidate's token set (handles sponsor prefixes like "Motorola Razr Miami Premier Padel P1" matching "Miami P1 2026")
-4. **Same year**: year from `starts_at` must match
-5. **Same level**: `level` column must match (prevents cross-tier matches)
+Same tournament can exist under multiple sources with different IDs/names. Matching rule:
 
-Script: `scripts/merge-tournament-duplicates.ts` — supports `--dry-run` and does a pre-flight FK check before deleting anything.
+1. Normalize name: strip diacritics, strip 4-digit years, lowercase, split on non-alphanumerics
+2. Filter noise tokens (`premier`, `padel`, `tour`, `open`, `championship`, …)
+3. Token subset match — every current token must appear in candidate set
+4. Same year (from `starts_at`) + same `level`
 
-## Scheduled Jobs (vercel.json)
+Script: `scripts/merge-tournament-duplicates.ts` (supports `--dry-run`, pre-flight FK check). Prevention is built into `padelgod/src/workers/tournament-discovery.ts` — it does a name-token + year lookup against padelapi-only rows before inserting a new FIP row.
+
+## Scheduled Jobs (Vercel — `vercel.json`)
 
 | Route | Schedule | Purpose |
 |-------|----------|---------|
-| `/api/cron/scores` | Every 2 min | Poll live matches, upsert scores, reconcile finished matches, detect stale |
-| `/api/cron/sync?scope=matches` | Hourly at :00 | Sync match metadata for active tournaments |
+| `/api/cron/scores` | Every 2 min | Live match polling, score upsert, finished reconcile, stale detect |
+| `/api/cron/sync?scope=matches` | Hourly :00 | Match metadata for active tournaments |
 | `/api/cron/sync` | Mon 4am UTC | Full sync: tournaments, players, seasons, FIP logos |
 | `/api/cron/sync-fip-rankings` | Daily 7am UTC | FIP official + race rankings (top 1000, both genders) |
-| `/api/cron/sync-articles` | Hourly at :40 | News from RSS feeds + FIP WordPress API |
-| `/api/cron/sync-highlights` | Hourly at :20 | YouTube highlights from padel channels |
-| `/api/cron/fip-streams-discover` | Every 15 min | Discover FIP YouTube livestreams, write to `fip_court_streams` or queue in `fip_streams_unresolved` |
-| `/api/cron/premier-discovery` | Mon 4am UTC | Link Premier tournaments + matches to our DB |
-| `/api/cron/premier-stats` | Hourly at :13 | Sync per-set stats from Premier Padel API |
-| `/api/cron/social-drafts` | Mon 8am UTC | Generate social media post drafts via Claude API → `social_posts` table |
-| `/api/cron/oop-monitor` | Every 2h at :30 | Monitor Order of Play changes on matchscorerlive.com for active tournaments |
-| `/api/cron/recompute-earnings` | Mon 6am UTC | Recompute `player_tournament_earnings` for tournaments ended in last 30 days. Idempotent UPSERT — only changed values get touched. For full backfills (rulebook changes, schema migration) run `scripts/backfill-player-earnings.ts --apply` instead. |
+| `/api/cron/sync-articles` | Hourly :40 | News from RSS + FIP WP API |
+| `/api/cron/sync-highlights` | Hourly :20 | YouTube highlights |
+| `/api/cron/fip-streams-discover` | Every 15 min | FIP YouTube livestream discovery |
+| `/api/cron/premier-discovery` | Mon 4am UTC | Link Premier tournaments + matches |
+| `/api/cron/premier-stats` | Hourly :13 | Per-set stats from Premier API |
+| `/api/cron/social-drafts` | Mon 8am UTC | Generate post drafts via Claude API |
+| `/api/cron/oop-monitor` | Every 2h :30 | Watch OOP page changes, emit notifications |
+| `/api/cron/recompute-earnings` | Mon 6am UTC | Recompute `player_tournament_earnings` for last 30 days (idempotent UPSERT) |
 
-## Padelgod Workers (Railway)
+Most padelapi/Premier crons are gated by `PADELAPI_PAUSED` — see "Ops toggles".
 
-**Padelgod is the primary integration powering padel data on
-padelnachos.com.** Tournament discovery, draws, entry lists, OOP
-schedules, live point-by-point scoring, match closing, results, player
-profiles, rankings, and the web-push notify fan-out (live + finished)
-all flow through it. Vercel crons (`/api/cron/scores`, `/api/cron/sync`,
-`/api/cron/premier-stats`) are secondary feeds and are currently paused
-behind `PADELAPI_PAUSED=true` — padelgod runs the show. When designing
-new data flows or debugging missing data, assume padelgod owns the
-write unless you've explicitly traced it to a Vercel cron.
+## Padelgod Workers (Railway) — PRIMARY data integration
 
-Padelgod runs on Railway alongside the relay service. The schedule lives
-in [`padelgod/src/scheduler.ts`](padelgod/src/scheduler.ts) — each worker
-gets its own `:MM` slot to avoid contention on the FIP / matchscorerlive
-endpoints. Read that file for the canonical schedule when this table
-goes stale (which it will).
+**Padelgod is the primary integration powering padel data on padelnachos.com.** Tournament discovery, draws, entry lists, OOP, live point-by-point, match closing, results, player profiles, rankings, and the web-push notify fan-out all flow through it. The Vercel crons above are secondary feeds, currently paused behind `PADELAPI_PAUSED=true`.
 
-Ordered by `:MM` so the hourly chain is easier to follow:
+Schedule lives in [`padelgod/src/scheduler.ts`](padelgod/src/scheduler.ts) — that file is canonical when this table goes stale.
 
-| Worker | Schedule | Purpose | Writes to |
-|---|---|---|---|
-| tournament-discovery | hourly :00 | Discover FIP tournaments via WP API + resolve country term IDs | `tournaments` |
-| fip-winner-propagator | hourly :02 | Propagate finished-match winners to next-round bracket slots | `matches` |
-| fip-event-page-enricher | hourly :12 | Gap-fill venue / dates / overview / draw size / matchscorer code | `tournaments`, `padelgod.widget_id_cache` |
-| widget-code-lookup | hourly :15 | Resolve Crionet widget IDs by tournament name search | `padelgod.widget_id_cache` |
-| draw-fetcher | every 2h :20 | Crionet bracket scrape | `padelgod.draw_snapshots` |
-| match-stats-fetcher | :25, :55 | Per-match stats from Crionet widget (20/batch × 2/hr) | `match_stats` |
-| player-profile | hourly :30 | Refresh per-player profile metadata | `players` |
-| static-reconciler | :05, :35 | Consume snapshots → `public.matches` / `sets` (twice hourly) | `matches`, `sets` |
-| fip-draw-fetcher | hourly :35 | FIP event-page bracket scrape (Bronze/Silver/Gold/Premier) | `padelgod.draw_snapshots` |
-| shadow-diff-finalizer | :10, :40 | Finalize live-vs-padelapi divergence rows for telemetry | (telemetry tables) |
-| fip-draw-linker | hourly :42 | Link FIP draws to widget IDs (DB-only, no HTTP) | `entity_external_ids` |
-| entry-list-fetcher | hourly :45 | Fetch tournament entry-list PDFs / pages | `padelgod.entry_list_snapshots` |
-| fip-entry-list-populator | hourly :46 | Resolve entry-list rows into `players` (after fetcher) | `players` |
-| fip-draw-populator | hourly :47 | INSERT `public.matches` from draw + OOP qualifying rounds | `matches` |
-| oop-fetcher | every 15m :00/:15/:30/:45 | Capture Order of Play snapshots from matchscorerlive | `padelgod.oop_snapshots` |
-| fip-oop-writer | every 15m :02/:17/:32/:47 | UPDATE `public.matches` court/round from OOP snapshots | `matches` (UPDATE) |
-| results-fetcher | every 5m :00/:05/... | Capture match-results snapshots from Crionet widget | `padelgod.results_snapshots` |
-| fip-results-writer | every 5m :02/:07/... | Write final scores from results snapshots | `matches`, `sets` |
-| player-rankings | daily 07:00 UTC | Sync FIP race + official rankings (top 1000, both genders) | `players` |
-| live-poller-manager | every 1m | Spawn / supervise per-match live-poll loops | (orchestration only) |
-| shadow-diff-live | every 1m | Snapshot live-match latency vs padelapi for telemetry | (telemetry) |
-| close-stale-live-sweeper | every 5m | Close matches stuck at `live`/`ended` when poller can't | `matches` |
+| Worker | Schedule | Purpose |
+|---|---|---|
+| tournament-discovery | hourly :00 | FIP WP API event discovery |
+| fip-winner-propagator | hourly :02 | Propagate winners to next-round slots |
+| fip-event-page-enricher | hourly :12 | Gap-fill venue / dates / matchscorer code |
+| widget-code-lookup | hourly :15 | Resolve Crionet widget IDs |
+| draw-fetcher | every 2h :20 | Crionet bracket scrape |
+| match-stats-fetcher | :25, :55 | Per-match stats from Crionet (20/batch × 2/hr) |
+| player-profile | hourly :30 | Per-player profile refresh |
+| static-reconciler | :05, :35 | Consume snapshots → `public.matches` / `sets` |
+| fip-draw-fetcher | hourly :35 | FIP event-page bracket scrape |
+| shadow-diff-finalizer | :10, :40 | Telemetry: live vs padelapi divergence |
+| fip-draw-linker | hourly :42 | Link FIP draws to widget IDs |
+| entry-list-fetcher | hourly :45 | Tournament entry-list PDFs/pages |
+| fip-entry-list-populator | hourly :46 | Resolve entry-list rows → `players` |
+| fip-draw-populator | hourly :47 | INSERT matches from draw + OOP qualifying |
+| oop-fetcher | every 15m | Capture OOP snapshots |
+| fip-oop-writer | every 15m (offset +2) | UPDATE court/round from OOP snapshots |
+| results-fetcher | every 5m | Capture Crionet results snapshots |
+| fip-results-writer | every 5m (offset +2) | Write final scores |
+| player-rankings | daily 07:00 UTC | FIP rankings sync |
+| live-poller-manager | every 1m | Spawn per-match live-poll loops |
+| close-stale-live-sweeper | every 5m | Close matches stuck on `live`/`ended` |
 
 ### Disambiguating "OOP" — three different things
 
-The OOP (Order of Play) responsibility is split across three crons in
-two different runtimes. The names are similar enough that they get
-confused at a glance — the table below is the canonical mapping:
+| Name | Runtime | What it does |
+|---|---|---|
+| `oop-monitor` (Vercel) | every 2h :30 | Watches OOP for changes, emits notifications |
+| `oop-fetcher` (padelgod) | every 15m | Fetches OOP HTML, writes `padelgod.oop_snapshots` |
+| `fip-oop-writer` (padelgod) | every 15m (+2 offset) | UPDATEs `public.matches.court`/`round`/`court_order` from snapshots |
 
-| Name | Runtime | Schedule | What it does |
-|---|---|---|---|
-| `oop-monitor` | Vercel cron | every 2h :30 | Watches matchscorerlive for OOP page changes, emits notifications |
-| `oop-fetcher` | Padelgod (Railway) | every 15m | Fetches OOP HTML, parses it, writes `padelgod.oop_snapshots` |
-| `fip-oop-writer` | Padelgod (Railway) | every 15m (offset +2) | Reads snapshots, UPDATEs court / round / court_order on `public.matches` |
-
-The "OOP Schedule Review" tab in the ops dashboard is yet another piece
-of the same puzzle — a human-in-the-loop UI that parses the
-`scheduled_label` strings from `oop_snapshots` ("Starting at 2:30 PM")
-into UTC timestamps on `public.matches.scheduled_at`. Not an automated
-worker; an operator clicks "Apply N Changes" per tournament.
+The "OOP Schedule Review" ops dashboard tab is a fourth human-in-the-loop piece — parses `scheduled_label` strings into UTC timestamps on `matches.scheduled_at`. Not automated; operator clicks "Apply N Changes" per tournament.
 
 ## Live match coverage scope
 
-**Live point-by-point coverage is only available for Premier-Padel-level
-tournaments** (P1, P2, Major, Premier Mens / Womens). Premier is where
-the upstream Crionet widget exposes a per-match score endpoint that
-padelgod's `live-poller-loop` can subscribe to, so we get real-time
-score, current game, server, and per-point updates.
+**Live point-by-point is Premier-tier only** (P1, P2, Major, Premier_Mens/Womens). Crionet exposes per-match score endpoints at Premier tier; padelgod's `live-poller-loop` subscribes there.
 
-**Lower-level tournaments (FIP Bronze / Silver / Gold) can still flip to
-`status='live'`** via the OOP / results widget showing a match in
-progress, or padelapi's coarse status feed — **but no point-by-point
-data lands**. The live-poller doesn't subscribe to FIP-tier matches
-because the per-match endpoint isn't exposed at that tier. Final scores
-arrive later through `fip-results-writer` once the results widget
-publishes them.
+FIP-tier (Bronze/Silver/Gold) matches can flip to `status='live'` via OOP/results widgets or padelapi's coarse status feed — **but no point-by-point data lands**. Final scores arrive later via `fip-results-writer`.
 
-UI consequence: a FIP match can render the LIVE pill and a current-set
-score, but it won't have a live-game indicator, won't update set scores
-in real time, and won't power the momentum chart. Web-push live notify
-still fires (it only needs the `scheduled → live` edge, not the
-point-by-point feed) so users still get the "Match is Live" push.
+UI consequence: a FIP match can render the LIVE pill and a current-set score, but won't update sets in real time and won't power the momentum chart. Web-push live notify still fires (only needs `scheduled → live` edge).
 
-When designing live-only features, assume Premier as the floor and
-gracefully degrade for FIP. Don't surface live affordances on FIP
-matches that won't get the data to back them up.
+When designing live-only features, **assume Premier as the floor and gracefully degrade for FIP**. Don't surface live affordances on FIP matches.
 
-## Relay Service (Railway)
+## Relay Service (`relay/index.js`)
 
-`relay/index.js` — always-on Node.js/Express service (port 3001):
-- Persistent Pusher WebSocket → subscribes to `matches.{id}` channels
-- Writes point-by-point updates to Supabase on every Pusher event
-- On match finish: fetches final state from API, infers missing scores, computes coverage, infers winner
-- Endpoints: `GET /health`, `POST /sync`, `POST /subscribe`
+Always-on Node.js/Express service on Railway (port 3001): persistent Pusher WebSocket subscriptions, writes point-by-point to Supabase, infers missing scores + coverage + winner on match finish. Endpoints: `GET /health`, `POST /sync`, `POST /subscribe`.
 
 ## Key Patterns
 
-### Score Provenance
-Sets track `score_source`: `'api'` (authoritative) > `'inferred'` (from points) > `'live'` (real-time relay). Higher priority overwrites lower.
+### Score provenance & merge guards
+Sets track `score_source`: `'api'` > `'inferred'` > `'live'`. Higher priority overwrites lower. Before writing a points array, check existing DB array length — keep the longer one. Never overwrite with less data.
 
-### Points Merge Guard
-Before writing a points array, check if existing DB array is longer — keep the longer one. Never overwrite with less data.
+### Match status lifecycle
+`scheduled` → `live` → `ended` (transitional, score may be null) → `finished` (or `retired` / `walkover` — preserved from API, never hardcoded to `'finished'`).
 
-### Match Status Lifecycle
-`scheduled` → `live` → `ended` (transitional, score may be null) → `finished`
+### Coverage computation
+Computed from stored data after match finishes: count games with non-empty points vs expected games from set scores → `full` / `partial` / `null`.
 
-### Coverage Computation
-Computed from actual stored data after match finishes: count games with non-empty points vs expected games from set scores. Result: `full`, `partial`, or `null`.
+### Winner inference (`src/lib/score-inference.ts`)
+When API doesn't provide `winner_pair`, infer from completed set scores (best-of-3, first to 2 sets). Handles 1-set retirements and mid-Set-3 retirements. Atomically sets `status: 'finished'` when winner is inferred (unless retired/walkover).
 
-### Winner Inference
-When API doesn't provide `winner_pair`, infer from completed set scores (best-of-3, first to 2 sets). See `src/lib/score-inference.ts`.
+### Stale match detection
+Cron transitions matches stuck as `live` >15min and absent from API live feed → finished.
 
-### Stale Match Detection
-Cron detects matches stuck as `live` in DB >15min and absent from API live feed — transitions them to finished.
+### Feed scoring (`src/lib/feed-scoring.ts`)
+- **Base:** `freshness (exp decay 48h) × popularity (log10 clicks) × source_weight`
+- **Modifiers:** stale-year penalty (0.3–0.7x), language affinity (≤1.3x, ≥3 clicks), category preference (1.3/0.7x, ≥5 clicks + >65% dominance), channel engagement (1.15–1.3x), bookmark relevance (1.4–1.8x for bookmarked-player content), channel quality (server-computed)
+- **Dedup:** title-token overlap >50% → cluster, show best one with "+N similar"
+- User prefs in localStorage: `useFeedPreferences`, `useHiddenFeedItems`
 
-### Feed Scoring & Personalization
-Feed ranking in `src/lib/feed-scoring.ts` combines multiple signals:
-- **Base score**: `freshness (exp decay over 48h) * popularity (log10 clicks) * source_weight`
-- **Stale year penalty**: titles mentioning old years get 0.3x–0.7x
-- **Language affinity**: boosts articles in user's preferred language (up to 1.3x, needs 3+ clicks)
-- **Category preference**: boosts men's/women's content based on click history (1.3x/0.7x, needs 5+ clicks with >65% dominance)
-- **Channel engagement**: boosts channels user watches (1.15x–1.3x after 3+ plays)
-- **Bookmark relevance**: boosts content mentioning players from bookmarked matches (1.4x–1.8x)
-- **Channel quality**: server-computed from YouTube engagement rate + priority channel status
-- **Title-based dedup**: clusters items with >50% token overlap, shows best one with "+N similar" collapsed
+### Avatar hosting
+Player avatars are rehosted to Supabase Storage (`avatars` bucket) so push largeIcons don't break on upstream hiccups. Best-effort — not every row is on Supabase Storage at any moment.
 
-User preferences tracked in localStorage via `useFeedPreferences` hook. Hidden items via `useHiddenFeedItems` hook — shared across feed page and home carousel.
+Shared helper: [`src/lib/avatar-rehost.ts`](src/lib/avatar-rehost.ts) — `rehostAvatarToSupabase(supabase, playerId, sourceUrl)`. Short-circuits when already on Supabase Storage. Safe to call on every sync run.
 
-### Avatar Hosting
-Target state: player avatars are rehosted to Supabase Storage (`avatars` bucket) so push-notification largeIcons and avatar UIs don't break when an upstream image host hiccups. Implementation is **best-effort** — not every row in `players.avatar_url` is on Supabase Storage at any given moment.
+Backfill: [`/api/admin/migrate-avatars`](src/app/api/admin/migrate-avatars/route.ts) batches rehosts. Supports `?source=googlestorage` (legacy FPT) and `?source=padelfip` (FIP thumbnails). `?limit=N` for testing. Auth: `Bearer $CRON_SECRET`.
 
-**Shared helper:** [src/lib/avatar-rehost.ts](src/lib/avatar-rehost.ts) exposes `rehostAvatarToSupabase(supabase, playerId, sourceUrl)`. Downloads the raw URL, uploads to `avatars/<playerId>.<ext>`, updates `players.avatar_url`. Short-circuits when the player already has a Supabase-hosted avatar — so it's safe to call on every sync run.
+Wired into `/api/admin/sync-fip-rankings` — collects `(playerId, thumbnail)` during resolver loop, rehosts in 20-wide parallel batches afterward.
 
-**Backfill admin route:** [`/api/admin/migrate-avatars`](src/app/api/admin/migrate-avatars/route.ts) batches rehosts for rows that still point at an external prefix. Supports `?source=googlestorage` (legacy Fantasy Padel Tour data) and `?source=padelfip` (FIP feed thumbnails). Add `?limit=N` to test on a small slice first. Auth: `Authorization: Bearer $CRON_SECRET`.
+### Player name aliases
+`PlayerResolver` resolution chain: fip_id → external_id → normalized name + category (with ranking/points disambiguation) → fuzzy (≥0.7 token similarity). On fuzzy match, the raw name variant is auto-stored in `entity_external_ids` (source=`alias`) for instant future lookups. `players.normalized_name` is indexed and trigger-populated using `unaccent`.
 
-**Upstream sync fix (2026-05-11):** [`/api/admin/sync-fip-rankings`](src/app/api/admin/sync-fip-rankings/route.ts) used to pass FIP's `p.thumbnail` (padelfip.com URL) straight into `players.avatar_url`, which is why 309 of 341 rows accumulated raw padelfip URLs. Now the sync collects `(playerId, thumbnail)` pairs during the resolver loop and rehosts them in 20-wide parallel batches after the loop — keeps the daily cron under 120s and prevents new padelfip URLs from landing in the DB. Padelapi's `avatar_url` field is still allowed through `filterUpdateByPriority` in the padelapi sync, but those URLs are already on Supabase Storage upstream.
+### Historical rankings
+`player_ranking_snapshots` is append-only, keyed by `(player_id, type, year, week)`. Both Vercel `sync-fip-rankings` (writes `official` + `race`, captures `ranking_move`) and padelgod `player-rankings` (writes `official` only, no move) UPSERT — last write wins per ISO week.
 
-Other write sites worth knowing about (no current rehost guard, lower volume): `/api/admin/fix-players`, `/api/admin/seed-tournament`, `/api/admin/sync-players`. If those become live ingestion paths again, wire them through `rehostAvatarToSupabase` too.
+Forward-capture only currently. Backfill + derived analytics (`player_ranking_stats` with `peak_rank`, `weeks_at_no1`) are planned — see [docs/superpowers/plans/2026-05-10-ranking-history-capture.md](docs/superpowers/plans/2026-05-10-ranking-history-capture.md).
 
-### Player Name Aliases
-When `PlayerResolver` matches a player via fuzzy match (token similarity ≥ 0.7), it auto-stores the raw name variant as an alias in `entity_external_ids` (source='alias'). Future lookups for the same variant hit the alias cache instantly instead of scanning all players. The `players` table also has a `normalized_name` column (indexed, auto-populated by trigger using `unaccent` extension).
+### Scheduled time pipeline
+Match `scheduled_at` comes from multiple sources:
+1. PadelAPI `played_at` (date-only) + optional `schedule_label`
+2. OOP Schedule Review (ops dashboard) — parses matchscorerlive times → UTC timestamps
+3. **Sync cron protection:** padelapi date-only values do NOT overwrite an existing real time. Operator-reviewed times survive hourly syncs.
+4. "Followed by" estimation: previous match + 90 min
+5. Display: approximate times (from "Not before" / "Followed by") show `*` suffix
 
-### Historical Rankings (2026-05-11)
+### FIP draw pipeline
+Eliminates TBD names on FIP tournament matches. Pipeline: PDF upload (ops UI) → `pdf-parse` → `src/lib/draw-parser.ts` (pure function, parses bracket + seeds + Q/WC/LL markers) → `tournament_draws` table. `fip-scores` cron loads draws at start, checks them first (token similarity ≥0.7) before PlayerResolver fallback.
 
-`player_ranking_snapshots` is an append-only history of FIP rankings keyed by `(player_id, type, year, week)`. Both writers (Vercel `sync-fip-rankings` cron and padelgod `player-rankings` worker) UPSERT on every run — last write wins for that ISO week, so re-running the sync the same week is idempotent.
+Auth: middleware sets httpOnly `ops_token` cookie on `/ops?token=$CRON_SECRET`. All `/api/ops/*` routes read it; 401 responses include `reason: 'server_misconfigured'` | `'token_mismatch'`.
 
-Writers:
-- **Vercel route** writes both `type='official'` (with upstream FIP year/week) and `type='race'` (ISO year/week of `now()` — Race endpoint exposes no week param). Tagged `source='vercel-fip'`. Captures `ranking_move`.
-- **padelgod worker** writes `type='official'` only (HTML ranking page, no move). Tagged `source='padelgod-fip'`. `ranking_move=null`.
+Config: `next.config.ts` needs `serverExternalPackages: ['pdf-parse']` for pdf-parse in API routes.
 
-Both sources land on the same composite key, so duplicate rows aren't possible — the rich payload wins by virtue of running last in the day. Server-only table (no RLS by design).
+### Equipment database
+Four tables: `padel_brands`, `padel_rackets`, `player_equipment` (history junction), `racket_clicks` (affiliate tracking). APIs at `/api/ops/{brands,rackets,player-equipment}`, `/api/racket-click`. Ops "Brands & Equipment" tab + "Plays with" player widget.
 
-**Current scope:** forward-capture only. Backfill (walking FIP `year/week` back to 2020 for top 1000) and derived analytics (`player_ranking_stats` with `peak_rank`, `weeks_at_no1`, etc.) are planned future phases — see [docs/superpowers/plans/2026-05-10-ranking-history-capture.md](docs/superpowers/plans/2026-05-10-ranking-history-capture.md).
+### SEO
+- Dynamic sitemap (`src/app/sitemap.ts`) — tournaments, matches (90d), players
+- JSON-LD `SportsEvent` on match/tournament, `Person` on player
+- `generateMetadata` per page
+- Canonical + hreflang for all 5 locales
 
-Query examples once populated:
-```sql
--- Peak rank ever for a player
-SELECT MIN(ranking) FROM player_ranking_snapshots
-  WHERE player_id = ? AND type = 'official';
+### Scroll-triggered animations
+Stat bars (match stats, player profile, Last 10, Season monthly) use [`useInViewOnce`](src/hooks/useInViewOnce.ts). 700ms ease-out cubic, row stagger `rowIndex * 80ms`, scaleX/Y from origin. Honors `prefers-reduced-motion`. Reuse this pattern — don't introduce a new animation library.
 
--- Top 20 women on a specific Monday
-SELECT player_id, ranking FROM player_ranking_snapshots
-  WHERE type = 'official' AND gender = 'women' AND ranking_date = '2025-08-25'
-  ORDER BY ranking LIMIT 20;
+## Tournament-pill / live-state policy
+
+`tournaments.status` from padelapi reports `'live'` for any in-calendar-window event — it's NOT "matches playing right now". Trust hierarchy for the LIVE pill ([MatchesTournamentGroup.tsx:122](src/components/MatchesTournamentGroup.tsx:122)):
+
+1. `matches.status='live'` on today's match → red **LIVE**
+2. `tournaments.status` finished/completed → muted **FINAL**
+3. Mixed today (finished + upcoming, no live) → orange **ONGOING** *(day's matches prove play happened)*
+4. `tournaments.status='live'/'ongoing'` → orange **ONGOING** *(fallback for rest days)*
+5. Only upcoming today → green **UPCOMING**
+6. Only finished today → muted **FINAL**
+
+Red pill only when an actual match is live. Home page + tournament detail + spotlight hero all follow this.
+
+## PostgREST 10k cap
+
+PostgREST silently caps single-request responses at the project's `db_max_rows`. **Project is set to 10,000 rows** (defense-in-depth).
+
+Policy:
+1. Default cap is 10k project-wide
+2. **Reads that can plausibly grow past 10k MUST paginate** via [`src/lib/db-paginate.ts`](src/lib/db-paginate.ts) (mirrored to `padelgod/src/lib/db-paginate.ts`). Examples: cross-tournament aggregations, multi-tournament snapshot scans, archive backfills.
+3. Per-tournament reads can stay unpaginated (bounded by tournament size)
+
+```ts
+import { paginatedSelect } from '@/lib/db-paginate'
+const rows = await paginatedSelect<Row>(
+  (start, end) => supabase.from('big_table').select('*').range(start, end),
+  { what: 'big_table read' },
+)
 ```
 
-### Scheduled Time Pipeline
-Match schedule times come from multiple sources with different quality:
-1. **PadelAPI** provides `played_at` (date-only, e.g. "2026-04-14") and optional `schedule_label` (e.g. "Starting at 4:00 PM")
-2. **OOP Schedule Review** (ops dashboard) parses times from matchscorerlive.com Order of Play widget and writes proper UTC timestamps
-3. **Sync cron protection**: when PadelAPI only has a date-only value, the sync cron will NOT overwrite `scheduled_at` if it already has a real time (set via OOP). This prevents hourly syncs from erasing operator-reviewed times.
-4. **"Followed by" estimation**: OOP matches with "Followed by" get estimated as previous match + 90 minutes.
-5. **Display**: approximate times (from "Not before" or "Followed by") show `*` suffix in the UI.
+Audit script: `scripts/audit-unranged-selects.ts` (heuristic, not a CI gate).
 
-### Next.js 16 Proxy (formerly Middleware)
-Next.js 16 deprecated `middleware.ts` → renamed to `proxy.ts` with `export function proxy()`. The file at `src/proxy.ts` handles redirects, auth, geo-country cookies, and invite ref capture. Old `src/middleware.ts.deprecated` kept for reference.
+## Ops toggles
 
-### Ops Dashboard Tabs
-The ops dashboard (`/ops`) has these tabs: Ongoing Events, Integration Health, Data Quality, Readiness, Entry Lists, Draw Editor, Simulator, Players, Schedule, Architecture. Key additions:
-- **Players**: Search + edit + merge + duplicate scan (rules-based + AI-powered via Claude)
-- **Schedule**: OOP-based schedule review with human-in-the-loop approval
-- **Architecture**: Live SVG system diagram showing all 15 data integrations
+### `PADELAPI_PAUSED` — kill-switch for padelapi/Premier crons
 
-### Scroll-Triggered Animations
-Stat bars across the app (match stats, player profile win-rate bars, Last 10 sparkline, Season monthly chart) use a shared animation pattern driven by `src/hooks/useInViewOnce.ts`:
+Set to `'true'` in Vercel env vars → these routes return `{ paused: true }` and do zero work:
+- `/api/cron/scores` (every 2 min)
+- `/api/cron/sync` (hourly + weekly)
+- `/api/cron/premier-stats` (hourly :13)
+- `/api/cron/premier-discovery` (weekly)
 
-- **Trigger:** `IntersectionObserver` on a row ref, fires once when the row enters the viewport (never replays)
-- **Duration:** 700ms
-- **Easing:** `cubic-bezier(0.25, 0.1, 0.25, 1)` (ease-out cubic)
-- **Row stagger:** `${rowIndex * 80}ms` delay — cascading wave
-- **Transform:** `scaleX` (horizontal bars, grows from center or left edge) or `scaleY` (vertical bars, grows from bottom)
-- **Transform origin:** `right center` / `left center` / `bottom center` depending on bar direction
-- **Fallback:** `prefers-reduced-motion: reduce` skips animation (instant final state)
-- **Fallback:** missing `IntersectionObserver` (old browsers) also skips animation
+Use when padelapi's writes fight padelgod's logic during an incident. Toggle in Vercel env vars (no deploy needed). Not guarded: FIP-sourced crons, articles/highlights, social-drafts, oop-monitor, etc. Padelgod workers are unaffected.
 
-When adding new stat visualizations, reuse this pattern — don't introduce a new animation library. Example usage:
+**Currently ON** — padelgod owns all writes.
 
-```tsx
-import { useRef } from 'react'
-import { useInViewOnce } from '@/hooks/useInViewOnce'
+Implementation: `src/lib/padelapi-pause.ts` exports `padelapiPausedResponse(cronName)`, called after `CRON_SECRET` auth.
 
-function MyBar({ value, rowIndex }: { value: number; rowIndex: number }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInViewOnce(ref)
-  return (
-    <div ref={ref} style={{ width: 100, background: 'rgba(255,255,255,0.05)' }}>
-      <div style={{
-        width: `${value}%`,
-        background: '#7ed321',
-        transformOrigin: 'left center',
-        transform: inView ? 'scaleX(1)' : 'scaleX(0)',
-        transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
-      }} />
-    </div>
-  )
-}
+## i18n
+
+- **Library:** `next-intl` with App Router
+- **Locales:** `en` (default), `es`, `pt`, `it`, `fr`
+- **Config:** `src/i18n/routing.ts` (defineRouting), `src/i18n/request.ts` (server messages), `src/i18n/navigation.ts` (locale-aware Link/useRouter/usePathname)
+- **Messages:** `src/messages/{en,es,pt,it,fr}.json`
+- **Folder:** all user-facing pages under `src/app/[locale]/`. API/ops/auth routes stay outside.
+- **Proxy:** `src/proxy.ts` composes next-intl middleware with auth/redirect/cookie logic. `/auth`, `/ops`, `/admin`, `/api` skip i18n.
+- **Prefix:** `localePrefix: 'as-needed'` — no prefix for English
+- **Switcher:** `src/components/LocaleSwitcher.tsx` — circular flag button + dropdown
+
+**Typing gotcha for email templates:** when importing JSON for `createTranslator`, use `satisfies Record<Locale, unknown>` — NOT `Record<string, Record<string, unknown>>`. The latter collapses next-intl's `NamespaceKeys` inference to `never`.
+
+## Timezone display
+
+All match/tournament times display in the **user's local timezone** (not UTC, not tournament tz). `src/proxy.ts` sets `geo-timezone` cookie from Vercel's `x-vercel-ip-timezone`. `src/i18n/request.ts` reads it and passes `timeZone` to next-intl. `src/lib/format-patterns.ts` has shared format constants.
+
+## Welcome email
+
+Auth signup sends a localized welcome email (5 locales). Capture in `src/auth.ts` `events.createUser` reads `NEXT_LOCALE` cookie, persists to `profiles.locale`. Sender: `src/lib/email/welcome.ts` — fire-and-forget, Resend `idempotencyKey = welcome-<email>-<locale>` guards against retries. Translations in `src/messages/*.json` under `email.welcome.*`. Preview at `GET /api/admin/preview-welcome-email`.
+
+## Push notification icons
+
+Match notifications carry a per-recipient icon URL (Sofascore-style largeIcon). Resolution:
+- **Follow** (user follows a player) → that player's `avatar_url`. Falls back to circuit logo if no avatar.
+- **Bookmark** (user bookmarked match) → circuit logo by `tournament.level`: Premier-tier → [`public/branding/premier-padel-star.png`](public/branding/premier-padel-star.png), FIP-tier → [`public/branding/fip-tour-icon.png`](public/branding/fip-tour-icon.png).
+
+Resolver: [`src/lib/notification-icon.ts`](src/lib/notification-icon.ts). Wired into `/api/push/notify` per recipient.
+
+**Web Push** picks up `data.icon` in [`public/sw.js`](public/sw.js) → `NotificationOptions.icon`. Legacy fallback `/padelnachos-logo-v2.png`.
+
+**Android FCM** required a custom `FirebaseMessagingService` ([`android/app/src/main/java/com/padelnachos/app/PadelMessagingService.java`](android/app/src/main/java/com/padelnachos/app/PadelMessagingService.java)) — Firebase Admin SDK doesn't expose `largeIcon` as a URL. The service extends Capacitor's plugin MessagingService, downloads the `icon` URL on a background thread, builds `NotificationCompat.setLargeIcon(bitmap)`, posts via `NotificationManager`. AndroidManifest removes the plugin's default service via `tools:node="remove"`. FCM payload is **data-only** (no `notification` block) so FCM doesn't auto-display before our service runs. Trade-off: app builds shipped before this change won't render data-only pushes.
+
+Test loop:
+```bash
+curl -X POST http://localhost:3002/api/admin/test-push \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"<email>", "scenario":"premier"}'   # premier | fip | avatar
 ```
+
+## FIP YouTube streams
+
+`fip_court_streams` + `fip_streams_unresolved` power the "Where to watch" affordance on FIP-tier match rows. Discovery cron `/api/cron/fip-streams-discover` runs every 15 min via the FIP channel's `uploads` playlist (~200 quota units/day). Tier fallback: court stream → tournament-scoped channel search → generic FIP channel URL. Feature-flagged behind `NEXT_PUBLIC_FIP_STREAMS_ENABLED`. Premier matches unaffected — they use the existing `WhereToWatch`.
+
+See [docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md](docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md).
+
+## Supabase soft recovery
+
+When the Supabase auth client gets wedged after tab idle: `supabase-health.ts` tries **soft recovery** before hard reload (restart auth ticker → re-set session from localStorage → re-probe). `useWakeRefresh.ts` calls `startAutoRefresh()` on tab wake. First click after wake runs a quick probe; failure triggers soft recovery immediately.
+
+## Match-identifier pair sanity check
+
+`padelgod/src/lib/match-identifier.ts::findPadelapiTwin` filters court-matched candidates through `pairsMatchUnordered` when the widget input carries all four player UUIDs. Guards against last-minute court swaps where padelapi holds a stale court and the court-only lookup would hijack an unrelated match. Premier live-poller path skips this (no pair UUIDs). Monitoring signal: `"all padelapi twins on this court rejected by pair mismatch — falling through to pair-based lookup (likely court swap)"`.
+
+## Ops dashboard
+
+Tabs: Ongoing Events, Integration Health, Data Quality, Readiness, Entry Lists, Draw Editor, Simulator, Players, Schedule, Brands & Equipment, Architecture.
+
+- **Players:** search + edit + merge + duplicate scan (rules-based + AI via Claude). Decomposed into 5 components under `src/app/ops/players/` (PlayersTable, FilterChips, BulkActionsBar, PlayerDrawer, types).
+- **Schedule:** OOP-based review with human-in-the-loop approval
+- **Architecture:** live SVG system diagram of all data integrations
 
 ## Environment Variables
 
@@ -486,10 +391,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY
 # Server-only
 SUPABASE_SERVICE_KEY          # Full DB access (bypasses RLS)
 PADELAPI_TOKEN                # padelapi.org API key
-CRON_SECRET                   # Protects admin/cron endpoints
-RELAY_SECRET                  # Relay authentication
+CRON_SECRET                   # Protects admin/cron + ops cookie
+RELAY_SECRET                  # Relay auth
 RELAY_URL                     # Railway relay URL
-YOUTUBE_API_KEY               # YouTube Data API (highlights sync)
+YOUTUBE_API_KEY               # YouTube Data API
+PADELAPI_PAUSED               # Kill-switch (see Ops toggles)
 ```
 
 ## Commands
@@ -501,377 +407,31 @@ npm run lint         # ESLint
 npx vitest run src/lib/__tests__/score-inference.test.ts  # Unit tests
 ```
 
-### Historical Backfill (4-day plan)
-
-Backfills all tournament + match data from padelapi.org. Budget: 2,000 requests/day, ~8,000 total over 4 days. Auto-stops at budget and resumes where it left off the next day.
-
-```bash
-# Dry run — see what needs syncing (no API calls)
-curl -s "http://localhost:3002/api/admin/backfill-matches" | python3 -m json.tool
-
-# Run backfill (stops at 2,000 requests, resume next day)
-curl -s "http://localhost:3002/api/admin/backfill-matches?run=true"
-
-# Filter by season or tournament
-curl -s "http://localhost:3002/api/admin/backfill-matches?run=true&season=4"
-curl -s "http://localhost:3002/api/admin/backfill-matches?run=true&tournament=727"
-
-# Skip point-by-point data (faster, less detail)
-curl -s "http://localhost:3002/api/admin/backfill-matches?run=true&skip_pbp=true"
-```
-
-### Other Admin Commands
+### Admin endpoints
 
 ```bash
 # Seed a single tournament
-curl -s "http://localhost:3002/api/admin/seed-tournament?tournament=727" | python3 -m json.tool
+curl "http://localhost:3002/api/admin/seed-tournament?tournament=727"
 
 # Resync recent matches
-curl -s "http://localhost:3002/api/admin/resync" | python3 -m json.tool
+curl "http://localhost:3002/api/admin/resync"
 
-# Trigger cron manually (production)
+# Historical backfill (2k req/day budget, ~4 days total). Filters: &season=N &tournament=N &skip_pbp=true
+curl "http://localhost:3002/api/admin/backfill-matches?run=true"
+
+# Trigger cron manually (prod)
 curl -H "Authorization: Bearer $CRON_SECRET" https://padel-nacho.vercel.app/api/cron/scores
 ```
+
+All admin endpoints require `Authorization: Bearer $CRON_SECRET`.
 
 ## Rate Limits
 
 padelapi.org: 10 req/min, 2,000 req/day, 50,000 req/month. Score Agent tracks request count per run (max 60).
 
-## FIP Draw Pipeline (branch: claude/elated-almeida)
-
-Eliminates TBD player names on FIP tournament matches. Two subsystems:
-
-### PlayerResolver improvements (`src/lib/player-resolver.ts`)
-- Resolution chain: fip_id → external_id → normalized name + category (with ranking/points disambiguation) → fuzzy match (0.7 threshold)
-- CachedPlayer includes `ranking` and `points` for disambiguation
-- `tokenSimilarity` exported for FIP scraper draw lookup
-- Fallback queries fetch `ranking, points` columns; cache updated after enrichment
-
-### Draw PDF pipeline
-- **Parser** (`src/lib/draw-parser.ts`): Pure function parsing FIP draw PDF text into structured bracket data with seeds, Q/WC/LL markers, name conversion (LASTNAME, Firstname → Firstname Lastname)
-- **Parse API** (`src/app/api/ops/parse-draw/route.ts`): PDF upload → pdf-parse text extraction → parseDrawText
-- **Seed API** (`src/app/api/ops/seed-draw/route.ts`): Stores parsed bracket in `tournament_draws`, resolves players via PlayerResolver
-- **FIP scraper integration** (`src/app/api/cron/fip-scores/route.ts`): Loads `tournament_draws` at cron start, checks draws first (tokenSimilarity >= 0.7) before falling back to PlayerResolver
-- **Ops UI** (`src/app/ops/EntryListTab.tsx`): Draw upload section with file picker, preview table, seed confirmation. EL/DR badges on tournament selector.
-
-### New DB table: `tournament_draws`
-- Migration: `supabase/migrations/20260402_tournament_draws.sql`
-- Columns: tournament_id, category, draw_position, seed, marker (Q/WC/LL), player1/2_name, player1/2_country, player1/2_id, team_points
-- Unique constraint: (tournament_id, category, draw_position)
-
-### Auth pattern for ops API routes
-- Middleware (`src/middleware.ts`) sets httpOnly `ops_token` cookie on `/ops?token=<CRON_SECRET>` login
-- All `/api/ops/*` routes read the cookie via `cookies()` and compare to `CRON_SECRET` env var
-- 401 responses include `reason` field: `server_misconfigured` (CRON_SECRET not set) or `token_mismatch` (cookie invalid)
-
-### Current status (as of 2026-04-02)
-- All 11 implementation tasks complete, code merged and deployed to Vercel
-- **Draw parser fix deployed**: Removed overly broad `\d+\s*$` from BRACKET_END_RE that stopped parsing on standalone seed numbers from PDF extraction
-- **Tests**: draw-parser (14), player-resolver (10), entry-list-parser (10) — all passing
-- **Known issue — 401 on ops dashboard**: After deploy, `/api/ops/seed-entry-list?action=list-tournaments` returns 401. Diagnostic logging added. To debug: check if error says `server_misconfigured` (CRON_SECRET not in Vercel env vars) or `token_mismatch` (re-login via `/ops?token=<secret>`). Check Vercel function logs.
-- **Pending**: After 401 is fixed, re-upload both draw PDFs (men MD-v4, women WD-v3) for FIP Gold Almaty. Then trigger fip-scores cron to backfill player IDs on 68 existing matches (all currently have null player IDs because old cron ran before deploy).
-- **Test tournament**: FIP Gold Almaty (ID: `d3d73d56-eea4-4ebb-8715-58fa87751a52`). Entry lists seeded (men 78 players, women 56). 68 matches (36 men, 32 women).
-- **Pre-existing test failures**: 5 parseWpEvent tests expect 'Gold'/'Silver'/'Bronze' but implementation returns 'fip_gold'/'fip_other' — NOT related to this work.
-
-### Config notes
-- `next.config.ts`: `serverExternalPackages: ['pdf-parse']` required for pdf-parse in API routes
-- `package.json`: pdf-parse ^2.4.5 (dependency), vitest ^4.1.2 (devDependency)
-
 ## Important Notes
 
-- Tournament `status` column DOES exist (populated by Vercel sync from padelapi: `'pending'`, `'live'`, `'finished'`). It's a coarse calendar-window signal, NOT a "matches are being played right now" signal — see "Tournament-pill / live-state policy (2026-04-30)" below for the trust hierarchy.
-- `category` field on matches distinguishes `'men'` vs `'women'`
-- Middleware injects `geo-country` cookie from Vercel's `x-vercel-ip-country` header
+- `tournaments.status` is a coarse calendar-window signal, NOT "matches playing right now" — see "Tournament-pill / live-state policy"
+- `category` on matches: `'men'` vs `'women'`
+- Proxy injects `geo-country` + `geo-timezone` cookies from Vercel headers
 - `next.config.ts` allows remote images from `storage.googleapis.com` and `jwqaesjjoghzobngxejn.supabase.co`
-- Admin endpoints require `Authorization: Bearer {CRON_SECRET}` header
-
-## i18n (Internationalization)
-
-- **Library:** `next-intl` with Next.js 16 App Router
-- **Locales:** `en` (default), `es`, `pt`, `it`, `fr`
-- **Config:** `src/i18n/routing.ts` (defineRouting), `src/i18n/request.ts` (server messages), `src/i18n/navigation.ts` (locale-aware Link/useRouter/usePathname)
-- **Messages:** `src/messages/{en,es,pt,it,fr}.json` (~200 keys each)
-- **Folder structure:** All user-facing pages under `src/app/[locale]/`. API, ops, auth routes stay outside.
-- **Proxy:** `src/proxy.ts` composes next-intl middleware with auth/redirect/cookie logic. `/auth`, `/ops`, `/admin`, `/api` skip i18n routing.
-- **Prefix:** `localePrefix: 'as-needed'` — no prefix for English, `/es/` etc. for others
-- **Switcher:** `src/components/LocaleSwitcher.tsx` — circular flag button with dropdown picker. In profile page (direction=up) and login sheet (direction=down).
-- **Imports:** All user-facing files use `import { Link, useRouter, usePathname } from '@/i18n/navigation'` instead of `next/link` and `next/navigation`.
-
-## Equipment Database (2026-04-13)
-
-Four tables for structured padel equipment tracking:
-- `padel_brands` — brand entity (name, logo_url, website_url)
-- `padel_rackets` — racket entity (brand FK, model, year, shape, weight, balance, surface, image_url, product_url, click_count)
-- `player_equipment` — junction table with history (player FK, racket FK, started_at, ended_at)
-- `racket_clicks` — affiliate click tracking (racket FK, player FK, user FK, created_at)
-
-APIs: `/api/ops/brands`, `/api/ops/rackets`, `/api/ops/player-equipment`, `/api/racket-click`
-Ops tab: "Brands & Equipment" in ops dashboard for brand/racket CRUD
-Player profile: "Plays with" widget reads from joined tables with JSONB fallback
-
-## Score Pipeline Guards (2026-04-13)
-
-Critical fixes to prevent data loss in the scores cron:
-1. **Guard:** `upsertMatch` skips matches already `finished`/`retired`/`walkover` in DB (stale live feed protection)
-2. **Guard:** Don't regress `ended` back to `live`
-3. **Live fallback:** `writeFinalState` falls back to `/api/matches/{id}/live` when detail endpoint returns `score: null`
-4. **No orphan deletion:** Only delete null-score sets when replacement data exists
-5. **Write all sets:** Removed filter that skipped sets without `set_score`
-6. **Retirement inference:** `inferWinnerPair` handles 1-set retirements and mid-Set-3 retirements
-7. **Auto-transition:** `inferWinnerPair` atomically sets `status: 'finished'` when winner is inferred
-
-### Backlog: PBP Backfill
-`backfillPointData` function exists in scores cron but the sweep query has a PostgREST syntax bug. Spec at `docs/superpowers/specs/2026-04-13-pbp-backfill-design.md`.
-
-## Score Pipeline Fixes (2026-04-14)
-
-1. **Relay: derive set_score** — When API returns `set_score: null` on finish but has `pair1_games`/`pair2_games`, relay now computes the score string (e.g. "6-3") instead of skipping the set
-2. **Relay: is_current on finish** — All sets get `is_current: false` when match status is finished/ended
-3. **Preserve retired/walkover status** — `writeFinalState` and `inferWinnerPair` no longer hardcode `status: 'finished'`. They preserve `retired`/`walkover` from the API, so the UI "RET" badge renders correctly
-
-## Timezone Display (2026-04-14)
-
-All match/tournament times display in the **user's local timezone** (not UTC, not tournament tz).
-- `src/proxy.ts` sets `geo-timezone` cookie from Vercel's `x-vercel-ip-timezone` header
-- `src/i18n/request.ts` reads cookie, passes `timeZone` to next-intl config
-- `src/lib/format-patterns.ts` — shared format constants (TIME_24H, DATE_SHORT, etc.)
-- All `format.dateTime()` calls auto-use the user's timezone globally
-
-## SEO (2026-04-14)
-
-- **Dynamic sitemap** (`src/app/sitemap.ts`) — tournaments, matches (90 days), players
-- **JSON-LD** — `SportsEvent` on match/tournament pages, `Person` on player pages
-- **generateMetadata** — dynamic titles/descriptions for tournament, player, home pages
-- **Canonical + hreflang** — all layouts include canonical URLs and alternates for 5 locales
-- **About page** — `/about` with i18n, chunky design, brand story
-
-## Match Stats from PadelAPI (2026-04-14)
-
-- `/api/match-stats` fetches from `padelapi.org/api/matches/{id}/stats` (no Premier Padel pipeline needed)
-- On-demand fetch + DB cache in `match_stats` table
-- Maps percentage strings to value/100 format for existing MatchStatsBar UI
-- Available for any match with a `padelapi_id` (~6,500 matches)
-
-## Supabase Soft Recovery (2026-04-14)
-
-When the Supabase auth client gets wedged after tab idle:
-1. `supabase-health.ts` tries **soft recovery** before hard reload: restarts auth ticker → re-sets session from localStorage → re-probes
-2. `useWakeRefresh.ts` proactively calls `startAutoRefresh()` on tab wake
-3. **Click-triggered recovery** — on first click after tab wake, a quick probe runs. If it fails, soft recovery triggers immediately
-
-## Ops Players Tab Redesign (2026-04-14)
-
-Decomposed 1,350-line monolith into 5 components under `src/app/ops/players/`:
-- `PlayersTable.tsx` — checkboxes, completeness dots, avatar+flag, pagination
-- `FilterChips.tsx` — All, Missing Equipment/Avatar/Ranking + Men/Women with counts
-- `BulkActionsBar.tsx` — multi-select + bulk equipment assignment modal
-- `PlayerDrawer.tsx` — right overlay drawer with tabbed edit form
-- `types.ts` — shared types and `computeCompleteness()`
-
-Search API (`/api/ops/search-players`) updated with pagination + filter params.
-
-## Racket Enrichment Scripts (2026-04-14)
-
-- `scripts/enrich-brand-logos.ts` — populates brand logos from Brandfetch CDN
-- `scripts/enrich-racket-specs.ts` — uses Claude Sonnet + web search to extract specs
-- Ops "Import from URL" — paste product page URL, Claude Haiku extracts specs into form
-
-## OOP Parser Fix (2026-04-14)
-
-Player regex in `parseOopHtml()` required flag image as anchor. Players without country flag (e.g. Sharifova) were skipped → match dropped. Fixed by making flag optional.
-
-## Ops toggles
-
-### `PADELAPI_PAUSED` — kill-switch for external-source crons (2026-04-22)
-
-When set to `'true'` in Vercel env vars, the following cron routes return early with `{ paused: true }` and do **zero work** — no padelapi calls, no DB writes:
-
-- `/api/cron/scores` — every 2 min
-- `/api/cron/sync` — hourly at :00 + weekly
-- `/api/cron/premier-stats` — hourly at :13
-- `/api/cron/premier-discovery` — weekly
-
-Use when padelapi's writes are fighting manual SQL patches or padelgod's `closeMatch` logic during an incident (e.g., the 2026-04-22 Brussels P2 debugging session where padelapi's `'live' → 'ended'` transient was stomping our recovery). Toggle via Vercel env vars — no deploy needed (Vercel restarts the function when env vars change).
-
-Not guarded (these don't consume padelapi/Premier): `sync-fip-rankings` (FIP-sourced), `sync-articles`, `sync-highlights`, `social-drafts`, `oop-monitor`, `fip-scores`, `nacho-health`, `editorial-gen`, `sync-broadcasters`, `quality-scores`. (`fip-tournaments` retired 2026-04-28 — moved to padelgod workers.)
-
-Padelgod workers on Railway are unaffected — they don't read this env var.
-
-Implementation: `src/lib/padelapi-pause.ts` exports `padelapiPausedResponse(cronName)`, called right after the `CRON_SECRET` auth check in each guarded route.
-
-## Welcome email (2026-04-23)
-
-Auth signup sends a localized welcome email. All 5 locales covered (en/es/pt/it/fr).
-
-- **Capture:** `src/auth.ts` `events.createUser` reads `NEXT_LOCALE` cookie (set by next-intl's proxy) and persists to `profiles.locale`. Migration: `supabase/migrations/20260423000004_profiles_locale.sql` — `locale text NOT NULL DEFAULT 'en'` + CHECK constraint for the 5 supported locales.
-- **Sender:** `src/lib/email/welcome.ts` — framework-agnostic, uses next-intl's `createTranslator` with all 5 locale JSONs imported inline. Fire-and-forget from `createUser` (never blocks signup). Resend `idempotencyKey = welcome-<email>-<locale>` guards against retries.
-- **Templates:** translations live in `src/messages/{en,es,pt,it,fr}.json` under `email.welcome.*` namespace. Styling matches the magic-link email (#7ED321 CTA, logo header, pill layout).
-- **Preview:** `GET /api/admin/preview-welcome-email` renders the exact HTML Resend would deliver, no real send. Index page lists all 5 locales; `?locale=es&name=Lia` renders one. Auth: `ops_token` cookie (ops login) or `Authorization: Bearer $CRON_SECRET` header. Exported `buildWelcomeEmail()` from `src/lib/email/welcome.ts` so preview + sender share identical render logic.
-- **Typing gotcha for future email templates:** when importing JSON messages for `createTranslator`, use `satisfies Record<Locale, unknown>` on the map — NOT `Record<string, Record<string, unknown>>`. The latter widens the literal types and next-intl's `NamespaceKeys` inference collapses to `never`.
-
-## Match-identifier pair sanity check (2026-04-23)
-
-`padelgod/src/lib/match-identifier.ts::findPadelapiTwin` now filters court-matched candidates through `pairsMatchUnordered` when the widget input carries all four player UUIDs. Guards against last-minute court swaps — if padelapi holds a stale court for the actual live match, the court-only lookup would hijack whatever unrelated match happens to be stored on the live court. With the pair check, mismatched twins are rejected and `findByPairs` (court-agnostic) runs next.
-
-- **Incident:** Brussels P2 women R16 2026-04-23. Caldera/Goenaga moved from Nextensa → CBC last-minute. Widget WD011 landed on Triay/Brea (the next CBC slot, 2h later) instead of Caldera. UI showed Triay/Brea as live with Caldera's score data.
-- **Premier unaffected:** Premier live-poller path doesn't populate pair UUIDs → pair check is skipped → behaves exactly as before.
-- **Monitoring:** `"match-identifier: all padelapi twins on this court rejected by pair mismatch — falling through to pair-based lookup (likely court swap)"` warn log is the signal the fix fired.
-- **Manual hotfix pattern** when a widget mapping is wrong: (1) reset the wrongly-flipped match's `status` back to `scheduled` + delete phantom sets/games, (2) delete the bad `entity_external_ids` mapping, (3) update the right match's `court` to match reality. Padelgod re-links within ~80s via the next live-poll.
-
-## PostgREST 1k cap (2026-04-29)
-
-PostgREST silently caps single-request responses at the project's `db_max_rows` setting. **Our project bumped to 10,000 on 2026-04-29** (Project Settings → API → "Max Rows") after the Leiria FIP Silver incident: 5,369 entry_list_snapshots, women's roster fell past the 1000-row default cap, every women's match silently failed to resolve in the populator. No error was raised — Supabase returns the truncated dataset as if it were complete.
-
-### Project policy
-
-1. **Default cap is 10,000 rows** project-wide (defense-in-depth). Single tournament per-day reads, per-match reads, paged listings — all comfortably under this.
-2. **Reads that can plausibly grow past 10k MUST paginate** via `src/lib/db-paginate.ts` (mirrored to `padelgod/src/lib/db-paginate.ts`). Examples: cross-tournament historical aggregations, multi-tournament snapshot scans, archive backfills.
-3. **Per-tournament reads can stay unpaginated** — they're bounded by tournament size and absorbed by the 10k cap.
-
-### When in doubt, paginate
-
-```ts
-import { paginatedSelect } from '@/lib/db-paginate'
-
-const rows = await paginatedSelect<EntryListRow>(
-  (start, end) =>
-    supabase
-      .schema('padelgod')
-      .from('entry_list_snapshots')
-      .select('name, fip_id, category, captured_at')
-      .eq('tournament_id', tournamentId)
-      .range(start, end),
-  { what: `entry_list_snapshots (tournament=${tournamentId})` },
-)
-```
-
-The helper loops `.range(start, end)` until a partial page comes back. Stops at `maxRows` (default 100k) as a runaway safety. Each call gets a `what` label for debuggable error messages.
-
-### Audit script
-
-`scripts/audit-unranged-selects.ts` flags `.from('TABLE')` chains against watched tables (entry_list_snapshots, draw_snapshots, oop_snapshots, results_snapshots, scrape_jobs, matches, players, tournaments, entity_external_ids, articles) that don't show a bound hint nearby (`.limit`, `.range`, `paginatedSelect`, `.single`, `.maybeSingle`, `.eq('id', …)`, `.eq('*_id', …)`).
-
-Heuristic only — many false positives (e.g. `.in('id', [list])`, `.eq('category', 'men')` for a per-tournament read are bounded in context). Run after touching big-table reads:
-
-```bash
-npx tsx scripts/audit-unranged-selects.ts                        # all tables
-npx tsx scripts/audit-unranged-selects.ts entry_list_snapshots   # one table
-```
-
-Not a CI gate — review tool only.
-
-## Unified `MatchCard` (2026-04-30)
-
-[`src/components/MatchCard.tsx`](src/components/MatchCard.tsx) is the single shared match-row component used by every list surface (matches-by-date page, tournament detail's Matches tab, upset highlights). It switches between three states based on `match.status`:
-
-- **scheduled** → chip row + pair rows + right-aligned date/time stack with `*` suffix on approximate (`"Followed by"` / `"Not before"`), orange `estimatedLabel` fallback, then `TBD`
-- **live** → chip row + pair rows + per-set scores + live point indicator
-- **finished** / `retired` / `walkover` / `ended` → chip row + per-set scores + green "W" badge on winning pair
-
-Replaces `DailyMatchCard`, `V3MatchCard`, and the inline `V3ScheduledCard` that was defined inside the tournament-detail page. If you need the per-state styling history, check the git log on those names.
-
-The `<PredictionSection>` pill (green eye icon + "PREDICTED") surfaces here too, hydration-safe via `useEffect` reading `localStorage['pn_match_predictions']`.
-
-## Tournament-pill / live-state policy (2026-04-30)
-
-`tournaments.status` from padelapi reports `'live'` for any event in its calendar window — it's NOT a "matches are being played right this second" signal. Trusting it as one made the matches-list LIVE pill flash red all night for any in-progress tournament.
-
-**Trust hierarchy (matches-list group header — [MatchesTournamentGroup.tsx:122](src/components/MatchesTournamentGroup.tsx:122)):**
-
-1. `matches.status='live'` on at least one of today's matches → red **LIVE**
-2. `tournaments.status` finished/completed/ended → muted **FINAL**
-3. mixed bucket today (some finished + some upcoming, no live) → orange **ONGOING** *(stronger ongoing signal than `tournaments.status` because the day's matches prove play has happened)*
-4. `tournaments.status='live'/'ongoing'` → orange **ONGOING** *(fallback for in-window tournaments with no matches today, e.g. rest day)*
-5. only upcoming today → green **UPCOMING**
-6. only finished today → muted **FINAL**
-7. otherwise → no pill
-
-Other surfaces follow the same red-pill-only-when-live discipline:
-
-- **Home page** ([TournamentsView.tsx:237](src/components/home/TournamentsView.tsx:237)) — fetches actual matches per candidate tournament, distinguishes `'live'` (red) / `'ongoing'` (orange, "between sessions") / `'completed'`.
-- **Tournament detail** ([tournaments/[id]/page.tsx:1251](src/app/[locale]/(app)/tournaments/[id]/page.tsx:1251)) — `isLive = isInDateRange && liveCount > 0 && !finalPlayed` where `liveCount` excludes warming-up matches.
-- **TournamentSpotlightHero** — gated on `hasLiveMatches` boolean derived from match statuses.
-
-The `tournament.status='live'` fallback only fires inside #4 and only renders ONGOING (orange), never LIVE (red).
-
-## Crionet results parser — walkover capture (2026-04-30)
-
-`padelgod/src/parsers/crionet-results.ts` previously dropped any row whose set cells were all `-` (`if (sets.length === 0) return`) and hardcoded `status: 'finished'`. Walkovers stayed invisible, so matches stuck on `scheduled` after the actual fixture was decided.
-
-Three terminal-status patterns the parser now handles:
-
-| Pattern | Loser side | Winner side | Set cells |
-|---|---|---|---|
-| **Normal finished** | Player names + scores | Player names + `fa-check` | `6-2 6-3` |
-| **WO badge** | Player names | Player names + `fa-check` + `<small class="badge">WO</small>` | all `-` |
-| **Missing team** | `<span class="missingteam">Alternate</span>` placeholder | Player names + `fa-check`, no badge | all `-` |
-
-Detection: `WO` / `RET` / `W/O` text in `small.badge`, OR `.missingteam` class on a team row. Either signal preserves the row + emits `status: 'walkover'` (or `'retired'`). The `Alternate` placeholder is excluded from name extraction so it never leaks in as a player name.
-
-Backfill: [`scripts/reconcile-results-walkovers.mjs`](scripts/reconcile-results-walkovers.mjs) replays the corrected parser against currently-active tournament widgets. Sources the tournament list from `widget_id_cache` (small table) intersected with active tournaments by date — NOT from `oop_snapshots` directly, which can hit the PostgREST 10k row cap and silently truncate at 399+ widgets. Chunked `.in()` queries (100 IDs per chunk) avoid the URL-length limit.
-
-## OOP "Followed by" cross-day chain isolation (2026-04-30)
-
-Bug in `padelgod/src/lib/oop-schedule-parser.ts` — sort key was `(court, courtPosition)` and `lastTimePerCourt` was keyed by court alone. Crionet OOP snapshots cover multiple days at once with `court_position` resetting per day, so Apr 30's "Followed by" rows would chain off Apr 29's last absolute time and produce timestamps a full day off.
-
-**Reproducer:** FIP Silver Mendoza Q2 MQ008. Pista Central, court_position 3, day_date 2026-04-30, label "Followed by". Stored as 22:15 ARG Apr 29 (= 03:15 Madrid Apr 30) instead of 16:30 ARG Apr 30 (= 21:30 Madrid).
-
-**Fix:**
-- Sort by `(court, dayDate, courtPosition)`.
-- Key the chain map by `${court}::${dayDate}` so each day's chain is independent.
-
-Backfill: [`scripts/reconcile-oop-scheduled-at.mjs`](scripts/reconcile-oop-scheduled-at.mjs).
-
-## Cross-source tournament prevention (2026-04-30)
-
-Padelapi-imported tournament rows have `slug = null`. Padelgod's `tournament-discovery` upserts FIP events with `onConflict: 'slug'`. The two pipelines never collide → every tournament that has both a padelapi entry AND a FIP page got TWO rows. Downstream writers split work between them: `fip-event-page-enricher` enriched one, `fip-draw-populator` created matches on whichever, OOP writer wrote to a third. Public app showed duplicate tournaments + orphan UPCOMING matches stuck on the row that lacked `widget_id_composite`.
-
-**Prevention:** [`padelgod/src/workers/tournament-discovery.ts`](padelgod/src/workers/tournament-discovery.ts) now does a name-token + year lookup against existing rows where `padelapi_id IS NOT NULL AND fip_id IS NULL` before each upsert.
-
-- **Match found** → upsert with `onConflict: 'id'` to UPDATE the existing row in place. Slug, country, level land on the canonical padelapi row.
-- **No match** → existing `onConflict: 'slug'` path (insert).
-- Slug year extracted from FIP slug pattern (`fip-silver-club-la-calzada-2026` → `2026`) with `publishedGmt` fallback.
-- New return field `twinMerges` counts absorbed duplicates per run — should be 0 in steady state.
-
-**Cleanup script gotcha:** [`scripts/merge-tournament-duplicates.ts`](scripts/merge-tournament-duplicates.ts) was filtering on `source === 'padelapi'` to identify the survivor row, but every row in production has `source = 'fip'` post-discovery-flow change. Switched the discriminator to `padelapi_id != null` vs `fip_id`-only. The script silently said "0 duplicates" for months because of this — that's why the Marmotor / Cyprus / Dubai dupes accumulated.
-
-**Match dedup:** for orphans that survive across pipelines, [`scripts/dedup-pattern-b-multi-pipeline.mjs`](scripts/dedup-pattern-b-multi-pipeline.mjs) clusters by name-token signature OR ≥3 player UUID overlap. Clusters where the widget-linked twin has no player FKs (different ingest path) won't unite — those need a manual delete (cluster-by-court+round+time would catch them but adds risk of false matches).
-
-## FIP YouTube streams (2026-04-30)
-
-`fip_court_streams` + `fip_streams_unresolved` power the "Where to watch" affordance on FIP-tier match rows (circular YouTube button between names and scores) and on the match detail page (chunky card). Discovery cron `/api/cron/fip-streams-discover` runs every 15 min via the FIP channel's `uploads` playlist (cheap endpoint, ~200 quota units/day). Title parser maps streams to (tournament, court, day); unmatched videos go to the ops queue. Tier fallback: court stream → tournament-scoped channel search → generic FIP channel URL (always works).
-
-Feature flagged behind `NEXT_PUBLIC_FIP_STREAMS_ENABLED`. Cron supports `FIP_STREAMS_DRY_RUN=true` for scan-only mode during initial rollout. Premier Padel matches are unaffected — they still use the existing `WhereToWatch` component.
-
-Spec: [docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md](docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md). Plan: [docs/superpowers/plans/2026-04-30-fip-youtube-streams.md](docs/superpowers/plans/2026-04-30-fip-youtube-streams.md). Mockup: [public/mockup-fip-stream.html](public/mockup-fip-stream.html).
-
-## Push notification icons (2026-05-10)
-
-Match notifications carry a per-recipient icon URL (Sofascore-style largeIcon). Resolution rule:
-- **Follow** (user follows a player) → that player's `avatar_url` from Supabase Storage. Falls back to the circuit logo if the player has no avatar.
-- **Bookmark** (user bookmarked the match) → circuit logo keyed off `tournament.level`: Premier-tier (P1/P2/Major/Premier_Mens/Premier_Womens) → Padel Star at [`public/branding/premier-padel-star.png`](public/branding/premier-padel-star.png), FIP-tier (fip_bronze/silver/gold) → Cupra FIP Tour at [`public/branding/fip-tour-icon.png`](public/branding/fip-tour-icon.png).
-
-Resolver: [src/lib/notification-icon.ts](src/lib/notification-icon.ts). Wired into [src/app/api/push/notify/route.ts](src/app/api/push/notify/route.ts) per recipient and into the anon fan-out (always circuit logo since anon has no follow concept).
-
-**Web Push** picks up `data.icon` in [public/sw.js](public/sw.js) and surfaces it via `NotificationOptions.icon`. Falls back to `/padelnachos-logo-v2.png` for legacy pushes still in flight.
-
-**Android FCM** required a custom `FirebaseMessagingService` because Firebase Admin SDK doesn't expose `largeIcon` as a URL — only `notification.image` (big-picture, expanded view only) and `notification.icon` (drawable resource name, not URL). Implementation:
-- [`android/app/src/main/java/com/padelnachos/app/PadelMessagingService.java`](android/app/src/main/java/com/padelnachos/app/PadelMessagingService.java) extends Capacitor's plugin MessagingService (so JS push events still fire for foreground listeners), then for every data-only message: downloads the `icon` URL on a background thread, builds a `NotificationCompat` with `setLargeIcon(bitmap)`, posts via `NotificationManager`. Click intent is a deep-link `https://padelnachos.com/match/{id}` that the existing intent filter routes to MainActivity.
-- AndroidManifest registers `.PadelMessagingService` and removes the Capacitor plugin's default service via `tools:node="remove"`.
-- FCM payload is **data-only** (no `notification` block) — required so FCM doesn't auto-display before our service runs. Trade-off: app builds shipped before this change won't render the data-only notifications. Acceptable because the user is the primary tester and we control the rollout.
-
-**Test loop:**
-```bash
-# Web push: nothing extra needed — restart the dev server and tap "Test push" in /admin or use:
-curl -X POST http://localhost:3002/api/admin/test-push \
-  -H "Authorization: Bearer $CRON_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"<your email>", "scenario":"premier"}'
-
-# Android FCM: rebuild + sync the native shell
-npx cap sync android
-npx cap run android       # or open Android Studio and run
-# Then fire the same curl above (scenario: 'premier' | 'fip' | 'avatar')
-```
-
-Scenarios: `premier` (Premier-tier circuit logo), `fip` (FIP Tour circuit logo), `avatar` (player avatar — pass `avatarUrl` to use a real one). Test endpoint: [src/app/api/admin/test-push/route.ts](src/app/api/admin/test-push/route.ts).
