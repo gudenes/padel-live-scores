@@ -15,6 +15,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { PlayerResolver } from '@/lib/player-resolver'
+import { sanitizeDurationHHMM } from '@/lib/match-duration'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -229,7 +230,7 @@ async function processMatch(
           : null,
         winner_pair: winnerPair,
         retired_pair: retiredPair,
-        duration: match.duration ?? null,
+        duration: sanitizeDurationHHMM(match.duration),
         schedule_label: match.schedule_label ?? null,
         category: match.category ?? null,
         raw_payload: liveDetail ?? null,

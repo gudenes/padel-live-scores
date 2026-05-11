@@ -19,6 +19,25 @@ const { createClient } = require('@supabase/supabase-js')
 // createClient() time and crashes if no transport is wired in.
 const ws = require('ws')
 
+// ── Duration sanity guard ─────────────────────────────────────
+// Padelapi.org returns `duration` as an HH:MM string. Anything above 4
+// hours is upstream contamination (typically a wall-clock end-time
+// leaking into the duration field). Drop on the floor rather than persist
+// garbage. Mirrors src/lib/match-duration.ts and
+// padelgod/src/lib/match-time-stamps.ts.
+const MAX_DURATION_MINUTES = 240
+function sanitizeDurationHHMM(s) {
+  if (!s) return null
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s)
+  if (!m) return null
+  const h = parseInt(m[1], 10)
+  const mins = parseInt(m[2], 10)
+  if (Number.isNaN(h) || Number.isNaN(mins)) return null
+  const total = h * 60 + mins
+  if (total < 0 || total > MAX_DURATION_MINUTES) return null
+  return s
+}
+
 // ── Config ────────────────────────────────────────────────────
 const PUSHER_APP_KEY = process.env.PUSHER_APP_KEY || '0ffbefeb945e4e466065'
 const PUSHER_CLUSTER = process.env.PUSHER_CLUSTER || 'eu'
@@ -505,7 +524,7 @@ async function fetchAndWriteFinalState(externalId, matchDbId) {
         winner_pair: winnerPair,
         status: 'finished',
         finished_at: new Date().toISOString(),
-        duration: match.duration ?? null,
+        duration: sanitizeDurationHHMM(match.duration),
         started_at: startedAt,
         updated_at: new Date().toISOString(),
       })

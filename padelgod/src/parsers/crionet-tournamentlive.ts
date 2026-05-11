@@ -164,7 +164,18 @@ function parseSetCell($: cheerio.CheerioAPI, td: cheerio.Cheerio<any>): { games:
 }
 
 /**
+ * Maximum plausible match duration in minutes. Padel matches almost never
+ * exceed 3.5 hours; 4 hours is a generous outer bound. Any parsed HH:MM
+ * above this is treated as wall-clock-time contamination (see ASUNCION P2
+ * 2026-05-08 incident, where '22:09' and '20:05' end-times leaked into
+ * the duration column via the summary row).
+ */
+const MAX_DURATION_MINUTES = 240;
+
+/**
  * Parse duration string like "00:09" → 9 minutes, "01:21" → 81 minutes.
+ * Returns null for values above MAX_DURATION_MINUTES so the caller can
+ * keep iterating past wall-clock-time spans toward a real elapsed span.
  */
 function parseDuration(text: string): number | null {
   const m = text.match(/(\d{1,2}):(\d{2})/);
@@ -172,7 +183,9 @@ function parseDuration(text: string): number | null {
   const hours = parseInt(m[1]!, 10);
   const minutes = parseInt(m[2]!, 10);
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-  return hours * 60 + minutes;
+  const total = hours * 60 + minutes;
+  if (total > MAX_DURATION_MINUTES) return null;
+  return total;
 }
 
 export function parseCrionetTournamentLive(html: string): ParsedLiveTournament {

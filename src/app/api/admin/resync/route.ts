@@ -1,5 +1,6 @@
 // src/app/api/admin/resync/route.ts
 import { createClient } from '@supabase/supabase-js'
+import { sanitizeDurationHHMM } from '@/lib/match-duration'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,7 +65,7 @@ async function resyncMatch(dbMatch: any): Promise<{ status: string; external_id:
 
     // Update match
     await supabase.from('matches').update({
-      status: newStatus, winner_pair: winnerPair, duration: matchDetail.duration ?? null,
+      status: newStatus, winner_pair: winnerPair, duration: sanitizeDurationHHMM(matchDetail.duration),
       court: matchDetail.court ?? null, court_order: matchDetail.court_order ?? null,
       started_at: matchDetail.started_time ?? null, schedule_label: matchDetail.schedule_label ?? null,
       scheduled_at: matchDetail.played_at ?? null,

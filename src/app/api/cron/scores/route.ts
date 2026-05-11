@@ -12,6 +12,7 @@ import { inferFinalScore, inferBatch, inferWinnerPair } from '@/lib/score-infere
 import { PlayerResolver } from '@/lib/player-resolver'
 import { logOpsEvent } from '@/lib/ops-logger'
 import { padelapiPausedResponse } from '@/lib/padelapi-pause'
+import { sanitizeDurationHHMM } from '@/lib/match-duration'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -546,7 +547,7 @@ async function writeFinalState(matchDbId: string, externalId: string, apiStatus:
       winner_pair: winnerPair,
       status: finalStatus,
       finished_at: new Date().toISOString(),
-      duration: detail.duration ?? null,
+      duration: sanitizeDurationHHMM(detail.duration),
       started_at: startedAt,
       updated_at: new Date().toISOString(),
     })

@@ -4,6 +4,9 @@ import {
   computeFinishedAtFallback,
   formatDurationHHMM,
   parseDurationHHMM,
+  sanitizeDurationHHMM,
+  sanitizeDurationMinutes,
+  MAX_DURATION_MINUTES,
 } from '../../lib/match-time-stamps.js';
 
 describe('computeBackstampedStartedAt', () => {
@@ -69,6 +72,51 @@ describe('parseDurationHHMM', () => {
     expect(parseDurationHHMM('01-20')).toBeNull();
     expect(parseDurationHHMM('abc')).toBeNull();
     expect(parseDurationHHMM('1:2:3')).toBeNull();
+  });
+});
+
+// Sanitize helpers — defense-in-depth against wall-clock-time leakage into
+// the duration column. See ASUNCION P2 2026-05-08 incident: parser handed
+// the live-poller a 1329-minute "duration" sourced from a finished-match
+// summary span that actually contained the wall-clock end-time '22:09'.
+describe('sanitizeDurationMinutes', () => {
+  it('passes through plausible match durations', () => {
+    expect(sanitizeDurationMinutes(0)).toBe(0);
+    expect(sanitizeDurationMinutes(80)).toBe(80);
+    expect(sanitizeDurationMinutes(MAX_DURATION_MINUTES)).toBe(MAX_DURATION_MINUTES);
+  });
+
+  it('returns null for values above the 240-minute cap', () => {
+    expect(sanitizeDurationMinutes(MAX_DURATION_MINUTES + 1)).toBeNull();
+    expect(sanitizeDurationMinutes(1329)).toBeNull(); // ASUNCION QF '22:09'
+    expect(sanitizeDurationMinutes(1205)).toBeNull(); // ASUNCION QF '20:05'
+  });
+
+  it('returns null for null or negative input', () => {
+    expect(sanitizeDurationMinutes(null)).toBeNull();
+    expect(sanitizeDurationMinutes(-5)).toBeNull();
+  });
+});
+
+describe('sanitizeDurationHHMM', () => {
+  it('passes through plausible HH:MM strings unchanged', () => {
+    expect(sanitizeDurationHHMM('00:00')).toBe('00:00');
+    expect(sanitizeDurationHHMM('01:20')).toBe('01:20');
+    expect(sanitizeDurationHHMM('03:59')).toBe('03:59');
+    expect(sanitizeDurationHHMM('04:00')).toBe('04:00');
+  });
+
+  it('returns null for strings parsing above the cap', () => {
+    expect(sanitizeDurationHHMM('04:01')).toBeNull();
+    expect(sanitizeDurationHHMM('22:09')).toBeNull();
+    expect(sanitizeDurationHHMM('20:05')).toBeNull();
+  });
+
+  it('returns null for null, empty, or malformed input', () => {
+    expect(sanitizeDurationHHMM(null)).toBeNull();
+    expect(sanitizeDurationHHMM('')).toBeNull();
+    expect(sanitizeDurationHHMM('garbage')).toBeNull();
+    expect(sanitizeDurationHHMM('1-20')).toBeNull();
   });
 });
 

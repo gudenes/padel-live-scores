@@ -3,6 +3,7 @@
 // Hit GET /api/admin/seed-tournament?tournament=727
 
 import { createClient } from '@supabase/supabase-js'
+import { sanitizeDurationHHMM } from '@/lib/match-duration'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -271,7 +272,7 @@ async function upsertMatch(match: ApiMatch, tournamentDbId: string): Promise<voi
         scheduled_at: match.played_at ?? null,
         finished_at: status === 'finished' ? match.started_time : null,
         winner_pair: winnerPair,
-        duration: match.duration ?? null,
+        duration: sanitizeDurationHHMM(match.duration),
         schedule_label: match.schedule_label ?? null,
         category: match.category ?? null,
         raw_payload: liveDetail ?? match,

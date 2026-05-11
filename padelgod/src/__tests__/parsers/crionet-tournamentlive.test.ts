@@ -436,4 +436,110 @@ describe('parseCrionetTournamentLive', () => {
       expect(result.matches[0]!.status, `label="${label}"`).toBe('live');
     }
   });
+
+  // ─── Duration sanity guard (2026-05-11) ─────────────────────────────────
+  //
+  // Bug observed at ASUNCION P2 2026-05-08: matches QF 6ed05aa2 (real wall-
+  // clock duration 105 min) and acd38412 (210 min) were persisted with
+  // duration='22:09' and '20:05' respectively — parsing to 1329 / 1205
+  // minutes. Both values look like late-evening wall-clock end-times for
+  // the local tournament timezone.
+  //
+  // Root cause: when the widget renders a finished match's summary row,
+  // it can surface a wall-clock end-time in one of the summary spans. The
+  // parser greedily picks the first `(\d{1,2}):(\d{2})` span. A padel
+  // match never approaches 4 hours, so any parsed value > 240 min is
+  // upstream contamination. Treat it as if no duration were emitted —
+  // return null so live-poller skips the duration write rather than
+  // persisting garbage that overwrites earlier-correct ticks.
+  //
+  // The guard also handles the "wall-clock first, real duration second"
+  // ordering: rejecting the wall-clock span lets the iteration continue
+  // and pick up the real elapsed-time span if present.
+
+  function summaryHtml(spans: string): string {
+    return `
+<table class="w-100">
+  <tr class="scorebox-header">
+    <th><span class="tournament-name"><span>COURT C</span></span></th>
+    <th class="round-name"><small><b>Men </b><div>QF</div></small></th>
+  </tr>
+  <tr>
+    <td class="team">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div><div class="player-names"><div class="double">
+          <div class="d-flex align-items-center"><div><img class="flags" src="/images/flags/ESP.jpg"/></div><div class="ml-2"><span>A.</span><span>One</span></div></div>
+          <div class="d-flex align-items-center"><div><img class="flags" src="/images/flags/ESP.jpg"/></div><div class="ml-2"><span>B.</span><span>Two</span></div></div>
+        </div></div></div>
+        <div></div>
+      </div>
+    </td>
+    <td class="points"><div>0</div></td>
+    <td class="set">6</td>
+    <td class="set">6</td>
+  </tr>
+  <tr>
+    <td class="team">
+      <div class="d-flex justify-content-between align-items-center ml-2">
+        <div><div class="player-names"><div class="double">
+          <div class="d-flex align-items-center"><div><img class="flags" src="/images/flags/ARG.jpg"/></div><div class="ml-2"><span>C.</span><span>Three</span></div></div>
+          <div class="d-flex align-items-center"><div><img class="flags" src="/images/flags/ARG.jpg"/></div><div class="ml-2"><span>D.</span><span>Four</span></div></div>
+        </div></div></div>
+        <div></div>
+      </div>
+    </td>
+    <td class="points"><div>0</div></td>
+    <td class="set">3</td>
+    <td class="set">4</td>
+  </tr>
+  <tr class="summary">
+    <td colspan="8">${spans}</td>
+  </tr>
+</table>
+`;
+  }
+
+  it('rejects a wall-clock end-time HH:MM in the summary row (>4h)', () => {
+    // Real reproducer of the ASUNCION P2 QF bug: the only HH:MM span in
+    // the summary row is the wall-clock end time "22:09".
+    const html = summaryHtml(
+      '<span>&#128337;</span><span>22:09</span><span class="ml-4">Completed</span>',
+    );
+    const result = parseCrionetTournamentLive(html);
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]!.durationMinutes).toBeNull();
+  });
+
+  it('rejects another wall-clock end-time HH:MM in the summary row (>4h)', () => {
+    // Same shape as ASUNCION QF acd38412 → duration='20:05'.
+    const html = summaryHtml(
+      '<span>&#128337;</span><span>20:05</span><span class="ml-4">Completed</span>',
+    );
+    expect(parseCrionetTournamentLive(html).matches[0]!.durationMinutes).toBeNull();
+  });
+
+  it('still picks up a real elapsed duration when a wall-clock span precedes it', () => {
+    // Defensive: if the widget surfaces both the wall-clock end time AND
+    // the elapsed duration, the parser must skip the wall-clock and pick
+    // the elapsed value.
+    const html = summaryHtml(
+      '<span>22:09</span><span>&#128337;</span><span>01:45</span><span class="ml-4">Completed</span>',
+    );
+    expect(parseCrionetTournamentLive(html).matches[0]!.durationMinutes).toBe(105);
+  });
+
+  it('accepts a legitimately long match just under the cap (3h59m)', () => {
+    // Defensive: do NOT reject realistic long matches. The cap is 240 min.
+    const html = summaryHtml(
+      '<span>&#128337;</span><span>03:59</span><span class="ml-4">Live match</span>',
+    );
+    expect(parseCrionetTournamentLive(html).matches[0]!.durationMinutes).toBe(239);
+  });
+
+  it('rejects a value exactly at 4h01m (just over the cap)', () => {
+    const html = summaryHtml(
+      '<span>&#128337;</span><span>04:01</span><span class="ml-4">Live match</span>',
+    );
+    expect(parseCrionetTournamentLive(html).matches[0]!.durationMinutes).toBeNull();
+  });
 });

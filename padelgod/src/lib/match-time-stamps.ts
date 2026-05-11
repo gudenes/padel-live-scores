@@ -44,6 +44,42 @@ export function formatDurationHHMM(durationMinutes: number): string {
 }
 
 /**
+ * Maximum plausible match duration in minutes. Real padel matches almost
+ * never approach 3.5 hours; 4 hours is a generous outer bound. Any
+ * incoming duration above this is upstream contamination — usually a
+ * wall-clock end-time leaking into the duration field. See ASUNCION P2
+ * 2026-05-08 (QF '22:09' / '20:05') and the older padelapi-pipeline rows
+ * at Bnl Italy Major, Buenos Aires P1, Cancún P2, Miami P1 with similar
+ * shape.
+ */
+export const MAX_DURATION_MINUTES = 240;
+
+/**
+ * Defense-in-depth sanity guard for integer-minute durations entering a
+ * write path. Returns null when the value is null, negative, or above
+ * MAX_DURATION_MINUTES so callers can skip the write rather than persist
+ * garbage that would later overwrite earlier-correct values.
+ */
+export function sanitizeDurationMinutes(mins: number | null): number | null {
+  if (mins === null || !Number.isFinite(mins)) return null;
+  if (mins < 0 || mins > MAX_DURATION_MINUTES) return null;
+  return mins;
+}
+
+/**
+ * Defense-in-depth sanity guard for HH:MM-formatted durations entering a
+ * write path. Padelapi.org returns `duration` as a string in this shape;
+ * we want to drop wall-clock-looking values (e.g. '22:09' = 22h09m) before
+ * they land on `public.matches.duration`. Returns the original string when
+ * plausible, null otherwise.
+ */
+export function sanitizeDurationHHMM(durationHHMM: string | null): string | null {
+  const mins = parseDurationHHMM(durationHHMM);
+  if (sanitizeDurationMinutes(mins) === null) return null;
+  return durationHHMM;
+}
+
+/**
  * Parse an `HH:MM` duration string into total minutes. Returns null for
  * malformed input (unknown upstream formats, empty strings, etc) so the
  * caller can cleanly fall back.

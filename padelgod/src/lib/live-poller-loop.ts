@@ -64,6 +64,7 @@ import { recordSkipNotScheduled } from './notify-stats.js';
 import {
   computeBackstampedStartedAt,
   formatDurationHHMM,
+  sanitizeDurationMinutes,
 } from './match-time-stamps.js';
 import { inferWinnerFromSets } from './shadow-winner-inference.js';
 
@@ -717,10 +718,13 @@ export class LivePollerLoop {
   ): Promise<void> {
     const nowMs = Date.now();
 
-    // started_at — back-compute from durationMinutes when present. If the
-    // widget didn't emit a duration this tick (rare but possible during page
-    // transitions), skip the stamp; a future tick will carry it.
-    const startedAtIso = computeBackstampedStartedAt(parsed.durationMinutes, nowMs);
+    // started_at — back-compute from durationMinutes when present. Sanitize
+    // first so a wall-clock-time leak from the widget summary (parsed as
+    // e.g. 1329 min) doesn't backstamp a start 22 hours in the past. If
+    // sanitization rejects the value, skip the stamp; a future tick will
+    // carry a valid one.
+    const sanitizedMinutes = sanitizeDurationMinutes(parsed.durationMinutes);
+    const startedAtIso = computeBackstampedStartedAt(sanitizedMinutes, nowMs);
     if (startedAtIso) {
       const { error: sErr } = await this.opts.supabase
         .from('matches')
@@ -736,11 +740,13 @@ export class LivePollerLoop {
     }
 
     // duration — written on every live tick. Safe to overwrite: the widget's
-    // counter is monotonic for a given match.
-    if (parsed.durationMinutes !== null) {
+    // counter is monotonic for a given match. Use the sanitized value so
+    // a single bad tick can't replace an earlier-correct duration with
+    // garbage (see ASUNCION P2 2026-05-08 incident).
+    if (sanitizedMinutes !== null) {
       const { error: dErr } = await this.opts.supabase
         .from('matches')
-        .update({ duration: formatDurationHHMM(parsed.durationMinutes) })
+        .update({ duration: formatDurationHHMM(sanitizedMinutes) })
         .eq('id', matchId);
       if (dErr) {
         this.opts.logger.warn(
@@ -748,6 +754,14 @@ export class LivePollerLoop {
           'stamp duration failed',
         );
       }
+    } else if (parsed.durationMinutes !== null) {
+      this.opts.logger.warn(
+        this.logCtx({
+          matchId,
+          rejectedMinutes: parsed.durationMinutes,
+        }),
+        'stamp duration: rejected implausible value (likely wall-clock-time leak in widget summary)',
+      );
     }
 
     // NOTE: finished_at is no longer written here — it moved to closeMatch,
@@ -1006,8 +1020,14 @@ export class LivePollerLoop {
       finished_at: nowIso,
       updated_at: nowIso,
     };
-    if (durationMinutes !== null) {
-      matchUpdate.duration = formatDurationHHMM(durationMinutes);
+    const sanitizedClose = sanitizeDurationMinutes(durationMinutes);
+    if (sanitizedClose !== null) {
+      matchUpdate.duration = formatDurationHHMM(sanitizedClose);
+    } else if (durationMinutes !== null) {
+      this.opts.logger.warn(
+        this.logCtx({ matchId, reason, rejectedMinutes: durationMinutes }),
+        'close-match: rejected implausible duration (likely wall-clock-time leak in widget summary)',
+      );
     }
 
     // `.select('id')` distinguishes "we caused the scheduled→finished flip"

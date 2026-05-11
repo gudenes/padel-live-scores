@@ -14,6 +14,7 @@ import { PlayerResolver } from '@/lib/player-resolver'
 import { logOpsEvent } from '@/lib/ops-logger'
 import { padelapiPausedResponse } from '@/lib/padelapi-pause'
 import { filterUpdateByPriority } from '@/lib/source-priority'
+import { sanitizeDurationHHMM } from '@/lib/match-duration'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -655,7 +656,7 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
               schedule_label: match.schedule_label ?? null,
               category: match.category ?? null,
               started_at: startedAt,
-              duration: match.duration ?? null,
+              duration: sanitizeDurationHHMM(match.duration),
               updated_at: new Date().toISOString(),
         }
         // Only set scheduled_at if we have a proper time, OR the match doesn't exist yet
