@@ -209,6 +209,11 @@ describe('buildOopPatch', () => {
     expect(patch).toHaveProperty('round', 'Round of 32');
   });
 
+  it('writes round_canonical alongside round so indexed lookups stay in sync', () => {
+    const patch = buildOopPatch(baseSnapshot, { ...baseExisting, round: null });
+    expect(patch).toHaveProperty('round_canonical', 'R32');
+  });
+
   it('does NOT clobber existing round when normalised forms match (R32 vs "Round of 32")', () => {
     const patch = buildOopPatch(baseSnapshot, { ...baseExisting, round: 'R32' });
     expect(patch).not.toHaveProperty('round');
@@ -223,6 +228,7 @@ describe('buildOopPatch', () => {
       { ...baseExisting, round: 'R32' },
     );
     expect(patch).toHaveProperty('round', 'Q3');
+    expect(patch).toHaveProperty('round_canonical', 'Q3');
   });
 
   it('skips round write when OOP label is unrecognised (e.g. typo)', () => {

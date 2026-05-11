@@ -138,6 +138,13 @@ export interface OverviewFields {
 export interface OverviewContext {
   startsAt: string | null;
   endsAt: string | null;
+  /**
+   * Tournament `level` (p1 / p2 / major / finals / fip_silver / ...).
+   * Used to disambiguate "1st ROUND" / "2nd ROUND" labels in the FIP
+   * overview text — they're R64/R32 on Premier tiers (56-team mens MD)
+   * but ambiguous on lower tiers.
+   */
+  level?: string | null;
 }
 
 export interface PrizeBreakdown {
@@ -244,7 +251,7 @@ export function parseOverviewFields(html: string, ctx?: OverviewContext): Overvi
 
   const roundSchedule: RoundSchedule =
     scheduleNotes && ctx?.startsAt && ctx?.endsAt
-      ? parseScheduleNotes(scheduleNotes, ctx.startsAt, ctx.endsAt)
+      ? parseScheduleNotes(scheduleNotes, ctx.startsAt, ctx.endsAt, { level: ctx.level })
       : {};
 
   return {

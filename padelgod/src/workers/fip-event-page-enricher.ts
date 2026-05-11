@@ -156,6 +156,7 @@ export async function runFipEventPageEnricher(
       const overview = parseOverviewFields(html, {
         startsAt: t.starts_at ?? null,
         endsAt: t.ends_at ?? null,
+        level: t.level ?? null,
       });
       const prizeBreakdown = parsePrizeBreakdown(html);
 

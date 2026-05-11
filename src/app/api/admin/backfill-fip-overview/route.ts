@@ -255,6 +255,7 @@ export async function GET(req: NextRequest) {
           const pageData = await fetchEventPageData(wpSlug, {
             startsAt: t.starts_at,
             endsAt: t.ends_at,
+            level: t.level,
           })
 
           // Build the update payload. Only include fields the page

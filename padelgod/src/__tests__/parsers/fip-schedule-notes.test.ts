@@ -230,3 +230,118 @@ Time Schedule SF and Finals: 10:00h (local time) and 16:00h (local time)`;
     expect(parseScheduleNotes('', '2026-06-01', '2026-06-07')).toEqual({});
   });
 });
+
+describe('parseScheduleNotes — level-aware "1st/2nd ROUND" disambiguation', () => {
+  // FIP overview text for Premier P1/P2/Major events uses ambiguous
+  // ordinal labels — "MAIN DRAW : 1st ROUND" instead of "ROUND OF 64".
+  // Without level context the parser drops them (ambiguous on draw size).
+  // With level=p1/p2/major/finals we know the men's main draw is 56 teams,
+  // so 1st ROUND = R64, 2nd ROUND = R32, 3rd ROUND = R16.
+
+  it('maps "1st ROUND" → r64 and "2nd ROUND" → r32 when level=p1 (Buenos Aires P1 reproducer)', () => {
+    const notes = `QUALIFYING
+Men: 10 – 11 May
+Q1 Sun 10 Start time: 9.00 am
+Q2 Mon 11 Start time: 9.00 am
+MAIN DRAW : 1st ROUND
+Men: 12 May
+Start time: 10.00 am
+MAIN DRAW : 2nd ROUND
+Men: 13 May
+Start time: 10.00 am
+MAIN DRAW : ROUND OF 16
+14 May
+Start time: 10.00 am
+MAIN DRAW : QUARTER-FINALS
+15 May
+MAIN DRAW : SEMI-FINALS
+16 May
+MAIN DRAW : FINALS
+17 May`;
+    const result = parseScheduleNotes(notes, '2026-05-10', '2026-05-17', { level: 'p1' });
+    expect(result.r64).toBe('2026-05-12');
+    expect(result.r32).toBe('2026-05-13');
+    expect(result.r16).toBe('2026-05-14');
+    expect(result.qf).toBe('2026-05-15');
+    expect(result.sf).toBe('2026-05-16');
+    expect(result.f).toBe('2026-05-17');
+  });
+
+  it('maps "1st ROUND" → r64 when level=p2 (Newgiza layout — 1st ROUND + ROUND OF 16, no 2nd ROUND)', () => {
+    const notes = `MAIN DRAW : 1st ROUND
+Men 5 May
+MAIN DRAW: ROUND OF 16
+7 May`;
+    const result = parseScheduleNotes(notes, '2026-05-03', '2026-05-10', { level: 'p2' });
+    expect(result.r64).toBe('2026-05-05');
+    expect(result.r16).toBe('2026-05-07');
+    // No r32 — "2nd ROUND" is absent, R32 happens implicitly on day 2 of
+    // the "1st ROUND" span. round_schedule conservatively omits it.
+    expect(result.r32).toBeUndefined();
+  });
+
+  it('maps "2nd ROUND" → r16 when "ROUND OF 16" is NOT present (Asuncion P2 2025 layout)', () => {
+    // Real Asuncion P2 2025 notes: "1st ROUND" spans Men 20-21 May (R64
+    // day 1 + R32 day 2 combined), "2nd ROUND" = R16 on 22 May. No
+    // explicit "ROUND OF 16" label.
+    const notes = `MAIN DRAW : 1st ROUND
+Men 20 May
+MAIN DRAW : 2nd ROUND
+22 May
+MAIN DRAW : QUARTER-FINALS
+23 May`;
+    const result = parseScheduleNotes(notes, '2026-05-18', '2026-05-25', { level: 'p2' });
+    expect(result.r64).toBe('2026-05-20');
+    expect(result.r16).toBe('2026-05-22');
+    expect(result.qf).toBe('2026-05-23');
+    expect(result.r32).toBeUndefined();
+  });
+
+  it('maps "1st ROUND" → r64 when level=major', () => {
+    const notes = `MAIN DRAW : 1st ROUND
+12 May`;
+    const result = parseScheduleNotes(notes, '2026-05-10', '2026-05-17', { level: 'major' });
+    expect(result.r64).toBe('2026-05-12');
+  });
+
+  it('maps "3rd ROUND" → r16 when level=p1 (round-of-16 alias)', () => {
+    const notes = `MAIN DRAW : 3rd ROUND
+14 May`;
+    const result = parseScheduleNotes(notes, '2026-05-10', '2026-05-17', { level: 'p1' });
+    expect(result.r16).toBe('2026-05-14');
+  });
+
+  it('preserves existing behavior (drops "1st/2nd ROUND") when no level provided', () => {
+    const notes = `MAIN DRAW : 1st ROUND
+12 May
+MAIN DRAW : 2nd ROUND
+13 May`;
+    const result = parseScheduleNotes(notes, '2026-05-10', '2026-05-17');
+    expect(result.r64).toBeUndefined();
+    expect(result.r32).toBeUndefined();
+  });
+
+  it('does NOT disambiguate for non-Premier levels (fip_silver, fip_bronze)', () => {
+    const notes = `MAIN DRAW : 1st ROUND
+12 May`;
+    // FIP Bronze/Silver/Gold can be 16, 24, 32, or 48 draws — "1st ROUND"
+    // is genuinely ambiguous. Stay conservative; drop the entry.
+    const silverResult = parseScheduleNotes(notes, '2026-05-10', '2026-05-17', { level: 'fip_silver' });
+    expect(silverResult.r64).toBeUndefined();
+    expect(silverResult.r32).toBeUndefined();
+    expect(silverResult.r16).toBeUndefined();
+  });
+
+  it('does not override explicit ROUND OF 64 / ROUND OF 32 blocks when both forms appear', () => {
+    // If the FIP page somehow has BOTH "MAIN DRAW : 1st ROUND 12 May" AND
+    // "MAIN DRAW : ROUND OF 64 11 May", the explicit ROUND OF 64 wins
+    // (first-write-wins because the for-loop guards `if (!(key in out))`).
+    const notes = `MAIN DRAW : ROUND OF 64
+11 May
+MAIN DRAW : 1st ROUND
+12 May`;
+    const result = parseScheduleNotes(notes, '2026-05-10', '2026-05-17', { level: 'p1' });
+    expect(result.r64).toBe('2026-05-11');
+  });
+});
+

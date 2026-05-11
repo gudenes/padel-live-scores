@@ -191,6 +191,12 @@ export type RoundSchedule = Partial<Record<RoundKey, string>>
 export interface OverviewContext {
   startsAt: string | null
   endsAt: string | null
+  /**
+   * Tournament `level` (p1 / p2 / major / finals / fip_silver / ...).
+   * Used to disambiguate "1st ROUND" / "2nd ROUND" labels in FIP overview
+   * text — R64/R32 on Premier tiers (56-team mens MD), ambiguous otherwise.
+   */
+  level?: string | null
 }
 
 export interface OverviewFields {
@@ -536,7 +542,32 @@ function _resolveDateInRange(day: number, monthName: string, startsAt: string, e
   return null
 }
 
-function _labelToKey(label: string): RoundKey | null {
+// Premier tiers (p1/p2/major/finals) use a 56-team men's main draw, so
+// "1st ROUND" → R64. "2nd ROUND" is layout-dependent (see padelgod's
+// fip-schedule-notes.ts for the full layout taxonomy): a 3-day layout
+// with an explicit "ROUND OF 16" block puts "2nd ROUND" on R32, while a
+// 2-day layout (no ROUND OF 16) puts "2nd ROUND" on R16. FIP
+// Bronze/Silver/Gold/Platinum vary in draw size — stay ambiguous.
+const _PREMIER_LEVELS = new Set(['p1', 'p2', 'major', 'finals'])
+
+interface _PremierLayout {
+  hasSecondRound: boolean
+  hasRoundOf16: boolean
+}
+
+function _detectPremierLayout(notes: string): _PremierLayout {
+  const u = notes.toUpperCase()
+  return {
+    hasSecondRound: /\b2ND\s+ROUND\b/.test(u),
+    hasRoundOf16: /\bROUND\s+OF\s+16\b/.test(u),
+  }
+}
+
+function _labelToKey(
+  label: string,
+  level?: string | null,
+  layout?: _PremierLayout,
+): RoundKey | null {
   const u = label.toUpperCase()
   if (u.includes('ROUND OF 64')) return 'r64'
   if (u.includes('ROUND OF 32')) return 'r32'
@@ -544,6 +575,13 @@ function _labelToKey(label: string): RoundKey | null {
   if (u.includes('QUARTER')) return 'qf'
   if (u.includes('SEMI')) return 'sf'
   if (u.includes('FINAL')) return 'f'
+  if (level && _PREMIER_LEVELS.has(level)) {
+    if (/\b1ST\s+ROUND\b/.test(u)) return 'r64'
+    if (/\b2ND\s+ROUND\b/.test(u)) {
+      return layout?.hasRoundOf16 ? 'r32' : 'r16'
+    }
+    if (/\b3RD\s+ROUND\b/.test(u)) return 'r16'
+  }
   return null
 }
 
@@ -589,7 +627,8 @@ function _descriptionToKeys(desc: string): RoundKey[] {
   return [...keys]
 }
 
-function _parsePremierBlocks(notes: string, startsAt: string, endsAt: string): RoundSchedule {
+function _parsePremierBlocks(notes: string, startsAt: string, endsAt: string, level?: string | null): RoundSchedule {
+  const layout = _detectPremierLayout(notes)
   const out: RoundSchedule = {}
   const re =
     /(MAIN DRAW\s*:?\s*(?:ROUND OF 64|ROUND OF 32|ROUND OF 16|QUARTER-FINALS?|SEMI-FINALS?|FINALS?|1st ROUND|2nd ROUND|3rd ROUND))[\s\S]{0,200}?(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\b/gi
@@ -597,7 +636,7 @@ function _parsePremierBlocks(notes: string, startsAt: string, endsAt: string): R
     const label = m[1]!.toUpperCase()
     const iso = _resolveDateInRange(parseInt(m[2]!, 10), m[3]!, startsAt, endsAt)
     if (!iso) continue
-    const key = _labelToKey(label)
+    const key = _labelToKey(label, level, layout)
     if (key && !(key in out)) out[key] = iso
   }
   const startYear = parseInt(startsAt.slice(0, 4), 10)
@@ -629,7 +668,7 @@ function _parseDayOfWeekLines(notes: string, startsAt: string, endsAt: string): 
   return out
 }
 
-function parseScheduleNotes(notes: string | null, startsAt: string, endsAt: string): RoundSchedule {
+function parseScheduleNotes(notes: string | null, startsAt: string, endsAt: string, opts?: { level?: string | null }): RoundSchedule {
   if (!notes) return {}
   // Defensive: callers may pass full ISO timestamps ("2026-05-03T00:00:00+00:00")
   // instead of date-only strings ("2026-05-03"). String comparisons in the
@@ -639,7 +678,7 @@ function parseScheduleNotes(notes: string | null, startsAt: string, endsAt: stri
   const start = startsAt.slice(0, 10)
   const end = endsAt.slice(0, 10)
   const result: RoundSchedule = {}
-  Object.assign(result, _parsePremierBlocks(notes, start, end))
+  Object.assign(result, _parsePremierBlocks(notes, start, end, opts?.level))
   Object.assign(result, _parseDayOfWeekLines(notes, start, end))
   const finalsMatch = /Date\s+Finals\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i.exec(notes)
   if (finalsMatch) {
@@ -730,7 +769,7 @@ export function parseOverviewFields(html: string, ctx?: OverviewContext): Overvi
 
   const roundSchedule: RoundSchedule =
     scheduleNotes && ctx?.startsAt && ctx?.endsAt
-      ? parseScheduleNotes(scheduleNotes, ctx.startsAt, ctx.endsAt)
+      ? parseScheduleNotes(scheduleNotes, ctx.startsAt, ctx.endsAt, { level: ctx.level })
       : {}
 
   return {

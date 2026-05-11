@@ -198,7 +198,14 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
   return rounds.flatMap(r => nodesByRound.get(r)!)
 }
 
-/** Stable per-round match ordering — see comment in buildBracket. */
+/** Stable per-round match ordering — see comment in buildBracket.
+ *
+ * When matches lack `draw_position` (the common case for OOP-sourced
+ * matches that landed before the bracket scrape — Buenos Aires P1 R64
+ * the day before the draw publishes), fall through a chain of stable
+ * tiebreakers so the same match always lands in the same cell across
+ * reloads. The `id` (UUID) terminal key guarantees determinism even
+ * when widget_id_composite + external_id are both null. */
 function stableMatchSort(a: Match, b: Match): number {
   const ap = a.draw_position
   const bp = b.draw_position
@@ -208,7 +215,10 @@ function stableMatchSort(a: Match, b: Match): number {
   const aw = (a as { widget_id_composite?: string | null }).widget_id_composite ?? ''
   const bw = (b as { widget_id_composite?: string | null }).widget_id_composite ?? ''
   if (aw && bw && aw !== bw) return aw < bw ? -1 : 1
-  return (a.external_id ?? '').localeCompare(b.external_id ?? '')
+  const ae = a.external_id ?? ''
+  const be = b.external_id ?? ''
+  if (ae !== be) return ae.localeCompare(be)
+  return (a.id ?? '').localeCompare(b.id ?? '')
 }
 
 /**

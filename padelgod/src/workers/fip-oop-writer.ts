@@ -423,6 +423,10 @@ export function buildOopPatch(
     // When existing.round is null, oopNorm always "differs" → write.
     if (oopNorm != null && oopNorm !== existingNorm) {
       patch.round = snapshot.round_label;
+      // Keep round_canonical in sync with the raw `round` we just set.
+      // normalizeRoundShort's output (R64/R32/R16/QF/SF/F/Q1/Q2/Q3) is
+      // already the canonical short form.
+      patch.round_canonical = oopNorm;
     }
   }
 

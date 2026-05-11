@@ -284,3 +284,34 @@ describe('defaultTrackedPair', () => {
     expect(key).toBe(null)
   })
 })
+
+describe('stable ordering — orphan matches without draw_position', () => {
+  // Reproducer: Buenos Aires P1 2026 had 9 R64 matches ingested via OOP
+  // before the Crionet bracket published, all with draw_position=null
+  // and widget_id_composite=null. Without a deterministic tiebreaker the
+  // bracket-cell assignment varied across reloads.
+  it('places the same orphan match in the same R32 cell on repeated buildBracket calls', () => {
+    const mk = (id: string) =>
+      fakeMatch({
+        id,
+        round: 'R32',
+        // No draw_position, no widget_id_composite, no external_id.
+      })
+    // Pass the matches in random order each time — sort must rescue us.
+    const order1: Match[] = [mk('zz'), mk('aa'), mk('mm'), mk('bb')]
+    const order2: Match[] = [mk('aa'), mk('bb'), mk('mm'), mk('zz')]
+    const order3: Match[] = [mk('mm'), mk('zz'), mk('bb'), mk('aa')]
+
+    const b1 = buildBracket(order1, 32)
+    const b2 = buildBracket(order2, 32)
+    const b3 = buildBracket(order3, 32)
+
+    // Same R32 cell ordering across all three runs — sorted by id ASC.
+    const r32cells = (bracket: typeof b1) =>
+      bracket.filter(n => n.round === 'R32').map(n => n.match?.id ?? null)
+
+    expect(r32cells(b1).slice(0, 4)).toEqual(['aa', 'bb', 'mm', 'zz'])
+    expect(r32cells(b1)).toEqual(r32cells(b2))
+    expect(r32cells(b2)).toEqual(r32cells(b3))
+  })
+})
