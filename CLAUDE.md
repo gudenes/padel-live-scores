@@ -283,7 +283,7 @@ Ordered by `:MM` so the hourly chain is easier to follow:
 | fip-event-page-enricher | hourly :12 | Gap-fill venue / dates / overview / draw size / matchscorer code | `tournaments`, `padelgod.widget_id_cache` |
 | widget-code-lookup | hourly :15 | Resolve Crionet widget IDs by tournament name search | `padelgod.widget_id_cache` |
 | draw-fetcher | every 2h :20 | Crionet bracket scrape | `padelgod.draw_snapshots` |
-| match-stats-fetcher | hourly :25 | Per-match stats from Crionet widget | `match_stats` |
+| match-stats-fetcher | :25, :55 | Per-match stats from Crionet widget (20/batch × 2/hr) | `match_stats` |
 | player-profile | hourly :30 | Refresh per-player profile metadata | `players` |
 | static-reconciler | :05, :35 | Consume snapshots → `public.matches` / `sets` (twice hourly) | `matches`, `sets` |
 | fip-draw-fetcher | hourly :35 | FIP event-page bracket scrape (Bronze/Silver/Gold/Premier) | `padelgod.draw_snapshots` |
