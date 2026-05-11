@@ -610,15 +610,28 @@ export async function runFipDrawPopulator(
         continue;
       }
 
-      // Skip byes and placeholder rows. The FIP-team-id check only
-      // applies to draw_snapshots — OOP rows don't carry FIP IDs but
-      // also don't include byes (byes never make it onto the OOP page).
+      // Skip pure bye-through rows only — bracket transitions where a
+      // seeded team advances unopposed (one side has zero names AND
+      // status='walkover'). Those describe how the bracket fills in,
+      // not matches that get played.
+      //
+      // Everything else from the FIP draw is a real bracket cell with
+      // a stable match_widget_id. We INSERT it even when:
+      //   - team2 is TBD (R64 row waiting for Q2 winner — top seed +
+      //     "winner of Q2 #X") → status='scheduled', team2 names null
+      //   - both sides TBD (R16/QF/SF/F cells waiting on prior rounds)
+      //     → status='scheduled', all 4 names null
+      //   - actual walkover (both sides named, one withdrew) →
+      //     status='walkover' with both team1 and team2 names set
+      // Downstream writers (live-poller, fip-results-writer, the
+      // populator's own UPDATE branch) fill in player FKs as the
+      // bracket plays out — `widget_id_composite` is the stable key.
+      // OOP rows have no bye concept (byes never make it onto OOP),
+      // so the bye check only applies to fip_event_page rows.
       if (d.source === 'fip_event_page') {
-        if (
-          !isRealFipTeamId(d.team1_fip_id) ||
-          !isRealFipTeamId(d.team2_fip_id) ||
-          d.status === 'walkover'
-        ) {
+        const team1HasNames = !!(d.team1_player1_name || d.team1_player2_name);
+        const team2HasNames = !!(d.team2_player1_name || d.team2_player2_name);
+        if (d.status === 'walkover' && (!team1HasNames || !team2HasNames)) {
           result.skippedBye += 1;
           continue;
         }
@@ -642,11 +655,27 @@ export async function runFipDrawPopulator(
       //      when the live-poller fires `findOrCreateMatch` for the
       //      same match, it'll land on this row and update the player
       //      FKs in place.
+      //   3. FIP draw rows where ALL FOUR names are absent (R16/QF/SF/F
+      //      cells waiting on a feeder round). Every bracket cell has a
+      //      stable match_widget_id, so we INSERT the row as scaffolding
+      //      and let the UPDATE branch fill in FKs once the feeder
+      //      resolves. NOT extended to fip-draw rows with names present
+      //      but unresolved — that's the "entry list is stale, retry
+      //      next run" case and we preserve the strict-resolve contract
+      //      to avoid raw-name rows that don't link to player profiles.
+      const namesProvided = [
+        d.team1_player1_name,
+        d.team1_player2_name,
+        d.team2_player1_name,
+        d.team2_player2_name,
+      ].filter((n) => n != null && n !== '').length;
       const tournamentLevel = levelByTournamentId.get(t.tournament_id) ?? null;
       const isAmateurTier =
         tournamentLevel != null && AMATEUR_TIER_LEVELS.has(tournamentLevel);
       const isOopSourced = d.source === 'oop_snapshot';
-      const allowThinMatch = isAmateurTier || isOopSourced;
+      const isFipDrawScaffolding =
+        d.source === 'fip_event_page' && namesProvided === 0;
+      const allowThinMatch = isAmateurTier || isOopSourced || isFipDrawScaffolding;
       const resolved = resolveFourPlayers(d, nameToFipId, shortFormToFipId, fipIdToPlayerId, logger);
       const numResolved = resolvedCount(resolved);
       if (numResolved === 0 && !allowThinMatch) {
