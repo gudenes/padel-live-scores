@@ -598,12 +598,17 @@ describe('runFipDrawPopulator', () => {
     expect(supabase.inserted).toHaveLength(0);
   });
 
-  it('skips byes (non-P team fip id OR status=walkover)', async () => {
+  it('skips pure bye-through rows (one side empty + status=walkover, seed advancing unopposed)', async () => {
+    // Real bye-through has no names AT ALL on the empty side. Top seed
+    // advances through R64 → R32 with no match played. fip_id on the
+    // empty side is a numeric placeholder.
     const byeDraw: DrawSeed = {
       ...realMatchDraw,
       match_widget_id: 'MD001',
       team1_fip_id: 'P200001',
-      team2_fip_id: '1390580661', // numeric bye id
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team2_fip_id: '1390580661', // numeric bye placeholder
       status: 'walkover',
     };
     const supabase = fakeSupabase({
@@ -623,6 +628,118 @@ describe('runFipDrawPopulator', () => {
 
     expect(result.skippedBye).toBe(1);
     expect(result.inserted).toBe(0);
+  });
+
+  it('INSERTs real walkovers (both sides have names, status=walkover — match was played but one side withdrew)', async () => {
+    // Distinct from bye-through: both teams are real, both have names,
+    // status='walkover' because one player withdrew. The match
+    // "happened" in the bracket sense — we want it on record.
+    const walkoverDraw: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD019',
+      status: 'walkover',
+      winner_team: 1,
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [walkoverDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    expect(result.skippedBye).toBe(0);
+    expect(supabase.inserted[0].widget_id_composite).toBe('FIP-2026-1706:MD019');
+  });
+
+  it('INSERTs R64 cells with pending qualifier on one side (real team1, TBD team2, status=scheduled)', async () => {
+    // Pattern: top seed entering R64 with a known partner, opponent
+    // pending — "winner of Q2 #5". team2 names + fip_id are nulls /
+    // placeholders. status='scheduled'. The row IS a real upcoming
+    // match in the bracket, just waiting for qualifier results.
+    const pendingDraw: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD061',
+      round_label: 'R64',
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team2_fip_id: '1390580662', // numeric placeholder, opponent TBD
+      status: 'scheduled',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [pendingDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    expect(result.skippedBye).toBe(0);
+    const row = supabase.inserted[0];
+    expect(row.widget_id_composite).toBe('FIP-2026-1706:MD061');
+    expect(row.pair1_player1_id).toBe('uuid-P1');
+    expect(row.pair1_player2_id).toBe('uuid-P2');
+    // team2 stays null FK on both sides — populator's UPDATE branch
+    // fills these in when the qualifier completes.
+    expect(row.pair2_player1_id ?? null).toBeNull();
+    expect(row.pair2_player2_id ?? null).toBeNull();
+  });
+
+  it('INSERTs R16 / QF / SF cells with both sides TBD (thin bracket scaffolding)', async () => {
+    // Pattern: R16 cell entirely pending — both sides are "winner of
+    // R32 #X". No names, no real fip_ids, but the cell exists in the
+    // FIP bracket markup with a stable match_widget_id. We want the
+    // row in public.matches so the bracket UI gets the scaffolding.
+    const scaffoldDraw: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD081',
+      round_label: 'R16',
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team1_fip_id: '1390580663',
+      team2_fip_id: '1390580664',
+      status: 'scheduled',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [scaffoldDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.inserted).toBe(1);
+    expect(result.skippedBye).toBe(0);
+    const row = supabase.inserted[0];
+    expect(row.widget_id_composite).toBe('FIP-2026-1706:MD081');
+    expect(row.round).toBe('R16');
+    expect(row.pair1_player1_id ?? null).toBeNull();
+    expect(row.pair2_player1_id ?? null).toBeNull();
   });
 
   it('inserts partial-FK rows when 1 of 4 players is unresolved (skip only when all 4 fail)', async () => {
