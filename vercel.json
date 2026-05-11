@@ -1,4 +1,5 @@
 {
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)apps/labs'",
   "crons": [
     {
       "path": "/api/cron/sync-fip-rankings?type=official&gender=male",
