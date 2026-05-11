@@ -701,6 +701,62 @@ describe('runFipDrawPopulator', () => {
     expect(row.pair2_player2_id ?? null).toBeNull();
   });
 
+  it('INSERTs later-round seed-waits when first round is deeper (P1 men R32 with seed waiting for R64 winner)', async () => {
+    // FIP marks Premier R32 cells where a seed has a R64 bye as
+    // status=walkover (the seed "walked over" from R64 into R32, where
+    // they wait for the R64 winner). Without the first-round scope,
+    // these get swept up as bye-throughs. Real-world reproducer:
+    // Buenos Aires P1 2026 had 16 R32 men cells in this shape and the
+    // populator skipped all of them.
+    // Use names from the test entry list so team1 resolves to FKs.
+    const r64Bye: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD001',
+      round_label: 'R64',
+      team1_player1_name: 'Nuno Baptista',
+      team1_player2_name: 'David Fernandes',
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team1_fip_id: 'P200001',
+      team2_fip_id: '1995888837',
+      team1_seed: 1,
+      team2_seed: null,
+      status: 'walkover',
+      winner_team: 1,
+    };
+    const r32SeedWaiting: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD033',
+      round_label: 'R32',
+      team1_player1_name: 'Nuno Baptista',
+      team1_player2_name: 'David Fernandes',
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team1_fip_id: 'P200001',
+      team2_fip_id: '1995888837',
+      team1_seed: 1,
+      team2_seed: null,
+      status: 'walkover',
+      winner_team: 1,
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'BA P1', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [r64Bye, r32SeedWaiting],
+      entryList,
+      players: rosterPlayers,
+    });
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    // R64 bye → skipped (first round, walkover, one side empty).
+    // R32 seed-waiting → INSERTED (later round; not a bye).
+    expect(result.skippedBye).toBe(1);
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted[0].widget_id_composite).toBe('FIP-2026-1706:MD033');
+    expect(supabase.inserted[0].round).toBe('R32');
+  });
+
   it('INSERTs R16 / QF / SF cells with both sides TBD (thin bracket scaffolding)', async () => {
     // Pattern: R16 cell entirely pending — both sides are "winner of
     // R32 #X". No names, no real fip_ids, but the cell exists in the

@@ -369,6 +369,43 @@ function isQualifierWidget(matchWidgetId: string | null | undefined): boolean {
   return /^[MW]Q/i.test(matchWidgetId);
 }
 
+/** Round depth ordering — bigger number = earlier round. Used to find
+ *  the FIRST main-draw round per category for a tournament. */
+const MAIN_DRAW_ROUND_DEPTH: Record<string, number> = {
+  R128: 128, R64: 64, R32: 32, R16: 16, QF: 8, SF: 4, F: 2,
+};
+
+/**
+ * Pick the deepest (= first in chronological order) main-draw round
+ * per category from a flat array of draw rows. For a 56-team men's
+ * Premier draw with FIP-published bracket, `latestDraws` will contain
+ * rows at R64/R32/R16/QF/SF/F — first round = R64. For a 32-team
+ * women's draw — first round = R32.
+ *
+ * Used by the bye-skip gate: FIP marks "seed advancing unopposed" rows
+ * as status='walkover' with one team empty, but uses the SAME shape
+ * for later-round cells where a seed is waiting for a feeder match
+ * winner. Only first-round rows of that shape are actual byes — later
+ * rounds describe real upcoming matches.
+ */
+export function computeFirstRoundByCategory(
+  rows: ReadonlyArray<{ category: string; round_label: string | null }>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  const bestDepth = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.round_label || !r.category) continue;
+    const depth = MAIN_DRAW_ROUND_DEPTH[r.round_label];
+    if (depth == null) continue;
+    const prev = bestDepth.get(r.category);
+    if (prev == null || depth > prev) {
+      bestDepth.set(r.category, depth);
+      out.set(r.category, r.round_label);
+    }
+  }
+  return out;
+}
+
 // ── Main entry ─────────────────────────────────────────────────────────
 
 export async function runFipDrawPopulator(
@@ -601,6 +638,18 @@ export async function runFipDrawPopulator(
       compositePrefix
     );
 
+    // 6b. Determine the FIRST round of the main draw per category from
+    // this tournament's draw rows. We use it below to scope the
+    // bye-through skip — FIP marks a "seed advancing unopposed" row as
+    // status='walkover' with one team empty, but uses the SAME shape
+    // for later-round cells where a seed is waiting for a feeder
+    // winner (R32 cell with seed-side filled, opponent-side empty
+    // pending the R64 winner). Only the FIRST round describes an
+    // actual bye event; later-round rows of the same shape describe a
+    // real upcoming match. Without this scope, we'd skip every
+    // pre-tournament R32+ cell on a 56-draw event with byes.
+    const firstRoundByCategory = computeFirstRoundByCategory(latestDraws);
+
     // 7. Iterate + write
     for (const d of latestDraws) {
       result.drawRowsConsidered += 1;
@@ -631,7 +680,13 @@ export async function runFipDrawPopulator(
       if (d.source === 'fip_event_page') {
         const team1HasNames = !!(d.team1_player1_name || d.team1_player2_name);
         const team2HasNames = !!(d.team2_player1_name || d.team2_player2_name);
-        if (d.status === 'walkover' && (!team1HasNames || !team2HasNames)) {
+        const isFirstMdRound =
+          d.round_label === firstRoundByCategory.get(d.category);
+        if (
+          isFirstMdRound &&
+          d.status === 'walkover' &&
+          (!team1HasNames || !team2HasNames)
+        ) {
           result.skippedBye += 1;
           continue;
         }
