@@ -73,13 +73,39 @@ function resolveDateInRange(
   return null;
 }
 
-// Premier tiers always use a 56-team men's main draw, so the ambiguous
-// FIP overview labels "1st ROUND" / "2nd ROUND" / "3rd ROUND" map cleanly
-// to R64 / R32 / R16. FIP Bronze/Silver/Gold (and Platinum) vary by event
-// and stay ambiguous — we drop those rather than risk a wrong mapping.
+// Premier tiers (p1/p2/major/finals) always use a 56-team men's main
+// draw, so "1st ROUND" is unambiguously R64. But "2nd ROUND" varies by
+// event layout in the FIP overview text:
+//   - 3-day layout (Buenos Aires P1 2026): "1st ROUND" + "2nd ROUND" +
+//     explicit "ROUND OF 16" → 1st=R64, 2nd=R32, R16 explicit.
+//   - 2-day layout (Asuncion P2 2025, Brussels P2): "1st ROUND" spans
+//     two days (R64+R32 combined) and "2nd ROUND" = R16. No "ROUND OF
+//     16" label appears. Without disambiguation we'd write r32 on the
+//     R16 day, which is worse than leaving r32 unset.
+//   - "Combined-ROUND OF 16" layout (Newgiza, Gijón): "1st ROUND" spans
+//     two days + "ROUND OF 16" explicit + no "2nd ROUND".
+// Layout is detected by which OTHER labels appear in the same notes.
+// FIP Bronze/Silver/Gold/Platinum vary in draw size — stay ambiguous.
 const PREMIER_LEVELS = new Set(['p1', 'p2', 'major', 'finals']);
 
-function labelToKey(label: string, level?: string | null): RoundKey | null {
+interface PremierLayout {
+  hasSecondRound: boolean;
+  hasRoundOf16: boolean;
+}
+
+function detectPremierLayout(notes: string): PremierLayout {
+  const u = notes.toUpperCase();
+  return {
+    hasSecondRound: /\b2ND\s+ROUND\b/.test(u),
+    hasRoundOf16: /\bROUND\s+OF\s+16\b/.test(u),
+  };
+}
+
+function labelToKey(
+  label: string,
+  level?: string | null,
+  layout?: PremierLayout,
+): RoundKey | null {
   const u = label.toUpperCase();
   if (u.includes('ROUND OF 64')) return 'r64';
   if (u.includes('ROUND OF 32')) return 'r32';
@@ -89,7 +115,13 @@ function labelToKey(label: string, level?: string | null): RoundKey | null {
   if (u.includes('FINAL')) return 'f';
   if (level && PREMIER_LEVELS.has(level)) {
     if (/\b1ST\s+ROUND\b/.test(u)) return 'r64';
-    if (/\b2ND\s+ROUND\b/.test(u)) return 'r32';
+    if (/\b2ND\s+ROUND\b/.test(u)) {
+      // 3-day layout: explicit ROUND OF 16 means 2nd ROUND is R32.
+      // 2-day layout: no ROUND OF 16 → 2nd ROUND is R16.
+      return layout?.hasRoundOf16 ? 'r32' : 'r16';
+    }
+    // "3rd ROUND" only meaningful if the schedule has 4 distinct MD
+    // pre-QF days (R64/R32/R16/...) — the only such layout puts R16 here.
     if (/\b3RD\s+ROUND\b/.test(u)) return 'r16';
   }
   return null;
@@ -103,6 +135,7 @@ function parsePremierBlocks(
   level?: string | null,
 ): RoundSchedule {
   const out: RoundSchedule = {};
+  const layout = detectPremierLayout(notes);
   // Match a label line followed by a date line. The label is anchored to
   // start-of-line OR after a previous newline; the date line picks up the
   // first "<day> <Month>" pattern within the next 200 chars.
@@ -114,7 +147,7 @@ function parsePremierBlocks(
     const monthName = m[3]!;
     const iso = resolveDateInRange(dayNum, monthName, startsAt, endsAt);
     if (!iso) continue;
-    const key = labelToKey(label, level);
+    const key = labelToKey(label, level, layout);
     if (key && !(key in out)) out[key] = iso;
   }
 

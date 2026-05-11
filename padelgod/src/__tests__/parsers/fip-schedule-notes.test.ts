@@ -267,7 +267,7 @@ MAIN DRAW : FINALS
     expect(result.f).toBe('2026-05-17');
   });
 
-  it('maps "1st ROUND" → r64 when level=p2 (Asuncion-style)', () => {
+  it('maps "1st ROUND" → r64 when level=p2 (Newgiza layout — 1st ROUND + ROUND OF 16, no 2nd ROUND)', () => {
     const notes = `MAIN DRAW : 1st ROUND
 Men 5 May
 MAIN DRAW: ROUND OF 16
@@ -275,6 +275,26 @@ MAIN DRAW: ROUND OF 16
     const result = parseScheduleNotes(notes, '2026-05-03', '2026-05-10', { level: 'p2' });
     expect(result.r64).toBe('2026-05-05');
     expect(result.r16).toBe('2026-05-07');
+    // No r32 — "2nd ROUND" is absent, R32 happens implicitly on day 2 of
+    // the "1st ROUND" span. round_schedule conservatively omits it.
+    expect(result.r32).toBeUndefined();
+  });
+
+  it('maps "2nd ROUND" → r16 when "ROUND OF 16" is NOT present (Asuncion P2 2025 layout)', () => {
+    // Real Asuncion P2 2025 notes: "1st ROUND" spans Men 20-21 May (R64
+    // day 1 + R32 day 2 combined), "2nd ROUND" = R16 on 22 May. No
+    // explicit "ROUND OF 16" label.
+    const notes = `MAIN DRAW : 1st ROUND
+Men 20 May
+MAIN DRAW : 2nd ROUND
+22 May
+MAIN DRAW : QUARTER-FINALS
+23 May`;
+    const result = parseScheduleNotes(notes, '2026-05-18', '2026-05-25', { level: 'p2' });
+    expect(result.r64).toBe('2026-05-20');
+    expect(result.r16).toBe('2026-05-22');
+    expect(result.qf).toBe('2026-05-23');
+    expect(result.r32).toBeUndefined();
   });
 
   it('maps "1st ROUND" → r64 when level=major', () => {
