@@ -80,11 +80,11 @@ describe('buildSchedule', () => {
     expect(names).not.toContain('shadow-diff-live');
   });
 
-  it('schedules match-stats-fetcher at :25', () => {
+  it('schedules match-stats-fetcher twice hourly at :25 and :55', () => {
     const sched = buildSchedule(ALL_ENABLED);
     const entry = sched.find((s) => s.name === 'match-stats-fetcher');
     expect(entry).toBeDefined();
-    expect(entry!.cron).toBe('25 * * * *');
+    expect(entry!.cron).toBe('25,55 * * * *');
   });
 
   it('schedules live-poller-manager every minute', () => {

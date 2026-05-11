@@ -495,7 +495,7 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enableMatchStatsFetcher) {
     entries.push({
       name: 'match-stats-fetcher',
-      cron: '25 * * * *', // hourly at :25
+      cron: '25,55 * * * *', // twice hourly at :25 and :55 — 20-match batch × 2/hr keeps recent finishes fresh
       run: getWorkerRunner('match-stats-fetcher')!,
     });
   }
