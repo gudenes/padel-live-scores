@@ -142,13 +142,13 @@ export default async function MatchLayout({ params, children }: Props) {
         pair1_player2:players!matches_pair1_player2_id_fkey(name),
         pair2_player1:players!matches_pair2_player1_id_fkey(name),
         pair2_player2:players!matches_pair2_player2_id_fkey(name),
-        tournament:tournaments(name, starts_at, ends_at)
+        tournament:tournaments(name, country, starts_at, ends_at)
       `)
       .eq('id', id)
       .single()
 
     type PlayerRef = { name: string } | null
-    type TournamentRef = { name: string; starts_at: string | null; ends_at: string | null } | null
+    type TournamentRef = { name: string; country: string | null; starts_at: string | null; ends_at: string | null } | null
 
     const tournament = match?.tournament as unknown as TournamentRef
     // Same coalescing pattern as generateMetadata: thin-match name
@@ -193,7 +193,11 @@ export default async function MatchLayout({ params, children }: Props) {
             name: `${p1} vs ${p2}`,
             startDate,
             ...(endDate ? { endDate } : {}),
-            location: { '@type': 'Place', name: tournament.name },
+            location: {
+              '@type': 'Place',
+              name: tournament.name,
+              ...(tournament.country ? { address: tournament.country } : {}),
+            },
             sport: 'Padel',
             ...(competitor.length > 0 ? { competitor } : {}),
           }
