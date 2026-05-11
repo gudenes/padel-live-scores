@@ -387,7 +387,15 @@ Feed ranking in `src/lib/feed-scoring.ts` combines multiple signals:
 User preferences tracked in localStorage via `useFeedPreferences` hook. Hidden items via `useHiddenFeedItems` hook — shared across feed page and home carousel.
 
 ### Avatar Hosting
-Player avatars hosted on Supabase Storage (bucket: `avatars`), not proxied from external sources. Migration done via `/api/admin/migrate-avatars`.
+Target state: player avatars are rehosted to Supabase Storage (`avatars` bucket) so push-notification largeIcons and avatar UIs don't break when an upstream image host hiccups. Implementation is **best-effort** — not every row in `players.avatar_url` is on Supabase Storage at any given moment.
+
+**Shared helper:** [src/lib/avatar-rehost.ts](src/lib/avatar-rehost.ts) exposes `rehostAvatarToSupabase(supabase, playerId, sourceUrl)`. Downloads the raw URL, uploads to `avatars/<playerId>.<ext>`, updates `players.avatar_url`. Short-circuits when the player already has a Supabase-hosted avatar — so it's safe to call on every sync run.
+
+**Backfill admin route:** [`/api/admin/migrate-avatars`](src/app/api/admin/migrate-avatars/route.ts) batches rehosts for rows that still point at an external prefix. Supports `?source=googlestorage` (legacy Fantasy Padel Tour data) and `?source=padelfip` (FIP feed thumbnails). Add `?limit=N` to test on a small slice first. Auth: `Authorization: Bearer $CRON_SECRET`.
+
+**Upstream sync fix (2026-05-11):** [`/api/admin/sync-fip-rankings`](src/app/api/admin/sync-fip-rankings/route.ts) used to pass FIP's `p.thumbnail` (padelfip.com URL) straight into `players.avatar_url`, which is why 309 of 341 rows accumulated raw padelfip URLs. Now the sync collects `(playerId, thumbnail)` pairs during the resolver loop and rehosts them in 20-wide parallel batches after the loop — keeps the daily cron under 120s and prevents new padelfip URLs from landing in the DB. Padelapi's `avatar_url` field is still allowed through `filterUpdateByPriority` in the padelapi sync, but those URLs are already on Supabase Storage upstream.
+
+Other write sites worth knowing about (no current rehost guard, lower volume): `/api/admin/fix-players`, `/api/admin/seed-tournament`, `/api/admin/sync-players`. If those become live ingestion paths again, wire them through `rehostAvatarToSupabase` too.
 
 ### Player Name Aliases
 When `PlayerResolver` matches a player via fuzzy match (token similarity ≥ 0.7), it auto-stores the raw name variant as an alias in `entity_external_ids` (source='alias'). Future lookups for the same variant hit the alias cache instantly instead of scanning all players. The `players` table also has a `normalized_name` column (indexed, auto-populated by trigger using `unaccent` extension).

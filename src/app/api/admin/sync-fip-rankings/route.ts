@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { PlayerResolver } from '@/lib/player-resolver'
+import { ensureAvatarsBucket, rehostAvatarToSupabase } from '@/lib/avatar-rehost'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -206,7 +207,18 @@ export async function GET(req: NextRequest) {
   const results = {
     official: { updated: 0, created: 0, unmatched: 0 },
     race:     { updated: 0, created: 0, unmatched: 0 },
+    avatars:  { rehosted: 0, skipped: 0, failed: 0 },
   }
+
+  // FIP serves player thumbnails on padelfip.com/wp-content/uploads/*. If we
+  // store those raw URLs, push-notification largeIcons silently fail whenever
+  // padelfip.com hiccups. Instead: don't pass the raw URL to the resolver,
+  // collect (playerId, thumbnail) pairs as we go, and rehost in parallel
+  // batches after the loop so the daily cron stays well under 120s.
+  const avatarJobs: Array<{ playerId: string; thumbnail: string }> = []
+
+  // Bucket creation is idempotent — safe to call before every sync run.
+  await ensureAvatarsBucket(supabase)
 
   // Cron path can split work across 4 invocations (one per gender × type) to
   // stay under Vercel's 120s maxDuration budget. Per-player resolver round
@@ -248,13 +260,20 @@ export async function GET(req: NextRequest) {
             ranking: p.rank,
             points: p.points,
             rankingMove: p.move,
-            avatarUrl: p.thumbnail || null,
+            // Skip avatar — rehosted to Supabase Storage post-loop. Passing
+            // the raw padelfip.com URL would mean a player's largeIcon push
+            // notification breaks the moment padelfip.com hiccups.
+            avatarUrl: null,
             profileUrl: p.url || null,
             rankingDate,
           })
 
           if (resolveResult.action === 'created') results.official.created++
           else results.official.updated++
+
+          if (p.thumbnail) {
+            avatarJobs.push({ playerId: resolveResult.playerId, thumbnail: p.thumbnail })
+          }
 
           await writeSnapshot({
             player_id: resolveResult.playerId,
@@ -314,6 +333,27 @@ export async function GET(req: NextRequest) {
         } catch {
           results.race.unmatched++
         }
+      }
+    }
+  }
+
+  // ── Avatar rehosting ─────────────────────────────────────────────────
+  // After resolving all players, rehost any padelfip thumbnails to
+  // Supabase Storage. The helper short-circuits when the player already
+  // has a Supabase-hosted avatar, so the steady-state cost after the
+  // initial backfill is ~1 SELECT per player (no network downloads).
+  const REHOST_BATCH = 20
+  for (let i = 0; i < avatarJobs.length; i += REHOST_BATCH) {
+    const chunk = avatarJobs.slice(i, i + REHOST_BATCH)
+    const outcomes = await Promise.all(
+      chunk.map(j => rehostAvatarToSupabase(supabase, j.playerId, j.thumbnail)),
+    )
+    for (const o of outcomes) {
+      if (o.status === 'ok') results.avatars.rehosted++
+      else if (o.status.startsWith('skipped')) results.avatars.skipped++
+      else {
+        results.avatars.failed++
+        console.warn(`[sync-fip] avatar rehost ${o.status} for ${o.playerId}: ${o.detail ?? ''}`)
       }
     }
   }

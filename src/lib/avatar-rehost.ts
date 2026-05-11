@@ -1,0 +1,124 @@
+// src/lib/avatar-rehost.ts
+// Downloads a raw external avatar URL (padelfip.com, padelapi.org, googlestorage,
+// etc.) and rehosts it on Supabase Storage, then updates players.avatar_url to
+// the new public URL. Used by the one-time `migrate-avatars` admin endpoint AND
+// by the daily `sync-fip-rankings` cron so brand-new players landing via the
+// FIP rankings feed don't accumulate raw padelfip.com URLs.
+
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+const BUCKET = 'avatars'
+const SUPABASE_STORAGE_MARKER = '.supabase.co/storage/'
+
+export type RehostStatus =
+  | 'ok'
+  | 'skipped-already-hosted'
+  | 'skipped-no-source'
+  | 'download-failed'
+  | 'upload-failed'
+  | 'db-update-failed'
+  | 'error'
+
+export interface RehostResult {
+  playerId: string
+  status: RehostStatus
+  newUrl?: string
+  detail?: string
+}
+
+function pickExtension(contentType: string): string {
+  if (contentType.includes('png')) return 'png'
+  if (contentType.includes('webp')) return 'webp'
+  if (contentType.includes('gif')) return 'gif'
+  if (contentType.includes('jpeg') || contentType.includes('jpg')) return 'jpg'
+  return 'jpg'
+}
+
+function isSupabaseHosted(url: string | null | undefined): boolean {
+  return !!url && url.includes(SUPABASE_STORAGE_MARKER)
+}
+
+/**
+ * Rehost a single avatar. Idempotent + safe to call from the daily ranking
+ * sync — when the player's current avatar is already on Supabase Storage we
+ * short-circuit before any network call.
+ *
+ * Errors are returned via the result object rather than thrown so a failed
+ * upstream image never breaks the calling cron.
+ */
+export async function rehostAvatarToSupabase(
+  supabase: SupabaseClient,
+  playerId: string,
+  sourceUrl: string | null | undefined,
+): Promise<RehostResult> {
+  if (!sourceUrl) {
+    return { playerId, status: 'skipped-no-source' }
+  }
+  if (isSupabaseHosted(sourceUrl)) {
+    return { playerId, status: 'skipped-already-hosted', newUrl: sourceUrl }
+  }
+
+  // Skip if the player already has a Supabase-hosted avatar — those rows are
+  // considered authoritative and we don't want a daily ranking sync to
+  // re-download every player's image.
+  const { data: current, error: readError } = await supabase
+    .from('players')
+    .select('avatar_url')
+    .eq('id', playerId)
+    .maybeSingle()
+  if (readError) {
+    return { playerId, status: 'error', detail: `read failed: ${readError.message}` }
+  }
+  if (isSupabaseHosted(current?.avatar_url)) {
+    return { playerId, status: 'skipped-already-hosted', newUrl: current!.avatar_url! }
+  }
+
+  try {
+    const res = await fetch(sourceUrl)
+    if (!res.ok) {
+      return { playerId, status: 'download-failed', detail: `${res.status} ${res.statusText}` }
+    }
+    const contentType = res.headers.get('Content-Type') ?? 'image/jpeg'
+    const ext = pickExtension(contentType)
+    const buffer = await res.arrayBuffer()
+    const filePath = `${playerId}.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(filePath, buffer, { contentType, upsert: true })
+    if (uploadError) {
+      return { playerId, status: 'upload-failed', detail: uploadError.message }
+    }
+
+    const newUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${filePath}`
+
+    const { error: updateError } = await supabase
+      .from('players')
+      .update({ avatar_url: newUrl })
+      .eq('id', playerId)
+    if (updateError) {
+      return { playerId, status: 'db-update-failed', detail: updateError.message }
+    }
+
+    return { playerId, status: 'ok', newUrl }
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    return { playerId, status: 'error', detail }
+  }
+}
+
+/**
+ * Ensure the avatars bucket exists. Safe to call repeatedly — the
+ * "already exists" error is treated as success.
+ */
+export async function ensureAvatarsBucket(supabase: SupabaseClient): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.storage.createBucket(BUCKET, {
+    public: true,
+    fileSizeLimit: 2 * 1024 * 1024,
+    allowedMimeTypes: ['image/webp', 'image/jpeg', 'image/png', 'image/gif'],
+  })
+  if (error && !error.message.includes('already exists')) {
+    return { ok: false, error: error.message }
+  }
+  return { ok: true }
+}
