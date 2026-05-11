@@ -97,14 +97,23 @@ export default async function TournamentLayout({ params, children }: Props) {
       ? editorialRes.data[0] as unknown as EditorialPost
       : null)
 
-    jsonLd = tournament
+    // Mirror generateMetadata's isGhost guard: nameless or dateless rows
+    // produce SportsEvent items that Search Console rejects as "Missing
+    // field 'startDate'" / "Missing field 'location'". Skip emission
+    // entirely on those rows instead of emitting nulls.
+    const isGhost = !tournament || !tournament.name?.trim() || !tournament.starts_at
+    jsonLd = !isGhost && tournament
       ? {
           '@context': 'https://schema.org',
           '@type': 'SportsEvent',
           name: tournament.name,
           startDate: tournament.starts_at,
-          endDate: tournament.ends_at,
-          location: { '@type': 'Place', name: tournament.country },
+          ...(tournament.ends_at ? { endDate: tournament.ends_at } : {}),
+          location: {
+            '@type': 'Place',
+            name: tournament.name,
+            ...(tournament.country ? { address: tournament.country } : {}),
+          },
           sport: 'Padel',
         }
       : null
