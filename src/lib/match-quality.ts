@@ -106,3 +106,34 @@ const ALPHA_TABLE: Record<RoundKey, number> = {
  */
 export const alpha = (raw: string | null | undefined): number =>
   ALPHA_TABLE[roundKey(raw)]
+
+const TIER_WEIGHT_TABLE: Record<string, number> = {
+  p1: 1.00,
+  major: 0.95,
+  p2: 0.85,
+  premier_mens: 0.85,
+  premier_womens: 0.85,
+  fip_gold: 0.75,
+  fip_silver: 0.70,
+  fip_bronze: 0.65,
+}
+const TIER_UNKNOWN_WEIGHT = 0.70
+export function tierWeight(level: string | null | undefined): number {
+  if (!level) return TIER_UNKNOWN_WEIGHT
+  return TIER_WEIGHT_TABLE[level.toLowerCase()] ?? TIER_UNKNOWN_WEIGHT
+}
+
+/**
+ * Star strength tier-by-rank. Stepped (not smooth) so it's easy to
+ * audit and tune — moving the #15/#16 boundary is one number, not a
+ * curve-fit. Beyond #100 there's effectively no draw.
+ */
+export function starStrength(bestRankOnCourt: number | null): number {
+  if (bestRankOnCourt == null) return 0
+  if (bestRankOnCourt <= 5) return 1.00
+  if (bestRankOnCourt <= 15) return 0.75
+  if (bestRankOnCourt <= 30) return 0.50
+  if (bestRankOnCourt <= 60) return 0.25
+  if (bestRankOnCourt <= 100) return 0.10
+  return 0
+}

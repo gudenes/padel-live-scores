@@ -142,3 +142,58 @@ describe('alpha (star-bonus weight by round)', () => {
     expect(alpha('SF')).toBeGreaterThan(alpha('Final'))
   })
 })
+
+import { tierWeight, starStrength } from '../match-quality'
+
+describe('tierWeight', () => {
+  it('p1 = 1.00', () => expect(tierWeight('p1')).toBe(1.00))
+  it('major = 0.95', () => expect(tierWeight('major')).toBe(0.95))
+  it('p2, premier_mens, premier_womens = 0.85', () => {
+    expect(tierWeight('p2')).toBe(0.85)
+    expect(tierWeight('premier_mens')).toBe(0.85)
+    expect(tierWeight('premier_womens')).toBe(0.85)
+  })
+  it('fip tiers descend', () => {
+    expect(tierWeight('fip_gold')).toBe(0.75)
+    expect(tierWeight('fip_silver')).toBe(0.70)
+    expect(tierWeight('fip_bronze')).toBe(0.65)
+  })
+  it('case-insensitive', () => {
+    expect(tierWeight('P1')).toBe(1.00)
+    expect(tierWeight('FIP_BRONZE')).toBe(0.65)
+  })
+  it('null / unknown → 0.70', () => {
+    expect(tierWeight(null)).toBe(0.70)
+    expect(tierWeight('amateur')).toBe(0.70)
+  })
+})
+
+describe('starStrength (by best rank on court)', () => {
+  it('top 5 → 1.00', () => {
+    expect(starStrength(1)).toBe(1.00)
+    expect(starStrength(5)).toBe(1.00)
+  })
+  it('top 6-15 → 0.75', () => {
+    expect(starStrength(6)).toBe(0.75)
+    expect(starStrength(15)).toBe(0.75)
+  })
+  it('top 16-30 → 0.50', () => {
+    expect(starStrength(16)).toBe(0.50)
+    expect(starStrength(30)).toBe(0.50)
+  })
+  it('top 31-60 → 0.25', () => {
+    expect(starStrength(31)).toBe(0.25)
+    expect(starStrength(60)).toBe(0.25)
+  })
+  it('top 61-100 → 0.10', () => {
+    expect(starStrength(61)).toBe(0.10)
+    expect(starStrength(100)).toBe(0.10)
+  })
+  it('> 100 → 0', () => {
+    expect(starStrength(101)).toBe(0)
+    expect(starStrength(500)).toBe(0)
+  })
+  it('null → 0', () => {
+    expect(starStrength(null)).toBe(0)
+  })
+})
