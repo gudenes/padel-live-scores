@@ -1383,6 +1383,71 @@ export function resolveFourPlayers(
     const playerIdToFipId = new Map<string, string>();
     for (const [fipId, playerId] of fipIdToPlayerId) playerIdToFipId.set(playerId, fipId);
 
+    const tierRank: Record<Tier, number> = {
+      exact_long: 4,
+      bracket_overlay: 3,
+      short_unique: 2,
+      partner_anchor: 1,
+      unresolved: 0,
+    };
+
+    // Mis-pair sanity check. For each pair, if both slots resolved and
+    // they're NOT entry-list partners, drop the lower-tier slot (or
+    // both when tiers are equal). The partner-anchor loop below uses
+    // lazy out[slot] reads, so a dropped slot can be refilled there.
+    const pairsForMispair: Array<{
+      aTier: Tier | undefined; aPlayerId: string | null;
+      bTier: Tier | undefined; bPlayerId: string | null;
+      dropA: () => void;
+      dropB: () => void;
+    }> = [
+      {
+        aTier: out.tiers?.p1p1, aPlayerId: out.p1p1,
+        bTier: out.tiers?.p1p2, bPlayerId: out.p1p2,
+        dropA: () => { out.p1p1 = null; if (out.tiers) out.tiers.p1p1 = 'unresolved'; },
+        dropB: () => { out.p1p2 = null; if (out.tiers) out.tiers.p1p2 = 'unresolved'; },
+      },
+      {
+        aTier: out.tiers?.p2p1, aPlayerId: out.p2p1,
+        bTier: out.tiers?.p2p2, bPlayerId: out.p2p2,
+        dropA: () => { out.p2p1 = null; if (out.tiers) out.tiers.p2p1 = 'unresolved'; },
+        dropB: () => { out.p2p2 = null; if (out.tiers) out.tiers.p2p2 = 'unresolved'; },
+      },
+    ];
+
+    for (const pair of pairsForMispair) {
+      if (pair.aPlayerId == null || pair.bPlayerId == null) continue;
+      const aFip = playerIdToFipId.get(pair.aPlayerId);
+      const bFip = playerIdToFipId.get(pair.bPlayerId);
+      if (!aFip || !bFip) continue;
+      const aPartner = fipIdToPartner.get(aFip);
+      // Mis-pair when A's entry-list partner is set AND it's NOT B
+      if (aPartner && aPartner.partnerFipId && aPartner.partnerFipId !== bFip) {
+        const aRank = tierRank[pair.aTier ?? 'unresolved'];
+        const bRank = tierRank[pair.bTier ?? 'unresolved'];
+        if (aRank > bRank) {
+          pair.dropB();
+          logger?.warn(
+            { keptTier: pair.aTier, droppedTier: pair.bTier, keptFipId: aFip, droppedFipId: bFip },
+            'mispair_detected',
+          );
+        } else if (bRank > aRank) {
+          pair.dropA();
+          logger?.warn(
+            { keptTier: pair.bTier, droppedTier: pair.aTier, keptFipId: bFip, droppedFipId: aFip },
+            'mispair_detected',
+          );
+        } else {
+          pair.dropA();
+          pair.dropB();
+          logger?.warn(
+            { keptTier: null, droppedTier: pair.aTier, droppedFipIds: [aFip, bFip] },
+            'mispair_detected',
+          );
+        }
+      }
+    }
+
     for (const { anchor, other } of slotsByPair) {
       const anchorPlayerId = out[anchor];
       const otherPlayerId = out[other];

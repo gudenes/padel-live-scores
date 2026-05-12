@@ -3349,3 +3349,83 @@ describe('resolveFourPlayers — Pass 2 partner-anchor', () => {
     expect(resolved.tiers?.p2p2).toBe('exact_long');
   });
 });
+
+describe('resolveFourPlayers — Pass 2 mis-pair sanity', () => {
+  const nameToFipId = new Map<string, string>([
+    ['javier ruiz gonzalez', 'fip-P000021'],
+    ['jorge nieto ruiz', 'fip-P000017'],
+    ['gonzalo rubio', 'fip-P000029'],
+    ['jon sanz', 'fip-P000038'],
+  ]);
+  const shortFormToFipId = buildShortFormMap(nameToFipId);
+  const fipIdToPlayerId = new Map<string, string>([
+    ['fip-P000021', 'uuid-javier'],
+    ['fip-P000017', 'uuid-jorge'],
+    ['fip-P000029', 'uuid-gonzalo'],
+    ['fip-P000038', 'uuid-jon'],
+  ]);
+  const fipIdToPartner = new Map<string, { partnerFipId: string | null; partnerNormName: string }>([
+    ['fip-P000029', { partnerFipId: 'fip-P000021', partnerNormName: 'javier ruiz gonzalez' }],
+    ['fip-P000021', { partnerFipId: 'fip-P000029', partnerNormName: 'gonzalo rubio' }],
+    ['fip-P000017', { partnerFipId: 'fip-P000038', partnerNormName: 'jon sanz' }],
+    ['fip-P000038', { partnerFipId: 'fip-P000017', partnerNormName: 'jorge nieto ruiz' }],
+  ]);
+
+  it('drops the lower-confidence slot when both resolve but are not entry-list partners', () => {
+    // Inject "J. Ruiz" → Jorge Nieto Ruiz mapping (the historical bug behavior)
+    const customShortForm = new Map(shortFormToFipId);
+    customShortForm.set('j. ruiz', 'fip-P000017');
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Ruiz',          // resolves to Jorge (short_unique)
+      team2_player2_name: 'Gonzalo Rubio',    // resolves exact_long
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, customShortForm, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    // Mis-pair detected: Jorge's partner is Jon, not Gonzalo. Rubio's
+    // anchor tier exact_long > Jorge's short_unique → drop Jorge.
+    // Then partner-anchor sweep refills Jorge's slot with Javier (Rubio's
+    // actual partner) since "J. Ruiz" is consistent with "javier ruiz gonzalez".
+    expect(resolved.p2p1).toBe('uuid-javier');
+    expect(resolved.tiers?.p2p1).toBe('partner_anchor');
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+    expect(resolved.tiers?.p2p2).toBe('exact_long');
+  });
+
+  it('drops both slots when mis-paired AND tiers are equal', () => {
+    const customShortForm = new Map(shortFormToFipId);
+    customShortForm.set('j. ruiz', 'fip-P000017');   // Jorge Nieto Ruiz
+    customShortForm.set('g. rubio', 'fip-P000029');  // Gonzalo Rubio
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Ruiz',
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, customShortForm, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    // Both short_unique tier (equal), Jorge's partner is Jon not Gonzalo → drop both.
+    // After mis-pair drop, partner-anchor sweep can't refill (no anchor left).
+    expect(resolved.p2p1).toBe(null);
+    expect(resolved.tiers?.p2p1).toBe('unresolved');
+    expect(resolved.p2p2).toBe(null);
+    expect(resolved.tiers?.p2p2).toBe('unresolved');
+  });
+
+  it('keeps both slots when they are entry-list partners (no mis-pair)', () => {
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'Javier Ruiz Gonzalez',
+      team2_player2_name: 'Gonzalo Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    expect(resolved.p2p1).toBe('uuid-javier');
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+  });
+});
