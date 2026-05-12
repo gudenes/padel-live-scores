@@ -709,6 +709,13 @@ export async function runFipDrawPopulator(
         }
       }
     }
+    // Partner fip_ids from buildPairIndex must also be loaded so the
+    // Pass 2 partner-anchor sweep can resolve to a player UUID even
+    // when the partner's name doesn't appear in the draw rows (e.g.
+    // when one side of the match is TBD or a walkover slot).
+    for (const { partnerFipId } of pairIndex.fipIdToPartner.values()) {
+      if (partnerFipId) wantedFipIds.add(partnerFipId);
+    }
     const fipIdToPlayerId = await loadPlayersByFipId(supabase, wantedFipIds);
 
     // 6. Pre-load existing matches by composite for this tournament
@@ -1723,7 +1730,12 @@ async function loadLatestOopRowsAsDrawRows(
   }));
 }
 
-async function loadEntryListNameMap(
+/**
+ * @deprecated Use `buildPairIndex` instead. Kept exported for any external
+ * callers that may still import this directly. The returned `nameToFipId`
+ * map is also available as `(await buildPairIndex(...)).nameToFipId`.
+ */
+export async function loadEntryListNameMap(
   supabase: SupabaseClient,
   tournamentId: string
 ): Promise<Map<string, string>> {
