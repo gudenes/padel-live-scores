@@ -45,3 +45,64 @@ export const starPower = (avgRank: number): number =>
  */
 export const starDamper = (avgRank: number): number =>
   0.5 + 0.5 * starPower(avgRank)
+
+export type RoundKey =
+  | 'final' | 'sf' | 'qf' | 'r16' | 'r32' | 'r64' | 'r128' | 'q' | 'unknown'
+
+/**
+ * Normalize a raw round string into a canonical key. The DB stores
+ * inconsistent formats — "Round of 32" from padelapi, "R32" from
+ * Crionet, "1/16" from FIP — all of which should collapse to 'r32'.
+ *
+ * Why this is a substring matcher with explicit early-outs rather
+ * than a regex: "Semifinal" contains "final" and "Quarterfinal"
+ * contains "quarter" — naïve substring matches misclassify them.
+ */
+export function roundKey(raw: string | null | undefined): RoundKey {
+  if (!raw) return 'unknown'
+  const s = raw.toLowerCase().replace(/\s+/g, '')
+  // Check most-specific patterns first.
+  if (s.includes('semi') || s === '1/2' || s === 'sf') return 'sf'
+  if (s.includes('quarter') || s === '1/4' || s === 'qf') return 'qf'
+  if (s.includes('final')) return 'final'
+  if (s.includes('roundof128') || s.includes('r128')) return 'r128'
+  if (s.includes('roundof64') || s.includes('r64') || s === '1/32') return 'r64'
+  if (s.includes('roundof32') || s.includes('r32') || s === '1/16') return 'r32'
+  if (s.includes('roundof16') || s.includes('r16') || s === '1/8') return 'r16'
+  if (s.startsWith('q') || s.includes('quali')) return 'q'
+  return 'unknown'
+}
+
+const ROUND_WEIGHT_TABLE: Record<RoundKey, number> = {
+  final: 1.15,
+  sf: 0.90,
+  qf: 0.80,
+  r16: 0.70,
+  r32: 0.62,
+  r64: 0.55,
+  r128: 0.48,
+  q: 0.40,
+  unknown: 0.55,
+}
+export const roundWeight = (raw: string | null | undefined): number =>
+  ROUND_WEIGHT_TABLE[roundKey(raw)]
+
+const ALPHA_TABLE: Record<RoundKey, number> = {
+  final: 0.00,
+  sf: 0.05,
+  qf: 0.10,
+  r16: 0.15,
+  r32: 0.20,
+  r64: 0.25,
+  r128: 0.30,
+  q: 0.35,
+  unknown: 0.20,
+}
+/**
+ * α(round) — how much the star bonus weighs at this round.
+ * Early rounds need star pull because there's no marquee parity story
+ * (every R64 is two unknown mid-50s); Finals don't need it (everyone
+ * left is a star, parity decides).
+ */
+export const alpha = (raw: string | null | undefined): number =>
+  ALPHA_TABLE[roundKey(raw)]
