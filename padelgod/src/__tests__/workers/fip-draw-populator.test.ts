@@ -15,6 +15,8 @@ import {
   buildBracketOverlay,
   type BracketOverlayEntry,
   type BracketOverlay,
+  // NEW from Task 4:
+  type Tier,
 } from '../../workers/fip-draw-populator.js';
 
 // Matches the production Isla de la Palma shape minus fields the
@@ -3156,5 +3158,119 @@ describe('buildBracketOverlay', () => {
     ]);
     const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
     expect(overlay.size).toBe(0);
+  });
+});
+
+describe('resolveFourPlayers — tier-aware Pass 1', () => {
+  const nameToFipId = new Map<string, string>([
+    ['javier ruiz gonzalez', 'fip-P000021'],
+    ['jorge nieto ruiz', 'fip-P000017'],
+    ['gonzalo rubio', 'fip-P000029'],
+    ['santiago pineda cabello', 'fip-P100958'],
+    ['diego garcia garcia', 'fip-P101099'],
+  ]);
+  const shortFormToFipId = buildShortFormMap(nameToFipId);
+  const fipIdToPlayerId = new Map<string, string>([
+    ['fip-P000021', 'uuid-javier'],
+    ['fip-P000017', 'uuid-jorge'],
+    ['fip-P000029', 'uuid-gonzalo'],
+    ['fip-P100958', 'uuid-pineda'],
+    ['fip-P101099', 'uuid-diego'],
+  ]);
+
+  it('tags exact long-form hits as exact_long', () => {
+    const draw = {
+      team1_player1_name: 'Gonzalo Rubio',
+      team1_player2_name: 'Javier Ruiz Gonzalez',
+      team2_player1_name: null,
+      team2_player2_name: null,
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined, {},
+    );
+    expect(resolved.p1p1).toBe('uuid-gonzalo');
+    expect(resolved.tiers?.p1p1).toBe('exact_long');
+    expect(resolved.tiers?.p1p2).toBe('exact_long');
+  });
+
+  it('tags short-form hits as short_unique when there is no bracket overlay', () => {
+    const draw = {
+      team1_player1_name: 'G. Rubio',
+      team1_player2_name: null,
+      team2_player1_name: null,
+      team2_player2_name: null,
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined, {},
+    );
+    expect(resolved.p1p1).toBe('uuid-gonzalo');
+    expect(resolved.tiers?.p1p1).toBe('short_unique');
+  });
+
+  it('upgrades to bracket_overlay when the bracket has exactly one consistent long-form for the slot', () => {
+    // BA MD042 setup: bracket has t2 = [Rubio, Javier Ruiz Gonzalez], t1 null
+    const bracketOverlay = {
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: 'Gonzalo Rubio',
+      team2_player2_name: 'Javier Ruiz Gonzalez',
+      team1_fip_id: null,
+      team2_fip_id: null,
+    };
+    const draw = {
+      team1_player1_name: 'S. Pineda Cabello',
+      team1_player2_name: 'D. Garcia Garcia',
+      team2_player1_name: 'J. Ruiz',   // ambiguous via short-form (Pattern 3 collision)
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { bracketOverlay },
+    );
+    // p2p1: bracket scan finds only "Javier Ruiz Gonzalez" consistent with "J. Ruiz" → upgrade
+    expect(resolved.p2p1).toBe('uuid-javier');
+    expect(resolved.tiers?.p2p1).toBe('bracket_overlay');
+    // p2p2: same scan finds only "Gonzalo Rubio" consistent with "G. Rubio" → upgrade
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+    expect(resolved.tiers?.p2p2).toBe('bracket_overlay');
+  });
+
+  it('does not fire bracket_overlay when multiple bracket names are consistent (ambiguous)', () => {
+    // Both Jorge Nieto Ruiz + Javier Ruiz Gonzalez are consistent with "J. Ruiz"
+    const bracketOverlay = {
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: 'Jorge Nieto Ruiz',
+      team2_player2_name: 'Javier Ruiz Gonzalez',
+      team1_fip_id: null,
+      team2_fip_id: null,
+    };
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Ruiz',
+      team2_player2_name: null,
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { bracketOverlay },
+    );
+    // Two consistent candidates → bracket overlay declines → falls to short_form
+    // (which is also ambiguous after PR #313's Pattern 3 → null)
+    expect(resolved.p2p1).toBe(null);
+    expect(resolved.tiers?.p2p1).toBe('unresolved');
+  });
+
+  it('preserves back-compat: no options arg means no tiers field (legacy callers untouched)', () => {
+    const draw = {
+      team1_player1_name: 'Gonzalo Rubio',
+      team1_player2_name: null,
+      team2_player1_name: null,
+      team2_player2_name: null,
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId,
+    );
+    expect(resolved.p1p1).toBe('uuid-gonzalo');
+    expect(resolved.tiers).toBeUndefined();
   });
 });

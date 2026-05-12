@@ -1157,11 +1157,34 @@ async function upsertTournamentDraws(
 
 // ── Helpers (exported for testing) ─────────────────────────────────────
 
+export type Tier =
+  | 'exact_long'
+  | 'bracket_overlay'
+  | 'short_unique'
+  | 'partner_anchor'
+  | 'unresolved';
+
 export interface ResolvedFour {
   p1p1: string | null;
   p1p2: string | null;
   p2p1: string | null;
   p2p2: string | null;
+  // Populated only when caller passes the options arg in resolveFourPlayers.
+  // Legacy callers (no options) get undefined — back-compat with the
+  // existing 78 tests.
+  tiers?: {
+    p1p1: Tier;
+    p1p2: Tier;
+    p2p1: Tier;
+    p2p2: Tier;
+  };
+}
+
+export interface ResolveOptions {
+  /** Per-fip_id partner index from buildPairIndex. Enables Pass 2. */
+  fipIdToPartner?: Map<string, { partnerFipId: string | null; partnerNormName: string }>;
+  /** Per-match bracket long-form names from buildBracketOverlay. */
+  bracketOverlay?: BracketOverlayEntry;
 }
 
 export function resolvedCount(r: ResolvedFour): number {
@@ -1181,23 +1204,61 @@ export function resolvedCount(r: ResolvedFour): number {
  * resolution — in steady state we want partial FK fills (3-of-4 still
  * means 3 real profile links on the match card), with the unresolved
  * slot left NULL until the entry list catches up.
+ *
+ * When `options` is provided the returned value also carries a `tiers` map
+ * tagging each slot's resolution method. Legacy callers that omit `options`
+ * get the old return shape (no `tiers` field) — back-compat preserved.
+ *
+ * Pass 1 lookup order per slot:
+ *   exact_long → bracket_overlay → short_unique → middle-strip
+ * Bracket overlay fires only when EXACTLY ONE of the 4 overlay names is
+ * consistent with the slot's short-form AND resolves via nameToFipId.
  */
 export function resolveFourPlayers(
   d: DrawRow,
   nameToFipId: Map<string, string>,
   shortFormToFipId: Map<string, string | null>,
   fipIdToPlayerId: Map<string, string>,
-  logger?: Logger
+  logger?: Logger,
+  options?: ResolveOptions,
 ): ResolvedFour {
-  const lookup = (name: string | null): string | null => {
-    if (!name) return null;
+  const useTiers = options != null;
+  const bracketOverlay = options?.bracketOverlay;
+  const bracketPool = bracketOverlay
+    ? [
+        bracketOverlay.team1_player1_name,
+        bracketOverlay.team1_player2_name,
+        bracketOverlay.team2_player1_name,
+        bracketOverlay.team2_player2_name,
+      ].filter((n): n is string => !!n)
+    : [];
+
+  // Per-slot lookup. Returns { fipId, tier } where tier is the resolution
+  // method tag and fipId is null when nothing resolved.
+  const lookup = (name: string | null): { fipId: string | null; tier: Tier } => {
+    if (!name) return { fipId: null, tier: 'unresolved' };
     const norm = normalizeName(name);
 
-    // 1. Exact-match (long-form from entry list) — fastest path.
+    // Tier 1: Exact-match (long-form from entry list) — fastest path.
     const exactFipId = nameToFipId.get(norm);
-    if (exactFipId) return fipIdToPlayerId.get(exactFipId) ?? null;
+    if (exactFipId) return { fipId: fipIdToPlayerId.get(exactFipId) ?? null, tier: 'exact_long' };
 
-    // 2. Short-form match. OOP snapshots write "M. Alvarez" while the entry
+    // Tier 2: Bracket overlay — exactly one consistent long-form name in the pool.
+    // OOP snapshots write "J. Ruiz" while the bracket draw has "Javier Ruiz Gonzalez".
+    // When EXACTLY ONE bracket name is consistent with the short-form AND resolves
+    // via nameToFipId, we can safely upgrade to the long-form identity.
+    if (bracketPool.length > 0) {
+      const matches = bracketPool.filter((b) => isShortFormConsistentWith(name, b));
+      if (matches.length === 1) {
+        const longForm = matches[0]!;
+        const fipId = nameToFipId.get(normalizeName(longForm));
+        if (fipId) {
+          return { fipId: fipIdToPlayerId.get(fipId) ?? null, tier: 'bracket_overlay' };
+        }
+      }
+    }
+
+    // Tier 3: Short-form match. OOP snapshots write "M. Alvarez" while the entry
     //    list has "Mateo Alvarez". buildShortFormMap() pre-computed the
     //    short-form keys for every entry-list player (two variants: full-tail
     //    "M. Negrete Oliva" and last-token "A. Miranda"). We look the input
@@ -1207,14 +1268,14 @@ export function resolveFourPlayers(
       if (sfFipId == null) {
         logger?.warn(
           { name },
-          'fip-draw-populator: short-form name is ambiguous — leaving unresolved'
+          'fip-draw-populator: short-form name is ambiguous — leaving unresolved',
         );
-        return null;
+        return { fipId: null, tier: 'unresolved' };
       }
-      return fipIdToPlayerId.get(sfFipId) ?? null;
+      return { fipId: fipIdToPlayerId.get(sfFipId) ?? null, tier: 'short_unique' };
     }
 
-    // 3. Middle-name strip / prefix match for draw names with extra
+    // Tier 3b: Middle-name strip / prefix match for draw names with extra
     //    given-middle tokens or trailing surnames. Collect ALL distinct
     //    fip_ids reachable across both shapes — if more than one comes
     //    back we can't safely pick one, so return null (mirrors the
@@ -1223,7 +1284,7 @@ export function resolveFourPlayers(
     if (tokens.length >= 3) {
       const candidates = new Set<string>();
 
-      // 3a. Remove one middle token at a time (inner tokens)
+      // Remove one middle token at a time (inner tokens)
       for (let skip = 1; skip < tokens.length - 1; skip++) {
         const candidate = [
           ...tokens.slice(0, skip),
@@ -1233,7 +1294,7 @@ export function resolveFourPlayers(
         if (cFipId) candidates.add(cFipId);
       }
 
-      // 3b. Prefix match: EL name is a strict prefix of draw name
+      // Prefix match: EL name is a strict prefix of draw name
       //     e.g. "Vinny Nahuel Di Francesco" is a prefix of
       //          "Vinny Nahuel Di Francesco Calderon"
       for (let len = tokens.length - 1; len >= 2; len--) {
@@ -1245,25 +1306,39 @@ export function resolveFourPlayers(
       if (candidates.size > 1) {
         logger?.warn(
           { name, candidates: Array.from(candidates) },
-          'fip-draw-populator: middle-strip/prefix match is ambiguous — leaving unresolved'
+          'fip-draw-populator: middle-strip/prefix match is ambiguous — leaving unresolved',
         );
-        return null;
+        return { fipId: null, tier: 'unresolved' };
       }
       if (candidates.size === 1) {
         const only = candidates.values().next().value as string;
-        return fipIdToPlayerId.get(only) ?? null;
+        return { fipId: fipIdToPlayerId.get(only) ?? null, tier: 'short_unique' };
       }
     }
 
-    return null;
+    return { fipId: null, tier: 'unresolved' };
   };
 
-  return {
-    p1p1: lookup(d.team1_player1_name),
-    p1p2: lookup(d.team1_player2_name),
-    p2p1: lookup(d.team2_player1_name),
-    p2p2: lookup(d.team2_player2_name),
+  const r1 = lookup(d.team1_player1_name);
+  const r2 = lookup(d.team1_player2_name);
+  const r3 = lookup(d.team2_player1_name);
+  const r4 = lookup(d.team2_player2_name);
+
+  const out: ResolvedFour = {
+    p1p1: r1.fipId,
+    p1p2: r2.fipId,
+    p2p1: r3.fipId,
+    p2p2: r4.fipId,
   };
+  if (useTiers) {
+    out.tiers = {
+      p1p1: r1.tier,
+      p1p2: r2.tier,
+      p2p1: r3.tier,
+      p2p2: r4.tier,
+    };
+  }
+  return out;
 }
 
 // ── DB helpers ─────────────────────────────────────────────────────────
