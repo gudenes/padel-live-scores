@@ -66,21 +66,26 @@ export async function GET(req: NextRequest) {
   const { data, error } = await q.order('scheduled_at', { ascending: true })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Supabase typegen widens single-FK joins to arrays (`{ ... }[]`) even
+  // though the actual return is one object — defeat through `unknown`.
+  type TournamentRel = { id: string; name: string; level: string | null; country: string | null } | null
+  type PlayerRel = { name: string | null; ranking: number | null } | null
+  const EMPTY_PLAYER = { name: null, ranking: null }
+
   const rows: RowOut[] = []
   for (const m of data ?? []) {
-    const t = m.tournament as { id: string; name: string; level: string | null; country: string | null } | null
+    const t = m.tournament as unknown as TournamentRel
     if (!t) continue
     if (tierFilter && (!t.level || !tierFilter.includes(t.level.toLowerCase()))) continue
 
+    const p1a = m.pair1_player1 as unknown as PlayerRel
+    const p1b = m.pair1_player2 as unknown as PlayerRel
+    const p2a = m.pair2_player1 as unknown as PlayerRel
+    const p2b = m.pair2_player2 as unknown as PlayerRel
+
     const breakdown = matchQualityBreakdown({
-      pair1Rankings: [
-        (m.pair1_player1 as { ranking: number | null } | null)?.ranking ?? null,
-        (m.pair1_player2 as { ranking: number | null } | null)?.ranking ?? null,
-      ],
-      pair2Rankings: [
-        (m.pair2_player1 as { ranking: number | null } | null)?.ranking ?? null,
-        (m.pair2_player2 as { ranking: number | null } | null)?.ranking ?? null,
-      ],
+      pair1Rankings: [p1a?.ranking ?? null, p1b?.ranking ?? null],
+      pair2Rankings: [p2a?.ranking ?? null, p2b?.ranking ?? null],
       tournamentLevel: t.level,
       round: m.round,
     })
@@ -95,14 +100,8 @@ export async function GET(req: NextRequest) {
       scheduledAt: m.scheduled_at,
       court: m.court,
       tournament: t,
-      pair1: [
-        m.pair1_player1 as { name: string | null; ranking: number | null } ?? { name: null, ranking: null },
-        m.pair1_player2 as { name: string | null; ranking: number | null } ?? { name: null, ranking: null },
-      ],
-      pair2: [
-        m.pair2_player1 as { name: string | null; ranking: number | null } ?? { name: null, ranking: null },
-        m.pair2_player2 as { name: string | null; ranking: number | null } ?? { name: null, ranking: null },
-      ],
+      pair1: [p1a ?? EMPTY_PLAYER, p1b ?? EMPTY_PLAYER],
+      pair2: [p2a ?? EMPTY_PLAYER, p2b ?? EMPTY_PLAYER],
     })
   }
 
