@@ -3470,5 +3470,7 @@ describe('resolveFourPlayers — Pass 2 suspected late swap', () => {
       }),
       'suspected_late_swap',
     );
+    // Anchor stays intact — late-swap branch must not touch out[anchor].
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
   });
 });
