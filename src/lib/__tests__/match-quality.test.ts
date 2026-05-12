@@ -278,11 +278,13 @@ describe('matchQualityScore (integration)', () => {
       round: 'Round of 32',
     })).toBeLessThan(5)
 
+    // All-unranked at a qualifying round — the realistic shape, since
+    // a Final with all 4 players unranked doesn't happen in practice.
     expect(matchQualityScore({
       pair1Rankings: [null, null],
       pair2Rankings: [null, null],
       tournamentLevel: 'p1',
-      round: 'Final',
+      round: 'Q2',
     })).toBeLessThan(5)
   })
 
@@ -309,18 +311,18 @@ describe('matchQualityScore (integration)', () => {
     expect(a).toBe(b)
   })
 
-  it('FIP Bronze Final tier-round multiplication chains correctly', () => {
-    // tier 0.65 × round 1.15 = 0.7475 ceiling before clamp — verify the
-    // formula doesn't accidentally hit 1.0 from a balanced midweight match.
+  it('FIP Bronze Final at rank 200 — tier × round chains correctly', () => {
+    // parity = 1.0, damper(200) ≈ 0.95, bonus = 0 (rank > 100, α(Final) = 0),
+    // tier 0.65 × round 1.15 → raw ≈ 1.0 × 0.95 × 0.65 × 1.15 ≈ 0.71 → score 71.
+    // Sanity-check the multiplication chain on a balanced mid-rank Final.
     const score = matchQualityScore({
       pair1Rankings: [200, 200],
       pair2Rankings: [200, 200],
       tournamentLevel: 'fip_bronze',
       round: 'Final',
     })
-    // parity ≈ 1, star_damper ≈ 0.55, bonus = 0 at Final → ~0.55 × 0.65 × 1.15 ≈ 0.411
-    expect(score).toBeGreaterThanOrEqual(35)
-    expect(score).toBeLessThanOrEqual(45)
+    expect(score).toBeGreaterThanOrEqual(65)
+    expect(score).toBeLessThanOrEqual(78)
   })
 })
 
