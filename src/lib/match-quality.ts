@@ -167,24 +167,6 @@ function bestRankOnCourt(input: MatchQualityInput): number | null {
   return Math.min(...ranks)
 }
 
-/** Raw 0–1 quality (unrounded). Exposed for breakdown / integration callers. */
-function rawQuality(input: MatchQualityInput): number {
-  const pA = pairEffRank(input.pair1Rankings[0], input.pair1Rankings[1])
-  const pB = pairEffRank(input.pair2Rankings[0], input.pair2Rankings[1])
-  const par = parity(pWin(pA, pB))
-  const damper = starDamper((pA + pB) / 2)
-  const bonus = alpha(input.round) * starStrength(bestRankOnCourt(input))
-  const tw = tierWeight(input.tournamentLevel)
-  const rw = roundWeight(input.round)
-  const unr = hasUnranked(input) ? UNRANKED_PENALTY : 1
-  return clamp01((par * damper + bonus) * tw * rw * unr)
-}
-
-/** Integer score in [0, 100]. */
-export function matchQualityScore(input: MatchQualityInput): number {
-  return Math.round(rawQuality(input) * 100)
-}
-
 export interface MatchQualityBreakdown {
   score: number          // 0–100 integer (same as matchQualityScore)
   parity: number         // 0..1
@@ -195,6 +177,12 @@ export interface MatchQualityBreakdown {
   unrankedPenalty: number // 1 or 0.15
 }
 
+/**
+ * Compute the full breakdown — single source of truth for the formula.
+ * `matchQualityScore` is a thin wrapper that returns only `score`.
+ * Keeping both functions consistent is enforced by having only one
+ * place that does the arithmetic.
+ */
 export function matchQualityBreakdown(input: MatchQualityInput): MatchQualityBreakdown {
   const pA = pairEffRank(input.pair1Rankings[0], input.pair1Rankings[1])
   const pB = pairEffRank(input.pair2Rankings[0], input.pair2Rankings[1])
@@ -213,4 +201,9 @@ export function matchQualityBreakdown(input: MatchQualityInput): MatchQualityBre
     roundW: rw,
     unrankedPenalty: unr,
   }
+}
+
+/** Integer score in [0, 100]. Thin wrapper over `matchQualityBreakdown`. */
+export function matchQualityScore(input: MatchQualityInput): number {
+  return matchQualityBreakdown(input).score
 }
