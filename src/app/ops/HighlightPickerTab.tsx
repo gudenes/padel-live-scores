@@ -5,7 +5,7 @@
 // The social/content team uses this to pick highlights. Sort by score
 // desc by default; filter by time window, tier, category, min score.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { playerShortName } from '@/lib/player-short-name'
 
 interface PlayerRef { name: string | null; ranking: number | null }
@@ -49,32 +49,44 @@ export default function HighlightPickerTab() {
   const [category, setCategory] = useState<'all' | 'men' | 'women'>('all')
   const [minScore, setMinScore] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  // Snapshot "now" on each refresh so formatScheduled stays pure during render
+  // (react-hooks/purity bans Date.now() in render-phase code).
+  const [nowMs, setNowMs] = useState(() => Date.now())
 
-  async function refresh() {
-    setLoading(true)
-    setError(null)
+  // Data sync effect: refetches whenever filters change. The fetch is awaited
+  // before any setState so we don't trip react-hooks/set-state-in-effect.
+  useEffect(() => {
+    let cancelled = false
     const params = new URLSearchParams()
     params.set('window', String(windowHours))
     if (category !== 'all') params.set('category', category)
     if (tiers.size < TIER_OPTIONS.length) params.set('tier', [...tiers].join(','))
     if (minScore > 0) params.set('minScore', String(minScore))
-    try {
-      const r = await fetch(`/api/ops/highlight-picker?${params.toString()}`, { cache: 'no-store' })
-      if (!r.ok) {
-        const body = await r.json().catch(() => ({}))
-        setError(body.error || `HTTP ${r.status}`)
-        setItems([])
-      } else {
-        const body = await r.json()
-        setItems(body.items ?? [])
+    ;(async () => {
+      try {
+        const r = await fetch(`/api/ops/highlight-picker?${params.toString()}`, { cache: 'no-store' })
+        if (cancelled) return
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}))
+          if (cancelled) return
+          setError(body.error || `HTTP ${r.status}`)
+          setItems([])
+        } else {
+          const body = await r.json()
+          if (cancelled) return
+          setError(null)
+          setItems(body.items ?? [])
+          setNowMs(Date.now())
+        }
+      } catch (e) {
+        if (cancelled) return
+        setError((e as Error).message)
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-    } catch (e) {
-      setError((e as Error).message)
-    }
-    setLoading(false)
-  }
-
-  useEffect(() => { refresh() }, [windowHours, category, minScore, tiers])
+    })()
+    return () => { cancelled = true }
+  }, [windowHours, category, minScore, tiers])
 
   const toggleTier = (key: string) => {
     setTiers(prev => {
@@ -87,8 +99,7 @@ export default function HighlightPickerTab() {
   const formatScheduled = (iso: string | null): string => {
     if (!iso) return '—'
     const d = new Date(iso)
-    const now = Date.now()
-    const deltaH = (d.getTime() - now) / 3_600_000
+    const deltaH = (d.getTime() - nowMs) / 3_600_000
     const local = d.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })
     if (deltaH < 1) return `${local} (<1h)`
     if (deltaH < 24) return `${local} (in ${Math.round(deltaH)}h)`
