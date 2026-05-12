@@ -3429,3 +3429,46 @@ describe('resolveFourPlayers — Pass 2 mis-pair sanity', () => {
     expect(resolved.p2p2).toBe('uuid-gonzalo');
   });
 });
+
+describe('resolveFourPlayers — Pass 2 suspected late swap', () => {
+  const nameToFipId = new Map<string, string>([
+    ['javier ruiz gonzalez', 'fip-P000021'],
+    ['gonzalo rubio', 'fip-P000029'],
+  ]);
+  const shortFormToFipId = buildShortFormMap(nameToFipId);
+  const fipIdToPlayerId = new Map<string, string>([
+    ['fip-P000021', 'uuid-javier'],
+    ['fip-P000029', 'uuid-gonzalo'],
+  ]);
+  const fipIdToPartner = new Map<string, { partnerFipId: string | null; partnerNormName: string }>([
+    ['fip-P000029', { partnerFipId: 'fip-P000021', partnerNormName: 'javier ruiz gonzalez' }],
+    ['fip-P000021', { partnerFipId: 'fip-P000029', partnerNormName: 'gonzalo rubio' }],
+  ]);
+
+  it('emits suspected_late_swap and leaves slot null when OOP partner shorthand initials match but surname does not', () => {
+    const warnSpy = vi.fn();
+    const logger = { info: vi.fn(), warn: warnSpy, debug: vi.fn() } as never;
+
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Rubini',  // initial J matches Javier but surname Rubini ≠ Ruiz / Gonzalez
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, logger,
+      { fipIdToPartner },
+    );
+
+    expect(resolved.p2p1).toBe(null);
+    expect(resolved.tiers?.p2p1).toBe('unresolved');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        slot: 'p2p1',
+        rawShortForm: 'J. Rubini',
+        expectedPartnerNormName: 'javier ruiz gonzalez',
+        expectedPartnerFipId: 'fip-P000021',
+      }),
+      'suspected_late_swap',
+    );
+  });
+});

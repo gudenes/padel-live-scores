@@ -1493,6 +1493,18 @@ export function resolveFourPlayers(
             );
           }
         }
+      } else if (doShortFormInitialsMatch(otherRawName, partner.partnerNormName)) {
+        // Initials match but surname doesn't — likely a real late swap.
+        // Decline the anchor and emit telemetry for ops review.
+        logger?.warn(
+          {
+            slot: other,
+            rawShortForm: otherRawName,
+            expectedPartnerNormName: partner.partnerNormName,
+            expectedPartnerFipId: partner.partnerFipId,
+          },
+          'suspected_late_swap',
+        );
       }
     }
   }
