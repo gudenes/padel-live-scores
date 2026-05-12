@@ -3274,3 +3274,78 @@ describe('resolveFourPlayers — tier-aware Pass 1', () => {
     expect(resolved.tiers).toBeUndefined();
   });
 });
+
+describe('resolveFourPlayers — Pass 2 partner-anchor', () => {
+  // Real BA P1 MD042 setup: J. Ruiz / G. Rubio short-forms, no bracket overlay
+  const nameToFipId = new Map<string, string>([
+    ['javier ruiz gonzalez', 'fip-P000021'],
+    ['jorge nieto ruiz', 'fip-P000017'],
+    ['gonzalo rubio', 'fip-P000029'],
+    ['jon sanz', 'fip-P000038'],
+    ['santiago pineda cabello', 'fip-P100958'],
+    ['diego garcia garcia', 'fip-P101099'],
+  ]);
+  const shortFormToFipId = buildShortFormMap(nameToFipId);
+  const fipIdToPlayerId = new Map<string, string>([
+    ['fip-P000021', 'uuid-javier'],
+    ['fip-P000017', 'uuid-jorge'],
+    ['fip-P000029', 'uuid-gonzalo'],
+    ['fip-P000038', 'uuid-jon'],
+    ['fip-P100958', 'uuid-pineda'],
+    ['fip-P101099', 'uuid-diego'],
+  ]);
+  const fipIdToPartner = new Map<string, { partnerFipId: string | null; partnerNormName: string }>([
+    ['fip-P000029', { partnerFipId: 'fip-P000021', partnerNormName: 'javier ruiz gonzalez' }],
+    ['fip-P000021', { partnerFipId: 'fip-P000029', partnerNormName: 'gonzalo rubio' }],
+    ['fip-P000017', { partnerFipId: 'fip-P000038', partnerNormName: 'jon sanz' }],
+    ['fip-P000038', { partnerFipId: 'fip-P000017', partnerNormName: 'jorge nieto ruiz' }],
+    ['fip-P100958', { partnerFipId: 'fip-P101099', partnerNormName: 'diego garcia garcia' }],
+    ['fip-P101099', { partnerFipId: 'fip-P100958', partnerNormName: 'santiago pineda cabello' }],
+  ]);
+
+  it('resolves "J. Ruiz" to Javier Ruiz Gonzalez via partner-anchor when sibling Rubio is resolved', () => {
+    const draw = {
+      team1_player1_name: 'S. Pineda Cabello',
+      team1_player2_name: 'D. Garcia Garcia',
+      team2_player1_name: 'J. Ruiz',   // Pattern 3 ambiguity → null after Pass 1
+      team2_player2_name: 'G. Rubio',  // unique via short_unique
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    expect(resolved.p2p1).toBe('uuid-javier');
+    expect(resolved.tiers?.p2p1).toBe('partner_anchor');
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+  });
+
+  it('does not fire partner-anchor when the unresolved slot is missing (sibling has no partner info)', () => {
+    const noPartner = new Map(fipIdToPartner);
+    noPartner.delete('fip-P000029');
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Ruiz',
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { fipIdToPartner: noPartner },
+    );
+    expect(resolved.p2p1).toBe(null);
+    expect(resolved.tiers?.p2p1).toBe('unresolved');
+  });
+
+  it('does not fire partner-anchor when both slots are already resolved unambiguously', () => {
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'Javier Ruiz Gonzalez',
+      team2_player2_name: 'Gonzalo Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    expect(resolved.tiers?.p2p1).toBe('exact_long');
+    expect(resolved.tiers?.p2p2).toBe('exact_long');
+  });
+});

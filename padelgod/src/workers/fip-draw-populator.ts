@@ -1350,6 +1350,76 @@ export function resolveFourPlayers(
       p2p2: r4.tier,
     };
   }
+
+  // Pass 2 — pair-anchor sweep. Only runs when caller passes
+  // fipIdToPartner via options. For each of the two pairs:
+  //   - If exactly one slot resolved AND the unresolved slot's raw
+  //     shorthand is consistent with the resolved slot's entry-list
+  //     partner → assign the partner's fip_id at tier 'partner_anchor'.
+  // The slotsByPair array uses lazy reads of `out[slot]` so a future
+  // mis-pair sanity sweep (Task 6) can run before this loop and mutate
+  // `out`, and this loop will see the updated state.
+  const fipIdToPartner = options?.fipIdToPartner;
+  if (useTiers && fipIdToPartner) {
+    const slotsByPair = [
+      { anchor: 'p1p1', other: 'p1p2' },
+      { anchor: 'p1p2', other: 'p1p1' },
+      { anchor: 'p2p1', other: 'p2p2' },
+      { anchor: 'p2p2', other: 'p2p1' },
+    ] as const;
+
+    const rawNameFor = (slot: 'p1p1' | 'p1p2' | 'p2p1' | 'p2p2'): string | null => {
+      switch (slot) {
+        case 'p1p1': return d.team1_player1_name;
+        case 'p1p2': return d.team1_player2_name;
+        case 'p2p1': return d.team2_player1_name;
+        case 'p2p2': return d.team2_player2_name;
+      }
+    };
+
+    // Map resolved player UUID back to fip_id so we can look up the
+    // entry-list partner. fipIdToPlayerId is fip_id → uuid; we want
+    // the inverse.
+    const playerIdToFipId = new Map<string, string>();
+    for (const [fipId, playerId] of fipIdToPlayerId) playerIdToFipId.set(playerId, fipId);
+
+    for (const { anchor, other } of slotsByPair) {
+      const anchorFipId = out[anchor];
+      const otherFipId = out[other];
+      if (anchorFipId == null) continue;     // anchor not resolved
+      if (otherFipId != null) continue;       // other already resolved
+      const otherRawName = rawNameFor(other);
+      if (!otherRawName) continue;            // no shorthand to validate against
+
+      const anchorFip = playerIdToFipId.get(anchorFipId);
+      if (!anchorFip) continue;
+      const partner = fipIdToPartner.get(anchorFip);
+      if (!partner || !partner.partnerNormName) continue;
+
+      if (isShortFormConsistentWith(otherRawName, partner.partnerNormName)) {
+        const partnerFip = partner.partnerFipId;
+        if (partnerFip) {
+          const partnerPlayerId = fipIdToPlayerId.get(partnerFip);
+          if (partnerPlayerId) {
+            out[other] = partnerPlayerId;
+            if (out.tiers) out.tiers[other] = 'partner_anchor';
+            logger?.info(
+              {
+                slot: other,
+                anchorFipId: anchorFip,
+                anchorTier: out.tiers?.[anchor],
+                partnerFipId: partnerFip,
+                rawShortForm: otherRawName,
+                partnerNormName: partner.partnerNormName,
+              },
+              'partner_anchor_resolved',
+            );
+          }
+        }
+      }
+    }
+  }
+
   return out;
 }
 
