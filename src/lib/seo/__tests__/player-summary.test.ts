@@ -7,7 +7,7 @@ const basePlayer: PlayerSummaryInput = {
   category: 'men',
   ranking: 4,
   total_matches: 312,
-  win_rate: 0.71,
+  win_rate: 71,
   recent: [
     {
       tournament_name: 'Buenos Aires P1',

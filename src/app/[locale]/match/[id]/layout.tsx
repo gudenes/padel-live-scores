@@ -12,6 +12,15 @@ type Props = {
   children: React.ReactNode
 }
 
+function countryName(code: string | null): string | null {
+  if (!code) return null
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase()) ?? code
+  } catch {
+    return code
+  }
+}
+
 function lastName(fullName: string | null | undefined): string {
   if (!fullName) return ''
   const parts = fullName.trim().split(' ')
@@ -231,7 +240,7 @@ export default async function MatchLayout({ params, children }: Props) {
         }>) ?? []),
         tournament: {
           name: tournament.name,
-          country: tournament.country,
+          country: countryName(tournament.country),
           level: tournament.level ?? null,
         },
       })
@@ -251,11 +260,13 @@ export default async function MatchLayout({ params, children }: Props) {
       {summary ? (
         <header className="sr-only">
           <h1>{summary.headline}</h1>
-          <ul>
-            {summary.facts.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
+          {summary.facts.length > 0 && (
+            <ul>
+              {summary.facts.map((fact) => (
+                <li key={fact}>{fact}</li>
+              ))}
+            </ul>
+          )}
         </header>
       ) : (
         h1Text && <h1 className="sr-only">{h1Text}</h1>

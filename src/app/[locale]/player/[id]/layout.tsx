@@ -77,6 +77,15 @@ type DbRecent = {
   sets: Array<{ set_number: number; pair1_games: number | null; pair2_games: number | null }>
 }
 
+function countryName(code: string | null): string | null {
+  if (!code) return null
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase()) ?? code
+  } catch {
+    return code
+  }
+}
+
 const lastName = (full: string): string => {
   const parts = full.trim().split(/\s+/)
   return parts.length > 1 ? parts.slice(1).join(' ') : parts[0]
@@ -176,7 +185,7 @@ export default async function PlayerLayout({ params, children }: Props) {
     summary = player
       ? buildPlayerSummary({
           name: player.name,
-          country: player.country,
+          country: countryName(player.country),
           category: player.category,
           ranking: player.ranking,
           total_matches: player.total_matches,
@@ -199,11 +208,13 @@ export default async function PlayerLayout({ params, children }: Props) {
       {summary ? (
         <header className="sr-only">
           <h1>{summary.headline}</h1>
-          <ul>
-            {summary.facts.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
+          {summary.facts.length > 0 && (
+            <ul>
+              {summary.facts.map((fact) => (
+                <li key={fact}>{fact}</li>
+              ))}
+            </ul>
+          )}
           {summary.recentLines.length > 0 && (
             <>
               <h2>Recent matches</h2>

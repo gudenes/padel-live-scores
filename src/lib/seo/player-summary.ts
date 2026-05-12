@@ -15,6 +15,7 @@ export interface PlayerSummaryInput {
   category: string | null
   ranking: number | null
   total_matches: number | null
+  /** win_rate is a percentage (0-100), matching the schema — NOT a fraction */
   win_rate: number | null
   recent: RecentMatchInput[]
 }
@@ -49,7 +50,7 @@ export function buildPlayerSummary(input: PlayerSummaryInput): PlayerSummary {
   }
   if (input.total_matches != null) {
     const winRate =
-      input.win_rate != null ? ` (${Math.round(input.win_rate * 100)}% win rate)` : ''
+      input.win_rate != null ? ` (${Math.round(input.win_rate)}% win rate)` : ''
     facts.push(`Career: ${input.total_matches} matches${winRate}`)
   }
 
