@@ -35,7 +35,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
-import type { LiveMatchState, LiveStateDiff, PointState } from './live-state.js';
+import type { LiveMatchState, LiveSetEntry, LiveStateDiff, PointState } from './live-state.js';
 import { type NotifyDeps, notifyLiveTransition } from './notify.js';
 import { recordSkipNotScheduled } from './notify-stats.js';
 
@@ -199,6 +199,87 @@ function diffHasEffect(diff: LiveStateDiff): boolean {
   );
 }
 
+/**
+ * Build a canonical `set_score` string from a completed set's parser-observed
+ * games + tiebreak digit. Returns null when the values don't represent a
+ * winnable padel set (caller falls back to last-game point inference).
+ *
+ * Tiebreak digit convention: the Crionet widget emits the LOSER'S tiebreak
+ * count on the loser's set cell (`<td>6<sup>2</sup></td>` means that side
+ * lost 6-7 with 2 tiebreak points). `parseSetScore` on the frontend renders
+ * the loser's digit as a superscript, and `parseSetScores` in
+ * static-reconciler emits the same `"7-6(2)"` / `"6(2)-7"` shapes.
+ */
+export function formatPriorSetScore(
+  t1: LiveSetEntry,
+  t2: LiveSetEntry,
+): string | null {
+  const p1 = t1.games;
+  const p2 = t2.games;
+  if (p1 === p2) return null; // tied — can't determine winner from games alone
+  const max = Math.max(p1, p2);
+  const min = Math.min(p1, p2);
+
+  if (max === 7 && min === 6) {
+    const loserTb = p1 > p2 ? t2.tiebreak : t1.tiebreak;
+    if (loserTb != null) {
+      return p1 > p2 ? `${p1}-${p2}(${loserTb})` : `${p1}(${loserTb})-${p2}`;
+    }
+    return `${p1}-${p2}`;
+  }
+
+  if ((max === 6 && min <= 4) || (max === 7 && min === 5)) {
+    return `${p1}-${p2}`;
+  }
+
+  // Super-tiebreak deciding set (some FIP formats): 10+ with any margin.
+  if (max >= 10 && max > min) {
+    return `${p1}-${p2}`;
+  }
+
+  return null;
+}
+
+/**
+ * Last-resort: infer the winner of a finished game from its `points[]` array.
+ * Used to resolve a prior set's score when the widget never published the
+ * closing tick (set "stuck" at the last in-progress games count).
+ *
+ * Accepts both `':'` and `'-'` separators in point strings (canonical writes
+ * use `':'`, formatPointScore output uses `'-'`).
+ */
+export function inferGameWinnerFromPoints(
+  points: readonly string[],
+): 1 | 2 | null {
+  const real = points.filter((p) => p !== '0:0' && p !== '0-0');
+  if (real.length === 0) return null;
+  const last = real[real.length - 1]!;
+  const parts = last.split(/[:\-]/);
+  if (parts.length !== 2) return null;
+  const raw1 = parts[0]!;
+  const raw2 = parts[1]!;
+  const STD: Record<string, number> = {
+    '0': 0,
+    '15': 1,
+    '30': 2,
+    '40': 3,
+    A: 4,
+    AD: 4,
+  };
+  const v1 = STD[raw1];
+  const v2 = STD[raw2];
+  if (v1 !== undefined && v2 !== undefined) {
+    if (v1 === v2) return null;
+    return v1 > v2 ? 1 : 2;
+  }
+  const n1 = parseInt(raw1, 10);
+  const n2 = parseInt(raw2, 10);
+  if (Number.isFinite(n1) && Number.isFinite(n2) && n1 !== n2) {
+    return n1 > n2 ? 1 : 2;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Main apply function
 // ---------------------------------------------------------------------------
@@ -314,6 +395,31 @@ export async function applyDiff(
         'applyDiff: failed to clear is_current on old sets',
       );
     }
+
+    // ── Consolidate prior-set scores ───────────────────────────────────
+    // When the active set advances, the previous set's `pair1_games` /
+    // `pair2_games` / `set_score` are left at whatever value the LAST live
+    // tick captured. If the Crionet widget dropped the closing tick — the
+    // documented "from 5-3 straight to next set" / "from 6-6 mid-tiebreak
+    // straight to next set" failure modes — we end up with an incomplete
+    // prior set in the DB. The frontend's `healClosedSetGames` helper then
+    // defaults to awarding the set to pair2 when games are tied at 6-6,
+    // which silently flips the winner (incident: BUENOS AIRES P1 R64
+    // 2026-05-12, set 2 stuck at 6-6 with set_score=null, UI rendered 6-7).
+    //
+    // Fix: on every tick where currentSetNumber > 1, re-read the parser's
+    // view of each prior set whose set_score is still null. If the games +
+    // tiebreak digit form a valid completed score (6-x / 7-5 / 7-6(N)),
+    // write it. If they don't (parser also stuck), fall back to inferring
+    // the last-game winner from `games.points[]`. Only writes when the
+    // existing set_score is null — never overwrites authoritative data.
+    await consolidatePriorSets(
+      supabase,
+      matchId,
+      curr,
+      currentSetNumber,
+      logger,
+    );
   }
 
   // ── Upsert the current set row ───────────────────────────────────────
@@ -544,6 +650,188 @@ export async function applyDiff(
       }
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Prior-set consolidation
+// ---------------------------------------------------------------------------
+
+/**
+ * After the active set has advanced, fill in `set_score` for any prior set
+ * whose row is still missing one. Two sources of truth, tried in order:
+ *
+ *   1. Parser observation: `curr.team1Sets[i] / team2Sets[i]` already carry
+ *      the games count + tiebreak digit for completed sets. When those form
+ *      a valid finished score we write directly.
+ *   2. Last-game point fallback: when the parser is ALSO stuck (e.g. both
+ *      sides at 6 games with no tiebreak digit emitted), read the prior
+ *      set's last game's `points[]` and infer the game winner from the
+ *      final captured point. Used to resolve the tiebreak-stuck 6-6 case.
+ *
+ * Never overwrites an existing non-null `set_score` (the SELECT filter
+ * excludes them). Failures are logged at warn and skipped — the next tick
+ * gets another chance.
+ */
+async function consolidatePriorSets(
+  supabase: SupabaseClient,
+  matchId: string,
+  curr: LiveMatchState,
+  currentSetNumber: number,
+  logger: Logger | undefined,
+): Promise<void> {
+  const { data: priorSets, error: readErr } = await supabase
+    .from('sets')
+    .select('id, set_number, pair1_games, pair2_games, set_score')
+    .eq('match_id', matchId);
+
+  if (readErr || !priorSets) {
+    logger?.warn(
+      { matchId, err: readErr?.message },
+      'consolidatePriorSets: failed to read prior sets',
+    );
+    return;
+  }
+
+  const needConsolidation = (priorSets as Array<{
+    id: string;
+    set_number: number;
+    pair1_games: number | null;
+    pair2_games: number | null;
+    set_score: string | null;
+  }>).filter(
+    (s) => s.set_number < currentSetNumber && s.set_score == null,
+  );
+
+  if (needConsolidation.length === 0) return;
+
+  for (const oldSet of needConsolidation) {
+    const idx = oldSet.set_number - 1;
+    const t1 = curr.team1Sets[idx] ?? null;
+    const t2 = curr.team2Sets[idx] ?? null;
+
+    let resolvedP1 = oldSet.pair1_games ?? 0;
+    let resolvedP2 = oldSet.pair2_games ?? 0;
+    let resolvedScore: string | null = null;
+
+    // Path 1: parser-observed games + tiebreak.
+    if (t1 && t2) {
+      const fromParser = formatPriorSetScore(t1, t2);
+      if (fromParser !== null) {
+        resolvedP1 = t1.games;
+        resolvedP2 = t2.games;
+        resolvedScore = fromParser;
+      }
+    }
+
+    // Path 2: last-game point fallback for parser-stuck sets.
+    if (resolvedScore === null) {
+      const fallback = await inferPriorSetFromLastGame(
+        supabase,
+        oldSet.id,
+        oldSet.pair1_games ?? 0,
+        oldSet.pair2_games ?? 0,
+        logger,
+        matchId,
+        oldSet.set_number,
+      );
+      if (fallback) {
+        resolvedP1 = fallback.p1Games;
+        resolvedP2 = fallback.p2Games;
+        resolvedScore = fallback.setScore;
+      }
+    }
+
+    if (resolvedScore === null) continue;
+
+    const { error: updErr } = await supabase
+      .from('sets')
+      .update({
+        pair1_games: resolvedP1,
+        pair2_games: resolvedP2,
+        set_score: resolvedScore,
+        is_current: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', oldSet.id);
+
+    if (updErr) {
+      logger?.warn(
+        {
+          matchId,
+          setNumber: oldSet.set_number,
+          err: updErr.message,
+        },
+        'consolidatePriorSets: set update failed',
+      );
+    } else {
+      logger?.info(
+        {
+          matchId,
+          setNumber: oldSet.set_number,
+          setScore: resolvedScore,
+          p1Games: resolvedP1,
+          p2Games: resolvedP2,
+        },
+        'consolidatePriorSets: filled prior set_score',
+      );
+    }
+  }
+}
+
+/**
+ * Read the prior set's last game (highest game_number), infer the winner
+ * from its `points[]`, and project a final set score by bumping the
+ * winner's game count by 1. Returns null when we can't produce a
+ * padel-valid completed score — never makes up data.
+ */
+async function inferPriorSetFromLastGame(
+  supabase: SupabaseClient,
+  setId: string,
+  currentP1Games: number,
+  currentP2Games: number,
+  logger: Logger | undefined,
+  matchId: string,
+  setNumber: number,
+): Promise<{ p1Games: number; p2Games: number; setScore: string } | null> {
+  const { data: lastGames, error } = await supabase
+    .from('games')
+    .select('points, game_number')
+    .eq('set_id', setId)
+    .order('game_number', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    logger?.warn(
+      { matchId, setNumber, err: error.message },
+      'inferPriorSetFromLastGame: games read failed',
+    );
+    return null;
+  }
+  if (!lastGames || lastGames.length === 0) return null;
+
+  const lastGame = lastGames[0] as { points: string[] | null };
+  const points = lastGame.points;
+  if (!points || points.length === 0) return null;
+
+  const winner = inferGameWinnerFromPoints(points);
+  if (!winner) return null;
+
+  const p1Games = winner === 1 ? currentP1Games + 1 : currentP1Games;
+  const p2Games = winner === 2 ? currentP2Games + 1 : currentP2Games;
+
+  const max = Math.max(p1Games, p2Games);
+  const min = Math.min(p1Games, p2Games);
+  const valid =
+    (max === 6 && min <= 4) ||
+    (max === 7 && (min === 5 || min === 6)) ||
+    (max >= 10 && max > min);
+  if (!valid) return null;
+
+  return {
+    p1Games,
+    p2Games,
+    setScore: `${p1Games}-${p2Games}`,
+  };
 }
 
 // ---------------------------------------------------------------------------

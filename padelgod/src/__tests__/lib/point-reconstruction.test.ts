@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { applyDiff, formatPointScore, type ResolvedPlayers } from '../../lib/point-reconstruction.js';
+import {
+  applyDiff,
+  formatPointScore,
+  formatPriorSetScore,
+  inferGameWinnerFromPoints,
+  type ResolvedPlayers,
+} from '../../lib/point-reconstruction.js';
 import type { LiveMatchState, LiveStateDiff, PointState } from '../../lib/live-state.js';
 
 // ---------------------------------------------------------------------------
@@ -13,6 +19,8 @@ interface SetRow {
   pair1_games: number;
   pair2_games: number;
   is_current: boolean;
+  set_score?: string | null;
+  score_source?: string | null;
 }
 interface GameRow {
   id: string;
@@ -23,6 +31,7 @@ interface GameRow {
   server_player_id: string | null;
   is_tiebreak: boolean;
   is_current: boolean;
+  points?: string[] | null;
 }
 interface MatchPointRow {
   match_id: string;
@@ -137,12 +146,13 @@ function makeFakeSupabase(opts: {
       },
       update: (patch: Record<string, unknown>) => ({
         eq: (col1: string, val1: unknown) => ({
+          // Shape A: .update().eq('match_id', m).neq('set_number', n) —
+          // clear is_current on every set except the current one.
           neq: (col2: string, val2: unknown) => {
             state.setsUpdateCalls.push({
               patch,
               filters: { [col1]: val1, [`!${col2}`]: val2 },
             });
-            // apply: clear is_current for matching rows
             for (const s of state.sets) {
               if (s.match_id === val1 && s.set_number !== val2) {
                 Object.assign(s, patch);
@@ -150,12 +160,28 @@ function makeFakeSupabase(opts: {
             }
             return Promise.resolve({ data: null, error: null });
           },
+          // Shape B: .update().eq('id', setId) — single-row update used by
+          // consolidatePriorSets to write set_score on a prior set.
+          then: (resolve: (v: { data: null; error: null }) => void) => {
+            state.setsUpdateCalls.push({
+              patch,
+              filters: { [col1]: val1 },
+            });
+            for (const s of state.sets) {
+              if ((s as any)[col1] === val1) Object.assign(s, patch);
+            }
+            resolve({ data: null, error: null });
+          },
         }),
       }),
-      // Used by dual-write to read existing score_source before overwriting.
-      // Two supported chains:
+      // Used by dual-write to read existing score_source AND by
+      // consolidatePriorSets to read all sets for a match (id + games + score).
+      // Three supported chains:
       //   .select(...).eq(match_id).eq(set_number).maybeSingle() → single row
       //   .select(...).eq(match_id) → all rows for match (thenable on .eq)
+      // The thenable returns the full row shape so consumers can read any
+      // column (consolidatePriorSets needs id, pair1_games, pair2_games,
+      // set_score; dual-write needs set_number + score_source).
       select: (_cols: string) => {
         const filters: Record<string, unknown> = {};
         const api: any = {
@@ -177,7 +203,11 @@ function makeFakeSupabase(opts: {
             const rows = state.sets
               .filter((s) => Object.entries(filters).every(([k, v]) => (s as any)[k] === v))
               .map((s) => ({
+                id: s.id,
                 set_number: s.set_number,
+                pair1_games: s.pair1_games ?? null,
+                pair2_games: s.pair2_games ?? null,
+                set_score: (s as any).set_score ?? null,
                 score_source: (s as any).score_source ?? null,
               }));
             resolve({ data: rows, error: null });
@@ -248,6 +278,50 @@ function makeFakeSupabase(opts: {
 
   function gamesTable() {
     return {
+      // Used by consolidatePriorSets: .select(cols).eq('set_id', setId).order('game_number', { ascending: false }).limit(1)
+      select: (_cols: string) => {
+        const filters: Record<string, unknown> = {};
+        const orderState: { col: string; ascending: boolean } | null = null;
+        const orderRef: { current: typeof orderState } = { current: orderState };
+        let limitN: number | null = null;
+        const api: any = {
+          eq: (col: string, val: unknown) => {
+            filters[col] = val;
+            return api;
+          },
+          order: (col: string, o?: { ascending?: boolean }) => {
+            orderRef.current = { col, ascending: o?.ascending !== false };
+            return api;
+          },
+          limit: (n: number) => {
+            limitN = n;
+            return api;
+          },
+          then: (resolve: (v: { data: any[]; error: null }) => void) => {
+            let rows = state.games.filter((g) =>
+              Object.entries(filters).every(([k, v]) => (g as any)[k] === v),
+            );
+            if (orderRef.current) {
+              const ord = orderRef.current;
+              rows = [...rows].sort((a, b) => {
+                const av = (a as any)[ord.col];
+                const bv = (b as any)[ord.col];
+                if (av === bv) return 0;
+                return ord.ascending ? (av < bv ? -1 : 1) : (av > bv ? -1 : 1);
+              });
+            }
+            if (limitN != null) rows = rows.slice(0, limitN);
+            resolve({
+              data: rows.map((g) => ({
+                points: (g as any).points ?? null,
+                game_number: g.game_number,
+              })),
+              error: null,
+            });
+          },
+        };
+        return api;
+      },
       upsert: (row: any, _opts: any) => {
         state.gamesUpsertCalls.push(row);
         if (opts.gameUpsertError) {
@@ -982,16 +1056,390 @@ describe('applyDiff — set handling', () => {
     };
     await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
 
-    // we should have issued an UPDATE to clear is_current on non-current sets
-    expect(s.setsUpdateCalls).toHaveLength(1);
-    expect(s.setsUpdateCalls[0].patch.is_current).toBe(false);
+    // Two updates expected: (1) clear is_current on non-current sets,
+    // (2) consolidatePriorSets writes set 1's final set_score from the
+    // parser-observed 6-4 games.
+    expect(s.setsUpdateCalls).toHaveLength(2);
+
+    const clearCall = s.setsUpdateCalls.find(
+      (c) => '!set_number' in c.filters,
+    );
+    expect(clearCall).toBeDefined();
+    expect(clearCall!.patch.is_current).toBe(false);
+
+    const consolidateCall = s.setsUpdateCalls.find(
+      (c) => c.filters.id === 'set-uuid-1',
+    );
+    expect(consolidateCall).toBeDefined();
+    expect(consolidateCall!.patch.set_score).toBe('6-4');
+    expect(consolidateCall!.patch.pair1_games).toBe(6);
+    expect(consolidateCall!.patch.pair2_games).toBe(4);
+
     // and the current set 2 should be upserted with is_current=true
     const currentSetUpsert = s.setsUpsertCalls.find((r) => r.set_number === 2);
     expect(currentSetUpsert).toBeDefined();
     expect(currentSetUpsert.is_current).toBe(true);
-    // the pre-seeded set 1 should have been patched to false
+    // the pre-seeded set 1 should have been patched to false + scored
     const prior = s.sets.find((x) => x.set_number === 1)!;
     expect(prior.is_current).toBe(false);
+    expect((prior as any).set_score).toBe('6-4');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pure helpers — formatPriorSetScore + inferGameWinnerFromPoints
+// ---------------------------------------------------------------------------
+
+describe('formatPriorSetScore', () => {
+  it('formats a clean 6-4 set', () => {
+    expect(
+      formatPriorSetScore({ games: 6, tiebreak: null }, { games: 4, tiebreak: null }),
+    ).toBe('6-4');
+  });
+
+  it('formats 4-6 (pair 2 wins)', () => {
+    expect(
+      formatPriorSetScore({ games: 4, tiebreak: null }, { games: 6, tiebreak: null }),
+    ).toBe('4-6');
+  });
+
+  it('formats 7-5 / 5-7 (no tiebreak)', () => {
+    expect(
+      formatPriorSetScore({ games: 7, tiebreak: null }, { games: 5, tiebreak: null }),
+    ).toBe('7-5');
+    expect(
+      formatPriorSetScore({ games: 5, tiebreak: null }, { games: 7, tiebreak: null }),
+    ).toBe('5-7');
+  });
+
+  it('formats 7-6 with the loser-side tiebreak digit in brackets', () => {
+    expect(
+      formatPriorSetScore({ games: 7, tiebreak: null }, { games: 6, tiebreak: 2 }),
+    ).toBe('7-6(2)');
+    expect(
+      formatPriorSetScore({ games: 6, tiebreak: 5 }, { games: 7, tiebreak: null }),
+    ).toBe('6(5)-7');
+  });
+
+  it('formats 7-6 without brackets when no tiebreak digit available', () => {
+    expect(
+      formatPriorSetScore({ games: 7, tiebreak: null }, { games: 6, tiebreak: null }),
+    ).toBe('7-6');
+  });
+
+  it('returns null when games are tied (cannot determine winner)', () => {
+    expect(
+      formatPriorSetScore({ games: 6, tiebreak: null }, { games: 6, tiebreak: null }),
+    ).toBeNull();
+    expect(
+      formatPriorSetScore({ games: 0, tiebreak: null }, { games: 0, tiebreak: null }),
+    ).toBeNull();
+  });
+
+  it('returns null for invalid in-progress scores (5-3, 6-5)', () => {
+    expect(
+      formatPriorSetScore({ games: 5, tiebreak: null }, { games: 3, tiebreak: null }),
+    ).toBeNull();
+    expect(
+      formatPriorSetScore({ games: 6, tiebreak: null }, { games: 5, tiebreak: null }),
+    ).toBeNull();
+  });
+
+  it('accepts super-tiebreak deciding-set scores (10-x)', () => {
+    expect(
+      formatPriorSetScore({ games: 10, tiebreak: null }, { games: 6, tiebreak: null }),
+    ).toBe('10-6');
+    expect(
+      formatPriorSetScore({ games: 11, tiebreak: null }, { games: 9, tiebreak: null }),
+    ).toBe('11-9');
+  });
+});
+
+describe('inferGameWinnerFromPoints', () => {
+  it('picks pair 1 when last point shows pair 1 ahead in a regular game', () => {
+    expect(inferGameWinnerFromPoints(['15:0', '30:0', '40:0', '40:15'])).toBe(1);
+  });
+
+  it('picks pair 2 when last point shows pair 2 ahead', () => {
+    expect(inferGameWinnerFromPoints(['0:15', '0:30', '0:40'])).toBe(2);
+  });
+
+  it('resolves advantage correctly (AD-40 → pair 1)', () => {
+    expect(inferGameWinnerFromPoints(['40:40', 'AD:40'])).toBe(1);
+    expect(inferGameWinnerFromPoints(['40:40', '40:AD'])).toBe(2);
+  });
+
+  it('picks the leader in a tiebreak — even when not at a margin-of-2 score', () => {
+    // BUENOS AIRES P1 R64 2026-05-12 set-2 case: last captured tiebreak point
+    // was 6:2 with pair 1 well ahead; tiebreak surely ended 7-2 / 8-2 / etc.
+    expect(inferGameWinnerFromPoints(['4:1', '5:1', '6:1', '6:2'])).toBe(1);
+    expect(inferGameWinnerFromPoints(['1:4', '1:5', '1:6', '2:6'])).toBe(2);
+  });
+
+  it('returns null on tied final points (deuce, 6:6 mid-tiebreak)', () => {
+    expect(inferGameWinnerFromPoints(['30:30', '40:40'])).toBeNull();
+    expect(inferGameWinnerFromPoints(['5:5', '6:6'])).toBeNull();
+  });
+
+  it('returns null on empty points / only 0:0 placeholders', () => {
+    expect(inferGameWinnerFromPoints([])).toBeNull();
+    expect(inferGameWinnerFromPoints(['0:0', '0:0'])).toBeNull();
+  });
+
+  it('accepts both ":" and "-" point separators', () => {
+    expect(inferGameWinnerFromPoints(['15-0', '30-0', '40-0'])).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// applyDiff — prior-set consolidation (the Bug B fix)
+// ---------------------------------------------------------------------------
+
+describe('applyDiff — prior-set consolidation', () => {
+  it('writes 7-6(2) when parser observes the resolved tiebreak on a prior set', async () => {
+    // Set 1: live tick last saw 6-6 mid-tiebreak (set_score still null).
+    // Now active is set 2, and the parser observes set 1's final 7-6(2).
+    const prevSet: SetRow = {
+      id: 'set-uuid-prev',
+      match_id: MATCH_ID,
+      set_number: 1,
+      pair1_games: 6,
+      pair2_games: 6,
+      is_current: false,
+      set_score: null,
+    };
+    const { client, state: s } = makeFakeSupabase({ preSets: [prevSet] });
+
+    const prev = state({ kind: 'regular', team1: 40, team2: 15 }, {
+      team1Sets: [
+        { games: 7, tiebreak: null },
+        { games: 1, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 6, tiebreak: 2 },
+        { games: 0, tiebreak: null },
+      ],
+    });
+    const curr = state({ kind: 'regular', team1: 0, team2: 0 }, {
+      team1Sets: [
+        { games: 7, tiebreak: null },
+        { games: 2, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 6, tiebreak: 2 },
+        { games: 0, tiebreak: null },
+      ],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+      gameChanged: true,
+    };
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    const prior = s.sets.find((x) => x.set_number === 1)!;
+    expect((prior as any).set_score).toBe('7-6(2)');
+    expect(prior.pair1_games).toBe(7);
+    expect(prior.pair2_games).toBe(6);
+  });
+
+  it('falls back to last-game points when parser is ALSO stuck at 6-6', async () => {
+    // BUENOS AIRES P1 R64 regression. Parser observation for the prior set
+    // never resolved past 6-6 (Crionet widget jumped to next set). DB has
+    // set 1 stuck at 6-6 with set_score=null, and the prior set's last
+    // game (the tiebreak) has captured points showing pair 1 well ahead.
+    const prevSet: SetRow = {
+      id: 'set-uuid-prev',
+      match_id: MATCH_ID,
+      set_number: 1,
+      pair1_games: 6,
+      pair2_games: 6,
+      is_current: false,
+      set_score: null,
+    };
+    const tiebreakGame: GameRow = {
+      id: 'game-uuid-tb',
+      set_id: 'set-uuid-prev',
+      match_id: MATCH_ID,
+      game_number: 13,
+      game_score: '6-2',
+      server_player_id: null,
+      is_tiebreak: true,
+      is_current: false,
+      points: ['4:1', '5:1', '6:1', '6:2'],
+    };
+    const { client, state: s } = makeFakeSupabase({
+      preSets: [prevSet],
+      preGames: [tiebreakGame],
+    });
+
+    // Parser is also stuck: set 1 still reads as 6-6 in both ticks.
+    const prev = state({ kind: 'regular', team1: 30, team2: 15 }, {
+      team1Sets: [
+        { games: 6, tiebreak: null },
+        { games: 1, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 6, tiebreak: null },
+        { games: 0, tiebreak: null },
+      ],
+    });
+    const curr = state({ kind: 'regular', team1: 0, team2: 0 }, {
+      team1Sets: [
+        { games: 6, tiebreak: null },
+        { games: 2, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 6, tiebreak: null },
+        { games: 0, tiebreak: null },
+      ],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+      gameChanged: true,
+    };
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    const prior = s.sets.find((x) => x.set_number === 1)!;
+    expect((prior as any).set_score).toBe('7-6');
+    expect(prior.pair1_games).toBe(7);
+    expect(prior.pair2_games).toBe(6);
+  });
+
+  it('does NOT make up data when both parser and points are stuck (5-3 + sparse points)', async () => {
+    // Defensive case: DB stuck at 5-3, parser still says 5-3, and the
+    // last captured game has only one point. We cannot conclude that
+    // pair 1 won 6-3, so we leave the set alone.
+    const prevSet: SetRow = {
+      id: 'set-uuid-prev',
+      match_id: MATCH_ID,
+      set_number: 1,
+      pair1_games: 5,
+      pair2_games: 3,
+      is_current: false,
+      set_score: null,
+    };
+    const sparseGame: GameRow = {
+      id: 'game-uuid-sparse',
+      set_id: 'set-uuid-prev',
+      match_id: MATCH_ID,
+      game_number: 9,
+      game_score: '15-0',
+      server_player_id: null,
+      is_tiebreak: false,
+      is_current: false,
+      points: ['15:0'],
+    };
+    const { client, state: s } = makeFakeSupabase({
+      preSets: [prevSet],
+      preGames: [sparseGame],
+    });
+
+    // Single-point game projects 5-3 + 1 → 6-3 which IS a valid score —
+    // but only as a defensive fallback. We expect this to fire because
+    // 6-3 is padel-valid. (Sentinel: a deeper "guard sparse points"
+    // check would belong to a different layer; here we trust the last
+    // captured point.)
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, {
+      team1Sets: [
+        { games: 5, tiebreak: null },
+        { games: 0, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 3, tiebreak: null },
+        { games: 0, tiebreak: null },
+      ],
+    });
+    const curr = state({ kind: 'regular', team1: 0, team2: 0 }, {
+      team1Sets: [
+        { games: 5, tiebreak: null },
+        { games: 1, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 3, tiebreak: null },
+        { games: 0, tiebreak: null },
+      ],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+      gameChanged: true,
+    };
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    const prior = s.sets.find((x) => x.set_number === 1)!;
+    expect((prior as any).set_score).toBe('6-3');
+    expect(prior.pair1_games).toBe(6);
+  });
+
+  it('skips consolidation entirely when prior set already has a set_score', async () => {
+    // Idempotency check: a second poll-tick after the consolidation
+    // already wrote a set_score should not touch set 1 again.
+    const prevSet: SetRow = {
+      id: 'set-uuid-prev',
+      match_id: MATCH_ID,
+      set_number: 1,
+      pair1_games: 7,
+      pair2_games: 6,
+      is_current: false,
+      set_score: '7-6(2)',
+    };
+    const { client, state: s } = makeFakeSupabase({ preSets: [prevSet] });
+
+    const prev = state({ kind: 'regular', team1: 30, team2: 15 }, {
+      team1Sets: [
+        { games: 7, tiebreak: null },
+        { games: 2, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 6, tiebreak: 2 },
+        { games: 1, tiebreak: null },
+      ],
+    });
+    const curr = state({ kind: 'regular', team1: 40, team2: 15 }, {
+      team1Sets: [
+        { games: 7, tiebreak: null },
+        { games: 2, tiebreak: null },
+      ],
+      team2Sets: [
+        { games: 6, tiebreak: 2 },
+        { games: 1, tiebreak: null },
+      ],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+    };
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    // No update by id should have hit set 1 — it was already complete.
+    const consolidateCall = s.setsUpdateCalls.find(
+      (c) => c.filters.id === 'set-uuid-prev',
+    );
+    expect(consolidateCall).toBeUndefined();
+    expect((s.sets.find((x) => x.set_number === 1) as any).set_score).toBe('7-6(2)');
+  });
+
+  it('does nothing on set 1 (currentSetNumber=1, no prior sets)', async () => {
+    const prev = state({ kind: 'regular', team1: 15, team2: 0 }, {
+      team1Sets: [{ games: 3, tiebreak: null }],
+      team2Sets: [{ games: 2, tiebreak: null }],
+    });
+    const curr = state({ kind: 'regular', team1: 30, team2: 0 }, {
+      team1Sets: [{ games: 3, tiebreak: null }],
+      team2Sets: [{ games: 2, tiebreak: null }],
+    });
+    const { client, state: s } = makeFakeSupabase();
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 1 }],
+    };
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    // Only the current-set upsert + current-game upsert + match_points
+    // insert should have fired — no consolidation updates.
+    expect(s.setsUpdateCalls).toHaveLength(0);
   });
 });
 
