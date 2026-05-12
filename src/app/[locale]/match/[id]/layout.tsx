@@ -5,10 +5,20 @@
 import { Metadata } from 'next'
 import { createServerClient } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
+import { buildMatchSummary } from '@/lib/seo/match-summary'
 
 type Props = {
   params: Promise<{ id: string }>
   children: React.ReactNode
+}
+
+function countryName(code: string | null): string | null {
+  if (!code) return null
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase()) ?? code
+  } catch {
+    return code
+  }
 }
 
 function lastName(fullName: string | null | undefined): string {
@@ -126,6 +136,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function MatchLayout({ params, children }: Props) {
   let jsonLd: object | null = null
   let h1Text: string | null = null
+  let summary: ReturnType<typeof buildMatchSummary> | null = null
 
   try {
     const { id } = await params
@@ -136,19 +147,22 @@ export default async function MatchLayout({ params, children }: Props) {
       .select(`
         id,
         status,
+        round,
+        winner_pair,
         scheduled_at, started_at, finished_at,
         pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
         pair1_player1:players!matches_pair1_player1_id_fkey(name),
         pair1_player2:players!matches_pair1_player2_id_fkey(name),
         pair2_player1:players!matches_pair2_player1_id_fkey(name),
         pair2_player2:players!matches_pair2_player2_id_fkey(name),
-        tournament:tournaments(name, country, starts_at, ends_at)
+        tournament:tournaments(name, country, starts_at, ends_at, level),
+        sets(set_number, pair1_games, pair2_games)
       `)
       .eq('id', id)
       .single()
 
     type PlayerRef = { name: string } | null
-    type TournamentRef = { name: string; country: string | null; starts_at: string | null; ends_at: string | null } | null
+    type TournamentRef = { name: string; country: string | null; starts_at: string | null; ends_at: string | null; level: string | null } | null
 
     const tournament = match?.tournament as unknown as TournamentRef
     // Same coalescing pattern as generateMetadata: thin-match name
@@ -209,6 +223,28 @@ export default async function MatchLayout({ params, children }: Props) {
         ? `${p1} vs ${p2} — ${tournamentName}`
         : `${p1} vs ${p2}`
     }
+
+    if (match && tournament && (p1Names.length > 0 || p2Names.length > 0)) {
+      summary = buildMatchSummary({
+        status: match.status,
+        round: match.round ?? null,
+        winner_pair: match.winner_pair ?? null,
+        scheduled_at: match.scheduled_at ?? null,
+        finished_at: match.finished_at ?? null,
+        pair1: { names: p1Names },
+        pair2: { names: p2Names },
+        sets: ((match.sets as Array<{
+          set_number: number
+          pair1_games: number | null
+          pair2_games: number | null
+        }>) ?? []),
+        tournament: {
+          name: tournament.name,
+          country: countryName(tournament.country),
+          level: tournament.level ?? null,
+        },
+      })
+    }
   } catch {
     // DB unavailable — render children without JSON-LD
   }
@@ -221,9 +257,20 @@ export default async function MatchLayout({ params, children }: Props) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       )}
-      {/* SEO/a11y heading — visible match title is a styled div in the
-          client page's score grid for design reasons. */}
-      {h1Text && <h1 className="sr-only">{h1Text}</h1>}
+      {summary ? (
+        <header className="sr-only">
+          <h1>{summary.headline}</h1>
+          {summary.facts.length > 0 && (
+            <ul>
+              {summary.facts.map((fact) => (
+                <li key={fact}>{fact}</li>
+              ))}
+            </ul>
+          )}
+        </header>
+      ) : (
+        h1Text && <h1 className="sr-only">{h1Text}</h1>
+      )}
       {children}
     </>
   )
