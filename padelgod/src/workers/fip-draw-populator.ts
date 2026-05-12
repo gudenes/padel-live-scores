@@ -1556,12 +1556,10 @@ export async function buildPairIndex(
     if (r.name && r.fip_id) nameToFipId.set(normalizeName(r.name), r.fip_id);
     if (r.fip_id && (r.partner_fip_id || r.partner_name)) {
       const partnerNormName = r.partner_name ? normalizeName(r.partner_name) : '';
-      if (partnerNormName || r.partner_fip_id) {
-        fipIdToPartner.set(r.fip_id, {
-          partnerFipId: r.partner_fip_id,
-          partnerNormName,
-        });
-      }
+      fipIdToPartner.set(r.fip_id, {
+        partnerFipId: r.partner_fip_id,
+        partnerNormName,
+      });
     }
   }
 
