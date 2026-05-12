@@ -323,3 +323,39 @@ describe('matchQualityScore (integration)', () => {
     expect(score).toBeLessThanOrEqual(45)
   })
 })
+
+import { matchQualityBreakdown } from '../match-quality'
+
+describe('matchQualityBreakdown', () => {
+  it('returns intermediate components alongside the score', () => {
+    const b = matchQualityBreakdown({
+      pair1Rankings: [13, 14],
+      pair2Rankings: [50, 44],
+      tournamentLevel: 'p1',
+      round: 'Round of 32',
+    })
+    expect(b).toMatchObject({
+      score: expect.any(Number),
+      parity: expect.any(Number),
+      starDamper: expect.any(Number),
+      starBonus: expect.any(Number),
+      tierW: expect.any(Number),
+      roundW: expect.any(Number),
+      unrankedPenalty: 1,
+    })
+    expect(b.score).toBe(matchQualityScore({
+      pair1Rankings: [13, 14], pair2Rankings: [50, 44],
+      tournamentLevel: 'p1', round: 'Round of 32',
+    }))
+  })
+
+  it('flags unrankedPenalty when any player is unranked', () => {
+    const b = matchQualityBreakdown({
+      pair1Rankings: [13, null],
+      pair2Rankings: [50, 44],
+      tournamentLevel: 'p1',
+      round: 'Round of 32',
+    })
+    expect(b.unrankedPenalty).toBe(0.15)
+  })
+})

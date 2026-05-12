@@ -184,3 +184,33 @@ function rawQuality(input: MatchQualityInput): number {
 export function matchQualityScore(input: MatchQualityInput): number {
   return Math.round(rawQuality(input) * 100)
 }
+
+export interface MatchQualityBreakdown {
+  score: number          // 0–100 integer (same as matchQualityScore)
+  parity: number         // 0..1
+  starDamper: number     // 0.5..1.0
+  starBonus: number      // 0..0.35
+  tierW: number          // 0.65..1.00
+  roundW: number         // 0.40..1.15
+  unrankedPenalty: number // 1 or 0.15
+}
+
+export function matchQualityBreakdown(input: MatchQualityInput): MatchQualityBreakdown {
+  const pA = pairEffRank(input.pair1Rankings[0], input.pair1Rankings[1])
+  const pB = pairEffRank(input.pair2Rankings[0], input.pair2Rankings[1])
+  const par = parity(pWin(pA, pB))
+  const damper = starDamper((pA + pB) / 2)
+  const bonus = alpha(input.round) * starStrength(bestRankOnCourt(input))
+  const tw = tierWeight(input.tournamentLevel)
+  const rw = roundWeight(input.round)
+  const unr = hasUnranked(input) ? UNRANKED_PENALTY : 1
+  return {
+    score: Math.round(clamp01((par * damper + bonus) * tw * rw * unr) * 100),
+    parity: par,
+    starDamper: damper,
+    starBonus: bonus,
+    tierW: tw,
+    roundW: rw,
+    unrankedPenalty: unr,
+  }
+}
