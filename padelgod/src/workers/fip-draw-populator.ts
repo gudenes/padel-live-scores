@@ -1498,6 +1498,76 @@ async function loadEntryListNameMap(
   return nameToFipId;
 }
 
+/**
+ * Pair-aware entry-list index.
+ *
+ *   nameToFipId: same flat map loadEntryListNameMap returns — used by
+ *                Pattern 1/2/3 short-form resolution unchanged.
+ *
+ *   fipIdToPartner: for every entry-list row that has either
+ *                   partner_fip_id OR partner_name, the partner's
+ *                   normalized long-form name (and fip_id when known).
+ *                   Powers the Pass 2 partner-anchor sweep.
+ *
+ * Both maps reflect the latest captured_at per (category, fip_id).
+ */
+export interface PairIndex {
+  nameToFipId: Map<string, string>;
+  fipIdToPartner: Map<string, {
+    partnerFipId: string | null;
+    partnerNormName: string;
+  }>;
+}
+
+export async function buildPairIndex(
+  supabase: SupabaseClient,
+  tournamentId: string,
+): Promise<PairIndex> {
+  interface Row {
+    name: string | null;
+    fip_id: string | null;
+    category: 'men' | 'women';
+    partner_fip_id: string | null;
+    partner_name: string | null;
+    captured_at: string;
+  }
+  const rows = await paginatedSelect<Row>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('entry_list_snapshots')
+        .select('name, fip_id, category, partner_fip_id, partner_name, captured_at')
+        .eq('tournament_id', tournamentId)
+        .range(start, end),
+    { what: `entry_list_snapshots (tournament=${tournamentId})` },
+  );
+
+  // Latest captured_at per category (same rule as loadEntryListNameMap).
+  const maxByCat = new Map<string, string>();
+  for (const r of rows) {
+    const prev = maxByCat.get(r.category);
+    if (!prev || r.captured_at > prev) maxByCat.set(r.category, r.captured_at);
+  }
+
+  const nameToFipId = new Map<string, string>();
+  const fipIdToPartner = new Map<string, { partnerFipId: string | null; partnerNormName: string }>();
+  for (const r of rows) {
+    if (r.captured_at !== maxByCat.get(r.category)) continue;
+    if (r.name && r.fip_id) nameToFipId.set(normalizeName(r.name), r.fip_id);
+    if (r.fip_id && (r.partner_fip_id || r.partner_name)) {
+      const partnerNormName = r.partner_name ? normalizeName(r.partner_name) : '';
+      if (partnerNormName || r.partner_fip_id) {
+        fipIdToPartner.set(r.fip_id, {
+          partnerFipId: r.partner_fip_id,
+          partnerNormName,
+        });
+      }
+    }
+  }
+
+  return { nameToFipId, fipIdToPartner };
+}
+
 async function loadPlayersByFipId(
   supabase: SupabaseClient,
   fipIds: Set<string>

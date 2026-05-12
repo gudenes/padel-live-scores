@@ -8,6 +8,9 @@ import {
   // NEW exports added by this plan:
   isShortFormConsistentWith,
   doShortFormInitialsMatch,
+  // NEW from Task 2:
+  buildPairIndex,
+  type PairIndex,
 } from '../../workers/fip-draw-populator.js';
 
 // Matches the production Isla de la Palma shape minus fields the
@@ -2971,5 +2974,89 @@ describe('doShortFormInitialsMatch', () => {
   it('returns false on null inputs', () => {
     expect(doShortFormInitialsMatch(null as never, 'Javier Ruiz Gonzalez')).toBe(false);
     expect(doShortFormInitialsMatch('J. Ruiz', null as never)).toBe(false);
+  });
+});
+
+describe('buildPairIndex', () => {
+  // Lightweight stub matching the shape paginatedSelect expects.
+  const fakeSupabase = (rows: Array<{
+    name: string | null;
+    fip_id: string | null;
+    category: 'men' | 'women';
+    partner_fip_id: string | null;
+    partner_name: string | null;
+    captured_at: string;
+  }>) => ({
+    schema: () => ({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            range: (start: number, end: number) => {
+              const slice = rows.slice(start, end + 1);
+              return Promise.resolve({ data: slice, error: null });
+            },
+          }),
+        }),
+      }),
+    }),
+  });
+
+  it('returns nameToFipId + fipIdToPartner from the latest captured_at per category', async () => {
+    const supabase = fakeSupabase([
+      { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men', partner_fip_id: 'fip-P000021', partner_name: 'Javier Ruiz Gonzalez', captured_at: '2026-05-12T05:00:00Z' },
+      { name: 'Javier Ruiz Gonzalez', fip_id: 'fip-P000021', category: 'men', partner_fip_id: 'fip-P000029', partner_name: 'Gonzalo Rubio', captured_at: '2026-05-12T05:00:00Z' },
+    ]);
+    const idx = await buildPairIndex(supabase as never, 'tour-1');
+    expect(idx.nameToFipId.get('gonzalo rubio')).toBe('fip-P000029');
+    expect(idx.nameToFipId.get('javier ruiz gonzalez')).toBe('fip-P000021');
+    expect(idx.fipIdToPartner.get('fip-P000029')).toEqual({
+      partnerFipId: 'fip-P000021',
+      partnerNormName: 'javier ruiz gonzalez',
+    });
+    expect(idx.fipIdToPartner.get('fip-P000021')).toEqual({
+      partnerFipId: 'fip-P000029',
+      partnerNormName: 'gonzalo rubio',
+    });
+  });
+
+  it('falls back to partner_name when partner_fip_id is null', async () => {
+    const supabase = fakeSupabase([
+      { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men', partner_fip_id: null, partner_name: 'Javier Ruiz Gonzalez', captured_at: '2026-05-12T05:00:00Z' },
+    ]);
+    const idx = await buildPairIndex(supabase as never, 'tour-1');
+    expect(idx.fipIdToPartner.get('fip-P000029')).toEqual({
+      partnerFipId: null,
+      partnerNormName: 'javier ruiz gonzalez',
+    });
+  });
+
+  it('skips rows missing both partner_fip_id AND partner_name (no partner data)', async () => {
+    const supabase = fakeSupabase([
+      { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men', partner_fip_id: null, partner_name: null, captured_at: '2026-05-12T05:00:00Z' },
+    ]);
+    const idx = await buildPairIndex(supabase as never, 'tour-1');
+    expect(idx.nameToFipId.get('gonzalo rubio')).toBe('fip-P000029');
+    expect(idx.fipIdToPartner.has('fip-P000029')).toBe(false);
+  });
+
+  it('isolates men and women categories — older men captured_at does not get displaced by newer women', async () => {
+    const supabase = fakeSupabase([
+      { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men', partner_fip_id: 'fip-P000021', partner_name: 'Javier Ruiz Gonzalez', captured_at: '2026-05-12T05:00:00Z' },
+      { name: 'Alejandra Salazar', fip_id: 'fip-P000300', category: 'women', partner_fip_id: 'fip-P000301', partner_name: 'Alejandra Alonso', captured_at: '2026-05-12T06:00:00Z' },
+    ]);
+    const idx = await buildPairIndex(supabase as never, 'tour-1');
+    expect(idx.nameToFipId.get('gonzalo rubio')).toBe('fip-P000029');
+    expect(idx.nameToFipId.get('alejandra salazar')).toBe('fip-P000300');
+  });
+
+  it('dedupes by latest captured_at within a category (newer snapshot wins)', async () => {
+    const supabase = fakeSupabase([
+      // Older snapshot: Rubio paired with someone else (stale)
+      { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men', partner_fip_id: 'fip-P000999', partner_name: 'Old Partner', captured_at: '2026-05-10T05:00:00Z' },
+      // Latest snapshot: Rubio paired with Javier
+      { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men', partner_fip_id: 'fip-P000021', partner_name: 'Javier Ruiz Gonzalez', captured_at: '2026-05-12T05:00:00Z' },
+    ]);
+    const idx = await buildPairIndex(supabase as never, 'tour-1');
+    expect(idx.fipIdToPartner.get('fip-P000029')?.partnerFipId).toBe('fip-P000021');
   });
 });
