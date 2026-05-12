@@ -1171,7 +1171,7 @@ export interface ResolvedFour {
   p2p2: string | null;
   // Populated only when caller passes the options arg in resolveFourPlayers.
   // Legacy callers (no options) get undefined — back-compat with the
-  // existing 78 tests.
+  // pre-Task-4 test suite.
   tiers?: {
     p1p1: Tier;
     p1p2: Tier;
@@ -1181,7 +1181,12 @@ export interface ResolvedFour {
 }
 
 export interface ResolveOptions {
-  /** Per-fip_id partner index from buildPairIndex. Enables Pass 2. */
+  /**
+   * Per-fip_id partner index from buildPairIndex. Read by Pass 2 only
+   * (Tasks 5–7); the Pass 1 resolver in this task does not consume it.
+   * Accepting it now keeps `resolveFourPlayers` callable with a single
+   * shape across Tasks 4–7.
+   */
   fipIdToPartner?: Map<string, { partnerFipId: string | null; partnerNormName: string }>;
   /** Per-match bracket long-form names from buildBracketOverlay. */
   bracketOverlay?: BracketOverlayEntry;
@@ -1275,7 +1280,14 @@ export function resolveFourPlayers(
       return { fipId: fipIdToPlayerId.get(sfFipId) ?? null, tier: 'short_unique' };
     }
 
-    // Tier 3b: Middle-name strip / prefix match for draw names with extra
+    // Tier 3b: middle-strip / prefix fallback.
+    // Deliberately tagged as `short_unique` (no dedicated `middle_strip`
+    // tier in Tier union) — Pass 2's mis-pair sanity check treats both
+    // paths as equally low-confidence relative to exact_long and
+    // bracket_overlay. If a future audit shows middle-strip needs a
+    // distinct tier (e.g. to gate Pass 2 re-resolution more aggressively),
+    // add `'middle_strip'` to the Tier union and a separate tier rank.
+    // Middle-name strip / prefix match for draw names with extra
     //    given-middle tokens or trailing surnames. Collect ALL distinct
     //    fip_ids reachable across both shapes — if more than one comes
     //    back we can't safely pick one, so return null (mirrors the
