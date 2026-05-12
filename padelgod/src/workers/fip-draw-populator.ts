@@ -660,8 +660,15 @@ export async function runFipDrawPopulator(
     // 4. Build name → fip_id map from latest entry_list snapshot, plus a
     //    short-form map for Crionet OOP names ("M. Alvarez") and a middle-name
     //    strip fallback for draw names with extra given-middle tokens.
-    const nameToFipId = await loadEntryListNameMap(supabase, t.tournament_id);
+    //
+    // Pair-aware index + bracket overlay (Task 8). nameToFipId remains
+    // for the Pattern 1/2/3 short-form lookup; fipIdToPartner enables
+    // Pass 2 partner-anchor sweep + mis-pair sanity check in
+    // resolveFourPlayers.
+    const pairIndex = await buildPairIndex(supabase, t.tournament_id);
+    const { nameToFipId, fipIdToPartner } = pairIndex;
     const shortFormToFipId = buildShortFormMap(nameToFipId);
+    const bracketOverlay = await buildBracketOverlay(supabase, t.tournament_id);
 
     // 5. Build fip_id → players.id map (only for fip_ids we'll actually use).
     //    Include both exact-match and short-form candidates so loadPlayersByFipId
@@ -804,7 +811,17 @@ export async function runFipDrawPopulator(
       const isFipDrawScaffolding =
         d.source === 'fip_event_page' && namesProvided === 0;
       const allowThinMatch = isAmateurTier || isOopSourced || isFipDrawScaffolding;
-      const resolved = resolveFourPlayers(d, nameToFipId, shortFormToFipId, fipIdToPlayerId, logger);
+      const resolved = resolveFourPlayers(
+        d,
+        nameToFipId,
+        shortFormToFipId,
+        fipIdToPlayerId,
+        logger,
+        {
+          fipIdToPartner,
+          bracketOverlay: d.match_widget_id ? bracketOverlay.get(d.match_widget_id) : undefined,
+        },
+      );
       const numResolved = resolvedCount(resolved);
       if (numResolved === 0 && !allowThinMatch) {
         result.skippedPlayerUnresolved += 1;

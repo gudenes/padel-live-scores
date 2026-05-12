@@ -43,6 +43,11 @@ interface DrawSeed {
   team2_seed: number | null;
   status: 'scheduled' | 'live' | 'finished' | 'walkover' | 'retired';
   captured_at: string;
+  /** Optional: allows bracket-overlay test fixtures to include a source
+   *  tag. The harness drawSnapshotsTable ignores this field in its
+   *  filter (it hard-codes the fip_event_page check), but TypeScript
+   *  needs to accept the property when test objects carry it. */
+  source?: string;
 }
 
 // OOP snapshot row, narrow to what the populator's amateur fallback
@@ -72,6 +77,14 @@ interface EntryListSeed {
   fip_id: string;
   category: 'men' | 'women';
   captured_at: string;
+  /** Partner columns read by buildPairIndex (Task 8). Optional so
+   *  existing fixtures without partner data compile unchanged. */
+  partner_fip_id?: string | null;
+  partner_name?: string | null;
+  /** draw_type is present in some fixtures for documentation purposes
+   *  but is NOT queried by buildPairIndex — include here so TypeScript
+   *  accepts fixtures that carry the field. */
+  draw_type?: string;
 }
 
 interface PlayerSeed {
@@ -3472,5 +3485,148 @@ describe('resolveFourPlayers — Pass 2 suspected late swap', () => {
     );
     // Anchor stays intact — late-swap branch must not touch out[anchor].
     expect(resolved.p2p2).toBe('uuid-gonzalo');
+  });
+});
+
+// ── runFipDrawPopulator — pair-aware resolver wiring ───────────────────
+
+describe('runFipDrawPopulator — pair-aware resolver wiring', () => {
+  it('inserts MD042 with Javier Ruiz Gonzalez via partner-anchor (no bracket overlay)', async () => {
+    // Setup: entry list has Javier + Gonzalo as partners. Tournament is
+    // amateur tier (fip_beyond) so OOP rows are used as the full draw
+    // source (draws=[]). OOP delivers MD042 with short-form "J. Ruiz /
+    // G. Rubio". buildPairIndex wires fipIdToPartner so Pass 2
+    // partner-anchor resolves the second short-form given only the first
+    // resolves via exact / short-form lookup.
+    // Expected: insert lands with pair2_player1_id = uuid-javier.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'BA P1', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      // Amateur tier: draws=[] → OOP is used as full draw source.
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [],
+      oopSnapshots: [
+        {
+          tournament_id: TOURNAMENT_ID,
+          match_widget_id: 'MD042',
+          category: 'men',
+          round_label: 'R64',
+          team1_player1_name: 'S. Pineda Cabello',
+          team1_player2_name: 'D. Garcia Garcia',
+          team2_player1_name: 'J. Ruiz',
+          team2_player2_name: 'G. Rubio',
+          captured_at: '2026-05-11T22:00:00Z',
+        },
+      ],
+      entryList: [
+        { name: 'Javier Ruiz Gonzalez', fip_id: 'fip-P000021', category: 'men',
+          partner_fip_id: 'fip-P000029', partner_name: 'Gonzalo Rubio',
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'main_draw' },
+        { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men',
+          partner_fip_id: 'fip-P000021', partner_name: 'Javier Ruiz Gonzalez',
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'main_draw' },
+        { name: 'Santiago Pineda Cabello', fip_id: 'fip-P100958', category: 'men',
+          partner_fip_id: 'fip-P101099', partner_name: 'Diego Garcia Garcia',
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'qualifying' },
+        { name: 'Diego Garcia Garcia', fip_id: 'fip-P101099', category: 'men',
+          partner_fip_id: 'fip-P100958', partner_name: 'Santiago Pineda Cabello',
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'qualifying' },
+      ],
+      players: [
+        { id: 'uuid-javier', fip_id: 'fip-P000021' },
+        { id: 'uuid-gonzalo', fip_id: 'fip-P000029' },
+        { id: 'uuid-pineda', fip_id: 'fip-P100958' },
+        { id: 'uuid-diego', fip_id: 'fip-P101099' },
+      ],
+    });
+    await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    const md042 = supabase.inserted.find((m: any) => m.widget_id_composite === `${TOURNAMENT_WIDGET}:MD042`);
+    expect(md042).toBeDefined();
+    expect(md042.pair2_player1_id).toBe('uuid-javier');
+    expect(md042.pair2_player2_id).toBe('uuid-gonzalo');
+  });
+
+  it('inserts MD042 via bracket overlay when fip_event_page draw_snapshot has long-form names for one side', async () => {
+    // Scenario: the bracket has a bye-skip walkover row for MD042 at R64
+    // with LONG-FORM team2 names. buildBracketOverlay stores these in the
+    // overlay keyed by 'MD042'. The R64 row itself is bye-skipped (first
+    // round, walkover, team1 empty). Separately, OOP has an MD042 row at
+    // round Q1 — Q1 is NOT in drawRoundLabels (only R64 is), so it IS
+    // included via the qualifying merge. When the Q1 OOP row is processed,
+    // bracketOverlay.get('MD042') fires and upgrades 'J. Ruiz' →
+    // 'Javier Ruiz Gonzalez' (tier: bracket_overlay).
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'BA P1', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [
+        // R64 bye-skip walkover with long-form team2 names. buildBracketOverlay
+        // indexes this row under 'MD042'. The main loop skips it as a bye.
+        {
+          tournament_id: TOURNAMENT_ID,
+          match_widget_id: 'MD042',
+          category: 'men',
+          round_label: 'R64',
+          draw_position: null,
+          team1_player1_name: null,
+          team1_player2_name: null,
+          team2_player1_name: 'Gonzalo Rubio',
+          team2_player2_name: 'Javier Ruiz Gonzalez',
+          team1_fip_id: null,
+          team2_fip_id: null,
+          team1_seed: null,
+          team2_seed: null,
+          status: 'walkover' as const,
+          captured_at: '2026-05-11T08:00:00Z',
+          source: 'fip_event_page',
+        },
+      ],
+      oopSnapshots: [
+        // Q1 qualifying row for MD042: short-form names only. Q1 is not in
+        // drawRoundLabels (which contains only 'R64'), so this row is merged
+        // in via the qualifying-merge path.
+        {
+          tournament_id: TOURNAMENT_ID,
+          match_widget_id: 'MD042',
+          category: 'men',
+          round_label: 'Q1',
+          team1_player1_name: 'S. Pineda Cabello',
+          team1_player2_name: 'D. Garcia Garcia',
+          team2_player1_name: 'J. Ruiz',
+          team2_player2_name: 'G. Rubio',
+          captured_at: '2026-05-11T22:00:00Z',
+        },
+      ],
+      entryList: [
+        // Entry list does NOT include partner info — bracket overlay carries
+        // the resolution for J. Ruiz / G. Rubio.
+        { name: 'Javier Ruiz Gonzalez', fip_id: 'fip-P000021', category: 'men',
+          partner_fip_id: null, partner_name: null,
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'main_draw' },
+        { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men',
+          partner_fip_id: null, partner_name: null,
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'main_draw' },
+        { name: 'Santiago Pineda Cabello', fip_id: 'fip-P100958', category: 'men',
+          partner_fip_id: null, partner_name: null,
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'qualifying' },
+        { name: 'Diego Garcia Garcia', fip_id: 'fip-P101099', category: 'men',
+          partner_fip_id: null, partner_name: null,
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'qualifying' },
+      ],
+      players: [
+        { id: 'uuid-javier', fip_id: 'fip-P000021' },
+        { id: 'uuid-gonzalo', fip_id: 'fip-P000029' },
+        { id: 'uuid-pineda', fip_id: 'fip-P100958' },
+        { id: 'uuid-diego', fip_id: 'fip-P101099' },
+      ],
+    });
+    await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    const md042 = supabase.inserted.find((m: any) => m.widget_id_composite === `${TOURNAMENT_WIDGET}:MD042`);
+    expect(md042).toBeDefined();
+    expect(md042.pair2_player1_id).toBe('uuid-javier');
+    expect(md042.pair2_player2_id).toBe('uuid-gonzalo');
   });
 });
