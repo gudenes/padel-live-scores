@@ -11,6 +11,12 @@ import {
   // NEW from Task 2:
   buildPairIndex,
   type PairIndex,
+  // NEW from Task 3:
+  buildBracketOverlay,
+  type BracketOverlayEntry,
+  type BracketOverlay,
+  // NEW from Task 4:
+  type Tier,
 } from '../../workers/fip-draw-populator.js';
 
 // Matches the production Isla de la Palma shape minus fields the
@@ -37,6 +43,11 @@ interface DrawSeed {
   team2_seed: number | null;
   status: 'scheduled' | 'live' | 'finished' | 'walkover' | 'retired';
   captured_at: string;
+  /** Optional: allows bracket-overlay test fixtures to include a source
+   *  tag. The harness drawSnapshotsTable ignores this field in its
+   *  filter (it hard-codes the fip_event_page check), but TypeScript
+   *  needs to accept the property when test objects carry it. */
+  source?: string;
 }
 
 // OOP snapshot row, narrow to what the populator's amateur fallback
@@ -66,6 +77,14 @@ interface EntryListSeed {
   fip_id: string;
   category: 'men' | 'women';
   captured_at: string;
+  /** Partner columns read by buildPairIndex (Task 8). Optional so
+   *  existing fixtures without partner data compile unchanged. */
+  partner_fip_id?: string | null;
+  partner_name?: string | null;
+  /** draw_type is present in some fixtures for documentation purposes
+   *  but is NOT queried by buildPairIndex — include here so TypeScript
+   *  accepts fixtures that carry the field. */
+  draw_type?: string;
 }
 
 interface PlayerSeed {
@@ -3058,5 +3077,556 @@ describe('buildPairIndex', () => {
     ]);
     const idx = await buildPairIndex(supabase as never, 'tour-1');
     expect(idx.fipIdToPartner.get('fip-P000029')?.partnerFipId).toBe('fip-P000021');
+  });
+});
+
+describe('buildBracketOverlay', () => {
+  const fakeSupabase = (rows: Array<{
+    match_widget_id: string | null;
+    team1_player1_name: string | null;
+    team1_player2_name: string | null;
+    team2_player1_name: string | null;
+    team2_player2_name: string | null;
+    team1_fip_id: string | null;
+    team2_fip_id: string | null;
+    captured_at: string;
+  }>) => ({
+    schema: () => ({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              range: (start: number, end: number) => {
+                const slice = rows.slice(start, end + 1);
+                return Promise.resolve({ data: slice, error: null });
+              },
+            }),
+          }),
+        }),
+      }),
+    }),
+  });
+
+  it('harvests bye-skipped walkover rows where t1 is null but t2 has long-form names', async () => {
+    const supabase = fakeSupabase([
+      {
+        match_widget_id: 'MD042',
+        team1_player1_name: null,
+        team1_player2_name: null,
+        team2_player1_name: 'Gonzalo Rubio',
+        team2_player2_name: 'Javier Ruiz Gonzalez',
+        team1_fip_id: null,
+        team2_fip_id: null,
+        captured_at: '2026-05-11T20:00:00Z',
+      },
+    ]);
+    const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
+    expect(overlay.get('MD042')).toEqual({
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: 'Gonzalo Rubio',
+      team2_player2_name: 'Javier Ruiz Gonzalez',
+      team1_fip_id: null,
+      team2_fip_id: null,
+    });
+  });
+
+  it('keeps the latest captured_at per match_widget_id', async () => {
+    const supabase = fakeSupabase([
+      {
+        match_widget_id: 'MD042',
+        team1_player1_name: null, team1_player2_name: null,
+        team2_player1_name: null, team2_player2_name: null,
+        team1_fip_id: null, team2_fip_id: null,
+        captured_at: '2026-05-09T10:00:00Z',
+      },
+      {
+        match_widget_id: 'MD042',
+        team1_player1_name: null, team1_player2_name: null,
+        team2_player1_name: 'Gonzalo Rubio', team2_player2_name: 'Javier Ruiz Gonzalez',
+        team1_fip_id: null, team2_fip_id: null,
+        captured_at: '2026-05-11T20:00:00Z',
+      },
+    ]);
+    const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
+    expect(overlay.get('MD042')?.team2_player1_name).toBe('Gonzalo Rubio');
+    expect(overlay.get('MD042')?.team2_player2_name).toBe('Javier Ruiz Gonzalez');
+  });
+
+  it('returns an empty map when no rows exist', async () => {
+    const supabase = fakeSupabase([]);
+    const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
+    expect(overlay.size).toBe(0);
+  });
+
+  it('skips rows with null match_widget_id (un-keyable)', async () => {
+    const supabase = fakeSupabase([
+      {
+        match_widget_id: null,
+        team1_player1_name: 'Stray', team1_player2_name: 'Names',
+        team2_player1_name: null, team2_player2_name: null,
+        team1_fip_id: null, team2_fip_id: null,
+        captured_at: '2026-05-11T20:00:00Z',
+      },
+    ]);
+    const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
+    expect(overlay.size).toBe(0);
+  });
+});
+
+describe('resolveFourPlayers — tier-aware Pass 1', () => {
+  const nameToFipId = new Map<string, string>([
+    ['javier ruiz gonzalez', 'fip-P000021'],
+    ['jorge nieto ruiz', 'fip-P000017'],
+    ['gonzalo rubio', 'fip-P000029'],
+    ['santiago pineda cabello', 'fip-P100958'],
+    ['diego garcia garcia', 'fip-P101099'],
+  ]);
+  const shortFormToFipId = buildShortFormMap(nameToFipId);
+  const fipIdToPlayerId = new Map<string, string>([
+    ['fip-P000021', 'uuid-javier'],
+    ['fip-P000017', 'uuid-jorge'],
+    ['fip-P000029', 'uuid-gonzalo'],
+    ['fip-P100958', 'uuid-pineda'],
+    ['fip-P101099', 'uuid-diego'],
+  ]);
+
+  it('tags exact long-form hits as exact_long', () => {
+    const draw = {
+      team1_player1_name: 'Gonzalo Rubio',
+      team1_player2_name: 'Javier Ruiz Gonzalez',
+      team2_player1_name: null,
+      team2_player2_name: null,
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined, {},
+    );
+    expect(resolved.p1p1).toBe('uuid-gonzalo');
+    expect(resolved.tiers?.p1p1).toBe('exact_long');
+    expect(resolved.tiers?.p1p2).toBe('exact_long');
+  });
+
+  it('tags short-form hits as short_unique when there is no bracket overlay', () => {
+    const draw = {
+      team1_player1_name: 'G. Rubio',
+      team1_player2_name: null,
+      team2_player1_name: null,
+      team2_player2_name: null,
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined, {},
+    );
+    expect(resolved.p1p1).toBe('uuid-gonzalo');
+    expect(resolved.tiers?.p1p1).toBe('short_unique');
+  });
+
+  it('upgrades to bracket_overlay when the bracket has exactly one consistent long-form for the slot', () => {
+    // BA MD042 setup: bracket has t2 = [Rubio, Javier Ruiz Gonzalez], t1 null
+    const bracketOverlay = {
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: 'Gonzalo Rubio',
+      team2_player2_name: 'Javier Ruiz Gonzalez',
+      team1_fip_id: null,
+      team2_fip_id: null,
+    };
+    const draw = {
+      team1_player1_name: 'S. Pineda Cabello',
+      team1_player2_name: 'D. Garcia Garcia',
+      team2_player1_name: 'J. Ruiz',   // ambiguous via short-form (Pattern 3 collision)
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { bracketOverlay },
+    );
+    // p2p1: bracket scan finds only "Javier Ruiz Gonzalez" consistent with "J. Ruiz" → upgrade
+    expect(resolved.p2p1).toBe('uuid-javier');
+    expect(resolved.tiers?.p2p1).toBe('bracket_overlay');
+    // p2p2: same scan finds only "Gonzalo Rubio" consistent with "G. Rubio" → upgrade
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+    expect(resolved.tiers?.p2p2).toBe('bracket_overlay');
+  });
+
+  it('does not fire bracket_overlay when multiple bracket names are consistent (ambiguous)', () => {
+    // Both Jorge Nieto Ruiz + Javier Ruiz Gonzalez are consistent with "J. Ruiz"
+    const bracketOverlay = {
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: 'Jorge Nieto Ruiz',
+      team2_player2_name: 'Javier Ruiz Gonzalez',
+      team1_fip_id: null,
+      team2_fip_id: null,
+    };
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Ruiz',
+      team2_player2_name: null,
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { bracketOverlay },
+    );
+    // Two consistent candidates → bracket overlay declines → falls to short_form
+    // (which is also ambiguous after PR #313's Pattern 3 → null)
+    expect(resolved.p2p1).toBe(null);
+    expect(resolved.tiers?.p2p1).toBe('unresolved');
+  });
+
+  it('preserves back-compat: no options arg means no tiers field (legacy callers untouched)', () => {
+    const draw = {
+      team1_player1_name: 'Gonzalo Rubio',
+      team1_player2_name: null,
+      team2_player1_name: null,
+      team2_player2_name: null,
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId,
+    );
+    expect(resolved.p1p1).toBe('uuid-gonzalo');
+    expect(resolved.tiers).toBeUndefined();
+  });
+});
+
+describe('resolveFourPlayers — Pass 2 partner-anchor', () => {
+  // Real BA P1 MD042 setup: J. Ruiz / G. Rubio short-forms, no bracket overlay
+  const nameToFipId = new Map<string, string>([
+    ['javier ruiz gonzalez', 'fip-P000021'],
+    ['jorge nieto ruiz', 'fip-P000017'],
+    ['gonzalo rubio', 'fip-P000029'],
+    ['jon sanz', 'fip-P000038'],
+    ['santiago pineda cabello', 'fip-P100958'],
+    ['diego garcia garcia', 'fip-P101099'],
+  ]);
+  const shortFormToFipId = buildShortFormMap(nameToFipId);
+  const fipIdToPlayerId = new Map<string, string>([
+    ['fip-P000021', 'uuid-javier'],
+    ['fip-P000017', 'uuid-jorge'],
+    ['fip-P000029', 'uuid-gonzalo'],
+    ['fip-P000038', 'uuid-jon'],
+    ['fip-P100958', 'uuid-pineda'],
+    ['fip-P101099', 'uuid-diego'],
+  ]);
+  const fipIdToPartner = new Map<string, { partnerFipId: string | null; partnerNormName: string }>([
+    ['fip-P000029', { partnerFipId: 'fip-P000021', partnerNormName: 'javier ruiz gonzalez' }],
+    ['fip-P000021', { partnerFipId: 'fip-P000029', partnerNormName: 'gonzalo rubio' }],
+    ['fip-P000017', { partnerFipId: 'fip-P000038', partnerNormName: 'jon sanz' }],
+    ['fip-P000038', { partnerFipId: 'fip-P000017', partnerNormName: 'jorge nieto ruiz' }],
+    ['fip-P100958', { partnerFipId: 'fip-P101099', partnerNormName: 'diego garcia garcia' }],
+    ['fip-P101099', { partnerFipId: 'fip-P100958', partnerNormName: 'santiago pineda cabello' }],
+  ]);
+
+  it('resolves "J. Ruiz" to Javier Ruiz Gonzalez via partner-anchor when sibling Rubio is resolved', () => {
+    const draw = {
+      team1_player1_name: 'S. Pineda Cabello',
+      team1_player2_name: 'D. Garcia Garcia',
+      team2_player1_name: 'J. Ruiz',   // Pattern 3 ambiguity → null after Pass 1
+      team2_player2_name: 'G. Rubio',  // unique via short_unique
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    expect(resolved.p2p1).toBe('uuid-javier');
+    expect(resolved.tiers?.p2p1).toBe('partner_anchor');
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+  });
+
+  it('does not fire partner-anchor when the resolved anchor has no partner entry in fipIdToPartner', () => {
+    const noPartner = new Map(fipIdToPartner);
+    noPartner.delete('fip-P000029');
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Ruiz',
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { fipIdToPartner: noPartner },
+    );
+    expect(resolved.p2p1).toBe(null);
+    expect(resolved.tiers?.p2p1).toBe('unresolved');
+  });
+
+  it('does not fire partner-anchor when both slots are already resolved unambiguously', () => {
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'Javier Ruiz Gonzalez',
+      team2_player2_name: 'Gonzalo Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    expect(resolved.tiers?.p2p1).toBe('exact_long');
+    expect(resolved.tiers?.p2p2).toBe('exact_long');
+  });
+});
+
+describe('resolveFourPlayers — Pass 2 mis-pair sanity', () => {
+  const nameToFipId = new Map<string, string>([
+    ['javier ruiz gonzalez', 'fip-P000021'],
+    ['jorge nieto ruiz', 'fip-P000017'],
+    ['gonzalo rubio', 'fip-P000029'],
+    ['jon sanz', 'fip-P000038'],
+  ]);
+  const shortFormToFipId = buildShortFormMap(nameToFipId);
+  const fipIdToPlayerId = new Map<string, string>([
+    ['fip-P000021', 'uuid-javier'],
+    ['fip-P000017', 'uuid-jorge'],
+    ['fip-P000029', 'uuid-gonzalo'],
+    ['fip-P000038', 'uuid-jon'],
+  ]);
+  const fipIdToPartner = new Map<string, { partnerFipId: string | null; partnerNormName: string }>([
+    ['fip-P000029', { partnerFipId: 'fip-P000021', partnerNormName: 'javier ruiz gonzalez' }],
+    ['fip-P000021', { partnerFipId: 'fip-P000029', partnerNormName: 'gonzalo rubio' }],
+    ['fip-P000017', { partnerFipId: 'fip-P000038', partnerNormName: 'jon sanz' }],
+    ['fip-P000038', { partnerFipId: 'fip-P000017', partnerNormName: 'jorge nieto ruiz' }],
+  ]);
+
+  it('drops the lower-confidence slot when both resolve but are not entry-list partners', () => {
+    // Inject "J. Ruiz" → Jorge Nieto Ruiz mapping (the historical bug behavior)
+    const customShortForm = new Map(shortFormToFipId);
+    customShortForm.set('j. ruiz', 'fip-P000017');
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Ruiz',          // resolves to Jorge (short_unique)
+      team2_player2_name: 'Gonzalo Rubio',    // resolves exact_long
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, customShortForm, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    // Mis-pair detected: Jorge's partner is Jon, not Gonzalo. Rubio's
+    // anchor tier exact_long > Jorge's short_unique → drop Jorge.
+    // Then partner-anchor sweep refills Jorge's slot with Javier (Rubio's
+    // actual partner) since "J. Ruiz" is consistent with "javier ruiz gonzalez".
+    expect(resolved.p2p1).toBe('uuid-javier');
+    expect(resolved.tiers?.p2p1).toBe('partner_anchor');
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+    expect(resolved.tiers?.p2p2).toBe('exact_long');
+  });
+
+  it('drops both slots when mis-paired AND tiers are equal', () => {
+    const customShortForm = new Map(shortFormToFipId);
+    customShortForm.set('j. ruiz', 'fip-P000017');   // Jorge Nieto Ruiz
+    customShortForm.set('g. rubio', 'fip-P000029');  // Gonzalo Rubio
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Ruiz',
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, customShortForm, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    // Both short_unique tier (equal), Jorge's partner is Jon not Gonzalo → drop both.
+    // After mis-pair drop, partner-anchor sweep can't refill (no anchor left).
+    expect(resolved.p2p1).toBe(null);
+    expect(resolved.tiers?.p2p1).toBe('unresolved');
+    expect(resolved.p2p2).toBe(null);
+    expect(resolved.tiers?.p2p2).toBe('unresolved');
+  });
+
+  it('keeps both slots when they are entry-list partners (no mis-pair)', () => {
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'Javier Ruiz Gonzalez',
+      team2_player2_name: 'Gonzalo Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, undefined,
+      { fipIdToPartner },
+    );
+    expect(resolved.p2p1).toBe('uuid-javier');
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+  });
+});
+
+describe('resolveFourPlayers — Pass 2 suspected late swap', () => {
+  const nameToFipId = new Map<string, string>([
+    ['javier ruiz gonzalez', 'fip-P000021'],
+    ['gonzalo rubio', 'fip-P000029'],
+  ]);
+  const shortFormToFipId = buildShortFormMap(nameToFipId);
+  const fipIdToPlayerId = new Map<string, string>([
+    ['fip-P000021', 'uuid-javier'],
+    ['fip-P000029', 'uuid-gonzalo'],
+  ]);
+  const fipIdToPartner = new Map<string, { partnerFipId: string | null; partnerNormName: string }>([
+    ['fip-P000029', { partnerFipId: 'fip-P000021', partnerNormName: 'javier ruiz gonzalez' }],
+    ['fip-P000021', { partnerFipId: 'fip-P000029', partnerNormName: 'gonzalo rubio' }],
+  ]);
+
+  it('emits suspected_late_swap and leaves slot null when OOP partner shorthand initials match but surname does not', () => {
+    const warnSpy = vi.fn();
+    const logger = { info: vi.fn(), warn: warnSpy, debug: vi.fn() } as never;
+
+    const draw = {
+      team1_player1_name: null, team1_player2_name: null,
+      team2_player1_name: 'J. Rubini',  // initial J matches Javier but surname Rubini ≠ Ruiz / Gonzalez
+      team2_player2_name: 'G. Rubio',
+    } as never;
+    const resolved = resolveFourPlayers(
+      draw, nameToFipId, shortFormToFipId, fipIdToPlayerId, logger,
+      { fipIdToPartner },
+    );
+
+    expect(resolved.p2p1).toBe(null);
+    expect(resolved.tiers?.p2p1).toBe('unresolved');
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        slot: 'p2p1',
+        rawShortForm: 'J. Rubini',
+        expectedPartnerNormName: 'javier ruiz gonzalez',
+        expectedPartnerFipId: 'fip-P000021',
+      }),
+      'suspected_late_swap',
+    );
+    // Anchor stays intact — late-swap branch must not touch out[anchor].
+    expect(resolved.p2p2).toBe('uuid-gonzalo');
+  });
+});
+
+// ── runFipDrawPopulator — pair-aware resolver wiring ───────────────────
+
+describe('runFipDrawPopulator — pair-aware resolver wiring', () => {
+  it('inserts MD042 with Javier Ruiz Gonzalez via partner-anchor (no bracket overlay)', async () => {
+    // Setup: entry list has Javier + Gonzalo as partners. Tournament is
+    // amateur tier (fip_beyond) so OOP rows are used as the full draw
+    // source (draws=[]). OOP delivers MD042 with short-form "J. Ruiz /
+    // G. Rubio". buildPairIndex wires fipIdToPartner so Pass 2
+    // partner-anchor resolves the second short-form given only the first
+    // resolves via exact / short-form lookup.
+    // Expected: insert lands with pair2_player1_id = uuid-javier.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'BA P1', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      // Amateur tier: draws=[] → OOP is used as full draw source.
+      tournamentLevels: { [TOURNAMENT_ID]: 'fip_beyond' },
+      draws: [],
+      oopSnapshots: [
+        {
+          tournament_id: TOURNAMENT_ID,
+          match_widget_id: 'MD042',
+          category: 'men',
+          round_label: 'R64',
+          team1_player1_name: 'S. Pineda Cabello',
+          team1_player2_name: 'D. Garcia Garcia',
+          team2_player1_name: 'J. Ruiz',
+          team2_player2_name: 'G. Rubio',
+          captured_at: '2026-05-11T22:00:00Z',
+        },
+      ],
+      entryList: [
+        { name: 'Javier Ruiz Gonzalez', fip_id: 'fip-P000021', category: 'men',
+          partner_fip_id: 'fip-P000029', partner_name: 'Gonzalo Rubio',
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'main_draw' },
+        { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men',
+          partner_fip_id: 'fip-P000021', partner_name: 'Javier Ruiz Gonzalez',
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'main_draw' },
+        { name: 'Santiago Pineda Cabello', fip_id: 'fip-P100958', category: 'men',
+          partner_fip_id: 'fip-P101099', partner_name: 'Diego Garcia Garcia',
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'qualifying' },
+        { name: 'Diego Garcia Garcia', fip_id: 'fip-P101099', category: 'men',
+          partner_fip_id: 'fip-P100958', partner_name: 'Santiago Pineda Cabello',
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'qualifying' },
+      ],
+      players: [
+        { id: 'uuid-javier', fip_id: 'fip-P000021' },
+        { id: 'uuid-gonzalo', fip_id: 'fip-P000029' },
+        { id: 'uuid-pineda', fip_id: 'fip-P100958' },
+        { id: 'uuid-diego', fip_id: 'fip-P101099' },
+      ],
+    });
+    await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    const md042 = supabase.inserted.find((m: any) => m.widget_id_composite === `${TOURNAMENT_WIDGET}:MD042`);
+    expect(md042).toBeDefined();
+    expect(md042.pair2_player1_id).toBe('uuid-javier');
+    expect(md042.pair2_player2_id).toBe('uuid-gonzalo');
+  });
+
+  it('inserts MD042 via bracket overlay when fip_event_page draw_snapshot has long-form names for one side', async () => {
+    // Scenario: the bracket has a bye-skip walkover row for MD042 at R64
+    // with LONG-FORM team2 names. buildBracketOverlay stores these in the
+    // overlay keyed by 'MD042'. The R64 row itself is bye-skipped (first
+    // round, walkover, team1 empty). Separately, OOP has an MD042 row at
+    // round Q1 — Q1 is NOT in drawRoundLabels (only R64 is), so it IS
+    // included via the qualifying merge. When the Q1 OOP row is processed,
+    // bracketOverlay.get('MD042') fires and upgrades 'J. Ruiz' →
+    // 'Javier Ruiz Gonzalez' (tier: bracket_overlay).
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'BA P1', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [
+        // R64 bye-skip walkover with long-form team2 names. buildBracketOverlay
+        // indexes this row under 'MD042'. The main loop skips it as a bye.
+        {
+          tournament_id: TOURNAMENT_ID,
+          match_widget_id: 'MD042',
+          category: 'men',
+          round_label: 'R64',
+          draw_position: null,
+          team1_player1_name: null,
+          team1_player2_name: null,
+          team2_player1_name: 'Gonzalo Rubio',
+          team2_player2_name: 'Javier Ruiz Gonzalez',
+          team1_fip_id: null,
+          team2_fip_id: null,
+          team1_seed: null,
+          team2_seed: null,
+          status: 'walkover' as const,
+          captured_at: '2026-05-11T08:00:00Z',
+          source: 'fip_event_page',
+        },
+      ],
+      oopSnapshots: [
+        // Q1 qualifying row for MD042: short-form names only. Q1 is not in
+        // drawRoundLabels (which contains only 'R64'), so this row is merged
+        // in via the qualifying-merge path.
+        {
+          tournament_id: TOURNAMENT_ID,
+          match_widget_id: 'MD042',
+          category: 'men',
+          round_label: 'Q1',
+          team1_player1_name: 'S. Pineda Cabello',
+          team1_player2_name: 'D. Garcia Garcia',
+          team2_player1_name: 'J. Ruiz',
+          team2_player2_name: 'G. Rubio',
+          captured_at: '2026-05-11T22:00:00Z',
+        },
+      ],
+      entryList: [
+        // Entry list does NOT include partner info — bracket overlay carries
+        // the resolution for J. Ruiz / G. Rubio.
+        { name: 'Javier Ruiz Gonzalez', fip_id: 'fip-P000021', category: 'men',
+          partner_fip_id: null, partner_name: null,
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'main_draw' },
+        { name: 'Gonzalo Rubio', fip_id: 'fip-P000029', category: 'men',
+          partner_fip_id: null, partner_name: null,
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'main_draw' },
+        { name: 'Santiago Pineda Cabello', fip_id: 'fip-P100958', category: 'men',
+          partner_fip_id: null, partner_name: null,
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'qualifying' },
+        { name: 'Diego Garcia Garcia', fip_id: 'fip-P101099', category: 'men',
+          partner_fip_id: null, partner_name: null,
+          captured_at: '2026-05-12T05:00:00Z', draw_type: 'qualifying' },
+      ],
+      players: [
+        { id: 'uuid-javier', fip_id: 'fip-P000021' },
+        { id: 'uuid-gonzalo', fip_id: 'fip-P000029' },
+        { id: 'uuid-pineda', fip_id: 'fip-P100958' },
+        { id: 'uuid-diego', fip_id: 'fip-P101099' },
+      ],
+    });
+    await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    const md042 = supabase.inserted.find((m: any) => m.widget_id_composite === `${TOURNAMENT_WIDGET}:MD042`);
+    expect(md042).toBeDefined();
+    expect(md042.pair2_player1_id).toBe('uuid-javier');
+    expect(md042.pair2_player2_id).toBe('uuid-gonzalo');
   });
 });

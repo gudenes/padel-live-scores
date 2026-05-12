@@ -660,8 +660,15 @@ export async function runFipDrawPopulator(
     // 4. Build name → fip_id map from latest entry_list snapshot, plus a
     //    short-form map for Crionet OOP names ("M. Alvarez") and a middle-name
     //    strip fallback for draw names with extra given-middle tokens.
-    const nameToFipId = await loadEntryListNameMap(supabase, t.tournament_id);
+    //
+    // Pair-aware index + bracket overlay (Task 8). nameToFipId remains
+    // for the Pattern 1/2/3 short-form lookup; fipIdToPartner enables
+    // Pass 2 partner-anchor sweep + mis-pair sanity check in
+    // resolveFourPlayers.
+    const pairIndex = await buildPairIndex(supabase, t.tournament_id);
+    const { nameToFipId, fipIdToPartner } = pairIndex;
     const shortFormToFipId = buildShortFormMap(nameToFipId);
+    const bracketOverlay = await buildBracketOverlay(supabase, t.tournament_id);
 
     // 5. Build fip_id → players.id map (only for fip_ids we'll actually use).
     //    Include both exact-match and short-form candidates so loadPlayersByFipId
@@ -701,6 +708,13 @@ export async function runFipDrawPopulator(
           }
         }
       }
+    }
+    // Partner fip_ids from buildPairIndex must also be loaded so the
+    // Pass 2 partner-anchor sweep can resolve to a player UUID even
+    // when the partner's name doesn't appear in the draw rows (e.g.
+    // when one side of the match is TBD or a walkover slot).
+    for (const { partnerFipId } of pairIndex.fipIdToPartner.values()) {
+      if (partnerFipId) wantedFipIds.add(partnerFipId);
     }
     const fipIdToPlayerId = await loadPlayersByFipId(supabase, wantedFipIds);
 
@@ -804,7 +818,17 @@ export async function runFipDrawPopulator(
       const isFipDrawScaffolding =
         d.source === 'fip_event_page' && namesProvided === 0;
       const allowThinMatch = isAmateurTier || isOopSourced || isFipDrawScaffolding;
-      const resolved = resolveFourPlayers(d, nameToFipId, shortFormToFipId, fipIdToPlayerId, logger);
+      const resolved = resolveFourPlayers(
+        d,
+        nameToFipId,
+        shortFormToFipId,
+        fipIdToPlayerId,
+        logger,
+        {
+          fipIdToPartner,
+          bracketOverlay: d.match_widget_id ? bracketOverlay.get(d.match_widget_id) : undefined,
+        },
+      );
       const numResolved = resolvedCount(resolved);
       if (numResolved === 0 && !allowThinMatch) {
         result.skippedPlayerUnresolved += 1;
@@ -1157,11 +1181,39 @@ async function upsertTournamentDraws(
 
 // ── Helpers (exported for testing) ─────────────────────────────────────
 
+export type Tier =
+  | 'exact_long'
+  | 'bracket_overlay'
+  | 'short_unique'
+  | 'partner_anchor'
+  | 'unresolved';
+
 export interface ResolvedFour {
   p1p1: string | null;
   p1p2: string | null;
   p2p1: string | null;
   p2p2: string | null;
+  // Populated only when caller passes the options arg in resolveFourPlayers.
+  // Legacy callers (no options) get undefined — back-compat with the
+  // pre-Task-4 test suite.
+  tiers?: {
+    p1p1: Tier;
+    p1p2: Tier;
+    p2p1: Tier;
+    p2p2: Tier;
+  };
+}
+
+export interface ResolveOptions {
+  /**
+   * Per-fip_id partner index from buildPairIndex. Read by Pass 2 only
+   * (Tasks 5–7); the Pass 1 resolver in this task does not consume it.
+   * Accepting it now keeps `resolveFourPlayers` callable with a single
+   * shape across Tasks 4–7.
+   */
+  fipIdToPartner?: Map<string, { partnerFipId: string | null; partnerNormName: string }>;
+  /** Per-match bracket long-form names from buildBracketOverlay. */
+  bracketOverlay?: BracketOverlayEntry;
 }
 
 export function resolvedCount(r: ResolvedFour): number {
@@ -1181,23 +1233,61 @@ export function resolvedCount(r: ResolvedFour): number {
  * resolution — in steady state we want partial FK fills (3-of-4 still
  * means 3 real profile links on the match card), with the unresolved
  * slot left NULL until the entry list catches up.
+ *
+ * When `options` is provided the returned value also carries a `tiers` map
+ * tagging each slot's resolution method. Legacy callers that omit `options`
+ * get the old return shape (no `tiers` field) — back-compat preserved.
+ *
+ * Pass 1 lookup order per slot:
+ *   exact_long → bracket_overlay → short_unique → middle-strip
+ * Bracket overlay fires only when EXACTLY ONE of the 4 overlay names is
+ * consistent with the slot's short-form AND resolves via nameToFipId.
  */
 export function resolveFourPlayers(
   d: DrawRow,
   nameToFipId: Map<string, string>,
   shortFormToFipId: Map<string, string | null>,
   fipIdToPlayerId: Map<string, string>,
-  logger?: Logger
+  logger?: Logger,
+  options?: ResolveOptions,
 ): ResolvedFour {
-  const lookup = (name: string | null): string | null => {
-    if (!name) return null;
+  const useTiers = options != null;
+  const bracketOverlay = options?.bracketOverlay;
+  const bracketPool = bracketOverlay
+    ? [
+        bracketOverlay.team1_player1_name,
+        bracketOverlay.team1_player2_name,
+        bracketOverlay.team2_player1_name,
+        bracketOverlay.team2_player2_name,
+      ].filter((n): n is string => !!n)
+    : [];
+
+  // Per-slot lookup. Returns { fipId, tier } where tier is the resolution
+  // method tag and fipId is null when nothing resolved.
+  const lookup = (name: string | null): { fipId: string | null; tier: Tier } => {
+    if (!name) return { fipId: null, tier: 'unresolved' };
     const norm = normalizeName(name);
 
-    // 1. Exact-match (long-form from entry list) — fastest path.
+    // Tier 1: Exact-match (long-form from entry list) — fastest path.
     const exactFipId = nameToFipId.get(norm);
-    if (exactFipId) return fipIdToPlayerId.get(exactFipId) ?? null;
+    if (exactFipId) return { fipId: fipIdToPlayerId.get(exactFipId) ?? null, tier: 'exact_long' };
 
-    // 2. Short-form match. OOP snapshots write "M. Alvarez" while the entry
+    // Tier 2: Bracket overlay — exactly one consistent long-form name in the pool.
+    // OOP snapshots write "J. Ruiz" while the bracket draw has "Javier Ruiz Gonzalez".
+    // When EXACTLY ONE bracket name is consistent with the short-form AND resolves
+    // via nameToFipId, we can safely upgrade to the long-form identity.
+    if (bracketPool.length > 0) {
+      const matches = bracketPool.filter((b) => isShortFormConsistentWith(name, b));
+      if (matches.length === 1) {
+        const longForm = matches[0]!;
+        const fipId = nameToFipId.get(normalizeName(longForm));
+        if (fipId) {
+          return { fipId: fipIdToPlayerId.get(fipId) ?? null, tier: 'bracket_overlay' };
+        }
+      }
+    }
+
+    // Tier 3: Short-form match. OOP snapshots write "M. Alvarez" while the entry
     //    list has "Mateo Alvarez". buildShortFormMap() pre-computed the
     //    short-form keys for every entry-list player (two variants: full-tail
     //    "M. Negrete Oliva" and last-token "A. Miranda"). We look the input
@@ -1207,14 +1297,21 @@ export function resolveFourPlayers(
       if (sfFipId == null) {
         logger?.warn(
           { name },
-          'fip-draw-populator: short-form name is ambiguous — leaving unresolved'
+          'fip-draw-populator: short-form name is ambiguous — leaving unresolved',
         );
-        return null;
+        return { fipId: null, tier: 'unresolved' };
       }
-      return fipIdToPlayerId.get(sfFipId) ?? null;
+      return { fipId: fipIdToPlayerId.get(sfFipId) ?? null, tier: 'short_unique' };
     }
 
-    // 3. Middle-name strip / prefix match for draw names with extra
+    // Tier 3b: middle-strip / prefix fallback.
+    // Deliberately tagged as `short_unique` (no dedicated `middle_strip`
+    // tier in Tier union) — Pass 2's mis-pair sanity check treats both
+    // paths as equally low-confidence relative to exact_long and
+    // bracket_overlay. If a future audit shows middle-strip needs a
+    // distinct tier (e.g. to gate Pass 2 re-resolution more aggressively),
+    // add `'middle_strip'` to the Tier union and a separate tier rank.
+    // Middle-name strip / prefix match for draw names with extra
     //    given-middle tokens or trailing surnames. Collect ALL distinct
     //    fip_ids reachable across both shapes — if more than one comes
     //    back we can't safely pick one, so return null (mirrors the
@@ -1223,7 +1320,7 @@ export function resolveFourPlayers(
     if (tokens.length >= 3) {
       const candidates = new Set<string>();
 
-      // 3a. Remove one middle token at a time (inner tokens)
+      // Remove one middle token at a time (inner tokens)
       for (let skip = 1; skip < tokens.length - 1; skip++) {
         const candidate = [
           ...tokens.slice(0, skip),
@@ -1233,7 +1330,7 @@ export function resolveFourPlayers(
         if (cFipId) candidates.add(cFipId);
       }
 
-      // 3b. Prefix match: EL name is a strict prefix of draw name
+      // Prefix match: EL name is a strict prefix of draw name
       //     e.g. "Vinny Nahuel Di Francesco" is a prefix of
       //          "Vinny Nahuel Di Francesco Calderon"
       for (let len = tokens.length - 1; len >= 2; len--) {
@@ -1245,25 +1342,198 @@ export function resolveFourPlayers(
       if (candidates.size > 1) {
         logger?.warn(
           { name, candidates: Array.from(candidates) },
-          'fip-draw-populator: middle-strip/prefix match is ambiguous — leaving unresolved'
+          'fip-draw-populator: middle-strip/prefix match is ambiguous — leaving unresolved',
         );
-        return null;
+        return { fipId: null, tier: 'unresolved' };
       }
       if (candidates.size === 1) {
         const only = candidates.values().next().value as string;
-        return fipIdToPlayerId.get(only) ?? null;
+        return { fipId: fipIdToPlayerId.get(only) ?? null, tier: 'short_unique' };
       }
     }
 
-    return null;
+    return { fipId: null, tier: 'unresolved' };
   };
 
-  return {
-    p1p1: lookup(d.team1_player1_name),
-    p1p2: lookup(d.team1_player2_name),
-    p2p1: lookup(d.team2_player1_name),
-    p2p2: lookup(d.team2_player2_name),
+  const r1 = lookup(d.team1_player1_name);
+  const r2 = lookup(d.team1_player2_name);
+  const r3 = lookup(d.team2_player1_name);
+  const r4 = lookup(d.team2_player2_name);
+
+  const out: ResolvedFour = {
+    p1p1: r1.fipId,
+    p1p2: r2.fipId,
+    p2p1: r3.fipId,
+    p2p2: r4.fipId,
   };
+  if (useTiers) {
+    out.tiers = {
+      p1p1: r1.tier,
+      p1p2: r2.tier,
+      p2p1: r3.tier,
+      p2p2: r4.tier,
+    };
+  }
+
+  // Pass 2 — pair-aware sweeps. Only runs when caller passes
+  // fipIdToPartner via options. Two sweeps run in order:
+  //   1. mis-pair sanity: when both slots resolve but aren't entry-list
+  //      partners, drop the lower-tier slot (or both when tiers equal).
+  //   2. partner-anchor: when exactly one slot is resolved AND the
+  //      unresolved slot's raw shorthand is consistent with the resolved
+  //      slot's entry-list partner, assign the partner's fip_id at tier
+  //      'partner_anchor'. Uses lazy out[slot] reads so refill of a
+  //      mis-pair-dropped slot is automatic when the kept slot's
+  //      entry-list partner matches the dropped slot's shorthand.
+  const fipIdToPartner = options?.fipIdToPartner;
+  if (useTiers && fipIdToPartner) {
+    const slotsByPair = [
+      { anchor: 'p1p1', other: 'p1p2' },
+      { anchor: 'p1p2', other: 'p1p1' },
+      { anchor: 'p2p1', other: 'p2p2' },
+      { anchor: 'p2p2', other: 'p2p1' },
+    ] as const;
+
+    const rawNameFor = (slot: 'p1p1' | 'p1p2' | 'p2p1' | 'p2p2'): string | null => {
+      switch (slot) {
+        case 'p1p1': return d.team1_player1_name;
+        case 'p1p2': return d.team1_player2_name;
+        case 'p2p1': return d.team2_player1_name;
+        case 'p2p2': return d.team2_player2_name;
+      }
+    };
+
+    // Map resolved player UUID back to fip_id so we can look up the
+    // entry-list partner. fipIdToPlayerId is fip_id → uuid; we want
+    // the inverse.
+    const playerIdToFipId = new Map<string, string>();
+    for (const [fipId, playerId] of fipIdToPlayerId) playerIdToFipId.set(playerId, fipId);
+
+    const tierRank: Record<Tier, number> = {
+      exact_long: 4,
+      bracket_overlay: 3,
+      short_unique: 2,
+      partner_anchor: 1,
+      unresolved: 0,
+    };
+
+    // Mis-pair sanity check. For each pair, if both slots resolved and
+    // they're NOT entry-list partners, drop the lower-tier slot (or
+    // both when tiers are equal). The partner-anchor loop below uses
+    // lazy out[slot] reads, so a dropped slot can be refilled there.
+    const pairsForMispair: Array<{
+      aTier: Tier | undefined; aPlayerId: string | null;
+      bTier: Tier | undefined; bPlayerId: string | null;
+      dropA: () => void;
+      dropB: () => void;
+    }> = [
+      {
+        aTier: out.tiers?.p1p1, aPlayerId: out.p1p1,
+        bTier: out.tiers?.p1p2, bPlayerId: out.p1p2,
+        dropA: () => { out.p1p1 = null; if (out.tiers) out.tiers.p1p1 = 'unresolved'; },
+        dropB: () => { out.p1p2 = null; if (out.tiers) out.tiers.p1p2 = 'unresolved'; },
+      },
+      {
+        aTier: out.tiers?.p2p1, aPlayerId: out.p2p1,
+        bTier: out.tiers?.p2p2, bPlayerId: out.p2p2,
+        dropA: () => { out.p2p1 = null; if (out.tiers) out.tiers.p2p1 = 'unresolved'; },
+        dropB: () => { out.p2p2 = null; if (out.tiers) out.tiers.p2p2 = 'unresolved'; },
+      },
+    ];
+
+    for (const pair of pairsForMispair) {
+      if (pair.aPlayerId == null || pair.bPlayerId == null) continue;
+      const aFip = playerIdToFipId.get(pair.aPlayerId);
+      const bFip = playerIdToFipId.get(pair.bPlayerId);
+      if (!aFip || !bFip) continue;
+      const aPartner = fipIdToPartner.get(aFip);
+      // Mis-pair when A's entry-list partner is set AND it's NOT B.
+      // Entry-list rows are symmetric (each player's row names the
+      // other as partner), so checking only A's side is sufficient —
+      // if A's partner isn't B, B's partner isn't A either.
+      if (aPartner && aPartner.partnerFipId && aPartner.partnerFipId !== bFip) {
+        const aRank = tierRank[pair.aTier ?? 'unresolved'];
+        const bRank = tierRank[pair.bTier ?? 'unresolved'];
+        if (aRank > bRank) {
+          pair.dropB();
+          logger?.warn(
+            { keptTier: pair.aTier, droppedTier: pair.bTier, keptFipId: aFip, droppedFipId: bFip },
+            'mispair_detected',
+          );
+        } else if (bRank > aRank) {
+          pair.dropA();
+          logger?.warn(
+            { keptTier: pair.bTier, droppedTier: pair.aTier, keptFipId: bFip, droppedFipId: aFip },
+            'mispair_detected',
+          );
+        } else {
+          pair.dropA();
+          pair.dropB();
+          // Tie: emit one warn per dropped slot so the payload shape
+          // matches the A-wins / B-wins branches (consumers can filter
+          // on droppedFipId without missing tie events).
+          logger?.warn(
+            { keptTier: null, keptFipId: null, droppedTier: pair.aTier, droppedFipId: aFip },
+            'mispair_detected',
+          );
+          logger?.warn(
+            { keptTier: null, keptFipId: null, droppedTier: pair.bTier, droppedFipId: bFip },
+            'mispair_detected',
+          );
+        }
+      }
+    }
+
+    for (const { anchor, other } of slotsByPair) {
+      const anchorPlayerId = out[anchor];
+      const otherPlayerId = out[other];
+      if (anchorPlayerId == null) continue;     // anchor not resolved
+      if (otherPlayerId != null) continue;       // other already resolved
+      const otherRawName = rawNameFor(other);
+      if (!otherRawName) continue;            // no shorthand to validate against
+
+      const anchorFip = playerIdToFipId.get(anchorPlayerId);
+      if (!anchorFip) continue;
+      const partner = fipIdToPartner.get(anchorFip);
+      if (!partner || !partner.partnerNormName) continue;
+
+      if (isShortFormConsistentWith(otherRawName, partner.partnerNormName)) {
+        const partnerFip = partner.partnerFipId;
+        if (partnerFip) {
+          const partnerPlayerId = fipIdToPlayerId.get(partnerFip);
+          if (partnerPlayerId) {
+            out[other] = partnerPlayerId;
+            if (out.tiers) out.tiers[other] = 'partner_anchor';
+            logger?.info(
+              {
+                slot: other,
+                anchorFipId: anchorFip,
+                anchorTier: out.tiers?.[anchor],
+                partnerFipId: partnerFip,
+                rawShortForm: otherRawName,
+                partnerNormName: partner.partnerNormName,
+              },
+              'partner_anchor_resolved',
+            );
+          }
+        }
+      } else if (doShortFormInitialsMatch(otherRawName, partner.partnerNormName)) {
+        // Initials match but surname doesn't — likely a real late swap.
+        // Decline the anchor and emit telemetry for ops review.
+        logger?.warn(
+          {
+            slot: other,
+            rawShortForm: otherRawName,
+            expectedPartnerNormName: partner.partnerNormName,
+            expectedPartnerFipId: partner.partnerFipId,
+          },
+          'suspected_late_swap',
+        );
+      }
+    }
+  }
+
+  return out;
 }
 
 // ── DB helpers ─────────────────────────────────────────────────────────
@@ -1460,7 +1730,12 @@ async function loadLatestOopRowsAsDrawRows(
   }));
 }
 
-async function loadEntryListNameMap(
+/**
+ * @deprecated Use `buildPairIndex` instead. Kept exported for any external
+ * callers that may still import this directly. The returned `nameToFipId`
+ * map is also available as `(await buildPairIndex(...)).nameToFipId`.
+ */
+export async function loadEntryListNameMap(
   supabase: SupabaseClient,
   tournamentId: string
 ): Promise<Map<string, string>> {
@@ -1556,16 +1831,88 @@ export async function buildPairIndex(
     if (r.name && r.fip_id) nameToFipId.set(normalizeName(r.name), r.fip_id);
     if (r.fip_id && (r.partner_fip_id || r.partner_name)) {
       const partnerNormName = r.partner_name ? normalizeName(r.partner_name) : '';
-      if (partnerNormName || r.partner_fip_id) {
-        fipIdToPartner.set(r.fip_id, {
-          partnerFipId: r.partner_fip_id,
-          partnerNormName,
-        });
-      }
+      fipIdToPartner.set(r.fip_id, {
+        partnerFipId: r.partner_fip_id,
+        partnerNormName,
+      });
     }
   }
 
   return { nameToFipId, fipIdToPartner };
+}
+
+/**
+ * Per-match bracket long-form name overlay. Keyed by match_widget_id,
+ * one entry per match the bracket has touched (including bye-skipped
+ * walkover rows where one side is null but the other has real names).
+ * The Pass 1 bracket_overlay tier scans the 4 names here looking for
+ * exactly one consistent with the OOP shorthand.
+ *
+ * Reads only source='fip_event_page' rows — Crionet OOP rows are NOT
+ * authoritative for player identity (they're short-form anyway, which
+ * is the problem we're solving).
+ */
+export interface BracketOverlayEntry {
+  team1_player1_name: string | null;
+  team1_player2_name: string | null;
+  team2_player1_name: string | null;
+  team2_player2_name: string | null;
+  team1_fip_id: string | null;
+  team2_fip_id: string | null;
+}
+
+export type BracketOverlay = Map<string, BracketOverlayEntry>;
+
+export async function buildBracketOverlay(
+  supabase: SupabaseClient,
+  tournamentId: string,
+): Promise<BracketOverlay> {
+  interface Row {
+    match_widget_id: string | null;
+    team1_player1_name: string | null;
+    team1_player2_name: string | null;
+    team2_player1_name: string | null;
+    team2_player2_name: string | null;
+    team1_fip_id: string | null;
+    team2_fip_id: string | null;
+    captured_at: string;
+  }
+  const rows = await paginatedSelect<Row>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('draw_snapshots')
+        .select(
+          'match_widget_id, team1_player1_name, team1_player2_name, ' +
+          'team2_player1_name, team2_player2_name, ' +
+          'team1_fip_id, team2_fip_id, captured_at',
+        )
+        .eq('tournament_id', tournamentId)
+        .eq('source', 'fip_event_page')
+        .range(start, end),
+    { what: `draw_snapshots overlay (tournament=${tournamentId})` },
+  );
+
+  // Latest captured_at per match_widget_id.
+  const latestByMid = new Map<string, Row>();
+  for (const r of rows) {
+    if (!r.match_widget_id) continue;
+    const prev = latestByMid.get(r.match_widget_id);
+    if (!prev || r.captured_at > prev.captured_at) latestByMid.set(r.match_widget_id, r);
+  }
+
+  const overlay: BracketOverlay = new Map();
+  for (const [mid, r] of latestByMid) {
+    overlay.set(mid, {
+      team1_player1_name: r.team1_player1_name,
+      team1_player2_name: r.team1_player2_name,
+      team2_player1_name: r.team2_player1_name,
+      team2_player2_name: r.team2_player2_name,
+      team1_fip_id: r.team1_fip_id,
+      team2_fip_id: r.team2_fip_id,
+    });
+  }
+  return overlay;
 }
 
 async function loadPlayersByFipId(
