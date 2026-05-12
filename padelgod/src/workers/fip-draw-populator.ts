@@ -1566,6 +1566,80 @@ export async function buildPairIndex(
   return { nameToFipId, fipIdToPartner };
 }
 
+/**
+ * Per-match bracket long-form name overlay. Keyed by match_widget_id,
+ * one entry per match the bracket has touched (including bye-skipped
+ * walkover rows where one side is null but the other has real names).
+ * The Pass 1 bracket_overlay tier scans the 4 names here looking for
+ * exactly one consistent with the OOP shorthand.
+ *
+ * Reads only source='fip_event_page' rows — Crionet OOP rows are NOT
+ * authoritative for player identity (they're short-form anyway, which
+ * is the problem we're solving).
+ */
+export interface BracketOverlayEntry {
+  team1_player1_name: string | null;
+  team1_player2_name: string | null;
+  team2_player1_name: string | null;
+  team2_player2_name: string | null;
+  team1_fip_id: string | null;
+  team2_fip_id: string | null;
+}
+
+export type BracketOverlay = Map<string, BracketOverlayEntry>;
+
+export async function buildBracketOverlay(
+  supabase: SupabaseClient,
+  tournamentId: string,
+): Promise<BracketOverlay> {
+  interface Row {
+    match_widget_id: string | null;
+    team1_player1_name: string | null;
+    team1_player2_name: string | null;
+    team2_player1_name: string | null;
+    team2_player2_name: string | null;
+    team1_fip_id: string | null;
+    team2_fip_id: string | null;
+    captured_at: string;
+  }
+  const rows = await paginatedSelect<Row>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('draw_snapshots')
+        .select(
+          'match_widget_id, team1_player1_name, team1_player2_name, ' +
+          'team2_player1_name, team2_player2_name, ' +
+          'team1_fip_id, team2_fip_id, captured_at',
+        )
+        .eq('tournament_id', tournamentId)
+        .eq('source', 'fip_event_page')
+        .range(start, end),
+    { what: `draw_snapshots overlay (tournament=${tournamentId})` },
+  );
+
+  // Latest captured_at per match_widget_id.
+  const latestByMid = new Map<string, Row>();
+  for (const r of rows) {
+    if (!r.match_widget_id) continue;
+    const prev = latestByMid.get(r.match_widget_id);
+    if (!prev || r.captured_at > prev.captured_at) latestByMid.set(r.match_widget_id, r);
+  }
+
+  const overlay: BracketOverlay = new Map();
+  for (const [mid, r] of latestByMid) {
+    overlay.set(mid, {
+      team1_player1_name: r.team1_player1_name,
+      team1_player2_name: r.team1_player2_name,
+      team2_player1_name: r.team2_player1_name,
+      team2_player2_name: r.team2_player2_name,
+      team1_fip_id: r.team1_fip_id,
+      team2_fip_id: r.team2_fip_id,
+    });
+  }
+  return overlay;
+}
+
 async function loadPlayersByFipId(
   supabase: SupabaseClient,
   fipIds: Set<string>

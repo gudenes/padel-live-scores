@@ -11,6 +11,10 @@ import {
   // NEW from Task 2:
   buildPairIndex,
   type PairIndex,
+  // NEW from Task 3:
+  buildBracketOverlay,
+  type BracketOverlayEntry,
+  type BracketOverlay,
 } from '../../workers/fip-draw-populator.js';
 
 // Matches the production Isla de la Palma shape minus fields the
@@ -3058,5 +3062,99 @@ describe('buildPairIndex', () => {
     ]);
     const idx = await buildPairIndex(supabase as never, 'tour-1');
     expect(idx.fipIdToPartner.get('fip-P000029')?.partnerFipId).toBe('fip-P000021');
+  });
+});
+
+describe('buildBracketOverlay', () => {
+  const fakeSupabase = (rows: Array<{
+    match_widget_id: string | null;
+    team1_player1_name: string | null;
+    team1_player2_name: string | null;
+    team2_player1_name: string | null;
+    team2_player2_name: string | null;
+    team1_fip_id: string | null;
+    team2_fip_id: string | null;
+    captured_at: string;
+  }>) => ({
+    schema: () => ({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              range: (start: number, end: number) => {
+                const slice = rows.slice(start, end + 1);
+                return Promise.resolve({ data: slice, error: null });
+              },
+            }),
+          }),
+        }),
+      }),
+    }),
+  });
+
+  it('harvests bye-skipped walkover rows where t1 is null but t2 has long-form names', async () => {
+    const supabase = fakeSupabase([
+      {
+        match_widget_id: 'MD042',
+        team1_player1_name: null,
+        team1_player2_name: null,
+        team2_player1_name: 'Gonzalo Rubio',
+        team2_player2_name: 'Javier Ruiz Gonzalez',
+        team1_fip_id: null,
+        team2_fip_id: null,
+        captured_at: '2026-05-11T20:00:00Z',
+      },
+    ]);
+    const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
+    expect(overlay.get('MD042')).toEqual({
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: 'Gonzalo Rubio',
+      team2_player2_name: 'Javier Ruiz Gonzalez',
+      team1_fip_id: null,
+      team2_fip_id: null,
+    });
+  });
+
+  it('keeps the latest captured_at per match_widget_id', async () => {
+    const supabase = fakeSupabase([
+      {
+        match_widget_id: 'MD042',
+        team1_player1_name: null, team1_player2_name: null,
+        team2_player1_name: null, team2_player2_name: null,
+        team1_fip_id: null, team2_fip_id: null,
+        captured_at: '2026-05-09T10:00:00Z',
+      },
+      {
+        match_widget_id: 'MD042',
+        team1_player1_name: null, team1_player2_name: null,
+        team2_player1_name: 'Gonzalo Rubio', team2_player2_name: 'Javier Ruiz Gonzalez',
+        team1_fip_id: null, team2_fip_id: null,
+        captured_at: '2026-05-11T20:00:00Z',
+      },
+    ]);
+    const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
+    expect(overlay.get('MD042')?.team2_player1_name).toBe('Gonzalo Rubio');
+    expect(overlay.get('MD042')?.team2_player2_name).toBe('Javier Ruiz Gonzalez');
+  });
+
+  it('returns an empty map when no rows exist', async () => {
+    const supabase = fakeSupabase([]);
+    const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
+    expect(overlay.size).toBe(0);
+  });
+
+  it('skips rows with null match_widget_id (un-keyable)', async () => {
+    const supabase = fakeSupabase([
+      {
+        match_widget_id: null,
+        team1_player1_name: 'Stray', team1_player2_name: 'Names',
+        team2_player1_name: null, team2_player2_name: null,
+        team1_fip_id: null, team2_fip_id: null,
+        captured_at: '2026-05-11T20:00:00Z',
+      },
+    ]);
+    const overlay = await buildBracketOverlay(supabase as never, 'tour-1');
+    expect(overlay.size).toBe(0);
   });
 });
