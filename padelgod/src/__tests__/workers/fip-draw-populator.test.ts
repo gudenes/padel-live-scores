@@ -3319,7 +3319,7 @@ describe('resolveFourPlayers — Pass 2 partner-anchor', () => {
     expect(resolved.p2p2).toBe('uuid-gonzalo');
   });
 
-  it('does not fire partner-anchor when the unresolved slot is missing (sibling has no partner info)', () => {
+  it('does not fire partner-anchor when the resolved anchor has no partner entry in fipIdToPartner', () => {
     const noPartner = new Map(fipIdToPartner);
     noPartner.delete('fip-P000029');
     const draw = {

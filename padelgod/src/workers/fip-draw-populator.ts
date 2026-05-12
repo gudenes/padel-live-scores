@@ -1384,14 +1384,14 @@ export function resolveFourPlayers(
     for (const [fipId, playerId] of fipIdToPlayerId) playerIdToFipId.set(playerId, fipId);
 
     for (const { anchor, other } of slotsByPair) {
-      const anchorFipId = out[anchor];
-      const otherFipId = out[other];
-      if (anchorFipId == null) continue;     // anchor not resolved
-      if (otherFipId != null) continue;       // other already resolved
+      const anchorPlayerId = out[anchor];
+      const otherPlayerId = out[other];
+      if (anchorPlayerId == null) continue;     // anchor not resolved
+      if (otherPlayerId != null) continue;       // other already resolved
       const otherRawName = rawNameFor(other);
       if (!otherRawName) continue;            // no shorthand to validate against
 
-      const anchorFip = playerIdToFipId.get(anchorFipId);
+      const anchorFip = playerIdToFipId.get(anchorPlayerId);
       if (!anchorFip) continue;
       const partner = fipIdToPartner.get(anchorFip);
       if (!partner || !partner.partnerNormName) continue;
