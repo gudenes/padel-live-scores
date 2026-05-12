@@ -197,3 +197,129 @@ describe('starStrength (by best rank on court)', () => {
     expect(starStrength(null)).toBe(0)
   })
 })
+
+import { matchQualityScore } from '../match-quality'
+
+describe('matchQualityScore (integration)', () => {
+  it('returns an integer in [0, 100]', () => {
+    const score = matchQualityScore({
+      pair1Rankings: [13, 14],
+      pair2Rankings: [50, 44],
+      tournamentLevel: 'p1',
+      round: 'Round of 32',
+    })
+    expect(Number.isInteger(score)).toBe(true)
+    expect(score).toBeGreaterThanOrEqual(0)
+    expect(score).toBeLessThanOrEqual(100)
+  })
+
+  it('Salazar/Alonso scenario: top-15 stars vs top-50 R32 in P1 → 60-70', () => {
+    // From BA P1 2026-05-12: Salazar(#13)/Alonso(#14) vs Luján(#50)/Nogueira(#44)
+    const score = matchQualityScore({
+      pair1Rankings: [13, 14],
+      pair2Rankings: [50, 44],
+      tournamentLevel: 'p1',
+      round: 'Round of 32',
+    })
+    expect(score).toBeGreaterThanOrEqual(60)
+    expect(score).toBeLessThanOrEqual(70)
+  })
+
+  it('balanced mid-30s R32 in P1 → 60-65 (slightly below star match)', () => {
+    // Collombon(#34)/Cabruja(#54) vs Gomez(#37)/Ortiz(#41)
+    const score = matchQualityScore({
+      pair1Rankings: [34, 54],
+      pair2Rankings: [37, 41],
+      tournamentLevel: 'p1',
+      round: 'Round of 32',
+    })
+    expect(score).toBeGreaterThanOrEqual(60)
+    expect(score).toBeLessThanOrEqual(65)
+  })
+
+  it('big mismatch with one star (#33 vs #240 R32 P1) → 25-35', () => {
+    // Banchero(#240)/Jimenez(#240) vs Borrero(#43)/Sharifova(#33)
+    const score = matchQualityScore({
+      pair1Rankings: [240, 240],
+      pair2Rankings: [43, 33],
+      tournamentLevel: 'p1',
+      round: 'Round of 32',
+    })
+    expect(score).toBeGreaterThanOrEqual(25)
+    expect(score).toBeLessThanOrEqual(35)
+  })
+
+  it('balanced top-10 Final in P1 → ≥ 90 (the ceiling case)', () => {
+    const score = matchQualityScore({
+      pair1Rankings: [5, 6],
+      pair2Rankings: [7, 8],
+      tournamentLevel: 'p1',
+      round: 'Final',
+    })
+    expect(score).toBeGreaterThanOrEqual(90)
+  })
+
+  it('balanced FIP Bronze Final at rank ~125 → 65-80 (Prishtina shape)', () => {
+    const score = matchQualityScore({
+      pair1Rankings: [124, 124],
+      pair2Rankings: [129, 128],
+      tournamentLevel: 'fip_bronze',
+      round: 'Final',
+    })
+    expect(score).toBeGreaterThanOrEqual(65)
+    expect(score).toBeLessThanOrEqual(80)
+  })
+
+  it('any unranked player → < 5', () => {
+    expect(matchQualityScore({
+      pair1Rankings: [13, 14],
+      pair2Rankings: [50, null],
+      tournamentLevel: 'p1',
+      round: 'Round of 32',
+    })).toBeLessThan(5)
+
+    expect(matchQualityScore({
+      pair1Rankings: [null, null],
+      pair2Rankings: [null, null],
+      tournamentLevel: 'p1',
+      round: 'Final',
+    })).toBeLessThan(5)
+  })
+
+  it('unknown round string does not throw and is mid-range', () => {
+    const score = matchQualityScore({
+      pair1Rankings: [40, 50],
+      pair2Rankings: [45, 55],
+      tournamentLevel: 'p1',
+      round: 'Group Stage',
+    })
+    expect(score).toBeGreaterThan(0)
+    expect(score).toBeLessThan(100)
+  })
+
+  it('case-insensitive tier and round inputs', () => {
+    const a = matchQualityScore({
+      pair1Rankings: [13, 14], pair2Rankings: [50, 44],
+      tournamentLevel: 'P1', round: 'Round of 32',
+    })
+    const b = matchQualityScore({
+      pair1Rankings: [13, 14], pair2Rankings: [50, 44],
+      tournamentLevel: 'p1', round: 'round of 32',
+    })
+    expect(a).toBe(b)
+  })
+
+  it('FIP Bronze Final tier-round multiplication chains correctly', () => {
+    // tier 0.65 × round 1.15 = 0.7475 ceiling before clamp — verify the
+    // formula doesn't accidentally hit 1.0 from a balanced midweight match.
+    const score = matchQualityScore({
+      pair1Rankings: [200, 200],
+      pair2Rankings: [200, 200],
+      tournamentLevel: 'fip_bronze',
+      round: 'Final',
+    })
+    // parity ≈ 1, star_damper ≈ 0.55, bonus = 0 at Final → ~0.55 × 0.65 × 1.15 ≈ 0.411
+    expect(score).toBeGreaterThanOrEqual(35)
+    expect(score).toBeLessThanOrEqual(45)
+  })
+})

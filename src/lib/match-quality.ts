@@ -137,3 +137,50 @@ export function starStrength(bestRankOnCourt: number | null): number {
   if (bestRankOnCourt <= 100) return 0.10
   return 0
 }
+
+const UNRANKED_PENALTY = 0.15
+
+export interface MatchQualityInput {
+  pair1Rankings: [number | null, number | null]
+  pair2Rankings: [number | null, number | null]
+  tournamentLevel: string | null
+  round: string | null
+}
+
+function hasUnranked(input: MatchQualityInput): boolean {
+  return (
+    input.pair1Rankings[0] == null ||
+    input.pair1Rankings[1] == null ||
+    input.pair2Rankings[0] == null ||
+    input.pair2Rankings[1] == null
+  )
+}
+
+function bestRankOnCourt(input: MatchQualityInput): number | null {
+  const ranks = [
+    input.pair1Rankings[0],
+    input.pair1Rankings[1],
+    input.pair2Rankings[0],
+    input.pair2Rankings[1],
+  ].filter((r): r is number => r != null)
+  if (ranks.length === 0) return null
+  return Math.min(...ranks)
+}
+
+/** Raw 0–1 quality (unrounded). Exposed for breakdown / integration callers. */
+function rawQuality(input: MatchQualityInput): number {
+  const pA = pairEffRank(input.pair1Rankings[0], input.pair1Rankings[1])
+  const pB = pairEffRank(input.pair2Rankings[0], input.pair2Rankings[1])
+  const par = parity(pWin(pA, pB))
+  const damper = starDamper((pA + pB) / 2)
+  const bonus = alpha(input.round) * starStrength(bestRankOnCourt(input))
+  const tw = tierWeight(input.tournamentLevel)
+  const rw = roundWeight(input.round)
+  const unr = hasUnranked(input) ? UNRANKED_PENALTY : 1
+  return clamp01((par * damper + bonus) * tw * rw * unr)
+}
+
+/** Integer score in [0, 100]. */
+export function matchQualityScore(input: MatchQualityInput): number {
+  return Math.round(rawQuality(input) * 100)
+}
