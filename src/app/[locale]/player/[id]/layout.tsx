@@ -123,7 +123,11 @@ export default async function PlayerLayout({ params, children }: Props) {
     const recentRows = recentRes.data ?? []
 
     const recent: RecentMatchInput[] = (recentRows as unknown as DbRecent[])
-      .filter((m) => m.tournament && (m.pair1_player1 || m.pair2_player1))
+      .filter(
+        (m) =>
+          m.tournament &&
+          (m.pair1_player1 || m.pair1_player2 || m.pair2_player1 || m.pair2_player2),
+      )
       .map((m) => {
         const playerSide =
           m.pair1_player1_id === id || m.pair1_player2_id === id ? 1 : 2
@@ -145,12 +149,9 @@ export default async function PlayerLayout({ params, children }: Props) {
           )
           .join(', ')
 
-        const wonPlayerSide = m.winner_pair === playerSide
-        const result = score
-          ? `${wonPlayerSide ? 'won' : 'lost'} ${score}`
-          : wonPlayerSide
-            ? 'won'
-            : 'lost'
+        const won = m.winner_pair != null ? m.winner_pair === playerSide : null
+        const verb = won === true ? 'won' : won === false ? 'lost' : 'played'
+        const result = score ? `${verb} ${score}` : verb
 
         return {
           tournament_name: m.tournament?.name ?? '',
