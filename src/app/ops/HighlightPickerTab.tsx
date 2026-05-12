@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react'
 import { playerShortName } from '@/lib/player-short-name'
+import { roundLabel } from '@/lib/match-quality'
 
 interface PlayerRef { name: string | null; ranking: number | null }
 interface Item {
@@ -221,7 +222,7 @@ export default function HighlightPickerTab() {
                       {renderPair(item.pair1)}  vs  {renderPair(item.pair2)}
                     </a>
                   </td>
-                  <td style={{ padding: 8 }}>{item.round ?? '—'}</td>
+                  <td style={{ padding: 8 }} title={item.round ?? undefined}>{roundLabel(item.round)}</td>
                   <td style={{ padding: 8 }}>
                     <span style={{
                       display: 'inline-block', padding: '2px 6px', borderRadius: 4,

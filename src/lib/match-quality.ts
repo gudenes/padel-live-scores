@@ -87,6 +87,26 @@ const ROUND_WEIGHT_TABLE: Record<RoundKey, number> = {
 export const roundWeight = (raw: string | null | undefined): number =>
   ROUND_WEIGHT_TABLE[roundKey(raw)]
 
+/**
+ * Canonical human label for a round. Use this anywhere operators or
+ * users see the round string — upstream sources mix "Round of 32",
+ * "R32", "1/16" for the same logical round, and the picker table looks
+ * incoherent if those leak through unchanged.
+ */
+const ROUND_LABEL_TABLE: Record<RoundKey, string> = {
+  final: 'Final',
+  sf: 'Semifinal',
+  qf: 'Quarterfinal',
+  r16: 'R16',
+  r32: 'R32',
+  r64: 'R64',
+  r128: 'R128',
+  q: 'Qualifying',
+  unknown: '—',
+}
+export const roundLabel = (raw: string | null | undefined): string =>
+  ROUND_LABEL_TABLE[roundKey(raw)]
+
 const ALPHA_TABLE: Record<RoundKey, number> = {
   final: 0.00,
   sf: 0.05,
