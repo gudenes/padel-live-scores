@@ -1351,14 +1351,16 @@ export function resolveFourPlayers(
     };
   }
 
-  // Pass 2 — pair-anchor sweep. Only runs when caller passes
-  // fipIdToPartner via options. For each of the two pairs:
-  //   - If exactly one slot resolved AND the unresolved slot's raw
-  //     shorthand is consistent with the resolved slot's entry-list
-  //     partner → assign the partner's fip_id at tier 'partner_anchor'.
-  // The slotsByPair array uses lazy reads of `out[slot]` so a future
-  // mis-pair sanity sweep (Task 6) can run before this loop and mutate
-  // `out`, and this loop will see the updated state.
+  // Pass 2 — pair-aware sweeps. Only runs when caller passes
+  // fipIdToPartner via options. Two sweeps run in order:
+  //   1. mis-pair sanity: when both slots resolve but aren't entry-list
+  //      partners, drop the lower-tier slot (or both when tiers equal).
+  //   2. partner-anchor: when exactly one slot is resolved AND the
+  //      unresolved slot's raw shorthand is consistent with the resolved
+  //      slot's entry-list partner, assign the partner's fip_id at tier
+  //      'partner_anchor'. Uses lazy out[slot] reads so refill of a
+  //      mis-pair-dropped slot is automatic when the kept slot's
+  //      entry-list partner matches the dropped slot's shorthand.
   const fipIdToPartner = options?.fipIdToPartner;
   if (useTiers && fipIdToPartner) {
     const slotsByPair = [
@@ -1421,7 +1423,10 @@ export function resolveFourPlayers(
       const bFip = playerIdToFipId.get(pair.bPlayerId);
       if (!aFip || !bFip) continue;
       const aPartner = fipIdToPartner.get(aFip);
-      // Mis-pair when A's entry-list partner is set AND it's NOT B
+      // Mis-pair when A's entry-list partner is set AND it's NOT B.
+      // Entry-list rows are symmetric (each player's row names the
+      // other as partner), so checking only A's side is sufficient —
+      // if A's partner isn't B, B's partner isn't A either.
       if (aPartner && aPartner.partnerFipId && aPartner.partnerFipId !== bFip) {
         const aRank = tierRank[pair.aTier ?? 'unresolved'];
         const bRank = tierRank[pair.bTier ?? 'unresolved'];
@@ -1440,8 +1445,15 @@ export function resolveFourPlayers(
         } else {
           pair.dropA();
           pair.dropB();
+          // Tie: emit one warn per dropped slot so the payload shape
+          // matches the A-wins / B-wins branches (consumers can filter
+          // on droppedFipId without missing tie events).
           logger?.warn(
-            { keptTier: null, droppedTier: pair.aTier, droppedFipIds: [aFip, bFip] },
+            { keptTier: null, keptFipId: null, droppedTier: pair.aTier, droppedFipId: aFip },
+            'mispair_detected',
+          );
+          logger?.warn(
+            { keptTier: null, keptFipId: null, droppedTier: pair.bTier, droppedFipId: bFip },
             'mispair_detected',
           );
         }
