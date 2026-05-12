@@ -322,6 +322,9 @@ export function isShortFormConsistentWith(
  * names. Used by the late-swap detector — if initials match but
  * `isShortFormConsistentWith` is false, the OOP shorthand may indicate
  * a real pair swap rather than a resolver error.
+ *
+ * Single-token inputs are accepted — unlike `isShortFormConsistentWith`
+ * which requires at least two tokens on both sides.
  */
 export function doShortFormInitialsMatch(
   shortOrLong: string,
