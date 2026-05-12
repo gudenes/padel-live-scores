@@ -141,6 +141,82 @@ describe('buildBracket', () => {
     const r32top = bracket.find(n => n.round === 'R32' && n.positionInRound === 0)!
     expect(r32top.isBye).toBe(false)
   })
+
+  it('keeps a seed-bye marked as bye even when seed shares first name with an R64 player', () => {
+    // Regression for Buenos Aires P1 2026: seed [14] Barahona/Alfonso has a
+    // bye into R32. An unrelated R64 match (Valdes/Renzo Gabriel Nuñez) shares
+    // common Spanish first names "Javier" and "Gabriel" with the seed. The
+    // findFeedingMatch name-token fallback was matching the unrelated R64
+    // match to the seed pair, displacing the bye marker and orphaning a slot
+    // elsewhere as "Winner of TBD". The fix: skip Pass 2 when the target pair
+    // is a seed with an empty opposite side.
+    const matches: Match[] = [
+      // R32 cell at bracket position 0: pair1 is seed 14, pair2 is TBD
+      // (winner of an R64 they don't play).
+      fakeMatch({
+        id: 'r32-seed14', round: 'R32', draw_position: 0,
+        pair1_player1: { id: 'barahona-id', name: 'Javier Barahona' } as any,
+        pair1_player2: { id: 'alfonso-id', name: 'Gonzalo Gabriel Alfonso' } as any,
+        pair1_seed: 14,
+      }),
+      // Unrelated R64 match. Shares "javier" with Barahona and "gabriel"
+      // with Alfonso via Pass 2 false positive — they are NOT the same pair.
+      fakeMatch({
+        id: 'r64-other', round: 'R64', draw_position: 1,
+        pair1_player1: { id: 'ronco', name: 'Adrian Ronco Lopez' } as any,
+        pair1_player2: { id: 'lacamoire', name: 'Julian Lacamoire' } as any,
+        pair2_player1: { id: 'valdes', name: 'Javier Valdes' } as any,
+        pair2_player2: { id: 'renzo', name: 'Renzo Gabriel Nuñez' } as any,
+      }),
+    ]
+    const bracket = buildBracket(matches, 64)
+    // The R64 slot feeding seed14's pair1 (pos 0 = 2*0) should be a bye,
+    // not occupied by the unrelated R64 match.
+    const r64Pos0 = bracket.find(n => n.round === 'R64' && n.positionInRound === 0)!
+    expect(r64Pos0.match).toBeNull()
+    expect(r64Pos0.isBye).toBe(true)
+    expect(r64Pos0.byePair?.player1.id).toBe('barahona-id')
+
+    // The unrelated R64 match must still appear somewhere — not consumed
+    // by the false-positive placement at the bye slot.
+    const placedR64 = bracket.filter(n => n.round === 'R64' && n.match)
+    expect(placedR64.length).toBe(1)
+    expect(placedR64[0].match!.id).toBe('r64-other')
+    expect(placedR64[0].positionInRound).not.toBe(0)
+  })
+
+  it('still finds a Pass-1 (UUID) feeder for a seeded pair carrying forward to the next round', () => {
+    // When a seeded pair WON their first-round match (rather than getting a
+    // bye), the next-round cell carries the seed but the previous-round match
+    // must still be linked via findFeedingMatch's UUID pass. The seed-bye
+    // skip only applies when the opposite side of the next-round cell is
+    // empty AND Pass 1 finds nothing — Pass 1 hits must still succeed.
+    const matches: Match[] = [
+      // R32 round 1 (firstRound for a 32-draw): Seed3 vs opponent
+      fakeMatch({
+        id: 'r32-played', round: 'R32', draw_position: 0,
+        pair1_player1: { id: 'seed3-a', name: 'Seed Three Player A' } as any,
+        pair1_player2: { id: 'seed3-b', name: 'Seed Three Player B' } as any,
+        pair2_player1: { id: 'opp-a', name: 'Opp A' } as any,
+        pair2_player2: { id: 'opp-b', name: 'Opp B' } as any,
+        pair1_seed: 3,
+        winner_pair: 1,
+      }),
+      // R16: Seed3 carried forward, opponent TBD (other R32 still pending)
+      fakeMatch({
+        id: 'r16-0', round: 'R16', draw_position: 0,
+        pair1_player1: { id: 'seed3-a', name: 'Seed Three Player A' } as any,
+        pair1_player2: { id: 'seed3-b', name: 'Seed Three Player B' } as any,
+        pair1_seed: 3,
+      }),
+    ]
+    const bracket = buildBracket(matches, 32)
+    // R32 pos 0 (top feed of R16 pos 0) must contain the played R32 match,
+    // NOT be marked as a bye.
+    const r32top = bracket.find(n => n.round === 'R32' && n.positionInRound === 0)!
+    expect(r32top.match?.id).toBe('r32-played')
+    expect(r32top.isBye).toBe(false)
+  })
 })
 
 describe('tracePairPath', () => {

@@ -100,12 +100,29 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
     const nextMatches = matchesByRound.get(nextRound) ?? []
     for (let j = 0; j < nextMatches.length; j++) {
       const m = nextMatches[j]
-      const topFeed = findFeedingMatch(firstRoundUnplaced, m.pair1_player1, m.pair1_player2)
+      // Seed-bye detection: a seeded pair with the opposite side fully empty
+      // is a bye. Pass 1 (exact UUID) still runs — it catches carry-forward
+      // seeds whose feeder DID play in the previous round. But Pass 2 (name
+      // tokens) is skipped, because common Spanish first names (Juan, Javier,
+      // Jose, Gabriel, Maximiliano …) shared with unrelated previous-round
+      // players were falsely linking seeds to non-feeders, displacing the bye
+      // marker and orphaning a slot elsewhere as "Winner of TBD".
+      const topIsSeedBye =
+        m.pair1_seed != null && !m.pair2_player1 && !m.pair2_player2
+      const botIsSeedBye =
+        m.pair2_seed != null && !m.pair1_player1 && !m.pair1_player2
+      const topFeed = findFeedingMatch(
+        firstRoundUnplaced, m.pair1_player1, m.pair1_player2,
+        { skipNameFallback: topIsSeedBye },
+      )
       if (topFeed) {
         firstRoundByPos.set(2 * j, topFeed)
         firstRoundUnplaced.delete(topFeed)
       }
-      const botFeed = findFeedingMatch(firstRoundUnplaced, m.pair2_player1, m.pair2_player2)
+      const botFeed = findFeedingMatch(
+        firstRoundUnplaced, m.pair2_player1, m.pair2_player2,
+        { skipNameFallback: botIsSeedBye },
+      )
       if (botFeed) {
         firstRoundByPos.set(2 * j + 1, botFeed)
         firstRoundUnplaced.delete(botFeed)
@@ -241,6 +258,7 @@ function findFeedingMatch(
   pool: Iterable<Match>,
   p1: PlayerLike,
   p2: PlayerLike,
+  opts: { skipNameFallback?: boolean } = {},
 ): Match | undefined {
   const id1 = p1?.id, id2 = p2?.id
   // Pass 1: exact UUID match on either side of an R32 match.
@@ -260,6 +278,13 @@ function findFeedingMatch(
   // candidate's tokens. Two different targets must match two different
   // candidates so a single shared first name (e.g. "Nuria") doesn't
   // collapse a pair.
+  //
+  // `skipNameFallback` is set by the caller when the target pair is a
+  // seed-bye (seeded pair with the opposite side fully TBD). For those,
+  // there can't be a real feeder match — and shared first names (Juan,
+  // Javier, Jose …) would otherwise produce a false positive that
+  // displaces the bye marker.
+  if (opts.skipNameFallback) return undefined
   const t1 = nameTokens(p1?.name)
   const t2 = nameTokens(p2?.name)
   if (t1.size === 0 || t2.size === 0) return undefined
