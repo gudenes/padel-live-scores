@@ -281,6 +281,63 @@ export function shortenName(longName: string): string {
 }
 
 /**
+ * Returns true when a short-form input ("J. Ruiz") is consistent with a
+ * long-form name ("Javier Ruiz Gonzalez"). The rule is permissive on
+ * purpose — callers decide what to do with multiple consistent
+ * candidates:
+ *   - bracket overlay requires EXACTLY ONE consistent bracket name
+ *   - partner anchor trusts the sibling's entry-list partner declaration
+ *
+ * Consistency =
+ *   (1) same first letter on the first token (handles "J. " short or
+ *       "Javier" long), AND
+ *   (2) at least one shared surname token between the input's surname
+ *       tokens (everything after the first token) and the long-form's
+ *       surname tokens.
+ *
+ * Returns false on null / empty / single-token inputs (a single token
+ * can't be confidently mapped to a multi-token long-form by this rule).
+ */
+export function isShortFormConsistentWith(
+  shortOrLong: string,
+  longForm: string,
+): boolean {
+  if (!shortOrLong || !longForm) return false;
+  const sTokens = normalizeName(shortOrLong).split(' ').filter(Boolean);
+  const lTokens = normalizeName(longForm).split(' ').filter(Boolean);
+  if (sTokens.length < 2 || lTokens.length < 2) return false;
+  // Initial match: compare first letter of first token, ignoring the
+  // trailing dot if present ("j." vs "javier" both start with "j").
+  const sInitial = sTokens[0]!.charAt(0);
+  const lInitial = lTokens[0]!.charAt(0);
+  if (sInitial !== lInitial) return false;
+  // Surname overlap: any token after the first in s appears anywhere
+  // after the first in l.
+  const lSurnames = new Set(lTokens.slice(1));
+  return sTokens.slice(1).some((t) => lSurnames.has(t));
+}
+
+/**
+ * Returns true when only the first-token initial agrees between two
+ * names. Used by the late-swap detector — if initials match but
+ * `isShortFormConsistentWith` is false, the OOP shorthand may indicate
+ * a real pair swap rather than a resolver error.
+ *
+ * Single-token inputs are accepted — unlike `isShortFormConsistentWith`
+ * which requires at least two tokens on both sides.
+ */
+export function doShortFormInitialsMatch(
+  shortOrLong: string,
+  longForm: string,
+): boolean {
+  if (!shortOrLong || !longForm) return false;
+  const sTokens = normalizeName(shortOrLong).split(' ').filter(Boolean);
+  const lTokens = normalizeName(longForm).split(' ').filter(Boolean);
+  if (sTokens.length === 0 || lTokens.length === 0) return false;
+  return sTokens[0]!.charAt(0) === lTokens[0]!.charAt(0);
+}
+
+/**
  * Build a short-form → fip_id lookup from the long-form nameToFipId map.
  *
  * Covers three Crionet short-form patterns observed in oop_snapshots:
@@ -1439,6 +1496,76 @@ async function loadEntryListNameMap(
     nameToFipId.set(normalizeName(r.name), r.fip_id);
   }
   return nameToFipId;
+}
+
+/**
+ * Pair-aware entry-list index.
+ *
+ *   nameToFipId: same flat map loadEntryListNameMap returns — used by
+ *                Pattern 1/2/3 short-form resolution unchanged.
+ *
+ *   fipIdToPartner: for every entry-list row that has either
+ *                   partner_fip_id OR partner_name, the partner's
+ *                   normalized long-form name (and fip_id when known).
+ *                   Powers the Pass 2 partner-anchor sweep.
+ *
+ * Both maps reflect the latest captured_at per (category, fip_id).
+ */
+export interface PairIndex {
+  nameToFipId: Map<string, string>;
+  fipIdToPartner: Map<string, {
+    partnerFipId: string | null;
+    partnerNormName: string;
+  }>;
+}
+
+export async function buildPairIndex(
+  supabase: SupabaseClient,
+  tournamentId: string,
+): Promise<PairIndex> {
+  interface Row {
+    name: string | null;
+    fip_id: string | null;
+    category: 'men' | 'women';
+    partner_fip_id: string | null;
+    partner_name: string | null;
+    captured_at: string;
+  }
+  const rows = await paginatedSelect<Row>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('entry_list_snapshots')
+        .select('name, fip_id, category, partner_fip_id, partner_name, captured_at')
+        .eq('tournament_id', tournamentId)
+        .range(start, end),
+    { what: `entry_list_snapshots (tournament=${tournamentId})` },
+  );
+
+  // Latest captured_at per category (same rule as loadEntryListNameMap).
+  const maxByCat = new Map<string, string>();
+  for (const r of rows) {
+    const prev = maxByCat.get(r.category);
+    if (!prev || r.captured_at > prev) maxByCat.set(r.category, r.captured_at);
+  }
+
+  const nameToFipId = new Map<string, string>();
+  const fipIdToPartner = new Map<string, { partnerFipId: string | null; partnerNormName: string }>();
+  for (const r of rows) {
+    if (r.captured_at !== maxByCat.get(r.category)) continue;
+    if (r.name && r.fip_id) nameToFipId.set(normalizeName(r.name), r.fip_id);
+    if (r.fip_id && (r.partner_fip_id || r.partner_name)) {
+      const partnerNormName = r.partner_name ? normalizeName(r.partner_name) : '';
+      if (partnerNormName || r.partner_fip_id) {
+        fipIdToPartner.set(r.fip_id, {
+          partnerFipId: r.partner_fip_id,
+          partnerNormName,
+        });
+      }
+    }
+  }
+
+  return { nameToFipId, fipIdToPartner };
 }
 
 async function loadPlayersByFipId(
