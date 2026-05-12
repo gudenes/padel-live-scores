@@ -281,6 +281,60 @@ export function shortenName(longName: string): string {
 }
 
 /**
+ * Returns true when a short-form input ("J. Ruiz") is consistent with a
+ * long-form name ("Javier Ruiz Gonzalez"). The rule is permissive on
+ * purpose — callers decide what to do with multiple consistent
+ * candidates:
+ *   - bracket overlay requires EXACTLY ONE consistent bracket name
+ *   - partner anchor trusts the sibling's entry-list partner declaration
+ *
+ * Consistency =
+ *   (1) same first letter on the first token (handles "J. " short or
+ *       "Javier" long), AND
+ *   (2) at least one shared surname token between the input's surname
+ *       tokens (everything after the first token) and the long-form's
+ *       surname tokens.
+ *
+ * Returns false on null / empty / single-token inputs (a single token
+ * can't be confidently mapped to a multi-token long-form by this rule).
+ */
+export function isShortFormConsistentWith(
+  shortOrLong: string,
+  longForm: string,
+): boolean {
+  if (!shortOrLong || !longForm) return false;
+  const sTokens = normalizeName(shortOrLong).split(' ').filter(Boolean);
+  const lTokens = normalizeName(longForm).split(' ').filter(Boolean);
+  if (sTokens.length < 2 || lTokens.length < 2) return false;
+  // Initial match: compare first letter of first token, ignoring the
+  // trailing dot if present ("j." vs "javier" both start with "j").
+  const sInitial = sTokens[0]!.charAt(0);
+  const lInitial = lTokens[0]!.charAt(0);
+  if (sInitial !== lInitial) return false;
+  // Surname overlap: any token after the first in s appears anywhere
+  // after the first in l.
+  const lSurnames = new Set(lTokens.slice(1));
+  return sTokens.slice(1).some((t) => lSurnames.has(t));
+}
+
+/**
+ * Returns true when only the first-token initial agrees between two
+ * names. Used by the late-swap detector — if initials match but
+ * `isShortFormConsistentWith` is false, the OOP shorthand may indicate
+ * a real pair swap rather than a resolver error.
+ */
+export function doShortFormInitialsMatch(
+  shortOrLong: string,
+  longForm: string,
+): boolean {
+  if (!shortOrLong || !longForm) return false;
+  const sTokens = normalizeName(shortOrLong).split(' ').filter(Boolean);
+  const lTokens = normalizeName(longForm).split(' ').filter(Boolean);
+  if (sTokens.length === 0 || lTokens.length === 0) return false;
+  return sTokens[0]!.charAt(0) === lTokens[0]!.charAt(0);
+}
+
+/**
  * Build a short-form → fip_id lookup from the long-form nameToFipId map.
  *
  * Covers three Crionet short-form patterns observed in oop_snapshots:

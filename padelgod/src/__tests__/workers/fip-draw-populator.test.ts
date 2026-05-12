@@ -5,6 +5,9 @@ import {
   normalizeName,
   shortenName,
   buildShortFormMap,
+  // NEW exports added by this plan:
+  isShortFormConsistentWith,
+  doShortFormInitialsMatch,
 } from '../../workers/fip-draw-populator.js';
 
 // Matches the production Isla de la Palma shape minus fields the
@@ -2922,5 +2925,51 @@ describe('runFipDrawPopulator — qualifier round label backfill on UPDATE', () 
 
     expect(result.skippedAlreadyComplete).toBe(1);
     expect(supabase.updated).toHaveLength(0);
+  });
+});
+
+describe('isShortFormConsistentWith', () => {
+  it('returns true when initial matches and at least one surname token overlaps', () => {
+    expect(isShortFormConsistentWith('J. Ruiz', 'Javier Ruiz Gonzalez')).toBe(true);
+    expect(isShortFormConsistentWith('J. Ruiz', 'Jorge Nieto Ruiz')).toBe(true);
+    expect(isShortFormConsistentWith('G. Rubio', 'Gonzalo Rubio')).toBe(true);
+  });
+
+  it('returns true when both sides are long-form and match exactly', () => {
+    expect(isShortFormConsistentWith('Gonzalo Rubio', 'Gonzalo Rubio')).toBe(true);
+  });
+
+  it('returns false when initials disagree', () => {
+    expect(isShortFormConsistentWith('M. Ruiz', 'Javier Ruiz Gonzalez')).toBe(false);
+  });
+
+  it('returns false when initial matches but no surname token overlaps (late-swap case)', () => {
+    expect(isShortFormConsistentWith('J. Rubini', 'Javier Ruiz Gonzalez')).toBe(false);
+  });
+
+  it('handles diacritics and case-insensitivity', () => {
+    expect(isShortFormConsistentWith('D. García', 'Diego Garcia Garcia')).toBe(true);
+    expect(isShortFormConsistentWith('a. miranda', 'Adrian Maria Miranda')).toBe(true);
+  });
+
+  it('returns false on null or empty inputs', () => {
+    expect(isShortFormConsistentWith(null as never, 'Gonzalo Rubio')).toBe(false);
+    expect(isShortFormConsistentWith('G. Rubio', null as never)).toBe(false);
+    expect(isShortFormConsistentWith('', 'Gonzalo Rubio')).toBe(false);
+  });
+});
+
+describe('doShortFormInitialsMatch', () => {
+  it('returns true when first initials agree', () => {
+    expect(doShortFormInitialsMatch('J. Rubini', 'Javier Ruiz Gonzalez')).toBe(true);
+  });
+
+  it('returns false when first initials disagree', () => {
+    expect(doShortFormInitialsMatch('M. Ruiz', 'Javier Ruiz Gonzalez')).toBe(false);
+  });
+
+  it('returns false on null inputs', () => {
+    expect(doShortFormInitialsMatch(null as never, 'Javier Ruiz Gonzalez')).toBe(false);
+    expect(doShortFormInitialsMatch('J. Ruiz', null as never)).toBe(false);
   });
 });
