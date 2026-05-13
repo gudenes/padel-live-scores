@@ -86,6 +86,19 @@ export interface VisualSystem {
   progressBarTilt: number
 }
 
+export interface SlotConfig {
+  logoUrl: string
+  scale: number // 0.5–2.0
+}
+
+export interface BrandingSlots {
+  backWall: SlotConfig | null
+  sideGlassLeft: SlotConfig | null
+  sideGlassRight: SlotConfig | null
+  netBand: SlotConfig | null
+  floorCenter: SlotConfig | null
+}
+
 export interface CourtConfig {
   name: string
   active: boolean
@@ -93,4 +106,5 @@ export interface CourtConfig {
   bounds: CourtBounds
   zones: CourtZones
   visualSystem: VisualSystem
+  branding: BrandingSlots
 }

@@ -27,4 +27,11 @@ export const DEFAULT_COURT: CourtConfig = {
     letterRadius: 12,
     progressBarTilt: -7,
   },
+  branding: {
+    backWall: null,
+    sideGlassLeft: null,
+    sideGlassRight: null,
+    netBand: null,
+    floorCenter: null,
+  },
 }
