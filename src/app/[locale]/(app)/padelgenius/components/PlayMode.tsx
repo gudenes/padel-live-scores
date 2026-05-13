@@ -85,27 +85,29 @@ export function PlayMode({ questions, onExit, onComplete }: PlayModeProps) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0a0a14', overflow: 'hidden', zIndex: 9999 }}>
-      <Scene
-        question={q}
-        phase={renderPhase}
-        selectedId={selected}
-        pickedId={picked}
-        onSelect={handleSelect}
-        onConfirm={handleConfirm}
-      />
-      <TopZone question={q} onExit={onExit} muted={sound.muted} onToggleMute={sound.toggleMuted} />
-      <ProgressBar total={questions.length} current={idx} history={history} />
-      {phase === 'selecting' && <ClearPill onClear={handleClear} />}
-      {phase === 'revealing' && picked && (
-        <RevealSheet
+    <div className="pg-no-motion-reduce" style={{ position: 'fixed', inset: 0, background: '#0a0a14', overflow: 'hidden', zIndex: 9999 }}>
+      <div key={idx} style={{ position: 'absolute', inset: 0, animation: 'pg-fade-in 250ms ease-out' }}>
+        <Scene
           question={q}
-          correct={picked === q.options.find(o => o.isCorrect)?.id}
-          picked={picked}
-          onContinue={handleContinue}
+          phase={renderPhase}
+          selectedId={selected}
+          pickedId={picked}
+          onSelect={handleSelect}
+          onConfirm={handleConfirm}
         />
-      )}
-      {phase === 'idle' && <HintPill />}
+        <TopZone question={q} onExit={onExit} muted={sound.muted} onToggleMute={sound.toggleMuted} />
+        <ProgressBar total={questions.length} current={idx} history={history} />
+        {phase === 'selecting' && <ClearPill onClear={handleClear} />}
+        {phase === 'revealing' && picked && (
+          <RevealSheet
+            question={q}
+            correct={picked === q.options.find(o => o.isCorrect)?.id}
+            picked={picked}
+            onContinue={handleContinue}
+          />
+        )}
+        {phase === 'idle' && <HintPill />}
+      </div>
     </div>
   )
 }
