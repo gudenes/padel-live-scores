@@ -2,7 +2,7 @@
 // src/app/ops/BrandsTab.tsx
 // Brands & Equipment management UI for the ops dashboard
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -160,6 +160,30 @@ export default function BrandsTab() {
   const [savingRacket, setSavingRacket] = useState(false)
   const [racketMessage, setRacketMessage] = useState<string | null>(null)
 
+  // Upload state
+  const [uploadingBrand, setUploadingBrand] = useState(false)
+  const [uploadingRacket, setUploadingRacket] = useState(false)
+  const brandFileInputRef = useRef<HTMLInputElement>(null)
+  const racketFileInputRef = useRef<HTMLInputElement>(null)
+
+  const uploadImage = async (
+    kind: 'brand' | 'racket',
+    entityId: string,
+    file: File,
+  ): Promise<string> => {
+    const body = new FormData()
+    body.set('kind', kind)
+    body.set('entityId', entityId)
+    body.set('file', file)
+    const res = await fetch('/api/ops/upload-equipment-image', { method: 'POST', body })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error ?? `HTTP ${res.status}`)
+    }
+    const { url } = (await res.json()) as { url: string }
+    return url
+  }
+
   // ── Fetch brands ──────────────────────────────────────────────
 
   const fetchBrands = useCallback(async () => {
@@ -233,6 +257,7 @@ export default function BrandsTab() {
       setShowBrandForm(false)
       setEditingBrandId(null)
       setBrandForm(emptyBrandForm())
+      setUploadingBrand(false)
       await fetchBrands()
     } catch (err: unknown) {
       setBrandMessage(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -282,6 +307,7 @@ export default function BrandsTab() {
       setShowRacketForm(false)
       setEditingRacketId(null)
       setRacketForm(emptyRacketForm())
+      setUploadingRacket(false)
       await fetchRackets()
       await fetchBrands() // refresh racket counts
     } catch (err: unknown) {
@@ -327,6 +353,7 @@ export default function BrandsTab() {
     setEditingBrandId(null)
     setBrandForm(emptyBrandForm())
     setBrandMessage(null)
+    setUploadingBrand(false)
   }
 
   const cancelRacketForm = () => {
@@ -334,6 +361,7 @@ export default function BrandsTab() {
     setEditingRacketId(null)
     setRacketForm(emptyRacketForm())
     setRacketMessage(null)
+    setUploadingRacket(false)
   }
 
   // ── Render ────────────────────────────────────────────────────
@@ -385,6 +413,37 @@ export default function BrandsTab() {
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
                   )}
+                  <input
+                    ref={brandFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (!file || !editingBrandId) return
+                      setUploadingBrand(true)
+                      setBrandMessage(null)
+                      try {
+                        const url = await uploadImage('brand', editingBrandId, file)
+                        setBrandForm(f => ({ ...f, logo_url: url }))
+                        setBrandMessage('Logo uploaded — click Save to persist')
+                      } catch (err) {
+                        setBrandMessage(`Error: ${err instanceof Error ? err.message : 'Upload failed'}`)
+                      } finally {
+                        setUploadingBrand(false)
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    style={{ ...btnSecondary, opacity: editingBrandId ? 1 : 0.4, cursor: editingBrandId ? 'pointer' : 'not-allowed' }}
+                    disabled={!editingBrandId || uploadingBrand}
+                    onClick={() => brandFileInputRef.current?.click()}
+                    title={editingBrandId ? 'Upload a logo file (max 2 MB)' : 'Save the brand first, then upload'}
+                  >
+                    {uploadingBrand ? 'Uploading...' : 'Upload file'}
+                  </button>
                 </div>
               </div>
               <div>
@@ -629,6 +688,37 @@ export default function BrandsTab() {
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
                   )}
+                  <input
+                    ref={racketFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (!file || !editingRacketId) return
+                      setUploadingRacket(true)
+                      setRacketMessage(null)
+                      try {
+                        const url = await uploadImage('racket', editingRacketId, file)
+                        setRacketForm(f => ({ ...f, image_url: url }))
+                        setRacketMessage('Image uploaded — click Save to persist')
+                      } catch (err) {
+                        setRacketMessage(`Error: ${err instanceof Error ? err.message : 'Upload failed'}`)
+                      } finally {
+                        setUploadingRacket(false)
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    style={{ ...btnSecondary, opacity: editingRacketId ? 1 : 0.4, cursor: editingRacketId ? 'pointer' : 'not-allowed' }}
+                    disabled={!editingRacketId || uploadingRacket}
+                    onClick={() => racketFileInputRef.current?.click()}
+                    title={editingRacketId ? 'Upload an image file (max 2 MB)' : 'Save the racket first, then upload'}
+                  >
+                    {uploadingRacket ? 'Uploading...' : 'Upload file'}
+                  </button>
                 </div>
               </div>
             </div>
