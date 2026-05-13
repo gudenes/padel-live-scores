@@ -18,7 +18,7 @@ export interface PlayModeProps {
 
 type Phase = 'idle' | 'selecting' | 'revealing' | 'summary'
 
-function swooshFor(style: TrajectoryStyle): 'swoosh-flat' | 'swoosh-lob' | 'swoosh-smash' {
+export function swooshFor(style: TrajectoryStyle): 'swoosh-flat' | 'swoosh-lob' | 'swoosh-smash' {
   if (style === 'lob') return 'swoosh-lob'
   if (style === 'smash' || style === 'vibora') return 'swoosh-smash'
   return 'swoosh-flat'
