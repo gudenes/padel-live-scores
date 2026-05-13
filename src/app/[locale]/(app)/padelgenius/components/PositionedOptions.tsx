@@ -162,6 +162,7 @@ function SelectionPillRow({
   // B3: typed as () => void — stopPropagation handled inside this component
   onConfirm: () => void
 }) {
+  const [pulsing, setPulsing] = useState(false)
   // I4: removed no-op `const labelText = label` — use label directly
   // I1: magic numbers replaced with named constants
   const labelW = Math.max(PILL_MIN_W_LABEL, label.length * PILL_CHAR_WIDTH_EST) + PILL_PADDING_X
@@ -186,8 +187,23 @@ function SelectionPillRow({
       <g
         transform={`translate(${total / 2 - confirmW / 2} 0)`}
         style={{ cursor: 'pointer' }}
-        onClick={(e) => { e.stopPropagation(); onConfirm() }}
+        onClick={(e) => {
+          e.stopPropagation()
+          setPulsing(true)
+          setTimeout(() => setPulsing(false), 320)
+          onConfirm()
+        }}
       >
+        {/* outward pulse ring — drawn behind the button rect */}
+        {pulsing && (
+          <circle
+            r={20}
+            fill="none"
+            stroke="#22C55E"
+            strokeWidth={2.5}
+            style={{ animation: 'pg-pulse-once 300ms ease-out forwards', transformOrigin: 'center' }}
+          />
+        )}
         <rect x={-confirmW / 2} y={-12} width={confirmW} height={26} rx={13} fill="#22C55E" stroke="#1A1A2E" strokeWidth={3} />
         <text y={4} textAnchor="middle" fill="#0a0a14" fontSize={11} fontWeight={900} letterSpacing={0.8}>
           CONFIRM
