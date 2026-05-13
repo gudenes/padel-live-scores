@@ -26,9 +26,25 @@ describe('trajectoryPath', () => {
     expect(d).toMatch(/Q/)
   })
 
-  it('flat: uses a straight line (L)', () => {
+  it('flat: uses a gentle quadratic curve (Q), matching the prior bandeja arc', () => {
     const d = trajectoryPath('flat', [10, 200], [200, 60])
+    expect(d).toMatch(/Q/)
+  })
+
+  it('cross: stays a straight line (L)', () => {
+    const d = trajectoryPath('cross', [10, 200], [200, 60])
     expect(d).toMatch(/L/)
+    expect(d).not.toMatch(/Q/)
+  })
+
+  it('bandeja: arcs noticeably higher than flat (deeper slice)', () => {
+    // Apex Y of bandeja should be lower (higher visually = smaller y) than flat
+    // for the same endpoints. Extract the Q control y from each path.
+    const flatD = trajectoryPath('flat',    [10, 200], [200, 200])
+    const banD  = trajectoryPath('bandeja', [10, 200], [200, 200])
+    const flatCy = parseFloat(flatD.match(/Q\s+\S+\s+(-?\d+(?:\.\d+)?)/)![1])
+    const banCy  = parseFloat(banD.match(/Q\s+\S+\s+(-?\d+(?:\.\d+)?)/)![1])
+    expect(banCy).toBeLessThan(flatCy)
   })
 
   it('wall-bounce: contains at least one bounce point (two segments)', () => {

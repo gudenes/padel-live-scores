@@ -59,7 +59,7 @@ export function PlayMode({ questions, onExit, onComplete }: PlayModeProps) {
     setPhase('revealing')
     // play swoosh + correct/wrong shortly after
     const opt = q.options.find(o => o.id === selected)
-    if (opt) sound.play(swooshFor(opt.outcome.trajectory.style))
+    if (opt?.outcome.trajectory) sound.play(swooshFor(opt.outcome.trajectory.style))
     setTimeout(() => sound.play(result.correct ? 'correct' : 'wrong'), 250)
   }, [q, selected, sound])
 

@@ -7,7 +7,7 @@ import { PlayerSprite, PLAYER_SPRITE_URLS } from './PlayerSprite'
 import { BallSprite } from './BallSprite'
 import { TrajectoryRenderer } from './TrajectoryRenderer'
 import { PositionedOptions } from './PositionedOptions'
-import { trajectoryPath } from '@/lib/padelgenius/trajectories'
+import { introSegments, trajectoryPath } from '@/lib/padelgenius/trajectories'
 
 export interface SceneProps {
   question: Question
@@ -26,9 +26,13 @@ export function Scene({ question, phase, selectedId, pickedId, onSelect, onConfi
   const correctId = correctOpt.id
   const revealing = phase === 'revealing'
 
-  // Apply playerOverrides from the picked option during reveal
-  const players: PlayerPosition[] = revealing && pickedId
-    ? applyOverrides(question.court.players, question.options.find(o => o.id === pickedId)?.outcome.playerOverrides)
+  // Apply playerOverrides from the active option — picked during reveal, OR
+  // selected during preview (so players animate to their new spot on tap, before CONFIRM).
+  const activeOptionId = revealing
+    ? pickedId
+    : phase === 'selecting' ? selectedId : null
+  const players: PlayerPosition[] = activeOptionId
+    ? applyOverrides(question.court.players, question.options.find(o => o.id === activeOptionId)?.outcome.playerOverrides)
     : question.court.players
   const sortedPlayers = [...players].sort((a, b) => a.y - b.y)
 
@@ -42,9 +46,19 @@ export function Scene({ question, phase, selectedId, pickedId, onSelect, onConfi
         ]
     : []
 
-  // Deviation 2: hoist ball coordinate calculation (avoids calling toSvg twice)
-  const setupBall = question.court.ball && !revealing
-    ? toSvg(question.court.ball.x, question.court.ball.y, bounds)
+  // Resolve the setup ball position during non-reveal phases. When an option
+  // is active in selecting phase, prefer its setupBall override; fall back to
+  // the question-level court.ball; otherwise no ball is shown.
+  const setupBallCoord = (() => {
+    if (revealing) return null
+    if (phase === 'selecting' && selectedId) {
+      const opt = question.options.find(o => o.id === selectedId)
+      if (opt?.outcome.setupBall) return opt.outcome.setupBall
+    }
+    return question.court.ball ?? null
+  })()
+  const setupBall = setupBallCoord
+    ? toSvg(setupBallCoord.x, setupBallCoord.y, bounds)
     : null
 
   return (
@@ -108,21 +122,171 @@ export function Scene({ question, phase, selectedId, pickedId, onSelect, onConfi
         )
       })}
 
-      {/* Existing question ball (if part of the setup, e.g. incoming lob) */}
-      {setupBall && <BallSprite x={setupBall[0]} y={setupBall[1]} />}
+      {/* Setup ball — suppressed during the intro animation (the intro ball
+          occupies the same screen role and we don't want two balls visible). */}
+      {setupBall && !(question.court.intro && phase !== 'revealing') && <BallSprite x={setupBall[0]} y={setupBall[1]} />}
 
-      {/* Reveal trajectories */}
+      {/* Intro animation — plays once on question load before any option is
+          tapped. Helps rules / scenario questions ("the ball hits the back
+          glass…") by showing the play before asking the question.
+          Supports an arbitrary number of segments (floor bounce → wall hit →
+          return, double-glass plays, etc.) and conveys height via a soft
+          ground shadow + ball scale-pulse. */}
+      {question.court.intro && phase !== 'revealing' && (() => {
+        const intro = question.court.intro
+        const segments = introSegments(intro)
+        if (segments.length === 0) return null
+
+        // Project every segment into SVG space. Each segment's `from` is
+        // forced to match the previous `to` so the path is always continuous
+        // even if the authored data has slight drift.
+        type Projected = { from: [number, number]; to: [number, number]; cp?: [number, number]; style: typeof segments[number]['style'] }
+        const projected: Projected[] = []
+        for (let i = 0; i < segments.length; i++) {
+          const seg = segments[i]
+          const from = i === 0
+            ? toSvg(seg.from[0], seg.from[1], bounds)
+            : projected[i - 1].to
+          const to = toSvg(seg.to[0], seg.to[1], bounds)
+          const cp = seg.controlPoint ? toSvg(seg.controlPoint[0], seg.controlPoint[1], bounds) : undefined
+          projected.push({ from, to, cp, style: seg.style })
+        }
+
+        // Build one combined motion path: first leg keeps its `M`, subsequent
+        // legs strip their leading `M x y` so their curve/line commands
+        // continue from the previous endpoint.
+        let combinedPath = trajectoryPath(projected[0].style, projected[0].from, projected[0].to, projected[0].cp)
+        for (let i = 1; i < projected.length; i++) {
+          const seg = projected[i]
+          const legPath = trajectoryPath(seg.style, seg.from, seg.to, seg.cp)
+          combinedPath += ` ${legPath.replace(/^M\s*[\d.-]+\s+[\d.-]+\s*/, '')}`
+        }
+
+        const duration = intro.durationMs ?? 1500
+
+        // Ground shadow stays near the bottom of the path's bounding box so
+        // the ball appears to rise above it. Sample every endpoint + control
+        // point across all segments.
+        const ys: number[] = []
+        for (const s of projected) {
+          ys.push(s.from[1], s.to[1])
+          if (s.cp) ys.push(s.cp[1])
+        }
+        const groundY = Math.max(...ys) + 14
+        const shadowStartX = projected[0].from[0]
+        const shadowEndX = projected[projected.length - 1].to[0]
+        const shadowPath = `M ${shadowStartX} ${groundY} L ${shadowEndX} ${groundY}`
+
+        return (
+          <g key={`intro-${question.id}`}>
+            {/* Faded trajectory line — covers both legs */}
+            <path
+              d={combinedPath}
+              stroke="rgba(125,211,252,0.65)"
+              strokeWidth={3}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="5 4"
+            />
+            {/* Soft ground shadow — tracks the ball's horizontal sweep */}
+            <ellipse cx={0} cy={0} rx={9} ry={3.5} fill="rgba(10,10,20,0.4)">
+              <animateMotion dur={`${duration}ms`} path={shadowPath} fill="freeze" />
+              {/* Shadow pulses smaller at the curve apex (ball higher = shadow tighter) */}
+              <animate
+                attributeName="rx"
+                values="9;4.5;9"
+                dur={`${duration}ms`}
+                fill="freeze"
+              />
+              <animate
+                attributeName="opacity"
+                values="0.4;0.18;0.4"
+                dur={`${duration}ms`}
+                fill="freeze"
+              />
+            </ellipse>
+            {/* Ball flies along the combined path with a height-suggesting scale pulse */}
+            <circle cx={0} cy={0} r={9} fill="#FFE600" stroke="#1A1A2E" strokeWidth={2.5}>
+              <animateMotion dur={`${duration}ms`} path={combinedPath} fill="freeze" rotate="0" />
+              <animate
+                attributeName="r"
+                values="9;12;9"
+                dur={`${duration}ms`}
+                fill="freeze"
+              />
+            </circle>
+          </g>
+        )
+      })()}
+
+      {/* Preview trajectory — shown the moment a letter is tapped (before CONFIRM).
+          Subtle blue dashed line so the player can see the shot they're picking.
+          Skipped entirely when the option has no trajectory (e.g. rules questions). */}
+      {phase === 'selecting' && selectedId && (() => {
+        const selectedOpt = question.options.find(o => o.id === selectedId)
+        if (!selectedOpt?.outcome.trajectory) return null
+        const traj = selectedOpt.outcome.trajectory
+        const from = toSvg(traj.from[0], traj.from[1], bounds)
+        const to = toSvg(traj.to[0], traj.to[1], bounds)
+        return (
+          <g style={{ opacity: 0.85 }}>
+            <TrajectoryRenderer
+              style={traj.style}
+              from={from}
+              to={to}
+              state="preview"
+              animate={false}
+              pathId={`traj-preview-${selectedId}`}
+              assetUrl={court.trajectoryAssets?.[traj.style]?.logoUrl}
+              assetScale={court.trajectoryAssets?.[traj.style]?.scale}
+              controlPoint={traj.controlPoint ? toSvg(traj.controlPoint[0], traj.controlPoint[1], bounds) : undefined}
+              override={court.trajectoryOverrides?.[traj.style]}
+            />
+          </g>
+        )
+      })()}
+
+      {/* Reveal trajectories — skip the entire flight/ball animation when the
+          option has no trajectory; the reveal sheet still slides up with verdict. */}
       {revealedOutcomes.map(({ id, outcome, state }) => {
-        const from = toSvg(outcome.trajectory.from[0], outcome.trajectory.from[1], bounds)
-        const to = toSvg(outcome.trajectory.to[0], outcome.trajectory.to[1], bounds)
+        if (!outcome.trajectory) {
+          // No flight path — sparkle alone on correct so there's still a moment
+          // of feedback over the court.
+          if (state === 'correct') {
+            // No landing point either; sparkle at court centre as a soft win flourish.
+            const [cx, cy] = toSvg(50, 50, bounds)
+            return <g key={id}><Sparkle x={cx} y={cy} /></g>
+          }
+          return null
+        }
+        const traj = outcome.trajectory
+        const from = toSvg(traj.from[0], traj.from[1], bounds)
+        const to = toSvg(traj.to[0], traj.to[1], bounds)
         const pathId = `traj-${id}`
         return (
           <g key={id}>
-            <TrajectoryRenderer style={outcome.trajectory.style} from={from} to={to} state={state} animate pathId={pathId} />
+            <TrajectoryRenderer
+              style={traj.style}
+              from={from}
+              to={to}
+              state={state}
+              animate
+              pathId={pathId}
+              assetUrl={court.trajectoryAssets?.[traj.style]?.logoUrl}
+              assetScale={court.trajectoryAssets?.[traj.style]?.scale}
+              controlPoint={traj.controlPoint ? toSvg(traj.controlPoint[0], traj.controlPoint[1], bounds) : undefined}
+              override={court.trajectoryOverrides?.[traj.style]}
+            />
             {/* Ball animates along the path */}
             <BallSprite
               x={from[0]} y={from[1]}
-              motionPath={trajectoryPath(outcome.trajectory.style, from, to)}
+              motionPath={trajectoryPath(
+                traj.style,
+                from,
+                to,
+                traj.controlPoint ? toSvg(traj.controlPoint[0], traj.controlPoint[1], bounds) : undefined,
+              )}
               motionDuration={500}
             />
             {/* Star sparkle on correct */}

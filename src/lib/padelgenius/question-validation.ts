@@ -26,9 +26,11 @@ export function validateQuestion(q: Question): ValidationResult {
   for (const opt of q.options) {
     if (!inRange(opt.letter.x) || !inRange(opt.letter.y)) errors.push(`Option ${opt.id.toUpperCase()}: letter coords out of range 0–100`)
     if (!inRange(opt.outcome.ball.x) || !inRange(opt.outcome.ball.y)) errors.push(`Option ${opt.id.toUpperCase()}: outcome ball out of range`)
-    const [tfx, tfy] = opt.outcome.trajectory.from
-    const [ttx, tty] = opt.outcome.trajectory.to
-    if (!inRange(tfx) || !inRange(tfy) || !inRange(ttx) || !inRange(tty)) errors.push(`Option ${opt.id.toUpperCase()}: trajectory endpoints out of range`)
+    if (opt.outcome.trajectory) {
+      const [tfx, tfy] = opt.outcome.trajectory.from
+      const [ttx, tty] = opt.outcome.trajectory.to
+      if (!inRange(tfx) || !inRange(tfy) || !inRange(ttx) || !inRange(tty)) errors.push(`Option ${opt.id.toUpperCase()}: trajectory endpoints out of range`)
+    }
   }
 
   // Overlap warnings — letters within 5 normalized units of each other

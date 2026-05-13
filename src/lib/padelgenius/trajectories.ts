@@ -1,17 +1,55 @@
 // src/lib/padelgenius/trajectories.ts
-import type { TrajectoryStyle } from './types'
+import type { IntroAnimation, Trajectory, TrajectoryStyle } from './types'
+
+/**
+ * Resolve the ordered segment list for an intro animation, falling back to
+ * the legacy `trajectory + bounce` shape when `segments` is absent. Returns
+ * an empty array when no intro is configured.
+ */
+export function introSegments(intro: IntroAnimation | undefined | null): Trajectory[] {
+  if (!intro) return []
+  if (intro.segments && intro.segments.length > 0) return intro.segments
+  const legs: Trajectory[] = []
+  if (intro.trajectory) legs.push(intro.trajectory)
+  if (intro.bounce) legs.push(intro.bounce)
+  return legs
+}
 
 type Point = [number, number]
 
-/** Returns an SVG path `d` string for the given trajectory style and endpoints. */
-export function trajectoryPath(style: TrajectoryStyle, from: Point, to: Point): string {
+/**
+ * Returns an SVG path `d` string for the given trajectory style and endpoints.
+ *
+ * When `controlPoint` is provided (already in SVG coords), it overrides the
+ * style's preset curve as a quadratic Bezier through (from, controlPoint, to).
+ * Style still drives visual decorations elsewhere (dashes, spin markers, etc.).
+ */
+export function trajectoryPath(
+  style: TrajectoryStyle,
+  from: Point,
+  to: Point,
+  controlPoint?: Point,
+): string {
   const [x1, y1] = from
   const [x2, y2] = to
 
+  // User-provided apex always wins — quadratic Bezier through it.
+  if (controlPoint) {
+    const [cx, cy] = controlPoint
+    return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
+  }
+
   switch (style) {
-    case 'flat':
     case 'cross':
       return `M ${x1} ${y1} L ${x2} ${y2}`
+
+    case 'flat': {
+      // Slight asymmetric arc (was a straight line; matches the prior bandeja
+      // curvature so every drive feels organic rather than ruler-straight).
+      const cx = x1 + (x2 - x1) * 0.7
+      const cy = y1 + (y2 - y1) * 0.3 - 20
+      return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
+    }
 
     case 'lob': {
       // Tall arch — control point is high above the midpoint
@@ -21,9 +59,11 @@ export function trajectoryPath(style: TrajectoryStyle, from: Point, to: Point): 
     }
 
     case 'bandeja': {
-      // Gentle slice — control point pulls slightly above and along the path
+      // Much deeper slice now — control point pulled noticeably higher so the
+      // arc reads as a clear over-the-shoulder defensive shot rather than a
+      // gentle drive.
       const cx = x1 + (x2 - x1) * 0.7
-      const cy = y1 + (y2 - y1) * 0.3 - 20
+      const cy = y1 + (y2 - y1) * 0.3 - 55
       return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
     }
 
