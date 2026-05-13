@@ -24,6 +24,7 @@ import TournamentDedupTab from './TournamentDedupTab'
 import PadelgodHealthTab from './PadelgodHealthTab'
 import FipStreamsTab from './FipStreamsTab'
 import NewsTab from './NewsTab'
+import HighlightPickerTab from './HighlightPickerTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -321,7 +322,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'fip-streams' | 'news'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'fip-streams' | 'news' | 'highlight-picker'>('ongoing')
   // Sidebar collapse — persisted across sessions because operators
   // who like the wider workspace want to keep it that way.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -449,6 +450,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         { key: 'brands' as const, label: 'Brands & Equipment', badge: null },
         { key: 'fip-streams' as const, label: 'FIP Streams', badge: null },
         { key: 'news' as const, label: 'News', badge: null },
+        { key: 'highlight-picker' as const, label: 'Highlight Picker', badge: null },
         // Schedule tab retired — apply flow now inline in Tournament
         // Explorer → Matches → OOP subtab (see ScheduleReviewPanel).
         { key: 'architecture' as const, label: 'Architecture', badge: null },
@@ -1003,6 +1005,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       {tab === 'padelgod-health' && <PadelgodHealthTab />}
 
       {tab === 'news' && <NewsTab />}
+
+      {tab === 'highlight-picker' && <HighlightPickerTab />}
 
       </div>
       </div>
