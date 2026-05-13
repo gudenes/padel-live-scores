@@ -876,6 +876,13 @@ function OverviewTab({
   const t = useTranslations('player')
   const format = useFormatter()
   const age = computeAge(player.birthdate)
+  const [brandLogoFailed, setBrandLogoFailed] = useState(false)
+  const [racketImageFailed, setRacketImageFailed] = useState(false)
+
+  useEffect(() => {
+    setBrandLogoFailed(false)
+    setRacketImageFailed(false)
+  }, [currentEquipment?.racket?.id])
   const profileRows: Array<[string, string | null]> = [
     [t('born'), player.birthdate ? formatDate(player.birthdate, format) : null],
     [t('age'), age != null ? t('ageYrs', { count: age }) : null],
@@ -1063,11 +1070,12 @@ function OverviewTab({
               <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Brand logo or name */}
                 <div style={{ marginBottom: 4 }}>
-                  {brandLogo ? (
+                  {brandLogo && !brandLogoFailed ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={brandLogo}
                       alt={brandName}
+                      onError={() => setBrandLogoFailed(true)}
                       style={{ height: 20, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }}
                     />
                   ) : (
@@ -1119,11 +1127,12 @@ function OverviewTab({
               </div>
               {/* Right — Racket image */}
               <div style={{ flexShrink: 0, width: 70, textAlign: 'center' }}>
-                {racketImage ? (
+                {racketImage && !racketImageFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={racketImage}
                     alt={racketModel ?? ''}
+                    onError={() => setRacketImageFailed(true)}
                     style={{
                       height: 96, objectFit: 'contain',
                       filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))',
