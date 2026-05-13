@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { Link } from '@/i18n/navigation'
 import { useGeniusProgress } from '@/hooks/useGeniusProgress'
 import { getTodayTheme } from '@/data/genius-themes'
 import { selectDailyQuestions } from '@/lib/genius-engine'
@@ -77,12 +78,27 @@ export default function PadelGeniusPage() {
   switch (view) {
     case 'hub':
       return (
-        <HubView
-          progress={progress}
-          todayCompleted={todayCompleted}
-          onStart={handleStart}
-          onOpenAvatarPicker={() => setView('avatar')}
-        />
+        <>
+          <Link
+            href="/padelgenius/play"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              textAlign: 'center', background: '#22c55e', color: '#0a0a14',
+              padding: '14px 20px', borderRadius: 16, fontWeight: 900, marginTop: 12, textDecoration: 'none',
+            }}
+          >
+            <svg width={10} height={12} viewBox="0 0 10 12" aria-hidden="true">
+              <path d="M 0 0 L 10 6 L 0 12 Z" fill="#0a0a14" />
+            </svg>
+            Play (new visuals)
+          </Link>
+          <HubView
+            progress={progress}
+            todayCompleted={todayCompleted}
+            onStart={handleStart}
+            onOpenAvatarPicker={() => setView('avatar')}
+          />
+        </>
       )
 
     case 'playing':
