@@ -34,6 +34,10 @@ export interface MatchesFilterBarProps {
    *  space-between so the slot sits on the left and FILTROS on the right.
    *  Used for the "Today" shortcut on /matches/[date]. */
   leftSlot?: ReactNode
+  /** Optional ref forwarded to the LIVE pill button. Lets the parent
+   *  anchor a popup (the "no live matches" hint) to the pill's exact
+   *  screen position. */
+  liveButtonRef?: React.Ref<HTMLButtonElement>
 }
 
 export default function MatchesFilterBar({
@@ -43,6 +47,7 @@ export default function MatchesFilterBar({
   onToggleLive,
   hasLiveMatches,
   leftSlot,
+  liveButtonRef,
 }: MatchesFilterBarProps) {
   const tButton = useTranslations('matches.filters')
   const hasActive = activeCount > 0
@@ -66,6 +71,7 @@ export default function MatchesFilterBar({
       {leftSlot}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
       <button
+        ref={liveButtonRef}
         type="button"
         onClick={onToggleLive}
         aria-pressed={liveActive}

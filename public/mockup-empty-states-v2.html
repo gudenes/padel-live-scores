@@ -61,11 +61,14 @@
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 14px;
-    overflow: hidden;
+    /* overflow: hidden removed on this mockup so the LiveHint sheet
+       (which in production portals to <body>) can be illustrated
+       overlapping the day list. */
     margin-bottom: 8px;
     min-height: 360px;
   }
   .sticky-strip {
+    position: relative;
     background: rgba(10,10,10,0.94);
     border-bottom: 1px solid rgba(255,255,255,0.04);
     padding: 10px 12px 12px;
@@ -169,43 +172,46 @@
     font-size: 12px; color: var(--muted); line-height: 1.5; max-width: 260px; margin: 0 auto;
   }
 
-  /* Toast — bottom-of-viewport snackbar */
+  /* Hint sheet — drops just below the LIVE pill, anchored to its right edge.
+     Same chunky polygon tip-sheet pattern as the may-be-late / starting-soon
+     hints on MatchCard. */
   .toast {
     position: absolute;
-    left: 50%; bottom: 14px;
-    transform: translateX(-50%);
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 11px 16px;
-    background: #1A1A1A;
-    border: 1px solid var(--red-border);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,70,85,0.08);
-    border-radius: 10px;
-    max-width: calc(100% - 24px);
-    animation: toastIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
+    top: calc(100% - 6px); right: 12px;
+    z-index: 10;
+    display: inline-flex; align-items: flex-start; gap: 8px;
+    padding: 10px 12px 10px 14px;
+    background: linear-gradient(135deg, #1A1A1D 0%, #131316 100%);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 0 24px rgba(255,70,85,0.10);
+    max-width: 260px;
+    cursor: pointer;
+    animation: hintIn 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: top right;
   }
-  @keyframes toastIn {
-    from { opacity: 0; transform: translate(-50%, 12px); }
-    to { opacity: 1; transform: translate(-50%, 0); }
+  @keyframes hintIn {
+    from { opacity: 0; transform: translateY(-4px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
   .toast .icon {
-    width: 22px; height: 22px; border-radius: 50%;
-    background: var(--red-tint); border: 1px solid var(--red-border);
-    display: flex; align-items: center; justify-content: center;
+    width: 13px; height: 13px;
     flex-shrink: 0;
+    margin-top: 1px;
+    display: inline-flex; align-items: center; justify-content: center;
   }
+  .toast .icon svg { display: block; }
   .toast .icon::before {
     content: '';
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--red);
+    display: none;
   }
-  .toast .copy {
-    display: flex; flex-direction: column; gap: 1px;
-  }
+  .toast .copy { min-width: 0; }
   .toast .copy .h {
-    font-size: 12px; font-weight: 800; color: #fff;
+    font-size: 9px; font-weight: 800; color: var(--red);
+    letter-spacing: 0.5px; text-transform: uppercase;
+    margin-bottom: 3px; line-height: 1.2;
   }
   .toast .copy .s {
-    font-size: 11px; color: var(--muted-2); line-height: 1.4;
+    font-size: 11px; color: #D8D8DD; font-weight: 500; line-height: 1.4;
   }
 
   .commentary {
@@ -344,7 +350,7 @@
 
 <div class="scenario-label">
   <span class="tag outcome">Step 2 — outcome</span>
-  <span class="what">List stays put, toast slides in from bottom (auto-dismiss ~3s)</span>
+  <span class="what">Inline hint drops below the LIVE pill (auto-dismiss ~4.5s, tap to close)</span>
 </div>
 
 <div class="frame">
@@ -360,6 +366,18 @@
       <span class="live-pill pressed"><span class="dot"></span>Live</span>
       <span class="filters-pill">Filters</span>
     </div>
+    <div class="toast">
+      <span class="icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF4655" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 2"/>
+        </svg>
+      </span>
+      <div class="copy">
+        <div class="h">No live matches right now</div>
+        <div class="s">Check back when matches start.</div>
+      </div>
+    </div>
   </div>
   <div class="body">
     <div class="match-stub">
@@ -369,19 +387,14 @@
       <div class="row"><div class="pair">Coello / Tapia</div><div class="score" style="color:var(--muted-2)">16:30</div></div>
     </div>
   </div>
-  <div class="toast">
-    <span class="icon"></span>
-    <div class="copy">
-      <div class="h">No live matches right now</div>
-      <div class="s">Check back when matches start.</div>
-    </div>
-  </div>
 </div>
 
 <div class="commentary">
   <b>Crucially: LIVE filter does NOT engage</b> when there's nothing live.
   We don't strand the user on an empty filtered view — the list stays as it
-  was, the toast does the explaining, the pill un-presses on its own.
+  was, the inline hint does the explaining, the pill un-presses on its own.
+  Visual style matches the existing <i>may be late / starting soon</i>
+  hint sheets on match cards, so it reads as part of the same vocabulary.
 </div>
 
 

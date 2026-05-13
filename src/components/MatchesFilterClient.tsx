@@ -59,6 +59,12 @@ export default function MatchesFilterClient({
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [toastOpen, setToastOpen] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Ref on the LIVE pill so the LiveHint can anchor its fixed-position
+  // popup to the button's screen coordinates. We can't use a plain
+  // position:absolute child of the bar because the sticky header above
+  // has `overflow: hidden` (it clips the horizontal day pills), which
+  // would also clip the hint.
+  const liveBtnRef = useRef<HTMLButtonElement | null>(null)
   const [emptyAfterFilter, setEmptyAfterFilter] = useState(false)
   const lastFiltersRef = useRef<MatchesFilters | null>(null)
   const t = useTranslations('matches')
@@ -174,10 +180,12 @@ export default function MatchesFilterClient({
   const liveActive =
     filters.status.live && !filters.status.upcoming && !filters.status.finished
 
+  // Mirror the dismiss timing on MatchCard's LateHintPill so the LIVE
+  // hint feels like part of the same vocabulary.
   const showToast = useCallback(() => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     setToastOpen(true)
-    toastTimerRef.current = setTimeout(() => setToastOpen(false), 3000)
+    toastTimerRef.current = setTimeout(() => setToastOpen(false), 4500)
   }, [])
 
   useEffect(() => {
@@ -221,6 +229,14 @@ export default function MatchesFilterClient({
         onToggleLive={handleToggleLive}
         hasLiveMatches={hasLiveMatches}
         leftSlot={leftSlot}
+        liveButtonRef={liveBtnRef}
+      />
+      <LiveHint
+        open={toastOpen}
+        title={t('liveToast.title')}
+        subtitle={t('liveToast.sub')}
+        anchorRef={liveBtnRef}
+        onClose={() => setToastOpen(false)}
       />
       <MatchesFilterDrawer
         open={drawerOpen}
@@ -263,103 +279,134 @@ export default function MatchesFilterClient({
           />
         </div>
       )}
-      <LiveToast
-        open={toastOpen}
-        title={t('liveToast.title')}
-        subtitle={t('liveToast.sub')}
-      />
     </>
   )
 }
 
-// Bottom-of-viewport snackbar shown when the user taps LIVE but nothing
-// is in play anywhere. Chunky polygon to match the rest of the brand;
-// fixed-position with a slide-up entry so it reads as system feedback
-// without blocking the page underneath. Auto-dismisses after 3s via the
-// parent's setTimeout.
-function LiveToast({
+// Small popup hint that drops just below the LIVE pill when the user
+// taps it but nothing is in play. Same chunky-polygon "tip sheet"
+// pattern as the `may be late` / `starting soon` hints on MatchCard —
+// gradient background, accent-tinted inner glow, pop-in animation,
+// tap to dismiss. Portaled to <body> with fixed positioning computed
+// from the LIVE pill's bounding rect, so it visually reads as inline
+// (right under the pill) without being clipped by the sticky header's
+// `overflow: hidden`. Auto-dismisses via the parent's setTimeout.
+function LiveHint({
   open,
   title,
   subtitle,
+  anchorRef,
+  onClose,
 }: {
   open: boolean
   title: string
   subtitle: string
+  anchorRef: React.RefObject<HTMLButtonElement | null>
+  onClose: () => void
 }) {
-  // Two-state entry transition: render the toast in its "off-screen"
+  // Two-state entry transition: render the hint in its off-screen
   // resting transform first, then flip `entered` on the next frame so
-  // CSS transitions animate it into place. Doing this via state (rather
-  // than a @keyframes block) avoids a parse race where the keyframe is
-  // registered after the animation property is applied.
+  // CSS transitions animate it into place. State-driven rather than
+  // @keyframes to avoid a parse race when keyframes are inlined.
   const [entered, setEntered] = useState(false)
+  const [anchorRect, setAnchorRect] = useState<{ top: number; right: number } | null>(null)
 
   useEffect(() => {
     if (!open) return
-    // Two RAFs so the initial style commits before we trigger the
-    // transition — a single RAF can collapse to "synchronous final
-    // state" in some browsers.
+    const el = anchorRef.current
+    if (!el) return
+    // Snapshot the LIVE pill's rect on open. Re-snapshot on scroll/
+    // resize while open so the hint trails the pill if the sticky
+    // header shifts (it shouldn't, but be safe).
+    const measure = () => {
+      const r = el.getBoundingClientRect()
+      setAnchorRect({ top: r.bottom + 6, right: window.innerWidth - r.right })
+    }
+    measure()
+    window.addEventListener('scroll', measure, { passive: true })
+    window.addEventListener('resize', measure)
     let id2 = 0
     const id1 = requestAnimationFrame(() => {
       id2 = requestAnimationFrame(() => setEntered(true))
     })
     return () => {
+      window.removeEventListener('scroll', measure)
+      window.removeEventListener('resize', measure)
       cancelAnimationFrame(id1)
       cancelAnimationFrame(id2)
       setEntered(false)
     }
-  }, [open])
+  }, [open, anchorRef])
 
-  // LiveToast is rendered from a `'use client'` parent and the parent
-  // only ever mounts this child when `open` is true (which can only flip
-  // true after a user gesture, well after hydration). So we can safely
-  // assume `document` exists when we get here.
-  if (!open) return null
-  const toastNode = (
+  if (!open || !anchorRect) return null
+
+  const accent = '#FF4655'
+  const node = (
     <div
       role="status"
       aria-live="polite"
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+      }}
       style={{
         position: 'fixed',
-        left: '50%',
-        bottom: 88, // sits above the bottom nav
-        transform: entered ? 'translate(-50%, 0)' : 'translate(-50%, 12px)',
+        top: anchorRect.top,
+        right: anchorRect.right,
+        zIndex: 100,
+        maxWidth: 260,
+        padding: '10px 12px 10px 14px',
+        background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)',
+        clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+        boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 0 24px ${accent}10`,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 8,
         opacity: entered ? 1 : 0,
-        transition: 'transform 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease-out',
-        zIndex: 60,
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '11px 16px',
-        background: '#1A1A1A',
-        border: '1px solid rgba(255,70,85,0.4)',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
-        clipPath: 'polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px))',
-        maxWidth: 'calc(100% - 24px)',
+        transform: entered ? 'translateY(0) scale(1)' : 'translateY(-4px) scale(0.95)',
+        transition: 'opacity 200ms ease-out, transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+        transformOrigin: 'top right',
       }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: '50%',
-          background: 'rgba(255,70,85,0.18)',
-          border: '1px solid rgba(255,70,85,0.4)',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF4655' }} />
+      <span style={{ flexShrink: 0, marginTop: 1, display: 'inline-flex' }}>
+        <svg
+          width={13}
+          height={13}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={accent}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
       </span>
-      <span style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{title}</span>
-        <span style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.4 }}>{subtitle}</span>
-      </span>
+      <div style={{ minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 9,
+            fontWeight: 800,
+            color: accent,
+            letterSpacing: 0.5,
+            textTransform: 'uppercase',
+            marginBottom: 3,
+            lineHeight: 1.2,
+          }}
+        >
+          {title}
+        </div>
+        <div style={{ color: '#D8D8DD', fontSize: 11, fontWeight: 500, lineHeight: 1.4 }}>
+          {subtitle}
+        </div>
+      </div>
     </div>
   )
-  return createPortal(toastNode, document.body)
+  return createPortal(node, document.body)
 }
 
 function filtersEqual(a: MatchesFilters, b: MatchesFilters): boolean {
