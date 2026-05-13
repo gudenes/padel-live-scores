@@ -4,6 +4,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { checkOpsAuth } from '@/lib/ops-auth'
+import { rehostEquipmentImageToSupabase, isSupabaseHosted } from '@/lib/equipment-image-rehost'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -83,6 +84,15 @@ export async function POST(request: Request) {
     return Response.json({ error: error.message }, { status: 500 })
   }
 
+  // Rehost externally-hosted image onto Supabase Storage. Failure here does
+  // NOT fail the create — the row keeps the original URL and ops can retry.
+  if (racket.image_url && !isSupabaseHosted(racket.image_url)) {
+    const rehost = await rehostEquipmentImageToSupabase(supabase, 'racket', racket.id, racket.image_url)
+    if (rehost.status === 'ok' && rehost.newUrl) {
+      racket.image_url = rehost.newUrl
+    }
+  }
+
   return Response.json({ racket }, { status: 201 })
 }
 
@@ -115,6 +125,15 @@ export async function PATCH(request: Request) {
 
   if (!racket) {
     return Response.json({ error: 'Racket not found' }, { status: 404 })
+  }
+
+  // Rehost externally-hosted image onto Supabase Storage. Failure here does
+  // NOT fail the update — the row keeps the original URL and ops can retry.
+  if (racket.image_url && !isSupabaseHosted(racket.image_url)) {
+    const rehost = await rehostEquipmentImageToSupabase(supabase, 'racket', racket.id, racket.image_url)
+    if (rehost.status === 'ok' && rehost.newUrl) {
+      racket.image_url = rehost.newUrl
+    }
   }
 
   return Response.json({ racket })
