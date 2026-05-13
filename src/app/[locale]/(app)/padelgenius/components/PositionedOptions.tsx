@@ -89,56 +89,62 @@ export function PositionedOptions({ options, phase, selectedId, correctId, onSel
             }}
             onClick={() => { if (!revealed) onSelect(opt.id) }}
           >
-            {/* drop shadow */}
-            <ellipse cx="0" cy={r + 4} rx={r * 0.75} ry={3} fill="rgba(20,30,60,0.45)" />
-            {/* pulsing halo when idle/selected */}
-            {!revealed && (
-              <circle
-                r={r + 4}
-                fill="none"
-                stroke={isSelected ? '#1E88E5' : 'rgba(255,255,255,0.6)'}
-                strokeWidth={isSelected ? 3 : 2}
-                style={{
-                  // I3: respect reduced-motion preference; CSS @media block is bypassed by inline style
-                  animation: reducedMotion ? 'none' : (isSelected ? 'pg-pulse 1s ease-in-out infinite' : 'pg-pulse 1.6s ease-in-out infinite'),
-                  transformOrigin: 'center',
-                }}
-              />
-            )}
-            {/* main circle */}
-            <circle r={r} fill={fill} stroke="#1A1A2E" strokeWidth={3.5} />
-            {/* letter — font size proportional to r */}
-            <text
-              y={1}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill={textColor}
-              fontSize={Math.round(r * 1.1)}
-              fontWeight={900}
-              fontFamily="ui-sans-serif, system-ui, sans-serif"
-            >
-              {opt.id.toUpperCase()}
-            </text>
-            {/* I2: check/cross badges via StatusBadge — replaces near-identical inline blocks */}
-            {isCorrect && <StatusBadge state="correct" offsetY={r + 14} />}
-            {isPickedWrong && <StatusBadge state="wrong" offsetY={r + 14} />}
-            {/* Inline label + CONFIRM when selected (pre-confirm) */}
-            {isSelected && (
-              <g transform={`translate(0 ${r + 28})`}>
-                {/* B3: parent passes onConfirm directly; stopPropagation moved inside SelectionPillRow */}
-                <SelectionPillRow
-                  label={opt.label}
-                  direction={opt.direction}
-                  onConfirm={onConfirm}
+            {/* inner g carries the tap animation — keeps outer position/rotation transform untouched */}
+            <g style={{
+              animation: (!reducedMotion && isSelected) ? 'pg-tap 150ms ease-out' : undefined,
+              transformOrigin: 'center',
+            }}>
+              {/* drop shadow */}
+              <ellipse cx="0" cy={r + 4} rx={r * 0.75} ry={3} fill="rgba(20,30,60,0.45)" />
+              {/* pulsing halo when idle/selected */}
+              {!revealed && (
+                <circle
+                  r={r + 4}
+                  fill="none"
+                  stroke={isSelected ? '#1E88E5' : 'rgba(255,255,255,0.6)'}
+                  strokeWidth={isSelected ? 3 : 2}
+                  style={{
+                    // I3: respect reduced-motion preference; CSS @media block is bypassed by inline style
+                    animation: reducedMotion ? 'none' : (isSelected ? 'pg-pulse 1s ease-in-out infinite' : 'pg-pulse 1.6s ease-in-out infinite'),
+                    transformOrigin: 'center',
+                  }}
                 />
-              </g>
-            )}
-            {/* Revealed label below the letter */}
-            {(isCorrect || isPickedWrong) && (
-              <g transform={`translate(0 ${r + 26})`}>
-                <LabelPill label={opt.label} state={isCorrect ? 'correct' : 'wrong'} />
-              </g>
-            )}
+              )}
+              {/* main circle */}
+              <circle r={r} fill={fill} stroke="#1A1A2E" strokeWidth={3.5} />
+              {/* letter — font size proportional to r */}
+              <text
+                y={1}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill={textColor}
+                fontSize={Math.round(r * 1.1)}
+                fontWeight={900}
+                fontFamily="ui-sans-serif, system-ui, sans-serif"
+              >
+                {opt.id.toUpperCase()}
+              </text>
+              {/* I2: check/cross badges via StatusBadge — replaces near-identical inline blocks */}
+              {isCorrect && <StatusBadge state="correct" offsetY={r + 14} />}
+              {isPickedWrong && <StatusBadge state="wrong" offsetY={r + 14} />}
+              {/* Inline label + CONFIRM when selected (pre-confirm) */}
+              {isSelected && (
+                <g transform={`translate(0 ${r + 28})`}>
+                  {/* B3: parent passes onConfirm directly; stopPropagation moved inside SelectionPillRow */}
+                  <SelectionPillRow
+                    label={opt.label}
+                    direction={opt.direction}
+                    onConfirm={onConfirm}
+                  />
+                </g>
+              )}
+              {/* Revealed label below the letter */}
+              {(isCorrect || isPickedWrong) && (
+                <g transform={`translate(0 ${r + 26})`}>
+                  <LabelPill label={opt.label} state={isCorrect ? 'correct' : 'wrong'} />
+                </g>
+              )}
+            </g>
           </g>
         )
       })}
