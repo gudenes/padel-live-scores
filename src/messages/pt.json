@@ -27,6 +27,15 @@
     "noResults": "Nada para recapitular ainda",
     "noResultsSub": "Os resultados recentes aparecem aqui quando os jogos terminam.",
     "filterHint": "Tente mudar o filtro de liga para ver partidas de {league} ou Todas.",
+    "filteredEmptyTitle": "Nenhuma partida corresponde aos seus filtros",
+    "_filteredEmptyTitle_context": "Title on the empty card shown when the user's active filters (league, category, status) have hidden every match on the visible day. Sibling subtitle is `filterHint`. Action button is `resetFilters`.",
+    "resetFilters": "Redefinir filtros",
+    "_resetFilters_context": "Button label on the filtered-empty card. Tapping it calls reset() — restores defaults (all leagues, both categories, all statuses).",
+    "liveToast": {
+      "title": "Nenhuma partida ao vivo no momento",
+      "sub": "Volte quando os jogos começarem.",
+      "_context": "Snackbar shown for ~3s when the user taps the LIVE pill but no match anywhere is currently in-play. Title is the headline, sub is the supporting line. Neither should imply the data failed — the data is fine, there's just nothing live this moment."
+    },
     "loadMore": "Carregar mais ({count} restantes)",
     "viewPreviousSeasons": "Ver temporadas anteriores",
     "filters": {
@@ -945,6 +954,8 @@
     "noMatchesTitle": "O padel tirou o dia de folga",
     "noMatchesSub": "Experimente outro dia ou veja os torneios da semana no seletor acima.",
     "jumpToNextMatches": "Próximos jogos: {date}",
+    "backToToday": "Voltar para hoje",
+    "_backToToday_context": "Secondary button on the empty-day card. Shown only when the active day is not today. Taps it to roll the active day back to today (calls the same handler as the small TODAY pill in the filter bar).",
     "faqHeading": "Perguntas frequentes",
     "approxTime": "horário aproximado",
     "whereToWatchHeading": "Onde assistir",

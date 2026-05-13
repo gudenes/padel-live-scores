@@ -117,10 +117,12 @@ export default function MatchesDayShell({
 
   // Calendar metadata — `maxScheduledIso` caps the forward day picker
   // and `daysWithMatches` powers the empty-state "Next matches" CTA.
-  // Empty array on the first render so the shell doesn't gate paint on
-  // the calendar fetch; the cap applies once the request resolves.
+  // `hasLiveNow` gates the LIVE pill's tap behaviour (jump to today vs.
+  // toast). Empty defaults on the first render so the shell doesn't gate
+  // paint on the calendar fetch.
   const [daysWithMatches, setDaysWithMatches] = useState<string[]>([])
   const [maxScheduledIso, setMaxScheduledIso] = useState<string | null>(null)
+  const [hasLiveNow, setHasLiveNow] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -132,6 +134,7 @@ export default function MatchesDayShell({
         if (typeof p.maxScheduledIso === 'string' || p.maxScheduledIso === null) {
           setMaxScheduledIso(p.maxScheduledIso ?? null)
         }
+        if (typeof p.hasLiveNow === 'boolean') setHasLiveNow(p.hasLiveNow)
       })
       .catch((err) => {
         // Silent: a missing boundary just falls back to "no cap" — the
@@ -401,6 +404,9 @@ export default function MatchesDayShell({
         <MatchesFilterClient
           rootId="matches-filter-root"
           hasLiveMatches={hasLiveMatches}
+          hasLiveNow={hasLiveNow}
+          isOnToday={isOnToday}
+          onGoToToday={rollToToday}
           leftSlot={
             !isOnToday ? (
               <button
@@ -456,6 +462,14 @@ export default function MatchesDayShell({
               <EmptyState
                 title={tDaily('noMatchesTitle')}
                 subtitle={tDaily('noMatchesSub')}
+                action={
+                  !isOnToday ? (
+                    <BackToTodayButton
+                      label={tDaily('backToToday')}
+                      onClick={rollToToday}
+                    />
+                  ) : undefined
+                }
               />
             </div>
           ) : groups.length === 0 ? (
@@ -464,16 +478,28 @@ export default function MatchesDayShell({
                 title={emptyStateTitle}
                 subtitle={emptyStateSubtitle}
                 action={
-                  suggestedNextIso ? (
-                    <NextMatchesJumpButton
-                      iso={suggestedNextIso}
-                      locale={locale}
-                      label={tDaily('jumpToNextMatches', {
-                        date: formatJumpDate(suggestedNextIso, locale, tz),
-                      })}
-                      onClick={() => goTo(suggestedNextIso)}
-                    />
-                  ) : undefined
+                  <EmptyDayActions
+                    primary={
+                      suggestedNextIso ? (
+                        <NextMatchesJumpButton
+                          iso={suggestedNextIso}
+                          locale={locale}
+                          label={tDaily('jumpToNextMatches', {
+                            date: formatJumpDate(suggestedNextIso, locale, tz),
+                          })}
+                          onClick={() => goTo(suggestedNextIso)}
+                        />
+                      ) : undefined
+                    }
+                    secondary={
+                      !isOnToday ? (
+                        <BackToTodayButton
+                          label={tDaily('backToToday')}
+                          onClick={rollToToday}
+                        />
+                      ) : undefined
+                    }
+                  />
                 }
               />
             </div>
@@ -549,5 +575,58 @@ function NextMatchesJumpButton({ label, onClick }: NextMatchesJumpButtonProps) {
     >
       {label} ›
     </button>
+  )
+}
+
+// Secondary CTA on the empty-state for past dates: muted outline so it
+// doesn't compete with the primary "Next matches" jump but still reads
+// as a system action (chunky polygon, same shape as the primary).
+function BackToTodayButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        background: 'transparent',
+        color: '#9CA3AF',
+        border: '1px solid rgba(255,255,255,0.18)',
+        clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+        padding: '10px 18px',
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: 0.4,
+        textTransform: 'uppercase',
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+// Wraps the empty-state primary + secondary actions in a centered, wrap-
+// safe row. When only one is rendered, the row collapses to that single
+// button — keeping the empty card visually identical to its old form.
+function EmptyDayActions({
+  primary,
+  secondary,
+}: {
+  primary?: React.ReactNode
+  secondary?: React.ReactNode
+}) {
+  if (!primary && !secondary) return null
+  return (
+    <div
+      style={{
+        display: 'flex',
+        gap: 10,
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+      }}
+    >
+      {primary}
+      {secondary}
+    </div>
   )
 }

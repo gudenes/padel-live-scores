@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>LIVE jump + toast — Mockup v2</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --green-tint: rgba(126, 211, 33, 0.15);
+    --green-border: rgba(126,211,33,0.4);
+    --orange: #F5A623;
+    --red: #FF4655;
+    --red-tint: rgba(255,70,85,0.18);
+    --red-border: rgba(255,70,85,0.4);
+    --bg: #0A0A0A;
+    --bg-card: #141414;
+    --bg-card-2: #1A1A1A;
+    --muted: #6B7280;
+    --muted-2: #9CA3AF;
+    --border: rgba(255,255,255,0.06);
+    --text: #fff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { padding: 24px 16px 80px; max-width: 540px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.4px; }
+  .lede { font-size: 13px; color: var(--muted); margin: 0 0 28px; line-height: 1.5; }
+  h2.section-h {
+    font-size: 11px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+    margin: 28px 0 12px;
+  }
+
+  .scenario-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; font-weight: 800; letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin: 18px 4px 8px;
+  }
+  .scenario-label .tag {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 9px; letter-spacing: 0.5px;
+  }
+  .scenario-label .tag.step { background: var(--green-tint); color: var(--green); }
+  .scenario-label .tag.outcome { background: rgba(245,166,35,0.15); color: var(--orange); }
+  .scenario-label .what { color: var(--muted); font-weight: 700; }
+
+  .arrow {
+    text-align: center;
+    color: var(--muted); font-size: 22px;
+    margin: 6px 0;
+    line-height: 1;
+  }
+
+  /* Frame */
+  .frame {
+    position: relative;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    min-height: 360px;
+  }
+  .sticky-strip {
+    background: rgba(10,10,10,0.94);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    padding: 10px 12px 12px;
+  }
+  .day-pills {
+    display: flex; gap: 6px; padding: 4px 0 10px;
+    overflow-x: auto;
+  }
+  .day-pill {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+    background: #1A1A1A;
+    color: var(--muted-2);
+    border: 1px solid transparent;
+    text-transform: uppercase;
+  }
+  .day-pill.active {
+    background: #0A0A0A;
+    color: var(--green);
+    border-color: var(--green-border);
+  }
+  .filter-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding-top: 4px;
+  }
+  .live-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: rgba(255,70,85,0.1);
+    color: var(--red);
+    border: 1px solid var(--red-border);
+    border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .live-pill.active { background: var(--red-tint); box-shadow: 0 0 0 3px rgba(255,70,85,0.12); }
+  .live-pill.pressed { animation: tap 220ms ease-out; }
+  @keyframes tap { 0% { transform: scale(1); } 50% { transform: scale(0.92); } 100% { transform: scale(1); } }
+  .live-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red);
+  }
+  .filters-pill {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: #1A1A1A;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--muted-2);
+  }
+  .body { padding: 12px 12px 16px; }
+
+  /* Match card stub — just to make "live matches showing" feel real */
+  .match-stub {
+    background: var(--bg-card-2);
+    border: 1px solid var(--border);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    clip-path: polygon(0 6px, 6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px));
+  }
+  .match-stub .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .match-stub .pair { font-size: 12px; font-weight: 700; }
+  .match-stub .score { font-size: 12px; font-weight: 800; color: var(--green); font-variant-numeric: tabular-nums; }
+  .match-stub .live-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 7px;
+    background: var(--red-tint); color: var(--red);
+    border-radius: 3px;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .match-stub .live-tag .dot {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--red);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .match-stub.muted .pair { color: var(--muted-2); }
+
+  .empty {
+    clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 26px 20px 24px;
+    text-align: center;
+  }
+  .empty .mascot {
+    width: 110px; height: 110px;
+    margin: 0 auto 10px;
+    background: url('/empty-state-padel.png') center/contain no-repeat;
+  }
+  .empty .title {
+    font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 6px;
+  }
+  .empty .sub {
+    font-size: 12px; color: var(--muted); line-height: 1.5; max-width: 260px; margin: 0 auto;
+  }
+
+  /* Toast — bottom-of-viewport snackbar */
+  .toast {
+    position: absolute;
+    left: 50%; bottom: 14px;
+    transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 11px 16px;
+    background: #1A1A1A;
+    border: 1px solid var(--red-border);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,70,85,0.08);
+    border-radius: 10px;
+    max-width: calc(100% - 24px);
+    animation: toastIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translate(-50%, 12px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .toast .icon {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--red-tint); border: 1px solid var(--red-border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .toast .icon::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red);
+  }
+  .toast .copy {
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .toast .copy .h {
+    font-size: 12px; font-weight: 800; color: #fff;
+  }
+  .toast .copy .s {
+    font-size: 11px; color: var(--muted-2); line-height: 1.4;
+  }
+
+  .commentary {
+    font-size: 11px; color: var(--muted);
+    line-height: 1.6;
+    padding: 8px 12px;
+    background: rgba(126,211,33,0.04);
+    border-left: 2px solid var(--green-border);
+    margin: 6px 4px 14px;
+    border-radius: 0 4px 4px 0;
+  }
+  .commentary.amber {
+    background: rgba(245,166,35,0.04);
+    border-left-color: var(--orange);
+  }
+  .commentary b { color: #fff; font-weight: 700; }
+  .commentary code { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 10px; background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; color: var(--muted-2); }
+</style>
+</head>
+<body>
+
+<h1>LIVE = jump to live, not a filter</h1>
+<p class="lede">
+  New behavior: tapping <b style="color:var(--red)">LIVE</b> snaps the user to today
+  and surfaces live matches — regardless of which day they were on. If no live
+  matches anywhere, a toast explains why. The pill becomes an action, not a
+  dead-end-able filter.
+</p>
+
+
+<!-- ════════════════ FLOW A: ON PAST DATE, LIVE TAP ════════════════ -->
+<h2 class="section-h">Flow A — User on past date, taps LIVE → snaps to today's live matches</h2>
+
+<div class="scenario-label">
+  <span class="tag step">Step 1</span>
+  <span class="what">User parked on Mon 27 Apr, scrolling old results</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill">Sat 25</div>
+      <div class="day-pill">Sun 26</div>
+      <div class="day-pill active">Mon 27 Apr</div>
+      <div class="day-pill">Tue 28</div>
+      <div class="day-pill">Wed 29</div>
+    </div>
+    <div class="filter-bar">
+      <span class="live-pill"><span class="dot"></span>Live</span>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="match-stub muted">
+      <div class="row"><div class="pair">Galán / Lebrón</div><div class="score" style="color:var(--muted-2)">6–4 6–3</div></div>
+    </div>
+    <div class="match-stub muted">
+      <div class="row"><div class="pair">Coello / Tapia</div><div class="score" style="color:var(--muted-2)">7–6 6–4</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow">↓ taps LIVE pill</div>
+
+<div class="scenario-label">
+  <span class="tag outcome">Step 2 — outcome</span>
+  <span class="what">Day pill snaps to Today, LIVE active, live matches shown</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill">Mon 11</div>
+      <div class="day-pill">Tue 12</div>
+      <div class="day-pill active">Wed 13 · Today</div>
+      <div class="day-pill">Thu 14</div>
+      <div class="day-pill">Fri 15</div>
+    </div>
+    <div class="filter-bar">
+      <span class="live-pill active pressed"><span class="dot"></span>Live</span>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="match-stub">
+      <div class="live-tag"><span class="dot"></span>Live · Set 2</div>
+      <div class="row"><div class="pair">Stupaczuk / Sanz</div><div class="score">6–4 · 3–2</div></div>
+    </div>
+    <div class="match-stub">
+      <div class="live-tag"><span class="dot"></span>Live · Set 1</div>
+      <div class="row"><div class="pair">Brea / Triay</div><div class="score">4–3</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary">
+  One tap, zero hunting. The LIVE pill is interpreted as <b>"show me what's
+  live right now"</b> — it doesn't matter what day the user was viewing. Day
+  pill auto-updates so the URL + filter state stay consistent.
+</div>
+
+
+<!-- ════════════════ FLOW B: NO LIVE MATCHES → TOAST ════════════════ -->
+<h2 class="section-h">Flow B — User taps LIVE, no live matches anywhere</h2>
+
+<div class="scenario-label">
+  <span class="tag step">Step 1</span>
+  <span class="what">User on today, browsing upcoming + finished</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill">Mon 11</div>
+      <div class="day-pill">Tue 12</div>
+      <div class="day-pill active">Wed 13 · Today</div>
+      <div class="day-pill">Thu 14</div>
+      <div class="day-pill">Fri 15</div>
+    </div>
+    <div class="filter-bar">
+      <span class="live-pill"><span class="dot"></span>Live</span>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="match-stub">
+      <div class="row"><div class="pair">Galán / Chingotto</div><div class="score" style="color:var(--muted-2)">14:00</div></div>
+    </div>
+    <div class="match-stub">
+      <div class="row"><div class="pair">Coello / Tapia</div><div class="score" style="color:var(--muted-2)">16:30</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="arrow">↓ taps LIVE pill</div>
+
+<div class="scenario-label">
+  <span class="tag outcome">Step 2 — outcome</span>
+  <span class="what">List stays put, toast slides in from bottom (auto-dismiss ~3s)</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill">Mon 11</div>
+      <div class="day-pill">Tue 12</div>
+      <div class="day-pill active">Wed 13 · Today</div>
+      <div class="day-pill">Thu 14</div>
+      <div class="day-pill">Fri 15</div>
+    </div>
+    <div class="filter-bar">
+      <span class="live-pill pressed"><span class="dot"></span>Live</span>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="match-stub">
+      <div class="row"><div class="pair">Galán / Chingotto</div><div class="score" style="color:var(--muted-2)">14:00</div></div>
+    </div>
+    <div class="match-stub">
+      <div class="row"><div class="pair">Coello / Tapia</div><div class="score" style="color:var(--muted-2)">16:30</div></div>
+    </div>
+  </div>
+  <div class="toast">
+    <span class="icon"></span>
+    <div class="copy">
+      <div class="h">No live matches right now</div>
+      <div class="s">Check back when matches start.</div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary">
+  <b>Crucially: LIVE filter does NOT engage</b> when there's nothing live.
+  We don't strand the user on an empty filtered view — the list stays as it
+  was, the toast does the explaining, the pill un-presses on its own.
+</div>
+
+
+<!-- ════════════════ FLOW C: ALREADY ON TODAY, LIVE EXISTS ════════════════ -->
+<h2 class="section-h">Flow C — On today, live matches exist (no jump needed)</h2>
+
+<div class="scenario-label">
+  <span class="tag step">Single step</span>
+  <span class="what">LIVE just filters today's list (same as current behavior)</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill">Mon 11</div>
+      <div class="day-pill">Tue 12</div>
+      <div class="day-pill active">Wed 13 · Today</div>
+      <div class="day-pill">Thu 14</div>
+      <div class="day-pill">Fri 15</div>
+    </div>
+    <div class="filter-bar">
+      <span class="live-pill active"><span class="dot"></span>Live</span>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="match-stub">
+      <div class="live-tag"><span class="dot"></span>Live · Set 2</div>
+      <div class="row"><div class="pair">Stupaczuk / Sanz</div><div class="score">6–4 · 3–2</div></div>
+    </div>
+    <div class="match-stub">
+      <div class="live-tag"><span class="dot"></span>Live · Set 1</div>
+      <div class="row"><div class="pair">Brea / Triay</div><div class="score">4–3</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary">
+  No regression for the happy path — taps that hit the existing live list
+  behave exactly as before.
+</div>
+
+
+<!-- ════════════════ TECH NOTES ════════════════ -->
+<h2 class="section-h">How the click resolves</h2>
+<div class="commentary amber">
+  <b>Decision logic on LIVE tap:</b><br>
+  1. Probe "is anything globally live?" — uses existing <code>hasLiveMatches</code> for today's cache;
+     if today isn't cached yet, do a quick <code>/api/matches/by-date?date=today&liveOnly=1</code> check
+     (or piggyback on the calendar payload — add a <code>hasLiveNow</code> field).<br>
+  2. <b>Live exists:</b> setActiveIso(today) → setFilters(status: live-only) → existing render shows live matches.<br>
+  3. <b>No live anywhere:</b> show toast, do NOT engage the filter, do NOT change day. Pill flashes pressed then springs back.
+</div>
+
+<div class="commentary amber">
+  <b>What about the date-empty case (past day with no matches)?</b><br>
+  Separate from this change. The existing "Next matches: &lt;date&gt; ›" CTA already
+  handles it. If you want to bundle a "Back to today" secondary into the same
+  PR, easy add — otherwise punt to a follow-up.
+</div>
+
+<div class="commentary">
+  <b>Files touched (minimal scope):</b><br>
+  • <code>src/components/MatchesFilterClient.tsx</code> — re-wire <code>handleToggleLive</code> to jump-or-toast.<br>
+  • <code>src/components/MatchesDayShell.tsx</code> — expose a callback so the filter client can call <code>setActiveIso(today)</code>.<br>
+  • <code>src/lib/fetch-matches-calendar.ts</code> — add <code>hasLiveNow: boolean</code> to the calendar payload (one extra count query), so the probe is free.<br>
+  • New <code>src/components/Toast.tsx</code> (or inline) — ~30 lines, bottom-of-viewport snackbar, 3s auto-dismiss.<br>
+  • <code>src/messages/{en,es,pt,it,fr}.json</code> — 2 keys: <code>noLiveNowTitle</code>, <code>noLiveNowSub</code>.
+</div>
+
+</body>
+</html>

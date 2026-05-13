@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Matches Empty States — Mockup</title>
+<style>
+  :root {
+    --green: #7ED321;
+    --green-tint: rgba(126, 211, 33, 0.15);
+    --green-border: rgba(126,211,33,0.4);
+    --orange: #F5A623;
+    --red: #FF4655;
+    --bg: #0A0A0A;
+    --bg-card: #141414;
+    --bg-card-2: #1A1A1A;
+    --muted: #6B7280;
+    --muted-2: #9CA3AF;
+    --border: rgba(255,255,255,0.06);
+    --text: #fff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  body { padding: 24px 16px 80px; max-width: 540px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 800; margin: 0 0 6px; letter-spacing: -0.4px; }
+  .lede { font-size: 13px; color: var(--muted); margin: 0 0 28px; line-height: 1.5; }
+  h2.section-h {
+    font-size: 11px; font-weight: 800; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+    margin: 28px 0 12px;
+  }
+
+  .scenario-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; font-weight: 800; letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin: 18px 4px 8px;
+  }
+  .scenario-label .tag {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 9px; letter-spacing: 0.5px;
+  }
+  .scenario-label .tag.before { background: rgba(255,70,85,0.15); color: var(--red); }
+  .scenario-label .tag.after { background: var(--green-tint); color: var(--green); }
+  .scenario-label .what { color: var(--muted); font-weight: 700; }
+
+  /* === Mock chrome (filter bar, day picker) — purely illustrative === */
+  .frame {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .sticky-strip {
+    background: rgba(10,10,10,0.94);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    padding: 10px 12px 12px;
+  }
+  .day-pills {
+    display: flex; gap: 6px; padding: 4px 0 10px;
+    overflow-x: auto;
+  }
+  .day-pill {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+    background: #1A1A1A;
+    color: var(--muted-2);
+    border: 1px solid transparent;
+    text-transform: uppercase;
+  }
+  .day-pill.active {
+    background: #0A0A0A;
+    color: var(--green);
+    border-color: var(--green-border);
+  }
+  .day-pill.muted { opacity: 0.55; }
+  .filter-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding-top: 4px;
+  }
+  .chunky-btn {
+    background: #0A0A0A;
+    color: var(--green);
+    border: 1px solid var(--green-border);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    padding: 8px 14px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .filters-pill {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: #1A1A1A;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--muted-2);
+  }
+  .live-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: rgba(255,70,85,0.1);
+    color: var(--red);
+    border: 1px solid rgba(255,70,85,0.35);
+    border-radius: 999px;
+    font-size: 11px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .live-pill.active { background: rgba(255,70,85,0.18); }
+  .live-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--red);
+  }
+  .body { padding: 12px 12px 16px; }
+
+  /* === EmptyState card — mirrors src/components/EmptyState.tsx === */
+  .empty {
+    clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 32px 20px 28px;
+    text-align: center;
+  }
+  .empty.compact { padding: 24px 20px; }
+  .empty .mascot {
+    width: 140px; height: 140px;
+    margin: 0 auto 12px;
+    background: url('/empty-state-padel.png') center/contain no-repeat;
+  }
+  .empty.compact .mascot { width: 96px; height: 96px; }
+  .empty .title {
+    font-size: 15px; font-weight: 800; color: #fff;
+    letter-spacing: -0.2px;
+    margin-bottom: 6px;
+  }
+  .empty .sub {
+    font-size: 12px; color: var(--muted);
+    line-height: 1.5;
+    max-width: 280px;
+    margin: 0 auto;
+  }
+  .empty .actions {
+    margin-top: 16px;
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  }
+  .cta-primary {
+    background: #0A0A0A;
+    color: var(--green);
+    border: 1px solid var(--green-border);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    padding: 10px 18px;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .cta-secondary {
+    background: transparent;
+    color: var(--muted-2);
+    border: 1px solid rgba(255,255,255,0.18);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    padding: 10px 18px;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.4px;
+    text-transform: uppercase;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  /* === Old (BEFORE) empty card — bare div, what users see today === */
+  .empty-bare {
+    clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 24px 20px;
+    text-align: center;
+  }
+  .empty-bare .h {
+    font-size: 14px; font-weight: 800; color: #fff;
+    margin-bottom: 6px;
+  }
+  .empty-bare .s {
+    font-size: 12px; color: var(--muted); line-height: 1.5;
+  }
+
+  .commentary {
+    font-size: 11px; color: var(--muted);
+    line-height: 1.6;
+    padding: 8px 12px;
+    background: rgba(126,211,33,0.04);
+    border-left: 2px solid var(--green-border);
+    margin: 6px 4px 14px;
+    border-radius: 0 4px 4px 0;
+  }
+  .commentary.red {
+    background: rgba(255,70,85,0.04);
+    border-left-color: rgba(255,70,85,0.4);
+  }
+  .commentary b { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>Matches empty states</h1>
+<p class="lede">
+  Session replays show users hitting empty states with no obvious way out.
+  This mockup compares the current state (BEFORE) with the proposed
+  affordance (AFTER) for each scenario.
+</p>
+
+<!-- ════════════════════════ SCENARIO 1 ════════════════════════ -->
+<h2 class="section-h">Scenario 1 — LIVE toggle on, no live matches</h2>
+
+<div class="scenario-label">
+  <span class="tag before">Before</span>
+  <span class="what">Bare card, generic "switch the league filter" hint, no button</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill muted">Mon 11</div>
+      <div class="day-pill muted">Tue 12</div>
+      <div class="day-pill active">Wed 13 · Today</div>
+      <div class="day-pill muted">Thu 14</div>
+      <div class="day-pill muted">Fri 15</div>
+    </div>
+    <div class="filter-bar">
+      <span class="live-pill active"><span class="dot"></span>Live</span>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="empty-bare">
+      <div class="h">All</div>
+      <div class="s">Try switching the league filter to see All or All matches.</div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary red">
+  <b>Problem.</b> Copy is generic ("All", "All or All matches" — reused from elsewhere),
+  no button. User who tapped LIVE has to figure out that re-tapping LIVE will fix it.
+</div>
+
+<div class="scenario-label">
+  <span class="tag after">After</span>
+  <span class="what">Mascot + scoped copy + "Show all matches" CTA</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill muted">Mon 11</div>
+      <div class="day-pill muted">Tue 12</div>
+      <div class="day-pill active">Wed 13 · Today</div>
+      <div class="day-pill muted">Thu 14</div>
+      <div class="day-pill muted">Fri 15</div>
+    </div>
+    <div class="filter-bar">
+      <span class="live-pill active"><span class="dot"></span>Live</span>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="empty compact">
+      <div class="mascot"></div>
+      <div class="title">No live matches right now</div>
+      <div class="sub">Nobody's on court — try upcoming or finished matches instead.</div>
+      <div class="actions">
+        <button class="cta-primary">Show all matches ›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary">
+  Tapping <b>Show all matches</b> flips status back to <code>{live, upcoming, finished: true}</code>
+  — surgical reset, keeps league/category selections intact.
+</div>
+
+
+<!-- ════════════════════════ SCENARIO 2 ════════════════════════ -->
+<h2 class="section-h">Scenario 2 — Past date, no matches</h2>
+
+<div class="scenario-label">
+  <span class="tag before">Before</span>
+  <span class="what">EmptyState + "Next matches" jump (already shipped)</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill muted">Sat 25</div>
+      <div class="day-pill muted">Sun 26</div>
+      <div class="day-pill active">Mon 27 Apr</div>
+      <div class="day-pill muted">Tue 28</div>
+      <div class="day-pill muted">Wed 29</div>
+    </div>
+    <div class="filter-bar">
+      <button class="chunky-btn">Today</button>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="empty">
+      <div class="mascot"></div>
+      <div class="title">Padel's taking the day off</div>
+      <div class="sub">Try another day or browse this week's tournaments using the picker above.</div>
+      <div class="actions">
+        <button class="cta-primary">Next matches: Wed 13 May ›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary">
+  <b>This already works</b> — but the jump button only points forward. A user who
+  drifted into a past date may want to bounce straight back to today (which is
+  also where most live action is). The small "Today" pill in the filter bar
+  helps but isn't where the eye is.
+</div>
+
+<div class="scenario-label">
+  <span class="tag after">After</span>
+  <span class="what">Same primary CTA + secondary "Back to today" when off-today</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill muted">Sat 25</div>
+      <div class="day-pill muted">Sun 26</div>
+      <div class="day-pill active">Mon 27 Apr</div>
+      <div class="day-pill muted">Tue 28</div>
+      <div class="day-pill muted">Wed 29</div>
+    </div>
+    <div class="filter-bar">
+      <button class="chunky-btn">Today</button>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="empty">
+      <div class="mascot"></div>
+      <div class="title">Padel's taking the day off</div>
+      <div class="sub">Try another day or browse this week's tournaments using the picker above.</div>
+      <div class="actions">
+        <button class="cta-primary">Next matches: Wed 13 May ›</button>
+        <button class="cta-secondary">Back to today</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary">
+  Two clear paths. Primary CTA preserved (lime, polygon) so existing users
+  keep their reflex. Secondary is muted outline so it doesn't compete.
+</div>
+
+
+<!-- ════════════════════════ SCENARIO 3 ════════════════════════ -->
+<h2 class="section-h">Scenario 3 — Empty day, no future matches in window</h2>
+
+<div class="scenario-label">
+  <span class="tag before">Before</span>
+  <span class="what">EmptyState, NO action (suggestedNextIso is null)</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill muted">Mon 11</div>
+      <div class="day-pill muted">Tue 12</div>
+      <div class="day-pill active">Wed 13 · Today</div>
+      <div class="day-pill muted">Thu 14</div>
+      <div class="day-pill muted">Fri 15</div>
+    </div>
+    <div class="filter-bar">
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="empty">
+      <div class="mascot"></div>
+      <div class="title">Padel's taking the day off</div>
+      <div class="sub">Try another day or browse this week's tournaments using the picker above.</div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary red">
+  <b>Dead end.</b> Off-season / between Premier swings — no matches anywhere
+  in the 30-day window. User has no button at all.
+</div>
+
+<div class="scenario-label">
+  <span class="tag after">After</span>
+  <span class="what">"Browse tournaments" fallback CTA</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill muted">Mon 11</div>
+      <div class="day-pill muted">Tue 12</div>
+      <div class="day-pill active">Wed 13 · Today</div>
+      <div class="day-pill muted">Thu 14</div>
+      <div class="day-pill muted">Fri 15</div>
+    </div>
+    <div class="filter-bar">
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="empty">
+      <div class="mascot"></div>
+      <div class="title">Padel's taking the day off</div>
+      <div class="sub">No matches scheduled in the next 30 days. Browse upcoming tournaments instead.</div>
+      <div class="actions">
+        <button class="cta-primary">Browse tournaments ›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary">
+  Routes to <code>/tournaments</code>. Different copy ("next 30 days") makes
+  the situation legible — this isn't "you picked the wrong day", this is
+  "the calendar is empty".
+</div>
+
+
+<!-- ════════════════════════ SCENARIO 4 ════════════════════════ -->
+<h2 class="section-h">Scenario 4 — Fetch error on day change</h2>
+
+<div class="scenario-label">
+  <span class="tag before">Before</span>
+  <span class="what">Same "day off" copy, no action — looks identical to empty success</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill muted">Sat 09</div>
+      <div class="day-pill muted">Sun 10</div>
+      <div class="day-pill active">Mon 11</div>
+      <div class="day-pill muted">Tue 12</div>
+      <div class="day-pill muted">Wed 13</div>
+    </div>
+    <div class="filter-bar">
+      <button class="chunky-btn">Today</button>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="empty">
+      <div class="mascot"></div>
+      <div class="title">Padel's taking the day off</div>
+      <div class="sub">Try another day or browse this week's tournaments using the picker above.</div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary red">
+  <b>Misleading.</b> A failed fetch shows the exact same "day off" mascot as
+  a real empty day. User thinks padel skipped Monday — but it's actually a
+  network blip and a retry would fix it.
+</div>
+
+<div class="scenario-label">
+  <span class="tag after">After</span>
+  <span class="what">Error-specific copy + Retry + Back to today</span>
+</div>
+
+<div class="frame">
+  <div class="sticky-strip">
+    <div class="day-pills">
+      <div class="day-pill muted">Sat 09</div>
+      <div class="day-pill muted">Sun 10</div>
+      <div class="day-pill active">Mon 11</div>
+      <div class="day-pill muted">Tue 12</div>
+      <div class="day-pill muted">Wed 13</div>
+    </div>
+    <div class="filter-bar">
+      <button class="chunky-btn">Today</button>
+      <span class="filters-pill">Filters</span>
+    </div>
+  </div>
+  <div class="body">
+    <div class="empty">
+      <div class="mascot"></div>
+      <div class="title">Couldn't load this day</div>
+      <div class="sub">Network blip — give it another shot, or hop back to today.</div>
+      <div class="actions">
+        <button class="cta-primary">Retry</button>
+        <button class="cta-secondary">Back to today</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="commentary">
+  Distinct copy so retry feels purposeful. "Back to today" is the safety
+  net when the user's just trying to escape.
+</div>
+
+
+<!-- ════════════════════════ Summary ════════════════════════ -->
+<h2 class="section-h">Summary of changes</h2>
+<div class="commentary">
+  <b>Files touched:</b><br>
+  • <code>src/components/MatchesFilterClient.tsx</code> — replace bare empty card with shared EmptyState + "Show all matches" CTA.<br>
+  • <code>src/components/MatchesDayShell.tsx</code> — add "Back to today" secondary + error-branch action; "Browse tournaments" fallback when no future matches.<br>
+  • <code>src/messages/{en,es,pt,it,fr}.json</code> — new keys: <code>noLiveTitle</code>, <code>noLiveSub</code>, <code>showAllMatches</code>, <code>backToToday</code>, <code>browseTournaments</code>, <code>errorTitle</code>, <code>errorSub</code>, <code>retry</code>, <code>noMatchesInWindowSub</code>.
+</div>
+
+</body>
+</html>
